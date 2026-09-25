@@ -38,6 +38,8 @@ type GuideFormData = {
   specialties: string;
   dailyRateVnd: number;
   bio: string;
+  serviceLatitude: string;
+  serviceLongitude: string;
 };
 
 const initialFormData: GuideFormData = {
@@ -53,6 +55,8 @@ const initialFormData: GuideFormData = {
   specialties: "Ẩm thực phố cổ, Lịch sử văn hóa",
   dailyRateVnd: 1200000,
   bio: "",
+  serviceLatitude: "",
+  serviceLongitude: "",
 };
 
 export function LocalMateGuidesView() {
@@ -179,6 +183,8 @@ export function LocalMateGuidesView() {
       specialties: guide.specialties.join(", "),
       dailyRateVnd: guide.dailyRateVnd,
       bio: guide.bio ?? "",
+      serviceLatitude: guide.serviceLatitude == null ? "" : String(guide.serviceLatitude),
+      serviceLongitude: guide.serviceLongitude == null ? "" : String(guide.serviceLongitude),
     });
     setOpenMenuGuideId(null);
     setModalOpen(true);
@@ -223,6 +229,36 @@ export function LocalMateGuidesView() {
       return;
     }
 
+    const hasLatitude = formData.serviceLatitude.trim() !== "";
+    const hasLongitude = formData.serviceLongitude.trim() !== "";
+    const serviceLatitude = Number(formData.serviceLatitude);
+    const serviceLongitude = Number(formData.serviceLongitude);
+    if (
+      hasLatitude !== hasLongitude ||
+      (hasLatitude &&
+        (!Number.isFinite(serviceLatitude) ||
+          !Number.isFinite(serviceLongitude) ||
+          serviceLatitude < -90 ||
+          serviceLatitude > 90 ||
+          serviceLongitude < -180 ||
+          serviceLongitude > 180))
+    ) {
+      await SwalVietSage.fire({
+        title: "Tọa độ chưa hợp lệ",
+        text: "Vui lòng nhập đủ vĩ độ (-90 đến 90) và kinh độ (-180 đến 180).",
+        icon: "warning",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+      return;
+    }
+
+    const coordinates = hasLatitude
+      ? { serviceLatitude, serviceLongitude }
+      : isEditing
+        ? { serviceLatitude: null, serviceLongitude: null }
+        : {};
+
     try {
       if (isEditing && formData.id) {
         const updatePayload: UpdateLocalMateGuideInput = {
@@ -237,6 +273,7 @@ export function LocalMateGuidesView() {
           specialties,
           dailyRateVnd: Number(formData.dailyRateVnd) || 1000000,
           bio: formData.bio.trim() || undefined,
+          ...coordinates,
         };
 
         await updateGuideMutation.mutateAsync({
@@ -265,6 +302,7 @@ export function LocalMateGuidesView() {
           specialties,
           dailyRateVnd: Number(formData.dailyRateVnd) || 1000000,
           bio: formData.bio.trim() || undefined,
+          ...coordinates,
         };
 
         const createdGuide = await createGuideMutation.mutateAsync({
@@ -1029,6 +1067,49 @@ export function LocalMateGuidesView() {
                   className="h-11 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-4 text-sm font-medium text-[#142823] focus:bg-white focus:border-[#173F35]"
                 />
               </div>
+
+              <fieldset className="rounded-2xl border border-[#25483F]/12 bg-[#FBF9F5] p-4">
+                <legend className="px-1 text-sm font-bold text-[#173F35]">
+                  Mốc vị trí phục vụ LocalMate
+                </legend>
+                <p className="mb-3 text-sm text-[#52635A]">
+                  Dùng để tính khoảng cách tới khách sạn. Đây là điểm phục vụ đại diện, không phải địa chỉ nhà riêng.
+                </p>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="localmate-service-latitude" className="mb-1.5 block text-sm font-semibold text-[#485951]">
+                      Vĩ độ
+                    </label>
+                    <input
+                      id="localmate-service-latitude"
+                      type="number"
+                      step="any"
+                      min={-90}
+                      max={90}
+                      value={formData.serviceLatitude}
+                      onChange={(e) => setFormData({ ...formData, serviceLatitude: e.target.value })}
+                      placeholder="21.033333"
+                      className="h-12 w-full rounded-xl border border-[#25483F]/15 bg-white px-4 text-base font-medium text-[#142823] focus:border-[#173F35] focus:outline-none focus:ring-2 focus:ring-[#173F35]/15"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="localmate-service-longitude" className="mb-1.5 block text-sm font-semibold text-[#485951]">
+                      Kinh độ
+                    </label>
+                    <input
+                      id="localmate-service-longitude"
+                      type="number"
+                      step="any"
+                      min={-180}
+                      max={180}
+                      value={formData.serviceLongitude}
+                      onChange={(e) => setFormData({ ...formData, serviceLongitude: e.target.value })}
+                      placeholder="104.883333"
+                      className="h-12 w-full rounded-xl border border-[#25483F]/15 bg-white px-4 text-base font-medium text-[#142823] focus:border-[#173F35] focus:outline-none focus:ring-2 focus:ring-[#173F35]/15"
+                    />
+                  </div>
+                </div>
+              </fieldset>
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1.5">

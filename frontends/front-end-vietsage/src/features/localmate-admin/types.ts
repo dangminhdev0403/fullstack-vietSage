@@ -17,6 +17,8 @@ export type LocalMateGuide = {
   operatingRegions: string[];
   specialties: string[];
   bio: string | null;
+  serviceLatitude: number | null;
+  serviceLongitude: number | null;
   dailyRateVnd: number;
   rating: number;
   totalReviews: number;
@@ -44,6 +46,8 @@ export type CreateLocalMateGuideInput = {
   operatingRegions: string[];
   specialties?: string[];
   bio?: string;
+  serviceLatitude?: number | null;
+  serviceLongitude?: number | null;
   dailyRateVnd?: number;
 };
 
@@ -67,6 +71,8 @@ export type LocalMateTourKnowledge = {
   highlights: string[];
   content: string;
   sourceFileName: string | null;
+  latitude: number | null;
+  longitude: number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -81,6 +87,8 @@ export type CreateLocalMateTourInput = {
   duration: string;
   highlights?: string[];
   content: string;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 export type UpdateLocalMateTourInput = Partial<CreateLocalMateTourInput>;

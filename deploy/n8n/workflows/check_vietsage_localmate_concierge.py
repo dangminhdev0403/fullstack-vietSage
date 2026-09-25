@@ -15,6 +15,17 @@ ai=nodes["06 · Sinh phản hồi LocalMate AI"]; tf=ai["parameters"]["options"]
 assert ai["typeVersion"]==2.3 and tf["type"]=="json_schema" and tf["strict"] is True
 json.loads(tf["schema"])
 assert "$env" not in nodes["04 · Tra cứu Tour & LocalMate"]["parameters"]["url"]
+normalizer=nodes["02 · Chuẩn hóa & phân loại"]["parameters"]["jsCode"]
+assert all(field in normalizer for field in ("hotelId", "hotelName", "radiusKm"))
+knowledge_body=nodes["04 · Tra cứu Tour & LocalMate"]["parameters"]["jsonBody"]
+assert all(field in knowledge_body for field in ("hotelId", "radiusKm"))
+context_code=nodes["05 · Đóng gói ngữ cảnh"]["parameters"]["jsCode"]
+assert "distanceKm" in context_code and "locationScope" in context_code
+assert ".filter(" not in context_code
+assert "tourCode" not in context_code and "guideCode" not in context_code
+sys_prompt = ai["parameters"]["responses"]["values"][0]["content"]
+assert all(term in sys_prompt for term in ("KNOWLEDGE", "title", "duration", "fullName", "Không hiển thị ID", "JSON theo schema"))
+assert "\n\n" not in sys_prompt
 assert w["settings"]["saveDataSuccessExecution"] == "none"
 assert w["settings"]["saveExecutionProgress"] is False
 main_lane=["01 · Nhận yêu cầu du khách","02 · Chuẩn hóa & phân loại","03 · Cần tra cứu tri thức?","04 · Tra cứu Tour & LocalMate","05 · Đóng gói ngữ cảnh","06 · Sinh phản hồi LocalMate AI","07 · Chuẩn hóa phản hồi","08 · Trả JSON về BFF"]

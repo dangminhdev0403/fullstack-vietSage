@@ -2291,6 +2291,8 @@ model LocalMateProfile {
   operatingRegions String[]
   specialties      String[]
   bio              String?         @db.VarChar(1000)
+  serviceLatitude  Decimal?        @db.Decimal(9, 6)
+  serviceLongitude Decimal?        @db.Decimal(9, 6)
   dailyRateVnd     Int             @default(1000000)
   rating           Float           @default(5.0)
   totalReviews     Int             @default(0)
@@ -2304,6 +2306,7 @@ model LocalMateProfile {
   @@index([userId])
   @@index([tenantId])
   @@index([position])
+  @@index([serviceLatitude, serviceLongitude])
 }
 
 enum TourScope {
@@ -2324,6 +2327,8 @@ model LocalMateTourKnowledge {
   provinceCode   String    @default("LAO_CAI") @db.VarChar(40)
   province       String    @default("Lào Cai") @db.VarChar(80)
   tourScope      TourScope @default(LOCAL)
+  latitude       Decimal?  @db.Decimal(9, 6)
+  longitude      Decimal?  @db.Decimal(9, 6)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -2331,5 +2336,6 @@ model LocalMateTourKnowledge {
   @@index([tourCode])
   @@index([provinceCode])
   @@index([tourScope])
+  @@index([latitude, longitude])
 }
 

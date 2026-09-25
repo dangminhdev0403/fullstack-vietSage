@@ -56,8 +56,6 @@ export async function POST(request: Request) {
     const timeoutId = setTimeout(() => controller.abort(), 15_000);
 
     try {
-      const resolvedDestination = destination || current.session?.hotel?.name || "";
-
       const n8nResponse = await fetch(N8N_WEBHOOK_URL, {
         method: "POST",
         headers: {
@@ -66,9 +64,12 @@ export async function POST(request: Request) {
         },
         body: JSON.stringify({
           message,
-          destination: resolvedDestination,
+          destination,
+          hotelId: current.session.hotelId,
+          hotelName: current.session.hotel.name,
           sessionId: current.session.id,
           language,
+          radiusKm: 50,
           limit: 5,
         }),
         signal: controller.signal,

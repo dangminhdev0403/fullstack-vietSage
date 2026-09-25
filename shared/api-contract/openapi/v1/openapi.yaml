@@ -8255,6 +8255,81 @@ paths:
     post:
       operationId: LocalMateAdminController_createGuide
       parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - fullName
+                - phone
+                - avatarUrl
+                - languages
+                - operatingRegions
+              properties:
+                guideCode:
+                  type: string
+                  minLength: 2
+                  maxLength: 40
+                fullName:
+                  type: string
+                  minLength: 2
+                  maxLength: 120
+                phone:
+                  type: string
+                  minLength: 8
+                  maxLength: 40
+                email:
+                  type: string
+                  format: email
+                avatarUrl:
+                  type: string
+                  format: uri
+                status:
+                  type: string
+                  enum:
+                    - PENDING
+                    - QUALIFIED
+                    - SUSPENDED
+                position:
+                  type: string
+                  maxLength: 80
+                languages:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                operatingRegions:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                specialties:
+                  type: array
+                  items:
+                    type: string
+                bio:
+                  type: string
+                  maxLength: 1000
+                serviceLatitude:
+                  type: number
+                  minimum: -90
+                  maximum: 90
+                  nullable: true
+                serviceLongitude:
+                  type: number
+                  minimum: -180
+                  maximum: 180
+                  nullable: true
+                dailyRateVnd:
+                  type: integer
+                  minimum: 0
+                userId:
+                  type: string
+                tenantId:
+                  type: string
       responses:
         "201":
           description: ""
@@ -8288,6 +8363,75 @@ paths:
           in: path
           schema:
             type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                guideCode:
+                  type: string
+                  minLength: 2
+                  maxLength: 40
+                fullName:
+                  type: string
+                  minLength: 2
+                  maxLength: 120
+                phone:
+                  type: string
+                  minLength: 8
+                  maxLength: 40
+                email:
+                  type: string
+                  format: email
+                avatarUrl:
+                  type: string
+                  format: uri
+                status:
+                  type: string
+                  enum:
+                    - PENDING
+                    - QUALIFIED
+                    - SUSPENDED
+                position:
+                  type: string
+                  maxLength: 80
+                languages:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                operatingRegions:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                specialties:
+                  type: array
+                  items:
+                    type: string
+                bio:
+                  type: string
+                  maxLength: 1000
+                serviceLatitude:
+                  type: number
+                  minimum: -90
+                  maximum: 90
+                  nullable: true
+                serviceLongitude:
+                  type: number
+                  minimum: -180
+                  maximum: 180
+                  nullable: true
+                dailyRateVnd:
+                  type: integer
+                  minimum: 0
+                userId:
+                  type: string
+                tenantId:
+                  type: string
       responses:
         "200":
           description: ""
@@ -8309,18 +8453,74 @@ paths:
     post:
       operationId: LocalMateAdminController_createTour
       parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - title
+                - destination
+                - duration
+                - content
+              properties:
+                tourCode:
+                  type: string
+                  minLength: 2
+                  maxLength: 80
+                title:
+                  type: string
+                  minLength: 2
+                  maxLength: 255
+                destination:
+                  type: string
+                  minLength: 2
+                  maxLength: 120
+                duration:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                highlights:
+                  type: array
+                  items:
+                    type: string
+                content:
+                  type: string
+                  minLength: 5
+                sourceFileName:
+                  type: string
+                  maxLength: 255
+                provinceCode:
+                  type: string
+                  maxLength: 40
+                province:
+                  type: string
+                  maxLength: 80
+                tourScope:
+                  type: string
+                  enum:
+                    - LOCAL
+                    - REGIONAL_DAYTRIP
+                    - INTERPROVINCIAL
+                latitude:
+                  type: number
+                  minimum: -90
+                  maximum: 90
+                  nullable: true
+                longitude:
+                  type: number
+                  minimum: -180
+                  maximum: 180
+                  nullable: true
       responses:
         "201":
           description: ""
       tags: *a33
     get:
       operationId: LocalMateAdminController_listTours
-      parameters:
-        - name: destination
-          required: true
-          in: query
-          schema:
-            type: string
+      parameters: []
       responses:
         "200":
           description: ""
@@ -8334,6 +8534,62 @@ paths:
           in: path
           schema:
             type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                tourCode:
+                  type: string
+                  minLength: 2
+                  maxLength: 80
+                title:
+                  type: string
+                  minLength: 2
+                  maxLength: 255
+                destination:
+                  type: string
+                  minLength: 2
+                  maxLength: 120
+                duration:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                highlights:
+                  type: array
+                  items:
+                    type: string
+                content:
+                  type: string
+                  minLength: 5
+                sourceFileName:
+                  type: string
+                  maxLength: 255
+                provinceCode:
+                  type: string
+                  maxLength: 40
+                province:
+                  type: string
+                  maxLength: 80
+                tourScope:
+                  type: string
+                  enum:
+                    - LOCAL
+                    - REGIONAL_DAYTRIP
+                    - INTERPROVINCIAL
+                latitude:
+                  type: number
+                  minimum: -90
+                  maximum: 90
+                  nullable: true
+                longitude:
+                  type: number
+                  minimum: -180
+                  maximum: 180
+                  nullable: true
       responses:
         "200":
           description: ""
@@ -8354,6 +8610,47 @@ paths:
     get:
       operationId: LocalMateAiController_getKnowledge
       parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            example: 5
+            type: number
+        - name: scope
+          required: false
+          in: query
+          schema:
+            enum:
+              - LOCAL
+              - REGIONAL_DAYTRIP
+              - INTERPROVINCIAL
+            type: string
+        - name: provinceCode
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: radiusKm
+          required: false
+          in: query
+          schema:
+            example: 50
+            type: number
+        - name: hotelId
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: destination
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: query
+          required: false
+          in: query
+          schema:
+            type: string
         - name: X-VietSage-Knowledge-Key
           in: header
           description: Dedicated API key for machine-to-machine knowledge access
@@ -8380,6 +8677,39 @@ paths:
           required: true
           schema:
             type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                query:
+                  type: string
+                destination:
+                  type: string
+                hotelId:
+                  type: string
+                  description: Trusted hotel anchor supplied by the authenticated GuestOS BFF.
+                radiusKm:
+                  type: number
+                  minimum: 1
+                  maximum: 300
+                  default: 50
+                provinceCode:
+                  type: string
+                scope:
+                  type: string
+                  enum:
+                    - LOCAL
+                    - REGIONAL_DAYTRIP
+                    - INTERPROVINCIAL
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  default: 5
       responses:
         "200":
           description: Structured LocalMate knowledge

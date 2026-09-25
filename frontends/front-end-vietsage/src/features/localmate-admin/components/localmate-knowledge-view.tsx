@@ -9,27 +9,22 @@ import { localMateAdminResource } from "../resource";
 import {
   PROVINCE_MAP,
   PROVINCES,
+  REGIONS,
+  REGION_MAP,
   TOUR_SCOPE_MAP,
   TOUR_SCOPES,
+  COMMON_TOUR_DURATIONS,
   detectProvinceFromDestination,
+  normalizeTourDuration,
+  type RegionCode,
 } from "../constants/geography";
+import { LocalMateGeographyNav } from "./localmate-geography-nav";
 import type {
   CreateLocalMateTourInput,
   LocalMateTourKnowledge,
   LocalMateTourScope,
-  MatchAiResponse,
-  MatchedLocalMateItem,
-  MatchLocalMateAiInput,
   UpdateLocalMateTourInput,
 } from "../types";
-
-function formatVnd(amount: number): string {
-  return new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
 
 function formatDate(isoString: string): string {
   try {
@@ -55,6 +50,8 @@ type TourFormData = {
   duration: string;
   highlights: string;
   content: string;
+  latitude: string;
+  longitude: string;
 };
 
 const initialFormData: TourFormData = {
@@ -67,15 +64,39 @@ const initialFormData: TourFormData = {
   duration: "",
   highlights: "",
   content: "",
+  latitude: "",
+  longitude: "",
 };
 
 export function LocalMateKnowledgeView() {
   // Cascading Geography & Classification Filters
+  const [regionFilter, setRegionFilter] = useState<"ALL" | RegionCode>("ALL");
   const [provinceFilter, setProvinceFilter] = useState("ALL");
   const [destinationFilter, setDestinationFilter] = useState("ALL");
   const [scopeFilter, setScopeFilter] = useState("ALL");
   const [durationFilter, setDurationFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSelectProvince = (provCode: string) => {
+    setProvinceFilter(provCode);
+    setDestinationFilter("ALL");
+    if (provCode === "ALL") {
+      setRegionFilter("ALL");
+    } else {
+      const tax = PROVINCE_MAP[provCode];
+      if (tax?.regionCode) {
+        setRegionFilter(tax.regionCode);
+      }
+    }
+    setCurrentPage(1);
+  };
+
+  const handleSelectRegion = (reg: "ALL" | RegionCode) => {
+    setRegionFilter(reg);
+    setProvinceFilter("ALL");
+    setDestinationFilter("ALL");
+    setCurrentPage(1);
+  };
 
   // Selection
   const [selectedTourIds, setSelectedTourIds] = useState<Set<string>>(new Set());
@@ -89,14 +110,6 @@ export function LocalMateKnowledgeView() {
   const [isTourModalOpen, setIsTourModalOpen] = useState(false);
   const [editingTourId, setEditingTourId] = useState<string | null>(null);
   const [tourFormData, setTourFormData] = useState<TourFormData>(initialFormData);
-
-  // AI Matching Form State
-  const [showAiTester, setShowAiTester] = useState(false);
-  const [aiDestination, setAiDestination] = useState("Hồ Thác Bà");
-  const [aiLanguage, setAiLanguage] = useState("English");
-  const [aiPreferences, setAiPreferences] = useState("Chèo SUP, Cắm trại, Ẩm thực");
-  const [aiDurationDays, setAiDurationDays] = useState(1);
-  const [aiResults, setAiResults] = useState<MatchAiResponse | null>(null);
 
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -125,7 +138,6 @@ export function LocalMateKnowledgeView() {
   const createTourMutation = useMutation(resource.mutations.createTour.options());
   const updateTourMutation = useMutation(resource.mutations.updateTour.options());
   const deleteTourMutation = useMutation(resource.mutations.deleteTour.options());
-  const matchAiMutation = useMutation(resource.mutations.matchAi.options());
 
   const tours: LocalMateTourKnowledge[] = useMemo(() => data?.tours ?? [], [data?.tours]);
 
@@ -142,7 +154,7 @@ export function LocalMateKnowledgeView() {
   const coveredProvincesCount = useMemo(() => {
     const pCodes = new Set<string>();
     for (const t of tours) {
-      const detected = detectProvinceFromDestination(t.destination);
+      const detected = detectProvinceFromDestination(t.destination, t.title);
       const code = t.provinceCode || detected?.code;
       if (code) pCodes.add(code);
     }
@@ -153,12 +165,12 @@ export function LocalMateKnowledgeView() {
   const durations = useMemo(() => {
     const set = new Set<string>();
     for (const t of tours) {
-      if (t.duration) set.add(t.duration);
+      if (t.duration) set.add(normalizeTourDuration(t.duration));
     }
     return Array.from(set).sort();
   }, [tours]);
 
-  // Child destinations list based on selected province filter
+  // Child destinations list based on selected province or region filter
   const cascadingDestinations = useMemo(() => {
     if (provinceFilter !== "ALL") {
       const taxonomy = PROVINCE_MAP[provinceFilter];
@@ -167,13 +179,30 @@ export function LocalMateKnowledgeView() {
       // Include destinations from actual tours under this province
       const tourDests = new Set<string>();
       for (const t of tours) {
-        const detected = detectProvinceFromDestination(t.destination);
+        const detected = detectProvinceFromDestination(t.destination, t.title);
         const code = t.provinceCode || detected?.code;
         if (code === provinceFilter && t.destination) {
           tourDests.add(t.destination);
         }
       }
       return Array.from(new Set([...baseDestinations, ...Array.from(tourDests)])).sort();
+    }
+
+    if (regionFilter !== "ALL") {
+      const regProvs = PROVINCES.filter((p) => p.regionCode === regionFilter);
+      const regCodes = new Set(regProvs.map((p) => p.code));
+      const allSet = new Set<string>();
+      for (const p of regProvs) {
+        for (const d of p.destinations) allSet.add(d);
+      }
+      for (const t of tours) {
+        const detected = detectProvinceFromDestination(t.destination, t.title);
+        const code = t.provinceCode || detected?.code;
+        if (code && regCodes.has(code) && t.destination) {
+          allSet.add(t.destination);
+        }
+      }
+      return Array.from(allSet).sort();
     }
 
     // When ALL provinces are selected: return all unique destinations
@@ -185,22 +214,30 @@ export function LocalMateKnowledgeView() {
       if (t.destination) allSet.add(t.destination);
     }
     return Array.from(allSet).sort();
-  }, [provinceFilter, tours]);
+  }, [provinceFilter, regionFilter, tours]);
 
   // Filtered tours
   const filteredTours = useMemo(() => {
     return tours.filter((t) => {
-      const detected = detectProvinceFromDestination(t.destination);
+      const detected = detectProvinceFromDestination(t.destination, t.title);
       const tourProvCode = t.provinceCode || detected?.code || "";
       const tourProvName = t.province || (tourProvCode ? PROVINCE_MAP[tourProvCode]?.name : detected?.name) || "";
       const tourScope = t.tourScope;
 
+      const tourTax = tourProvCode ? PROVINCE_MAP[tourProvCode] : undefined;
+      const tourRegCode = tourTax?.regionCode;
+
+      const matchesRegion = regionFilter === "ALL" || tourRegCode === regionFilter;
       const matchesProvince = provinceFilter === "ALL" || tourProvCode === provinceFilter;
       const matchesDest =
         destinationFilter === "ALL" ||
         t.destination.toLowerCase() === destinationFilter.toLowerCase();
       const matchesScope = scopeFilter === "ALL" || tourScope === scopeFilter;
-      const matchesDuration = durationFilter === "ALL" || t.duration === durationFilter;
+      const tourDurationNorm = normalizeTourDuration(t.duration);
+      const matchesDuration =
+        durationFilter === "ALL" ||
+        tourDurationNorm === durationFilter ||
+        t.duration === durationFilter;
 
       const q = searchQuery.trim().toLowerCase();
       const matchesQuery =
@@ -211,12 +248,13 @@ export function LocalMateKnowledgeView() {
         tourProvName.toLowerCase().includes(q) ||
         (t.highlights && t.highlights.some((h) => h.toLowerCase().includes(q)));
 
-      return matchesProvince && matchesDest && matchesScope && matchesDuration && matchesQuery;
+      return matchesRegion && matchesProvince && matchesDest && matchesScope && matchesDuration && matchesQuery;
     });
-  }, [tours, provinceFilter, destinationFilter, scopeFilter, durationFilter, searchQuery]);
+  }, [tours, regionFilter, provinceFilter, destinationFilter, scopeFilter, durationFilter, searchQuery]);
 
   // Check if any filter is active
   const hasActiveFilters =
+    regionFilter !== "ALL" ||
     provinceFilter !== "ALL" ||
     destinationFilter !== "ALL" ||
     scopeFilter !== "ALL" ||
@@ -224,6 +262,7 @@ export function LocalMateKnowledgeView() {
     searchQuery.trim().length > 0;
 
   const handleClearFilters = () => {
+    setRegionFilter("ALL");
     setProvinceFilter("ALL");
     setDestinationFilter("ALL");
     setScopeFilter("ALL");
@@ -258,7 +297,7 @@ export function LocalMateKnowledgeView() {
 
   // Open Edit Modal with auto-mapping
   const handleOpenEditModal = (tour: LocalMateTourKnowledge) => {
-    const detected = detectProvinceFromDestination(tour.destination);
+    const detected = detectProvinceFromDestination(tour.destination, tour.title);
     const provCode = tour.provinceCode || detected?.code || "";
     const provName =
       tour.province ||
@@ -273,9 +312,11 @@ export function LocalMateKnowledgeView() {
       province: provName,
       destination: tour.destination,
       tourScope: tour.tourScope || "",
-      duration: tour.duration,
+      duration: normalizeTourDuration(tour.duration),
       highlights: (tour.highlights || []).join(", "),
       content: tour.content,
+      latitude: tour.latitude == null ? "" : String(tour.latitude),
+      longitude: tour.longitude == null ? "" : String(tour.longitude),
     });
     setOpenMenuTourId(null);
     setIsTourModalOpen(true);
@@ -283,7 +324,7 @@ export function LocalMateKnowledgeView() {
 
   // Duplicate Tour
   const handleDuplicateTour = (tour: LocalMateTourKnowledge) => {
-    const detected = detectProvinceFromDestination(tour.destination);
+    const detected = detectProvinceFromDestination(tour.destination, tour.title);
     const provCode = tour.provinceCode || detected?.code || "";
     const provName =
       tour.province ||
@@ -298,9 +339,11 @@ export function LocalMateKnowledgeView() {
       province: provName,
       destination: tour.destination,
       tourScope: tour.tourScope || "",
-      duration: tour.duration,
+      duration: normalizeTourDuration(tour.duration),
       highlights: (tour.highlights || []).join(", "),
       content: tour.content,
+      latitude: tour.latitude == null ? "" : String(tour.latitude),
+      longitude: tour.longitude == null ? "" : String(tour.longitude),
     });
     setOpenMenuTourId(null);
     setIsTourModalOpen(true);
@@ -337,15 +380,45 @@ export function LocalMateKnowledgeView() {
       .map((s) => s.trim())
       .filter(Boolean);
 
-    const detected = detectProvinceFromDestination(tourFormData.destination);
+    const detected = detectProvinceFromDestination(tourFormData.destination, tourFormData.title);
     const resolvedProvCode =
       tourFormData.provinceCode.trim() || detected?.code || undefined;
     const resolvedProvName =
       tourFormData.province.trim() ||
       (resolvedProvCode ? PROVINCE_MAP[resolvedProvCode]?.name : detected?.name) ||
       undefined;
+    const hasLatitude = tourFormData.latitude.trim() !== "";
+    const hasLongitude = tourFormData.longitude.trim() !== "";
+    const latitude = Number(tourFormData.latitude);
+    const longitude = Number(tourFormData.longitude);
+    if (
+      hasLatitude !== hasLongitude ||
+      (hasLatitude &&
+        (!Number.isFinite(latitude) ||
+          !Number.isFinite(longitude) ||
+          latitude < -90 ||
+          latitude > 90 ||
+          longitude < -180 ||
+          longitude > 180))
+    ) {
+      await SwalVietSage.fire({
+        title: "Tọa độ chưa hợp lệ",
+        text: "Vui lòng nhập đủ vĩ độ (-90 đến 90) và kinh độ (-180 đến 180).",
+        icon: "warning",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+      return;
+    }
+    const coordinates = hasLatitude
+      ? { latitude, longitude }
+      : editingTourId
+        ? { latitude: null, longitude: null }
+        : {};
 
     try {
+      const canonicalDuration = normalizeTourDuration(tourFormData.duration.trim());
+
       if (editingTourId) {
         const payload: UpdateLocalMateTourInput = {
           tourCode: tourFormData.tourCode.trim() || undefined,
@@ -354,9 +427,10 @@ export function LocalMateKnowledgeView() {
           provinceCode: resolvedProvCode,
           province: resolvedProvName,
           tourScope: (tourFormData.tourScope as LocalMateTourScope) || undefined,
-          duration: tourFormData.duration.trim(),
+          duration: canonicalDuration,
           highlights: highlightsArray,
           content: tourFormData.content.trim(),
+          ...coordinates,
         };
 
         await updateTourMutation.mutateAsync({
@@ -379,9 +453,10 @@ export function LocalMateKnowledgeView() {
           provinceCode: resolvedProvCode,
           province: resolvedProvName,
           tourScope: (tourFormData.tourScope as LocalMateTourScope) || undefined,
-          duration: tourFormData.duration.trim(),
+          duration: canonicalDuration,
           highlights: highlightsArray,
           content: tourFormData.content.trim(),
+          ...coordinates,
         };
 
         await createTourMutation.mutateAsync({ input: payload });
@@ -446,47 +521,6 @@ export function LocalMateKnowledgeView() {
     }
   };
 
-  // AI Match Simulation
-  const handleRunAiMatch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const prefs = aiPreferences
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-
-      const payload: MatchLocalMateAiInput = {
-        destination: aiDestination.trim() || undefined,
-        language: aiLanguage.trim() || undefined,
-        preferences: prefs.length > 0 ? prefs : undefined,
-        durationDays: Number(aiDurationDays) || 1,
-        limit: 3,
-      };
-
-      const results = await matchAiMutation.mutateAsync({ input: payload });
-      setAiResults(results);
-
-      if (!results || !results.topLocalMates || results.topLocalMates.length === 0) {
-        await SwalVietSage.fire({
-          title: "Không tìm thấy kết quả",
-          text: "Chưa tìm thấy hướng dẫn viên phù hợp hoàn toàn với tiêu chí này.",
-          icon: "info",
-          showConfirmButton: true,
-          confirmButtonText: "OK",
-        });
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Không thể thực hiện ghép đôi AI.";
-      await SwalVietSage.fire({
-        title: "Lỗi ghép đôi AI",
-        text: msg,
-        icon: "error",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
-    }
-  };
-
   // Bulk selection toggles
   const handleToggleSelectAll = () => {
     if (selectedTourIds.size === paginatedTours.length) {
@@ -507,7 +541,7 @@ export function LocalMateKnowledgeView() {
   const isSaving = createTourMutation.isPending || updateTourMutation.isPending;
 
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="space-y-6">
       {/* Header section */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-1">
         <div>
@@ -622,15 +656,18 @@ export function LocalMateKnowledgeView() {
           <div className="lg:col-span-2">
             <select
               value={provinceFilter}
-              onChange={(e) => {
-                setProvinceFilter(e.target.value);
-                setDestinationFilter("ALL"); // Reset destination when province changes
-                setCurrentPage(1);
-              }}
+              onChange={(e) => handleSelectProvince(e.target.value)}
               className="h-12 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3.5 text-sm font-semibold text-[#142823] focus:border-[#173F35] focus:bg-white focus:outline-none cursor-pointer transition-all"
             >
-              <option value="ALL">Tất cả Tỉnh / TP</option>
-              {PROVINCES.map((prov) => (
+              <option value="ALL">
+                {regionFilter !== "ALL"
+                  ? `Tất cả (${REGION_MAP[regionFilter]?.name})`
+                  : "Tất cả Tỉnh / TP"}
+              </option>
+              {(regionFilter !== "ALL"
+                ? PROVINCES.filter((p) => p.regionCode === regionFilter)
+                : PROVINCES
+              ).map((prov) => (
                 <option key={prov.code} value={prov.code}>
                   {prov.name}
                 </option>
@@ -695,20 +732,6 @@ export function LocalMateKnowledgeView() {
               </button>
             )}
 
-            {/* AI Match Button */}
-            <button
-              type="button"
-              onClick={() => setShowAiTester(!showAiTester)}
-              className={`inline-flex h-12 items-center gap-2 rounded-xl px-4 text-xs font-bold transition-all active:scale-[0.98] cursor-pointer shadow-xs ${
-                showAiTester
-                  ? "bg-[#173F35] text-white"
-                  : "border border-[#B18B26]/30 bg-[#FFFDF9] text-[#916E15] hover:border-[#B18B26] hover:bg-[#FFF9EC]"
-              }`}
-            >
-              <VsIcon name="smart_toy" className="text-base" />
-              <span className="hidden xl:inline">{showAiTester ? "Đóng AI" : "AI Match"}</span>
-            </button>
-
             {/* Refresh Button */}
             <button
               type="button"
@@ -722,161 +745,21 @@ export function LocalMateKnowledgeView() {
         </div>
       </div>
 
-      {/* AI Match Tester Panel */}
-      {showAiTester && (
-        <div className="rounded-2xl border border-[#25483F]/15 bg-[#FAF8F5] p-5 shadow-xs transition-all">
-          <div className="flex items-center justify-between border-b border-[#25483F]/10 pb-3">
-            <div className="flex items-center gap-2.5">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#173F35] text-white">
-                <VsIcon name="smart_toy" className="text-lg" />
-              </span>
-              <div>
-                <h3 className="text-base font-bold text-[#142823]">
-                  Mô phỏng ghép đôi LocalMate AI
-                </h3>
-                <p className="text-xs text-[#52635A]">
-                  Kiểm tra thuật toán tìm kiếm và ghép nối HDV cùng lịch trình phù hợp với nhu cầu khách lưu trú.
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowAiTester(false)}
-              className="text-[#52635A] hover:text-[#142823] cursor-pointer"
-            >
-              <VsIcon name="close" className="text-xl" />
-            </button>
-          </div>
+      {/* 2-Column Section: Box Khu Vực (Left) & Bảng Tour (Right) */}
+      <div className="flex flex-col lg:flex-row items-start gap-6">
+        {/* Left Column: Nav dọc phân vùng địa lý (4 khu vực) */}
+        <LocalMateGeographyNav
+          regionFilter={regionFilter}
+          onSelectRegion={handleSelectRegion}
+          provinceFilter={provinceFilter}
+          onSelectProvince={handleSelectProvince}
+          tours={tours}
+        />
 
-          <form onSubmit={handleRunAiMatch} className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-4">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#485951]">
-                Điểm đến
-              </label>
-              <select
-                value={aiDestination}
-                onChange={(e) => setAiDestination(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-[#25483F]/15 bg-white px-3.5 py-2.5 text-sm font-semibold text-[#142823]"
-              >
-                <option value="Hồ Thác Bà">Hồ Thác Bà</option>
-                <option value="Mù Cang Chải">Mù Cang Chải</option>
-                <option value="Trạm Tấu">Trạm Tấu</option>
-                <option value="Suối Giàng">Suối Giàng</option>
-                <option value="Nghĩa Lộ">Nghĩa Lộ</option>
-                <option value="Tú Lệ">Tú Lệ</option>
-                <option value="Sa Pa">Sa Pa</option>
-                <option value="Hà Nội">Hà Nội</option>
-                <option value="Hội An">Hội An</option>
-                <option value="Phú Quốc">Phú Quốc</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#485951]">
-                Ngôn ngữ khách nói
-              </label>
-              <select
-                value={aiLanguage}
-                onChange={(e) => setAiLanguage(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-[#25483F]/15 bg-white px-3.5 py-2.5 text-sm font-semibold text-[#142823]"
-              >
-                <option value="English">Tiếng Anh (English)</option>
-                <option value="Vietnamese">Tiếng Việt (Vietnamese)</option>
-                <option value="French">Tiếng Pháp (French)</option>
-                <option value="H'Mông">Tiếng H&apos;Mông</option>
-                <option value="Thái">Tiếng Thái</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#485951]">
-                Sở thích / Gu du lịch
-              </label>
-              <input
-                type="text"
-                value={aiPreferences}
-                onChange={(e) => setAiPreferences(e.target.value)}
-                placeholder="Chèo SUP, Cắm trại, Ẩm thực..."
-                className="mt-1 w-full rounded-xl border border-[#25483F]/15 bg-white px-3.5 py-2.5 text-sm text-[#142823]"
-              />
-            </div>
-
-            <div className="flex items-end gap-2">
-              <div className="flex-1">
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#485951]">
-                  Số ngày
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={7}
-                  value={aiDurationDays}
-                  onChange={(e) => setAiDurationDays(Number(e.target.value))}
-                  className="mt-1 w-full rounded-xl border border-[#25483F]/15 bg-white px-3.5 py-2.5 text-sm font-bold text-[#142823]"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={matchAiMutation.isPending}
-                className="inline-flex h-11 items-center gap-1.5 rounded-xl bg-[#173F35] px-4 text-sm font-semibold text-white hover:bg-[#12322a] disabled:opacity-50 cursor-pointer shadow-xs"
-              >
-                <VsIcon name="search" className="text-base" />
-                <span>{matchAiMutation.isPending ? "Đang tìm..." : "Khớp nối"}</span>
-              </button>
-            </div>
-          </form>
-
-          {/* AI Results */}
-          {aiResults && aiResults.topLocalMates && aiResults.topLocalMates.length > 0 && (
-            <div className="mt-4 space-y-3 border-t border-[#25483F]/10 pt-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-[#173F35]">
-                Top {aiResults.topLocalMates.length} LocalMate được gợi ý cho {aiDestination} ({aiLanguage}):
-              </h4>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {aiResults.topLocalMates.map((guide: MatchedLocalMateItem) => (
-                  <div
-                    key={guide.guideCode}
-                    className="rounded-xl border border-[#25483F]/12 bg-white p-3.5 shadow-xs"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="rounded-full bg-[#16805C]/10 px-2 py-0.5 text-xs font-bold text-[#16805C]">
-                        {Math.round(guide.matchScore * 100)}% khớp
-                      </span>
-                      <span className="text-xs font-bold text-[#C79A32]">
-                        ★ {guide.rating.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="mt-2.5 flex items-center gap-2.5">
-                      <img
-                        src={guide.avatarUrl}
-                        alt={guide.fullName}
-                        className="h-10 w-10 rounded-full object-cover ring-1 ring-[#25483F]/15"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-[#142823]">
-                          {guide.fullName}
-                        </p>
-                        <p className="text-xs text-[#5A6861]">
-                          {guide.guideCode} · {formatVnd(guide.dailyRateVnd)}/ngày
-                        </p>
-                      </div>
-                    </div>
-                    {guide.matchReason && (
-                      <p className="mt-2 rounded-lg bg-[#16805C]/5 p-2 text-xs text-[#173F35]">
-                        {guide.matchReason}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Main Tour List Container */}
-      <div className="rounded-2xl border border-[#25483F]/12 bg-white shadow-[0_12px_40px_rgba(20,40,35,0.06)] overflow-hidden">
+        {/* Right Column: Main Tour List Container */}
+        <div className="flex-1 min-w-0 w-full">
+          {/* Main Tour List Container */}
+          <div className="rounded-2xl border border-[#25483F]/12 bg-white shadow-[0_12px_40px_rgba(20,40,35,0.06)] overflow-hidden">
         {isLoading ? (
           <div className="py-24 text-center">
             <div className="inline-block h-10 w-10 animate-spin rounded-full border-3 border-[#173F35] border-t-transparent" />
@@ -941,7 +824,6 @@ export function LocalMateKnowledgeView() {
                   <th className="px-6 py-4 min-w-[320px]">Chương trình Tour</th>
                   <th className="px-6 py-4 min-w-[220px]">Điểm đến</th>
                   <th className="px-6 py-4 min-w-[140px]">Thời lượng</th>
-                  <th className="px-6 py-4 min-w-[150px]">Dữ liệu AI</th>
                   <th className="px-6 py-4 w-[100px] text-right">Thao tác</th>
                 </tr>
               </thead>
@@ -950,7 +832,7 @@ export function LocalMateKnowledgeView() {
                   const isSelected = selectedTourIds.has(tour.id);
 
                   // Resolve Geography & Scope
-                  const detected = detectProvinceFromDestination(tour.destination);
+                  const detected = detectProvinceFromDestination(tour.destination, tour.title);
                   const provCode = tour.provinceCode || detected?.code;
                   const provName =
                     tour.province ||
@@ -986,13 +868,6 @@ export function LocalMateKnowledgeView() {
                         <div className="font-bold text-base text-[#142823] group-hover:text-[#173F35] transition-colors leading-snug line-clamp-2">
                           {tour.title}
                         </div>
-                        <div className="mt-2 flex items-center gap-2.5 text-xs text-[#5C6E66]">
-                          <span className="font-mono text-xs font-bold text-[#173F35] bg-[#173F35]/10 px-2 py-0.5 rounded-md">
-                            {tour.tourCode}
-                          </span>
-                          <span>·</span>
-                          <span className="font-medium">Cập nhật: {formatDate(tour.updatedAt)}</span>
-                        </div>
                       </td>
 
                       {/* Destination Column */}
@@ -1022,28 +897,14 @@ export function LocalMateKnowledgeView() {
                           <div className="text-sm font-bold text-[#142823] tracking-tight">
                             {tour.destination}
                           </div>
-
-                          {tour.highlights && tour.highlights.length > 0 && (
-                            <div className="text-xs font-medium text-[#5C6E66]">
-                              {tour.highlights.length} điểm nổi bật
-                            </div>
-                          )}
                         </div>
                       </td>
 
                       {/* Duration Column */}
                       <td className="px-6 py-5">
-                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#F4F7F5] border border-[#25483F]/8 px-3 py-1.5 text-sm font-bold text-[#142823]">
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#F4F7F5] border border-[#25483F]/8 px-3 py-1.5 text-sm font-bold text-[#142823] whitespace-nowrap">
                           <VsIcon name="schedule" className="text-sm text-[#173F35]" />
-                          <span>{tour.duration}</span>
-                        </span>
-                      </td>
-
-                      {/* AI Data Column */}
-                      <td className="px-6 py-5">
-                        <span className="inline-flex items-center gap-2 rounded-full bg-[#16805C]/12 border border-[#16805C]/25 px-3 py-1 text-xs font-bold text-[#116649]">
-                          <span className="h-2 w-2 rounded-full bg-[#16805C] animate-pulse" />
-                          LocalMate AI
+                          <span>{normalizeTourDuration(tour.duration)}</span>
                         </span>
                       </td>
 
@@ -1159,6 +1020,8 @@ export function LocalMateKnowledgeView() {
             </div>
           </div>
         )}
+      </div>
+        </div>
       </div>
 
       {/* Tour Create/Edit Form Modal */}
@@ -1308,11 +1171,82 @@ export function LocalMateKnowledgeView() {
                     onChange={(e) =>
                       setTourFormData({ ...tourFormData, duration: e.target.value })
                     }
-                    placeholder="3N2Đ hoặc 1 ngày"
+                    onBlur={(e) => {
+                      const val = e.target.value.trim();
+                      if (val) {
+                        setTourFormData((prev) => ({
+                          ...prev,
+                          duration: normalizeTourDuration(val),
+                        }));
+                      }
+                    }}
+                    placeholder="Ví dụ: 2 Ngày 1 Đêm, 1 Ngày..."
                     className="mt-1.5 h-11 w-full rounded-xl border border-[#25483F]/15 bg-white px-3.5 text-sm font-semibold text-[#142823] placeholder:text-[#788880] focus:border-[#173F35] focus:outline-none focus:ring-2 focus:ring-[#173F35]/15"
                   />
+                  {/* Quick selection chips for standard durations */}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {COMMON_TOUR_DURATIONS.map((dur) => (
+                      <button
+                        key={dur}
+                        type="button"
+                        onClick={() =>
+                          setTourFormData({ ...tourFormData, duration: dur })
+                        }
+                        className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
+                          tourFormData.duration === dur
+                            ? "bg-[#173F35] text-white shadow-xs"
+                            : "bg-[#173F35]/8 text-[#173F35] hover:bg-[#173F35]/15"
+                        }`}
+                      >
+                        {dur}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
+
+              <fieldset className="rounded-2xl border border-[#25483F]/12 bg-[#FBF9F5] p-4">
+                <legend className="px-1 text-sm font-bold text-[#173F35]">
+                  Tọa độ điểm đến trọng điểm
+                </legend>
+                <p className="mb-3 text-sm text-[#52635A]">
+                  Mốc dùng để tính khoảng cách từ khách sạn. Có thể để trống cho dữ liệu cũ dùng fallback tỉnh/khu vực.
+                </p>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="tour-latitude" className="mb-1.5 block text-sm font-semibold text-[#485951]">
+                      Vĩ độ
+                    </label>
+                    <input
+                      id="tour-latitude"
+                      type="number"
+                      step="any"
+                      min={-90}
+                      max={90}
+                      value={tourFormData.latitude}
+                      onChange={(e) => setTourFormData({ ...tourFormData, latitude: e.target.value })}
+                      placeholder="21.033333"
+                      className="h-12 w-full rounded-xl border border-[#25483F]/15 bg-white px-4 text-base font-medium text-[#142823] focus:border-[#173F35] focus:outline-none focus:ring-2 focus:ring-[#173F35]/15"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="tour-longitude" className="mb-1.5 block text-sm font-semibold text-[#485951]">
+                      Kinh độ
+                    </label>
+                    <input
+                      id="tour-longitude"
+                      type="number"
+                      step="any"
+                      min={-180}
+                      max={180}
+                      value={tourFormData.longitude}
+                      onChange={(e) => setTourFormData({ ...tourFormData, longitude: e.target.value })}
+                      placeholder="104.883333"
+                      className="h-12 w-full rounded-xl border border-[#25483F]/15 bg-white px-4 text-base font-medium text-[#142823] focus:border-[#173F35] focus:outline-none focus:ring-2 focus:ring-[#173F35]/15"
+                    />
+                  </div>
+                </div>
+              </fieldset>
 
               {/* Row 3: Tên Lịch trình Tour */}
               <div>

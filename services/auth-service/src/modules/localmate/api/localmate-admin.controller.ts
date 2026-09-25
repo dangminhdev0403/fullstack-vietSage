@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
-import { ApiTags } from "@nestjs/swagger";
+import { ApiBody, ApiTags } from "@nestjs/swagger";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
@@ -7,12 +7,16 @@ import { SuccessMessage } from "../../../shared/decorators/success-message.decor
 import { LocalMateService } from "../application/localmate.service";
 import {
   createLocalMateGuideSchema,
+  createLocalMateGuideOpenApiSchema,
   updateLocalMateGuideSchema,
+  updateLocalMateGuideOpenApiSchema,
   updateQualificationStatusSchema,
   listLocalMateGuidesQuerySchema,
   listLocalMateToursQuerySchema,
   createLocalMateTourSchema,
+  createLocalMateTourOpenApiSchema,
   updateLocalMateTourSchema,
+  updateLocalMateTourOpenApiSchema,
   idParamSchema,
 } from "../domain/schemas/localmate.schema";
 
@@ -24,6 +28,7 @@ export class LocalMateAdminController {
   @SuccessMessage("Tạo hồ sơ hướng dẫn viên LocalMate thành công")
   @RequirePermission("platform.localmate.manage")
   @ApiDescript("Tạo hồ sơ hướng dẫn viên LocalMate mới")
+  @ApiBody({ schema: createLocalMateGuideOpenApiSchema })
   @Post("guides")
   async createGuide(@Body() body: unknown) {
     const dto = parseWithZod(createLocalMateGuideSchema, body);
@@ -51,6 +56,7 @@ export class LocalMateAdminController {
   @SuccessMessage("Cập nhật thông tin hướng dẫn viên LocalMate thành công")
   @RequirePermission("platform.localmate.manage")
   @ApiDescript("Cập nhật thông tin hướng dẫn viên")
+  @ApiBody({ schema: updateLocalMateGuideOpenApiSchema })
   @Patch("guides/:id")
   async updateGuide(@Param("id") idParam: string, @Body() body: unknown) {
     const id = parseWithZod(idParamSchema, idParam);
@@ -71,6 +77,7 @@ export class LocalMateAdminController {
   @SuccessMessage("Tạo lịch trình tour mới vào kho tri thức thành công")
   @RequirePermission("platform.localmate.manage")
   @ApiDescript("Thêm mới lịch trình tour thủ công vào kho tri thức LocalMate")
+  @ApiBody({ schema: createLocalMateTourOpenApiSchema })
   @Post("knowledge/tours")
   async createTour(@Body() body: unknown) {
     const dto = parseWithZod(createLocalMateTourSchema, body);
@@ -80,6 +87,7 @@ export class LocalMateAdminController {
   @SuccessMessage("Cập nhật lịch trình tour thành công")
   @RequirePermission("platform.localmate.manage")
   @ApiDescript("Cập nhật thông tin lịch trình tour")
+  @ApiBody({ schema: updateLocalMateTourOpenApiSchema })
   @Patch("knowledge/tours/:id")
   async updateTour(@Param("id") idParam: string, @Body() body: unknown) {
     const id = parseWithZod(idParamSchema, idParam);

@@ -7,6 +7,13 @@ import type {
   ListLocalMateGuidesQueryDto,
 } from "../../domain/schemas/localmate.schema";
 
+export type GeographicBounds = {
+  minLatitude: number;
+  maxLatitude: number;
+  minLongitude: number;
+  maxLongitude: number;
+};
+
 @Injectable()
 export class LocalMateRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -99,6 +106,8 @@ export class LocalMateRepository {
         operatingRegions: dto.operatingRegions,
         specialties: dto.specialties,
         bio: dto.bio || null,
+        serviceLatitude: dto.serviceLatitude ?? null,
+        serviceLongitude: dto.serviceLongitude ?? null,
         dailyRateVnd: dto.dailyRateVnd,
       },
       include: {
@@ -125,6 +134,8 @@ export class LocalMateRepository {
         ...(dto.operatingRegions !== undefined && { operatingRegions: dto.operatingRegions }),
         ...(dto.specialties !== undefined && { specialties: dto.specialties }),
         ...(dto.bio !== undefined && { bio: dto.bio || null }),
+        ...(dto.serviceLatitude !== undefined && { serviceLatitude: dto.serviceLatitude }),
+        ...(dto.serviceLongitude !== undefined && { serviceLongitude: dto.serviceLongitude }),
         ...(dto.dailyRateVnd !== undefined && { dailyRateVnd: dto.dailyRateVnd }),
       },
       include: {
@@ -209,11 +220,34 @@ export class LocalMateRepository {
     };
   }
 
-  async findQualifiedGuides(options: { destination?: string; limit?: number } = {}) {
+  async findQualifiedGuides(
+    options: {
+      destination?: string;
+      bounds?: GeographicBounds;
+      fallbackRegions?: string[];
+      limit?: number;
+    } = {},
+  ) {
+    const locationConditions: Prisma.LocalMateProfileWhereInput[] = [];
+    if (options.bounds) {
+      locationConditions.push({
+        serviceLatitude: { gte: options.bounds.minLatitude, lte: options.bounds.maxLatitude },
+        serviceLongitude: { gte: options.bounds.minLongitude, lte: options.bounds.maxLongitude },
+      });
+      for (const region of options.fallbackRegions ?? []) {
+        locationConditions.push({
+          serviceLatitude: null,
+          serviceLongitude: null,
+          operatingRegions: { has: region },
+        });
+      }
+    }
+
     return this.prisma.localMateProfile.findMany({
       where: {
         status: LocalMateStatus.QUALIFIED,
         ...(options.destination ? { operatingRegions: { has: options.destination } } : {}),
+        ...(locationConditions.length > 0 ? { OR: locationConditions } : {}),
       },
       ...(options.limit ? { take: options.limit } : {}),
       orderBy: [{ rating: "desc" }, { totalReviews: "desc" }, { guideCode: "asc" }],
@@ -229,6 +263,8 @@ export class LocalMateRepository {
         provinceCode: true,
         province: true,
         area: true,
+        latitude: true,
+        longitude: true,
       },
     });
   }
@@ -294,6 +330,8 @@ export class LocalMateRepository {
     search?: string;
     provinceCode?: string;
     tourScope?: TourScope;
+    bounds?: GeographicBounds;
+    fallbackProvinceCode?: string;
     limit?: number;
   }) {
     const conditions: Prisma.LocalMateTourKnowledgeWhereInput[] = [];
@@ -325,12 +363,32 @@ export class LocalMateRepository {
       conditions.push({ tourScope: query.tourScope });
     }
 
+    if (query?.bounds) {
+      conditions.push({
+        OR: [
+          {
+            latitude: { gte: query.bounds.minLatitude, lte: query.bounds.maxLatitude },
+            longitude: { gte: query.bounds.minLongitude, lte: query.bounds.maxLongitude },
+          },
+          ...(query.fallbackProvinceCode
+            ? [
+                {
+                  latitude: null,
+                  longitude: null,
+                  provinceCode: query.fallbackProvinceCode,
+                },
+              ]
+            : []),
+        ],
+      });
+    }
+
     const where: Prisma.LocalMateTourKnowledgeWhereInput =
       conditions.length > 0 ? { AND: conditions } : {};
 
     return this.prisma.localMateTourKnowledge.findMany({
       where,
-      take: query?.limit || 50,
+      take: Math.min(query?.limit || 50, 100),
       orderBy: [{ createdAt: "desc" }, { tourCode: "asc" }],
     });
   }

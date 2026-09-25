@@ -172,6 +172,67 @@ function iconGlyph(name: string): ReactNode {
     case "chevron_right":
       return <path d="m9 18 6-6-6-6" />;
 
+    case "expand_more":
+    case "chevron_down":
+      return <path d="m6 9 6 6 6-6" />;
+
+    case "expand_less":
+    case "chevron_up":
+      return <path d="m18 15-6-6-6 6" />;
+
+    case "location_on":
+    case "place":
+      return (
+        <>
+          <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+          <circle cx="12" cy="10" r="3" />
+        </>
+      );
+
+    case "map":
+      return (
+        <>
+          <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+          <line x1="9" y1="3" x2="9" y2="18" />
+          <line x1="15" y1="6" x2="15" y2="21" />
+        </>
+      );
+
+    case "landscape":
+    case "terrain":
+    case "mountains":
+      return (
+        <>
+          <path d="m8 3 4 8 5-5 5 15H2L8 3z" />
+        </>
+      );
+
+    case "waves":
+      return (
+        <>
+          <path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1" />
+          <path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1" />
+          <path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1" />
+        </>
+      );
+
+    case "forest":
+    case "park":
+      return (
+        <>
+          <path d="M12 2 7 9h3l-4 7h6v4h2v-4h6l-4-7h3L12 2z" />
+        </>
+      );
+
+    case "filter_alt_off":
+      return (
+        <>
+          <path d="m2 2 20 20" />
+          <path d="M4.5 4.5l5.5 6.5V17l4 2v-4.5l2-2.5" />
+          <path d="M7 4h13l-4.5 5.5" />
+        </>
+      );
+
     case "log_out":
     case "logout":
       return (

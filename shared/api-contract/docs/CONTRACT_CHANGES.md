@@ -9,6 +9,12 @@
 
 ## Unreleased
 
+- **Hotel-centered LocalMate geospatial knowledge**:
+  - Added optional paired service coordinates for LocalMate profiles and destination coordinates for tour knowledge, with database and Zod range checks.
+  - `GET|POST /localmate/knowledge` accepts optional server-derived `hotelId` and bounded `radiusKm` (`1..300`, default `50`). Without an explicit destination, the backend bounds candidates around the persisted hotel coordinates, calculates Haversine distance, and returns `distanceKm` plus `metadata.locationScope`.
+  - Records without coordinates remain available only through bounded area/province fallback. Raw guide coordinates are not exposed in the knowledge response.
+  - The GuestOS BFF derives `hotelId` from the authenticated guest session; browser input cannot select another hotel. n8n forwards the hotel scope and consumes backend-bounded results instead of filtering a full list.
+
 - **LocalMate Knowledge machine-to-machine boundary and proxy retirement**:
   - Converted `GET|POST /localmate/knowledge` and `GET /localmate/tours` from anonymous public endpoints to machine-to-machine endpoints requiring `X-VietSage-Knowledge-Key` header with constant-time validation (`LOCALMATE_KNOWLEDGE_API_KEY`). Missing or invalid key returns HTTP 401; unconfigured server key in non-production returns HTTP 503.
   - Canonicalized request inputs to `query`, `destination`, and bounded `limit` (range 1–10, default 5); deprecated `prompt`, `region`, and `format` input fields are removed.

@@ -417,3 +417,45 @@ export function inferProvinceAndScope(
     tourScope: "LOCAL",
   };
 }
+
+/**
+ * Chuẩn hoá chuỗi thời lượng tour về format rõ ràng và chuẩn mực (ví dụ: "2N1Đ" -> "2 Ngày 1 Đêm")
+ */
+export function normalizeTourDuration(raw?: string): string {
+  if (!raw) return "";
+  const trimmed = raw.trim();
+
+  // Pattern like: 0,5N or 0.5N or 0,5 ngày or nửa ngày
+  if (/^0[.,]5\s*(n|ng[aà]y)?$/i.test(trimmed) || /^n[uử]a\s*ng[aà]y$/i.test(trimmed)) {
+    return "Nửa Ngày";
+  }
+
+  // Pattern like: 2N1Đ, 2N1D, 2n1d, 3N2Đ
+  const ndMatch = trimmed.match(/^(\d+)\s*[nN]\s*(\d+)\s*[đĐdD]$/i);
+  if (ndMatch) {
+    const days = ndMatch[1];
+    const nights = ndMatch[2];
+    return `${days} Ngày ${nights} Đêm`;
+  }
+
+  // Pattern like: 1N, 2N, 3N (without night specified)
+  const nOnlyMatch = trimmed.match(/^(\d+)\s*[nN]$/i);
+  if (nOnlyMatch) {
+    const days = nOnlyMatch[1];
+    return `${days} Ngày`;
+  }
+
+  // Pattern like "2 ngày 1 đêm", "2 ngay 1 dem"
+  const textNdMatch = trimmed.match(/^(\d+)\s*ng[aà]y\s*(\d+)\s*[đd][eê]m$/i);
+  if (textNdMatch) {
+    return `${textNdMatch[1]} Ngày ${textNdMatch[2]} Đêm`;
+  }
+
+  // Pattern like "1 ngày", "2 ngày"
+  const textNMatch = trimmed.match(/^(\d+)\s*ng[aà]y$/i);
+  if (textNMatch) {
+    return `${textNMatch[1]} Ngày`;
+  }
+
+  return trimmed;
+}

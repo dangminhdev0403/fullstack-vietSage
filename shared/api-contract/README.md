@@ -5,6 +5,7 @@ Shared contract package for frontend/backend synchronization.
 ## Structure
 
 - `docs/API_CATALOG.md`: human-readable endpoint contract (module/request/response).
+- `docs/GUEST_AI_KNOWLEDGE_API.md`: dedicated catalog for AI Agent knowledge and guest tool calling.
 - `openapi/v1/openapi.json`: source of truth OpenAPI spec.
 - `openapi/v1/openapi.yaml`: YAML mirror of the same spec.
 - `docs/CONTRACT_CHANGES.md`: contract change history.

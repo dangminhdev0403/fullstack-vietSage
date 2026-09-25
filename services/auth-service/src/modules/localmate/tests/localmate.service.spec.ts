@@ -5,6 +5,10 @@ import { LocalMateService } from "../application/localmate.service";
 import { LocalMateAiController } from "../api/localmate-ai.controller";
 import { LocalMateRepository } from "../infrastructure/repositories/localmate.repository";
 import { inferProvinceAndScope } from "../domain/constants/geography.constant";
+import {
+  createLocalMateTourSchema,
+  queryLocalMateKnowledgeSchema,
+} from "../domain/schemas/localmate.schema";
 
 describe("LocalMateService", () => {
   let service: LocalMateService;
@@ -257,6 +261,7 @@ describe("LocalMateService", () => {
           duration: "3N2Đ",
           highlights: ["Ruộng bậc thang", "Khoáng nóng"],
           content: "Chi tiết tour Mù Cang Chải...",
+          distanceKm: null,
         },
       ]);
 
@@ -272,16 +277,23 @@ describe("LocalMateService", () => {
         rating: 4.95,
         totalReviews: 48,
         bio: "Local guide Mù Cang Chải",
+        distanceKm: null,
       });
 
       // Bounds both tours and guides
       expect(repository.searchTourKnowledge).toHaveBeenCalledWith({
         destination: "Mù Cang Chải",
         search: "Tôi muốn đi du lịch 3 ngày 2 đêm",
+        provinceCode: undefined,
+        tourScope: undefined,
+        bounds: undefined,
+        fallbackProvinceCode: undefined,
         limit: 3,
       });
       expect(repository.findQualifiedGuides).toHaveBeenCalledWith({
         destination: "Mù Cang Chải",
+        bounds: undefined,
+        fallbackRegions: undefined,
         limit: 3,
       });
     });
@@ -319,12 +331,101 @@ describe("LocalMateService", () => {
       expect(repository.searchTourKnowledge).toHaveBeenCalledWith({
         destination: "Mù Cang Chải",
         search: undefined,
+        provinceCode: undefined,
+        tourScope: undefined,
+        bounds: undefined,
+        fallbackProvinceCode: undefined,
         limit: 5,
       });
       expect(repository.findQualifiedGuides).toHaveBeenCalledWith({
         destination: "Mù Cang Chải",
+        bounds: undefined,
+        fallbackRegions: undefined,
         limit: 5,
       });
+    });
+
+    it("filters far coordinates, keeps administrative null-coordinate fallback, caps candidates and hides coordinates", async () => {
+      repository.findHotelLocation.mockResolvedValueOnce({
+        id: "hotel-1",
+        name: "Hotel",
+        provinceCode: "YEN_BAI",
+        province: "Yên Bái",
+        area: "Hồ Thác Bà",
+        latitude: 21,
+        longitude: 104,
+      });
+      repository.searchTourKnowledge.mockResolvedValueOnce([
+        { ...mockTours[0], tourCode: "NEAR", latitude: 21.01, longitude: 104.01 },
+        { ...mockTours[0], tourCode: "FAR", latitude: 22, longitude: 105 },
+        { ...mockTours[0], tourCode: "FALLBACK", latitude: null, longitude: null },
+      ] as any);
+      repository.findQualifiedGuides.mockResolvedValueOnce([
+        {
+          ...mockQualifiedGuides[0],
+          guideCode: "NEAR",
+          serviceLatitude: 21.01,
+          serviceLongitude: 104.01,
+        },
+        { ...mockQualifiedGuides[1], guideCode: "FAR", serviceLatitude: 22, serviceLongitude: 105 },
+        {
+          ...mockQualifiedGuides[2],
+          guideCode: "FALLBACK",
+          serviceLatitude: null,
+          serviceLongitude: null,
+        },
+      ] as any);
+
+      const response = await service.getKnowledge({ hotelId: "hotel-1", radiusKm: 10, limit: 10 });
+
+      expect(response.tours.map((tour) => tour.tourCode)).toEqual(["NEAR", "FALLBACK"]);
+      expect(response.guides.map((guide) => guide.guideCode)).toEqual(["NEAR", "FALLBACK"]);
+      expect(response.tours[0].distanceKm).toBeGreaterThan(0);
+      expect(response.tours[1].distanceKm).toBeNull();
+      expect(response.tours[0]).not.toHaveProperty("latitude");
+      expect(response.guides[0]).not.toHaveProperty("serviceLatitude");
+      expect(repository.searchTourKnowledge).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 100 }),
+      );
+      expect(repository.findQualifiedGuides).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 100 }),
+      );
+    });
+
+    it("does not apply hotel radius to an explicit destination", async () => {
+      repository.findHotelLocation.mockResolvedValueOnce({
+        id: "hotel-1",
+        name: "Hotel",
+        provinceCode: "YEN_BAI",
+        province: "Yên Bái",
+        area: "Hồ Thác Bà",
+        latitude: 21,
+        longitude: 104,
+      });
+      repository.searchTourKnowledge.mockResolvedValueOnce([
+        { ...mockTours[0], latitude: 22, longitude: 105 },
+      ] as any);
+      repository.findQualifiedGuides.mockResolvedValueOnce([
+        { ...mockQualifiedGuides[0], serviceLatitude: 22, serviceLongitude: 105 },
+      ] as any);
+
+      const response = await service.getKnowledge({
+        hotelId: "hotel-1",
+        destination: "Mù Cang Chải",
+        radiusKm: 1,
+      });
+
+      expect(response.tours).toHaveLength(1);
+      expect(response.guides).toHaveLength(1);
+      expect(repository.searchTourKnowledge).toHaveBeenCalledWith(
+        expect.objectContaining({ bounds: undefined, limit: 5 }),
+      );
+    });
+
+    it("fails when hotelId does not exist", async () => {
+      repository.findHotelLocation.mockResolvedValueOnce(null);
+      await expect(service.getKnowledge({ hotelId: "missing" })).rejects.toThrow(NotFoundException);
+      expect(repository.searchTourKnowledge).not.toHaveBeenCalled();
     });
 
     it("prioritizes tours by hotel location anchor: area/LOCAL -> province/REGIONAL_DAYTRIP -> INTERPROVINCIAL", async () => {
@@ -480,6 +581,18 @@ describe("LocalMateService", () => {
 });
 
 describe("Geography Taxonomy Helper", () => {
+  it("requires coordinates as a pair, including explicit null updates", () => {
+    expect(
+      createLocalMateTourSchema.safeParse({
+        title: "Tour test",
+        destination: "Yên Bái",
+        duration: "1N",
+        content: "Nội dung hợp lệ",
+        latitude: 21,
+      }).success,
+    ).toBe(false);
+  });
+
   it("infers Sa Pa destination to LAO_CAI / LOCAL", () => {
     const res = inferProvinceAndScope("Sa Pa", "Khám phá Cát Cát (1N)");
     expect(res.provinceCode).toBe("LAO_CAI");
@@ -539,17 +652,23 @@ describe("LocalMateAiController", () => {
   });
 
   it("delegates GET knowledge to service.getKnowledge with parsed DTO", async () => {
-    await controller.getKnowledge({ destination: "Hà Giang", limit: "3" });
+    await controller.getKnowledge({ destination: "Hà Giang", limit: "3", radiusKm: "25" });
     expect(service.getKnowledge).toHaveBeenCalledWith({
       destination: "Hà Giang",
       limit: 3,
+      radiusKm: 25,
     });
+  });
+
+  it("coerces the default knowledge radius", () => {
+    expect(queryLocalMateKnowledgeSchema.parse({}).radiusKm).toBe(50);
   });
 
   it("delegates POST knowledge to service.getKnowledge with parsed DTO", async () => {
     await controller.queryKnowledge({ query: "trekking", limit: 2 });
     expect(service.getKnowledge).toHaveBeenCalledWith({
       query: "trekking",
+      radiusKm: 50,
       limit: 2,
     });
   });

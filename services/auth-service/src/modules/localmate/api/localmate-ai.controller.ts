@@ -11,7 +11,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import type { Response } from "express";
-import { ApiHeader, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { ApiBody, ApiHeader, ApiQuery, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { AuthRateLimit } from "../../../common/security/auth-rate-limit.decorator";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
@@ -23,6 +23,7 @@ import {
   matchLocalMateRequestSchema,
   guideCodeParamSchema,
   queryLocalMateKnowledgeSchema,
+  queryLocalMateKnowledgeOpenApiSchema,
   listLocalMateToursQuerySchema,
 } from "../domain/schemas/localmate.schema";
 
@@ -43,6 +44,17 @@ export class LocalMateAiController {
   @ApiResponse({ status: 401, description: "Invalid or missing knowledge API key" })
   @ApiResponse({ status: 429, description: "Knowledge request rate limit exceeded" })
   @ApiResponse({ status: 503, description: "Knowledge service key unconfigured" })
+  @ApiQuery({ name: "query", required: false, type: String })
+  @ApiQuery({ name: "destination", required: false, type: String })
+  @ApiQuery({ name: "hotelId", required: false, type: String })
+  @ApiQuery({ name: "radiusKm", required: false, type: Number, example: 50 })
+  @ApiQuery({ name: "provinceCode", required: false, type: String })
+  @ApiQuery({
+    name: "scope",
+    required: false,
+    enum: ["LOCAL", "REGIONAL_DAYTRIP", "INTERPROVINCIAL"],
+  })
+  @ApiQuery({ name: "limit", required: false, type: Number, example: 5 })
   @SuccessMessage("Lấy kho tri thức LocalMate thành công")
   @ApiDescript(
     "Private AI API kho tri thức LocalMate: Nguồn tri thức lịch trình tour và hướng dẫn viên bản địa cho AI ngoài",
@@ -66,6 +78,7 @@ export class LocalMateAiController {
   @ApiResponse({ status: 401, description: "Invalid or missing knowledge API key" })
   @ApiResponse({ status: 429, description: "Knowledge request rate limit exceeded" })
   @ApiResponse({ status: 503, description: "Knowledge service key unconfigured" })
+  @ApiBody({ schema: queryLocalMateKnowledgeOpenApiSchema })
   @HttpCode(HttpStatus.OK)
   @SuccessMessage("Truy vấn kho tri thức LocalMate thành công")
   @ApiDescript("Private AI API truy vấn kho tri thức LocalMate qua POST payload cho AI ngoài")

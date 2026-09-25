@@ -16,8 +16,8 @@ Flow:
 
 ```text
 Authenticated webhook
-  -> normalize bounded guest input
-  -> private VietSage Knowledge API
+  -> normalize bounded guest input + trusted hotel context
+  -> private VietSage Knowledge API (hotel radius; backend-bounded results)
   -> grounded LocalMate model prompt
   -> minimal public chat response
 ```
@@ -61,7 +61,9 @@ Before publishing, verify:
 5. Fast paths and fallback copy support `vi`, `en`, `zh`, `ko`, `ru`, and `hi`.
 6. Grounded model output follows the strict JSON schema and reaches the formatter node.
 7. `knowledgeVersion` starts with `sha256:` for grounded answers.
-8. Response excludes tours, guides, prompt/context, credential values, cache keys, and session IDs.
+8. Response excludes tours, guides, prompt/context, credential values, cache keys, and session IDs. Model output addresses tours by title and duration, guides by fullName; technical tour codes (e.g. HVNT-xxxx) and guide codes stay excluded from guest-facing responses.
 9. Successful execution payload retention stays disabled (`saveDataSuccessExecution: none`).
+10. BFF sends the authenticated session's `hotelId`; n8n forwards `hotelId` and bounded `radiusKm` to the Knowledge API.
+11. Grounding context keeps backend-provided `distanceKm` and `locationScope`; n8n does not fetch a full list or re-filter geography.
 
 Do not expose the n8n webhook or either secret to browser code. The frontend BFF authenticates the guest session, then calls n8n server-to-server.
