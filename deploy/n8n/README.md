@@ -22,11 +22,16 @@ Authenticated webhook
   -> minimal public chat response
 ```
 
-Required runtime environment:
+Knowledge API URL is configured directly on the HTTP Request node because this
+n8n instance blocks `$env` access inside workflow expressions. The tracked
+local-Docker value is:
 
-```dotenv
-LOCALMATE_KNOWLEDGE_URL=http://auth-service:8080/localmate/knowledge
+```text
+http://host.docker.internal:8080/localmate/knowledge
 ```
+
+Change that node URL to `http://auth-service:8080/localmate/knowledge` when n8n
+and `auth-service` share the same Docker Compose network.
 
 Required n8n credentials:
 
@@ -51,8 +56,12 @@ Before publishing, verify:
 
 1. Missing/wrong chat key returns `403`.
 2. Missing/wrong Knowledge key returns `401`.
-3. Correct request returns `200` with only `status`, `reply`, `suggestions` when present, `knowledgeVersion`, and `cached`.
-4. `knowledgeVersion` starts with `sha256:` for grounded answers.
-5. Response excludes tours, guides, prompt/context, credential values, cache keys, and session IDs.
+3. Empty/invalid input returns `400`; a valid fast-path or grounded request returns `200`.
+4. Correct request returns only `status`, `reply`, `suggestions`, `knowledgeVersion`, and `cached`.
+5. Fast paths and fallback copy support `vi`, `en`, `zh`, `ko`, `ru`, and `hi`.
+6. Grounded model output follows the strict JSON schema and reaches the formatter node.
+7. `knowledgeVersion` starts with `sha256:` for grounded answers.
+8. Response excludes tours, guides, prompt/context, credential values, cache keys, and session IDs.
+9. Successful execution payload retention stays disabled (`saveDataSuccessExecution: none`).
 
 Do not expose the n8n webhook or either secret to browser code. The frontend BFF authenticates the guest session, then calls n8n server-to-server.
