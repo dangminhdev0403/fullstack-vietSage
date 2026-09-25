@@ -6,6 +6,7 @@ import type {
 export type WorkspacePersona =
   | "platform_admin"
   | "platform_finance"
+  | "localmate_manager"
   | "owner"
   | "manager"
   | "front_desk"

@@ -42,4 +42,14 @@ describe("public route configuration", () => {
     expect(publicMatcher.isPublic("/payments/webhook/MOMO/extra")).toBe(false);
     expect(publicMatcher.isPublic("/payments/other/MOMO")).toBe(false);
   });
+
+  it("allows localmate routes configured for public bypass", () => {
+    expect(publicMatcher.isPublic("/localmate/knowledge")).toBe(true);
+    expect(publicMatcher.isPublic("/localmate/tours")).toBe(true);
+    expect(publicMatcher.isPublic("/localmate/guides/LM-001")).toBe(true);
+    expect(publicMatcher.isPublic("/localmate/ai/match")).toBe(true);
+    expect(publicMatcher.isPublic("/localmate/knowledge/extra")).toBe(false);
+    expect(publicMatcher.isPublic("/localmate/tours/extra")).toBe(false);
+    expect(publicMatcher.isPublic("/localmate/guides")).toBe(false);
+  });
 });

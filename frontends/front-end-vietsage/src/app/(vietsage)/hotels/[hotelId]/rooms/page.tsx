@@ -35,26 +35,15 @@ export default async function StaffRoomsPage({ params, searchParams }: PageProps
     notFound();
   }
 
-  const from = new Date();
-  from.setHours(0, 0, 0, 0);
-  const to = new Date(from);
-  to.setDate(to.getDate() + 7);
-
   let roomsPage;
-  let arrivals;
   let dashboard;
 
   try {
     const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
-    [roomsPage, arrivals, dashboard] = await Promise.all([
+    [roomsPage, dashboard] = await Promise.all([
       authorizedApi("list staff rooms", (accessToken) =>
         hotelOpsService.listRooms(hotelId, { query: { page: 1, limit: 100 }, accessToken }),
       ),
-      canViewReservations
-        ? authorizedApi("list staff arrivals", (accessToken) =>
-            hotelOpsService.listArrivals(hotelId, { query: { from: from.toISOString(), to: to.toISOString(), page: 1, limit: 100 }, accessToken }),
-          )
-        : Promise.resolve({ page: 1, limit: 100, total: 0, items: [] }),
       authorizedApi("load room dashboard", (accessToken) =>
         hotelOpsService.getDashboard(hotelId, { accessToken }),
       ),
@@ -124,9 +113,7 @@ export default async function StaffRoomsPage({ params, searchParams }: PageProps
         <StaffRoomsClient
           hotelId={hotelId}
           initialRoomsPage={roomsPage}
-          arrivals={arrivals.items}
           canManageRooms={context.permissions.includes("hotel.rooms.manage")}
-          canManageReservations={context.permissions.includes("hotel.reservations.manage")}
           canManageStays={
             context.permissions.includes("hotel.stays.manage") ||
             context.permissions.includes("hotel.stays.check-in")

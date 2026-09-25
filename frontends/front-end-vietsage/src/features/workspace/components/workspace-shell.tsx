@@ -185,9 +185,7 @@ export function WorkspaceShell({
       >
         <div
           className={`w-full ${
-            sidebarWidth === "compact240"
-              ? "max-w-[1440px] mx-auto space-y-4"
-              : "space-y-8"
+            sidebarWidth === "compact240" ? "space-y-6" : "space-y-8"
           } ${printFriendly ? "owner-shell-content" : ""}`}
         >
           {children}

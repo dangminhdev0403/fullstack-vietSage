@@ -10,6 +10,8 @@ export type BusinessPermissionKey =
   | "platform.billing.manage"
   | "platform.marketplace.view"
   | "platform.marketplace.manage"
+  | "platform.localmate.view"
+  | "platform.localmate.manage"
   | "service.marketplace.view"
   | "service.marketplace.manage"
   | "hotel.marketplace.view"
@@ -94,6 +96,12 @@ export const BUSINESS_PERMISSIONS: readonly BusinessPermissionDefinition[] = [
   ),
   permission("platform.marketplace.view", "platform-marketplace", "Xem Marketplace nền tảng"),
   permission("platform.marketplace.manage", "platform-marketplace", "Quản lý Marketplace nền tảng"),
+  permission("platform.localmate.view", "platform-localmate", "Xem danh sách và hồ sơ LocalMate"),
+  permission(
+    "platform.localmate.manage",
+    "platform-localmate",
+    "Quản lý LocalMate và kho tri thức",
+  ),
   permission("service.marketplace.view", "service-marketplace", "Xem Marketplace nhà cung cấp"),
   permission(
     "service.marketplace.manage",

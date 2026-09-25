@@ -52,7 +52,7 @@ export default async function AdminLayout({
   if (persona === "platform_finance") {
     redirect("/finance/billing");
   }
-  if (persona !== "platform_admin") notFound();
+  if (persona !== "platform_admin" && persona !== "localmate_manager") notFound();
 
   const navItems = buildWorkspaceNavigation({
     persona,

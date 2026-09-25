@@ -4,6 +4,7 @@ import { GuestMotionProvider } from "@/features/guest-os/components/motion/guest
 import { GuestPageTransition } from "@/features/guest-os/components/motion/guest-page-transition";
 import { GuestSessionBootstrap } from "@/features/guest-os/components/guest-session-bootstrap";
 import { GuestRequestRealtimeNotifier } from "@/features/request-realtime/guest-request-realtime-notifier";
+import { GuestFloatingChat } from "@/features/guest-os/components/chat/guest-floating-chat";
 
 export default function GuestLayout({ children }: { children: ReactNode }) {
   return (
@@ -11,6 +12,7 @@ export default function GuestLayout({ children }: { children: ReactNode }) {
       <GuestSessionBootstrap>
         <GuestRequestRealtimeNotifier />
         <GuestPageTransition>{children}</GuestPageTransition>
+        <GuestFloatingChat />
       </GuestSessionBootstrap>
     </GuestMotionProvider>
   );

@@ -34,6 +34,7 @@ export default function GuestLanguagePage() {
 
   function continueToServices() {
     if (!sessionToken) return;
+    setLocale(locale);
     setIsConfirmOpen(false);
     router.replace("/g/services");
   }

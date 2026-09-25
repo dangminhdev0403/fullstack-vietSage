@@ -485,6 +485,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
           ]}
           data={filteredOwners}
           getRowKey={(owner) => owner.id}
+          onRowClick={(owner) => openEditDialog(owner)}
           emptyMessage="Chưa có đối tác phù hợp."
           minWidth="760px"
         />

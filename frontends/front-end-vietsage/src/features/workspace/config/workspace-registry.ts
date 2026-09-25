@@ -40,6 +40,14 @@ const WORKSPACE_DEFINITIONS: Record<WorkspacePersona, WorkspaceDefinition> = {
     profileLabel: "Kế toán nền tảng",
     homePath: "/finance/billing",
   },
+  localmate_manager: {
+    persona: "localmate_manager",
+    eyebrow: "Mạng lưới LocalMate",
+    title: "Quản trị LocalMate",
+    description: "Quản lý hướng dẫn viên bản địa, thẩm định và kho tri thức AI.",
+    profileLabel: "Quản trị viên LocalMate",
+    homePath: "/admin/localmate/guides",
+  },
   owner: {
     persona: "owner",
     eyebrow: "Quản trị khách sạn",
@@ -129,6 +137,7 @@ const ROLE_ALIASES: Record<string, WorkspacePersona> = {
   HOTEL_MAINTENANCE: "front_desk",
   HOTEL_FNB: "front_desk",
   SERVICE_STAFF: "service_partner",
+  LOCALMATE_MANAGER: "localmate_manager",
 };
 
 const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
@@ -196,6 +205,36 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     anyCapabilities: [
       "platform.marketplace.view",
       "platform.marketplace.manage",
+    ],
+  },
+  {
+    key: "admin.localmate.guides",
+    personas: ["platform_admin", "localmate_manager"],
+    href: "/admin/localmate/guides",
+    label: "Hướng dẫn viên",
+    icon: "handshake",
+    order: 26,
+    section: "OPERATIONS",
+    anyCapabilities: [
+      "platform.localmate.view",
+      "platform.localmate.manage",
+      "platform.roles.view",
+      "platform.users.view",
+    ],
+  },
+  {
+    key: "admin.localmate.knowledge",
+    personas: ["platform_admin", "localmate_manager"],
+    href: "/admin/localmate/knowledge",
+    label: "Kho tri thức Tour AI",
+    icon: "explore",
+    order: 27,
+    section: "OPERATIONS",
+    anyCapabilities: [
+      "platform.localmate.view",
+      "platform.localmate.manage",
+      "platform.roles.view",
+      "platform.users.view",
     ],
   },
   {

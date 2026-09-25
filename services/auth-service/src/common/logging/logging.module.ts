@@ -8,6 +8,7 @@ import { AppLogger } from "./app-logger.service";
   imports: [
     WinstonModule.forRoot({
       instance: winstonInstance,
+      transports: winstonInstance.transports,
     }),
   ],
   providers: [AppLogger],

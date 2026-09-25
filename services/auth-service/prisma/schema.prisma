@@ -58,6 +58,12 @@ enum RoleType {
   CUSTOM
 }
 
+enum LocalMateStatus {
+  PENDING
+  QUALIFIED
+  SUSPENDED
+}
+
 enum AuthSessionStatus {
   ACTIVE
   REVOKED
@@ -423,6 +429,7 @@ model User {
   createdPayments       Payment[]              @relation("PaymentCreatedBy")
   roomStaffAssignment   HotelRoomStaffAssignment? @relation("HotelRoomStaffUser")
   assignedRoomStaff     HotelRoomStaffAssignment[] @relation("HotelRoomStaffAssignedBy")
+  localMateProfile      LocalMateProfile?          @relation("UserLocalMateProfile")
 }
 
 model Role {
@@ -577,6 +584,7 @@ model Tenant {
   marketplaceServices MarketplaceService[]      @relation("TenantMarketplaceServices")
   hotelServiceLinks   HotelServiceLink[]        @relation("ServiceTenantHotelLinks")
   marketplaceOrders  MarketplaceOrder[]        @relation("ServiceTenantMarketplaceOrders")
+  localMateProfiles   LocalMateProfile[]        @relation("TenantLocalMateProfiles")
 }
 
 model TenantUser {
@@ -626,6 +634,9 @@ model Hotel {
   timezone                 String                        @default("Asia/Ho_Chi_Minh") @db.VarChar(80)
   status                   HotelStatus                   @default(ACTIVE)
   staffScopeMode           HotelStaffScopeMode           @default(HOTEL_WIDE)
+  provinceCode             String?                       @db.VarChar(40)
+  province                 String?                       @db.VarChar(80)
+  area                     String?                       @db.VarChar(120)
   createdAt                DateTime                      @default(now())
   updatedAt                DateTime                      @updatedAt
   tenant                   Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -2264,3 +2275,61 @@ model GuestCartItem {
   @@index([cartId])
   @@index([serviceId])
 }
+
+model LocalMateProfile {
+  id               String          @id @default(cuid())
+  userId           String?         @unique
+  tenantId         String?
+  guideCode        String          @unique @db.VarChar(40)
+  fullName         String          @db.VarChar(120)
+  phone            String          @db.VarChar(40)
+  email            String?         @db.VarChar(120)
+  avatarUrl        String          @db.VarChar(500)
+  status           LocalMateStatus @default(PENDING)
+  position         String          @default("GUIDE") @db.VarChar(80)
+  languages        String[]
+  operatingRegions String[]
+  specialties      String[]
+  bio              String?         @db.VarChar(1000)
+  dailyRateVnd     Int             @default(1000000)
+  rating           Float           @default(5.0)
+  totalReviews     Int             @default(0)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  user             User?           @relation("UserLocalMateProfile", fields: [userId], references: [id], onDelete: SetNull)
+  tenant           Tenant?         @relation("TenantLocalMateProfiles", fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([guideCode])
+  @@index([userId])
+  @@index([tenantId])
+  @@index([position])
+}
+
+enum TourScope {
+  LOCAL
+  REGIONAL_DAYTRIP
+  INTERPROVINCIAL
+}
+
+model LocalMateTourKnowledge {
+  id             String    @id @default(cuid())
+  tourCode       String    @unique @db.VarChar(80)
+  title          String    @db.VarChar(255)
+  destination    String    @db.VarChar(120)
+  duration       String    @db.VarChar(80)
+  highlights     String[]
+  content        String    @db.Text
+  sourceFileName String?   @db.VarChar(255)
+  provinceCode   String    @default("LAO_CAI") @db.VarChar(40)
+  province       String    @default("Lào Cai") @db.VarChar(80)
+  tourScope      TourScope @default(LOCAL)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([destination])
+  @@index([tourCode])
+  @@index([provinceCode])
+  @@index([tourScope])
+}
+

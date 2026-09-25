@@ -2587,6 +2587,14 @@
             }
           },
           {
+            "name": "hotelId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "q",
             "required": false,
             "in": "query",
@@ -8614,12 +8622,11 @@
                         "status": {
                           "type": "string",
                           "enum": [
-                            "CREATED",
+                            "PENDING",
                             "ACKNOWLEDGED",
-                            "IN_PROGRESS",
                             "COMPLETED",
                             "CANCELLED",
-                            "FAILED"
+                            "REJECTED"
                           ]
                         },
                         "priority": {
@@ -8724,12 +8731,11 @@
                               "status": {
                                 "type": "string",
                                 "enum": [
-                                  "CREATED",
+                                  "PENDING",
                                   "ACKNOWLEDGED",
-                                  "IN_PROGRESS",
                                   "COMPLETED",
                                   "CANCELLED",
-                                  "FAILED"
+                                  "REJECTED"
                                 ]
                               },
                               "priority": {
@@ -8896,12 +8902,11 @@
                         "status": {
                           "type": "string",
                           "enum": [
-                            "CREATED",
+                            "PENDING",
                             "ACKNOWLEDGED",
-                            "IN_PROGRESS",
                             "COMPLETED",
                             "CANCELLED",
-                            "FAILED"
+                            "REJECTED"
                           ]
                         },
                         "priority": {
@@ -9781,6 +9786,46 @@
           }
         ],
         "summary": "List billing periods for contract",
+        "tags": [
+          "platform-billing"
+        ]
+      }
+    },
+    "/platform-billing/periods": {
+      "get": {
+        "operationId": "PlatformBillingController_listAllPeriods",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all platform billing periods across contracts",
+        "tags": [
+          "platform-billing"
+        ]
+      }
+    },
+    "/platform-billing/batch-finalize": {
+      "post": {
+        "operationId": "PlatformBillingController_batchFinalize",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Batch finalize periods for active contracts",
         "tags": [
           "platform-billing"
         ]
@@ -12579,6 +12624,336 @@
         "summary": "[DEV] Intervene in DB to update occupant document numbers / details and optionally reset to DRAFT",
         "tags": [
           "hotel-kbtt"
+        ]
+      }
+    },
+    "/localmate-admin/guides": {
+      "post": {
+        "operationId": "LocalMateAdminController_createGuide",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      },
+      "get": {
+        "operationId": "LocalMateAdminController_listGuides",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      }
+    },
+    "/localmate-admin/guides/{id}": {
+      "get": {
+        "operationId": "LocalMateAdminController_getGuide",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      },
+      "patch": {
+        "operationId": "LocalMateAdminController_updateGuide",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      }
+    },
+    "/localmate-admin/guides/{id}/qualification": {
+      "patch": {
+        "operationId": "LocalMateAdminController_updateQualification",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      }
+    },
+    "/localmate-admin/knowledge/tours": {
+      "post": {
+        "operationId": "LocalMateAdminController_createTour",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      },
+      "get": {
+        "operationId": "LocalMateAdminController_listTours",
+        "parameters": [
+          {
+            "name": "destination",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      }
+    },
+    "/localmate-admin/knowledge/tours/{id}": {
+      "patch": {
+        "operationId": "LocalMateAdminController_updateTour",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      },
+      "delete": {
+        "operationId": "LocalMateAdminController_deleteTour",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      }
+    },
+    "/localmate/knowledge": {
+      "get": {
+        "operationId": "LocalMateAiController_getKnowledge",
+        "parameters": [
+          {
+            "name": "X-VietSage-Knowledge-Key",
+            "in": "header",
+            "description": "Dedicated API key for machine-to-machine knowledge access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Structured LocalMate knowledge"
+          },
+          "401": {
+            "description": "Invalid or missing knowledge API key"
+          },
+          "429": {
+            "description": "Knowledge request rate limit exceeded"
+          },
+          "503": {
+            "description": "Knowledge service key unconfigured"
+          }
+        },
+        "tags": [
+          "localmate"
+        ]
+      },
+      "post": {
+        "operationId": "LocalMateAiController_queryKnowledge",
+        "parameters": [
+          {
+            "name": "X-VietSage-Knowledge-Key",
+            "in": "header",
+            "description": "Dedicated API key for machine-to-machine knowledge access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Structured LocalMate knowledge"
+          },
+          "401": {
+            "description": "Invalid or missing knowledge API key"
+          },
+          "429": {
+            "description": "Knowledge request rate limit exceeded"
+          },
+          "503": {
+            "description": "Knowledge service key unconfigured"
+          }
+        },
+        "tags": [
+          "localmate"
+        ]
+      }
+    },
+    "/localmate/ai/match": {
+      "post": {
+        "operationId": "LocalMateAiController_matchLocalMates",
+        "parameters": [
+          {
+            "name": "X-VietSage-Knowledge-Key",
+            "in": "header",
+            "description": "Dedicated API key for machine-to-machine LocalMate access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rule-based LocalMate matching result"
+          },
+          "401": {
+            "description": "Invalid or missing knowledge API key"
+          },
+          "429": {
+            "description": "Knowledge request rate limit exceeded"
+          }
+        },
+        "tags": [
+          "localmate"
+        ]
+      }
+    },
+    "/localmate/guides/{guideCode}": {
+      "get": {
+        "operationId": "LocalMateAiController_getGuideByCode",
+        "parameters": [
+          {
+            "name": "guideCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate"
+        ]
+      }
+    },
+    "/localmate/tours": {
+      "get": {
+        "operationId": "LocalMateAiController_listTours",
+        "parameters": [
+          {
+            "name": "destination",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-VietSage-Knowledge-Key",
+            "in": "header",
+            "description": "Dedicated API key for machine-to-machine knowledge access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "LocalMate tour knowledge"
+          },
+          "401": {
+            "description": "Invalid or missing knowledge API key"
+          },
+          "429": {
+            "description": "Knowledge request rate limit exceeded"
+          },
+          "503": {
+            "description": "Knowledge service key unconfigured"
+          }
+        },
+        "tags": [
+          "localmate"
         ]
       }
     }

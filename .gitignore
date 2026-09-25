@@ -48,4 +48,6 @@ graphify-out/
 # Local agent continuation and execution state
 .hermes/plans/
 .hermes/tasks/
-NUL
+
+# LocalMate raw source data
+LocalMateData/

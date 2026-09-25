@@ -12,6 +12,14 @@ Docker Compose is the production/local-container runtime path. Real secrets live
 - Disconnect best-effort revokes the process-local provider token and deletes the saved connection. Provider outage/restart can leave an unavailable old token active remotely until its expiry; no token is persisted for later revocation.
 - Review outbound HTTP tracing/proxy configuration: the provider requires refresh/access tokens in query strings on refresh/revoke. Do not record these URLs, Authorization headers, provider bodies, or form credentials. The adapter uses fixed HTTPS endpoints, rejects redirects, applies a 10-second timeout and a 64-KiB response limit, and exposes only stable sanitized failures.
 
+## LocalMate knowledge API key
+
+- `LOCALMATE_KNOWLEDGE_API_KEY`: machine-to-machine key (min 32 bytes), passed via `X-VietSage-Knowledge-Key`, server-to-server only, never exposed in client/browser.
+- Used to authenticate external orchestrator/worker integrations (e.g. n8n) against `/localmate/knowledge` and `/localmate/tours`.
+- Evaluated with constant-time equality check (`crypto.timingSafeEqual`). Never accept in query parameters, request bodies, or cookies.
+- `LOCALMATE_N8N_WEBHOOK_SECRET`: separate server-to-server key used by the frontend BFF when calling n8n via `X-VietSage-Chat-Key`. Never reuse the knowledge key.
+- `LOCALMATE_N8N_WEBHOOK_URL`: server-only n8n production webhook URL. Never expose either value through `NEXT_PUBLIC_*` variables.
+
 ## Local environment backup flow
 
 Before committing environment-template changes, copy each service's real local `.env` into the repository-root `secrets/` folder:
@@ -114,6 +122,8 @@ AUTH_LOGIN_RATE_LIMIT_TTL_SECONDS=
 AUTH_LOGIN_RATE_LIMIT_LIMIT=
 AUTH_REFRESH_RATE_LIMIT_TTL_SECONDS=
 AUTH_REFRESH_RATE_LIMIT_LIMIT=
+LOCALMATE_KNOWLEDGE_RATE_LIMIT_TTL_SECONDS=
+LOCALMATE_KNOWLEDGE_RATE_LIMIT_LIMIT=
 GOOGLE_APPLICATION_CREDENTIALS=
 GOOGLE_SERVICE_CATEGORY_RANGE="'Nhóm dịch vụ'!A1:Z"
 GOOGLE_SERVICE_ITEM_RANGE="'Danh sách dịch vụ'!A1:Z"
@@ -121,6 +131,7 @@ TELEGRAM_BOT_TOKEN=
 TELEGRAM_WEBHOOK_SECRET=
 SWAGGER_ENABLED=
 LOG_LEVEL=
+LOCALMATE_KNOWLEDGE_API_KEY=
 ```
 
 ## `frontend.env`
@@ -134,6 +145,8 @@ AUTH_API_BASE_URL=
 NEXT_PUBLIC_AUTH_API_BASE_URL=
 NEXT_PUBLIC_REALTIME_URL=
 NEXT_PUBLIC_GUEST_DEFAULT_SERVICE_CATEGORY_ID=
+LOCALMATE_N8N_WEBHOOK_URL=
+LOCALMATE_N8N_WEBHOOK_SECRET=
 ```
 
 ## Legacy tracked files

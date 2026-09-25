@@ -1804,6 +1804,11 @@ paths:
           description: Ghi đè đơn vị tùy chọn
           schema:
             type: string
+        - name: hotelId
+          required: false
+          in: query
+          schema:
+            type: string
         - name: q
           required: false
           in: query
@@ -5930,12 +5935,11 @@ paths:
                       status:
                         type: string
                         enum:
-                          - CREATED
+                          - PENDING
                           - ACKNOWLEDGED
-                          - IN_PROGRESS
                           - COMPLETED
                           - CANCELLED
-                          - FAILED
+                          - REJECTED
                       priority:
                         type: string
                         enum:
@@ -6011,12 +6015,11 @@ paths:
                             status:
                               type: string
                               enum:
-                                - CREATED
+                                - PENDING
                                 - ACKNOWLEDGED
-                                - IN_PROGRESS
                                 - COMPLETED
                                 - CANCELLED
-                                - FAILED
+                                - REJECTED
                             priority:
                               type: string
                               enum:
@@ -6133,12 +6136,11 @@ paths:
                       status:
                         type: string
                         enum:
-                          - CREATED
+                          - PENDING
                           - ACKNOWLEDGED
-                          - IN_PROGRESS
                           - COMPLETED
                           - CANCELLED
-                          - FAILED
+                          - REJECTED
                       priority:
                         type: string
                         enum:
@@ -6653,6 +6655,26 @@ paths:
           description: ""
       security: *a19
       summary: List billing periods for contract
+      tags: *a20
+  /platform-billing/periods:
+    get:
+      operationId: PlatformBillingController_listAllPeriods
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      security: *a19
+      summary: List all platform billing periods across contracts
+      tags: *a20
+  /platform-billing/batch-finalize:
+    post:
+      operationId: PlatformBillingController_batchFinalize
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      security: *a19
+      summary: Batch finalize periods for active contracts
       tags: *a20
   /platform-billing/periods/{periodId}:
     get:
@@ -8229,6 +8251,201 @@ paths:
       summary: "[DEV] Intervene in DB to update occupant document numbers / details
         and optionally reset to DRAFT"
       tags: *a32
+  /localmate-admin/guides:
+    post:
+      operationId: LocalMateAdminController_createGuide
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: &a33
+        - localmate-admin
+    get:
+      operationId: LocalMateAdminController_listGuides
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a33
+  /localmate-admin/guides/{id}:
+    get:
+      operationId: LocalMateAdminController_getGuide
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a33
+    patch:
+      operationId: LocalMateAdminController_updateGuide
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a33
+  /localmate-admin/guides/{id}/qualification:
+    patch:
+      operationId: LocalMateAdminController_updateQualification
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a33
+  /localmate-admin/knowledge/tours:
+    post:
+      operationId: LocalMateAdminController_createTour
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a33
+    get:
+      operationId: LocalMateAdminController_listTours
+      parameters:
+        - name: destination
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a33
+  /localmate-admin/knowledge/tours/{id}:
+    patch:
+      operationId: LocalMateAdminController_updateTour
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a33
+    delete:
+      operationId: LocalMateAdminController_deleteTour
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a33
+  /localmate/knowledge:
+    get:
+      operationId: LocalMateAiController_getKnowledge
+      parameters:
+        - name: X-VietSage-Knowledge-Key
+          in: header
+          description: Dedicated API key for machine-to-machine knowledge access
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Structured LocalMate knowledge
+        "401":
+          description: Invalid or missing knowledge API key
+        "429":
+          description: Knowledge request rate limit exceeded
+        "503":
+          description: Knowledge service key unconfigured
+      tags: &a34
+        - localmate
+    post:
+      operationId: LocalMateAiController_queryKnowledge
+      parameters:
+        - name: X-VietSage-Knowledge-Key
+          in: header
+          description: Dedicated API key for machine-to-machine knowledge access
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Structured LocalMate knowledge
+        "401":
+          description: Invalid or missing knowledge API key
+        "429":
+          description: Knowledge request rate limit exceeded
+        "503":
+          description: Knowledge service key unconfigured
+      tags: *a34
+  /localmate/ai/match:
+    post:
+      operationId: LocalMateAiController_matchLocalMates
+      parameters:
+        - name: X-VietSage-Knowledge-Key
+          in: header
+          description: Dedicated API key for machine-to-machine LocalMate access
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Rule-based LocalMate matching result
+        "401":
+          description: Invalid or missing knowledge API key
+        "429":
+          description: Knowledge request rate limit exceeded
+      tags: *a34
+  /localmate/guides/{guideCode}:
+    get:
+      operationId: LocalMateAiController_getGuideByCode
+      parameters:
+        - name: guideCode
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a34
+  /localmate/tours:
+    get:
+      operationId: LocalMateAiController_listTours
+      parameters:
+        - name: destination
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: X-VietSage-Knowledge-Key
+          in: header
+          description: Dedicated API key for machine-to-machine knowledge access
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: LocalMate tour knowledge
+        "401":
+          description: Invalid or missing knowledge API key
+        "429":
+          description: Knowledge request rate limit exceeded
+        "503":
+          description: Knowledge service key unconfigured
+      tags: *a34
 info:
   title: VietSage Auth Service API
   description: HTTP API contract for auth, rbac, and hotel-users modules

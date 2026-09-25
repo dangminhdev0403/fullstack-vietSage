@@ -1,0 +1,385 @@
+{
+  "info": {
+    "name": "VietSage - LocalMate & AI Matching API",
+    "description": "Collection API cho Dịch vụ VietSage LocalMate: Quản trị Hướng dẫn viên (LocalMate Manager) và AI Matching Engine gợi ý Top 3 LocalMate kèm ảnh và tour.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "knowledgeApiKey",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Login as LOCALMATE_MANAGER",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.accessToken) {",
+                  "    pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"localmate@vietsage.vn\",\n  \"password\": \"Admin@123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. AI & Client API (Public - Gọi trực tiếp)",
+      "item": [
+        {
+          "name": "AI Match LocalMates (Gợi ý Top 3 kèm ảnh & tour)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"destination\": \"Mù Cang Chải\",\n  \"language\": \"English\",\n  \"preferences\": [\"chụp ảnh\", \"trekking\"],\n  \"limit\": 3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/localmate/ai/match",
+              "host": ["{{baseUrl}}"],
+              "path": ["localmate", "ai", "match"]
+            },
+            "description": "API chính cho AI Concierge hoặc Postman test: Phân tích nhu cầu khách và trả về Top 3 LocalMate phù hợp nhất có ảnh, bio, rating, giá thuê và tour gợi ý."
+          }
+        },
+        {
+          "name": "Get LocalMate Profile by Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/localmate/guides/LM-YB-001",
+              "host": ["{{baseUrl}}"],
+              "path": ["localmate", "guides", "LM-YB-001"]
+            }
+          }
+        },
+        {
+          "name": "Search Tour Knowledge by Destination",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-VietSage-Knowledge-Key",
+                "value": "{{knowledgeApiKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/localmate/tours?destination=Mù Cang Chải",
+              "host": ["{{baseUrl}}"],
+              "path": ["localmate", "tours"],
+              "query": [
+                {
+                  "key": "destination",
+                  "value": "Mù Cang Chải"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Direct Backend Knowledge Query (GET)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains structured knowledge arrays and version\", function () {",
+                  "    const json = pm.response.json();",
+                  "    const data = json.data || json;",
+                  "    pm.expect(data).to.have.property(\"knowledgeVersion\");",
+                  "    pm.expect(data.tours).to.be.an(\"array\");",
+                  "    pm.expect(data.guides).to.be.an(\"array\");",
+                  "});",
+                  "",
+                  "pm.test(\"Removed AI prompt fields are absent\", function () {",
+                  "    const json = pm.response.json();",
+                  "    const data = json.data || json;",
+                  "    pm.expect(data.role).to.be.undefined;",
+                  "    pm.expect(data.systemPrompt).to.be.undefined;",
+                  "    pm.expect(data.promptContext).to.be.undefined;",
+                  "    pm.expect(data.generatedAt).to.be.undefined;",
+                  "    pm.expect(json.role).to.be.undefined;",
+                  "    pm.expect(json.systemPrompt).to.be.undefined;",
+                  "    pm.expect(json.promptContext).to.be.undefined;",
+                  "    pm.expect(json.generatedAt).to.be.undefined;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-VietSage-Knowledge-Key",
+                "value": "{{knowledgeApiKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/localmate/knowledge?query=G%E1%BB%A3i+%C3%BD+tour&destination=M%C3%B9+Cang+Ch%E1%BA%A3i&limit=3",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "localmate",
+                "knowledge"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "G%E1%BB%A3i+%C3%BD+tour"
+                },
+                {
+                  "key": "destination",
+                  "value": "M%C3%B9+Cang+Ch%E1%BA%A3i"
+                },
+                {
+                  "key": "limit",
+                  "value": "3"
+                }
+              ]
+            },
+            "description": "Public query endpoint for LocalMate knowledge base (tours & guides) returning structured data only."
+          }
+        },
+        {
+          "name": "Direct Backend Knowledge Query (POST)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains structured knowledge arrays and version\", function () {",
+                  "    const json = pm.response.json();",
+                  "    const data = json.data || json;",
+                  "    pm.expect(data).to.have.property(\"knowledgeVersion\");",
+                  "    pm.expect(data.tours).to.be.an(\"array\");",
+                  "    pm.expect(data.guides).to.be.an(\"array\");",
+                  "});",
+                  "",
+                  "pm.test(\"Removed AI prompt fields are absent\", function () {",
+                  "    const json = pm.response.json();",
+                  "    const data = json.data || json;",
+                  "    pm.expect(data.role).to.be.undefined;",
+                  "    pm.expect(data.systemPrompt).to.be.undefined;",
+                  "    pm.expect(data.promptContext).to.be.undefined;",
+                  "    pm.expect(data.generatedAt).to.be.undefined;",
+                  "    pm.expect(json.role).to.be.undefined;",
+                  "    pm.expect(json.systemPrompt).to.be.undefined;",
+                  "    pm.expect(json.promptContext).to.be.undefined;",
+                  "    pm.expect(json.generatedAt).to.be.undefined;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-VietSage-Knowledge-Key",
+                "value": "{{knowledgeApiKey}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"Gợi ý tour 3 ngày ở Mù Cang Chải\",\n  \"destination\": \"Mù Cang Chải\",\n  \"limit\": 3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/localmate/knowledge",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "localmate",
+                "knowledge"
+              ]
+            },
+            "description": "Public query endpoint for LocalMate knowledge base (POST method) returning structured data only."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. LocalMate Manager Admin API (Yêu cầu Token)",
+      "item": [
+        {
+          "name": "List Guides (Lọc theo status / region)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/localmate-admin/guides?status=QUALIFIED",
+              "host": ["{{baseUrl}}"],
+              "path": ["localmate-admin", "guides"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "QUALIFIED"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Guide (Form nhập thông tin HDV mới)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guideCode\": \"LM-YB-005\",\n  \"fullName\": \"Hà Thị Lan\",\n  \"phone\": \"0988776655\",\n  \"email\": \"lan.ha@localmate.vietsage.vn\",\n  \"avatarUrl\": \"https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80\",\n  \"status\": \"QUALIFIED\",\n  \"languages\": [\"English\", \"Vietnamese\"],\n  \"operatingRegions\": [\"Mù Cang Chải\", \"Yên Bái\"],\n  \"specialties\": [\"Ẩm thực người Thái\", \"Chụp ảnh ruộng bậc thang\"],\n  \"bio\": \"HDV bản địa am hiểu sâu sắc các bản làng Mù Cang Chải, nhiệt tình và nói tiếng Anh lưu loát.\",\n  \"dailyRateVnd\": 1100000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/localmate-admin/guides",
+              "host": ["{{baseUrl}}"],
+              "path": ["localmate-admin", "guides"]
+            }
+          }
+        },
+        {
+          "name": "Update Qualification (Duyệt QUALIFIED / SUSPENDED)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"QUALIFIED\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/localmate-admin/guides/:guideId/qualification",
+              "host": ["{{baseUrl}}"],
+              "path": ["localmate-admin", "guides", ":guideId", "qualification"],
+              "variable": [
+                {
+                  "key": "guideId",
+                  "value": "guide_id_here"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Sync Tour Knowledge from LocalMateData",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/localmate-admin/knowledge/sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["localmate-admin", "knowledge", "sync"]
+            }
+          }
+        },
+        {
+          "name": "List Tours Knowledge",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/localmate-admin/knowledge/tours",
+              "host": ["{{baseUrl}}"],
+              "path": ["localmate-admin", "knowledge", "tours"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

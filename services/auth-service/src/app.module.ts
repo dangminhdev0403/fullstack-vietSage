@@ -23,6 +23,7 @@ import { PlatformBillingModule } from "./modules/platform-billing/platform-billi
 import { LocalPartnersModule } from "./modules/local-partners/local-partners.module";
 import { MarketplaceModule } from "./modules/marketplace/marketplace.module";
 import { KbttModule } from "./modules/kbtt/kbtt.module";
+import { LocalMateModule } from "./modules/localmate/localmate.module";
 import { StayCheckInEventsModule } from "./shared/events";
 
 @Module({
@@ -46,6 +47,7 @@ import { StayCheckInEventsModule } from "./shared/events";
     LocalPartnersModule,
     MarketplaceModule,
     KbttModule,
+    LocalMateModule,
   ],
   providers: [
     {

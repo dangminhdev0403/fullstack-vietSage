@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "portless vietsage --tailscale next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "portless vietsage --tailscale next start",
     "lint": "eslint",
     "smoke:lint": "eslint src/app/(vietsage) src/app/page.tsx src/app/layout.tsx",
     "smoke:build": "next build",
@@ -38,16 +38,5 @@
     "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4",
     "typescript": "^5.9.3"
-  },
-  "pnpm": {
-    "overrides": {
-      "sharp": "0.35.4",
-      "postcss": "8.5.26",
-      "nanoid": "3.3.18",
-      "socket.io-parser": "4.2.7",
-      "@babel/core": "7.29.6",
-      "browserslist": "4.28.7",
-      "baseline-browser-mapping": "2.11.0"
-    }
   }
 }

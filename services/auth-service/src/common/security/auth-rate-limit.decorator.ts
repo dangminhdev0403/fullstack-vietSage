@@ -1,7 +1,7 @@
 import { SetMetadata } from "@nestjs/common";
 
 export const AUTH_RATE_LIMIT_METADATA_KEY = "authRateLimitKey";
-export type AuthRateLimitKey = "login" | "refresh" | "change-password";
+export type AuthRateLimitKey = "login" | "refresh" | "change-password" | "knowledge";
 
 export const AuthRateLimit = (key: AuthRateLimitKey) =>
   SetMetadata(AUTH_RATE_LIMIT_METADATA_KEY, key);

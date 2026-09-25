@@ -39,6 +39,7 @@ function isRoleMatch(source: string, expected: UserRole): boolean {
       source === "admin" ||
       source === "super_admin" ||
       source === "platform_finance" ||
+      source === "localmate_manager" ||
       source.endsWith("_admin") ||
       source.endsWith(":admin")
     );

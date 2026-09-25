@@ -34,11 +34,14 @@ describe("env config", () => {
       AUTH_LOGIN_RATE_LIMIT_LIMIT: "5",
       AUTH_REFRESH_RATE_LIMIT_TTL_SECONDS: "45",
       AUTH_REFRESH_RATE_LIMIT_LIMIT: "12",
+      LOCALMATE_KNOWLEDGE_RATE_LIMIT_TTL_SECONDS: "60",
+      LOCALMATE_KNOWLEDGE_RATE_LIMIT_LIMIT: "120",
     });
 
     expect(config.corsOrigins).toEqual(["http://localhost:3000", "https://app.example.com"]);
     expect(config.rateLimits.login).toEqual({ ttlSeconds: 30, limit: 5 });
     expect(config.rateLimits.refresh).toEqual({ ttlSeconds: 45, limit: 12 });
+    expect(config.rateLimits.knowledge).toEqual({ ttlSeconds: 60, limit: 120 });
   });
 
   it("uses bounded database and HTTP deadlines by default", () => {
@@ -96,6 +99,7 @@ describe("env config", () => {
       loadAppConfig({
         ...baseEnv,
         NODE_ENV: "production",
+        LOCALMATE_KNOWLEDGE_API_KEY: "a-secure-knowledge-key-with-32-chars-minimum",
         [name]: value,
       }),
     ).toThrow(name);
@@ -111,6 +115,7 @@ describe("env config", () => {
         NODE_ENV: "production",
         JWT_ACCESS_SECRET: "a-secure-access-secret-with-32-characters",
         JWT_REFRESH_SECRET: "a-secure-refresh-secret-with-32-characters",
+        LOCALMATE_KNOWLEDGE_API_KEY: "a-secure-knowledge-key-with-32-chars-minimum",
         [name]: value,
       }),
     ).toThrow(name);
@@ -155,5 +160,38 @@ describe("env config", () => {
     expect(() =>
       loadAppConfig({ ...baseEnv, KBTT_BASE_URL: "http://api-kbtt.ai-vlab.com" }),
     ).toThrow("Invalid environment variables");
+  });
+
+  it.each([undefined, "", "short-key"])(
+    "rejects production with a missing or short LOCALMATE_KNOWLEDGE_API_KEY: %p",
+    (key) => {
+      expect(() =>
+        loadAppConfig({
+          ...baseEnv,
+          NODE_ENV: "production",
+          JWT_ACCESS_SECRET: "a-secure-access-secret-with-32-characters",
+          JWT_REFRESH_SECRET: "a-secure-refresh-secret-with-32-characters",
+          LOCALMATE_KNOWLEDGE_API_KEY: key,
+        }),
+      ).toThrow("LOCALMATE_KNOWLEDGE_API_KEY");
+    },
+  );
+
+  it("loads LOCALMATE_KNOWLEDGE_API_KEY when provided in production", () => {
+    const config = loadAppConfig({
+      ...baseEnv,
+      NODE_ENV: "production",
+      JWT_ACCESS_SECRET: "a-secure-access-secret-with-32-characters",
+      JWT_REFRESH_SECRET: "a-secure-refresh-secret-with-32-characters",
+      LOCALMATE_KNOWLEDGE_API_KEY: "a-valid-production-knowledge-key-with-32-chars",
+    });
+    expect(config.localMate.knowledgeApiKey).toBe(
+      "a-valid-production-knowledge-key-with-32-chars",
+    );
+  });
+
+  it("defaults localMate.knowledgeApiKey to null in development when not set", () => {
+    const config = loadAppConfig(baseEnv);
+    expect(config.localMate.knowledgeApiKey).toBeNull();
   });
 });

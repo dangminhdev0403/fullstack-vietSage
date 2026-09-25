@@ -46,6 +46,8 @@ describe("AuthRateLimitGuard", () => {
       JWT_REFRESH_TTL: "7d",
       AUTH_LOGIN_RATE_LIMIT_TTL_SECONDS: "60",
       AUTH_LOGIN_RATE_LIMIT_LIMIT: "2",
+      LOCALMATE_KNOWLEDGE_RATE_LIMIT_TTL_SECONDS: "60",
+      LOCALMATE_KNOWLEDGE_RATE_LIMIT_LIMIT: "2",
     };
   });
 
@@ -95,6 +97,17 @@ describe("AuthRateLimitGuard", () => {
     const context = makeContext();
 
     expect(guard.canActivate(context)).toBe(true);
+  });
+
+  it("applies the configured knowledge limit", () => {
+    const reflector = new Reflector();
+    jest.spyOn(reflector, "get").mockReturnValue("knowledge");
+    const guard = new AuthRateLimitGuard(reflector);
+    const context = makeContext();
+
+    expect(guard.canActivate(context)).toBe(true);
+    expect(guard.canActivate(context)).toBe(true);
+    expectHttpStatus(() => guard.canActivate(context), HttpStatus.TOO_MANY_REQUESTS);
   });
 
   it("ignores spoofed forwarded addresses when the peer is not a trusted proxy", () => {

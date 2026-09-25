@@ -442,14 +442,18 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
             </thead>
             <tbody className="divide-y divide-[#f2ebd9]">
               {filteredHotels.map((hotel) => (
-                <tr key={hotel.id} className="transition-colors hover:bg-[#fcf8f2]">
+                <tr
+                  key={hotel.id}
+                  onClick={() => void openEditDialog(hotel)}
+                  className="group cursor-pointer transition-colors hover:bg-[#fcf8f2]"
+                >
                   <td className="px-6 py-4.5 align-middle">
                     <div className="flex items-center gap-3">
                       <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#24473d] text-[#e8b363] shadow-xs ring-2 ring-[#e8b363]/30">
                         <VsIcon name="hotel" className="text-lg" />
                       </div>
                       <div>
-                        <p className="font-semibold text-[#17201b]">{hotel.name}</p>
+                        <p className="font-semibold text-[#17201b] group-hover:text-[#24473d] transition-colors">{hotel.name}</p>
                         <p className="text-xs font-medium text-[#69726b]">{hotel.code ?? hotel.id}</p>
                       </div>
                     </div>
@@ -480,7 +484,7 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
                     </span>
                   </td>
                   <td className="px-6 py-4.5 align-middle text-xs font-medium text-[#69726b]">{formatDate(hotel.updatedAt ?? hotel.createdAt)}</td>
-                  <td className="px-6 py-4.5 text-right align-middle">
+                  <td className="px-6 py-4.5 text-right align-middle" onClick={(e) => e.stopPropagation()}>
                     <button
                       type="button"
                       onClick={() => void openEditDialog(hotel)}

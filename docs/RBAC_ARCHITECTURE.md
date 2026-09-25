@@ -67,6 +67,7 @@ never edited in place.
 | --- | --- |
 | `SUPER_ADMIN` | Complete platform and business capability surface |
 | `PLATFORM_FINANCE` | Platform SaaS billing contracts, periods, debt statements, and hotel enumeration |
+| `LOCALMATE_MANAGER` | LocalMate network management, qualified guide profiles, and AI tour knowledge base |
 | `TENANT_OWNER`, `HOTEL_OWNER` | Executive monitoring plus hotel profile, room/QR metadata, staff, catalog, partner, and integration configuration; no daily operational execution |
 | `HOTEL_MANAGER` | Rooms, stays, reservations, requests, billing view, and service operations |
 | `HOTEL_FRONTDESK` | Arrivals, stays, and guest request handling |

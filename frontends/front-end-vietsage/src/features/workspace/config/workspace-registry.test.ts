@@ -39,6 +39,38 @@ test("configures dedicated platform finance workspace and navigation", () => {
   );
 });
 
+test("configures dedicated localmate manager workspace and navigation", () => {
+  assert.equal(
+    resolveWorkspacePersona("LOCALMATE_MANAGER"),
+    "localmate_manager",
+  );
+  assert.equal(
+    getWorkspaceDefinition("localmate_manager").homePath,
+    "/admin/localmate/guides",
+  );
+
+  const navigation = buildWorkspaceNavigation({
+    persona: "localmate_manager",
+    permissions: ["platform.localmate.view", "platform.localmate.manage"],
+  });
+
+  assert.deepEqual(
+    navigation.map((item) => ({ key: item.key, href: item.href, label: item.label })),
+    [
+      {
+        key: "admin.localmate.guides",
+        href: "/admin/localmate/guides",
+        label: "Hướng dẫn viên",
+      },
+      {
+        key: "admin.localmate.knowledge",
+        href: "/admin/localmate/knowledge",
+        label: "Kho tri thức Tour AI",
+      },
+    ],
+  );
+});
+
 test("provides service navigation only to configured staff personas", () => {
   const permissions = ["hotel.requests.view", "hotel.services.manage"];
   const manager = buildWorkspaceNavigation({

@@ -1,0 +1,419 @@
+export type TourScopeType = "LOCAL" | "REGIONAL_DAYTRIP" | "INTERPROVINCIAL";
+
+export interface DestinationTaxonomy {
+  code: string;
+  name: string;
+  keywords: string[];
+}
+
+export interface ProvinceTaxonomy {
+  code: string;
+  name: string;
+  aliases: string[];
+  destinations: DestinationTaxonomy[];
+}
+
+export const GEOGRAPHY_TAXONOMY: Record<string, ProvinceTaxonomy> = {
+  LAO_CAI: {
+    code: "LAO_CAI",
+    name: "Lào Cai",
+    aliases: ["lao cai", "lào cai"],
+    destinations: [
+      {
+        code: "SA_PA",
+        name: "Sa Pa",
+        keywords: [
+          "sa pa",
+          "sapa",
+          "fansipan",
+          "phaxipang",
+          "hàm rồng",
+          "tả van",
+          "lao chải",
+          "cát cát",
+          "mường hoa",
+          "ô quy hồ",
+          "đèo ô quý hồ",
+          "tả phìn",
+          "bản đền",
+        ],
+      },
+      {
+        code: "BAC_HA",
+        name: "Bắc Hà",
+        keywords: ["bắc hà", "bac ha", "dinh hoàng a tưởng", "chợ bắc hà", "thải giàng phố"],
+      },
+      {
+        code: "Y_TY",
+        name: "Y Tý",
+        keywords: ["y tý", "y ty", "lũng pô", "ngải thầu", "bát xát", "bat xat"],
+      },
+      {
+        code: "BAO_YEN",
+        name: "Bảo Yên",
+        keywords: ["bảo yên", "bao yen", "đền bảo hà", "ông hoàng bảy"],
+      },
+    ],
+  },
+  YEN_BAI: {
+    code: "YEN_BAI",
+    name: "Yên Bái",
+    aliases: ["yen bai", "yên bái"],
+    destinations: [
+      {
+        code: "MU_CANG_CHAI",
+        name: "Mù Cang Chải",
+        keywords: [
+          "mù cang chải",
+          "mu cang chai",
+          "la pán tẩn",
+          "la pan tan",
+          "chế cu nha",
+          "dế xu phình",
+          "mâm xôi",
+          "móng ngựa",
+          "lao chải mù cang chải",
+        ],
+      },
+      {
+        code: "TRAM_TAU",
+        name: "Trạm Tấu",
+        keywords: [
+          "trạm tấu",
+          "tram tau",
+          "khoáng nóng trạm tấu",
+          "tà chì nhù",
+          "ta chi nhu",
+          "tà xùa",
+          "bản cu vai",
+        ],
+      },
+      {
+        code: "NGHIA_LO",
+        name: "Nghĩa Lộ",
+        keywords: [
+          "nghĩa lộ",
+          "nghia lo",
+          "mường lò",
+          "muong lo",
+          "cánh đồng mường lò",
+          "chợ mường lò",
+        ],
+      },
+      {
+        code: "TU_LE",
+        name: "Tú Lệ",
+        keywords: [
+          "tú lệ",
+          "tu le",
+          "đèo khau phạ",
+          "khau phạ",
+          "khau pha",
+          "cốm tú lệ",
+          "le champ",
+        ],
+      },
+      {
+        code: "HO_THAC_BA",
+        name: "Hồ Thác Bà",
+        keywords: [
+          "hồ thác bà",
+          "ho thac ba",
+          "thác bà",
+          "thủy điện thác bà",
+          "đảo hoa",
+          "đảo thiên đường",
+          "đảo xanh",
+          "động thủy tiên",
+          "vũ linh",
+          "ruby",
+          "an bình village",
+          "bảo ngọc",
+          "yên bình",
+        ],
+      },
+      {
+        code: "SUOI_GIANG",
+        name: "Suối Giàng",
+        keywords: [
+          "suối giàng",
+          "suoi giang",
+          "lau camping",
+          "chè shan tuyết",
+          "rừng chè cổ thụ",
+          "động thiên sinh",
+        ],
+      },
+      {
+        code: "VAN_CHAN",
+        name: "Văn Chấn",
+        keywords: [
+          "văn chấn",
+          "van chan",
+          "bản hốc",
+          "ban hoc",
+          "bản sà rèn",
+          "sà rèn",
+          "suối nước nóng bản hốc",
+        ],
+      },
+    ],
+  },
+  HA_NOI: {
+    code: "HA_NOI",
+    name: "Hà Nội",
+    aliases: ["ha noi", "hà nội", "hanoi"],
+    destinations: [
+      {
+        code: "HOAN_KIEM",
+        name: "Hoàn Kiếm & Phố Cổ",
+        keywords: ["hoàn kiếm", "hồ gươm", "phố cổ", "36 phố phường", "tràng tiền"],
+      },
+      {
+        code: "BA_DINH",
+        name: "Ba Đình",
+        keywords: ["ba đình", "lăng bác", "hoàng thành thăng long", "chùa một cột"],
+      },
+      {
+        code: "TAY_HO",
+        name: "Tây Hồ",
+        keywords: ["tây hồ", "hồ tây", "chùa trấn quốc", "phủ tây hồ"],
+      },
+      {
+        code: "BA_VI",
+        name: "Ba Vì",
+        keywords: ["ba vì", "vườn quốc gia ba vì", "khoang xanh", "ao vua"],
+      },
+      {
+        code: "SOC_SON",
+        name: "Sóc Sơn",
+        keywords: ["sóc sơn", "đền sóc", "hồ đồng đò", "hồ hàm lợn"],
+      },
+      {
+        code: "DUONG_LAM",
+        name: "Đường Lâm",
+        keywords: ["đường lâm", "làng cổ đường lâm", "sơn tây"],
+      },
+      {
+        code: "BAT_TRANG",
+        name: "Bát Tràng",
+        keywords: ["bát tràng", "gốm bát tràng", "gia lâm"],
+      },
+    ],
+  },
+  DA_NANG: {
+    code: "DA_NANG",
+    name: "Đà Nẵng",
+    aliases: ["da nang", "đà nẵng", "danang"],
+    destinations: [
+      {
+        code: "BA_NA",
+        name: "Bà Nà Hills",
+        keywords: ["bà nà", "ba na hills", "cầu vàng", "golden bridge"],
+      },
+      {
+        code: "SON_TRA",
+        name: "Sơn Trà",
+        keywords: ["sơn trà", "bán đảo sơn trà", "chùa linh ứng", "đỉnh bàn cờ"],
+      },
+      {
+        code: "NGU_HANH_SON",
+        name: "Ngũ Hành Sơn",
+        keywords: ["ngũ hành sơn", "chùa tam thai", "động huyền không"],
+      },
+      {
+        code: "MY_KHE",
+        name: "Mỹ Khê",
+        keywords: ["mỹ khê", "bãi biển mỹ khê", "sông hàn", "cầu rồng"],
+      },
+    ],
+  },
+  QUANG_NAM: {
+    code: "QUANG_NAM",
+    name: "Quảng Nam",
+    aliases: ["quang nam", "quảng nam"],
+    destinations: [
+      {
+        code: "HOI_AN",
+        name: "Hội An",
+        keywords: ["hội an", "hoi an", "phố cổ hội an", "chùa cầu", "rừng dừa bảy mẫu"],
+      },
+      {
+        code: "CU_LAO_CHAM",
+        name: "Cù Lao Chàm",
+        keywords: ["cù lao chàm", "cu lao cham"],
+      },
+      {
+        code: "MY_SON",
+        name: "Mỹ Sơn",
+        keywords: ["mỹ sơn", "my son", "thánh địa mỹ sơn"],
+      },
+    ],
+  },
+  HO_CHI_MINH: {
+    code: "HO_CHI_MINH",
+    name: "Hồ Chí Minh",
+    aliases: ["ho chi minh", "hồ chí minh", "hcm", "sài gòn", "sai gon", "tphcm"],
+    destinations: [
+      {
+        code: "SAI_GON_CENTER",
+        name: "Trung tâm Sài Gòn",
+        keywords: [
+          "quận 1",
+          "quận 3",
+          "chợ bến thành",
+          "dinh độc lập",
+          "nhà thờ đức bà",
+          "phố đi bộ nguyễn huệ",
+          "bưu điện trung tâm",
+        ],
+      },
+      {
+        code: "CU_CHI",
+        name: "Củ Chi",
+        keywords: ["củ chi", "cu chi", "địa đạo củ chi"],
+      },
+      {
+        code: "CAN_GIO",
+        name: "Cần Giờ",
+        keywords: ["cần giờ", "can gio", "rừng sác", "đảo khỉ"],
+      },
+    ],
+  },
+  KIEN_GIANG: {
+    code: "KIEN_GIANG",
+    name: "Kiên Giang",
+    aliases: ["kien giang", "kiên giang"],
+    destinations: [
+      {
+        code: "PHU_QUOC",
+        name: "Phú Quốc",
+        keywords: [
+          "phú quốc",
+          "phu quoc",
+          "hòn thơm",
+          "grand world",
+          "sunset sanato",
+          "bãi sao",
+          "an thới",
+          "dương đông",
+        ],
+      },
+      {
+        code: "NAM_DU",
+        name: "Nam Du",
+        keywords: ["nam du", "quần đảo nam du"],
+      },
+      {
+        code: "HA_TIEN",
+        name: "Hà Tiên",
+        keywords: ["hà tiên", "ha tien", "mũi nai", "thạch động"],
+      },
+      {
+        code: "RACH_GIA",
+        name: "Rạch Giá",
+        keywords: ["rạch giá", "rach gia"],
+      },
+    ],
+  },
+};
+
+export interface InferredProvinceAndScope {
+  provinceCode: string;
+  province: string;
+  tourScope: TourScopeType;
+}
+
+/**
+ * Infer Province and TourScope from destination and tour title text.
+ */
+export function inferProvinceAndScope(
+  destination: string,
+  title?: string,
+): InferredProvinceAndScope {
+  const combinedText = `${destination || ""} ${title || ""}`.toLowerCase();
+  const destOnly = (destination || "").toLowerCase();
+
+  // Find all matched provinces
+  const matchedProvinces = new Set<string>();
+  const matchedDestinationsByProvince = new Map<string, Set<string>>();
+
+  for (const [code, prov] of Object.entries(GEOGRAPHY_TAXONOMY)) {
+    // Check province aliases in combined text
+    const matchesProvince = prov.aliases.some((alias) => combinedText.includes(alias));
+    if (matchesProvince) {
+      matchedProvinces.add(code);
+    }
+
+    // Check destinations
+    for (const d of prov.destinations) {
+      const destMatch = d.keywords.some((kw) => combinedText.includes(kw));
+      if (destMatch) {
+        matchedProvinces.add(code);
+        if (!matchedDestinationsByProvince.has(code)) {
+          matchedDestinationsByProvince.set(code, new Set());
+        }
+        matchedDestinationsByProvince.get(code)!.add(d.code);
+      }
+    }
+  }
+
+  // If multiple provinces matched -> INTERPROVINCIAL
+  if (matchedProvinces.size > 1) {
+    // Pick the primary destination province (prioritizing the one matched in `destination` or non-capital/route target)
+    let primaryProvinceCode = "YEN_BAI";
+    // Check if destOnly specifically matches any province
+    for (const code of matchedProvinces) {
+      const prov = GEOGRAPHY_TAXONOMY[code];
+      const inDest =
+        prov.aliases.some((a) => destOnly.includes(a)) ||
+        prov.destinations.some((d) => d.keywords.some((kw) => destOnly.includes(kw)));
+      if (inDest && code !== "HA_NOI" && code !== "HO_CHI_MINH") {
+        primaryProvinceCode = code;
+        break;
+      }
+    }
+
+    if (!primaryProvinceCode) {
+      primaryProvinceCode = Array.from(matchedProvinces)[0];
+    }
+
+    const provinceName = GEOGRAPHY_TAXONOMY[primaryProvinceCode]?.name || "Yên Bái";
+
+    return {
+      provinceCode: primaryProvinceCode,
+      province: provinceName,
+      tourScope: "INTERPROVINCIAL",
+    };
+  }
+
+  // Single province matched
+  if (matchedProvinces.size === 1) {
+    const singleCode = Array.from(matchedProvinces)[0];
+    const prov = GEOGRAPHY_TAXONOMY[singleCode];
+    const destSet = matchedDestinationsByProvince.get(singleCode) || new Set();
+
+    // If it covers multiple distinct districts/destinations within the province -> REGIONAL_DAYTRIP
+    // Or if title has 2N1Đ / 3N2Đ connecting different spots
+    const isMultiDay = /\b[2345]n[1234]đ\b/i.test(combinedText);
+    const hasMultipleDestinations = destSet.size >= 2;
+
+    let tourScope: TourScopeType = "LOCAL";
+    if (hasMultipleDestinations || isMultiDay) {
+      tourScope = "REGIONAL_DAYTRIP";
+    }
+
+    return {
+      provinceCode: singleCode,
+      province: prov.name,
+      tourScope,
+    };
+  }
+
+  // Fallback defaults
+  return {
+    provinceCode: "LAO_CAI",
+    province: "Lào Cai",
+    tourScope: "LOCAL",
+  };
+}

@@ -9,6 +9,14 @@
 
 ## Unreleased
 
+- **LocalMate Knowledge machine-to-machine boundary and proxy retirement**:
+  - Converted `GET|POST /localmate/knowledge` and `GET /localmate/tours` from anonymous public endpoints to machine-to-machine endpoints requiring `X-VietSage-Knowledge-Key` header with constant-time validation (`LOCALMATE_KNOWLEDGE_API_KEY`). Missing or invalid key returns HTTP 401; unconfigured server key in non-production returns HTTP 503.
+  - Canonicalized request inputs to `query`, `destination`, and bounded `limit` (range 1–10, default 5); deprecated `prompt`, `region`, and `format` input fields are removed.
+  - Response payload is restricted to structured data exposing `knowledgeVersion`, `metadata`, `tours`, and `guides`; stripped AI prompt artifact fields (`role`, `systemPrompt`, `promptContext`, `generatedAt`). Added `Cache-Control: private, no-store`.
+  - Retired unauthenticated Next.js frontend proxy routes (`/api/localmate/knowledge` and `/localmate/knowledge`); browsers must not receive the machine key or directly scrape raw knowledge.
+  - Updated Postman collection with `knowledgeApiKey` variable and attached `X-VietSage-Knowledge-Key: {{knowledgeApiKey}}` to machine endpoints.
+  - Shifted prompt and persona construction ownership to external workflow orchestration (n8n); this pre-release contract cleanup does not integrate LLM or chatbox components.
+
 - **Finance role consolidation and debt statement endpoints**:
   - Consolidated finance role model to immutable system template `PLATFORM_FINANCE` with capabilities `platform.billing.view`, `platform.billing.manage`, and `platform.hotels.view`. Retired `HOTEL_FINANCE`.
   - Added dedicated Owner statement endpoint `GET /platform-billing/owner/periods/{periodId}/statement` requiring `hotel.revenue-protection.view` and active hotel tenancy validation.

@@ -3,8 +3,8 @@ services:
     image: postgres:16-alpine
     container_name: vietsage-postgres
     restart: unless-stopped
-    mem_limit: 512m
-    cpus: "1.0"
+    mem_limit: 768m
+    cpus: "1.5"
     pids_limit: 128
     logging:
       driver: "json-file"
@@ -98,8 +98,8 @@ services:
       dockerfile: Dockerfile
     container_name: vietsage-auth-service
     restart: unless-stopped
-    mem_limit: 512m
-    cpus: "1.5"
+    mem_limit: 768m
+    cpus: "2.0"
     pids_limit: 128
     logging:
       driver: "json-file"
@@ -190,7 +190,7 @@ services:
         - frontend_build_auth
     container_name: vietsage-frontend
     restart: unless-stopped
-    mem_limit: 384m
+    mem_limit: 512m
     cpus: "1.0"
     pids_limit: 128
     logging:
@@ -206,6 +206,7 @@ services:
       HOSTNAME: 0.0.0.0
       AUTH_API_BASE_URL: http://auth-service:8080
       OPEN_MRZ_BASE_URL: http://open-mrz:8787
+      LOCALMATE_N8N_WEBHOOK_URL: "${LOCALMATE_N8N_WEBHOOK_URL:-}"
 
     read_only: true
     tmpfs:
@@ -234,8 +235,8 @@ services:
     image: nginxinc/nginx-unprivileged:1.28-alpine
     container_name: vietsage-nginx
     restart: unless-stopped
-    mem_limit: 128m
-    cpus: "0.5"
+    mem_limit: 256m
+    cpus: "1.0"
     pids_limit: 64
     logging:
       driver: "json-file"

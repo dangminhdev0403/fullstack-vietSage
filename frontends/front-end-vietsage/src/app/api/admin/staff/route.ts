@@ -38,6 +38,31 @@ export async function GET(request: Request) {
     const staffOnlyItems = usersPage.items.filter(
       (u) => !u.roles.some((r) => r.code === "TENANT_OWNER" || r.code === "SUPER_ADMIN"),
     );
+    if (assignments?.items) {
+      const roomMap = new Map(
+        assignments.items
+          .filter((a) => a.roomAssignment?.roomNumber)
+          .map((a) => [a.userId, a.roomAssignment!.roomNumber]),
+      );
+      staffOnlyItems.sort((a, b) => {
+        const roomA = roomMap.get(a.id);
+        const roomB = roomMap.get(b.id);
+        if (roomA && roomB) {
+          const numA = Number.parseInt(roomA, 10);
+          const numB = Number.parseInt(roomB, 10);
+          if (!Number.isNaN(numA) && !Number.isNaN(numB) && numA !== numB) {
+            return numA - numB;
+          }
+          const strComp = roomA.localeCompare(roomB, undefined, { numeric: true });
+          if (strComp !== 0) return strComp;
+        } else if (roomA && !roomB) {
+          return -1;
+        } else if (!roomA && roomB) {
+          return 1;
+        }
+        return a.fullName.localeCompare(b.fullName, "vi");
+      });
+    }
     const users = {
       ...usersPage,
       items: staffOnlyItems,

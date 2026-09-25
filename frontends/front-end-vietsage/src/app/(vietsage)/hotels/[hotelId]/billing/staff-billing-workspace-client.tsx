@@ -1135,7 +1135,7 @@ export function StaffBillingWorkspaceClient({
         <div className="rounded-2xl border border-[#d4af37]/50 bg-gradient-to-br from-[#2a1b08] via-[#38240b] to-[#1a1004] p-5 text-white shadow-2xl space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-xs sm:text-sm font-black uppercase tracking-wider text-[#fce8b3]">
-              TỔNG THÀNH TIỀN CHECKOUT
+              Tổng tiền
             </p>
             <span className="rounded-full bg-[#f59e0b]/30 px-3 py-1 text-xs font-black text-[#ffe270] border border-[#f59e0b]/60 shadow-xs">
               {currency}
@@ -1148,7 +1148,7 @@ export function StaffBillingWorkspaceClient({
           <dl className="space-y-3 border-t border-[#d4af37]/30 pt-3 text-xs sm:text-sm text-[#fff3d1]">
             {/* Tiền phòng */}
             <div className="flex justify-between items-center">
-              <dt className="text-amber-100/90 font-bold text-sm flex items-center gap-1">
+              <dt className="text-amber-100 font-bold text-sm flex items-center gap-1">
                 <span>🏨 Tiền phòng</span>
               </dt>
               <dd className="font-black text-base text-white">
@@ -1158,7 +1158,7 @@ export function StaffBillingWorkspaceClient({
 
             {/* Dịch vụ khách sạn (Internal) */}
             <div className="flex justify-between items-center">
-              <dt className="text-amber-100/90 font-bold text-sm flex items-center gap-1">
+              <dt className="text-amber-100 font-bold text-sm flex items-center gap-1">
                 <span>🔔 Dịch vụ khách sạn</span>
               </dt>
               <dd className="font-black text-base text-white">
@@ -1190,7 +1190,7 @@ export function StaffBillingWorkspaceClient({
             {/* Phụ thu đã ghi nhận trong folio */}
             {manualChargeTotal > 0 ? (
               <div className="flex justify-between items-center">
-                <dt className="text-amber-100/90 font-bold text-sm flex items-center gap-1">
+                <dt className="text-amber-100 font-bold text-sm flex items-center gap-1">
                   <span>⚡ Phụ thu đã thêm</span>
                 </dt>
                 <dd className="font-black text-base text-amber-300">
@@ -1201,7 +1201,7 @@ export function StaffBillingWorkspaceClient({
 
             {/* Tạm tính (Tiền phòng + Dịch vụ + Phụ thu) */}
             <div className="flex justify-between items-center border-t border-[#d4af37]/20 pt-2">
-              <dt className="text-amber-200/90 font-extrabold text-sm">
+              <dt className="text-amber-200 font-extrabold text-sm">
                 Tổng tạm tính
               </dt>
               <dd className="font-black text-base text-[#ffe270]">
@@ -1210,7 +1210,7 @@ export function StaffBillingWorkspaceClient({
             </div>
 
             <div className="flex justify-between items-center">
-              <dt className="text-amber-100/90 font-bold text-sm">
+              <dt className="text-amber-100 font-bold text-sm">
                 Thuế (VAT)
               </dt>
               <dd className="font-black text-base text-white">
@@ -1260,7 +1260,7 @@ export function StaffBillingWorkspaceClient({
                           )
                         }
                         placeholder="0 hoặc 10%"
-                        className="h-10 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-3 py-1 text-right text-base font-black text-[#ffe270] outline-none focus:border-[#fbbf24] focus:ring-2 focus:ring-[#fbbf24]/60 shadow-inner"
+                        className="h-10 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-3 py-1 text-right text-base font-black text-[#ffe270] placeholder-[#ffe270]/60 outline-none focus:border-[#fbbf24] focus:ring-2 focus:ring-[#fbbf24]/60 shadow-inner"
                       />
                     </dd>
                   </div>
@@ -1272,7 +1272,7 @@ export function StaffBillingWorkspaceClient({
                       value={surchargeNote}
                       onChange={(e) => setSurchargeNote(e.target.value)}
                       placeholder="Lý do phụ thu (vd: Check-in sớm, phụ thu người ở...)"
-                      className="h-9 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-3 py-1 text-xs sm:text-sm font-medium text-[#ffe270] placeholder-[#d4af37]/50 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
+                      className="h-9 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-3 py-1 text-xs sm:text-sm font-medium text-[#ffe270] placeholder-[#ffe270]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
                     />
                   ) : null}
 
@@ -1293,7 +1293,7 @@ export function StaffBillingWorkspaceClient({
                           setSurchargeInput("5%");
                           if (!surchargeNote) setSurchargeNote("Phụ thu 5%");
                         }}
-                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
                       >
                         +5%
                       </button>
@@ -1303,7 +1303,7 @@ export function StaffBillingWorkspaceClient({
                           setSurchargeInput("10%");
                           if (!surchargeNote) setSurchargeNote("Phụ thu 10%");
                         }}
-                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
                       >
                         +10%
                       </button>
@@ -1313,7 +1313,7 @@ export function StaffBillingWorkspaceClient({
                           setSurchargeInput(formatNumberInput("50000"));
                           setSurchargeNote("Phụ thu Check-in sớm");
                         }}
-                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
                       >
                         +50k Sớm
                       </button>
@@ -1323,7 +1323,7 @@ export function StaffBillingWorkspaceClient({
                           setSurchargeInput(formatNumberInput("100000"));
                           setSurchargeNote("Phụ thu Check-out muộn");
                         }}
-                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
                       >
                         +100k Muộn
                       </button>
@@ -1348,7 +1348,7 @@ export function StaffBillingWorkspaceClient({
                           )
                         }
                         placeholder="0 hoặc 10%"
-                        className="h-10 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-3 py-1 text-right text-base font-black text-[#fef08a] outline-none focus:border-[#fbbf24] focus:ring-2 focus:ring-[#fbbf24]/60 shadow-inner"
+                        className="h-10 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-3 py-1 text-right text-base font-black text-[#fef08a] placeholder-[#fef08a]/60 outline-none focus:border-[#fbbf24] focus:ring-2 focus:ring-[#fbbf24]/60 shadow-inner"
                       />
                     </dd>
                   </div>
@@ -1360,7 +1360,7 @@ export function StaffBillingWorkspaceClient({
                       value={discountNote}
                       onChange={(e) => setDiscountNote(e.target.value)}
                       placeholder="Lý do giảm giá (vd: Khách VIP, voucher...)"
-                      className="h-9 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-3 py-1 text-xs sm:text-sm font-medium text-[#fef08a] placeholder-[#d4af37]/50 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
+                      className="h-9 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-3 py-1 text-xs sm:text-sm font-medium text-[#fef08a] placeholder-[#fef08a]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
                     />
                   ) : null}
 
@@ -1381,7 +1381,7 @@ export function StaffBillingWorkspaceClient({
                           setDiscountInput("5%");
                           setDiscountNote("Giảm giá 5% Khách VIP");
                         }}
-                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
                       >
                         -5% VIP
                       </button>
@@ -1391,7 +1391,7 @@ export function StaffBillingWorkspaceClient({
                           setDiscountInput("10%");
                           setDiscountNote("Giảm giá 10% Khách VIP");
                         }}
-                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
                       >
                         -10% VIP
                       </button>
@@ -1401,7 +1401,7 @@ export function StaffBillingWorkspaceClient({
                           setDiscountInput("15%");
                           setDiscountNote("Ưu đãi voucher -15%");
                         }}
-                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
                       >
                         -15% Voucher
                       </button>
@@ -1427,7 +1427,7 @@ export function StaffBillingWorkspaceClient({
                         setCashGivenInput(formatNumberInput(e.target.value))
                       }
                       placeholder="0"
-                      className="h-10 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-3 py-1 text-right text-base font-black text-[#ffe270] outline-none focus:border-[#fbbf24] focus:ring-2 focus:ring-[#fbbf24]/60 shadow-inner"
+                      className="h-10 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-3 py-1 text-right text-base font-black text-[#ffe270] placeholder-[#ffe270]/60 outline-none focus:border-[#fbbf24] focus:ring-2 focus:ring-[#fbbf24]/60 shadow-inner"
                     />
                   </dd>
                 </div>
@@ -1438,14 +1438,14 @@ export function StaffBillingWorkspaceClient({
                     onClick={() =>
                       setCashGivenInput(formatNumberInput(computedTotal))
                     }
-                    className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
+                    className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
                   >
                     Đủ tiền
                   </button>
                   <button
                     type="button"
                     onClick={() => setCashGivenInput(formatNumberInput(500000))}
-                    className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
+                    className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
                   >
                     500k
                   </button>
@@ -1454,7 +1454,7 @@ export function StaffBillingWorkspaceClient({
                     onClick={() =>
                       setCashGivenInput(formatNumberInput(1000000))
                     }
-                    className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
+                    className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
                   >
                     1 Triệu
                   </button>

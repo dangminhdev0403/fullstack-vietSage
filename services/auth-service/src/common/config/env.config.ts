@@ -48,6 +48,8 @@ const ConfigSchema = z.object({
   AUTH_LOGIN_RATE_LIMIT_LIMIT: z.string().optional(),
   AUTH_REFRESH_RATE_LIMIT_TTL_SECONDS: z.string().optional(),
   AUTH_REFRESH_RATE_LIMIT_LIMIT: z.string().optional(),
+  LOCALMATE_KNOWLEDGE_RATE_LIMIT_TTL_SECONDS: z.string().optional(),
+  LOCALMATE_KNOWLEDGE_RATE_LIMIT_LIMIT: z.string().optional(),
   AUTH_TRUSTED_PROXIES: z.string().optional(),
   GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(),
   GOOGLE_SERVICE_CATEGORY_RANGE: z.string().optional(),
@@ -64,6 +66,7 @@ const ConfigSchema = z.object({
     .url("KBTT_BASE_URL must be a valid URL")
     .refine((value) => new URL(value).protocol === "https:", "KBTT_BASE_URL must use HTTPS")
     .optional(),
+  LOCALMATE_KNOWLEDGE_API_KEY: z.string().optional(),
 });
 
 export type EnvConfig = z.infer<typeof ConfigSchema>;
@@ -127,6 +130,10 @@ export interface HttpConfig {
   keepAliveTimeoutMs: number;
 }
 
+export interface LocalMateConfig {
+  knowledgeApiKey: string | null;
+}
+
 export interface AppConfig {
   nodeEnv: string;
   port: number;
@@ -140,9 +147,11 @@ export interface AppConfig {
   swaggerEnabled: boolean;
   trustedProxies: string[];
   requestRealtime: RequestRealtimeConfig;
+  localMate: LocalMateConfig;
   rateLimits: {
     login: RateLimitConfig;
     refresh: RateLimitConfig;
+    knowledge: RateLimitConfig;
   };
 }
 
@@ -388,6 +397,17 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       "Invalid REQUEST_REALTIME_TICKET_SECRET environment variable. Expected at least 32 non-blank characters when request realtime is enabled.",
     );
   }
+  const localMateKnowledgeApiKey = normalizeOptionalEnvText(
+    validated.LOCALMATE_KNOWLEDGE_API_KEY,
+  );
+  if (
+    validated.NODE_ENV === "production" &&
+    (!localMateKnowledgeApiKey || localMateKnowledgeApiKey.length < 32)
+  ) {
+    throw new Error(
+      "Invalid LOCALMATE_KNOWLEDGE_API_KEY environment variable. Production requires at least 32 characters.",
+    );
+  }
 
   return {
     nodeEnv: validated.NODE_ENV,
@@ -440,6 +460,9 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       ),
       audience: "request-realtime",
     },
+    localMate: {
+      knowledgeApiKey: localMateKnowledgeApiKey,
+    },
     rateLimits: {
       login: {
         ttlSeconds: parsePositiveIntegerEnv(
@@ -463,6 +486,18 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
           validated.AUTH_REFRESH_RATE_LIMIT_LIMIT,
           30,
           "AUTH_REFRESH_RATE_LIMIT_LIMIT",
+        ),
+      },
+      knowledge: {
+        ttlSeconds: parsePositiveIntegerEnv(
+          validated.LOCALMATE_KNOWLEDGE_RATE_LIMIT_TTL_SECONDS,
+          60,
+          "LOCALMATE_KNOWLEDGE_RATE_LIMIT_TTL_SECONDS",
+        ),
+        limit: parsePositiveIntegerEnv(
+          validated.LOCALMATE_KNOWLEDGE_RATE_LIMIT_LIMIT,
+          120,
+          "LOCALMATE_KNOWLEDGE_RATE_LIMIT_LIMIT",
         ),
       },
     },

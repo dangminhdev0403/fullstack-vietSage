@@ -219,6 +219,12 @@ export const proxy = auth((request) => {
         [activeRoleCode],
         `${pathname}${request.nextUrl.search}`,
       ) ?? getDefaultPathForRoles([activeRoleCode]);
+
+    const targetPathname = correctPath.split("?")[0];
+    if (targetPathname === pathname) {
+      return NextResponse.next();
+    }
+
     runtimeConsole.info("[AUTH_PROXY_CROSS_WORKSPACE_REDIRECT]", {
       pathname,
       activeRoleCode,

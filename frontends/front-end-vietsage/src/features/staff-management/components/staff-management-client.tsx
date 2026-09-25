@@ -341,10 +341,28 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
       ),
     [data?.users.items],
   );
-  const displayedUsers = useMemo(
-    () => users,
-    [users],
-  );
+  const displayedUsers = useMemo(() => {
+    return [...users].sort((a, b) => {
+      const roomA = userRoomAssignmentMap.get(a.id)?.roomNumber;
+      const roomB = userRoomAssignmentMap.get(b.id)?.roomNumber;
+
+      if (roomA && roomB) {
+        const numA = Number.parseInt(roomA, 10);
+        const numB = Number.parseInt(roomB, 10);
+        if (!Number.isNaN(numA) && !Number.isNaN(numB) && numA !== numB) {
+          return numA - numB;
+        }
+        const strComp = roomA.localeCompare(roomB, undefined, { numeric: true });
+        if (strComp !== 0) return strComp;
+      } else if (roomA && !roomB) {
+        return -1;
+      } else if (!roomA && roomB) {
+        return 1;
+      }
+
+      return a.fullName.localeCompare(b.fullName, "vi");
+    });
+  }, [users, userRoomAssignmentMap]);
   const skeletonRows = useMemo(() => Array.from({ length: 5 }, (_, i) => ({ id: `skel-${i}` })), []);
 
   const totalItems = useMemo(() => {
@@ -432,7 +450,30 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
 
     try {
       const snapshot = await exportDirectory(debouncedQuery);
-      const allUsers = snapshot.users.items;
+      const assignmentMap = new Map<string, string>();
+      for (const assignment of snapshot.assignments?.items ?? []) {
+        if (assignment.roomAssignment?.roomNumber) {
+          assignmentMap.set(assignment.userId, assignment.roomAssignment.roomNumber);
+        }
+      }
+      const allUsers = [...snapshot.users.items].sort((a, b) => {
+        const roomA = assignmentMap.get(a.id);
+        const roomB = assignmentMap.get(b.id);
+        if (roomA && roomB) {
+          const numA = Number.parseInt(roomA, 10);
+          const numB = Number.parseInt(roomB, 10);
+          if (!Number.isNaN(numA) && !Number.isNaN(numB) && numA !== numB) {
+            return numA - numB;
+          }
+          const strComp = roomA.localeCompare(roomB, undefined, { numeric: true });
+          if (strComp !== 0) return strComp;
+        } else if (roomA && !roomB) {
+          return -1;
+        } else if (!roomA && roomB) {
+          return 1;
+        }
+        return a.fullName.localeCompare(b.fullName, "vi");
+      });
 
       if (allUsers.length === 0) {
         void SwalVietSage.fire({
@@ -980,6 +1021,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
             ]}
             data={displayedUsers}
             getRowKey={(user) => user.id}
+            onRowClick={canManage ? (user) => openEditStaff(user) : undefined}
             emptyMessage={hasMultipleHotels && effectiveHotelId ? "Không có nhân viên nào đang làm việc tại khách sạn này." : "Không có nhân viên phù hợp."}
             minWidth="1200px"
             pagination={{

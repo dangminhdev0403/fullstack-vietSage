@@ -55,7 +55,7 @@ export class AuthRateLimitGuard implements CanActivate {
 
     if (existing.count >= config.limit) {
       throw new HttpException(
-        "Too many auth requests. Please try again later.",
+        "Too many requests. Please try again later.",
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }

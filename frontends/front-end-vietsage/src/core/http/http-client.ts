@@ -156,24 +156,40 @@ function logApiResponse(params: {
   responseBody: unknown;
   message?: string;
 }): void {
-  if (!runtimeConsole.enabled(params.ok ? "info" : "error")) return;
+  const isServerError = params.status >= 500;
+  const level = params.ok ? "info" : isServerError ? "error" : "warn";
+  if (!runtimeConsole.enabled(level)) return;
 
-  const url = new URL(params.requestUrl);
+  let pathname = params.requestUrl;
+  try {
+    const url = new URL(params.requestUrl);
+    pathname = url.pathname;
+  } catch {
+    // Keep raw url if not a valid full URL
+  }
+
   const metadata = {
     method: params.method,
-    url: url.pathname,
+    url: pathname,
     status: params.status,
     ok: params.ok,
     durationMs: params.durationMs,
     message: params.message ?? extractApiResponseMessage(params.responseBody),
   };
 
+  const log = params.ok
+    ? runtimeConsole.info
+    : isServerError
+      ? runtimeConsole.error
+      : runtimeConsole.warn;
+
   if (process.env.NODE_ENV === "production") {
-    runtimeConsole.error(HTTP_RESPONSE_LOG_PREFIX, metadata);
+    if (!params.ok) {
+      log(HTTP_RESPONSE_LOG_PREFIX, metadata);
+    }
     return;
   }
 
-  const log = params.ok ? runtimeConsole.info : runtimeConsole.error;
   log(HTTP_RESPONSE_LOG_PREFIX, {
     ...metadata,
     response: toLogSafePayload(params.responseBody),

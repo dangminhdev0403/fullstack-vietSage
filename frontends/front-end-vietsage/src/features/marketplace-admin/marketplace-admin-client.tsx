@@ -192,10 +192,6 @@ export function MarketplaceAdminClient() {
   );
   const [editingCategory, setEditingCategory] =
     useState<MarketplaceCategory | null>(null);
-  const [selectedCategoryDetail, setSelectedCategoryDetail] = useState<{
-    category: MarketplaceCategory;
-    activeLang: "en" | "zh" | "ko" | "ru" | "hi";
-  } | null>(null);
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(
     null,
   );
@@ -336,9 +332,6 @@ export function MarketplaceAdminClient() {
       }
     });
   };
-
-  const [selectedPartnerDetails, setSelectedPartnerDetails] =
-    useState<ServiceTenant | null>(null);
 
   const submitCategory = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1733,7 +1726,8 @@ export function MarketplaceAdminClient() {
             data={filteredCategories}
             getRowKey={(item) => item.id}
             onRowClick={(item) => {
-              setSelectedCategoryDetail({ category: item, activeLang: "en" });
+              setFormValidationError(null);
+              setEditingCategory(item);
             }}
             emptyMessage="Chưa có danh mục dịch vụ nào được tạo"
             pagination={{
@@ -2483,208 +2477,6 @@ export function MarketplaceAdminClient() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal 5: Category Details View Modal with Language Switcher Buttons */}
-      {selectedCategoryDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201b]/60 p-4 backdrop-blur-md animate-in fade-in duration-150">
-          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
-            <div className="flex items-center justify-between border-b border-[#e8dfd1] pb-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#24473d] text-[#e8b363]">
-                  <VsIcon name="storefront" className="text-3xl" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-extrabold text-[#24473d]">
-                    {selectedCategoryDetail.category.nameVi}
-                  </h2>
-                  <p className="text-sm font-bold text-[#8c5e1a]">
-                    {selectedCategoryDetail.category.code}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedCategoryDetail(null)}
-                className="rounded-full p-2 text-[#69726b] hover:bg-[#f4efe6] hover:text-[#17201b] transition-colors"
-                aria-label="Đóng cửa sổ"
-              >
-                <VsIcon name="close" className="text-2xl" />
-              </button>
-            </div>
-
-            {/* Language Switcher Button Bar */}
-            <div className="space-y-3">
-              <p className="text-xs font-black uppercase tracking-wider text-[#24473d]">
-                CHỌN NGÔN NGỮ HIỂN THỊ (LANGUAGE CODES)
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { code: "en", flag: "🇬🇧", label: "EN — English" },
-                  { code: "zh", flag: "🇨🇳", label: "ZH — Chinese" },
-                  { code: "ko", flag: "🇰🇷", label: "KO — Korean" },
-                  { code: "ru", flag: "🇷🇺", label: "RU — Russian" },
-                  { code: "hi", flag: "🇮🇳", label: "HI — Hindi" },
-                ].map((l) => {
-                  const isActive = selectedCategoryDetail.activeLang === l.code;
-                  const langName =
-                    selectedCategoryDetail.category.translations?.find(
-                      (t) => t.locale === l.code,
-                    )?.name;
-                  const hasVal = Boolean(langName);
-
-                  return (
-                    <button
-                      key={l.code}
-                      type="button"
-                      onClick={() =>
-                        setSelectedCategoryDetail({
-                          ...selectedCategoryDetail,
-                          activeLang: l.code as
-                            | "en"
-                            | "zh"
-                            | "ko"
-                            | "ru"
-                            | "hi",
-                        })
-                      }
-                      className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all shadow-xs ${
-                        isActive
-                          ? "bg-[#24473d] text-[#e8b363] border-2 border-[#e8b363] scale-105 shadow-md"
-                          : hasVal
-                            ? "bg-[#fffdf5] text-[#8c5e1a] border border-[#d4af37]/60 hover:bg-[#fcf6ea]"
-                            : "bg-slate-100 text-slate-400 border border-slate-200 opacity-60 hover:opacity-100"
-                      }`}
-                    >
-                      <span>{l.flag}</span>
-                      <span>{l.code.toUpperCase()}</span>
-                      {hasVal && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Dynamic Content Display Box */}
-            <div className="rounded-2xl border border-[#eddab9] bg-[#fcf6ea]/70 p-5 space-y-2">
-              <div className="flex items-center justify-between text-xs font-extrabold text-[#8c5e1a]">
-                <span>NỘI DUNG TÊN DANH MỤC (DỊCH THUẬT)</span>
-                <span className="uppercase font-mono bg-[#8c5e1a]/10 px-2 py-0.5 rounded">
-                  NGÔN NGỮ: {selectedCategoryDetail.activeLang.toUpperCase()}
-                </span>
-              </div>
-              <p className="text-xl font-black text-[#17201b]">
-                {selectedCategoryDetail.category.translations?.find(
-                  (t) => t.locale === selectedCategoryDetail.activeLang,
-                )?.name || (
-                  <em className="text-base font-medium text-[#8c857d] not-italic">
-                    Chưa có dịch thuật cho ngôn ngữ này
-                  </em>
-                )}
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between pt-4 border-t border-[#e8dfd1]">
-              <button
-                type="button"
-                onClick={() => setSelectedCategoryDetail(null)}
-                className="h-11 rounded-full border border-[#dcd1bf] bg-white px-6 text-sm font-bold text-[#24473d] hover:bg-[#f5efe4] transition-colors"
-              >
-                Đóng
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const cat = selectedCategoryDetail.category;
-                  setSelectedCategoryDetail(null);
-                  setEditingCategory(cat);
-                }}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#24473d] px-6 text-sm font-bold text-[#fff8e8] hover:bg-[#1a352d] transition-colors shadow-md shadow-[#24473d]/20"
-              >
-                <VsIcon name="edit" className="text-base" />
-                Chỉnh sửa danh mục này
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal 6: View Partner Details */}
-      {selectedPartnerDetails && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201b]/60 p-4 backdrop-blur-md animate-in fade-in duration-150">
-          <div className="w-full max-w-md rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
-            <div className="flex items-center justify-between border-b border-[#e8dfd1] pb-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#24473d] text-[#e8b363] text-lg font-extrabold ring-2 ring-[#e8b363]/30">
-                  {(
-                    selectedPartnerDetails.serviceProfile?.displayName ??
-                    selectedPartnerDetails.name
-                  )
-                    .substring(0, 2)
-                    .toUpperCase()}
-                </div>
-                <div>
-                  <h2 className="text-lg font-extrabold text-[#24473d]">
-                    {selectedPartnerDetails.serviceProfile?.displayName ??
-                      selectedPartnerDetails.name}
-                  </h2>
-                  <p className="text-sm font-medium text-[#69726b]">
-                    {selectedPartnerDetails.name}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedPartnerDetails(null)}
-                className="rounded-full p-2 text-[#69726b] hover:bg-[#f4efe6] hover:text-[#17201b] transition-colors"
-                aria-label="Đóng chi tiết"
-              >
-                <VsIcon name="close" className="text-2xl" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-base">
-              <div className="rounded-2xl border border-[#e8dfd1] bg-[#faf6ef] p-5 space-y-3.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#69726b] uppercase tracking-wider">
-                    Mã mạng lưới:
-                  </span>
-                  <span className="font-mono text-sm font-extrabold text-[#24473d]">
-                    {selectedPartnerDetails.code}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#69726b] uppercase tracking-wider">
-                    Tài khoản Owner:
-                  </span>
-                  <span className="font-mono text-sm font-bold text-[#17201b]">
-                    {selectedPartnerDetails.ownerEmail ?? "Chưa có"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#69726b] uppercase tracking-wider">
-                    Trạng thái:
-                  </span>
-                  <span className="text-sm font-extrabold text-[#1a5d3f] capitalize">
-                    {selectedPartnerDetails.serviceProfile?.status ?? "Active"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end pt-2">
-              <button
-                type="button"
-                onClick={() => setSelectedPartnerDetails(null)}
-                className="h-12 rounded-full bg-[#24473d] px-7 text-sm font-bold text-[#fff8e8] hover:bg-[#1a352d] transition-colors"
-              >
-                Đóng
-              </button>
-            </div>
           </div>
         </div>
       )}

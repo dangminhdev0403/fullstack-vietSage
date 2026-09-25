@@ -20,6 +20,8 @@ test("maps hotel operation templates into the staff application surface", () => 
 test("uses only the supplied active role code when resolving the application surface", () => {
   assert.equal(getPrimaryAppRole(["HOTEL_FRONTDESK"]), "staff");
   assert.equal(getPrimaryAppRole(["SUPER_ADMIN"]), "admin");
+  assert.equal(getPrimaryAppRole(["LOCALMATE_MANAGER"]), "admin");
+  assert.equal(hasAppRole(["LOCALMATE_MANAGER"], "admin"), true);
 });
 
 test("correctly maps Principal roles away from platform admin", () => {
