@@ -1,0 +1,375 @@
+{
+  "id": "aeDgPC3ojuxfWbrY",
+  "name": "VietSage LocalMate Knowledge - External Test",
+  "description": null,
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vietsage-localmate-knowledge",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "145bca67-257d-43ed-823a-17df0fe93dd8",
+      "name": "Test Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        272,
+        304
+      ],
+      "webhookId": "b786b686-8a35-463c-b65b-ed749f64d040",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "vietsageChatHeaderAuth",
+          "name": "VietSage Chat Webhook Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const webhookBody = $('Test Webhook').first().json.body || {};\nconst rawQuery = (webhookBody.query || webhookBody.prompt || webhookBody.message || '').trim();\nconst rawDest = (webhookBody.destination || '').trim();\nconst rawText = `${rawDest} ${rawQuery}`.trim();\nconst sessionId = (webhookBody.sessionId || '').trim();\n\nfunction detectLanguage(text) {\n  if (!text) return null;\n  if (/[\\u4e00-\\u9fa5]/.test(text)) return 'zh';\n  if (/[\\uac00-\\ud7a3]/.test(text)) return 'ko';\n  if (/[\\u3040-\\u30ff]/.test(text)) return 'ja';\n  \n  const viDiacritics = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;\n  if (viDiacritics.test(text)) return 'vi';\n  \n  const enWords = /\\b(the|a|an|is|are|was|were|in|at|which|on|travel|tour|tours|guide|guides|trek|trekking|hotel|stay|looking|want|recommend|suggest|what|where|how|who|can|could|price|cost|day|night|trip|hello|hi|please|localmate|vietnam|thank|thanks|contact|book|booking|available|experience|information|info)\\b/i;\n  if (enWords.test(text)) return 'en';\n  \n  const viWords = /\\b(cho|toi|minh|ban|nao|o|day|gi|the|nhe|nha|a|voi|diem|lich|trinh|huong|dan|vien)\\b/i;\n  if (viWords.test(text)) return 'vi';\n\n  return null;\n}\n\nconst detectedLang = detectLanguage(rawText);\nconst lang = detectedLang || 'vi';\n\nfunction removeVietnameseTones(str) {\n  return (str || '')\n    .normalize('NFD')\n    .replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/đ/g, 'd').replace(/Đ/g, 'D')\n    .toLowerCase();\n}\n\nconst DESTINATION_DICTIONARY = [\n  {\n    canonical: 'Mù Cang Chải',\n    aliases: [\n      'mu cang chai', 'mù cang chải', 'mù căng chải', 'mucangchai', 'mu kang chai',\n      'mu cang chay', 'mucang chay', 'la pan tan', 'la pán tẩn', 'khau pha', 'đèo khau phạ',\n      'ruộng bậc thang', 'ruong bac thang', 'mâm xôi', 'đồi mâm xôi', 'móng ngựa', 'lúa chín', 'mùa vàng',\n      'mù chang chải', '木江界'\n    ]\n  },\n  {\n    canonical: 'Hồ Thác Bà',\n    aliases: [\n      'hồ thác bà', 'ho thac ba', 'thac ba', 'thác bà', 'thac ba lake',\n      'động thủy tiên', 'dong thuy tien', 'an bình village', 'an binh village',\n      'thủy điện thác bà', 'chèo sup', 'đảo hoa', 'đảo thiên đường'\n    ]\n  },\n  {\n    canonical: 'Trạm Tấu',\n    aliases: [\n      'trạm tấu', 'tram tau', 'khoáng nóng', 'khoang nong', 'hot springs', 'hot spring',\n      'tà chì nhù', 'ta chi nhu', 'tà xùa', 'ta xua', 'bản hốc', 'tắm khoáng'\n    ]\n  },\n  {\n    canonical: 'Suối Giàng',\n    aliases: [\n      'suối giàng', 'suoi giang', 'chè shan tuyết', 'che shan tuyet', 'shan tuyet',\n      'lau camping', 'phình hồ', 'chè cổ thụ'\n    ]\n  },\n  {\n    canonical: 'Nghĩa Lộ',\n    aliases: ['nghĩa lộ', 'nghia lo', 'mường lò', 'muong lo', 'sà rèn', 'xòe thái']\n  },\n  {\n    canonical: 'Yên Bái',\n    aliases: ['yên bái', 'yen bai']\n  }\n];\n\nfunction resolveDestination(text) {\n  if (!text) return null;\n  const lower = text.toLowerCase();\n  const lowerNoTone = removeVietnameseTones(text);\n\n  for (const item of DESTINATION_DICTIONARY) {\n    if (lower.includes(item.canonical.toLowerCase())) {\n      return item.canonical;\n    }\n    for (const alias of item.aliases) {\n      if (lower.includes(alias)) {\n        return item.canonical;\n      }\n      const aliasNoTone = removeVietnameseTones(alias);\n      if (lowerNoTone.includes(aliasNoTone)) {\n        return item.canonical;\n      }\n    }\n  }\n  return null;\n}\n\n// Extract specific attraction keyword for search in tour titles/content\nfunction extractAttractionKeyword(text) {\n  if (!text) return '';\n  const lower = text.toLowerCase();\n  const keywords = [\n    'khoáng nóng', 'khoang nong', 'hot spring', 'tắm khoáng',\n    'săn mây', 'san may', 'tà chì nhù', 'ta chi nhu', 'tà xùa',\n    'ruộng bậc thang', 'mâm xôi', 'móng ngựa', 'lúa chín', 'mùa vàng',\n    'chèo sup', 'thủy điện', 'động thủy tiên', 'đảo hoa', 'đảo thiên đường',\n    'chè shan tuyết', 'che shan tuyet', 'shan tuyet', 'lau camping',\n    'bản hốc', 'sà rèn', 'xòe thái', 'an bình village', 'tú lệ'\n  ];\n  for (const kw of keywords) {\n    if (lower.includes(kw)) return kw;\n  }\n  return '';\n}\n\nconst explicitDest = resolveDestination(rawDest) || resolveDestination(rawQuery);\nconst canonicalDestination = explicitDest || null;\n\nconst lowerQuery = rawQuery.toLowerCase();\nconst lowerNoTone = removeVietnameseTones(rawQuery);\n\n// General greetings: short message containing only greeting\nconst isGreeting = (/(^(xin\\s*)?chào|hello|hi|alo|bạn ơi|hey)\\b/i.test(lowerQuery) || /^(chao|xin chao)\\b/i.test(lowerNoTone)) && lowerQuery.length < 20 && !/(muốn|đi chơi|gợi ý|tour|du lịch|đâu|lịch trình)/i.test(lowerQuery);\nconst isThanksGoodbye = (/(cảm ơn|cam on|thanks|thank you|tạm biệt|bye|goodbye)/i.test(lowerQuery) || /(cam on|tam biet)/i.test(lowerNoTone)) && lowerQuery.length < 35;\n\nfunction isGibberish(text) {\n  if (!text || text.length === 0) return false;\n  const clean = text.toLowerCase().replace(/[^a-z0-9à-ỹ]/gi, '');\n  if (clean.length === 0) return true;\n  if (/(.)\\1{4,}/.test(clean)) return true;\n  const keyboardPatterns = /(asdfgh|qwerty|zxcvbn|dfghjk|qazwsx|123456)/i;\n  if (keyboardPatterns.test(clean) && clean.length <= 15) return true;\n  if (/[bcdfghjklmnpqrstvwxyz]{6,}/i.test(clean)) return true;\n  if (/^\\d{5,}$/.test(clean)) return true;\n  return false;\n}\n\nfunction isOutOfScope(text) {\n  const offTopicKeywords = [\n    'phương trình', 'toán học', 'giải toán', 'lập trình', 'javascript', 'python', 'sửa xe',\n    'bán nhà', 'bất động sản', 'chứng khoán', 'bitcoin', 'crypto', 'tài chính',\n    'thời sự', 'chính trị', 'tin tức thế giới', 'math', 'equation'\n  ];\n  return offTopicKeywords.some(kw => text.toLowerCase().includes(kw));\n}\n\nlet intent = 'TRAVEL_QUERY';\nlet skipApi = false;\nlet directReply = null;\n\nif (isGreeting) {\n  intent = 'GREETING';\n  skipApi = true;\n  directReply = lang === 'en'\n    ? \"Hello! I'm **LocalMate AI** - your personal Vietnam local travel assistant from VietSage. 🌿\\n\\nHow can I help you today? Are you planning a trip to Northwest Vietnam (Mu Cang Chai, Tram Tau, Thac Ba Lake...)?\"\n    : \"Dạ xin chào bạn! Mình là **LocalMate AI** - trợ lý du lịch bản địa của VietSage rất vui được trò chuyện cùng bạn. 🌿\\n\\nHôm nay bạn đang quan tâm đến điểm đến hoặc trải nghiệm nào ở Tây Bắc (Mù Cang Chải, Trạm Tấu khoáng nóng, Hồ Thác Bà, Suối Giàng...) để mình hỗ trợ nhé?\";\n} else if (isThanksGoodbye) {\n  intent = 'THANKS_GOODBYE';\n  skipApi = true;\n  const destTag = canonicalDestination ? ` khám phá **${canonicalDestination}**` : '';\n  directReply = lang === 'en'\n    ? `You're very welcome! Feel free to ask anytime you need travel tips or local guides${canonicalDestination ? ` in **${canonicalDestination}**` : ' in Vietnam'}. Have a wonderful journey! ✨`\n    : `Dạ không có gì ạ! Rất vui được đồng hành cùng bạn${destTag}. Bất cứ khi nào bạn cần thêm thông tin lịch trình hay muốn kết nối LocalMate bản địa, cứ nhắn mình nhé. Chúc bạn có chuyến đi thật trọn vẹn và ý nghĩa! ✨`;\n} else if (isGibberish(rawText)) {\n  intent = 'GIBBERISH';\n  skipApi = true;\n  directReply = lang === 'en'\n    ? \"Hello! I might not have caught your message clearly. I'm **LocalMate AI**, an assistant for local travel in Vietnam. Could you please specify which destination or activity you're interested in?\"\n    : \"Dạ LocalMate AI chưa hiểu rõ tin nhắn của bạn. Mình là trợ lý du lịch bản địa của VietSage. Bạn có thể cho mình biết bạn đang quan tâm đến điểm đến hay lịch trình nào không nhé!\";\n} else if (isOutOfScope(rawText)) {\n  intent = 'OUT_OF_SCOPE';\n  skipApi = true;\n  directReply = \"Dạ mình là LocalMate AI chuyên về tư vấn du lịch và văn hóa bản địa Việt Nam. Câu hỏi này nằm ngoài lĩnh vực của mình rồi ạ. Nếu bạn cần gợi ý về các điểm du lịch Tây Bắc hay tìm hướng dẫn viên bản địa, cứ nhắn mình nha!\";\n}\n\nconst limit = Math.min(Math.max(Number(webhookBody.limit || 5), 1), 10);\n\n// Key: If user didn't mention a specific attraction keyword, pass empty query so API returns all top tours\nconst attractionKeyword = extractAttractionKeyword(rawQuery);\nconst apiDestination = canonicalDestination || '';\nconst apiQuery = attractionKeyword || '';\n\nreturn [{\n  json: {\n    intent,\n    skipApi,\n    lang,\n    sessionId,\n    canonicalDestination,\n    cleanQuery: rawQuery,\n    destination: apiDestination,\n    query: apiQuery,\n    limit,\n    directReply\n  }\n}];"
+      },
+      "id": "n1n1n1n1-1111-4444-8888-aaaaaaaaaaaa",
+      "name": "Input Normalizer & Intent Classifier",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond_is_valid",
+              "leftValue": "={{ $json.skipApi }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "v1v1v1v1-2222-4444-8888-bbbbbbbbbbbb",
+      "name": "If Valid Query?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        704,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const norm = $('Input Normalizer & Intent Classifier').first().json || {};\nconst lang = norm.lang || 'vi';\n\nlet suggestions = [];\nif (lang === 'en') {\n  suggestions = [\n    { id: 'fb_1', label: '🌾 Mu Cang Chai Tours', query: 'Recommend the best tours in Mu Cang Chai' },\n    { id: 'fb_2', label: '♨️ Tram Tau Hot Springs', query: 'What are the top hot springs in Tram Tau?' },\n    { id: 'fb_3', label: '🧭 Local Guides', query: 'Are there verified local guides available?' }\n  ];\n} else {\n  suggestions = [\n    { id: 'fb_1', label: '🌾 Tour Mù Cang Chải', query: 'Gợi ý tour ruộng bậc thang Mù Cang Chải đẹp nhất' },\n    { id: 'fb_2', label: '♨️ Khoáng nóng Trạm Tấu', query: 'Trạm Tấu có suối khoáng nóng và điểm săn mây nào nổi bật?' },\n    { id: 'fb_3', label: '🧭 Hướng dẫn viên bản địa', query: 'Tôi muốn tìm hiểu hướng dẫn viên bản địa ở Tây Bắc' }\n  ];\n}\n\nreturn [{ json: {\n  status: 200,\n  reply: norm.directReply || 'Dạ LocalMate AI xin chào bạn! Bạn đang quan tâm đến điểm đến hay dịch vụ nào ở Tây Bắc ạ?',\n  suggestions,\n  knowledgeVersion: 'none',\n  cached: false\n} }];"
+      },
+      "id": "f1f1f1f1-3333-4444-8888-cccccccccccc",
+      "name": "Return Fallback Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.LOCALMATE_KNOWLEDGE_URL }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { query: $json.query || '', destination: $json.destination || '', limit: $json.limit || 5 } }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "70aa28f8-fbf6-4638-ac99-e9e04757ca57",
+      "name": "Call Knowledge API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        240
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "vietsageKnowledgeHeaderAuth",
+          "name": "VietSage Knowledge Key"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const envelope = $input.first().json || {};\nconst payload = envelope.data?.data || envelope.data || envelope;\nconst norm = $('Input Normalizer & Intent Classifier').first().json || {};\nconst webhookBody = $('Test Webhook').first().json.body || {};\nconst rawDest = (webhookBody.destination || '').trim();\n\nconst tours = Array.isArray(payload.tours) ? payload.tours : [];\nconst guides = Array.isArray(payload.guides) ? payload.guides : [];\nconst language = norm.lang || 'vi';\nconst destination = norm.canonicalDestination || norm.destination || '';\nconst question = norm.cleanQuery || norm.query || '';\nconst hotelContext = rawDest || 'Khách sạn tại Tây Bắc';\n\nconst compactKnowledge = {\n  hotel: hotelContext,\n  destination: destination || 'Toàn vùng Tây Bắc (Yên Bái)',\n  tours: tours.slice(0, 5).map(({ tourCode, title, destination: d, duration, highlights, content }) => ({\n    tourCode, title, destination: d, duration, highlights,\n    content: typeof content === 'string' ? content.slice(0, 1500) : ''\n  })),\n  guides: guides.slice(0, 4).map(({ guideCode, fullName, operatingRegions, languages, specialties, rating, dailyRateVnd, bio }) => ({\n    guideCode, fullName, operatingRegions, languages, specialties, rating, dailyRateVnd, bio\n  }))\n};\n\nconst userPrompt = [\n  'LANGUAGE: ' + language,\n  'HOTEL_GUEST_IS_STAYING_AT: ' + hotelContext,\n  'GUEST_QUESTION: ' + question,\n  'DESTINATION: ' + (destination || 'Toàn vùng Tây Bắc (Yên Bái)'),\n  'KNOWLEDGE_OF_AVAILABLE_TOURS_AND_GUIDES:',\n  JSON.stringify(compactKnowledge)\n].join('\\n');\n\nreturn [{ json: {\n  knowledgeVersion: payload.knowledgeVersion || 'unknown',\n  language,\n  question,\n  destination,\n  hotelContext,\n  knowledge: compactKnowledge,\n  userPrompt\n} }];"
+      },
+      "id": "a1b2c3d4-e5f6-47a8-b9c0-123456789abc",
+      "name": "Prepare LocalMate AI Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "cb4ca766-c5f5-46b1-854a-c8569cd783b2",
+      "name": "Return Knowledge",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1824,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "cx/gpt-5.5",
+          "mode": "id"
+        },
+        "responses": {
+          "values": [
+            {
+              "type": "text",
+              "role": "system",
+              "content": "Bạn là LocalMate AI, trợ lý du lịch bản địa thông minh và hiếu khách của VietSage tại Tây Bắc.\nDu khách đang lưu trú tại khách sạn và nhắn tin hỏi bạn để tìm lịch trình đi chơi, trải nghiệm hoặc kết nối hướng dẫn viên.\n\nDỮ LIỆU KNOWLEDGE cung cấp các tour và hướng dẫn viên bản địa đã được VietSage kiểm duyệt.\nNGUYÊN TẮC TƯ VẤN:\n1. Khi du khách hỏi chung chung (ví dụ: \"tôi muốn đi chơi đâu đó\", \"gợi ý gần khách sạn\", \"quanh đây có gì\", \"tư vấn lịch trình\", \"có tour gì không\"):\n   - Tuyệt đối KHÔNG trả lời là \"chưa có dữ liệu\" hay yêu cầu khách phải tự liên hệ lễ tân.\n   - Hãy nhiệt tình lấy các tour nổi bật có sẵn trong KNOWLEDGE (như Mù Cang Chải ruộng bậc thang, tắm khoáng nóng Trạm Tấu, chèo thuyền Hồ Thác Bà, thưởng trà Suối Giàng) để giới thiệu cho du khách kèm thời lượng (nửa ngày, 1 ngày, 2N1Đ).\n2. Khi du khách hỏi về một điểm đến cụ thể (Mù Cang Chải, Trạm Tấu, Hồ Thác Bà, Suối Giàng, Nghĩa Lộ):\n   - Giới thiệu chi tiết các điểm nhấn, lịch trình và hướng dẫn viên bản địa của điểm đến đó trong KNOWLEDGE.\n3. Phong cách: Thân thiện, chu đáo, súc tích, mang đậm phong vị hiếu khách bản địa Tây Bắc.\n4. Không bịa giá tiền nếu trong tour không có giá, không bịa số điện thoại liên hệ cá nhân.\n\nỞ cuối câu trả lời, hãy xuống 2 dòng và thêm 2-3 gợi ý câu hỏi tiếp theo phù hợp cho du khách (mỗi gợi ý bắt đầu bằng emoji, ngắn gọn dưới 30 ký tự) theo định dạng chính xác:\nGỢI Ý TIẾP THEO:\n- [emoji] [câu gợi ý 1]\n- [emoji] [câu gợi ý 2]\n- [emoji] [câu gợi ý 3]"
+            },
+            {
+              "type": "text",
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 700,
+          "store": false,
+          "temperature": 0.2
+        }
+      },
+      "id": "0f62e2da-0d91be52-4ef6-9ea6-32b6d91c9f11",
+      "name": "Generate LocalMate AI Reply",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        128
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "vietsageLocalMateModelV2",
+          "name": "VietSage LocalMate Model V2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const model = $input.first().json || {};\nconst prepared = $('Prepare LocalMate AI Prompt').first().json || {};\nconst messages = Array.isArray(model.output) ? model.output : [];\nconst rawReply = messages.flatMap(m => Array.isArray(m.content) ? m.content : []).find(c => c?.type === 'output_text')?.text || '';\n\nif (typeof rawReply !== 'string' || !rawReply.trim()) throw new Error('AI model returned no text');\n\nlet cleanReply = rawReply.trim();\nconst suggestions = [];\n\n// Extract suggestions if model followed the format\nconst marker = 'GỢI Ý TIẾP THEO:';\nconst markerIdx = cleanReply.indexOf(marker);\nif (markerIdx !== -1) {\n  const suggestionsBlock = cleanReply.slice(markerIdx + marker.length).trim();\n  cleanReply = cleanReply.slice(0, markerIdx).trim();\n  \n  const lines = suggestionsBlock.split('\\n');\n  for (const line of lines) {\n    const trimmed = line.replace(/^[\\s\\-*•\\d.]+\\s*/, '').trim();\n    if (trimmed.length > 2 && trimmed.length < 50) {\n      suggestions.push({\n        id: 'sugg_' + suggestions.length,\n        label: trimmed.slice(0, 25),\n        query: trimmed\n      });\n      if (suggestions.length >= 3) break;\n    }\n  }\n}\n\n// Fallback suggestions based on context if not extracted\nif (suggestions.length === 0) {\n  const dest = prepared.destination || '';\n  if (dest.includes('Trạm Tấu')) {\n    suggestions.push(\n      { id: 'tt_1', label: '♨️ Suối khoáng nóng', query: 'Suối khoáng nóng Trạm Tấu giá vé và dịch vụ thế nào?' },\n      { id: 'tt_2', label: '⛅ Săn mây Tà Chì Nhù', query: 'Lịch trình săn mây đỉnh Tà Chì Nhù Trạm Tấu' },\n      { id: 'tt_3', label: '🧭 Hướng dẫn viên', query: 'Có hướng dẫn viên bản địa dẫn tour Trạm Tấu không?' }\n    );\n  } else if (dest.includes('Mù Cang Chải')) {\n    suggestions.push(\n      { id: 'mcc_1', label: '🌾 Tour Mù Cang Chải', query: 'Gợi ý tour ruộng bậc thang Mù Cang Chải đẹp nhất' },\n      { id: 'mcc_2', label: '📸 Điểm chụp ảnh đẹp', query: 'Đồi Mâm Xôi và Móng Ngựa nên đi vào giờ nào?' },\n      { id: 'mcc_3', label: '🧭 LocalMate bản địa', query: 'Kết nối hướng dẫn viên bản địa tại Mù Cang Chải' }\n    );\n  } else {\n    suggestions.push(\n      { id: 'gen_1', label: '🌾 Tour Mù Cang Chải', query: 'Tư vấn tour ruộng bậc thang Mù Cang Chải' },\n      { id: 'gen_2', label: '♨️ Khoáng nóng Trạm Tấu', query: 'Gợi ý trải nghiệm tắm khoáng nóng Trạm Tấu' },\n      { id: 'gen_3', label: '⛵ Du ngoạn Hồ Thác Bà', query: 'Có tour nào khám phá Hồ Thác Bà không?' }\n    );\n  }\n}\n\nreturn [{ json: {\n  status: 200,\n  reply: cleanReply,\n  suggestions,\n  knowledgeVersion: prepared.knowledgeVersion || 'unknown',\n  cached: false\n} }];"
+      },
+      "id": "4f0a55d0-f955a7c0-4f34-b130-d34a92ef6346",
+      "name": "Format Public Chat Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        240
+      ]
+    }
+  ],
+  "connections": {
+    "Test Webhook": {
+      "main": [
+        [
+          {
+            "node": "Input Normalizer & Intent Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Normalizer & Intent Classifier": {
+      "main": [
+        [
+          {
+            "node": "If Valid Query?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Valid Query?": {
+      "main": [
+        [
+          {
+            "node": "Call Knowledge API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Fallback Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Knowledge API": {
+      "main": [
+        [
+          {
+            "node": "Prepare LocalMate AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Return Fallback Response": {
+      "main": [
+        [
+          {
+            "node": "Return Knowledge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare LocalMate AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "Generate LocalMate AI Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate LocalMate AI Reply": {
+      "main": [
+        [
+          {
+            "node": "Format Public Chat Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Public Chat Response": {
+      "main": [
+        [
+          {
+            "node": "Return Knowledge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": {
+    "global": {
+      "sessions": {
+        "test_guest_qr_123": {
+          "lastDestination": "Mù Cang Chải",
+          "lastQuery": "Tư vấn cho tôi tour Mù Cang Chải",
+          "lang": "vi",
+          "turnCount": 2,
+          "updatedAt": 1790283030459
+        },
+        "guest_qr_test": {
+          "lastDestination": "Mù Cang Chải",
+          "lastQuery": "Tư vấn cho tôi tour Mù Cang Chải",
+          "lang": "vi",
+          "turnCount": 1,
+          "updatedAt": 1790283111477
+        },
+        "audit-0e14142be50f429099222ea4067acb5b": {
+          "lastDestination": "Mù Cang Chải",
+          "lastQuery": "Gợi ý tour Mù Cang Chải",
+          "lang": "vi",
+          "turnCount": 1,
+          "updatedAt": 1790314273011
+        },
+        "audit-2abc27c99c1042689a0f18ed21d6b027": {
+          "lastDestination": "Mù Cang Chải",
+          "lastQuery": "Gợi ý tour Mù Cang Chải",
+          "lang": "vi",
+          "turnCount": 1,
+          "updatedAt": 1790314494448
+        },
+        "audit-6436efbafcc54572b768fe7a66e123ef": {
+          "lastDestination": "Mù Cang Chải",
+          "lastQuery": "Gợi ý tour Mù Cang Chải",
+          "lang": "vi",
+          "turnCount": 1,
+          "updatedAt": 1790314631400
+        },
+        "audit-a3d7824a99304964bdc2e1f6d1460c01": {
+          "lastDestination": "Mù Cang Chải",
+          "lastQuery": "Gợi ý tour Mù Cang Chải",
+          "lang": "vi",
+          "turnCount": 1,
+          "updatedAt": 1790314819190
+        }
+      }
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "265ed5b2-1d41-4e8f-9973-f85925259089",
+  "sourceWorkflowId": null,
+  "tags": [],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}
