@@ -216,7 +216,7 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, c
     }
 
     return hotels.filter((hotel) =>
-      [hotel.name, hotel.code ?? "", hotel.timezone ?? "", tenantLabel(hotel.tenantId, tenantOptions)]
+      [hotel.name, hotel.code ?? "", tenantLabel(hotel.tenantId, tenantOptions)]
         .join(" ")
         .toLowerCase()
         .includes(normalizedQuery),
@@ -437,7 +437,6 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, c
                 <th className="px-6 py-4 font-semibold">Khách sạn</th>
                 <th className="px-6 py-4 font-semibold">Tổ chức</th>
                 <th className="px-6 py-4 font-semibold">Trạng thái</th>
-                <th className="px-6 py-4 font-semibold">Múi giờ</th>
                 <th className="px-6 py-4 font-semibold">Cập nhật</th>
                 <th className="px-6 py-4 text-right font-semibold">Thao tác</th>
               </tr>
@@ -479,12 +478,6 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, c
                       </span>
                     )}
                   </td>
-                  <td className="px-6 py-4.5 align-middle font-medium text-[#69726b]">
-                    <span className="inline-flex items-center gap-1 font-mono text-xs font-medium text-[#17201b]">
-                      <VsIcon name="schedule" className="text-[#8b948d]" />
-                      {hotel.timezone === "Asia/Saigon" || !hotel.timezone ? "Asia/Ho_Chi_Minh" : hotel.timezone}
-                    </span>
-                  </td>
                   <td className="px-6 py-4.5 align-middle text-xs font-medium text-[#69726b]">{formatDate(hotel.updatedAt ?? hotel.createdAt)}</td>
                   <td className="px-6 py-4.5 text-right align-middle" onClick={(e) => e.stopPropagation()}>
                     <button
@@ -501,7 +494,7 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, c
               ))}
               {filteredHotels.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-sm font-semibold text-[#6d756e]">Chưa có khách sạn phù hợp.</td>
+                  <td colSpan={5} className="px-6 py-12 text-center text-sm font-semibold text-[#6d756e]">Chưa có khách sạn phù hợp.</td>
                 </tr>
               ) : null}
             </tbody>

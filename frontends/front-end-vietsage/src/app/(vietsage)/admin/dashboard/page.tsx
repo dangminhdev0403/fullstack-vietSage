@@ -335,7 +335,7 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
                         )}
                       </div>
                       <p className="text-xs text-[#5f6b63] mt-0.5 truncate">
-                        {hotel.tenant?.name ? `Tenant: ${hotel.tenant.name}` : "Hệ thống độc lập"} • Múi giờ: {hotel.timezone || "Asia/Ho_Chi_Minh"}
+                        {hotel.tenant?.name ? `Tenant: ${hotel.tenant.name}` : "Hệ thống độc lập"}
                       </p>
                     </div>
                     <div className="shrink-0 flex items-center gap-1.5">
