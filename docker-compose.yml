@@ -61,5 +61,45 @@ services:
       timeout: 5s
       retries: 12
 
+  n8n:
+    image: n8nio/n8n:2.40.7
+    container_name: n8n-vietsage
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: "2.0"
+    pids_limit: 128
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    env_file:
+      - ./secrets/docker/n8n.env
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - 'test -n "$${N8N_ENCRYPTION_KEY:-}" || { echo "N8N_ENCRYPTION_KEY is required" >&2; exit 1; }; exec tini -- /docker-entrypoint.sh'
+    ports:
+      - "127.0.0.1:5678:5678"
+    volumes:
+      - n8n_vietsage_data:/home/node/.n8n
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/node/.cache:uid=1000,gid=1000,mode=0700
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5678/healthz/readiness >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
 volumes:
   vietsage_postgres_data:
+  n8n_vietsage_data:
+    external: true
+    name: n8n-vietsage-test_n8n_vietsage_data

@@ -66,6 +66,7 @@ secrets/
     postgres.env
     auth-service.env
     frontend.env
+    n8n.env
     google-service-account.json        # optional, ignored
   production/
     postgres.env
@@ -148,6 +149,41 @@ NEXT_PUBLIC_GUEST_DEFAULT_SERVICE_CATEGORY_ID=
 LOCALMATE_N8N_WEBHOOK_URL=
 LOCALMATE_N8N_WEBHOOK_SECRET=
 ```
+
+## `n8n.env`
+
+`N8N_ENCRYPTION_KEY` must match the key that encrypted the existing n8n credential database. Never replace it with a newly generated value during container migration.
+
+```dotenv
+N8N_ENCRYPTION_KEY=
+N8N_HOST=127.0.0.1
+N8N_PORT=5678
+N8N_PROTOCOL=http
+N8N_WEBHOOK_URL=http://127.0.0.1:5678/
+N8N_EDITOR_BASE_URL=http://127.0.0.1:5678/
+GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
+TZ=Asia/Ho_Chi_Minh
+N8N_SECURE_COOKIE=false
+N8N_DIAGNOSTICS_ENABLED=false
+N8N_VERSION_NOTIFICATIONS_ENABLED=false
+N8N_COMMUNITY_PACKAGES_ENABLED=false
+N8N_UNVERIFIED_PACKAGES_ENABLED=false
+N8N_TEMPLATES_ENABLED=false
+N8N_PUBLIC_API_SWAGGERUI_DISABLED=true
+N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+N8N_BLOCK_ENV_ACCESS_IN_NODE=true
+N8N_SSRF_PROTECTION_ENABLED=true
+N8N_SSRF_ALLOWED_HOSTNAMES=host.docker.internal
+NODES_EXCLUDE=["n8n-nodes-base.executeCommand","n8n-nodes-base.localFileTrigger","n8n-nodes-base.readWriteFile"]
+EXECUTIONS_DATA_SAVE_ON_SUCCESS=none
+EXECUTIONS_DATA_SAVE_ON_ERROR=all
+EXECUTIONS_DATA_PRUNE=true
+EXECUTIONS_DATA_MAX_AGE=168
+EXECUTIONS_DATA_PRUNE_MAX_COUNT=10000
+N8N_DEFAULT_BINARY_DATA_MODE=filesystem
+```
+
+LocalMate model credentials remain in n8n's encrypted credential store; model selection remains in the tracked workflow. Do not move either value into container env or enable `$env` access in workflow nodes.
 
 ## Legacy tracked files
 

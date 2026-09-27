@@ -10,7 +10,9 @@ Workflow:
 workflows/vietsage-localmate-concierge.json
 ```
 
-Validated with n8n `2.40.6`.
+Validated with n8n `2.40.7`.
+
+Local Docker runtime is managed by the root `docker-compose.yml` service `n8n`. Runtime settings and the existing instance encryption key live in ignored `secrets/docker/n8n.env`; the external volume `n8n-vietsage-test_n8n_vietsage_data` retains SQLite, workflows, users, and encrypted credentials.
 
 Flow:
 
@@ -42,6 +44,10 @@ Required n8n credentials:
 | `VietSage LocalMate Model V2` | OpenAI API | OpenAI-compatible model router |
 
 The exported workflow stores credential references only. It does not contain credential values. After importing into another n8n instance, create/reselect the three credentials before publishing.
+
+The OpenAI-compatible API key and base URL stay in the encrypted `VietSage LocalMate Model V2` credential. The model ID stays in node `06 · Sinh phản hồi LocalMate AI`. They are intentionally not container environment variables, and `N8N_BLOCK_ENV_ACCESS_IN_NODE=true` prevents workflow code from reading runtime secrets.
+
+The local container runs read-only with dropped capabilities, bounded resources, SSRF protection allowlisting only `host.docker.internal`, and community packages, templates, file-system nodes, and public API Swagger UI disabled. The public API itself remains enabled for authenticated MCP administration.
 
 Import and publish:
 
