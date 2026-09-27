@@ -19,6 +19,8 @@ Các API dành cho AI giao tiếp với khách được chia thành 2 cơ chế 
    - Header bắt buộc: `Authorization: Bearer <GUEST_SESSION_TOKEN>`
    - Token này được sinh ra khi khách quét mã QR tại phòng (`/guest/qr/scan`) và được hệ thống gửi kèm trong phiên chat của khách.
 
+Guest chat BFF waits at most 45 seconds for the authenticated n8n webhook. An upstream timeout returns HTTP `504` with stable code `CHAT_UPSTREAM_TIMEOUT`; other invalid/upstream responses remain `502` errors. Browsers never receive the webhook secret or call n8n directly.
+
 ### Chuẩn dữ liệu phản hồi (Response Envelope)
 
 Mọi phản hồi thành công tuân theo format chuẩn của VietSage Core API:
@@ -47,7 +49,7 @@ Cung cấp dữ liệu tri thức có cấu trúc (gồm cả tour gợi ý và 
     - `query` *(string, optional)*: Toàn bộ câu hỏi đã giới hạn độ dài của khách (vd: `"gợi ý tour ruộng bậc thang"`). Backend tự suy ra điểm đến theo taxonomy canonical và chỉ giữ từ khóa trải nghiệm cần thiết cho tìm kiếm.
     - `destination` *(string, optional)*: Điểm đến (vd: `"Mù Cang Chải"`, `"Yên Bái"`, `"Hà Giang"`).
     - `hotelId` *(string, optional)*: Mốc khách sạn do BFF lấy từ phiên GuestOS đã xác thực; browser không được tự chọn giá trị này.
-    - `radiusKm` *(number, optional, default: 50, range: 1–300)*: Bán kính quanh khách sạn; chỉ áp dụng khi khách không nêu `destination` rõ ràng.
+    - `radiusKm` *(number, optional, default: 50, range: 1–300)*: Bán kính quanh khách sạn; áp dụng khi khách không nêu điểm đến nội tỉnh rõ ràng.
     - `limit` *(number, optional, default: 5)*: Số lượng kết quả tối đa mỗi loại.
 
 - **Endpoint (POST)**: `/localmate/knowledge`
@@ -97,9 +99,10 @@ Cung cấp dữ liệu tri thức có cấu trúc (gồm cả tour gợi ý và 
 #### Phạm vi theo vị trí khách sạn
 
 - Backend tự đọc tọa độ khách sạn từ `hotelId`, tạo bounding box có giới hạn, sau đó tính khoảng cách Haversine chính xác.
-- Khi `destination` không được truyền nhưng `query` nêu rõ một điểm đến đã biết, backend dùng điểm đến đó làm phạm vi tường minh. Nếu câu hỏi không nêu điểm đến, `hotelId` là mốc bắt buộc của luồng GuestOS và backend chỉ truy vấn trong bán kính/địa giới fallback tương ứng.
+- Khi có `hotelId`, tỉnh khách sạn luôn là hard boundary. Điểm đến nội tỉnh trong `destination` hoặc `query` được dùng để thu hẹp kết quả; điểm đến ngoài tỉnh không thay đổi phạm vi và backend fallback về tỉnh khách sạn.
+- Nếu câu hỏi không nêu điểm đến, `hotelId` là mốc bắt buộc của luồng GuestOS và backend chỉ truy vấn trong bán kính/địa giới fallback tương ứng.
 - Tour và LocalMate trong bán kính được xếp gần nhất trước; mỗi item có `distanceKm` hoặc `null`.
-- `metadata.locationScope` mô tả `hotelName`, `area`, `province`, `radiusKm` và mode `RADIUS`, `EXPLICIT_DESTINATION` hoặc `ADMINISTRATIVE_FALLBACK`.
+- `metadata.locationScope` mô tả `hotelName`, `area`, `province`, `provinceCode`, `requestedDestination`, `outsideHotelProvince`, `radiusKm` và mode `RADIUS`, `HOTEL_PROVINCE_DESTINATION`, `HOTEL_PROVINCE_FALLBACK` hoặc `ADMINISTRATIVE_FALLBACK`.
 - Bản ghi cũ chưa có tọa độ chỉ được fallback trong cùng tỉnh/khu vực; API không tải full list cho n8n tự lọc.
 - Response không trả tọa độ điểm phục vụ của LocalMate cho AI/browser.
 

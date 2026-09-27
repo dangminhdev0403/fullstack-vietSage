@@ -14,8 +14,8 @@ DOCKERFILES = {
     "frontend": ROOT / "frontends/front-end-vietsage/Dockerfile",
     "open-mrz": ROOT / "tools/open-mrz/Dockerfile",
 }
-SERVICES = ("postgres", "migrate", "auth-service", "open-mrz", "frontend", "nginx", "certbot")
-APP_SERVICES = ("migrate", "auth-service", "open-mrz", "frontend", "nginx", "certbot")
+SERVICES = ("postgres", "migrate", "auth-service", "open-mrz", "n8n", "frontend", "nginx", "certbot")
+APP_SERVICES = ("migrate", "auth-service", "open-mrz", "n8n", "frontend", "nginx", "certbot")
 
 
 def service_block(compose: str, service: str) -> str:

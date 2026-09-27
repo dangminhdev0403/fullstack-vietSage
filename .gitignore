@@ -5,6 +5,7 @@ secrets/**/*.env
 secrets/**/*.json
 secrets/**/*.tar.gz
 secrets/**/*.inspect.json
+secrets/**/*.sha256
 !secrets/.gitkeep
 !secrets/**/.gitkeep
 !secrets/README.md

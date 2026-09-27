@@ -9,6 +9,8 @@ Real secret files in this directory are machine-local and ignored by Git.
 - `docker/frontend.env`
 - `docker/n8n.env`
 
+Production uses `production/n8n.env` with a fresh VPS-only encryption key. Never copy the local key to production. The provider API key and webhook/knowledge keys remain encrypted inside n8n's credential store.
+
 `docker/n8n.env` owns n8n runtime settings and the existing instance encryption key. Never replace `N8N_ENCRYPTION_KEY` with a newly generated value: the current SQLite credentials were encrypted with that exact key.
 
 The LocalMate provider API key and base URL remain in n8n's encrypted credential `VietSage LocalMate Model V2`. The model ID remains in workflow node `06 · Sinh phản hồi LocalMate AI`. They are intentionally not copied into container environment variables.

@@ -14,6 +14,11 @@ import {
   guestValidationErrorResponse,
   readJsonBody,
 } from "../_utils";
+import {
+  CHAT_UPSTREAM_TIMEOUT_MS,
+  getChatUpstreamError,
+} from "./chat-upstream";
+import { resolveChatAction } from "./chat-action";
 
 const N8N_WEBHOOK_URL = process.env.LOCALMATE_N8N_WEBHOOK_URL?.trim();
 
@@ -86,7 +91,7 @@ export async function POST(request: Request) {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15_000);
+    const timeoutId = setTimeout(() => controller.abort(), CHAT_UPSTREAM_TIMEOUT_MS);
 
     try {
       const n8nResponse = await fetch(N8N_WEBHOOK_URL, {
@@ -122,6 +127,7 @@ export async function POST(request: Request) {
         suggestions?: unknown;
         knowledgeVersion?: unknown;
         cached?: unknown;
+        action?: unknown;
       };
       if (typeof data.reply !== "string" || !data.reply.trim()) {
         return NextResponse.json(
@@ -138,10 +144,16 @@ export async function POST(request: Request) {
             .map((s) => ({ label: (s.label as string).trim(), query: (s.query as string).trim() }))
         : [];
 
+      // Server-side authoritative verification of booking action candidate
+      const resolvedAction = data.action
+        ? await resolveChatAction(data.action, current.session.hotelId)
+        : null;
+
       return NextResponse.json({
         status: 200,
         reply: data.reply.trim(),
         suggestions,
+        action: resolvedAction,
         knowledgeVersion:
           typeof data.knowledgeVersion === "string" ? data.knowledgeVersion : "unknown",
         cached: data.cached === true,
@@ -150,6 +162,10 @@ export async function POST(request: Request) {
       clearTimeout(timeoutId);
     }
   } catch (error) {
+    const upstreamError = getChatUpstreamError(error);
+    if (upstreamError) {
+      return NextResponse.json(upstreamError, { status: upstreamError.status });
+    }
     if (error instanceof HttpError) {
       return guestHttpErrorResponse(error);
     }

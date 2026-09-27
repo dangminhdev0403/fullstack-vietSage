@@ -31,6 +31,7 @@ Then edit these files directly on the VPS and fill real values:
 - `secrets/production/postgres.env` — `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
 - `secrets/production/auth-service.env` — `DATABASE_URL`, JWT secrets/TTLs, CORS, auth admin, rate limits, optional Google/Telegram values
 - `secrets/production/frontend.env` — `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `AUTH_SECRET`, `AUTH_TRUST_HOST`, public frontend URLs/options
+- `secrets/production/n8n.env` — a fresh production-only `N8N_ENCRYPTION_KEY` plus hardened n8n runtime settings
 
 See `docs/SECRETS.md` for the full key inventory. Do not commit `secrets/**/*.env` or `secrets/**/*.json`.
 
@@ -52,8 +53,41 @@ docker compose -f docker-compose.prod.yml build auth-service open-mrz frontend
 unset FRONTEND_BUILD_AUTH_SECRET
 docker compose -f docker-compose.prod.yml run --rm migrate
 docker compose -f docker-compose.prod.yml run --rm seed
-docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d postgres auth-service open-mrz n8n
 ```
+
+On the first n8n start, create the owner immediately through an SSH tunnel; the editor is not public:
+
+```bash
+ssh -L 5678:127.0.0.1:5678 user@vps
+# Open http://127.0.0.1:5678 locally, create the owner, then enable 2FA.
+```
+
+Create these three credentials in the production n8n UI before publishing the workflow:
+
+- `VietSage Chat Webhook Key` (`httpHeaderAuth`) — same value as `LOCALMATE_N8N_WEBHOOK_SECRET` in `secrets/production/frontend.env`;
+- `VietSage Knowledge Key` (`httpHeaderAuth`) — same value as `LOCALMATE_KNOWLEDGE_API_KEY` in `secrets/production/auth-service.env`;
+- `VietSage LocalMate Model V2` (`openAiApi`) — production model-router base URL and API key.
+
+The values stay in the n8n encrypted credential store; do not put model credentials into Compose or env files. Import the tracked workflow first:
+
+```bash
+docker compose -f docker-compose.prod.yml cp \
+  deploy/n8n/workflows/vietsage-localmate-concierge.json \
+  n8n:/tmp/vietsage-localmate-concierge.json
+docker compose -f docker-compose.prod.yml exec n8n \
+  n8n import:workflow --input=/tmp/vietsage-localmate-concierge.json
+```
+
+Open the imported inactive workflow through the SSH tunnel, reselect all three production credentials, and run one grounded manual test. Only then publish and start the public application services:
+
+```bash
+docker compose -f docker-compose.prod.yml exec n8n \
+  n8n publish:workflow --id=aeDgPC3ojuxfWbrY
+docker compose -f docker-compose.prod.yml up -d frontend nginx
+```
+
+Do not enable the production frontend until `POST /webhook/vietsage-localmate-knowledge` passes the authenticated smoke test; otherwise the BFF starts healthy but guest chat returns upstream errors.
 
 `seed` runs after migrations and before application startup. It is idempotent; it upserts the default roles, permissions, super admin, and all `DEFAULT_CODES`, including `FOLIO`, `INVOICE`, `PAYMENT`, `MARKETPLACE_CATEGORY`, `MARKETPLACE_SERVICE`, and `SERVICE_TENANT`. It does not reset or recreate the database.
 
@@ -63,9 +97,9 @@ The one-shot `migrate` service runs `prisma migrate deploy` from the production 
 
 `docker compose up -d --build` also respects the migration gate, but the explicit build → migrate → start sequence above keeps release logs and failure boundaries easier to inspect.
 
-Production Compose builds stable local image tags (`vietsage-frontend:prod`, `vietsage-auth-service:prod`) instead of deploy-only `latest` tags. The frontend and auth-service containers run as the Node non-root user with `read_only`, `tmpfs`, `no-new-privileges`, `cap_drop: [ALL]`, and health checks. The frontend image uses Next.js standalone output and the existing `pnpm-lock.yaml`; no `package-lock.json` is required for the frontend Docker build.
+Production Compose builds stable local image tags (`vietsage-frontend:prod`, `vietsage-auth-service:prod`) instead of deploy-only `latest` tags. The frontend, auth-service, and pinned n8n containers run as non-root users with `read_only`, `tmpfs`, `no-new-privileges`, `cap_drop: [ALL]`, and health checks. The frontend image uses Next.js standalone output and the existing `pnpm-lock.yaml`; no `package-lock.json` is required for the frontend Docker build.
 
-The application services use explicit production networks. PostgreSQL is reachable only on the internal `backend` network; the auth service joins `backend` and `edge`; the frontend and Docker-managed Nginx join `edge`. Frontend, backend, and PostgreSQL do not publish host ports; Nginx is the only public ingress.
+The application services use explicit production networks. PostgreSQL is reachable only on the internal `backend` network. Frontend, n8n, and auth-service share the internal `automation` network; Nginx is deliberately excluded from it. A dedicated `n8n-egress` network gives only n8n outbound access to the model provider. n8n exposes its editor only on VPS loopback for SSH tunneling and is never routed by public Nginx. Frontend, backend, and PostgreSQL do not publish host ports; Nginx is the only public ingress.
 
 Check container readiness without publishing application ports. `/health` is process liveness;
 `/health/ready` additionally queries PostgreSQL and is the container dependency gate:
@@ -74,6 +108,8 @@ Check container readiness without publishing application ports. `/health` is pro
 docker compose -f docker-compose.prod.yml ps
 docker compose -f docker-compose.prod.yml exec auth-service node -e "fetch('http://127.0.0.1:8080/health/ready',{signal:AbortSignal.timeout(3000)}).then(async r=>{console.log(r.status, await r.text());process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"
 docker compose -f docker-compose.prod.yml exec frontend node -e "fetch('http://127.0.0.1:3000/icon.png').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+docker compose -f docker-compose.prod.yml exec n8n wget -qO- http://127.0.0.1:5678/healthz/readiness
+bash scripts/check-n8n-health.sh
 docker compose -f docker-compose.prod.yml ps --format 'table {{.Name}}\t{{.Status}}\t{{.Ports}}'
 ```
 
@@ -239,7 +275,9 @@ docker compose -f docker-compose.prod.yml config --quiet
 docker inspect vietsage-auth-service vietsage-open-mrz vietsage-frontend vietsage-nginx
 ```
 
-The application, OpenMRZ, and ingress containers use read-only root filesystems, `no-new-privileges`, dropped capabilities, and non-root image users. OpenMRZ is reachable only by the frontend on the dedicated internal `ocr` network; port `8787` is never published. Browser uploads use the authenticated hotel-scoped BFF, so reception computers need no local OCR installation. PostgreSQL needs a writable data volume and therefore does not use a read-only root filesystem.
+The application, n8n, OpenMRZ, and ingress containers use read-only root filesystems, `no-new-privileges`, dropped capabilities, and non-root image users. OpenMRZ is reachable only by the frontend on the dedicated internal `ocr` network; port `8787` is never published. Browser uploads use the authenticated hotel-scoped BFF, so reception computers need no local OCR installation. PostgreSQL needs a writable data volume and therefore does not use a read-only root filesystem.
+
+Back up n8n as one recovery unit: the `n8n_vietsage_data` volume plus the matching production `N8N_ENCRYPTION_KEY`. Use `BACKUP_DIR=/secure/off-host/n8n bash scripts/backup-n8n-volume.sh`; it stops n8n briefly for a consistent SQLite archive, restarts it, and writes a SHA-256 checksum. Rehearse restoration into a new temporary volume; never overwrite the live volume during a drill. Schedule `bash scripts/check-n8n-health.sh` from the VPS monitor and alert on non-zero exit. Provider latency still requires separate application telemetry because readiness only proves the n8n process and SQLite are available.
 
 Create an encrypted/off-host production backup according to the VPS storage policy. The repository helper creates a PostgreSQL custom-format dump, a SHA-256 checksum, and permissions restricted by `umask 077`:
 

@@ -44,6 +44,8 @@ def _check_frontend_build(compose: str, failures: list[str]) -> None:
         failures.append("production Compose must source frontend build auth from the process environment")
     if "OPEN_MRZ_BASE_URL: http://open-mrz:8787" not in frontend:
         failures.append("frontend must call the internal OpenMRZ service")
+    if "LOCALMATE_N8N_WEBHOOK_URL: http://n8n:5678/webhook/vietsage-localmate-knowledge" not in frontend:
+        failures.append("frontend must call the internal n8n webhook")
     open_mrz = service_block(compose, "open-mrz")
     if re.search(r"(?m)^    ports:\n", open_mrz):
         failures.append("OpenMRZ must not publish a production host port")
@@ -99,6 +101,31 @@ def _check_auth_postgres_networks(compose: str, failures: list[str]) -> None:
         for service in ("postgres", *APP_SERVICES):
             if "networks:" not in service_block(compose, service):
                 failures.append(f"{service} must attach to explicit production networks")
+
+    n8n = service_block(compose, "n8n")
+    for required in (
+        "./secrets/production/n8n.env",
+        "n8n_vietsage_data:/home/node/.n8n",
+        "http://127.0.0.1:5678/healthz/readiness",
+        "N8N_ENCRYPTION_KEY is required",
+        '"127.0.0.1:${N8N_LOCAL_PORT:-5678}:5678"',
+        "- automation",
+    ):
+        if required not in n8n:
+            failures.append(f"n8n is missing production runtime wiring: {required}")
+    if re.search(r'(?m)^      - "(?!127\.0\.0\.1:).*:5678"$', n8n):
+        failures.append("n8n must not publish a non-loopback production port")
+    if not re.search(r"(?m)^  automation:\n    internal: true$", compose):
+        failures.append("n8n, frontend, and auth-service must share an internal automation network")
+    for service in ("auth-service", "n8n", "frontend"):
+        if "- automation" not in service_block(compose, service):
+            failures.append(f"{service} must attach to the internal automation network")
+    if "- n8n-egress" not in n8n:
+        failures.append("n8n needs a dedicated egress network for the model provider")
+    if "- automation" in service_block(compose, "nginx"):
+        failures.append("nginx must not reach the internal automation network")
+    if "- n8n-egress" in service_block(compose, "nginx"):
+        failures.append("nginx must not reach the n8n egress network")
 
 
 def main() -> int:

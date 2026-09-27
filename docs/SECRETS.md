@@ -72,6 +72,7 @@ secrets/
     postgres.env
     auth-service.env
     frontend.env
+    n8n.env
     google-service-account.json        # optional, ignored
 ```
 
@@ -173,7 +174,7 @@ N8N_PUBLIC_API_SWAGGERUI_DISABLED=true
 N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
 N8N_BLOCK_ENV_ACCESS_IN_NODE=true
 N8N_SSRF_PROTECTION_ENABLED=true
-N8N_SSRF_ALLOWED_HOSTNAMES=host.docker.internal
+N8N_SSRF_ALLOWED_HOSTNAMES=host.docker.internal,auth-service
 NODES_EXCLUDE=["n8n-nodes-base.executeCommand","n8n-nodes-base.localFileTrigger","n8n-nodes-base.readWriteFile"]
 EXECUTIONS_DATA_SAVE_ON_SUCCESS=none
 EXECUTIONS_DATA_SAVE_ON_ERROR=all
@@ -184,6 +185,18 @@ N8N_DEFAULT_BINARY_DATA_MODE=filesystem
 ```
 
 LocalMate model credentials remain in n8n's encrypted credential store; model selection remains in the tracked workflow. Do not move either value into container env or enable `$env` access in workflow nodes.
+
+Production uses the same encrypted credential store in the named `n8n_vietsage_data` volume. Generate a fresh `N8N_ENCRYPTION_KEY` directly on the VPS before the first start and back it up off-host; never copy a local instance key into production. The production frontend calls `http://n8n:5678/webhook/vietsage-localmate-knowledge` over the internal `automation` network, while the editor binds only to VPS loopback for SSH-tunnel access.
+
+Production-specific values in `secrets/production/n8n.env` replace the local URLs and access policy:
+
+```dotenv
+N8N_HOST=0.0.0.0
+N8N_WEBHOOK_URL=http://n8n:5678/
+N8N_EDITOR_BASE_URL=http://127.0.0.1:5678/
+N8N_PUBLIC_API_DISABLED=true
+N8N_SSRF_ALLOWED_HOSTNAMES=auth-service
+```
 
 ## Legacy tracked files
 

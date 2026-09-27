@@ -11,10 +11,13 @@ for name in ("02 · Chuẩn hóa & phân loại","04 · Tra cứu Tour & LocalMa
  assert w["connections"][name]["main"][1][0]["node"]==fallback
 r=nodes["08 · Trả JSON về BFF"]
 assert r["parameters"]["options"]["responseCode"].startswith("={{")
+assert nodes["01 · Nhận yêu cầu du khách"]["typeVersion"] == 2.1
 ai=nodes["06 · Sinh phản hồi LocalMate AI"]; tf=ai["parameters"]["options"]["textFormat"]["textOptions"]
 assert ai["typeVersion"]==2.3 and tf["type"]=="json_schema" and tf["strict"] is True
 json.loads(tf["schema"])
-assert "$env" not in nodes["04 · Tra cứu Tour & LocalMate"]["parameters"]["url"]
+knowledge_url=nodes["04 · Tra cứu Tour & LocalMate"]["parameters"]["url"]
+assert knowledge_url == "http://auth-service:8080/localmate/knowledge"
+assert "$env" not in knowledge_url
 normalizer=nodes["02 · Chuẩn hóa & phân loại"]["parameters"]["jsCode"]
 assert all(field in normalizer for field in ("hotelId", "hotelName", "radiusKm"))
 assert "!hotelId || hotelId.length > 160" in normalizer

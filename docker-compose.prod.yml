@@ -147,6 +147,7 @@ services:
     networks:
       - edge
       - backend
+      - automation
 
   open-mrz:
     image: "${OPEN_MRZ_IMAGE:-vietsage-open-mrz:prod}"
@@ -180,6 +181,47 @@ services:
     networks:
       - ocr
 
+  n8n:
+    image: "${N8N_IMAGE:-n8nio/n8n:2.40.7}"
+    container_name: vietsage-n8n
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: "2.0"
+    pids_limit: 128
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    env_file:
+      - ./secrets/production/n8n.env
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - 'test -n "$${N8N_ENCRYPTION_KEY:-}" || { echo "N8N_ENCRYPTION_KEY is required" >&2; exit 1; }; exec tini -- /docker-entrypoint.sh'
+    ports:
+      - "127.0.0.1:${N8N_LOCAL_PORT:-5678}:5678"
+    volumes:
+      - n8n_vietsage_data:/home/node/.n8n
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/node/.cache:uid=1000,gid=1000,mode=0700
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      auth-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5678/healthz/readiness >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - automation
+      - n8n-egress
+
 
   frontend:
     image: "${FRONTEND_IMAGE:-vietsage-frontend:prod}"
@@ -206,7 +248,7 @@ services:
       HOSTNAME: 0.0.0.0
       AUTH_API_BASE_URL: http://auth-service:8080
       OPEN_MRZ_BASE_URL: http://open-mrz:8787
-      LOCALMATE_N8N_WEBHOOK_URL: "${LOCALMATE_N8N_WEBHOOK_URL:-}"
+      LOCALMATE_N8N_WEBHOOK_URL: http://n8n:5678/webhook/vietsage-localmate-knowledge
 
     read_only: true
     tmpfs:
@@ -221,6 +263,8 @@ services:
         condition: service_healthy
       open-mrz:
         condition: service_healthy
+      n8n:
+        condition: service_healthy
 
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/icon.png').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
@@ -230,6 +274,7 @@ services:
     networks:
       - edge
       - ocr
+      - automation
 
   nginx:
     image: nginxinc/nginx-unprivileged:1.28-alpine
@@ -302,6 +347,7 @@ services:
 
 volumes:
   vietsage_postgres_data:
+  n8n_vietsage_data:
   certbot_webroot:
   letsencrypt:
 
@@ -311,6 +357,9 @@ networks:
     internal: true
   ocr:
     internal: true
+  automation:
+    internal: true
+  n8n-egress:
 
 secrets:
   frontend_build_auth:

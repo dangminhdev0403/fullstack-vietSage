@@ -25,15 +25,15 @@ Authenticated webhook
 ```
 
 Knowledge API URL is configured directly on the HTTP Request node because this
-n8n instance blocks `$env` access inside workflow expressions. The tracked
-local-Docker value is:
+n8n instance blocks `$env` access inside workflow expressions. Both local and
+production Compose provide the same internal service alias:
 
 ```text
-http://host.docker.internal:8080/localmate/knowledge
+http://auth-service:8080/localmate/knowledge
 ```
 
-Change that node URL to `http://auth-service:8080/localmate/knowledge` when n8n
-and `auth-service` share the same Docker Compose network.
+Local Docker maps `auth-service` to the host gateway; production resolves it on
+the private Compose network. No workflow rewrite is required between environments.
 
 Required n8n credentials:
 
@@ -56,6 +56,8 @@ n8n import:workflow --input=/path/to/vietsage-localmate-concierge.json
 n8n publish:workflow --id=aeDgPC3ojuxfWbrY
 ```
 
+Production first boot is intentionally manual at the credential boundary: create the owner through the loopback SSH tunnel, enable 2FA, create the three credentials above, import the tracked workflow, run a grounded test, then publish. This prevents API keys from entering Git, Compose, shell history, or container env.
+
 The tracked artifact intentionally has `active: false`; import is non-activating. Configure/reselect credentials, run the checks below, then publish explicitly.
 
 Before publishing, verify:
@@ -63,7 +65,7 @@ Before publishing, verify:
 1. Missing/wrong chat key returns `403`.
 2. Missing/wrong Knowledge key returns `401`.
 3. Empty/invalid input returns `400`; a valid fast-path or grounded request returns `200`.
-4. Correct request returns only `status`, `reply`, `suggestions`, `knowledgeVersion`, and `cached`.
+4. Correct request returns `status`, `reply`, `suggestions`, optional candidate `action` (`LOCALMATE_BOOKING`), `knowledgeVersion`, and `cached`.
 5. Fast paths and fallback copy support `vi`, `en`, `zh`, `ko`, `ru`, and `hi`.
 6. Grounded model output follows the strict JSON schema and reaches the formatter node.
 7. `knowledgeVersion` starts with `sha256:` for grounded answers.
