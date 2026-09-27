@@ -44,7 +44,7 @@ export function VsLogoutButton({ className }: VsLogoutButtonProps) {
 
     try {
       await signOut({ redirect: false });
-      window.location.replace("/dangnhap");
+      window.location.replace("/dangnhap?reauth=1");
     } catch {
       SwalVietSage.close();
       await SwalVietSage.fire({

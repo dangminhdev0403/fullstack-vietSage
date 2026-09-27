@@ -33,17 +33,28 @@ const rolePaths: Record<string, string> = {
 function fakeCanAccess(roles: readonly string[], path: string): boolean {
   if (!path.startsWith("/") || path.startsWith("//")) return false;
   const pathname = path.split("?")[0] ?? path;
+  if (pathname === "/hotels" || pathname === "/hotels/") return false;
   if (pathname === "/") return true;
+
+  const role = roles[0];
+  if (role === "staff" || role === "hotel_frontdesk") {
+    if (pathname.startsWith("/owner") || pathname.startsWith("/admin")) return false;
+  }
+  if (role === "tenant_owner") {
+    if (pathname.startsWith("/staff") || pathname.startsWith("/admin") || pathname.startsWith("/hotels")) return false;
+  }
+
   const policy = policies.find(
     (p) => pathname === p.prefix || pathname.startsWith(`${p.prefix}/`),
   );
   if (!policy) return false; // unknown routes fallback to homePath
-  return policy.roles.some((r) => roles.includes(r));
+  return policy.roles.some((r) => roles.includes(r) || (r === "staff" && roles.includes("hotel_frontdesk")));
 }
 
 function fakeGetDefaultPath(roles: readonly string[]): string {
   const role = roles[0];
   if (!role) return "/";
+  if (role === "hotel_frontdesk") return "/staff";
   return rolePaths[role] ?? "/";
 }
 
@@ -64,6 +75,27 @@ test("Admin logout → Staff login with /admin/users callback → staff homePath
 
 test("Staff logout → Owner login with /hotels/123 callback → owner homePath", () => {
   assert.equal(resolve("tenant_owner", "/hotels/123"), "/owner/dashboard");
+});
+
+test("Tenant logout → Frontdesk login with /owner/dashboard callback → staff homePath", () => {
+  assert.equal(resolve("hotel_frontdesk", "/owner/dashboard"), "/staff");
+});
+
+test("Tenant logout → Frontdesk login with /owner/hotels/123/rooms callback → staff homePath", () => {
+  assert.equal(resolve("hotel_frontdesk", "/owner/hotels/123/rooms"), "/staff");
+});
+
+test("Tenant login with /staff callback → owner homePath", () => {
+  assert.equal(resolve("tenant_owner", "/staff"), "/owner/dashboard");
+});
+
+test("Staff login with bare /hotels callback → falls back to staff homePath (/staff)", () => {
+  assert.equal(resolve("staff", "/hotels"), "/staff");
+  assert.equal(resolve("staff", "/hotels/"), "/staff");
+});
+
+test("Owner login with bare /hotels callback → falls back to owner homePath", () => {
+  assert.equal(resolve("tenant_owner", "/hotels"), "/owner/dashboard");
 });
 
 test("Guest login with /admin/dashboard callback → guest homePath", () => {

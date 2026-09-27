@@ -44,6 +44,10 @@ function matchesPrefix(pathname: string, prefix: string): boolean {
 }
 
 function isKnownRedirectPath(pathname: string): boolean {
+  if (pathname === "/hotels" || pathname === "/hotels/") {
+    return false;
+  }
+
   return (
     pathname === "/" ||
     routePolicies.some((policy) => matchesPrefix(pathname, policy.prefix))
@@ -110,6 +114,55 @@ export function canAccessPathByRoles(
   }
 
   const pathname = normalized.split("?")[0] ?? normalized;
+  if (pathname === "/hotels" || pathname === "/hotels/") {
+    return false;
+  }
+
+  const activeRoleCode = roles?.[0];
+  const persona = activeRoleCode
+    ? resolveWorkspacePersona(activeRoleCode)
+    : null;
+
+  if (persona) {
+    const isStaffPersona =
+      persona === "front_desk" ||
+      persona === "manager" ||
+      persona === "housekeeping" ||
+      persona === "maintenance" ||
+      persona === "food_beverage";
+
+    if (isStaffPersona) {
+      if (
+        matchesPrefix(pathname, "/owner") ||
+        matchesPrefix(pathname, "/admin") ||
+        matchesPrefix(pathname, "/finance")
+      ) {
+        return false;
+      }
+    }
+
+    if (persona === "owner") {
+      if (
+        matchesPrefix(pathname, "/staff") ||
+        matchesPrefix(pathname, "/admin") ||
+        matchesPrefix(pathname, "/finance") ||
+        matchesPrefix(pathname, "/hotels")
+      ) {
+        return false;
+      }
+    }
+
+    if (
+      persona === "platform_admin" ||
+      persona === "platform_finance" ||
+      persona === "localmate_manager"
+    ) {
+      if (matchesPrefix(pathname, "/owner") || matchesPrefix(pathname, "/staff")) {
+        return false;
+      }
+    }
+  }
+
   const matchedPolicy = routePolicies.find((policy) =>
     matchesPrefix(pathname, policy.prefix),
   );

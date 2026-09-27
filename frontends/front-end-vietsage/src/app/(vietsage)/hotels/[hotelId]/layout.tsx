@@ -1,5 +1,5 @@
 import { type ReactNode } from "react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 
 import {
@@ -37,6 +37,13 @@ export default async function HotelOpsLayout({
   );
 
   if (!canUseHotelId(context, hotelId)) {
+    const persona = resolveWorkspacePersona(context.activeRole.code);
+    if (persona && persona !== "platform_admin" && persona !== "owner") {
+      redirect("/staff");
+    }
+    if (persona === "owner") {
+      redirect("/owner/dashboard");
+    }
     notFound();
   }
 
