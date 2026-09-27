@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import {
   HotelStatus,
+  HotelFeatureStatus,
   HotelStaffAssignmentStatus,
   Prisma,
   RoleStatus,
@@ -260,6 +261,87 @@ export class HotelCoreRepository {
         operationalResetCount: nextCount,
         remainingResets: Math.max(0, 2 - nextCount),
       };
+    });
+  }
+
+  async findHotelFeatureEntitlements(hotelId: string) {
+    return this.prisma.hotelFeatureEntitlement.findMany({
+      where: { hotelId },
+    });
+  }
+
+  async findEnabledHotelFeatureKeys(hotelId: string): Promise<string[]> {
+    const rows = await this.prisma.hotelFeatureEntitlement.findMany({
+      where: { hotelId, status: HotelFeatureStatus.ENABLED },
+      select: { featureKey: true },
+    });
+    return rows.map((r) => r.featureKey);
+  }
+
+  async setHotelFeatureStatus(params: {
+    hotelId: string;
+    featureKey: string;
+    status: HotelFeatureStatus;
+    actorId: string;
+  }) {
+    const { hotelId, featureKey, status, actorId } = params;
+    return this.prisma.$transaction(async (tx) => {
+      const hotel = await tx.hotel.findUnique({
+        where: { id: hotelId },
+        select: { id: true, tenantId: true },
+      });
+      if (!hotel) {
+        return null;
+      }
+
+      const existing = await tx.hotelFeatureEntitlement.findUnique({
+        where: {
+          hotelId_featureKey: { hotelId, featureKey },
+        },
+      });
+
+      const previousStatus: HotelFeatureStatus = existing
+        ? existing.status
+        : HotelFeatureStatus.DISABLED;
+
+      const changed = previousStatus !== status;
+
+      if (!changed) {
+        return { status: previousStatus, changed, previousStatus };
+      }
+
+      const entitlement = await tx.hotelFeatureEntitlement.upsert({
+        where: {
+          hotelId_featureKey: { hotelId, featureKey },
+        },
+        create: {
+          hotelId,
+          featureKey,
+          status,
+        },
+        update: {
+          status,
+        },
+      });
+
+      if (changed) {
+        await tx.auditLog.create({
+          data: {
+            actorId,
+            tenantId: hotel.tenantId,
+            action: "HOTEL_FEATURE_STATUS_CHANGED",
+            entityType: "HOTEL_FEATURE_ENTITLEMENT",
+            entityId: `${hotelId}:${featureKey}`,
+            metadata: {
+              featureKey,
+              previousStatus,
+              nextStatus: status,
+            },
+          },
+        });
+      }
+
+      return { status: entitlement.status, changed, previousStatus };
     });
   }
 }

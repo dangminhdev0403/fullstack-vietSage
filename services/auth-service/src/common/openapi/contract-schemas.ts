@@ -160,8 +160,15 @@ export const authMeDataSchema = {
           tenantId: { type: "string" },
           code: { type: "string" },
           name: { type: "string" },
+          enabledFeatures: {
+            type: "array",
+            items: {
+              type: "string",
+              enum: ["guest.ai_floating_chat", "frontdesk.hn2n_cccd_scanner"],
+            },
+          },
         },
-        required: ["id", "tenantId", "code", "name"],
+        required: ["id", "tenantId", "code", "name", "enabledFeatures"],
       },
     },
   },
@@ -846,6 +853,36 @@ export const listHotelsDataSchema = {
     },
   },
   required: ["page", "limit", "total", "items"],
+};
+
+export const hotelFeatureStatusEnum = ["ENABLED", "DISABLED"];
+export const hotelFeatureKeyEnum = ["guest.ai_floating_chat", "frontdesk.hn2n_cccd_scanner"];
+
+export const hotelFeatureItemSchema = {
+  type: "object",
+  properties: {
+    key: { type: "string", enum: hotelFeatureKeyEnum, example: "guest.ai_floating_chat" },
+    label: { type: "string", example: "Trợ lý AI nổi trên GuestOS" },
+    description: {
+      type: "string",
+      example: "Hiển thị và cho phép sử dụng trợ lý LocalMate AI trong GuestOS.",
+    },
+    status: { type: "string", enum: hotelFeatureStatusEnum },
+  },
+  required: ["key", "label", "description", "status"],
+};
+
+export const hotelFeaturesDataSchema = {
+  type: "array",
+  items: hotelFeatureItemSchema,
+};
+
+export const updateHotelFeatureBodySchema = {
+  type: "object",
+  properties: {
+    status: { type: "string", enum: hotelFeatureStatusEnum },
+  },
+  required: ["status"],
 };
 
 export const revokeHotelUserRoleDataSchema = {

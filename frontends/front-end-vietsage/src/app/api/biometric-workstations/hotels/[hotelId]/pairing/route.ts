@@ -12,11 +12,15 @@ export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "no-store, private" };
 type Context = { params: Promise<{ hotelId: string }> };
 
-async function context(request: Request, routeContext: Context) {
+async function context(
+  request: Request,
+  routeContext: Context,
+  options?: { requireFeature?: boolean },
+) {
   const { hotelId } = await Promise.resolve(routeContext.params);
   const session = await auth();
   if (!session?.user?.id) return { response: NextResponse.json({ error: "Unauthorized" }, { status: 401, headers }) };
-  const denied = await authorizeHotelWorkstation(session, hotelId);
+  const denied = await authorizeHotelWorkstation(session, hotelId, options);
   if (denied) return { response: denied };
   const { accessToken } = await readServerSessionTokens(request);
   if (!accessToken) return { response: NextResponse.json({ error: "Unauthorized" }, { status: 401, headers }) };
@@ -25,7 +29,7 @@ async function context(request: Request, routeContext: Context) {
 
 export async function POST(request: Request, routeContext: Context) {
   try {
-    const authorized = await context(request, routeContext);
+    const authorized = await context(request, routeContext, { requireFeature: true });
     if ("response" in authorized) return authorized.response;
     return NextResponse.json(await issuePersistentPairing(authorized.hotelId, authorized.accessToken), { status: 201, headers });
   } catch {
@@ -35,7 +39,7 @@ export async function POST(request: Request, routeContext: Context) {
 
 export async function GET(request: Request, routeContext: Context) {
   try {
-    const authorized = await context(request, routeContext);
+    const authorized = await context(request, routeContext, { requireFeature: true });
     if ("response" in authorized) return authorized.response;
     return NextResponse.json(await persistentWorkstationStatus(authorized.hotelId, authorized.accessToken), { headers });
   } catch {
@@ -45,7 +49,7 @@ export async function GET(request: Request, routeContext: Context) {
 
 export async function DELETE(request: Request, routeContext: Context) {
   try {
-    const authorized = await context(request, routeContext);
+    const authorized = await context(request, routeContext, { requireFeature: false });
     if ("response" in authorized) return authorized.response;
     return NextResponse.json(await disconnectPersistentWorkstations(authorized.hotelId, authorized.accessToken), { headers });
   } catch {

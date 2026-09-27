@@ -2,6 +2,7 @@ import type {
   DashboardNavItem,
   DashboardNavSection,
 } from "./workspace-navigation";
+import type { CanonicalHotelFeatureKey } from "../../hotel-features/hotel-features";
 
 export type WorkspacePersona =
   | "platform_admin"
@@ -32,6 +33,7 @@ export type WorkspaceNavigationDefinition = Omit<DashboardNavItem, "href"> & {
   section?: DashboardNavSection;
   anyCapabilities?: readonly string[];
   requiresHotel?: boolean;
+  requiresFeature?: CanonicalHotelFeatureKey;
   hideWhenHotelSelected?: boolean;
   labelByPersona?: Partial<Record<WorkspacePersona, string>>;
 };

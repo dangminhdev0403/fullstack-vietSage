@@ -21,6 +21,10 @@ export const guestSessionInclude = {
       code: true,
       timezone: true,
       brandSettings: true,
+      featureEntitlements: {
+        where: { status: "ENABLED" as const },
+        select: { featureKey: true, status: true },
+      },
     },
   },
   room: {
@@ -110,6 +114,10 @@ export class GuestOsRepository {
             code: true,
             timezone: true,
             brandSettings: true,
+            featureEntitlements: {
+              where: { status: "ENABLED" as const },
+              select: { featureKey: true, status: true },
+            },
           },
         },
         room: true,

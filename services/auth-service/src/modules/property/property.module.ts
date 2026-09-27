@@ -13,6 +13,7 @@ import { HotelServicesService } from "./application/hotel-services.service";
 import { HotelsController } from "./api/hotels.controller";
 import { HotelsRepository } from "./infrastructure/repositories/hotels.repository";
 import { HotelsService } from "./application/hotels.service";
+import { HotelFeatureEntitlementsService } from "./application/hotel-feature-entitlements.service";
 import { GoogleSheetsServiceCatalogSyncService } from "./infrastructure/imports/google-sheets-service-catalog-sync.service";
 import { ServiceCatalogImportAdapter } from "./infrastructure/imports/service-catalog-import.adapter";
 import { HotelCoreRepository } from "./infrastructure/repositories/hotel-core.repository";
@@ -53,7 +54,8 @@ import { HotelStayOccupantsReadService } from "./application/hotel-stay-occupant
     HotelStaffAssignmentsService,
     HotelStaffAssignmentsRepository,
     HotelStayOccupantsReadService,
+    HotelFeatureEntitlementsService,
   ],
-  exports: [HotelAccessService, HotelStayOccupantsReadService],
+  exports: [HotelAccessService, HotelStayOccupantsReadService, HotelFeatureEntitlementsService],
 })
 export class PropertyModule {}

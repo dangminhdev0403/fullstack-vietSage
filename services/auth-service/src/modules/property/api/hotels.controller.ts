@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Headers, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  Req,
+} from "@nestjs/common";
 import {
   ApiBody,
   ApiCreatedResponse,
@@ -12,21 +23,27 @@ import type { Request } from "express";
 import {
   createHotelBodySchema as createHotelBodyOpenApiSchema,
   hotelDataSchema,
+  hotelFeatureItemSchema,
+  hotelFeaturesDataSchema,
   listHotelsDataSchema,
   successEnvelopeSchema,
   updateHotelBodySchema as updateHotelBodyOpenApiSchema,
+  updateHotelFeatureBodySchema as updateHotelFeatureBodyOpenApiSchema,
 } from "../../../common/openapi/contract-schemas";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
+import { HotelFeatureEntitlementsService } from "../application/hotel-feature-entitlements.service";
 import { HotelsService } from "../application/hotels.service";
 import {
   createHotelBodySchema,
+  hotelFeatureParamsSchema,
   listHotelsQuerySchema,
   operationalResetBodySchema,
   updateHotelBodySchema,
+  updateHotelFeatureStatusBodySchema,
 } from "../domain/schemas/hotel.schema";
 import { hotelIdParamSchema } from "../domain/schemas/shared.schema";
 
@@ -37,7 +54,10 @@ interface RequestWithUser extends Request {
 @ApiTags("hotels")
 @Controller("hotels")
 export class HotelsController {
-  constructor(private readonly hotelsService: HotelsService) {}
+  constructor(
+    private readonly hotelsService: HotelsService,
+    private readonly hotelFeatureEntitlementsService: HotelFeatureEntitlementsService,
+  ) {}
 
   @RequirePermission("platform.hotels.manage")
   @SuccessMessage("Tạo khách sạn thành công")
@@ -134,6 +154,58 @@ export class HotelsController {
       request.user.userId,
       request.user.roleId,
       hotelId,
+    );
+  }
+
+  @RequirePermission("platform.hotel-features.manage")
+  @SuccessMessage("Lấy danh sách tính năng khách sạn thành công")
+  @ApiDescript("Xem danh sách tính năng mở khoá của khách sạn")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiOkResponse({
+    description: "Đã lấy danh sách tính năng",
+    schema: successEnvelopeSchema(
+      hotelFeaturesDataSchema,
+      200,
+      "Lấy danh sách tính năng khách sạn thành công",
+    ),
+  })
+  @Get(":hotelId/features")
+  async getHotelFeatures(@Param("hotelId") hotelIdParam: string) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    return this.hotelFeatureEntitlementsService.getHotelFeatures(hotelId);
+  }
+
+  @RequirePermission("platform.hotel-features.manage")
+  @SuccessMessage("Cập nhật trạng thái tính năng thành công")
+  @ApiDescript("Cập nhật trạng thái tính năng mở khoá của khách sạn")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "featureKey", type: String })
+  @ApiBody({ schema: updateHotelFeatureBodyOpenApiSchema })
+  @ApiOkResponse({
+    description: "Đã cập nhật trạng thái tính năng",
+    schema: successEnvelopeSchema(
+      hotelFeatureItemSchema,
+      200,
+      "Cập nhật trạng thái tính năng thành công",
+    ),
+  })
+  @Put(":hotelId/features/:featureKey")
+  async setHotelFeatureStatus(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("featureKey") featureKeyParam: string,
+    @Body() body: unknown,
+  ) {
+    const { hotelId, featureKey } = parseWithZod(hotelFeatureParamsSchema, {
+      hotelId: hotelIdParam,
+      featureKey: featureKeyParam,
+    });
+    const { status } = parseWithZod(updateHotelFeatureStatusBodySchema, body);
+    return this.hotelFeatureEntitlementsService.setHotelFeatureStatus(
+      hotelId,
+      featureKey,
+      status,
+      request.user.userId,
     );
   }
 }

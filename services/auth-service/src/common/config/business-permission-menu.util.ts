@@ -9,6 +9,7 @@ const BUSINESS_PERMISSION_MENU_PATHS: Record<BusinessPermissionKey, string | nul
   "platform.permissions.manage": "/admin/roles",
   "platform.hotels.view": "/admin/hotels",
   "platform.hotels.manage": "/admin/hotels",
+  "platform.hotel-features.manage": "/admin/hotels",
   "platform.billing.view": "/admin/billing",
   "platform.billing.manage": "/admin/billing",
   "platform.marketplace.view": "/admin/marketplace",

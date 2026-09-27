@@ -33,6 +33,7 @@ export type CheckInWorkspaceProps = {
   hotelId: string;
   room: CheckInWorkspaceRoom;
   canManageStays: boolean;
+  enabledFeatures?: readonly string[];
   initialStayFields?: Partial<CheckInStayFields>;
   submitState?: 'idle' | 'submitting' | 'error';
   submitError?: string;

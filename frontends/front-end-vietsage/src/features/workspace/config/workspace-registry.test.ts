@@ -167,24 +167,41 @@ test("builds owner sidebar with operational modules and hotel settings", () => {
   );
 });
 
-test("keeps receptionist room and biometric tools available", () => {
-  const navigation = buildWorkspaceNavigation({
+test("keeps receptionist room and biometric tools available when feature is enabled and hides biometric when disabled", () => {
+  const enabledNav = buildWorkspaceNavigation({
     persona: "front_desk",
     permissions: ["hotel.stays.manage", "hotel.rooms.view"],
     hotelId: "hotel-1",
+    enabledFeatures: ["frontdesk.hn2n_cccd_scanner"],
   });
 
   assert.equal(
-    navigation.some((item) => item.key === "staff.rooms"),
+    enabledNav.some((item) => item.key === "staff.rooms"),
     true,
   );
   assert.equal(
-    navigation.some(
+    enabledNav.some(
       (item) =>
         item.key === "staff.biometric" &&
         item.href === "/hotels/hotel-1/biometric",
     ),
     true,
+  );
+
+  const disabledNav = buildWorkspaceNavigation({
+    persona: "front_desk",
+    permissions: ["hotel.stays.manage", "hotel.rooms.view"],
+    hotelId: "hotel-1",
+    enabledFeatures: [],
+  });
+
+  assert.equal(
+    disabledNav.some((item) => item.key === "staff.rooms"),
+    true,
+  );
+  assert.equal(
+    disabledNav.some((item) => item.key === "staff.biometric"),
+    false,
   );
 });
 

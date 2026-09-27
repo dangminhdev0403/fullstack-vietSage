@@ -13,6 +13,10 @@ import {
 } from "../../../common/config/permission-module.util";
 import { AppLogger } from "../../../common/logging/app-logger.service";
 import type { AuthenticatedUser } from "../domain/authenticated-user";
+import {
+  CANONICAL_HOTEL_FEATURE_KEYS,
+  type HotelFeatureKey,
+} from "../../../common/config/hotel-features.registry";
 import { AuthRepository } from "../infrastructure/repositories/auth.repository";
 import type { ChangePasswordBodyInput } from "../domain/schemas/auth.schema";
 
@@ -294,7 +298,13 @@ export class AuthService {
     menus: string[];
     permissions: string[];
     tenants: Array<{ id: string; code: string; name: string; status: string }>;
-    accessibleHotels: Array<{ id: string; tenantId: string; code: string; name: string }>;
+    accessibleHotels: Array<{
+      id: string;
+      tenantId: string;
+      code: string;
+      name: string;
+      enabledFeatures: HotelFeatureKey[];
+    }>;
   }> {
     const user = await this.authRepository.findUserProfileWithRelations(userId);
     if (!user) {
@@ -322,12 +332,20 @@ export class AuthService {
             .map((entry) => entry.hotel)
             .filter((hotel) => activeTenantIds.has(hotel.tenantId))
     )
-      .map((hotel) => ({
-        id: hotel.id,
-        tenantId: hotel.tenantId,
-        code: hotel.code,
-        name: hotel.name,
-      }))
+      .map((hotel) => {
+        const rawFeatures = (hotel as { featureEntitlements?: Array<{ featureKey: string }> })
+          .featureEntitlements;
+        const enabledFeatureKeys = new Set((rawFeatures ?? []).map((entry) => entry.featureKey));
+        return {
+          id: hotel.id,
+          tenantId: hotel.tenantId,
+          code: hotel.code,
+          name: hotel.name,
+          enabledFeatures: CANONICAL_HOTEL_FEATURE_KEYS.filter((key) =>
+            enabledFeatureKeys.has(key),
+          ),
+        };
+      })
       .sort(
         (left, right) => left.code.localeCompare(right.code) || left.id.localeCompare(right.id),
       );

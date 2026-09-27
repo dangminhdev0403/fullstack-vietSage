@@ -13,6 +13,8 @@ import type {
   TenantOwnerPage,
   TenantOwnerUpdateInput,
   UpdateHotelInput,
+  HotelFeatureItem,
+  UpdateHotelFeatureStatusPayload,
 } from "@/features/admin/types/admin-contract";
 import { readServerSessionTokens } from "@/libs/server-session-tokens";
 
@@ -191,6 +193,32 @@ export class AdminService {
       remainingResets: number;
       message: string;
     }>(payload).data;
+  }
+
+  async getHotelFeatures(hotelId: string, accessToken?: string): Promise<HotelFeatureItem[]> {
+    const payload = await this.authenticatedRequest<unknown>({
+      method: "GET",
+      path: `/hotels/${encodeURIComponent(hotelId)}/features`,
+      accessToken,
+    });
+
+    return unwrapApiEnvelope<HotelFeatureItem[]>(payload).data;
+  }
+
+  async setHotelFeatureStatus(
+    hotelId: string,
+    featureKey: string,
+    body: UpdateHotelFeatureStatusPayload,
+    accessToken?: string,
+  ): Promise<HotelFeatureItem> {
+    const payload = await this.authenticatedRequest<unknown, UpdateHotelFeatureStatusPayload>({
+      method: "PUT",
+      path: `/hotels/${encodeURIComponent(hotelId)}/features/${encodeURIComponent(featureKey)}`,
+      body,
+      accessToken,
+    });
+
+    return unwrapApiEnvelope<HotelFeatureItem>(payload).data;
   }
 }
 

@@ -1,4 +1,6 @@
 import type { DashboardNavItem } from "../types/workspace-navigation";
+// @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
+import { FRONTDESK_HN2N_CCCD_SCANNER } from "../../hotel-features/hotel-features.ts";
 
 import type {
   WorkspaceDefinition,
@@ -521,6 +523,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     order: 60,
     section: "ADMINISTRATION",
     requiresHotel: true,
+    requiresFeature: FRONTDESK_HN2N_CCCD_SCANNER,
     anyCapabilities: ["hotel.stays.manage", "hotel.stays.check-in"],
   },
   {
@@ -801,12 +804,14 @@ export function buildWorkspaceNavigation(input: {
   persona: WorkspacePersona;
   permissions: readonly string[];
   hotelId?: string | null;
+  enabledFeatures?: readonly string[];
   registry?: WorkspaceRegistry;
 }): DashboardNavItem[] {
   const {
     persona,
     permissions,
     hotelId = null,
+    enabledFeatures = [],
     registry = workspaceRegistry,
   } = input;
 
@@ -815,6 +820,10 @@ export function buildWorkspaceNavigation(input: {
     .filter((item) => hasAnyCapability(permissions, item.anyCapabilities))
     .filter((item) => !item.requiresHotel || Boolean(hotelId))
     .filter((item) => !item.hideWhenHotelSelected || !hotelId)
+    .filter(
+      (item) =>
+        !item.requiresFeature || enabledFeatures.includes(item.requiresFeature),
+    )
     .sort((first, second) => first.order - second.order)
     .flatMap((item) => {
       const resolvedPath = resolvePath(item.href, hotelId);
@@ -835,6 +844,7 @@ export function buildWorkspaceNavigationForContext(input: {
   activeRole: { code: string };
   permissions: readonly string[];
   hotelId?: string | null;
+  enabledFeatures?: readonly string[];
   registry?: WorkspaceRegistry;
 }): DashboardNavItem[] {
   const persona = resolveWorkspacePersona(
@@ -846,6 +856,7 @@ export function buildWorkspaceNavigationForContext(input: {
     persona,
     permissions: input.permissions,
     hotelId: input.hotelId,
+    enabledFeatures: input.enabledFeatures,
     registry: input.registry,
   });
 }

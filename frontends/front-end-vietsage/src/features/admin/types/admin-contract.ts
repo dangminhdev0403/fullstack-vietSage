@@ -66,3 +66,23 @@ export type UpdateHotelInput = {
 };
 
 export type HotelsPage = AdminPage<Hotel>;
+
+export const MANAGE_HOTEL_FEATURES_PERMISSION =
+  "platform.hotel-features.manage";
+
+type HotelFeaturesOperation = operations["HotelsController_getHotelFeatures"];
+type SetHotelFeatureOperation =
+  operations["HotelsController_setHotelFeatureStatus"];
+
+export type HotelFeatureItem =
+  HotelFeaturesOperation["responses"][200]["content"]["application/json"]["data"][number];
+export type HotelFeatureStatus = HotelFeatureItem["status"];
+export type UpdateHotelFeatureStatusPayload =
+  SetHotelFeatureOperation["requestBody"]["content"]["application/json"];
+
+export function canManageHotelFeatures(
+  permissions: readonly string[] | undefined | null,
+): boolean {
+  if (!Array.isArray(permissions)) return false;
+  return permissions.includes(MANAGE_HOTEL_FEATURES_PERMISSION);
+}

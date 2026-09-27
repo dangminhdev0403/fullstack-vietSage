@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import {
   AuthSessionRevokeReason,
   AuthSessionStatus,
+  HotelFeatureStatus,
   HotelStaffAssignmentStatus,
   HotelStatus,
   HttpMethod,
@@ -428,7 +429,18 @@ export class AuthRepository {
         tenantUsers: {
           where: { status: TenantUserStatus.ACTIVE },
           include: {
-            tenant: { include: { hotel: true } },
+            tenant: {
+              include: {
+                hotel: {
+                  include: {
+                    featureEntitlements: {
+                      where: { status: HotelFeatureStatus.ENABLED },
+                      select: { featureKey: true },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
         hotelAssignments: {
@@ -436,7 +448,16 @@ export class AuthRepository {
             status: HotelStaffAssignmentStatus.ACTIVE,
             hotel: { status: HotelStatus.ACTIVE },
           },
-          include: { hotel: true },
+          include: {
+            hotel: {
+              include: {
+                featureEntitlements: {
+                  where: { status: HotelFeatureStatus.ENABLED },
+                  select: { featureKey: true },
+                },
+              },
+            },
+          },
         },
       },
     });

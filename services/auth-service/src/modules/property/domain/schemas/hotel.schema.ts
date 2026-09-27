@@ -1,5 +1,6 @@
-import { HotelStatus, MarketplaceLocationSource } from "@prisma/client";
+import { HotelFeatureStatus, HotelStatus, MarketplaceLocationSource } from "@prisma/client";
 import { z } from "zod";
+import { CANONICAL_HOTEL_FEATURE_KEYS } from "../../../../common/config/hotel-features.registry";
 import { jsonRecordSchema } from "./shared.schema";
 
 const GOOGLE_SHEET_ID_PATTERN = /^[a-zA-Z0-9_-]{20,200}$/;
@@ -111,3 +112,24 @@ export const operationalResetBodySchema = z
   .optional();
 
 export type OperationalResetBodyInput = z.infer<typeof operationalResetBodySchema>;
+
+export const updateHotelFeatureStatusBodySchema = z
+  .object({
+    status: z.nativeEnum(HotelFeatureStatus, {
+      message: "Trạng thái tính năng phải là ENABLED hoặc DISABLED",
+    }),
+  })
+  .strict();
+
+export type UpdateHotelFeatureStatusBodyInput = z.infer<typeof updateHotelFeatureStatusBodySchema>;
+
+export const hotelFeatureParamsSchema = z
+  .object({
+    hotelId: z.string().trim().min(1, "hotelId không được để trống"),
+    featureKey: z.enum(CANONICAL_HOTEL_FEATURE_KEYS, {
+      message: "Tính năng khách sạn không hợp lệ",
+    }),
+  })
+  .strict();
+
+export type HotelFeatureParamsInput = z.infer<typeof hotelFeatureParamsSchema>;

@@ -43,7 +43,7 @@ async function profile(accessToken: string, hotelId: string) {
   if (p.activeRole.code === "TENANT_OWNER") {
     // Existing owner authorization is enforced by the hotel rooms backend, not cached browser roles.
     await httpServer.get(`/hotels/${encodeURIComponent(hotelId)}/rooms`, { accessToken, query: { page: 1, limit: 1 } });
-    hotel ??= { id: hotelId, name: "Khách sạn đang chọn", code: "", tenantId: "" };
+    hotel ??= { id: hotelId, name: "Khách sạn đang chọn", code: "", tenantId: "", enabledFeatures: [] };
   }
   if (!hotel) throw new MobileShiftError("WRONG_HOTEL", 403);
   // Decode only AFTER the backend has validated signature, live session and role.

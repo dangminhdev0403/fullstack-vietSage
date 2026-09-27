@@ -7,6 +7,7 @@ import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
 import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
 import type { GuestLocale } from "@/features/guest-os/i18n/config";
+import { GUEST_AI_FLOATING_CHAT, hasHotelFeature } from "@/features/hotel-features/hotel-features";
 
 type ChatMessage = {
   id: string;
@@ -506,10 +507,7 @@ export function GuestFloatingChat() {
 
   // Floating teaser message appears after selecting language / entering guest workspace
   useEffect(() => {
-    if (!hasSelectedLanguage || !isWorkspace) {
-      setShowTeaser(false);
-      return;
-    }
+    if (!hasSelectedLanguage || !isWorkspace) return;
 
     // Delay entrance slightly so guest sees the workspace before being greeted
     const showTimer = setTimeout(() => {
@@ -643,7 +641,7 @@ export function GuestFloatingChat() {
 
 
   // Don't render before hydration, on full-page messages route, or before selecting language / outside guest workspace
-  if (!hydrated || !hasSelectedLanguage || !isWorkspace) {
+  if (!hydrated || !hasSelectedLanguage || !isWorkspace || !hasHotelFeature(hotel?.enabledFeatures, GUEST_AI_FLOATING_CHAT)) {
     return null;
   }
 

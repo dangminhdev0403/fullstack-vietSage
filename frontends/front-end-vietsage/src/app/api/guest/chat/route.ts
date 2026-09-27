@@ -4,6 +4,10 @@ import { HttpError } from "@/core/http/http-error";
 import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
 import type { GuestLocaleCode } from "@/features/guest-os/types/guest-os-contract";
 import {
+  GUEST_AI_FLOATING_CHAT,
+  hasHotelFeature,
+} from "@/features/hotel-features/hotel-features";
+import {
   getBearerToken,
   guestHttpErrorResponse,
   guestUnknownErrorResponse,
@@ -31,27 +35,56 @@ export async function POST(request: Request) {
   }
 
   const payload = (await readJsonBody(request)) as GuestChatPayload | null;
-  const message = typeof payload?.message === "string" ? payload.message.trim() : "";
+  const message =
+    typeof payload?.message === "string" ? payload.message.trim() : "";
   if (!message || message.length > 2_000) {
     return guestValidationErrorResponse("Tin nhắn phải có từ 1 đến 2000 ký tự");
   }
 
   const destination =
-    typeof payload?.destination === "string" ? payload.destination.trim().slice(0, 120) : "";
+    typeof payload?.destination === "string"
+      ? payload.destination.trim().slice(0, 120)
+      : "";
   const requestedLanguage =
-    typeof payload?.language === "string" ? payload.language.trim().toLowerCase() : "";
-  const language = allowedLocales.has(requestedLanguage) ? requestedLanguage : "vi";
-  const webhookSecret = process.env.LOCALMATE_N8N_WEBHOOK_SECRET?.trim();
-
-  if (!N8N_WEBHOOK_URL || !webhookSecret) {
-    return NextResponse.json(
-      { status: 503, message: "CHAT_SERVICE_UNAVAILABLE" },
-      { status: 503 },
-    );
-  }
+    typeof payload?.language === "string"
+      ? payload.language.trim().toLowerCase()
+      : "";
+  const language = allowedLocales.has(requestedLanguage)
+    ? requestedLanguage
+    : "vi";
 
   try {
-    const current = await guestOsService.getCurrentSession(sessionToken, language as GuestLocaleCode);
+    const current = await guestOsService.getCurrentSession(
+      sessionToken,
+      language as GuestLocaleCode,
+    );
+
+    if (
+      !hasHotelFeature(
+        current.session.hotel.enabledFeatures,
+        GUEST_AI_FLOATING_CHAT,
+      )
+    ) {
+      return NextResponse.json(
+        {
+          status: 403,
+          message: "FEATURE_NOT_ENABLED",
+          data: {
+            detail: "Tính năng trợ lý AI chưa được kích hoạt cho khách sạn này",
+          },
+        },
+        { status: 403 },
+      );
+    }
+
+    const webhookSecret = process.env.LOCALMATE_N8N_WEBHOOK_SECRET?.trim();
+    if (!N8N_WEBHOOK_URL || !webhookSecret) {
+      return NextResponse.json(
+        { status: 503, message: "CHAT_SERVICE_UNAVAILABLE" },
+        { status: 503 },
+      );
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15_000);
 

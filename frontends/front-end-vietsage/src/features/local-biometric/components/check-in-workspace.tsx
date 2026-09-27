@@ -11,6 +11,7 @@ import React, {
 import Swal from "sweetalert2";
 import { filterExtraOccupants } from "@/features/hotel-ops/utils/hotel-ops-display";
 import { kbttResource } from "@/features/kbtt/resources/kbtt-resource";
+import { FRONTDESK_HN2N_CCCD_SCANNER, hasHotelFeature } from "@/features/hotel-features/hotel-features";
 import { matchBcaNationalityCode } from "../utils/identity-document-ocr";
 import type {
   CheckInWorkspaceProps,
@@ -229,12 +230,14 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
     hotelId,
     room,
     canManageStays,
+    enabledFeatures,
     initialStayFields,
     submitState,
     submitError,
     onSubmit,
     onClose,
   } = props;
+  const isScannerEnabled = hasHotelFeature(enabledFeatures, FRONTDESK_HN2N_CCCD_SCANNER);
   const kbtt = useMemo(() => kbttResource.bind({ hotelId }), [hotelId]);
   const nationalitiesQuery = useQuery({
     ...kbtt.queries.catalog.options({ kind: "NATIONALITY" }),
@@ -272,7 +275,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
   );
   const [intakeMethod, setIntakeMethod] = useState<
     "upload" | "mobile" | "scanner"
-  >("scanner");
+  >(isScannerEnabled ? "scanner" : "mobile");
   const headingRef = useRef<HTMLHeadingElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -972,7 +975,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
               <div className="flex items-center gap-2">
                 {/* Segmented Mode Switch */}
                 <div className="inline-flex items-center rounded-xl bg-slate-200/80 p-1 text-xs sm:text-sm font-bold shadow-2xs">
-                  <button
+                  {isScannerEnabled ? <button
                     type="button"
                     onClick={() => setIntakeMethod("scanner")}
                     className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-bold transition-all ${
@@ -996,7 +999,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                       />
                     </svg>
                     <span>Máy quét CCCD</span>
-                  </button>
+                  </button> : null}
                   <button
                     type="button"
                     onClick={() => setIntakeMethod("mobile")}
@@ -1061,14 +1064,14 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
 
             {/* Active intake action banner */}
             <div className="w-full">
-              <div className={intakeMethod === "scanner" ? "block" : "hidden"}>
+              {isScannerEnabled ? <div className={intakeMethod === "scanner" ? "block" : "hidden"}>
                 <CccdCheckInPanel
                   hotelId={hotelId}
                   onCapture={handleCapture}
                   activeGuestLabel={`Phòng ${room.roomNumber} — Khách ${activeGuestIndex + 1}`}
                   autoRequestScanKey={activeGuestIndex}
                 />
-              </div>
+              </div> : null}
 
               <div className={intakeMethod === "mobile" ? "block" : "hidden"}>
                 <section

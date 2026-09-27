@@ -10,12 +10,24 @@ type Context = { params: Promise<{ hotelId: string }> };
 export async function GET(_request: Request, context: Context) {
   const headers = { "Cache-Control": "no-store, private" };
   if (!recognitionRelayAvailable()) {
-    return NextResponse.json({ error: "Recognition relay unavailable" }, { status: 503, headers });
+    return NextResponse.json(
+      { error: "Recognition relay unavailable" },
+      { status: 503, headers },
+    );
   }
   const { hotelId } = await Promise.resolve(context.params);
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers });
-  const denied = await authorizeHotelWorkstation(session, hotelId);
+  if (!session?.user?.id)
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401, headers },
+    );
+  const denied = await authorizeHotelWorkstation(session, hotelId, {
+    requireFeature: true,
+  });
   if (denied) return denied;
-  return NextResponse.json({ events: workstationStore.listRecognitions(hotelId) }, { headers });
+  return NextResponse.json(
+    { events: workstationStore.listRecognitions(hotelId) },
+    { headers },
+  );
 }

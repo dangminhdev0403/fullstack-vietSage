@@ -1,6 +1,7 @@
-import { UnauthorizedException } from "@nestjs/common";
+import { ForbiddenException, UnauthorizedException } from "@nestjs/common";
 import { BiometricWorkstationsService } from "../application/biometric-workstations.service";
 import type { BiometricWorkstationsRepository } from "../infrastructure/biometric-workstations.repository";
+import type { HotelFeatureEntitlementsService } from "../../property/application/hotel-feature-entitlements.service";
 
 describe("BiometricWorkstationsService", () => {
   let now: Date;
@@ -13,37 +14,56 @@ describe("BiometricWorkstationsService", () => {
     { hotelId: string; expiresAt: Date; revokedAt: Date | null; lastSeenAt: Date }
   >;
   let repository: jest.Mocked<BiometricWorkstationsRepository>;
+  let entitlementsService: jest.Mocked<HotelFeatureEntitlementsService>;
 
   beforeEach(() => {
     now = new Date("2026-08-02T00:00:00.000Z");
     pairings = new Map();
     workstations = new Map();
+    entitlementsService = {
+      getEnabledFeaturesForHotel: jest.fn(async (hotelId: string) => {
+        if (hotelId === "disabled-hotel") return [];
+        return ["frontdesk.hn2n_cccd_scanner"];
+      }),
+    } as unknown as jest.Mocked<HotelFeatureEntitlementsService>;
     repository = {
-      createPairing: jest.fn(async (input) => {
-        pairings.set(input.codeHash, { ...input, consumedAt: null });
-      }),
-      consumePairing: jest.fn(async (codeHash, consumedAt) => {
-        const pairing = pairings.get(codeHash);
-        if (!pairing || pairing.consumedAt || consumedAt >= pairing.expiresAt) return null;
-        pairing.consumedAt = consumedAt;
-        return { hotelId: pairing.hotelId };
-      }),
-      createWorkstation: jest.fn(async (input) => {
-        workstations.set(input.tokenHash, {
-          hotelId: input.hotelId,
-          expiresAt: input.expiresAt,
-          revokedAt: null,
-          lastSeenAt: input.lastSeenAt,
-        });
-      }),
-      authenticate: jest.fn(async (tokenHash, seenAt, renewUntil?: Date) => {
+      createPairing: jest.fn(
+        async (input: {
+          codeHash: string;
+          hotelId: string;
+          operatorId: string;
+          expiresAt: Date;
+        }) => {
+          pairings.set(input.codeHash, { ...input, consumedAt: null });
+        },
+      ),
+      consumePairing: jest.fn(
+        async (input: {
+          codeHash: string;
+          consumedAt: Date;
+          workstationTokenHash: string;
+          workstationExpiresAt: Date;
+        }) => {
+          const pairing = pairings.get(input.codeHash);
+          if (!pairing || pairing.consumedAt || input.consumedAt >= pairing.expiresAt) return null;
+          pairing.consumedAt = input.consumedAt;
+          workstations.set(input.workstationTokenHash, {
+            hotelId: pairing.hotelId,
+            expiresAt: input.workstationExpiresAt,
+            revokedAt: null,
+            lastSeenAt: input.consumedAt,
+          });
+          return { hotelId: pairing.hotelId };
+        },
+      ),
+      authenticate: jest.fn(async (tokenHash: string, seenAt: Date, renewUntil: Date) => {
         const workstation = workstations.get(tokenHash);
         if (!workstation || workstation.revokedAt || seenAt >= workstation.expiresAt) return null;
         workstation.lastSeenAt = seenAt;
         if (renewUntil) workstation.expiresAt = renewUntil;
         return { id: tokenHash, hotelId: workstation.hotelId };
       }),
-      hasOnlineWorkstation: jest.fn(async (hotelId, cutoff, at) =>
+      hasOnlineWorkstation: jest.fn(async (hotelId: string, cutoff: Date, at: Date) =>
         [...workstations.values()].some(
           (item) =>
             item.hotelId === hotelId &&
@@ -52,7 +72,7 @@ describe("BiometricWorkstationsService", () => {
             item.lastSeenAt >= cutoff,
         ),
       ),
-      revokeHotel: jest.fn(async (hotelId, revokedAt) => {
+      revokeHotel: jest.fn(async (hotelId: string, revokedAt: Date) => {
         let count = 0;
         for (const item of workstations.values()) {
           if (item.hotelId === hotelId && !item.revokedAt) {
@@ -69,6 +89,7 @@ describe("BiometricWorkstationsService", () => {
     const secrets = ["pairing-secret", "workstation-secret"];
     const first = new BiometricWorkstationsService(
       repository,
+      entitlementsService,
       () => now,
       () => secrets.shift()!,
     );
@@ -77,6 +98,7 @@ describe("BiometricWorkstationsService", () => {
 
     const restarted = new BiometricWorkstationsService(
       repository,
+      entitlementsService,
       () => now,
       () => "unused",
     );
@@ -87,15 +109,15 @@ describe("BiometricWorkstationsService", () => {
 
     expect(repository.createPairing.mock.calls[0]?.[0].codeHash).toMatch(/^[a-f0-9]{64}$/);
     expect(repository.createPairing.mock.calls[0]?.[0].codeHash).not.toContain(pairing.code);
-    expect(repository.createWorkstation.mock.calls[0]?.[0].tokenHash).toMatch(/^[a-f0-9]{64}$/);
-    expect(repository.createWorkstation.mock.calls[0]?.[0].tokenHash).not.toContain(
-      workstation.token,
-    );
+    const consumedInput = repository.consumePairing.mock.calls[0]?.[0];
+    expect(consumedInput?.workstationTokenHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(consumedInput?.workstationTokenHash).not.toContain(workstation.token);
   });
 
   it("rejects unknown workstation credentials instead of reporting an empty command", async () => {
     const service = new BiometricWorkstationsService(
       repository,
+      entitlementsService,
       () => now,
       () => "unused",
     );
@@ -108,6 +130,7 @@ describe("BiometricWorkstationsService", () => {
     const secrets = ["pairing-secret", "workstation-secret"];
     const service = new BiometricWorkstationsService(
       repository,
+      entitlementsService,
       () => now,
       () => secrets.shift()!,
     );
@@ -123,6 +146,7 @@ describe("BiometricWorkstationsService", () => {
     now = new Date("2026-09-02T00:00:00.000Z");
     const restarted = new BiometricWorkstationsService(
       repository,
+      entitlementsService,
       () => now,
       () => "unused",
     );
@@ -135,6 +159,7 @@ describe("BiometricWorkstationsService", () => {
     const secrets = ["pair-a", "token-a", "pair-b", "token-b"];
     const service = new BiometricWorkstationsService(
       repository,
+      entitlementsService,
       () => now,
       () => secrets.shift()!,
     );
@@ -147,5 +172,44 @@ describe("BiometricWorkstationsService", () => {
       id: expect.any(String),
       hotelId: "hotel-b",
     });
+  });
+
+  it("blocks pairing code generation when frontdesk.hn2n_cccd_scanner feature is disabled", async () => {
+    const service = new BiometricWorkstationsService(
+      repository,
+      entitlementsService,
+      () => now,
+      () => "code-secret",
+    );
+
+    await expect(service.issuePairing("disabled-hotel", "operator-1")).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(repository.createPairing).not.toHaveBeenCalled();
+  });
+
+  it("blocks status when frontdesk.hn2n_cccd_scanner feature is disabled", async () => {
+    const service = new BiometricWorkstationsService(
+      repository,
+      entitlementsService,
+      () => now,
+      () => "unused",
+    );
+
+    await expect(service.hasOnlineWorkstation("disabled-hotel")).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+
+  it("allows disconnecting workstations even when feature is disabled", async () => {
+    const service = new BiometricWorkstationsService(
+      repository,
+      entitlementsService,
+      () => now,
+      () => "unused",
+    );
+
+    await expect(service.disconnectHotel("disabled-hotel")).resolves.toBe(0);
+    expect(repository.revokeHotel).toHaveBeenCalledWith("disabled-hotel", now);
   });
 });

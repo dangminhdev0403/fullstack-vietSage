@@ -655,13 +655,24 @@
                               },
                               "name": {
                                 "type": "string"
+                              },
+                              "enabledFeatures": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "guest.ai_floating_chat",
+                                    "frontdesk.hn2n_cccd_scanner"
+                                  ]
+                                }
                               }
                             },
                             "required": [
                               "id",
                               "tenantId",
                               "code",
-                              "name"
+                              "name",
+                              "enabledFeatures"
                             ]
                           }
                         }
@@ -5119,6 +5130,211 @@
         "responses": {
           "201": {
             "description": ""
+          }
+        },
+        "tags": [
+          "hotels"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/features": {
+      "get": {
+        "operationId": "HotelsController_getHotelFeatures",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Đã lấy danh sách tính năng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy danh sách tính năng khách sạn thành công"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "enum": [
+                              "guest.ai_floating_chat",
+                              "frontdesk.hn2n_cccd_scanner"
+                            ],
+                            "example": "guest.ai_floating_chat"
+                          },
+                          "label": {
+                            "type": "string",
+                            "example": "Trợ lý AI nổi trên GuestOS"
+                          },
+                          "description": {
+                            "type": "string",
+                            "example": "Hiển thị và cho phép sử dụng trợ lý LocalMate AI trong GuestOS."
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "ENABLED",
+                              "DISABLED"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "label",
+                          "description",
+                          "status"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotels"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/features/{featureKey}": {
+      "put": {
+        "operationId": "HotelsController_setHotelFeatureStatus",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "featureKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "ENABLED",
+                      "DISABLED"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Đã cập nhật trạng thái tính năng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Cập nhật trạng thái tính năng thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "enum": [
+                            "guest.ai_floating_chat",
+                            "frontdesk.hn2n_cccd_scanner"
+                          ],
+                          "example": "guest.ai_floating_chat"
+                        },
+                        "label": {
+                          "type": "string",
+                          "example": "Trợ lý AI nổi trên GuestOS"
+                        },
+                        "description": {
+                          "type": "string",
+                          "example": "Hiển thị và cho phép sử dụng trợ lý LocalMate AI trong GuestOS."
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ENABLED",
+                            "DISABLED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "label",
+                        "description",
+                        "status"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
           }
         },
         "tags": [

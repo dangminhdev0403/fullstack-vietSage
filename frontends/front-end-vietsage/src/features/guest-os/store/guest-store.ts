@@ -2,7 +2,10 @@ import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import type { GuestCurrentSessionResult, GuestScanQrResult } from "@/features/guest-os/types/guest-os-contract";
+import type {
+  GuestCurrentSessionResult,
+  GuestScanQrResult,
+} from "@/features/guest-os/types/guest-os-contract";
 
 type GuestHotelState = GuestScanQrResult["hotel"];
 type GuestRoomState = GuestScanQrResult["room"];
@@ -25,7 +28,17 @@ type GuestStore = {
   clearSession: () => void;
 };
 
-const initialGuestState: Pick<GuestStore, "sessionToken" | "hotelId" | "stayId" | "expiresAt" | "hotel" | "room" | "guest" | "language"> = {
+const initialGuestState: Pick<
+  GuestStore,
+  | "sessionToken"
+  | "hotelId"
+  | "stayId"
+  | "expiresAt"
+  | "hotel"
+  | "room"
+  | "guest"
+  | "language"
+> = {
   sessionToken: null,
   hotelId: null,
   stayId: null,
@@ -36,7 +49,18 @@ const initialGuestState: Pick<GuestStore, "sessionToken" | "hotelId" | "stayId" 
   language: null,
 };
 
-function sanitizeSession(session: GuestScanQrResult): Pick<GuestStore, "sessionToken" | "hotelId" | "stayId" | "expiresAt" | "hotel" | "room" | "guest"> {
+function sanitizeSession(
+  session: GuestScanQrResult,
+): Pick<
+  GuestStore,
+  | "sessionToken"
+  | "hotelId"
+  | "stayId"
+  | "expiresAt"
+  | "hotel"
+  | "room"
+  | "guest"
+> {
   return {
     sessionToken: session.sessionToken.trim() || null,
     hotelId: null,
@@ -46,6 +70,7 @@ function sanitizeSession(session: GuestScanQrResult): Pick<GuestStore, "sessionT
       name: session.hotel.name,
       timezone: session.hotel.timezone,
       brandSettings: session.hotel.brandSettings,
+      enabledFeatures: session.hotel.enabledFeatures,
     },
     room: {
       roomNumber: session.room.roomNumber,
@@ -64,15 +89,32 @@ export const useGuestStore = create<GuestStore>()(
     (set) => ({
       ...initialGuestState,
       setGuestSession: (session) => set(sanitizeSession(session)),
-      importSessionToken: (sessionToken) => set({ sessionToken: sessionToken.trim() || null }),
-      refreshSessionSnapshot: ({ session }) => set({
-        hotelId: session.hotelId,
-        stayId: session.stayId,
-        expiresAt: session.expiresAt,
-        hotel: { name: session.hotel.name, timezone: session.hotel.timezone, brandSettings: session.hotel.brandSettings as Record<string, unknown> | null },
-        room: { roomNumber: session.room.roomNumber, floor: session.room.floor, type: session.room.type },
-        guest: { displayName: session.stay.guestDisplayName, plannedCheckOutAt: session.stay.plannedCheckOutAt },
-      }),
+      importSessionToken: (sessionToken) =>
+        set({ sessionToken: sessionToken.trim() || null }),
+      refreshSessionSnapshot: ({ session }) =>
+        set({
+          hotelId: session.hotelId,
+          stayId: session.stayId,
+          expiresAt: session.expiresAt,
+          hotel: {
+            name: session.hotel.name,
+            timezone: session.hotel.timezone,
+            brandSettings: session.hotel.brandSettings as Record<
+              string,
+              unknown
+            > | null,
+            enabledFeatures: session.hotel.enabledFeatures,
+          },
+          room: {
+            roomNumber: session.room.roomNumber,
+            floor: session.room.floor,
+            type: session.room.type,
+          },
+          guest: {
+            displayName: session.stay.guestDisplayName,
+            plannedCheckOutAt: session.stay.plannedCheckOutAt,
+          },
+        }),
       setLanguage: (value) => set({ language: value.trim() || null }),
       clearSession: () =>
         set((state) => ({
@@ -105,8 +147,10 @@ function emitHydrationChange() {
 
 function subscribeToHydration(listener: () => void): () => void {
   hydrationListeners.add(listener);
-  const unsubscribeHydrate = useGuestStore.persist.onHydrate(emitHydrationChange);
-  const unsubscribeFinishHydration = useGuestStore.persist.onFinishHydration(emitHydrationChange);
+  const unsubscribeHydrate =
+    useGuestStore.persist.onHydrate(emitHydrationChange);
+  const unsubscribeFinishHydration =
+    useGuestStore.persist.onFinishHydration(emitHydrationChange);
 
   return () => {
     hydrationListeners.delete(listener);

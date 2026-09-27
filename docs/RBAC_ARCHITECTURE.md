@@ -23,6 +23,7 @@ platform.roles.manage
 platform.permissions.manage
 platform.hotels.view
 platform.hotels.manage
+platform.hotel-features.manage
 platform.billing.view
 platform.billing.manage
 hotel.revenue-protection.view
@@ -199,6 +200,10 @@ Current safe boundary slice:
 - Route authorization and resource authorization are separate:
   - RBAC says the user can perform an action.
   - Resource access says the user can perform it on this tenant/hotel/resource.
+- RBAC grants and hotel product entitlements are strictly separate:
+  - RBAC answers who may configure or operate.
+  - Hotel entitlement answers which hotel has the product capability unlocked.
+  - Runtime access requires: `Allowed = actor RBAC capability + hotel/resource scope + enabled hotel entitlement`.
 - Property resource access must receive the session-bound role ID and load only that active role when
   deriving elevated, tenant-owner, or assignment-required scope. Other active roles assigned to the
   same user must not expand the current workspace.

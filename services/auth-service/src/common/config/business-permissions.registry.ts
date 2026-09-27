@@ -6,6 +6,7 @@ export type BusinessPermissionKey =
   | "platform.permissions.manage"
   | "platform.hotels.view"
   | "platform.hotels.manage"
+  | "platform.hotel-features.manage"
   | "platform.billing.view"
   | "platform.billing.manage"
   | "platform.marketplace.view"
@@ -87,6 +88,12 @@ export const BUSINESS_PERMISSIONS: readonly BusinessPermissionDefinition[] = [
   ),
   permission("platform.hotels.view", "platform-hotels", "Xem danh sách khách sạn"),
   permission("platform.hotels.manage", "platform-hotels", "Quản lý khách sạn"),
+  permission(
+    "platform.hotel-features.manage",
+    "platform-hotels",
+    "Quản lý tính năng mở khoá của khách sạn",
+    "HIGH",
+  ),
   permission("platform.billing.view", "platform-billing", "Xem thanh toán nền tảng"),
   permission(
     "platform.billing.manage",

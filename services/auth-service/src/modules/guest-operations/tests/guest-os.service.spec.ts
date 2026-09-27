@@ -1469,4 +1469,133 @@ describe("GuestOsService", () => {
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(repository.cancelCreatedRequest).not.toHaveBeenCalled();
   });
+
+  describe("hotel feature entitlements projection", () => {
+    it("projects enabledFeatures in canonical order on QR scan response", async () => {
+      const expiresAt = new Date(Date.now() + 30_000);
+      const repository = {
+        findQrForScan: jest.fn().mockResolvedValue({
+          id: "qr-1",
+          hotelId: "hotel-1",
+          roomId: "room-1",
+          status: RoomQRCodeStatus.ACTIVE,
+          hotel: {
+            tenantId: "tenant-1",
+            id: "hotel-1",
+            name: "Hotel With Features",
+            code: "hwf",
+            timezone: "Asia/Ho_Chi_Minh",
+            brandSettings: null,
+            featureEntitlements: [
+              { featureKey: "frontdesk.hn2n_cccd_scanner", status: "ENABLED" },
+              { featureKey: "guest.ai_floating_chat", status: "ENABLED" },
+              { featureKey: "unknown.bogus_feature", status: "ENABLED" },
+            ],
+          },
+          room: { id: "room-1", status: RoomStatus.OCCUPIED },
+        }),
+        recordQrScan: jest.fn().mockResolvedValue({}),
+        findActiveStayForRoom: jest.fn().mockResolvedValue({
+          id: "stay-1",
+          status: "ACTIVE",
+          plannedCheckOutAt: new Date(Date.now() + 60_000),
+          checkedOutAt: null,
+        }),
+        isAccessOpen: jest.fn().mockReturnValue(true),
+        createGuestSession: jest.fn().mockResolvedValue({
+          expiresAt,
+          hotel: {
+            id: "hotel-1",
+            tenantId: "tenant-1",
+            name: "Hotel With Features",
+            code: "hwf",
+            timezone: "Asia/Ho_Chi_Minh",
+            brandSettings: null,
+            featureEntitlements: [
+              { featureKey: "frontdesk.hn2n_cccd_scanner", status: "ENABLED" },
+              { featureKey: "guest.ai_floating_chat", status: "ENABLED" },
+              { featureKey: "unknown.bogus_feature", status: "ENABLED" },
+            ],
+          },
+          room: {
+            id: "room-1",
+            roomNumber: "101",
+            floor: "1",
+            type: "DELUXE",
+            status: RoomStatus.OCCUPIED,
+          },
+          stay: {
+            id: "stay-1",
+            guestDisplayName: "Test Guest",
+            status: "ACTIVE",
+            plannedCheckOutAt: new Date(Date.now() + 60_000),
+            checkedOutAt: null,
+          },
+        }),
+      };
+      const service = new GuestOsService(repository as never);
+
+      const response = await service.scanQr({ qrCode: "qr-code-test" }, {
+        headers: {},
+        ip: "127.0.0.1",
+      } as never);
+
+      expect(response.hotel.enabledFeatures).toEqual([
+        "guest.ai_floating_chat",
+        "frontdesk.hn2n_cccd_scanner",
+      ]);
+    });
+
+    it("projects enabledFeatures in getCurrentSession and returns empty array if none enabled", async () => {
+      const repository = {
+        updateSessionHeartbeat: jest.fn().mockResolvedValue({
+          id: "session-1",
+          hotelId: "hotel-1",
+          roomId: "room-1",
+          stayId: "stay-1",
+          status: GuestSessionStatus.ACTIVE,
+          createdAt: new Date(),
+          activatedAt: new Date(),
+          lastSeenAt: new Date(),
+          idleAt: null,
+          expiresAt: new Date(Date.now() + 60_000),
+          closedAt: null,
+          hotel: {
+            id: "hotel-1",
+            tenantId: "tenant-1",
+            name: "Hotel No Features",
+            code: "hnf",
+            timezone: "Asia/Ho_Chi_Minh",
+            brandSettings: null,
+            featureEntitlements: [],
+          },
+          room: {
+            id: "room-1",
+            roomNumber: "201",
+            floor: "2",
+            type: "STANDARD",
+          },
+          stay: {
+            id: "stay-1",
+            reservationCode: "RSV-201",
+            guestDisplayName: "Guest 201",
+            status: "ACTIVE",
+          },
+        }),
+      };
+      const service = new GuestOsService(repository as never);
+
+      const result = await service.getCurrentSession({
+        sessionId: "session-1",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        stayId: "stay-1",
+        status: GuestSessionStatus.ACTIVE,
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+
+      expect(result.session.hotel.enabledFeatures).toEqual([]);
+      expect(result.session.hotel).not.toHaveProperty("featureEntitlements");
+    });
+  });
 });

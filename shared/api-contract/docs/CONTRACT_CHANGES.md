@@ -9,6 +9,15 @@
 
 ## Unreleased
 
+- **Hotel feature entitlements**:
+  - Separated actor RBAC capabilities from hotel product entitlements.
+  - Added generic `HotelFeatureEntitlement` model keyed by `(hotelId, featureKey)` with status `ENABLED` | `DISABLED`.
+  - Defined two canonical feature keys: `guest.ai_floating_chat` (GuestOS LocalMate AI floating chat) and `frontdesk.hn2n_cccd_scanner` (HN2N/HN-212 persistent CCCD workstation).
+  - Added permission `platform.hotel-features.manage` for listing and explicitly setting feature status (`GET|PUT /hotels/{hotelId}/features[/{featureKey}]`).
+  - Added `enabledFeatures: string[]` projection to `/auth/me` accessible hotels and GuestOS session responses in deterministic canonical registry order.
+  - GuestOS AI chat BFF (`/api/guest/chat`) returns HTTP 403 `FEATURE_NOT_ENABLED` before any n8n call when `guest.ai_floating_chat` is disabled.
+  - Biometric workstation pairing, status, and scan initiation are blocked when `frontdesk.hn2n_cccd_scanner` is disabled, while disconnect/revocation remains allowed. Mobile QR, OpenMRZ upload, and manual check-in flows remain fully available.
+
 - **Hotel-centered LocalMate geospatial knowledge**:
   - Added optional paired service coordinates for LocalMate profiles and destination coordinates for tour knowledge, with database and Zod range checks.
   - `GET|POST /localmate/knowledge` accepts optional server-derived `hotelId` and bounded `radiusKm` (`1..300`, default `50`). Without an explicit destination, the backend bounds candidates around the persisted hotel coordinates, calculates Haversine distance, and returns `distanceKm` plus `metadata.locationScope`.

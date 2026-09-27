@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { adminService } from "@/features/admin/service/admin-service-instance";
+import { canManageHotelFeatures } from "@/features/admin/types/admin-contract";
 import { resolveWorkspacePersona } from "@/features/workspace/utils/workspace-context";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
@@ -56,6 +57,8 @@ export default async function AdminHotelsPage() {
     ),
   ]);
 
+  const canManageFeatures = canManageHotelFeatures(context.permissions);
+
   return (
     <>
         <div className="mx-auto max-w-[1600px] space-y-8">
@@ -75,6 +78,7 @@ export default async function AdminHotelsPage() {
             initialHotels={hotelsPage.items}
             initialTenantOwners={tenantOwners}
             total={hotelsPage.total}
+            canManageFeatures={canManageFeatures}
           />
         </div>
     </>

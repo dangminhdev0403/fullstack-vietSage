@@ -20,8 +20,8 @@ const frontDeskContext: WorkspaceContext = {
   },
   permissions: ["hotel.dashboard.view", "hotel.requests.view"],
   accessibleHotels: [
-    { id: "hotel-1", tenantId: "tenant-1", code: "H1", name: "Hotel 1" },
-    { id: "hotel-2", tenantId: "tenant-1", code: "H2", name: "Hotel 2" },
+    { id: "hotel-1", tenantId: "tenant-1", code: "H1", name: "Hotel 1", enabledFeatures: [] },
+    { id: "hotel-2", tenantId: "tenant-1", code: "H2", name: "Hotel 2", enabledFeatures: [] },
   ],
 };
 

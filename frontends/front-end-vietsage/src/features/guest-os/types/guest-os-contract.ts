@@ -10,11 +10,7 @@ export type GuestRequestType =
   | "AI_CONCIERGE";
 
 export type GuestRequestStatus =
-  | "PENDING"
-  | "ACKNOWLEDGED"
-  | "COMPLETED"
-  | "CANCELLED"
-  | "REJECTED";
+  "PENDING" | "ACKNOWLEDGED" | "COMPLETED" | "CANCELLED" | "REJECTED";
 
 export type GuestRequestPriority = "NORMAL" | "URGENT";
 export type GuestLocaleCode = "vi" | "en" | "zh" | "ko" | "ru" | "hi";
@@ -23,7 +19,8 @@ export type GuestPortalRequestStatus = GuestRequestStatus;
 
 export type GuestPortalRequestPriority = "NORMAL" | "URGENT";
 
-export type GuestSessionStatus = "CREATED" | "ACTIVE" | "IDLE" | "EXPIRED" | "CLOSED";
+export type GuestSessionStatus =
+  "CREATED" | "ACTIVE" | "IDLE" | "EXPIRED" | "CLOSED";
 
 export type GuestHotel = {
   id: string;
@@ -32,6 +29,7 @@ export type GuestHotel = {
   code: string;
   timezone: string;
   brandSettings: unknown;
+  enabledFeatures: string[];
 };
 
 export type GuestRoom = {
@@ -85,6 +83,7 @@ export type GuestScanQrResult = {
     name: string;
     timezone: string;
     brandSettings: Record<string, unknown> | null;
+    enabledFeatures: string[];
   };
   room: {
     roomNumber: string;
@@ -121,7 +120,10 @@ export type GuestServiceItem = {
   updatedAt?: string;
 };
 
-export type GuestCatalogServiceItem = Omit<GuestServiceItem, "price" | "currency"> & {
+export type GuestCatalogServiceItem = Omit<
+  GuestServiceItem,
+  "price" | "currency"
+> & {
   effectivePrice: string | number | null;
   effectiveCurrency: string;
 };
@@ -140,7 +142,9 @@ export type GuestServiceCategory = {
 
 export type GuestServicesResult = {
   hotelId: string;
-  categories: Array<Omit<GuestServiceCategory, "items"> & { items: GuestCatalogServiceItem[] }>;
+  categories: Array<
+    Omit<GuestServiceCategory, "items"> & { items: GuestCatalogServiceItem[] }
+  >;
 };
 
 export type GuestCategoryServicesResult = {

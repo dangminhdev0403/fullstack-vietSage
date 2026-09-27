@@ -30,6 +30,7 @@ type Props = {
   canManageRooms: boolean;
   canManageStays: boolean;
   initialFlow?: string;
+  enabledFeatures?: readonly string[];
 };
 
 type RoomStatusFilter =
@@ -370,6 +371,7 @@ export function StaffRoomsClient({
   canManageRooms,
   canManageStays,
   initialFlow,
+  enabledFeatures,
 }: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -1439,6 +1441,7 @@ export function StaffRoomsClient({
           hotelId={hotelId}
           room={{ id: selectedRoom.id, roomNumber: getRoomNumber(selectedRoom), type: selectedRoom.type ?? undefined, status: "available" }}
           canManageStays={canManageStays}
+          enabledFeatures={enabledFeatures}
           initialStayFields={{ plannedCheckOutAt: localDateTime(1, 12) }}
           submitState={saving ? 'submitting' : 'idle'}
           submitError={submitError}

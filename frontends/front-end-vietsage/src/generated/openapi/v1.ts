@@ -529,6 +529,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hotels/{hotelId}/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["HotelsController_getHotelFeatures"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/features/{featureKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["HotelsController_setHotelFeatureStatus"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/hotels/{hotelId}/rooms": {
         parameters: {
             query?: never;
@@ -3549,6 +3581,7 @@ export interface operations {
                                 tenantId: string;
                                 code: string;
                                 name: string;
+                                enabledFeatures: ("guest.ai_floating_chat" | "frontdesk.hn2n_cccd_scanner")[];
                             }[];
                         };
                     };
@@ -5297,6 +5330,102 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    HotelsController_getHotelFeatures: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Đã lấy danh sách tính năng */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Lấy danh sách tính năng khách sạn thành công */
+                        message: string;
+                        data: {
+                            /**
+                             * @example guest.ai_floating_chat
+                             * @enum {string}
+                             */
+                            key: "guest.ai_floating_chat" | "frontdesk.hn2n_cccd_scanner";
+                            /** @example Trợ lý AI nổi trên GuestOS */
+                            label: string;
+                            /** @example Hiển thị và cho phép sử dụng trợ lý LocalMate AI trong GuestOS. */
+                            description: string;
+                            /** @enum {string} */
+                            status: "ENABLED" | "DISABLED";
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    HotelsController_setHotelFeatureStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                featureKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    status: "ENABLED" | "DISABLED";
+                };
+            };
+        };
+        responses: {
+            /** @description Đã cập nhật trạng thái tính năng */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Cập nhật trạng thái tính năng thành công */
+                        message: string;
+                        data: {
+                            /**
+                             * @example guest.ai_floating_chat
+                             * @enum {string}
+                             */
+                            key: "guest.ai_floating_chat" | "frontdesk.hn2n_cccd_scanner";
+                            /** @example Trợ lý AI nổi trên GuestOS */
+                            label: string;
+                            /** @example Hiển thị và cho phép sử dụng trợ lý LocalMate AI trong GuestOS. */
+                            description: string;
+                            /** @enum {string} */
+                            status: "ENABLED" | "DISABLED";
+                        };
+                    };
+                };
             };
         };
     };

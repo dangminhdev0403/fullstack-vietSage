@@ -1,7 +1,11 @@
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
-import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
+import {
+  assertCanAccessHotelOps,
+  canUseHotelId,
+  requireHotelOpsServerTokens,
+} from "@/features/hotel-ops/utils/hotel-route-auth";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { StaffRoomsClient } from "./staff-rooms-client";
@@ -16,7 +20,10 @@ function getFirst(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-export default async function StaffRoomsPage({ params, searchParams }: PageProps) {
+export default async function StaffRoomsPage({
+  params,
+  searchParams,
+}: PageProps) {
   const { hotelId } = await Promise.resolve(params);
   const resolvedSearchParams = (await searchParams) ?? {};
   const initialFlow = getFirst(resolvedSearchParams.flow);
@@ -24,14 +31,20 @@ export default async function StaffRoomsPage({ params, searchParams }: PageProps
   const session = await auth();
   assertCanAccessHotelOps(session, callbackUrl);
   const tokens = await requireHotelOpsServerTokens(callbackUrl);
-  const context = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
+  const context = await loadServerWorkspaceContext(
+    callbackUrl,
+    tokens.accessToken,
+  );
   const canViewRooms =
     context.permissions.includes("hotel.rooms.view") ||
     context.permissions.includes("hotel.rooms.status.manage");
   const canViewReservations =
     context.permissions.includes("hotel.reservations.view") ||
     context.permissions.includes("hotel.reservations.manage");
-  if (!canUseHotelId(context, hotelId) || (!canViewRooms && !canViewReservations)) {
+  if (
+    !canUseHotelId(context, hotelId) ||
+    (!canViewRooms && !canViewReservations)
+  ) {
     notFound();
   }
 
@@ -42,7 +55,10 @@ export default async function StaffRoomsPage({ params, searchParams }: PageProps
     const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
     [roomsPage, dashboard] = await Promise.all([
       authorizedApi("list staff rooms", (accessToken) =>
-        hotelOpsService.listRooms(hotelId, { query: { page: 1, limit: 100 }, accessToken }),
+        hotelOpsService.listRooms(hotelId, {
+          query: { page: 1, limit: 100 },
+          accessToken,
+        }),
       ),
       authorizedApi("load room dashboard", (accessToken) =>
         hotelOpsService.getDashboard(hotelId, { accessToken }),
@@ -67,9 +83,13 @@ export default async function StaffRoomsPage({ params, searchParams }: PageProps
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-800">
             <span className="material-symbols-outlined text-3xl">warning</span>
           </div>
-          <h2 className="mt-4 text-xl font-bold text-amber-950">Chưa gán phòng — tài khoản chưa thể thao tác vận hành</h2>
+          <h2 className="mt-4 text-xl font-bold text-amber-950">
+            Chưa gán phòng — tài khoản chưa thể thao tác vận hành
+          </h2>
           <p className="mt-2 text-sm text-amber-800 max-w-md mx-auto">
-            Khách sạn này áp dụng mô hình phân quyền độc quyền phòng. Vui lòng liên hệ Chủ khách sạn (Owner) để được gán phòng phụ trách trước khi thao tác sơ đồ phòng và lưu trú.
+            Khách sạn này áp dụng mô hình phân quyền độc quyền phòng. Vui lòng
+            liên hệ Chủ khách sạn (Owner) để được gán phòng phụ trách trước khi
+            thao tác sơ đồ phòng và lưu trú.
           </p>
         </section>
       );
@@ -77,8 +97,13 @@ export default async function StaffRoomsPage({ params, searchParams }: PageProps
 
     return (
       <section className="rounded-xl border border-[var(--outline-variant)] bg-white p-6 text-sm text-[var(--on-surface-variant)]">
-        <p className="font-semibold text-[var(--primary)]">Không thể tải dữ liệu sơ đồ phòng</p>
-        <p className="mt-1">Hệ thống dữ liệu đang phản hồi chậm. Vui lòng thử tải lại trang sau ít phút.</p>
+        <p className="font-semibold text-[var(--primary)]">
+          Không thể tải dữ liệu sơ đồ phòng
+        </p>
+        <p className="mt-1">
+          Hệ thống dữ liệu đang phản hồi chậm. Vui lòng thử tải lại trang sau ít
+          phút.
+        </p>
       </section>
     );
   }
@@ -94,16 +119,28 @@ export default async function StaffRoomsPage({ params, searchParams }: PageProps
     <>
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--secondary)]">SƠ ĐỒ PHÒNG</p>
-          <h1 className="vs-display mt-2 text-4xl font-semibold text-[var(--primary)]">Mở phòng và lưu trú</h1>
-          <p className="mt-2 max-w-3xl text-sm text-[var(--on-surface-variant)]">Chọn phòng sẵn sàng để check-in khách vãng lai. Sau khi mở phòng, QR GuestOS và mã truy cập được kích hoạt ngay.</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--secondary)]">
+            SƠ ĐỒ PHÒNG
+          </p>
+          <h1 className="vs-display mt-2 text-4xl font-semibold text-[var(--primary)]">
+            Mở phòng và lưu trú
+          </h1>
+          <p className="mt-2 max-w-3xl text-sm text-[var(--on-surface-variant)]">
+            Chọn phòng sẵn sàng để check-in khách vãng lai. Sau khi mở phòng, QR
+            GuestOS và mã truy cập được kích hoạt ngay.
+          </p>
         </div>
       </header>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map(([label, value, tone]) => (
-          <article key={label} className="rounded-lg border border-[var(--outline-variant)] bg-white p-4">
-            <p className="text-sm font-semibold text-[var(--on-surface-variant)]">{label}</p>
+          <article
+            key={label}
+            className="rounded-lg border border-[var(--outline-variant)] bg-white p-4"
+          >
+            <p className="text-sm font-semibold text-[var(--on-surface-variant)]">
+              {label}
+            </p>
             <p className={`mt-2 text-3xl font-black ${tone}`}>{value}</p>
           </article>
         ))}
@@ -119,6 +156,10 @@ export default async function StaffRoomsPage({ params, searchParams }: PageProps
             context.permissions.includes("hotel.stays.check-in")
           }
           initialFlow={initialFlow}
+          enabledFeatures={
+            context.accessibleHotels.find((hotel) => hotel.id === hotelId)
+              ?.enabledFeatures ?? []
+          }
         />
       </section>
     </>

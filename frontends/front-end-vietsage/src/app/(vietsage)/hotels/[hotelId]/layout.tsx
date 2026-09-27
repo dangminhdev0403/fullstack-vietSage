@@ -2,8 +2,16 @@ import { type ReactNode } from "react";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 
-import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
-import { buildWorkspaceNavigationForContext, getWorkspaceDefinition, resolveWorkspacePersona } from "@/features/workspace/config/workspace-registry";
+import {
+  assertCanAccessHotelOps,
+  canUseHotelId,
+  requireHotelOpsServerTokens,
+} from "@/features/hotel-ops/utils/hotel-route-auth";
+import {
+  buildWorkspaceNavigationForContext,
+  getWorkspaceDefinition,
+  resolveWorkspacePersona,
+} from "@/features/workspace/config/workspace-registry";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { WorkspaceProfileProvider } from "@/features/workspace/components/workspace-profile-context";
 import { WorkspaceShell } from "@/features/workspace/components/workspace-shell";
@@ -19,11 +27,14 @@ export default async function HotelOpsLayout({
 }>) {
   const { hotelId } = await Promise.resolve(params);
   const session = await auth();
-  
+
   const callbackUrl = `/hotels/${hotelId}/requests` as const;
   assertCanAccessHotelOps(session, callbackUrl);
   const tokens = await requireHotelOpsServerTokens(callbackUrl);
-  const context = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
+  const context = await loadServerWorkspaceContext(
+    callbackUrl,
+    tokens.accessToken,
+  );
 
   if (!canUseHotelId(context, hotelId)) {
     notFound();
@@ -34,9 +45,14 @@ export default async function HotelOpsLayout({
     notFound();
   }
 
+  const enabledFeatures =
+    context.accessibleHotels.find((hotel) => hotel.id === hotelId)
+      ?.enabledFeatures ?? [];
+
   const sidebarItems = buildWorkspaceNavigationForContext({
     ...context,
     hotelId,
+    enabledFeatures,
   });
 
   return (
@@ -53,4 +69,3 @@ export default async function HotelOpsLayout({
     </WorkspaceProfileProvider>
   );
 }
-

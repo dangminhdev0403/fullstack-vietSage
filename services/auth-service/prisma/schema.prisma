@@ -87,6 +87,11 @@ enum HotelStatus {
   DISABLED
 }
 
+enum HotelFeatureStatus {
+  ENABLED
+  DISABLED
+}
+
 enum RoomStatus {
   AVAILABLE
   RESERVED
@@ -678,7 +683,20 @@ model Hotel {
   kbttConnection                KbttHotelConnection?
   kbttGuestDeclarations         KbttGuestDeclaration[]
   kbttAutoSubmitRuns            KbttAutoSubmitRun[]
+  featureEntitlements           HotelFeatureEntitlement[]
+}
 
+model HotelFeatureEntitlement {
+  hotelId     String
+  featureKey  String             @db.VarChar(120)
+  status      HotelFeatureStatus
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  hotel       Hotel               @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@id([hotelId, featureKey])
+  @@index([featureKey, status])
+  @@map("hotel_feature_entitlements")
 }
 
 model KbttHotelConnection {

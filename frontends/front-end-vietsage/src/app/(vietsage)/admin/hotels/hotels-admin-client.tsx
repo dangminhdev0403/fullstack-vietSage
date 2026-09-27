@@ -8,6 +8,7 @@ import { z } from "zod";
 import { HttpError } from "@/core/http/http-error";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { runtimeConsole } from "@/core/logging/runtime-console";
+import { HotelFeaturesSection } from "@/features/admin/components/hotel-features-section";
 import type { Hotel, TenantOwner, TenantSummary } from "@/features/admin/types/admin-contract";
 import { useAdminGoogleSheetConfig } from "@/features/hotel-ops/queries/use-google-sheet-config";
 import { LocationFields, type LocationValue } from "@/features/marketplace/components/location-fields";
@@ -18,6 +19,7 @@ type HotelsAdminClientProps = {
   initialHotels: Hotel[];
   initialTenantOwners: TenantOwner[];
   total: number;
+  canManageFeatures?: boolean;
 };
 
 type TenantOption = {
@@ -190,7 +192,7 @@ async function confirmHotelSave(mode: FormMode, hotelName: string, tenantName: s
   return result.isConfirmed;
 }
 
-export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }: HotelsAdminClientProps) {
+export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, canManageFeatures = false }: HotelsAdminClientProps) {
   const router = useRouter();
   const [hotels, setHotels] = useState(initialHotels);
   const [query, setQuery] = useState("");
@@ -584,6 +586,8 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
               </label>
 
               {formMode === "edit" ? <div className="md:col-span-2"><LocationFields value={form} onChange={(location) => setForm((current) => ({ ...current, ...location }))} /></div> : null}
+
+              {canManageFeatures && editingHotel ? <div className="md:col-span-2"><HotelFeaturesSection hotelId={editingHotel.id} hotelName={editingHotel.name} /></div> : null}
 
 
             </div>

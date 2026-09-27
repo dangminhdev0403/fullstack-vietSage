@@ -30,6 +30,10 @@ import {
 } from "../../../shared/events";
 import { TelegramNotificationService } from "../../notifications/notifications-public";
 import {
+  CANONICAL_HOTEL_FEATURE_KEYS,
+  type HotelFeatureKey,
+} from "../../../common/config/hotel-features.registry";
+import {
   GuestOsRepository,
   type GuestRequestGuestRow,
   type GuestSessionContextRow,
@@ -263,6 +267,10 @@ export class GuestOsService {
         name: session.hotel.name,
         timezone: session.hotel.timezone,
         brandSettings: session.hotel.brandSettings,
+        enabledFeatures: this.projectEnabledFeatures(
+          (session.hotel as { featureEntitlements?: Array<{ featureKey: string }> })
+            .featureEntitlements,
+        ),
       },
       room: {
         roomNumber: session.room.roomNumber,
@@ -698,10 +706,28 @@ export class GuestOsService {
       idleAt: row.idleAt,
       expiresAt: row.expiresAt,
       closedAt: row.closedAt,
-      hotel: row.hotel,
+      hotel: {
+        id: row.hotel.id,
+        tenantId: row.hotel.tenantId,
+        name: row.hotel.name,
+        code: row.hotel.code,
+        timezone: row.hotel.timezone,
+        brandSettings: row.hotel.brandSettings,
+        enabledFeatures: this.projectEnabledFeatures(
+          (row.hotel as { featureEntitlements?: Array<{ featureKey: string }> })
+            .featureEntitlements,
+        ),
+      },
       room: row.room,
       stay: row.stay,
     };
+  }
+
+  private projectEnabledFeatures(
+    featureEntitlements?: Array<{ featureKey: string }> | null,
+  ): HotelFeatureKey[] {
+    const enabledSet = new Set((featureEntitlements ?? []).map((entry) => entry.featureKey));
+    return CANONICAL_HOTEL_FEATURE_KEYS.filter((key) => enabledSet.has(key));
   }
 
   private toGuestRequestData(

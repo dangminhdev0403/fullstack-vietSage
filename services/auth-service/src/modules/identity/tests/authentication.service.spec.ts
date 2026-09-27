@@ -116,8 +116,8 @@ describe("AuthService", () => {
       },
       permissions: ["hotel.stays.manage", "hotel.stays.view"],
       accessibleHotels: [
-        { id: "hotel-1", code: "H1", name: "Hotel 1", tenantId: "tenant-1" },
-        { id: "hotel-2", code: "H2", name: "Hotel 2", tenantId: "tenant-1" },
+        { id: "hotel-1", code: "H1", name: "Hotel 1", tenantId: "tenant-1", enabledFeatures: [] },
+        { id: "hotel-2", code: "H2", name: "Hotel 2", tenantId: "tenant-1", enabledFeatures: [] },
       ],
     });
   });
@@ -168,8 +168,58 @@ describe("AuthService", () => {
     });
 
     await expect(service.getMe("owner-1", "role-owner")).resolves.toMatchObject({
-      accessibleHotels: [{ id: "hotel-1", tenantId: "tenant-1", code: "H1", name: "Hotel 1" }],
+      accessibleHotels: [
+        { id: "hotel-1", tenantId: "tenant-1", code: "H1", name: "Hotel 1", enabledFeatures: [] },
+      ],
     });
+  });
+
+  it("projects canonical enabledFeatures in stable registry order on accessibleHotels", async () => {
+    repository.findUserProfileWithRelations.mockResolvedValue({
+      id: "u1",
+      email: "frontdesk@vietsage.local",
+      fullName: "Front Desk",
+      status: UserStatus.ACTIVE,
+      userRoles: [
+        {
+          role: {
+            id: "role-frontdesk",
+            code: "HOTEL_FRONTDESK",
+            name: "Front Desk",
+            baseRole: null,
+            rolePermissions: [],
+          },
+        },
+      ],
+      tenantUsers: [
+        {
+          tenantId: "tenant-1",
+          tenant: { id: "tenant-1", code: "T1", name: "T1", hotel: null },
+        },
+      ],
+      hotelAssignments: [
+        {
+          hotel: {
+            id: "hotel-1",
+            tenantId: "tenant-1",
+            code: "H1",
+            name: "Hotel 1",
+            status: "ACTIVE",
+            featureEntitlements: [
+              { featureKey: "frontdesk.hn2n_cccd_scanner" },
+              { featureKey: "unknown.future_feature" },
+              { featureKey: "guest.ai_floating_chat" },
+            ],
+          },
+        },
+      ],
+    });
+
+    const res = await service.getMe("u1", "role-frontdesk");
+    expect(res.accessibleHotels[0].enabledFeatures).toEqual([
+      "guest.ai_floating_chat",
+      "frontdesk.hn2n_cccd_scanner",
+    ]);
   });
 
   it("performs an Argon2 verification even when the account does not exist", async () => {
