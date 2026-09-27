@@ -287,10 +287,7 @@ export class LocalMateRepository {
 
     if (opts.destination) {
       conditions.push({
-        OR: [
-          { destination: { contains: opts.destination, mode: "insensitive" } },
-          { title: { contains: opts.destination, mode: "insensitive" } },
-        ],
+        title: { contains: opts.destination, mode: "insensitive" },
       });
     }
 
@@ -338,10 +335,7 @@ export class LocalMateRepository {
 
     if (query?.destination) {
       conditions.push({
-        OR: [
-          { destination: { contains: query.destination, mode: "insensitive" } },
-          { title: { contains: query.destination, mode: "insensitive" } },
-        ],
+        title: { contains: query.destination, mode: "insensitive" },
       });
     }
 
@@ -349,7 +343,6 @@ export class LocalMateRepository {
       conditions.push({
         OR: [
           { title: { contains: query.search, mode: "insensitive" } },
-          { destination: { contains: query.search, mode: "insensitive" } },
           { content: { contains: query.search, mode: "insensitive" } },
         ],
       });
@@ -412,7 +405,6 @@ export class LocalMateRepository {
   async upsertTourKnowledge(data: {
     tourCode: string;
     title: string;
-    destination: string;
     duration: string;
     highlights: string[];
     content: string;

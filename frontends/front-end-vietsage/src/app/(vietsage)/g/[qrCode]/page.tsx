@@ -45,13 +45,50 @@ function readNestedData(payload: unknown): unknown {
   return isRecord(payload) ? payload.data : null;
 }
 
+function readHttpErrorData(error: HttpError): Record<string, unknown> | null {
+  const nested = readNestedData(error.data);
+  return isRecord(nested) ? nested : isRecord(error.data) ? error.data : null;
+}
+
+function readHttpErrorCode(error: HttpError): string | null {
+  const data = readHttpErrorData(error);
+  return (
+    readStringField(data, "code") ??
+    readStringField(data, "message") ??
+    (isRecord(error.data)
+      ? readStringField(error.data, "code") ?? readStringField(error.data, "message")
+      : null)
+  );
+}
+
+function readSwitchRooms(error: HttpError): {
+  currentRoom?: string;
+  targetRoom?: string;
+} {
+  const data = readHttpErrorData(error);
+  const roomNumber = (value: unknown) =>
+    typeof value === "string"
+      ? value
+      : isRecord(value)
+        ? (readStringField(value, "roomNumber") ?? undefined)
+        : undefined;
+  return {
+    currentRoom: roomNumber(data?.currentRoom),
+    targetRoom: roomNumber(data?.targetRoom),
+  };
+}
+
 function isSessionSwitchRequired(error: unknown): boolean {
   if (!(error instanceof HttpError)) {
     return false;
   }
 
-  const data = readNestedData(error.data);
-  return error.status === 409 && readStringField(data, "code") === "GUEST_SESSION_SWITCH_REQUIRED";
+  const code = readHttpErrorCode(error);
+
+  return (
+    error.status === 409 &&
+    (code === "GUEST_SESSION_SWITCH_REQUIRED" || code === "SESSION_SWITCH_REQUIRED")
+  );
 }
 
 function inferGuestQrErrorStatus(error: unknown): number {
@@ -86,10 +123,16 @@ type GuestQrErrorInfo = {
 
 function parseGuestQrError(error: unknown): GuestQrErrorInfo {
   if (error instanceof HttpError) {
-    const errorData = isRecord(error.data) && isRecord(error.data.data) ? error.data.data : isRecord(error.data) ? error.data : null;
-    const code = readStringField(errorData, "code") ?? readStringField(errorData, "message") ?? readStringField(error.data, "message");
-    const roomNumber = readStringField(errorData, "roomNumber") ?? readStringField(errorData, "targetRoomNumber");
-    const maxDevices = readNumberField(errorData, "maxDistinctDevices") ?? 3;
+    const errorData = readHttpErrorData(error);
+    const code = readHttpErrorCode(error);
+    const roomNumber =
+      readStringField(errorData, "roomNumber") ??
+      readStringField(errorData, "targetRoomNumber") ??
+      (isRecord(error.data) ? readStringField(error.data, "roomNumber") : null);
+    const maxDevices =
+      readNumberField(errorData, "maxDistinctDevices") ??
+      (isRecord(error.data) ? readNumberField(error.data, "maxDistinctDevices") : null) ??
+      3;
 
     if (code === "GUEST_SESSION_LIMIT_REACHED" || code === "SESSION_LIMIT_REACHED") {
       return {
@@ -108,15 +151,26 @@ function parseGuestQrError(error: unknown): GuestQrErrorInfo {
     }
 
     if (code === "GUEST_SESSION_SWITCH_REQUIRED" || code === "SESSION_SWITCH_REQUIRED") {
-      const currentRoomObj = isRecord(errorData?.currentRoom) ? errorData.currentRoom : null;
-      const targetRoomObj = isRecord(errorData?.targetRoom) ? errorData.targetRoom : null;
-      const currentRoomNum = currentRoomObj ? readStringField(currentRoomObj, "roomNumber") : null;
-      const targetRoomNum = targetRoomObj ? readStringField(targetRoomObj, "roomNumber") : null;
+      const { currentRoom: currentRoomNum, targetRoom: targetRoomNum } =
+        readSwitchRooms(error);
 
+      if (targetRoomNum && currentRoomNum) {
+        return {
+          titleKey: "qr.roomMismatchTitle",
+          messageKey: "qr.roomMismatchMessage",
+          params: { currentRoom: currentRoomNum, targetRoom: targetRoomNum },
+        };
+      }
+      if (targetRoomNum) {
+        return {
+          titleKey: "qr.roomMismatchTitle",
+          messageKey: "qr.switchMessage",
+          params: { targetRoom: targetRoomNum },
+        };
+      }
       return {
-        titleKey: "qr.roomMismatchTitle",
-        messageKey: "qr.roomMismatchMessage",
-        params: { currentRoom: currentRoomNum ?? "", targetRoom: targetRoomNum ?? "" },
+        titleKey: "qr.switchTitle",
+        messageKey: "qr.switchMessage",
       };
     }
   }
@@ -191,13 +245,7 @@ export default function GuestQrEntryPage() {
       .catch((error: unknown) => {
         if (isSessionSwitchRequired(error)) {
           if (error instanceof HttpError) {
-            const errorData = isRecord(error.data) && isRecord(error.data.data) ? error.data.data : null;
-            const currentRoomObj = isRecord(errorData?.currentRoom) ? errorData.currentRoom : null;
-            const targetRoomObj = isRecord(errorData?.targetRoom) ? errorData.targetRoom : null;
-            setSwitchParams({
-              currentRoom: currentRoomObj ? readStringField(currentRoomObj, "roomNumber") ?? undefined : undefined,
-              targetRoom: targetRoomObj ? readStringField(targetRoomObj, "roomNumber") ?? undefined : undefined,
-            });
+            setSwitchParams(readSwitchRooms(error));
           }
           setNeedsSwitchConfirmation(true);
           return;

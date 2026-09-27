@@ -8609,7 +8609,6 @@ paths:
               additionalProperties: false
               required:
                 - title
-                - destination
                 - duration
                 - content
               properties:
@@ -8621,10 +8620,6 @@ paths:
                   type: string
                   minLength: 2
                   maxLength: 255
-                destination:
-                  type: string
-                  minLength: 2
-                  maxLength: 120
                 duration:
                   type: string
                   minLength: 1
@@ -8697,10 +8692,6 @@ paths:
                   type: string
                   minLength: 2
                   maxLength: 255
-                destination:
-                  type: string
-                  minLength: 2
-                  maxLength: 120
                 duration:
                   type: string
                   minLength: 1

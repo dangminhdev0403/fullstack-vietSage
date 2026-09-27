@@ -10537,7 +10537,6 @@ export interface operations {
                 "application/json": {
                     tourCode?: string;
                     title: string;
-                    destination: string;
                     duration: string;
                     highlights?: string[];
                     content: string;
@@ -10593,7 +10592,6 @@ export interface operations {
                 "application/json": {
                     tourCode?: string;
                     title?: string;
-                    destination?: string;
                     duration?: string;
                     highlights?: string[];
                     content?: string;

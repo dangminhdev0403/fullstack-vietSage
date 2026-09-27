@@ -1,4 +1,4 @@
-import { NotFoundException, UnauthorizedException } from "@nestjs/common";
+import { ConflictException, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { GlobalExceptionFilter } from "./global-exception.filter";
 
@@ -98,5 +98,34 @@ describe("GlobalExceptionFilter", () => {
     expect(serialized).not.toContain("PrismaClientKnownRequestError");
     expect(serialized).not.toContain("P2025");
     expect(serialized).not.toContain("Record not found");
+  });
+
+  it("preserves custom metadata such as room information in HttpException", () => {
+    const filter = new GlobalExceptionFilter();
+    const { host, response } = createHost();
+
+    filter.catch(
+      new ConflictException({
+        code: "GUEST_SESSION_SWITCH_REQUIRED",
+        detail: "Switch required",
+        currentRoom: { roomNumber: "101", floor: "1" },
+        targetRoom: { roomNumber: "202", floor: "2" },
+        internalDebug: { token: "must-not-leak" },
+      }),
+      host as never,
+    );
+
+    expect(response.status).toHaveBeenCalledWith(409);
+    expect(response.json.mock.calls[0][0]).toMatchObject({
+      status: 409,
+      message: "GUEST_SESSION_SWITCH_REQUIRED",
+      data: {
+        code: "GUEST_SESSION_SWITCH_REQUIRED",
+        detail: "Switch required",
+        currentRoom: { roomNumber: "101", floor: "1" },
+        targetRoom: { roomNumber: "202", floor: "2" },
+      },
+    });
+    expect(JSON.stringify(response.json.mock.calls[0][0])).not.toContain("must-not-leak");
   });
 });

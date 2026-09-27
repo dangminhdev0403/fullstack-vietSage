@@ -325,14 +325,14 @@ export interface InferredProvinceAndScope {
 }
 
 /**
- * Infer Province and TourScope from destination and tour title text.
+ * Infer Province and TourScope from tour title (or destination) text.
  */
 export function inferProvinceAndScope(
-  destination: string,
-  title?: string,
+  titleOrDestination: string,
+  extraText?: string,
 ): InferredProvinceAndScope {
-  const combinedText = `${destination || ""} ${title || ""}`.toLowerCase();
-  const destOnly = (destination || "").toLowerCase();
+  const combinedText = `${titleOrDestination || ""} ${extraText || ""}`.toLowerCase();
+  const destOnly = (titleOrDestination || "").toLowerCase();
 
   // Find all matched provinces
   const matchedProvinces = new Set<string>();
@@ -361,7 +361,7 @@ export function inferProvinceAndScope(
   // If multiple provinces matched -> INTERPROVINCIAL
   if (matchedProvinces.size > 1) {
     // Pick the primary destination province (prioritizing the one matched in `destination` or non-capital/route target)
-    let primaryProvinceCode = "YEN_BAI";
+    let primaryProvinceCode: string | undefined;
     // Check if destOnly specifically matches any province
     for (const code of matchedProvinces) {
       const prov = GEOGRAPHY_TAXONOMY[code];
@@ -374,46 +374,34 @@ export function inferProvinceAndScope(
       }
     }
 
-    if (!primaryProvinceCode) {
-      primaryProvinceCode = Array.from(matchedProvinces)[0];
-    }
-
-    const provinceName = GEOGRAPHY_TAXONOMY[primaryProvinceCode]?.name || "Yên Bái";
+    const resolvedProvinceCode = primaryProvinceCode ?? Array.from(matchedProvinces)[0];
+    const provinceName = GEOGRAPHY_TAXONOMY[resolvedProvinceCode]?.name ?? "Chưa phân loại";
 
     return {
-      provinceCode: primaryProvinceCode,
+      provinceCode: resolvedProvinceCode,
       province: provinceName,
       tourScope: "INTERPROVINCIAL",
     };
   }
 
-  // Single province matched
+  // Single province matched.
   if (matchedProvinces.size === 1) {
     const singleCode = Array.from(matchedProvinces)[0];
     const prov = GEOGRAPHY_TAXONOMY[singleCode];
-    const destSet = matchedDestinationsByProvince.get(singleCode) || new Set();
-
-    // If it covers multiple distinct districts/destinations within the province -> REGIONAL_DAYTRIP
-    // Or if title has 2N1Đ / 3N2Đ connecting different spots
+    const matchedDestinations = matchedDestinationsByProvince.get(singleCode)?.size ?? 0;
     const isMultiDay = /\b[2345]n[1234]đ\b/i.test(combinedText);
-    const hasMultipleDestinations = destSet.size >= 2;
-
-    let tourScope: TourScopeType = "LOCAL";
-    if (hasMultipleDestinations || isMultiDay) {
-      tourScope = "REGIONAL_DAYTRIP";
-    }
 
     return {
       provinceCode: singleCode,
       province: prov.name,
-      tourScope,
+      tourScope: matchedDestinations >= 2 || isMultiDay ? "REGIONAL_DAYTRIP" : "LOCAL",
     };
   }
 
-  // Fallback defaults
+  // Never assign an arbitrary province when taxonomy inference has no evidence.
   return {
-    provinceCode: "LAO_CAI",
-    province: "Lào Cai",
+    provinceCode: "UNCLASSIFIED",
+    province: "Chưa phân loại",
     tourScope: "LOCAL",
   };
 }

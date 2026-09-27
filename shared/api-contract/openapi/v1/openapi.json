@@ -13144,7 +13144,6 @@
                 "additionalProperties": false,
                 "required": [
                   "title",
-                  "destination",
                   "duration",
                   "content"
                 ],
@@ -13158,11 +13157,6 @@
                     "type": "string",
                     "minLength": 2,
                     "maxLength": 255
-                  },
-                  "destination": {
-                    "type": "string",
-                    "minLength": 2,
-                    "maxLength": 120
                   },
                   "duration": {
                     "type": "string",
@@ -13268,11 +13262,6 @@
                     "type": "string",
                     "minLength": 2,
                     "maxLength": 255
-                  },
-                  "destination": {
-                    "type": "string",
-                    "minLength": 2,
-                    "maxLength": 120
                   },
                   "duration": {
                     "type": "string",

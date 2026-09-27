@@ -43,7 +43,7 @@ export function LocalMateGeographyNav({
     }
 
     for (const t of tours) {
-      const detected = detectProvinceFromDestination(t.destination, t.title);
+      const detected = detectProvinceFromDestination(t.title);
       const code = t.provinceCode || detected?.code;
 
       if (code) {
@@ -126,19 +126,19 @@ export function LocalMateGeographyNav({
   return (
     <>
       {/* Mobile Drawer Trigger Bar (< lg) */}
-      <div className="lg:hidden mb-4 rounded-2xl border border-[#25483F]/15 bg-white p-3.5 shadow-xs">
+      <div className="lg:hidden mb-4 rounded-2xl border border-stone-200/80 bg-white p-3 shadow-xs">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#173F35] text-white shadow-xs">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-emerald-800 text-white shadow-xs">
               <VsIcon name="map" className="text-base" />
             </span>
             <div className="min-w-0">
-              <span className="block text-[11px] font-semibold text-[#5A6861] uppercase tracking-wider">
+              <span className="block text-[11px] font-semibold text-stone-500 uppercase tracking-wider">
                 Bộ lọc khu vực:
               </span>
-              <p className="truncate text-sm font-bold text-[#142823]">
+              <p className="truncate text-sm font-semibold text-stone-900">
                 {activeLabel}{" "}
-                <span className="text-xs text-[#173F35] font-bold">
+                <span className="text-xs text-emerald-800 font-semibold">
                   ({provinceFilter !== "ALL" ? provinceCounts[provinceFilter] ?? 0 : totalToursCount})
                 </span>
               </p>
@@ -148,7 +148,7 @@ export function LocalMateGeographyNav({
           <button
             type="button"
             onClick={() => setIsMobileOpen(!isMobileOpen)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[#25483F]/20 bg-[#FAF8F5] px-3 text-xs font-bold text-[#173F35] hover:bg-[#173F35] hover:text-white transition-all cursor-pointer shrink-0"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-3 text-base font-semibold text-stone-700 hover:bg-emerald-800 hover:text-white transition-colors cursor-pointer shrink-0"
           >
             <VsIcon name="filter_list" className="text-base" />
             <span>{isMobileOpen ? "Đóng" : "Chọn vùng"}</span>
@@ -156,7 +156,7 @@ export function LocalMateGeographyNav({
         </div>
 
         {isMobileOpen && (
-          <div className="mt-3 pt-3 border-t border-[#25483F]/10">
+          <div className="mt-3 pt-3 border-t border-stone-100">
             <NavigationList
               isAllActive={isAllActive}
               handleSelectAll={handleSelectAll}
@@ -168,6 +168,7 @@ export function LocalMateGeographyNav({
               handleProvinceClick={handleProvinceClick}
               regionCounts={regionCounts}
               provinceCounts={provinceCounts}
+              totalToursCount={totalToursCount}
             />
           </div>
         )}
@@ -175,7 +176,16 @@ export function LocalMateGeographyNav({
 
       {/* Desktop Vertical Nav Sidebar (>= lg) */}
       <aside className="hidden lg:block w-72 shrink-0 sticky top-6">
-        <div className="rounded-2xl border border-[#25483F]/12 bg-white p-3 shadow-[0_4px_20px_rgba(20,40,35,0.04)] transition-all">
+        <div className="rounded-2xl border border-stone-200/80 bg-white p-3 shadow-xs transition-all">
+          <div className="flex items-center justify-between px-2.5 py-1.5 mb-2 border-b border-stone-100">
+            <span className="text-xs font-bold uppercase tracking-wider text-stone-600">
+              Phân vùng địa lý
+            </span>
+            <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200/70">
+              {totalToursCount} tour
+            </span>
+          </div>
+
           {/* Nav List */}
           <NavigationList
             isAllActive={isAllActive}
@@ -188,6 +198,7 @@ export function LocalMateGeographyNav({
             handleProvinceClick={handleProvinceClick}
             regionCounts={regionCounts}
             provinceCounts={provinceCounts}
+            totalToursCount={totalToursCount}
           />
         </div>
       </aside>
@@ -206,6 +217,7 @@ interface NavigationListProps {
   handleProvinceClick: (prov: ProvinceTaxonomy) => void;
   regionCounts: Record<RegionCode, number>;
   provinceCounts: Record<string, number>;
+  totalToursCount: number;
 }
 
 function NavigationList({
@@ -219,24 +231,36 @@ function NavigationList({
   handleProvinceClick,
   regionCounts,
   provinceCounts,
+  totalToursCount,
 }: NavigationListProps) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1">
       {/* 1. Tất cả Tỉnh / TP */}
       <button
         type="button"
         onClick={handleSelectAll}
-        className={`w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-left transition-all cursor-pointer ${
+        className={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-left transition-colors cursor-pointer ${
           isAllActive
-            ? "bg-[#EAF3EE] text-[#173F35] font-bold border-l-4 border-[#173F35]"
-            : "text-[#30413A] hover:bg-[#FAF8F5] hover:text-[#173F35] font-semibold"
+            ? "bg-emerald-800 text-white font-semibold shadow-xs"
+            : "text-stone-700 hover:bg-stone-50 hover:text-stone-900 font-medium"
         }`}
       >
-        <VsIcon
-          name="explore"
-          className={`text-lg shrink-0 ${isAllActive ? "text-[#173F35]" : "text-[#5A6861]"}`}
-        />
-        <span className="text-[14.5px] leading-tight">Tất cả Tỉnh / TP</span>
+        <div className="flex items-center gap-2.5">
+          <VsIcon
+            name="explore"
+            className={`text-base shrink-0 ${isAllActive ? "text-white" : "text-stone-400"}`}
+          />
+          <span className="text-sm">Tất cả Tỉnh / TP</span>
+        </div>
+        <span
+          className={`rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${
+            isAllActive
+              ? "bg-emerald-900/60 text-emerald-100"
+              : "bg-stone-100 text-stone-500"
+          }`}
+        >
+          {totalToursCount}
+        </span>
       </button>
 
       {/* 2. 4 Khu vực chính */}
@@ -259,34 +283,44 @@ function NavigationList({
             {/* Region Header Row */}
             <div
               onClick={() => handleRegionClick(region)}
-              className={`group flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm transition-all cursor-pointer ${
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  handleRegionClick(region);
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              className={`group flex min-h-11 items-center justify-between rounded-xl px-3 py-2 text-base transition-colors cursor-pointer ${
                 isRegionActive
-                  ? "bg-[#EAF3EE] text-[#173F35] font-bold border-l-4 border-[#173F35]"
+                  ? "bg-emerald-800 text-white font-semibold shadow-xs"
                   : regionFilter === region.code
-                  ? "text-[#173F35] font-bold bg-[#173F35]/5"
-                  : "text-[#30413A] hover:bg-[#FAF8F5] hover:text-[#173F35] font-semibold"
+                  ? "bg-emerald-50 text-emerald-900 font-semibold"
+                  : "text-stone-700 hover:bg-stone-50 hover:text-stone-900 font-medium"
               }`}
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <VsIcon
                   name={region.iconName}
-                  className={`text-lg shrink-0 ${
-                    isRegionActive || regionFilter === region.code
-                      ? "text-[#173F35]"
-                      : "text-[#5A6861]"
+                  className={`text-base shrink-0 ${
+                    isRegionActive
+                      ? "text-white"
+                      : regionFilter === region.code
+                      ? "text-emerald-700"
+                      : "text-stone-400"
                   }`}
                 />
-                <span className="truncate text-[14.5px] leading-tight">{region.name}</span>
+                <span className="truncate text-sm">{region.name}</span>
               </div>
 
               <div className="flex items-center gap-1.5 shrink-0">
                 <span
-                  className={`rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums ${
+                  className={`rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${
                     isRegionActive
-                      ? "bg-[#173F35] text-white"
+                      ? "bg-emerald-900/60 text-emerald-100"
                       : regionTourCount > 0
-                      ? "bg-[#EAF3EE] text-[#173F35]"
-                      : "bg-[#F3EFE6] text-[#7A8B83]"
+                      ? "bg-emerald-100/70 text-emerald-800"
+                      : "bg-stone-100 text-stone-400"
                   }`}
                 >
                   {regionTourCount}
@@ -296,11 +330,15 @@ function NavigationList({
                   type="button"
                   onClick={(e) => toggleRegionAccordion(region.code, e)}
                   title={isRegionExpanded ? "Thu gọn" : "Mở rộng"}
-                  className="p-1 text-[#788880] hover:text-[#142823] transition-transform rounded-md hover:bg-black/5 cursor-pointer"
+                  className={`p-0.5 transition-transform rounded-md cursor-pointer ${
+                    isRegionActive
+                      ? "text-white/80 hover:text-white"
+                      : "text-stone-400 hover:text-stone-700 hover:bg-stone-100"
+                  }`}
                 >
                   <VsIcon
                     name={isRegionExpanded ? "expand_more" : "chevron_right"}
-                    className="text-sm"
+                    className="text-base"
                   />
                 </button>
               </div>
@@ -308,7 +346,7 @@ function NavigationList({
 
             {/* Provinces List (when expanded) */}
             {isRegionExpanded && (
-              <div className="mt-1 space-y-1 pl-3.5 pr-1 py-1 max-h-80 overflow-y-auto">
+              <div className="mt-1 space-y-0.5 pl-3 pr-1 py-1 max-h-80 overflow-y-auto">
                 {sortedProvinces.map((prov) => {
                   const isProvActive = provinceFilter === prov.code;
                   const tourCount = provinceCounts[prov.code] ?? 0;
@@ -318,33 +356,33 @@ function NavigationList({
                       key={prov.code}
                       type="button"
                       onClick={() => handleProvinceClick(prov)}
-                      className={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-sm transition-all cursor-pointer ${
+                      className={`w-full flex min-h-11 items-center justify-between rounded-lg px-2.5 py-1.5 text-base transition-colors cursor-pointer ${
                         isProvActive
-                          ? "bg-[#EAF3EE] text-[#173F35] font-bold border-l-3 border-[#173F35]"
-                          : "text-[#3D4F46] hover:bg-[#FAF8F5] hover:text-[#142823] font-medium"
+                          ? "bg-emerald-100/80 text-emerald-900 font-semibold"
+                          : "text-stone-600 hover:bg-stone-50 hover:text-stone-900"
                       }`}
                     >
-                      <div className="flex items-center gap-2.5 truncate">
+                      <div className="flex items-center gap-2 truncate">
                         <VsIcon
                           name="location_on"
-                          className={`text-base shrink-0 ${
+                          className={`text-sm shrink-0 ${
                             isProvActive
-                              ? "text-[#173F35]"
+                              ? "text-emerald-800"
                               : tourCount > 0
-                              ? "text-[#16805C]"
-                              : "text-[#9AA59F]"
+                              ? "text-emerald-600"
+                              : "text-stone-300"
                           }`}
                         />
-                        <span className="truncate text-[13.5px]">{prov.name}</span>
+                        <span className="truncate">{prov.name}</span>
                       </div>
 
                       <span
-                        className={`text-xs font-bold tabular-nums ml-2 ${
+                        className={`text-xs tabular-nums ml-2 font-medium ${
                           isProvActive
-                            ? "text-[#173F35]"
+                            ? "text-emerald-900 font-semibold"
                             : tourCount > 0
-                            ? "text-[#173F35]"
-                            : "text-[#9AA59F]"
+                            ? "text-emerald-700 font-semibold"
+                            : "text-stone-300"
                         }`}
                       >
                         {tourCount}

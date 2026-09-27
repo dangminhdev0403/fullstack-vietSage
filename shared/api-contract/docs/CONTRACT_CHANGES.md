@@ -19,7 +19,9 @@
   - Biometric workstation pairing, status, and scan initiation are blocked when `frontdesk.hn2n_cccd_scanner` is disabled, while disconnect/revocation remains allowed. Mobile QR, OpenMRZ upload, and manual check-in flows remain fully available.
 
 - **Hotel-centered LocalMate geospatial knowledge**:
-  - Added optional paired service coordinates for LocalMate profiles and destination coordinates for tour knowledge, with database and Zod range checks.
+  - Removed the redundant tour `destination` field from create/update contracts. The repair migration first preserves legacy destination text in the canonical province/content fields, installs any missing taxonomy columns/indexes, then drops the legacy column.
+  - Tour taxonomy retains all persisted scopes (`LOCAL`, `REGIONAL_DAYTRIP`, `INTERPROVINCIAL`); unmatched records remain explicitly `UNCLASSIFIED` instead of being assigned to an arbitrary province.
+  - Added optional paired service coordinates for LocalMate profiles and destination coordinates for tour knowledge, with database, backend Zod, and BFF range/pair checks.
   - `GET|POST /localmate/knowledge` accepts optional server-derived `hotelId` and bounded `radiusKm` (`1..300`, default `50`). Without an explicit destination, the backend bounds candidates around the persisted hotel coordinates, calculates Haversine distance, and returns `distanceKm` plus `metadata.locationScope`.
   - Records without coordinates remain available only through bounded area/province fallback. Raw guide coordinates are not exposed in the knowledge response.
   - The GuestOS BFF derives `hotelId` from the authenticated guest session; browser input cannot select another hotel. n8n forwards the hotel scope and consumes backend-bounded results instead of filtering a full list.

@@ -46,7 +46,8 @@ export interface MatchAiResponse {
   suggestedTours: Array<{
     tourCode: string;
     title: string;
-    destination: string;
+    destination?: string;
+    province?: string | null;
     duration: string;
     highlights: string[];
   }>;
@@ -180,12 +181,14 @@ export class LocalMateService {
     }
 
     const destination = query.destination || (hotel?.area ?? undefined);
+    const search = query.search || query.query;
     const provinceCode = query.provinceCode || (hotel?.provinceCode ?? undefined);
     const tourScope = query.scope;
 
     if (hotel) {
       const tours = await this.repository.searchTourKnowledge({
         destination: query.destination,
+        search,
         provinceCode: query.provinceCode,
         tourScope,
         limit: 50,
@@ -200,15 +203,13 @@ export class LocalMateService {
       return scored.slice(0, limit).map((s) => s.tour);
     }
 
-    return this.repository.findToursByDestination(
-      {
-        destination,
-        provinceCode,
-        tourScope,
-        limit,
-      },
+    return this.repository.searchTourKnowledge({
+      destination,
+      search,
+      provinceCode,
+      tourScope,
       limit,
-    );
+    });
   }
 
   async createTour(dto: CreateLocalMateTourDto) {
@@ -218,7 +219,7 @@ export class LocalMateService {
       throw new ConflictException(`Mã tour '${tourCode}' đã tồn tại`);
     }
 
-    const inferred = inferProvinceAndScope(dto.destination, dto.title);
+    const inferred = inferProvinceAndScope(dto.title);
     const provinceCode = dto.provinceCode || inferred.provinceCode;
     const province = dto.province || inferred.province;
     const tourScope = dto.tourScope || inferred.tourScope;
@@ -226,7 +227,6 @@ export class LocalMateService {
     return this.repository.createTour({
       tourCode,
       title: dto.title,
-      destination: dto.destination,
       duration: normalizeTourDuration(dto.duration),
       highlights: dto.highlights || [],
       content: dto.content,
@@ -246,11 +246,12 @@ export class LocalMateService {
     }
 
     return this.repository.updateTour(id, {
+      ...(dto.tourCode !== undefined && { tourCode: dto.tourCode }),
       ...(dto.title !== undefined && { title: dto.title }),
-      ...(dto.destination !== undefined && { destination: dto.destination }),
       ...(dto.duration !== undefined && { duration: normalizeTourDuration(dto.duration) }),
       ...(dto.highlights !== undefined && { highlights: dto.highlights }),
       ...(dto.content !== undefined && { content: dto.content }),
+      ...(dto.sourceFileName !== undefined && { sourceFileName: dto.sourceFileName }),
       ...(dto.provinceCode !== undefined && { provinceCode: dto.provinceCode }),
       ...(dto.province !== undefined && { province: dto.province }),
       ...(dto.tourScope !== undefined && { tourScope: dto.tourScope }),
@@ -359,7 +360,8 @@ export class LocalMateService {
     const suggestedTours = suggestedToursRaw.map((t) => ({
       tourCode: t.tourCode,
       title: t.title,
-      destination: t.destination,
+      destination: t.province || dto.destination || "",
+      province: t.province,
       duration: t.duration,
       highlights: t.highlights,
     }));
@@ -447,7 +449,6 @@ export class LocalMateService {
       .map(({ tour, distanceKm }) => ({
         tourCode: tour.tourCode,
         title: tour.title,
-        destination: tour.destination,
         duration: tour.duration,
         highlights: tour.highlights,
         content: this.sanitizeKnowledgeContent(tour.content),
@@ -569,7 +570,6 @@ export class LocalMateService {
 
   private calculateTourLocationScore(
     tour: {
-      destination: string;
       title: string;
       provinceCode?: string | null;
       tourScope?: string | null;
@@ -577,32 +577,30 @@ export class LocalMateService {
     hotel: { provinceCode?: string | null; area?: string | null; province?: string | null },
   ): number {
     let score = 0;
-    const tourDestLower = (tour.destination || "").toLowerCase();
     const tourTitleLower = (tour.title || "").toLowerCase();
     const hotelAreaLower = (hotel.area || "").toLowerCase();
 
-    const matchesArea =
-      hotelAreaLower.length > 0 &&
-      (tourDestLower.includes(hotelAreaLower) || tourTitleLower.includes(hotelAreaLower));
+    const matchesArea = hotelAreaLower.length > 0 && tourTitleLower.includes(hotelAreaLower);
 
     const matchesProvince =
       Boolean(hotel.provinceCode) &&
       (tour.provinceCode === hotel.provinceCode ||
-        tourDestLower.includes((hotel.province || "").toLowerCase()) ||
         tourTitleLower.includes((hotel.province || "").toLowerCase()));
 
-    // 1. Same area / LOCAL in same province -> Tier 1 (300 - 450)
-    if (matchesProvince && (matchesArea || tour.tourScope === "LOCAL")) {
+    // 1. Same area / LOCAL (Nội tỉnh) in same province -> Tier 1 (300 - 450)
+    if (
+      matchesProvince &&
+      (matchesArea || tour.tourScope === "LOCAL" || tour.tourScope === "REGIONAL_DAYTRIP")
+    ) {
       score += 300;
       if (matchesArea) score += 100;
-      if (tour.tourScope === "LOCAL") score += 50;
+      if (tour.tourScope === "LOCAL" || tour.tourScope === "REGIONAL_DAYTRIP") score += 50;
       return score;
     }
 
-    // 2. Same province & REGIONAL_DAYTRIP -> Tier 2 (200 - 250)
+    // 2. Same province fallback -> Tier 2 (200 - 250)
     if (matchesProvince) {
       score += 200;
-      if (tour.tourScope === "REGIONAL_DAYTRIP") score += 50;
       return score;
     }
 

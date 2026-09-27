@@ -147,7 +147,6 @@ export type TourScopeDto = z.infer<typeof tourScopeEnumSchema>;
 const localMateTourFields = {
   tourCode: z.string().trim().min(2).max(80).optional(),
   title: z.string().trim().min(2, "Tiêu đề tour phải có ít nhất 2 ký tự").max(255),
-  destination: z.string().trim().min(2, "Điểm đến không được để trống").max(120),
   duration: z.string().trim().min(1, "Thời lượng tour không được để trống").max(80),
   highlights: z.array(z.string().trim()).default([]),
   content: z.string().trim().min(5, "Nội dung lịch trình tour phải có ít nhất 5 ký tự"),
@@ -173,7 +172,6 @@ export type UpdateLocalMateTourDto = z.infer<typeof updateLocalMateTourSchema>;
 const localMateTourOpenApiProperties = {
   tourCode: { type: "string", minLength: 2, maxLength: 80 },
   title: { type: "string", minLength: 2, maxLength: 255 },
-  destination: { type: "string", minLength: 2, maxLength: 120 },
   duration: { type: "string", minLength: 1, maxLength: 80 },
   highlights: { type: "array", items: { type: "string" } },
   content: { type: "string", minLength: 5 },
@@ -191,7 +189,7 @@ const localMateTourOpenApiProperties = {
 export const createLocalMateTourOpenApiSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["title", "destination", "duration", "content"],
+  required: ["title", "duration", "content"],
   properties: localMateTourOpenApiProperties,
 };
 
@@ -233,6 +231,8 @@ export const queryLocalMateKnowledgeOpenApiSchema = {
 };
 
 export const listLocalMateToursQuerySchema = z.object({
+  search: z.string().trim().optional(),
+  query: z.string().trim().optional(),
   destination: z.string().trim().optional(),
   provinceCode: z.string().trim().optional(),
   scope: tourScopeEnumSchema.optional(),

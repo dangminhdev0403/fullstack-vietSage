@@ -197,24 +197,24 @@ export const PROVINCES: ProvinceTaxonomy[] = [
 export const TOUR_SCOPES: TourScopeDefinition[] = [
   {
     value: "LOCAL",
-    label: "Nội vùng KS (< 15km)",
-    shortLabel: "Nội vùng (<15km)",
-    badgeClass: "bg-[#173F35]/10 text-[#173F35] border-[#25483F]/20",
-    description: "Khám phá gần cơ sở lưu trú, bán kính dưới 15km",
+    label: "Nội tỉnh",
+    shortLabel: "Nội tỉnh",
+    badgeClass: "bg-emerald-50 text-emerald-800 border-emerald-200/80",
+    description: "Khám phá và trải nghiệm các điểm đến trong cùng một tỉnh/thành",
   },
   {
     value: "REGIONAL_DAYTRIP",
-    label: "Trong ngày (15-60km)",
-    shortLabel: "Trong ngày (15-60km)",
-    badgeClass: "bg-[#B18B26]/12 text-[#8A6A13] border-[#B18B26]/25",
-    description: "Tuyến trải nghiệm bán kính 15-60km, đi về trong ngày",
+    label: "Liên điểm nội tỉnh",
+    shortLabel: "Nội tỉnh mở rộng",
+    badgeClass: "bg-amber-50 text-amber-800 border-amber-200/80",
+    description: "Tuyến đi qua nhiều điểm trong cùng một tỉnh/thành",
   },
   {
     value: "INTERPROVINCIAL",
     label: "Tuyến liên tỉnh",
-    shortLabel: "Tuyến liên tỉnh",
-    badgeClass: "bg-[#2563EB]/10 text-[#1D4ED8] border-[#2563EB]/25",
-    description: "Hành trình dài di chuyển xuyên tỉnh hoặc khoảng cách lớn hơn 60km",
+    shortLabel: "Liên tỉnh",
+    badgeClass: "bg-sky-50 text-sky-800 border-sky-200/80",
+    description: "Hành trình dài di chuyển xuyên tỉnh hoặc liên kết nhiều tỉnh",
   },
 ];
 
@@ -240,15 +240,15 @@ export function getProvincesByRegion(regionCode: RegionCode): ProvinceTaxonomy[]
 }
 
 /**
- * Suy luận Tỉnh/Thành phố từ chuỗi Điểm đến (destination) hoặc Tiêu đề (title) nếu bản ghi cũ chưa lưu provinceCode
+ * Suy luận Tỉnh/Thành phố từ Tiêu đề tour (hoặc chuỗi văn bản) nếu bản ghi chưa lưu provinceCode
  */
 export function detectProvinceFromDestination(
-  destination?: string,
-  title?: string,
+  titleOrDestination?: string,
+  extraText?: string,
 ): ProvinceTaxonomy | undefined {
-  if (!destination && !title) return undefined;
-  const dNorm = (destination || "").toLowerCase().trim();
-  const tNorm = (title || "").toLowerCase().trim();
+  if (!titleOrDestination && !extraText) return undefined;
+  const dNorm = (titleOrDestination || "").toLowerCase().trim();
+  const tNorm = (extraText || "").toLowerCase().trim();
 
   // Check destination first
   if (dNorm) {

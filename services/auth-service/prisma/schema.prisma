@@ -2337,20 +2337,19 @@ model LocalMateTourKnowledge {
   id             String    @id @default(cuid())
   tourCode       String    @unique @db.VarChar(80)
   title          String    @db.VarChar(255)
-  destination    String    @db.VarChar(120)
   duration       String    @db.VarChar(80)
   highlights     String[]
   content        String    @db.Text
   sourceFileName String?   @db.VarChar(255)
-  provinceCode   String    @default("LAO_CAI") @db.VarChar(40)
-  province       String    @default("Lào Cai") @db.VarChar(80)
+  provinceCode   String    @default("UNCLASSIFIED") @db.VarChar(40)
+  province       String    @default("Chưa phân loại") @db.VarChar(80)
   tourScope      TourScope @default(LOCAL)
   latitude       Decimal?  @db.Decimal(9, 6)
   longitude      Decimal?  @db.Decimal(9, 6)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  @@index([destination])
+  @@index([title])
   @@index([tourCode])
   @@index([provinceCode])
   @@index([tourScope])

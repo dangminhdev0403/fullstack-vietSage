@@ -55,35 +55,59 @@ const updateQualificationSchema = z.object({
   status: z.enum(["PENDING", "QUALIFIED", "SUSPENDED"]),
 });
 
+function requireCoordinatePair(
+  value: { latitude?: number | null; longitude?: number | null },
+  context: z.RefinementCtx,
+) {
+  const hasLatitude = Object.prototype.hasOwnProperty.call(value, "latitude");
+  const hasLongitude = Object.prototype.hasOwnProperty.call(value, "longitude");
+  if (
+    hasLatitude !== hasLongitude ||
+    (hasLatitude && hasLongitude && (value.latitude == null) !== (value.longitude == null))
+  ) {
+    context.addIssue({
+      code: "custom",
+      path: [hasLatitude ? "longitude" : "latitude"],
+      message: "Vĩ độ và kinh độ phải được cung cấp cùng nhau",
+    });
+  }
+}
+
 const createTourSchema = z.object({
   action: z.literal("createTour"),
-  input: z.object({
-    tourCode: z.string().trim().min(2).max(80).optional(),
-    title: z.string().trim().min(2).max(255),
-    destination: z.string().trim().min(2).max(120),
-    provinceCode: z.string().trim().optional(),
-    province: z.string().trim().optional(),
-    tourScope: z.enum(["LOCAL", "REGIONAL_DAYTRIP", "INTERPROVINCIAL"]).optional(),
-    duration: z.string().trim().min(1).max(80),
-    highlights: z.array(z.string().trim()).default([]),
-    content: z.string().trim().min(5),
-  }),
+  input: z
+    .object({
+      tourCode: z.string().trim().min(2).max(80).optional(),
+      title: z.string().trim().min(2).max(255),
+      provinceCode: z.string().trim().optional(),
+      province: z.string().trim().optional(),
+      tourScope: z.enum(["LOCAL", "REGIONAL_DAYTRIP", "INTERPROVINCIAL"]).optional(),
+      duration: z.string().trim().min(1).max(80),
+      highlights: z.array(z.string().trim()).default([]),
+      content: z.string().trim().min(5),
+      latitude: z.number().min(-90).max(90).nullish(),
+      longitude: z.number().min(-180).max(180).nullish(),
+    })
+    .superRefine(requireCoordinatePair),
 });
 
 const updateTourSchema = z.object({
   action: z.literal("updateTour"),
   tourId: z.string().min(1),
-  input: z.object({
-    tourCode: z.string().trim().min(2).max(80).optional(),
-    title: z.string().trim().min(2).max(255).optional(),
-    destination: z.string().trim().min(2).max(120).optional(),
-    provinceCode: z.string().trim().optional(),
-    province: z.string().trim().optional(),
-    tourScope: z.enum(["LOCAL", "REGIONAL_DAYTRIP", "INTERPROVINCIAL"]).optional(),
-    duration: z.string().trim().min(1).max(80).optional(),
-    highlights: z.array(z.string().trim()).optional(),
-    content: z.string().trim().min(5).optional(),
-  }),
+  input: z
+    .object({
+      tourCode: z.string().trim().min(2).max(80).optional(),
+      title: z.string().trim().min(2).max(255).optional(),
+      provinceCode: z.string().trim().optional(),
+      province: z.string().trim().optional(),
+      tourScope: z.enum(["LOCAL", "REGIONAL_DAYTRIP", "INTERPROVINCIAL"]).optional(),
+      duration: z.string().trim().min(1).max(80).optional(),
+      highlights: z.array(z.string().trim()).optional(),
+      content: z.string().trim().min(5).optional(),
+      latitude: z.number().min(-90).max(90).nullish(),
+      longitude: z.number().min(-180).max(180).nullish(),
+    })
+    .superRefine(requireCoordinatePair),
 });
 
 const deleteTourSchema = z.object({

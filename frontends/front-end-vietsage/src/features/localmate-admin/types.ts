@@ -63,7 +63,6 @@ export type LocalMateTourKnowledge = {
   id: string;
   tourCode: string;
   title: string;
-  destination: string;
   provinceCode?: string;
   province?: string;
   tourScope?: LocalMateTourScope;
@@ -80,7 +79,6 @@ export type LocalMateTourKnowledge = {
 export type CreateLocalMateTourInput = {
   tourCode?: string;
   title: string;
-  destination: string;
   provinceCode?: string;
   province?: string;
   tourScope?: LocalMateTourScope;
@@ -118,7 +116,6 @@ export type MatchedLocalMateItem = {
 export type MatchedAiTourItem = {
   tourCode: string;
   title: string;
-  destination: string;
   duration: string;
   highlights: string[];
 };

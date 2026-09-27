@@ -20,15 +20,26 @@ interface RequestWithId extends Request {
 
 type DetailValue = string | string[];
 
+interface GuestRoomErrorMeta {
+  roomNumber: string;
+  floor?: string;
+  type?: string;
+}
+
 interface ErrorResponseBody {
   status: number;
   message: string;
   data?: {
-    detail: DetailValue;
+    detail?: DetailValue;
     field?: string;
     value?: string;
     fields?: string[];
     values?: Record<string, string>;
+    code?: string;
+    roomNumber?: string;
+    maxDistinctDevices?: number;
+    currentRoom?: GuestRoomErrorMeta;
+    targetRoom?: GuestRoomErrorMeta;
   };
 }
 
@@ -270,6 +281,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       status,
       title: this.resolveHttpExceptionTitle(exception, body),
       detail: this.extractDetailFromHttpBody(body) ?? "Request failed",
+      meta: this.extractPublicHttpMeta(body),
     });
   }
 
@@ -285,9 +297,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       status: params.status,
       message: params.title,
       data:
-        normalizedDetail === undefined
+        normalizedDetail === undefined && !params.meta
           ? undefined
-          : { detail: normalizedDetail, ...(params.meta ?? {}) },
+          : {
+              ...(normalizedDetail !== undefined ? { detail: normalizedDetail } : {}),
+              ...(params.meta ?? {}),
+            },
     };
   }
 
@@ -300,11 +315,17 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     const locale = this.i18n.resolveLocale(request);
-    const detail = this.i18n.translateDetail(payload.data.detail, locale);
+    const detail =
+      payload.data.detail !== undefined
+        ? this.i18n.translateDetail(payload.data.detail, locale)
+        : undefined;
 
     return {
       ...payload,
-      data: { ...payload.data, detail },
+      data: {
+        ...payload.data,
+        ...(detail !== undefined ? { detail } : {}),
+      },
     };
   }
 
@@ -407,6 +428,50 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     return undefined;
+  }
+
+  private extractPublicHttpMeta(
+    body: Record<string, unknown>,
+  ): Omit<NonNullable<ErrorResponseBody["data"]>, "detail"> | undefined {
+    const code = typeof body.code === "string" ? body.code.trim() : "";
+    if (!code) return undefined;
+
+    const meta: Omit<NonNullable<ErrorResponseBody["data"]>, "detail"> = { code };
+    if (code === "GUEST_SESSION_SWITCH_REQUIRED") {
+      const currentRoom = this.guestRoomErrorMeta(body.currentRoom);
+      const targetRoom = this.guestRoomErrorMeta(body.targetRoom);
+      if (currentRoom) meta.currentRoom = currentRoom;
+      if (targetRoom) meta.targetRoom = targetRoom;
+    } else if (
+      code === "GUEST_SESSION_LIMIT_REACHED" ||
+      code === "NO_ACTIVE_STAY" ||
+      code === "ACCESS_CLOSED"
+    ) {
+      const roomNumber = this.fieldValueToString(body.roomNumber);
+      if (roomNumber) meta.roomNumber = roomNumber;
+      if (
+        typeof body.maxDistinctDevices === "number" &&
+        Number.isInteger(body.maxDistinctDevices) &&
+        body.maxDistinctDevices > 0
+      ) {
+        meta.maxDistinctDevices = body.maxDistinctDevices;
+      }
+    }
+
+    return meta;
+  }
+
+  private guestRoomErrorMeta(value: unknown): GuestRoomErrorMeta | undefined {
+    if (!this.isRecord(value)) return undefined;
+    const roomNumber = this.fieldValueToString(value.roomNumber);
+    if (!roomNumber) return undefined;
+    const floor = this.fieldValueToString(value.floor);
+    const type = this.fieldValueToString(value.type);
+    return {
+      roomNumber,
+      ...(floor ? { floor } : {}),
+      ...(type ? { type } : {}),
+    };
   }
 
   private uniqueFields(exception: Prisma.PrismaClientKnownRequestError): string[] {

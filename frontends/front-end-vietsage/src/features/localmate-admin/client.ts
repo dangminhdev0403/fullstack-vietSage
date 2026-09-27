@@ -81,13 +81,11 @@ export const localMateAdminClient = {
       `/localmate-admin/knowledge/tours/${tourId}`,
     ),
 
-  listTours: (token: string, destination?: string) =>
+  listTours: (token: string, search?: string) =>
     call<LocalMateTourKnowledge[]>(
       token,
       "GET",
-      destination
-        ? `/localmate-admin/knowledge/tours?destination=${encodeURIComponent(destination)}`
-        : "/localmate-admin/knowledge/tours",
+      `/localmate-admin/knowledge/tours?limit=50${search ? `&search=${encodeURIComponent(search)}` : ""}`,
     ),
 
   matchAi: (token: string, dto: MatchLocalMateAiInput) =>

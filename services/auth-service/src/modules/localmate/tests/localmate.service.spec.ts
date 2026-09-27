@@ -76,7 +76,6 @@ describe("LocalMateService", () => {
       id: "tour-1",
       tourCode: "HVNT-0007-24",
       title: "HÀ NỘI - MÙ CANG CHẢI (3N2Đ)",
-      destination: "Mù Cang Chải",
       duration: "3N2Đ",
       highlights: ["Ruộng bậc thang", "Khoáng nóng"],
       content: "Chi tiết tour Mù Cang Chải...",
@@ -257,7 +256,6 @@ describe("LocalMateService", () => {
         {
           tourCode: "HVNT-0007-24",
           title: "HÀ NỘI - MÙ CANG CHẢI (3N2Đ)",
-          destination: "Mù Cang Chải",
           duration: "3N2Đ",
           highlights: ["Ruộng bậc thang", "Khoáng nóng"],
           content: "Chi tiết tour Mù Cang Chải...",
@@ -442,7 +440,6 @@ describe("LocalMateService", () => {
           id: "tour-inter",
           tourCode: "HVNT-0007-24",
           title: "HÀ NỘI - MÙ CANG CHẢI",
-          destination: "Mù Cang Chải",
           duration: "3N2Đ",
           highlights: [],
           content: "Nội dung tour liên tỉnh...",
@@ -457,7 +454,6 @@ describe("LocalMateService", () => {
           id: "tour-regional",
           tourCode: "HVNT-0003-24",
           title: "YÊN BÁI - TRẠM TẤU - NGHĨA LỘ",
-          destination: "Trạm Tấu, Nghĩa Lộ",
           duration: "2N1Đ",
           highlights: [],
           content: "Nội dung tour nội tỉnh...",
@@ -472,7 +468,6 @@ describe("LocalMateService", () => {
           id: "tour-local",
           tourCode: "HVTB-0001-23",
           title: "Yên Bái - Hồ Thác Bà - Thủy điện",
-          destination: "Hồ Thác Bà",
           duration: "0,5N",
           highlights: [],
           content: "Nội dung tour Thác Bà...",
@@ -519,7 +514,6 @@ describe("LocalMateService", () => {
           id: "tour-inter",
           tourCode: "HVNT-0007-24",
           title: "HÀ NỘI - MÙ CANG CHẢI",
-          destination: "Mù Cang Chải",
           duration: "3N2Đ",
           highlights: [],
           content: "Nội dung tour liên tỉnh...",
@@ -534,7 +528,6 @@ describe("LocalMateService", () => {
           id: "tour-local",
           tourCode: "HVTB-0001-23",
           title: "Yên Bái - Hồ Thác Bà - Thủy điện",
-          destination: "Hồ Thác Bà",
           duration: "0,5N",
           highlights: [],
           content: "Nội dung tour Thác Bà...",
@@ -553,6 +546,37 @@ describe("LocalMateService", () => {
       expect(tours[0].tourCode).toBe("HVTB-0001-23");
       expect(tours[1].tourCode).toBe("HVNT-0007-24");
     });
+
+    it("forwards free-text search when no hotel anchor is supplied", async () => {
+      repository.searchTourKnowledge.mockResolvedValueOnce([]);
+
+      await service.listTours({ search: "Thác Bà", limit: 20 });
+
+      expect(repository.searchTourKnowledge).toHaveBeenCalledWith({
+        destination: undefined,
+        search: "Thác Bà",
+        provinceCode: undefined,
+        tourScope: undefined,
+        limit: 20,
+      });
+    });
+  });
+
+  describe("updateTour", () => {
+    it("forwards editable identity and source fields", async () => {
+      repository.findTourById.mockResolvedValueOnce({ title: "Old" } as never);
+      repository.updateTour.mockResolvedValueOnce({ id: "tour-1" } as never);
+
+      await service.updateTour("tour-1", {
+        tourCode: "TOUR-NEW",
+        sourceFileName: "source.docx",
+      });
+
+      expect(repository.updateTour).toHaveBeenCalledWith(
+        "tour-1",
+        expect.objectContaining({ tourCode: "TOUR-NEW", sourceFileName: "source.docx" }),
+      );
+    });
   });
 
   describe("createTour with auto-inference", () => {
@@ -562,8 +586,8 @@ describe("LocalMateService", () => {
       const created = await service.createTour({
         tourCode: "TEST-SAPA-01",
         title: "Khám phá Sa Pa - Cát Cát (1N)",
-        destination: "Sa Pa",
         duration: "1N",
+        highlights: [],
         content: "Lịch trình Sa Pa chi tiết...",
       });
 
@@ -585,8 +609,8 @@ describe("Geography Taxonomy Helper", () => {
     expect(
       createLocalMateTourSchema.safeParse({
         title: "Tour test",
-        destination: "Yên Bái",
         duration: "1N",
+        highlights: [],
         content: "Nội dung hợp lệ",
         latitude: 21,
       }).success,
@@ -632,6 +656,14 @@ describe("Geography Taxonomy Helper", () => {
     expect(res.provinceCode).toBe("HA_NOI");
     expect(res.province).toBe("Hà Nội");
     expect(res.tourScope).toBe("LOCAL");
+  });
+
+  it("does not assign an arbitrary province when taxonomy has no match", () => {
+    expect(inferProvinceAndScope("Tour bí ẩn")).toEqual({
+      provinceCode: "UNCLASSIFIED",
+      province: "Chưa phân loại",
+      tourScope: "LOCAL",
+    });
   });
 });
 

@@ -9,11 +9,9 @@ import { localMateAdminResource } from "../resource";
 import {
   PROVINCE_MAP,
   PROVINCES,
-  REGIONS,
   REGION_MAP,
   TOUR_SCOPE_MAP,
   TOUR_SCOPES,
-  COMMON_TOUR_DURATIONS,
   detectProvinceFromDestination,
   normalizeTourDuration,
   type RegionCode,
@@ -26,18 +24,44 @@ import type {
   UpdateLocalMateTourInput,
 } from "../types";
 
-function formatDate(isoString: string): string {
-  try {
-    const d = new Date(isoString);
-    if (Number.isNaN(d.getTime())) return "Mới cập nhật";
-    return new Intl.DateTimeFormat("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }).format(d);
-  } catch {
-    return "Mới cập nhật";
+/**
+ * Trích xuất vĩ độ (lat) và kinh độ (lng) từ các định dạng URL Google Maps hoặc chuỗi tọa độ
+ */
+export function extractLatLngFromGoogleMapsUrl(input: string): { lat: string; lng: string } | null {
+  if (!input) return null;
+  const str = input.trim();
+
+  // 1. Dạng tọa độ thuần: "21.033333, 104.883333" hoặc "21.033333,104.883333"
+  const directMatch = str.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+  if (directMatch) {
+    return { lat: directMatch[1], lng: directMatch[2] };
   }
+
+  // 2. Dạng @lat,lng trong URL Google Maps (/maps/place/.../@21.033333,104.883333,15z/...)
+  const atMatch = str.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+  if (atMatch) {
+    return { lat: atMatch[1], lng: atMatch[2] };
+  }
+
+  // 3. Dạng query parameter (?q=lat,lng hoặc &query=lat,lng hoặc &ll=lat,lng)
+  const queryMatch = str.match(/[?&](?:q|query|ll)=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+  if (queryMatch) {
+    return { lat: queryMatch[1], lng: queryMatch[2] };
+  }
+
+  // 4. Dạng Protobuf trong URL Google Maps (!3d<lat>!4d<lng>)
+  const protoMatch = str.match(/!3d(-?\d+(?:\.\d+)?)[^!]*!4d(-?\d+(?:\.\d+)?)/);
+  if (protoMatch) {
+    return { lat: protoMatch[1], lng: protoMatch[2] };
+  }
+
+  // 5. Chuỗi chứa cặp số lat,lng ở bất kỳ đâu trong URL
+  const anyCoordsMatch = str.match(/(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{1,3}\.\d{3,})/);
+  if (anyCoordsMatch) {
+    return { lat: anyCoordsMatch[1], lng: anyCoordsMatch[2] };
+  }
+
+  return null;
 }
 
 type TourFormData = {
@@ -45,7 +69,6 @@ type TourFormData = {
   title: string;
   provinceCode: string;
   province: string;
-  destination: string;
   tourScope: LocalMateTourScope | "";
   duration: string;
   highlights: string;
@@ -54,12 +77,114 @@ type TourFormData = {
   longitude: string;
 };
 
+export const TOUR_DURATION_PRESETS = [
+  { label: "1 Ngày", d: 1, n: 0 },
+  { label: "2N1Đ", d: 2, n: 1 },
+  { label: "3N2Đ", d: 3, n: 2 },
+  { label: "4N3Đ", d: 4, n: 3 },
+  { label: "5N4Đ", d: 5, n: 4 },
+  { label: "Nửa ngày", d: 0.5, n: 0 },
+] as const;
+
+/**
+ * Tách chuỗi thời lượng tour thành số ngày và số đêm
+ */
+export function parseDurationToDaysNights(raw?: string): { days: number | string; nights: number | string } {
+  if (!raw) return { days: 1, nights: 0 };
+  const trimmed = raw.trim();
+
+  // Pattern like: 0,5N or 0.5N or 0,5 ngày or nửa ngày
+  if (/^0[.,]5\s*(n|ng[aà]y)?$/i.test(trimmed) || /^n[uử]a\s*ng[aà]y$/i.test(trimmed)) {
+    return { days: 0.5, nights: 0 };
+  }
+
+  // Pattern like: 2N1Đ, 2N1D, 2n1d, 3N2Đ
+  const ndMatch = trimmed.match(/^(\d+(?:[.,]\d+)?)\s*[nN]\s*(\d+)\s*[đĐdD]$/i);
+  if (ndMatch) {
+    return {
+      days: parseFloat(ndMatch[1].replace(",", ".")),
+      nights: parseInt(ndMatch[2], 10),
+    };
+  }
+
+  // Pattern like "2 ngày 1 đêm", "2 ngay 1 dem", "2 Ngày 1 Đêm"
+  const textNdMatch = trimmed.match(/^(\d+(?:[.,]\d+)?)\s*ng[aà]y\s*(\d+)\s*[đd][eê]m$/i);
+  if (textNdMatch) {
+    return {
+      days: parseFloat(textNdMatch[1].replace(",", ".")),
+      nights: parseInt(textNdMatch[2], 10),
+    };
+  }
+
+  // Pattern like: 1N, 2N, 3N (without night specified)
+  const nOnlyMatch = trimmed.match(/^(\d+(?:[.,]\d+)?)\s*[nN]$/i);
+  if (nOnlyMatch) {
+    return {
+      days: parseFloat(nOnlyMatch[1].replace(",", ".")),
+      nights: 0,
+    };
+  }
+
+  // Pattern like "1 ngày", "2 ngày"
+  const textNMatch = trimmed.match(/^(\d+(?:[.,]\d+)?)\s*ng[aà]y$/i);
+  if (textNMatch) {
+    return {
+      days: parseFloat(textNMatch[1].replace(",", ".")),
+      nights: 0,
+    };
+  }
+
+  // Pattern like "1 đêm", "2 đêm"
+  const textNightOnly = trimmed.match(/^(\d+)\s*[đd][eê]m$/i);
+  if (textNightOnly) {
+    return {
+      days: 0,
+      nights: parseInt(textNightOnly[1], 10),
+    };
+  }
+
+  return { days: 1, nights: 0 };
+}
+
+/**
+ * Tạo chuỗi hiển thị thời lượng chuẩn hóa từ số ngày và số đêm
+ */
+export function formatDaysNightsToDuration(days: number | string, nights: number | string): string {
+  const dStr = String(days ?? "").trim();
+  const nStr = String(nights ?? "").trim();
+
+  if (dStr === "" && nStr === "") return "";
+
+  const d = dStr === "" ? 0 : parseFloat(dStr.replace(",", "."));
+  const n = nStr === "" ? 0 : parseInt(nStr, 10);
+
+  if (isNaN(d) && isNaN(n)) return "";
+
+  if (d === 0.5 && (!n || n === 0)) {
+    return "Nửa Ngày";
+  }
+
+  if (d > 0 && n > 0) {
+    return `${d} Ngày ${n} Đêm`;
+  }
+  if (d > 0 && (!n || n === 0)) {
+    return `${d} Ngày`;
+  }
+  if ((!d || d === 0) && n > 0) {
+    return `${n} Đêm`;
+  }
+  if (d === 0 && n === 0) {
+    return "Trong ngày";
+  }
+
+  return `${d} Ngày`;
+}
+
 const initialFormData: TourFormData = {
   tourCode: "",
   title: "",
   provinceCode: "",
   province: "",
-  destination: "",
   tourScope: "",
   duration: "",
   highlights: "",
@@ -72,14 +197,12 @@ export function LocalMateKnowledgeView() {
   // Cascading Geography & Classification Filters
   const [regionFilter, setRegionFilter] = useState<"ALL" | RegionCode>("ALL");
   const [provinceFilter, setProvinceFilter] = useState("ALL");
-  const [destinationFilter, setDestinationFilter] = useState("ALL");
   const [scopeFilter, setScopeFilter] = useState("ALL");
   const [durationFilter, setDurationFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleSelectProvince = (provCode: string) => {
     setProvinceFilter(provCode);
-    setDestinationFilter("ALL");
     if (provCode === "ALL") {
       setRegionFilter("ALL");
     } else {
@@ -94,12 +217,9 @@ export function LocalMateKnowledgeView() {
   const handleSelectRegion = (reg: "ALL" | RegionCode) => {
     setRegionFilter(reg);
     setProvinceFilter("ALL");
-    setDestinationFilter("ALL");
     setCurrentPage(1);
   };
 
-  // Selection
-  const [selectedTourIds, setSelectedTourIds] = useState<Set<string>>(new Set());
   const [openMenuTourId, setOpenMenuTourId] = useState<string | null>(null);
 
   // Pagination
@@ -110,6 +230,9 @@ export function LocalMateKnowledgeView() {
   const [isTourModalOpen, setIsTourModalOpen] = useState(false);
   const [editingTourId, setEditingTourId] = useState<string | null>(null);
   const [tourFormData, setTourFormData] = useState<TourFormData>(initialFormData);
+  const [durationDays, setDurationDays] = useState<number | string>(1);
+  const [durationNights, setDurationNights] = useState<number | string>(0);
+  const [mapsUrlInput, setMapsUrlInput] = useState("");
 
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -141,20 +264,11 @@ export function LocalMateKnowledgeView() {
 
   const tours: LocalMateTourKnowledge[] = useMemo(() => data?.tours ?? [], [data?.tours]);
 
-  // Unique destinations overall
-  const destinations = useMemo(() => {
-    const set = new Set<string>();
-    for (const t of tours) {
-      if (t.destination) set.add(t.destination);
-    }
-    return Array.from(set).sort();
-  }, [tours]);
-
   // Covered provinces count
   const coveredProvincesCount = useMemo(() => {
     const pCodes = new Set<string>();
     for (const t of tours) {
-      const detected = detectProvinceFromDestination(t.destination, t.title);
+      const detected = detectProvinceFromDestination(t.title);
       const code = t.provinceCode || detected?.code;
       if (code) pCodes.add(code);
     }
@@ -170,56 +284,10 @@ export function LocalMateKnowledgeView() {
     return Array.from(set).sort();
   }, [tours]);
 
-  // Child destinations list based on selected province or region filter
-  const cascadingDestinations = useMemo(() => {
-    if (provinceFilter !== "ALL") {
-      const taxonomy = PROVINCE_MAP[provinceFilter];
-      const baseDestinations = taxonomy ? [...taxonomy.destinations] : [];
-
-      // Include destinations from actual tours under this province
-      const tourDests = new Set<string>();
-      for (const t of tours) {
-        const detected = detectProvinceFromDestination(t.destination, t.title);
-        const code = t.provinceCode || detected?.code;
-        if (code === provinceFilter && t.destination) {
-          tourDests.add(t.destination);
-        }
-      }
-      return Array.from(new Set([...baseDestinations, ...Array.from(tourDests)])).sort();
-    }
-
-    if (regionFilter !== "ALL") {
-      const regProvs = PROVINCES.filter((p) => p.regionCode === regionFilter);
-      const regCodes = new Set(regProvs.map((p) => p.code));
-      const allSet = new Set<string>();
-      for (const p of regProvs) {
-        for (const d of p.destinations) allSet.add(d);
-      }
-      for (const t of tours) {
-        const detected = detectProvinceFromDestination(t.destination, t.title);
-        const code = t.provinceCode || detected?.code;
-        if (code && regCodes.has(code) && t.destination) {
-          allSet.add(t.destination);
-        }
-      }
-      return Array.from(allSet).sort();
-    }
-
-    // When ALL provinces are selected: return all unique destinations
-    const allSet = new Set<string>();
-    for (const p of PROVINCES) {
-      for (const d of p.destinations) allSet.add(d);
-    }
-    for (const t of tours) {
-      if (t.destination) allSet.add(t.destination);
-    }
-    return Array.from(allSet).sort();
-  }, [provinceFilter, regionFilter, tours]);
-
   // Filtered tours
   const filteredTours = useMemo(() => {
     return tours.filter((t) => {
-      const detected = detectProvinceFromDestination(t.destination, t.title);
+      const detected = detectProvinceFromDestination(t.title);
       const tourProvCode = t.provinceCode || detected?.code || "";
       const tourProvName = t.province || (tourProvCode ? PROVINCE_MAP[tourProvCode]?.name : detected?.name) || "";
       const tourScope = t.tourScope;
@@ -229,10 +297,11 @@ export function LocalMateKnowledgeView() {
 
       const matchesRegion = regionFilter === "ALL" || tourRegCode === regionFilter;
       const matchesProvince = provinceFilter === "ALL" || tourProvCode === provinceFilter;
-      const matchesDest =
-        destinationFilter === "ALL" ||
-        t.destination.toLowerCase() === destinationFilter.toLowerCase();
-      const matchesScope = scopeFilter === "ALL" || tourScope === scopeFilter;
+      const matchesScope =
+        scopeFilter === "ALL" ||
+        (scopeFilter === "LOCAL"
+          ? tourScope === "LOCAL" || tourScope === "REGIONAL_DAYTRIP"
+          : tourScope === scopeFilter);
       const tourDurationNorm = normalizeTourDuration(t.duration);
       const matchesDuration =
         durationFilter === "ALL" ||
@@ -244,19 +313,17 @@ export function LocalMateKnowledgeView() {
         !q ||
         t.title.toLowerCase().includes(q) ||
         t.tourCode.toLowerCase().includes(q) ||
-        t.destination.toLowerCase().includes(q) ||
         tourProvName.toLowerCase().includes(q) ||
         (t.highlights && t.highlights.some((h) => h.toLowerCase().includes(q)));
 
-      return matchesRegion && matchesProvince && matchesDest && matchesScope && matchesDuration && matchesQuery;
+      return matchesRegion && matchesProvince && matchesScope && matchesDuration && matchesQuery;
     });
-  }, [tours, regionFilter, provinceFilter, destinationFilter, scopeFilter, durationFilter, searchQuery]);
+  }, [tours, regionFilter, provinceFilter, scopeFilter, durationFilter, searchQuery]);
 
   // Check if any filter is active
   const hasActiveFilters =
     regionFilter !== "ALL" ||
     provinceFilter !== "ALL" ||
-    destinationFilter !== "ALL" ||
     scopeFilter !== "ALL" ||
     durationFilter !== "ALL" ||
     searchQuery.trim().length > 0;
@@ -264,7 +331,6 @@ export function LocalMateKnowledgeView() {
   const handleClearFilters = () => {
     setRegionFilter("ALL");
     setProvinceFilter("ALL");
-    setDestinationFilter("ALL");
     setScopeFilter("ALL");
     setDurationFilter("ALL");
     setSearchQuery("");
@@ -280,29 +346,54 @@ export function LocalMateKnowledgeView() {
     return filteredTours.slice(start, start + pageSize);
   }, [filteredTours, safeCurrentPage, pageSize]);
 
+  // Handle changes for Days and Nights
+  const handleDaysChange = (newDays: string) => {
+    setDurationDays(newDays);
+    const formatted = formatDaysNightsToDuration(newDays, durationNights);
+    setTourFormData((prev) => ({ ...prev, duration: formatted }));
+  };
+
+  const handleNightsChange = (newNights: string) => {
+    setDurationNights(newNights);
+    const formatted = formatDaysNightsToDuration(durationDays, newNights);
+    setTourFormData((prev) => ({ ...prev, duration: formatted }));
+  };
+
+  const handleSelectPreset = (d: number, n: number) => {
+    setDurationDays(d);
+    setDurationNights(n);
+    const formatted = formatDaysNightsToDuration(d, n);
+    setTourFormData((prev) => ({ ...prev, duration: formatted }));
+  };
+
   // Open Create Modal
   const handleOpenCreateModal = () => {
     setEditingTourId(null);
+    setDurationDays(1);
+    setDurationNights(0);
+    setMapsUrlInput("");
     setTourFormData({
       ...initialFormData,
-      tourCode: `HVNT-${Math.floor(1000 + Math.random() * 9000)}-25`,
-      provinceCode: "LAO_CAI",
-      province: "Lào Cai",
-      destination: "Sa Pa",
-      tourScope: "LOCAL",
-      duration: "1 ngày",
+      tourCode: `HVNT-${Math.floor(1000 + Math.random() * 9000)}-${new Date().getFullYear().toString().slice(-2)}`,
+      duration: "1 Ngày",
     });
     setIsTourModalOpen(true);
   };
 
   // Open Edit Modal with auto-mapping
   const handleOpenEditModal = (tour: LocalMateTourKnowledge) => {
-    const detected = detectProvinceFromDestination(tour.destination, tour.title);
+    const detected = detectProvinceFromDestination(tour.title);
     const provCode = tour.provinceCode || detected?.code || "";
     const provName =
       tour.province ||
       (provCode ? PROVINCE_MAP[provCode]?.name : detected?.name) ||
       "";
+
+    const normalizedDur = normalizeTourDuration(tour.duration);
+    const parsed = parseDurationToDaysNights(tour.duration);
+    setDurationDays(parsed.days);
+    setDurationNights(parsed.nights);
+    setMapsUrlInput("");
 
     setEditingTourId(tour.id);
     setTourFormData({
@@ -310,9 +401,8 @@ export function LocalMateKnowledgeView() {
       title: tour.title,
       provinceCode: provCode,
       province: provName,
-      destination: tour.destination,
       tourScope: tour.tourScope || "",
-      duration: normalizeTourDuration(tour.duration),
+      duration: normalizedDur || formatDaysNightsToDuration(parsed.days, parsed.nights),
       highlights: (tour.highlights || []).join(", "),
       content: tour.content,
       latitude: tour.latitude == null ? "" : String(tour.latitude),
@@ -324,12 +414,18 @@ export function LocalMateKnowledgeView() {
 
   // Duplicate Tour
   const handleDuplicateTour = (tour: LocalMateTourKnowledge) => {
-    const detected = detectProvinceFromDestination(tour.destination, tour.title);
+    const detected = detectProvinceFromDestination(tour.title);
     const provCode = tour.provinceCode || detected?.code || "";
     const provName =
       tour.province ||
       (provCode ? PROVINCE_MAP[provCode]?.name : detected?.name) ||
       "";
+
+    const normalizedDur = normalizeTourDuration(tour.duration);
+    const parsed = parseDurationToDaysNights(tour.duration);
+    setDurationDays(parsed.days);
+    setDurationNights(parsed.nights);
+    setMapsUrlInput("");
 
     setEditingTourId(null);
     setTourFormData({
@@ -337,9 +433,8 @@ export function LocalMateKnowledgeView() {
       title: `${tour.title} (Bản sao)`,
       provinceCode: provCode,
       province: provName,
-      destination: tour.destination,
       tourScope: tour.tourScope || "",
-      duration: normalizeTourDuration(tour.duration),
+      duration: normalizedDur || formatDaysNightsToDuration(parsed.days, parsed.nights),
       highlights: (tour.highlights || []).join(", "),
       content: tour.content,
       latitude: tour.latitude == null ? "" : String(tour.latitude),
@@ -349,25 +444,32 @@ export function LocalMateKnowledgeView() {
     setIsTourModalOpen(true);
   };
 
-  // Available child destinations for current modal province selection
-  const modalChildDestinations = useMemo(() => {
-    if (!tourFormData.provinceCode) return [];
-    const prov = PROVINCE_MAP[tourFormData.provinceCode];
-    return prov ? prov.destinations : [];
-  }, [tourFormData.provinceCode]);
+  // Check if tour coordinates are valid for minimap preview
+  const hasValidCoordinates = useMemo(() => {
+    if (!tourFormData.latitude.trim() || !tourFormData.longitude.trim()) return false;
+    const lat = Number(tourFormData.latitude);
+    const lng = Number(tourFormData.longitude);
+    return (
+      Number.isFinite(lat) &&
+      Number.isFinite(lng) &&
+      lat >= -90 &&
+      lat <= 90 &&
+      lng >= -180 &&
+      lng <= 180
+    );
+  }, [tourFormData.latitude, tourFormData.longitude]);
 
   // Save Tour (Create or Update)
   const handleSaveTour = async (e: React.FormEvent) => {
     e.preventDefault();
     if (
       !tourFormData.title.trim() ||
-      !tourFormData.destination.trim() ||
       !tourFormData.duration.trim() ||
       !tourFormData.content.trim()
     ) {
       await SwalVietSage.fire({
         title: "Thiếu thông tin",
-        text: "Vui lòng nhập đầy đủ Tên tour, Điểm đến, Thời lượng và Nội dung chi tiết.",
+        text: "Vui lòng nhập đầy đủ Tên tour, Thời lượng và Nội dung chi tiết.",
         icon: "warning",
         showConfirmButton: true,
         confirmButtonText: "OK",
@@ -380,7 +482,7 @@ export function LocalMateKnowledgeView() {
       .map((s) => s.trim())
       .filter(Boolean);
 
-    const detected = detectProvinceFromDestination(tourFormData.destination, tourFormData.title);
+    const detected = detectProvinceFromDestination(tourFormData.title);
     const resolvedProvCode =
       tourFormData.provinceCode.trim() || detected?.code || undefined;
     const resolvedProvName =
@@ -423,7 +525,6 @@ export function LocalMateKnowledgeView() {
         const payload: UpdateLocalMateTourInput = {
           tourCode: tourFormData.tourCode.trim() || undefined,
           title: tourFormData.title.trim(),
-          destination: tourFormData.destination.trim(),
           provinceCode: resolvedProvCode,
           province: resolvedProvName,
           tourScope: (tourFormData.tourScope as LocalMateTourScope) || undefined,
@@ -449,7 +550,6 @@ export function LocalMateKnowledgeView() {
         const payload: CreateLocalMateTourInput = {
           tourCode: tourFormData.tourCode.trim() || undefined,
           title: tourFormData.title.trim(),
-          destination: tourFormData.destination.trim(),
           provinceCode: resolvedProvCode,
           province: resolvedProvName,
           tourScope: (tourFormData.tourScope as LocalMateTourScope) || undefined,
@@ -521,23 +621,6 @@ export function LocalMateKnowledgeView() {
     }
   };
 
-  // Bulk selection toggles
-  const handleToggleSelectAll = () => {
-    if (selectedTourIds.size === paginatedTours.length) {
-      setSelectedTourIds(new Set());
-    } else {
-      setSelectedTourIds(new Set(paginatedTours.map((t) => t.id)));
-    }
-  };
-
-  const handleToggleSelectRow = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const next = new Set(selectedTourIds);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setSelectedTourIds(next);
-  };
-
   const isSaving = createTourMutation.isPending || updateTourMutation.isPending;
 
   return (
@@ -546,15 +629,15 @@ export function LocalMateKnowledgeView() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-1">
         <div>
           <div className="flex items-center gap-3">
-            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#173F35]/10 text-[#173F35] shadow-xs">
+            <span className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-800 text-white shadow-xs">
               <VsIcon name="menu_book" className="text-2xl" />
             </span>
             <div>
-              <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-[#142823]">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900">
                 Kho tri thức Tour AI
               </h1>
-              <p className="mt-1 text-base text-[#52635A] max-w-2xl leading-relaxed">
-                Quản lý các chương trình tour, phân cấp địa lý Tỉnh / Điểm đến và dữ liệu gợi ý cho trợ lý LocalMate AI.
+              <p className="mt-0.5 text-xs sm:text-sm text-stone-500 max-w-2xl leading-relaxed">
+                Quản lý các chương trình tour, phân cấp địa lý Tỉnh / Thành và dữ liệu gợi ý cho trợ lý LocalMate AI.
               </p>
             </div>
           </div>
@@ -563,82 +646,84 @@ export function LocalMateKnowledgeView() {
         <button
           type="button"
           onClick={handleOpenCreateModal}
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#173F35] to-[#245347] px-6 text-sm font-bold text-white shadow-[0_8px_20px_rgba(23,63,53,0.25)] transition-all hover:scale-[1.02] hover:shadow-[0_12px_28px_rgba(23,63,53,0.32)] active:scale-[0.98] shrink-0 cursor-pointer"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-800 px-4.5 text-base font-semibold text-white shadow-xs transition-all hover:bg-emerald-700 active:scale-[0.98] shrink-0 cursor-pointer"
         >
-          <VsIcon name="add" className="text-xl" />
+          <VsIcon name="add" className="text-lg" />
           <span>Thêm lịch trình mới</span>
         </button>
       </div>
 
       {/* Executive Metric Cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {/* Card 1: Tổng số Tours */}
-        <div className="rounded-2xl border border-[#25483F]/12 bg-white p-5 shadow-[0_4px_20px_rgba(20,40,35,0.04)] transition-all hover:shadow-[0_8px_30px_rgba(20,40,35,0.08)]">
-          <div className="flex items-center justify-between text-[#5A6861]">
-            <span className="text-xs font-bold uppercase tracking-wider">Tổng lịch trình</span>
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#173F35]/10 text-[#173F35]">
-              <VsIcon name="explore" className="text-lg" />
+        <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-xs">
+          <div className="flex items-center justify-between text-stone-500">
+            <span className="text-[11px] font-semibold uppercase tracking-wider">Tổng lịch trình</span>
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-stone-100 text-stone-600">
+              <VsIcon name="explore" className="text-base" />
             </span>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-[#142823] tracking-tight">{tours.length}</span>
-            <span className="text-xs font-semibold text-[#5A6861]">tour hệ thống</span>
+          <div className="mt-2.5 flex items-baseline gap-2">
+            <span className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight">{tours.length}</span>
+            <span className="text-xs font-medium text-stone-500">lịch trình</span>
           </div>
         </div>
 
         {/* Card 2: Tỉnh/Thành phủ sóng */}
-        <div className="rounded-2xl border border-[#25483F]/12 bg-white p-5 shadow-[0_4px_20px_rgba(20,40,35,0.04)] transition-all hover:shadow-[0_8px_30px_rgba(20,40,35,0.08)]">
-          <div className="flex items-center justify-between text-[#5A6861]">
-            <span className="text-xs font-bold uppercase tracking-wider">Tỉnh / Thành</span>
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#173F35]/10 text-[#173F35]">
-              <VsIcon name="map" className="text-lg" />
+        <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-xs">
+          <div className="flex items-center justify-between text-stone-500">
+            <span className="text-[11px] font-semibold uppercase tracking-wider">Tỉnh / Thành</span>
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-50 text-emerald-800">
+              <VsIcon name="map" className="text-base" />
             </span>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-[#173F35] tracking-tight">
+          <div className="mt-2.5 flex items-baseline gap-2">
+            <span className="text-2xl sm:text-3xl font-bold text-emerald-800 tracking-tight">
               {coveredProvincesCount}
             </span>
-            <span className="text-xs font-semibold text-[#173F35]">/ {PROVINCES.length} trọng điểm</span>
+            <span className="text-xs font-medium text-stone-500">/ {PROVINCES.length} trọng điểm</span>
           </div>
         </div>
 
-        {/* Card 3: Điểm đến */}
-        <div className="rounded-2xl border border-[#25483F]/12 bg-white p-5 shadow-[0_4px_20px_rgba(20,40,35,0.04)] transition-all hover:shadow-[0_8px_30px_rgba(20,40,35,0.08)]">
-          <div className="flex items-center justify-between text-[#5A6861]">
-            <span className="text-xs font-bold uppercase tracking-wider">Điểm đến phủ sóng</span>
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#16805C]/10 text-[#16805C]">
-              <VsIcon name="location_on" className="text-lg" />
+        {/* Card 3: Định vị GPS */}
+        <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-xs">
+          <div className="flex items-center justify-between text-stone-500">
+            <span className="text-[11px] font-semibold uppercase tracking-wider">Định vị GPS</span>
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-sky-50 text-sky-700">
+              <VsIcon name="my_location" className="text-base" />
             </span>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-[#142823] tracking-tight">{destinations.length}</span>
-            <span className="text-xs font-semibold text-[#16805C]">khu vực trọng điểm</span>
+          <div className="mt-2.5 flex items-baseline gap-2">
+            <span className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight">
+              {tours.filter((t) => t.latitude != null && t.longitude != null).length}
+            </span>
+            <span className="text-xs font-medium text-stone-500">tour có tọa độ</span>
           </div>
         </div>
 
         {/* Card 4: LocalMate AI Hub */}
-        <div className="rounded-2xl border border-[#B18B26]/25 bg-gradient-to-br from-[#FFFDF8] to-[#FFF9EC] p-5 shadow-[0_4px_20px_rgba(177,139,38,0.08)]">
-          <div className="flex items-center justify-between text-[#8A6A13]">
-            <span className="text-xs font-bold uppercase tracking-wider">LocalMate AI Hub</span>
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#B18B26]/15 text-[#B18B26]">
-              <VsIcon name="smart_toy" className="text-lg" />
+        <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50/50 p-4 shadow-xs">
+          <div className="flex items-center justify-between text-emerald-800">
+            <span className="text-[11px] font-semibold uppercase tracking-wider">LocalMate AI</span>
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-800/10 text-emerald-800">
+              <VsIcon name="smart_toy" className="text-base" />
             </span>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-xl font-black text-[#8A6A13] tracking-tight">Active Engine</span>
-            <span className="text-xs font-semibold text-[#8A6A13]/80">24/7 Concierge</span>
+          <div className="mt-2.5 flex items-baseline gap-2">
+            <span className="text-lg sm:text-xl font-bold text-emerald-900 tracking-tight">Active Engine</span>
+            <span className="text-xs font-medium text-emerald-700">Sẵn sàng tư vấn</span>
           </div>
         </div>
       </div>
 
       {/* Cascading Filter Toolbar */}
-      <div className="rounded-2xl border border-[#25483F]/12 bg-white p-4 sm:p-5 shadow-[0_4px_20px_rgba(20,40,35,0.04)]">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12 items-center">
+      <div className="rounded-2xl border border-stone-200/80 bg-white p-3.5 sm:p-4 shadow-xs">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-12 items-center">
           {/* Search Input */}
           <div className="relative lg:col-span-4">
             <VsIcon
               name="search"
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-xl text-[#788880]"
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-lg text-stone-400"
             />
             <input
               type="text"
@@ -647,17 +732,17 @@ export function LocalMateKnowledgeView() {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Tìm theo tiêu đề, mã tour, điểm đến, tỉnh thành..."
-              className="h-12 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] pl-11 pr-4 text-sm font-medium text-[#142823] placeholder:text-[#788880] focus:border-[#173F35] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#173F35]/15 transition-all"
+              placeholder="Tìm theo tên tour, tỉnh thành, điểm nổi bật..."
+              className="min-h-11 w-full rounded-xl border border-stone-200 bg-stone-50/50 pl-10 pr-4 text-base font-medium text-stone-900 placeholder:text-stone-400 focus:border-emerald-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/10 transition-all"
             />
           </div>
 
           {/* Cascading Dropdown 1: Tỉnh / Thành phố */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-3">
             <select
               value={provinceFilter}
               onChange={(e) => handleSelectProvince(e.target.value)}
-              className="h-12 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3.5 text-sm font-semibold text-[#142823] focus:border-[#173F35] focus:bg-white focus:outline-none cursor-pointer transition-all"
+              className="min-h-11 w-full rounded-xl border border-stone-200 bg-stone-50/50 px-3 text-base font-medium text-stone-800 focus:border-emerald-700 focus:bg-white focus:outline-none cursor-pointer transition-all"
             >
               <option value="ALL">
                 {regionFilter !== "ALL"
@@ -675,24 +760,20 @@ export function LocalMateKnowledgeView() {
             </select>
           </div>
 
-          {/* Cascading Dropdown 2: Điểm đến con */}
+          {/* Cascading Dropdown 2: Thời lượng tour */}
           <div className="lg:col-span-2">
             <select
-              value={destinationFilter}
+              value={durationFilter}
               onChange={(e) => {
-                setDestinationFilter(e.target.value);
+                setDurationFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-12 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3.5 text-sm font-semibold text-[#142823] focus:border-[#173F35] focus:bg-white focus:outline-none cursor-pointer transition-all"
+              className="min-h-11 w-full rounded-xl border border-stone-200 bg-stone-50/50 px-3 text-base font-medium text-stone-800 focus:border-emerald-700 focus:bg-white focus:outline-none cursor-pointer transition-all"
             >
-              <option value="ALL">
-                {provinceFilter !== "ALL"
-                  ? `Tất cả điểm đến (${PROVINCE_MAP[provinceFilter]?.name ?? ""})`
-                  : `Tất cả điểm đến (${cascadingDestinations.length})`}
-              </option>
-              {cascadingDestinations.map((dest) => (
-                <option key={dest} value={dest}>
-                  {dest}
+              <option value="ALL">Tất cả thời lượng</option>
+              {durations.map((dur) => (
+                <option key={dur} value={dur}>
+                  {dur}
                 </option>
               ))}
             </select>
@@ -706,7 +787,7 @@ export function LocalMateKnowledgeView() {
                 setScopeFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-12 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3.5 text-sm font-semibold text-[#142823] focus:border-[#173F35] focus:bg-white focus:outline-none cursor-pointer transition-all"
+              className="min-h-11 w-full rounded-xl border border-stone-200 bg-stone-50/50 px-3 text-base font-medium text-stone-800 focus:border-emerald-700 focus:bg-white focus:outline-none cursor-pointer transition-all"
             >
               <option value="ALL">Tất cả phạm vi</option>
               {TOUR_SCOPES.map((scope) => (
@@ -718,17 +799,16 @@ export function LocalMateKnowledgeView() {
           </div>
 
           {/* Right Action buttons */}
-          <div className="flex items-center gap-2 lg:col-span-2 justify-end">
+          <div className="flex items-center gap-1.5 lg:col-span-1 justify-end">
             {/* Clear filters button */}
             {hasActiveFilters && (
               <button
                 type="button"
                 onClick={handleClearFilters}
                 title="Xóa bộ lọc"
-                className="inline-flex h-12 items-center gap-1.5 rounded-xl border border-[#25483F]/15 bg-white px-3 text-xs font-bold text-[#5C6E66] hover:bg-[#FAF8F5] hover:text-[#173F35] transition-all cursor-pointer"
+                className="inline-flex h-10.5 w-10.5 items-center justify-center rounded-xl border border-stone-200 bg-stone-50/50 text-stone-600 hover:bg-stone-100 hover:text-stone-900 transition-all cursor-pointer shadow-xs shrink-0"
               >
                 <VsIcon name="filter_alt_off" className="text-base" />
-                <span>Đặt lại</span>
               </button>
             )}
 
@@ -737,9 +817,9 @@ export function LocalMateKnowledgeView() {
               type="button"
               onClick={() => refetch()}
               title="Làm mới dữ liệu"
-              className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] text-[#142823] hover:bg-white hover:border-[#173F35] transition-all cursor-pointer shadow-xs shrink-0"
+              className="flex h-10.5 w-10.5 items-center justify-center rounded-xl border border-stone-200 bg-stone-50/50 text-stone-700 hover:bg-white hover:border-emerald-700 hover:text-emerald-800 transition-all cursor-pointer shadow-xs shrink-0"
             >
-              <VsIcon name="refresh" className="text-xl" />
+              <VsIcon name="refresh" className="text-lg" />
             </button>
           </div>
         </div>
@@ -759,38 +839,38 @@ export function LocalMateKnowledgeView() {
         {/* Right Column: Main Tour List Container */}
         <div className="flex-1 min-w-0 w-full">
           {/* Main Tour List Container */}
-          <div className="rounded-2xl border border-[#25483F]/12 bg-white shadow-[0_12px_40px_rgba(20,40,35,0.06)] overflow-hidden">
+          <div className="rounded-2xl border border-stone-200/80 bg-white shadow-xs overflow-hidden">
         {isLoading ? (
           <div className="py-24 text-center">
-            <div className="inline-block h-10 w-10 animate-spin rounded-full border-3 border-[#173F35] border-t-transparent" />
-            <p className="mt-4 text-sm font-bold text-[#5A6861]">
+            <div className="inline-block h-9 w-9 animate-spin rounded-full border-3 border-emerald-800 border-t-transparent" />
+            <p className="mt-3 text-xs sm:text-sm font-semibold text-stone-500">
               Đang tải danh sách lịch trình tour...
             </p>
           </div>
         ) : isError ? (
-          <div className="p-12 text-center text-[#C94A4A]">
-            <p className="font-bold text-base">Không thể tải dữ liệu kho tri thức tour.</p>
+          <div className="p-12 text-center text-rose-600">
+            <p className="font-semibold text-sm">Không thể tải dữ liệu kho tri thức tour.</p>
             <button
               type="button"
               onClick={() => refetch()}
-              className="mt-4 rounded-xl bg-[#173F35] px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[#12322a] transition-all cursor-pointer"
+              className="mt-3 rounded-xl bg-emerald-800 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 transition-all cursor-pointer"
             >
               Thử lại
             </button>
           </div>
         ) : filteredTours.length === 0 ? (
-          <div className="p-16 text-center text-[#5A6861]">
-            <VsIcon name="search" className="mx-auto text-4xl text-[#5A6861]/40 mb-3" />
-            <p className="font-bold text-lg text-[#142823]">Không tìm thấy lịch trình tour nào</p>
-            <p className="text-sm text-[#5A6861] mt-1.5 max-w-md mx-auto">
-              Thử điều chỉnh từ khóa tìm kiếm hoặc chọn bộ lọc Tỉnh / Điểm đến khác để xem kết quả.
+          <div className="p-16 text-center text-stone-500">
+            <VsIcon name="search" className="mx-auto text-4xl text-stone-300 mb-3" />
+            <p className="font-bold text-base text-stone-900">Không tìm thấy lịch trình tour nào</p>
+            <p className="text-xs text-stone-500 mt-1 max-w-md mx-auto leading-relaxed">
+              Thử điều chỉnh từ khóa tìm kiếm hoặc chọn bộ lọc Tỉnh / Thời lượng khác để xem kết quả.
             </p>
-            <div className="mt-5 flex items-center justify-center gap-3">
+            <div className="mt-5 flex items-center justify-center gap-2.5">
               {hasActiveFilters && (
                 <button
                   type="button"
                   onClick={handleClearFilters}
-                  className="rounded-xl border border-[#25483F]/20 bg-white px-5 py-2.5 text-sm font-bold text-[#142823] hover:bg-[#FAF8F5] transition-all cursor-pointer"
+                  className="rounded-xl border border-stone-200 bg-white px-4 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-all cursor-pointer"
                 >
                   Xóa bộ lọc
                 </button>
@@ -798,7 +878,7 @@ export function LocalMateKnowledgeView() {
               <button
                 type="button"
                 onClick={handleOpenCreateModal}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#173F35] px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[#12322a] transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-800 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 transition-all cursor-pointer"
               >
                 <VsIcon name="add" className="text-base" />
                 <span>Thêm lịch trình mới</span>
@@ -809,152 +889,164 @@ export function LocalMateKnowledgeView() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="sticky top-0 z-10 border-b border-[#25483F]/10 bg-[#FAF7F0] text-xs font-bold uppercase tracking-wider text-[#485951]">
-                  <th className="w-12 px-6 py-4 text-center">
-                    <input
-                      type="checkbox"
-                      checked={
-                        paginatedTours.length > 0 &&
-                        selectedTourIds.size === paginatedTours.length
-                      }
-                      onChange={handleToggleSelectAll}
-                      className="h-4 w-4 rounded border-[#25483F]/30 text-[#173F35] focus:ring-[#173F35] cursor-pointer"
-                    />
-                  </th>
-                  <th className="px-6 py-4 min-w-[320px]">Chương trình Tour</th>
-                  <th className="px-6 py-4 min-w-[220px]">Điểm đến</th>
-                  <th className="px-6 py-4 min-w-[140px]">Thời lượng</th>
-                  <th className="px-6 py-4 w-[100px] text-right">Thao tác</th>
+                <tr className="sticky top-0 z-10 border-b border-stone-200/90 bg-stone-100/90 text-xs font-bold text-stone-700 uppercase tracking-wider">
+                  <th className="px-5 py-3.5 min-w-[360px]">Chương trình Tour</th>
+                  <th className="px-4 py-3.5 min-w-[210px]">Tỉnh thành & Phạm vi</th>
+                  <th className="px-4 py-3.5 min-w-[140px]">Thời lượng</th>
+                  <th className="px-5 py-3.5 w-[110px] min-w-[110px] whitespace-nowrap text-right">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#25483F]/10">
+              <tbody className="divide-y divide-stone-100">
                 {paginatedTours.map((tour) => {
-                  const isSelected = selectedTourIds.has(tour.id);
-
                   // Resolve Geography & Scope
-                  const detected = detectProvinceFromDestination(tour.destination, tour.title);
+                  const detected = detectProvinceFromDestination(tour.title);
                   const provCode = tour.provinceCode || detected?.code;
                   const provName =
                     tour.province ||
                     (provCode ? PROVINCE_MAP[provCode]?.name : detected?.name) ||
                     "Khác";
                   const scopeDef = tour.tourScope ? TOUR_SCOPE_MAP[tour.tourScope] : undefined;
+                  const hasGps = tour.latitude != null && tour.longitude != null;
+
+                  // Highlights list
+                  const hlList = Array.isArray(tour.highlights)
+                    ? tour.highlights
+                    : typeof tour.highlights === "string"
+                      ? (tour.highlights as string).split(",").map((s) => s.trim()).filter(Boolean)
+                      : [];
 
                   return (
                     <tr
                       key={tour.id}
                       onClick={() => handleOpenEditModal(tour)}
-                      className={`group cursor-pointer transition-colors ${
-                        isSelected
-                          ? "bg-[#FAF7F0]"
-                          : "hover:bg-[#FAF8F5]"
-                      }`}
+                      className="group cursor-pointer transition-colors hover:bg-stone-50/80"
                     >
-                      {/* Checkbox */}
-                      <td
-                        className="px-6 py-5 text-center"
-                        onClick={(e) => handleToggleSelectRow(tour.id, e)}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => {}}
-                          className="h-4 w-4 rounded border-[#25483F]/30 text-[#173F35] focus:ring-[#173F35] cursor-pointer"
-                        />
-                      </td>
-
                       {/* Tour Column */}
-                      <td className="px-6 py-5">
-                        <div className="font-bold text-base text-[#142823] group-hover:text-[#173F35] transition-colors leading-snug line-clamp-2">
-                          {tour.title}
+                      <td className="px-5 py-4 align-top">
+                        <div className="flex flex-col gap-1.5">
+                          <div className="font-bold text-sm sm:text-[15px] text-stone-900 group-hover:text-emerald-800 transition-colors leading-snug line-clamp-2">
+                            {tour.title}
+                          </div>
+
+                          {hlList.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                              {hlList.slice(0, 3).map((item, idx) => (
+                                <span
+                                  key={idx}
+                                  className="inline-flex items-center gap-1 rounded-md bg-stone-50 border border-stone-200/80 px-2 py-0.5 text-xs text-stone-600 font-medium"
+                                >
+                                  <span className="h-1 w-1 rounded-full bg-emerald-600 shrink-0" />
+                                  <span className="truncate max-w-[220px]">{item}</span>
+                                </span>
+                              ))}
+                              {hlList.length > 3 && (
+                                <span className="text-[11px] font-semibold text-stone-400">
+                                  +{hlList.length - 3} điểm khác
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </td>
 
-                      {/* Destination Column */}
-                      <td className="px-6 py-5">
-                        <div className="flex flex-col items-start gap-1.5">
-                          {/* Badges row: Tỉnh + Scope */}
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {/* Badge Tỉnh (VietSage Moss Green) */}
-                            <span className="inline-flex items-center gap-1 rounded-md bg-[#173F35]/10 border border-[#25483F]/15 px-2 py-0.5 text-xs font-bold text-[#173F35]">
-                              <VsIcon name="location_on" className="text-xs" />
-                              <span>{provName}</span>
+                      {/* Geography & Scope Column */}
+                      <td className="px-4 py-4 align-top">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {/* Badge Tỉnh */}
+                          <span className="inline-flex items-center gap-1.5 rounded-lg bg-stone-100 border border-stone-200/90 px-2.5 py-1 text-xs font-semibold text-stone-800 shadow-2xs">
+                            <VsIcon name="location_on" className="text-sm text-stone-500" />
+                            <span>{provName}</span>
+                          </span>
+
+                          {/* Badge Scope */}
+                          {scopeDef && (
+                            <span
+                              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold shadow-2xs ${scopeDef.badgeClass}`}
+                              title={scopeDef.description}
+                            >
+                              <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
+                              <span>{scopeDef.shortLabel}</span>
                             </span>
+                          )}
 
-                            {/* Badge Scope trực quan */}
-                            {scopeDef && (
-                              <span
-                                className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold ${scopeDef.badgeClass}`}
-                                title={scopeDef.description}
-                              >
-                                <VsIcon name="navigation" className="text-xs" />
-                                <span>{scopeDef.shortLabel}</span>
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Tên Điểm đến chính */}
-                          <div className="text-sm font-bold text-[#142823] tracking-tight">
-                            {tour.destination}
-                          </div>
+                          {/* GPS Badge */}
+                          {hasGps && (
+                            <span
+                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 border border-emerald-200 px-2 py-1 text-xs font-semibold text-emerald-800 shadow-2xs"
+                              title={`Tọa độ: ${tour.latitude}, ${tour.longitude}`}
+                            >
+                              <VsIcon name="my_location" className="text-xs" />
+                              <span>GPS</span>
+                            </span>
+                          )}
                         </div>
                       </td>
 
                       {/* Duration Column */}
-                      <td className="px-6 py-5">
-                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#F4F7F5] border border-[#25483F]/8 px-3 py-1.5 text-sm font-bold text-[#142823] whitespace-nowrap">
-                          <VsIcon name="schedule" className="text-sm text-[#173F35]" />
-                          <span>{normalizeTourDuration(tour.duration)}</span>
+                      <td className="px-4 py-4 align-top whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50/80 border border-amber-200/90 px-3 py-1.5 text-xs sm:text-[13px] font-semibold text-amber-900 shadow-2xs">
+                          <VsIcon name="schedule" className="text-sm text-amber-700" />
+                          <span>{normalizeTourDuration(tour.duration) || "Chưa rõ"}</span>
                         </span>
                       </td>
 
                       {/* Action Menu Column */}
                       <td
-                        className="px-6 py-5 text-right relative"
+                        className="px-5 py-4 align-top text-right relative"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setOpenMenuTourId(
-                              openMenuTourId === tour.id ? null : tour.id,
-                            )
-                          }
-                          className="flex h-10 w-10 items-center justify-center rounded-xl text-[#5C6E66] hover:bg-[#25483F]/8 hover:text-[#142823] ml-auto transition-colors cursor-pointer"
-                          title="Tùy chọn thao tác"
-                        >
-                          <VsIcon name="more_vert" className="text-xl" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditModal(tour)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-600 hover:border-emerald-700 hover:text-emerald-800 hover:bg-emerald-50/60 shadow-2xs transition-colors cursor-pointer"
+                            title="Chỉnh sửa lịch trình"
+                          >
+                            <VsIcon name="edit" className="text-sm" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOpenMenuTourId(
+                                openMenuTourId === tour.id ? null : tour.id,
+                              )
+                            }
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-500 hover:text-stone-800 hover:bg-stone-50 shadow-2xs transition-colors cursor-pointer"
+                            title="Tùy chọn khác"
+                          >
+                            <VsIcon name="more_vert" className="text-base" />
+                          </button>
+                        </div>
 
                         {/* Floating Popup Menu */}
                         {openMenuTourId === tour.id && (
                           <div
                             ref={menuRef}
-                            className="absolute right-6 top-12 z-20 w-48 rounded-2xl border border-[#25483F]/15 bg-white py-2 shadow-xl text-left"
+                            className="absolute right-5 top-14 z-20 w-48 rounded-xl border border-stone-200 bg-white py-1.5 shadow-xl shadow-stone-900/10 text-left"
                           >
                             <button
                               type="button"
                               onClick={() => handleOpenEditModal(tour)}
-                              className="flex w-full items-center gap-2.5 px-4 py-2 text-sm font-semibold text-[#142823] hover:bg-[#FAF8F5] cursor-pointer"
+                              className="flex min-h-11 w-full items-center gap-2.5 px-3.5 py-2 text-base font-medium text-stone-700 hover:bg-stone-50 hover:text-stone-900 cursor-pointer"
                             >
-                              <VsIcon name="edit" className="text-base text-[#5C6E66]" />
-                              <span>Chỉnh sửa</span>
+                              <VsIcon name="edit" className="text-base text-stone-400" />
+                              <span>Chỉnh sửa chi tiết</span>
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDuplicateTour(tour)}
-                              className="flex w-full items-center gap-2.5 px-4 py-2 text-sm font-semibold text-[#142823] hover:bg-[#FAF8F5] cursor-pointer"
+                              className="flex min-h-11 w-full items-center gap-2.5 px-3.5 py-2 text-base font-medium text-stone-700 hover:bg-stone-50 hover:text-stone-900 cursor-pointer"
                             >
-                              <VsIcon name="content_copy" className="text-base text-[#5C6E66]" />
+                              <VsIcon name="content_copy" className="text-base text-stone-400" />
                               <span>Nhân bản</span>
                             </button>
-                            <div className="my-1 border-t border-[#25483F]/10" />
+                            <div className="my-1 border-t border-stone-100" />
                             <button
                               type="button"
                               onClick={() => handleDeleteTour(tour)}
-                              className="flex w-full items-center gap-2.5 px-4 py-2 text-sm font-semibold text-[#C94A4A] hover:bg-red-50 cursor-pointer"
+                              className="flex min-h-11 w-full items-center gap-2.5 px-3.5 py-2 text-base font-medium text-rose-600 hover:bg-rose-50 cursor-pointer"
                             >
-                              <VsIcon name="delete" className="text-base" />
+                              <VsIcon name="delete" className="text-base text-rose-500" />
                               <span>Xoá lịch trình</span>
                             </button>
                           </div>
@@ -970,8 +1062,8 @@ export function LocalMateKnowledgeView() {
 
         {/* Sticky-like bottom Pagination bar */}
         {!isLoading && filteredTours.length > 0 && (
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-t border-[#25483F]/10 bg-[#FAF7F0] px-6 py-4 text-sm font-medium text-[#5C6E66]">
-            <div className="flex items-center gap-2.5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-stone-200 bg-stone-50/60 px-4 sm:px-5 py-3 text-xs text-stone-600">
+            <div className="flex items-center gap-2">
               <span>Hiển thị</span>
               <select
                 value={pageSize}
@@ -979,33 +1071,29 @@ export function LocalMateKnowledgeView() {
                   setPageSize(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="rounded-lg border border-[#25483F]/15 bg-white px-3 py-1.5 text-sm font-bold text-[#142823] cursor-pointer"
+                className="rounded-lg border border-stone-200 bg-white px-2.5 py-1 text-xs font-semibold text-stone-700 cursor-pointer focus:border-emerald-700 focus:outline-hidden"
               >
                 <option value={10}>10</option>
                 <option value={20}>20</option>
                 <option value={50}>50</option>
               </select>
               <span>
-                trên tổng số <strong className="text-[#142823] font-bold">{totalItems}</strong> lịch trình
-                {selectedTourIds.size > 0 && (
-                  <span className="ml-2 font-bold text-[#173F35]">
-                    (Đã chọn {selectedTourIds.size})
-                  </span>
-                )}
+                trên tổng số <strong className="text-stone-900 font-semibold">{totalItems}</strong> lịch trình
+
               </span>
             </div>
 
-            <div className="flex items-center gap-2 self-end sm:self-auto">
+            <div className="flex items-center gap-1.5 self-end sm:self-auto">
               <button
                 type="button"
                 disabled={safeCurrentPage <= 1}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#25483F]/15 bg-white text-[#142823] disabled:opacity-40 hover:bg-[#FAF8F5] cursor-pointer transition-colors shadow-xs"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-700 disabled:opacity-40 hover:bg-stone-50 cursor-pointer transition-colors shadow-2xs"
               >
-                <VsIcon name="chevron_left" className="text-base" />
+                <VsIcon name="chevron_left" className="text-sm" />
               </button>
 
-              <span className="px-3 text-sm font-bold text-[#142823]">
+              <span className="px-2.5 text-xs font-semibold text-stone-800">
                 {safeCurrentPage} / {totalPages}
               </span>
 
@@ -1013,9 +1101,9 @@ export function LocalMateKnowledgeView() {
                 type="button"
                 disabled={safeCurrentPage >= totalPages}
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#25483F]/15 bg-white text-[#142823] disabled:opacity-40 hover:bg-[#FAF8F5] cursor-pointer transition-colors shadow-xs"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-700 disabled:opacity-40 hover:bg-stone-50 cursor-pointer transition-colors shadow-2xs"
               >
-                <VsIcon name="chevron_right" className="text-base" />
+                <VsIcon name="chevron_right" className="text-sm" />
               </button>
             </div>
           </div>
@@ -1026,47 +1114,35 @@ export function LocalMateKnowledgeView() {
 
       {/* Tour Create/Edit Form Modal */}
       {isTourModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-6 sm:p-7 shadow-2xl border border-[#25483F]/15">
-            <div className="flex items-center justify-between border-b border-[#25483F]/10 pb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 p-4 backdrop-blur-xs sm:p-6">
+          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 sm:p-7 shadow-xl border border-stone-200">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-stone-100 pb-4">
               <div>
-                <h3 className="text-xl font-black text-[#142823]">
-                  {editingTourId ? "Chỉnh sửa lịch trình Tour" : "Thêm lịch trình Tour mới"}
+                <h3 className="text-lg font-bold text-stone-900">
+                  {editingTourId ? "Chỉnh sửa lịch trình tour" : "Thêm lịch trình tour mới"}
                 </h3>
-                <p className="mt-0.5 text-xs text-[#52635A]">
+                <p className="mt-0.5 text-xs text-stone-500">
                   Nạp dữ liệu vào kho tri thức LocalMate AI phục vụ phân vùng gợi ý và tư vấn tự động.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsTourModalOpen(false)}
-                className="rounded-xl p-2 text-[#52635A] hover:bg-[#FAF8F5] hover:text-[#142823] transition-colors cursor-pointer"
+                className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition-colors cursor-pointer"
+                aria-label="Đóng"
               >
                 <VsIcon name="close" className="text-xl" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveTour} className="mt-5 space-y-4">
-              {/* Row 1: Mã Tour & Tỉnh/Thành & Phạm vi Scope */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#485951]">
-                    Mã tour
-                  </label>
-                  <input
-                    type="text"
-                    value={tourFormData.tourCode}
-                    onChange={(e) =>
-                      setTourFormData({ ...tourFormData, tourCode: e.target.value })
-                    }
-                    placeholder="HVNT-0031-25"
-                    className="mt-1.5 h-11 w-full rounded-xl border border-[#25483F]/15 bg-white px-3.5 text-sm font-mono font-bold text-[#142823] placeholder:text-[#788880] focus:border-[#173F35] focus:outline-none focus:ring-2 focus:ring-[#173F35]/15"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#485951]">
-                    Tỉnh / Thành phố *
+            <form onSubmit={handleSaveTour} className="mt-5 space-y-4.5">
+              {/* Row 1: Tỉnh/Thành & Phạm vi & Thời lượng (Nhập số ngày, số đêm) */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-12">
+                {/* Tỉnh / Thành phố */}
+                <div className="sm:col-span-4">
+                  <label className="block text-sm font-medium text-stone-700 mb-1.5">
+                    Tỉnh / Thành phố
                   </label>
                   <select
                     value={tourFormData.provinceCode}
@@ -1077,11 +1153,9 @@ export function LocalMateKnowledgeView() {
                         ...prev,
                         provinceCode: code,
                         province: prov ? prov.name : "",
-                        // Auto-fill first destination of province if current destination is blank
-                        destination: prev.destination || (prov?.destinations[0] ?? ""),
                       }));
                     }}
-                    className="mt-1.5 h-11 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3 text-sm font-semibold text-[#142823] focus:border-[#173F35] focus:bg-white focus:outline-none cursor-pointer"
+                    className="h-10.5 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-800 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 cursor-pointer transition-colors"
                   >
                     <option value="">-- Chọn Tỉnh / TP --</option>
                     {PROVINCES.map((p) => (
@@ -1092,8 +1166,9 @@ export function LocalMateKnowledgeView() {
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#485951]">
+                {/* Phạm vi tour (Scope) */}
+                <div className="sm:col-span-3">
+                  <label className="block text-sm font-medium text-stone-700 mb-1.5">
                     Phạm vi tour (Scope)
                   </label>
                   <select
@@ -1104,7 +1179,7 @@ export function LocalMateKnowledgeView() {
                         tourScope: e.target.value as LocalMateTourScope,
                       })
                     }
-                    className="mt-1.5 h-11 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3 text-sm font-semibold text-[#142823] focus:border-[#173F35] focus:bg-white focus:outline-none cursor-pointer"
+                    className="h-10.5 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-800 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 cursor-pointer transition-colors"
                   >
                     <option value="">-- Chọn phạm vi --</option>
                     {TOUR_SCOPES.map((scope) => (
@@ -1114,108 +1189,183 @@ export function LocalMateKnowledgeView() {
                     ))}
                   </select>
                 </div>
-              </div>
 
-              {/* Row 2: Điểm đến (với Gợi ý con) & Thời lượng */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="sm:col-span-2">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-[#485951]">
-                      Điểm đến trọng điểm *
+                {/* Thời lượng: Nhập số ngày, số đêm */}
+                <div className="sm:col-span-5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-sm font-medium text-stone-700">
+                      Thời lượng <span className="text-rose-500">*</span>
                     </label>
-                    {modalChildDestinations.length > 0 && (
-                      <span className="text-[11px] font-semibold text-[#173F35]">
-                        Gợi ý theo {tourFormData.province || "Tỉnh"}:
+                    {tourFormData.duration && (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200/90 px-2 py-0.5 text-xs font-semibold text-amber-900 shadow-2xs">
+                        <VsIcon name="schedule" className="text-xs text-amber-700" />
+                        <span>{tourFormData.duration}</span>
                       </span>
                     )}
                   </div>
-                  <input
-                    type="text"
-                    required
-                    value={tourFormData.destination}
-                    onChange={(e) =>
-                      setTourFormData({ ...tourFormData, destination: e.target.value })
-                    }
-                    placeholder="Sa Pa, Mù Cang Chải, Hồ Thác Bà..."
-                    className="mt-1.5 h-11 w-full rounded-xl border border-[#25483F]/15 bg-white px-3.5 text-sm font-semibold text-[#142823] placeholder:text-[#788880] focus:border-[#173F35] focus:outline-none focus:ring-2 focus:ring-[#173F35]/15"
-                  />
-                  {/* Quick-select chips */}
-                  {modalChildDestinations.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {modalChildDestinations.map((dest) => (
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Input Số ngày */}
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        max="60"
+                        step="any"
+                        required
+                        value={durationDays}
+                        onChange={(e) => handleDaysChange(e.target.value)}
+                        placeholder="Số ngày"
+                        className="h-10.5 w-full rounded-xl border border-stone-200 bg-white pl-3 pr-12 text-sm text-stone-800 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
+                      />
+                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-stone-500">
+                        Ngày
+                      </span>
+                    </div>
+
+                    {/* Input Số đêm */}
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        max="60"
+                        step="1"
+                        value={durationNights}
+                        onChange={(e) => handleNightsChange(e.target.value)}
+                        placeholder="Số đêm"
+                        className="h-10.5 w-full rounded-xl border border-stone-200 bg-white pl-3 pr-12 text-sm text-stone-800 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
+                      />
+                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-stone-500">
+                        Đêm
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Nút chọn nhanh (Presets) */}
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {TOUR_DURATION_PRESETS.map((preset) => {
+                      const isActive =
+                        Number(durationDays) === preset.d && Number(durationNights) === preset.n;
+                      return (
                         <button
-                          key={dest}
+                          key={preset.label}
                           type="button"
-                          onClick={() => setTourFormData({ ...tourFormData, destination: dest })}
-                          className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
-                            tourFormData.destination === dest
-                              ? "bg-[#173F35] text-white shadow-xs"
-                              : "bg-[#173F35]/8 text-[#173F35] hover:bg-[#173F35]/15"
+                          onClick={() => handleSelectPreset(preset.d, preset.n)}
+                          className={`rounded-md border px-2 py-0.5 text-xs transition-colors cursor-pointer ${
+                            isActive
+                              ? "bg-amber-100 text-amber-900 border-amber-300 font-bold"
+                              : "bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100 hover:text-stone-800 font-medium"
                           }`}
                         >
-                          {dest}
+                          {preset.label}
                         </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#485951]">
-                    Thời lượng *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={tourFormData.duration}
-                    onChange={(e) =>
-                      setTourFormData({ ...tourFormData, duration: e.target.value })
-                    }
-                    onBlur={(e) => {
-                      const val = e.target.value.trim();
-                      if (val) {
-                        setTourFormData((prev) => ({
-                          ...prev,
-                          duration: normalizeTourDuration(val),
-                        }));
-                      }
-                    }}
-                    placeholder="Ví dụ: 2 Ngày 1 Đêm, 1 Ngày..."
-                    className="mt-1.5 h-11 w-full rounded-xl border border-[#25483F]/15 bg-white px-3.5 text-sm font-semibold text-[#142823] placeholder:text-[#788880] focus:border-[#173F35] focus:outline-none focus:ring-2 focus:ring-[#173F35]/15"
-                  />
-                  {/* Quick selection chips for standard durations */}
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {COMMON_TOUR_DURATIONS.map((dur) => (
-                      <button
-                        key={dur}
-                        type="button"
-                        onClick={() =>
-                          setTourFormData({ ...tourFormData, duration: dur })
-                        }
-                        className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
-                          tourFormData.duration === dur
-                            ? "bg-[#173F35] text-white shadow-xs"
-                            : "bg-[#173F35]/8 text-[#173F35] hover:bg-[#173F35]/15"
-                        }`}
-                      >
-                        {dur}
-                      </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
 
-              <fieldset className="rounded-2xl border border-[#25483F]/12 bg-[#FBF9F5] p-4">
-                <legend className="px-1 text-sm font-bold text-[#173F35]">
-                  Tọa độ điểm đến trọng điểm
-                </legend>
-                <p className="mb-3 text-sm text-[#52635A]">
-                  Mốc dùng để tính khoảng cách từ khách sạn. Có thể để trống cho dữ liệu cũ dùng fallback tỉnh/khu vực.
-                </p>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* Row 2: Tên Lịch trình Tour */}
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1.5">
+                  Tên lịch trình tour <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={tourFormData.title}
+                  onChange={(e) =>
+                    setTourFormData({ ...tourFormData, title: e.target.value })
+                  }
+                  placeholder="Ví dụ: Hà Nội → Mù Cang Chải – La Pán Tẩn – Tú Lệ"
+                  className="h-10.5 w-full rounded-xl border border-stone-200 bg-white px-3.5 text-sm font-medium text-stone-800 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
+                />
+              </div>
+
+              {/* Row 3: Tọa độ điểm đến trọng điểm & Google Maps Converter / Preview Minimap */}
+              <div className="rounded-2xl border border-stone-200/90 bg-stone-50/60 p-4 sm:p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100/80 text-emerald-800">
+                      <VsIcon name="location_on" className="text-base" />
+                    </span>
+                    <div>
+                      <h4 className="text-sm font-semibold text-stone-800">
+                        Tọa độ & Bản đồ vị trí (Google Maps)
+                      </h4>
+                      <p className="text-xs text-stone-500">
+                        Dán link Google Maps để tự động trích xuất Vĩ độ & Kinh độ, hoặc nhập số trực tiếp.
+                      </p>
+                    </div>
+                  </div>
+                  {hasValidCoordinates && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+                      <VsIcon name="check_circle" className="text-xs" />
+                      Đã có GPS
+                    </span>
+                  )}
+                </div>
+
+                {/* Google Maps Link Converter Input */}
+                <div className="mt-3">
+                  <label className="block text-xs font-medium text-stone-600 mb-1">
+                    Dán link Google Maps (URL / Tọa độ)
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
+                      <VsIcon name="link" className="text-base" />
+                    </div>
+                    <input
+                      type="text"
+                      value={mapsUrlInput}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setMapsUrlInput(val);
+                        const coords = extractLatLngFromGoogleMapsUrl(val);
+                        if (coords) {
+                          setTourFormData((prev) => ({
+                            ...prev,
+                            latitude: coords.lat,
+                            longitude: coords.lng,
+                          }));
+                        }
+                      }}
+                      placeholder="Dán link Google Maps (VD: https://www.google.com/maps/place/.../@21.0333,104.8833... hoặc 21.0333, 104.8833)"
+                      className="h-10.5 w-full rounded-xl border border-stone-200 bg-white pl-9.5 pr-24 text-xs sm:text-sm text-stone-800 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!mapsUrlInput.trim()) return;
+                        const coords = extractLatLngFromGoogleMapsUrl(mapsUrlInput);
+                        if (coords) {
+                          setTourFormData((prev) => ({
+                            ...prev,
+                            latitude: coords.lat,
+                            longitude: coords.lng,
+                          }));
+                        } else {
+                          SwalVietSage.fire({
+                            title: "Không tìm thấy tọa độ",
+                            text: "Vui lòng kiểm tra lại link Google Maps. Bạn có thể copy link từ thanh địa chỉ trình duyệt hoặc copy trực tiếp tọa độ (ví dụ: 21.033333, 104.883333).",
+                            icon: "info",
+                            showConfirmButton: true,
+                            confirmButtonText: "OK",
+                          });
+                        }
+                      }}
+                      className="absolute right-1.5 top-1.5 bottom-1.5 px-3 rounded-lg bg-stone-100 hover:bg-emerald-50 hover:text-emerald-800 text-stone-700 text-xs font-medium transition-colors cursor-pointer"
+                    >
+                      Trích xuất
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2 Inputs for Latitude & Longitude */}
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="tour-latitude" className="mb-1.5 block text-sm font-semibold text-[#485951]">
-                      Vĩ độ
+                    <label htmlFor="tour-latitude" className="mb-1 block text-xs font-medium text-stone-600">
+                      Vĩ độ (Latitude)
                     </label>
                     <input
                       id="tour-latitude"
@@ -1225,13 +1375,13 @@ export function LocalMateKnowledgeView() {
                       max={90}
                       value={tourFormData.latitude}
                       onChange={(e) => setTourFormData({ ...tourFormData, latitude: e.target.value })}
-                      placeholder="21.033333"
-                      className="h-12 w-full rounded-xl border border-[#25483F]/15 bg-white px-4 text-base font-medium text-[#142823] focus:border-[#173F35] focus:outline-none focus:ring-2 focus:ring-[#173F35]/15"
+                      placeholder="Ví dụ: 21.033333"
+                      className="h-10 w-full rounded-xl border border-stone-200 bg-white px-3.5 text-sm font-mono text-stone-800 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
                     />
                   </div>
                   <div>
-                    <label htmlFor="tour-longitude" className="mb-1.5 block text-sm font-semibold text-[#485951]">
-                      Kinh độ
+                    <label htmlFor="tour-longitude" className="mb-1 block text-xs font-medium text-stone-600">
+                      Kinh độ (Longitude)
                     </label>
                     <input
                       id="tour-longitude"
@@ -1241,50 +1391,73 @@ export function LocalMateKnowledgeView() {
                       max={180}
                       value={tourFormData.longitude}
                       onChange={(e) => setTourFormData({ ...tourFormData, longitude: e.target.value })}
-                      placeholder="104.883333"
-                      className="h-12 w-full rounded-xl border border-[#25483F]/15 bg-white px-4 text-base font-medium text-[#142823] focus:border-[#173F35] focus:outline-none focus:ring-2 focus:ring-[#173F35]/15"
+                      placeholder="Ví dụ: 104.883333"
+                      className="h-10 w-full rounded-xl border border-stone-200 bg-white px-3.5 text-sm font-mono text-stone-800 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
                     />
                   </div>
                 </div>
-              </fieldset>
 
-              {/* Row 3: Tên Lịch trình Tour */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#485951]">
-                  Tên lịch trình tour *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={tourFormData.title}
-                  onChange={(e) =>
-                    setTourFormData({ ...tourFormData, title: e.target.value })
-                  }
-                  placeholder="HÀ NỘI → MÙ CANG CHẢI – LA PÁN TẨN – TÚ LỆ"
-                  className="mt-1.5 h-11 w-full rounded-xl border border-[#25483F]/15 bg-white px-3.5 text-base font-bold text-[#142823] placeholder:text-[#788880] focus:border-[#173F35] focus:outline-none focus:ring-2 focus:ring-[#173F35]/15"
-                />
+                {/* Minimap Preview Container */}
+                {hasValidCoordinates ? (
+                  <div className="mt-3.5 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-2xs">
+                    <div className="flex items-center justify-between px-3.5 py-2 bg-stone-50 border-b border-stone-200 text-xs">
+                      <span className="flex items-center gap-1.5 font-medium text-stone-700">
+                        <VsIcon name="map" className="text-emerald-700 text-sm" />
+                        <span>Xem trước trên Google Maps:</span>
+                        <strong className="font-mono text-emerald-800">
+                          {Number(tourFormData.latitude).toFixed(6)}, {Number(tourFormData.longitude).toFixed(6)}
+                        </strong>
+                      </span>
+                      <a
+                        href={`https://www.google.com/maps?q=${tourFormData.latitude},${tourFormData.longitude}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+                      >
+                        <span>Mở bản đồ lớn</span>
+                        <VsIcon name="open_in_new" className="text-xs" />
+                      </a>
+                    </div>
+                    <iframe
+                      title="Google Maps Minimap Preview"
+                      src={`https://maps.google.com/maps?q=${tourFormData.latitude},${tourFormData.longitude}&hl=vi&z=13&output=embed`}
+                      className="w-full h-44 sm:h-52 border-0"
+                      loading="lazy"
+                    />
+                  </div>
+                ) : (
+                  <div className="mt-3 flex items-center gap-2.5 rounded-xl border border-dashed border-stone-200 bg-white/70 px-3.5 py-3 text-xs text-stone-500">
+                    <VsIcon name="info" className="text-base text-stone-400 shrink-0" />
+                    <span>
+                      Chưa có tọa độ bản đồ. Bạn có thể dán link Google Maps ở trên hoặc nhập Vĩ độ / Kinh độ để xem trước vị trí trực tiếp.
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Row 4: Điểm nổi bật (Highlights) */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#485951]">
-                  Điểm nổi bật (phân cách bởi dấu phẩy)
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-sm font-medium text-stone-700">
+                    Điểm nổi bật
+                  </label>
+                  <span className="text-xs text-stone-400">Phân cách bởi dấu phẩy</span>
+                </div>
                 <input
                   type="text"
                   value={tourFormData.highlights}
                   onChange={(e) =>
                     setTourFormData({ ...tourFormData, highlights: e.target.value })
                   }
-                  placeholder="Đèo Khau Phạ, Ruộng bậc thang Mâm Xôi, Tắm khoáng nóng Trạm Tấu"
-                  className="mt-1.5 h-11 w-full rounded-xl border border-[#25483F]/15 bg-white px-3.5 text-sm font-medium text-[#142823] placeholder:text-[#788880] focus:border-[#173F35] focus:outline-none focus:ring-2 focus:ring-[#173F35]/15"
+                  placeholder="Ví dụ: Đèo Khau Phạ, Ruộng bậc thang Mâm Xôi, Tắm khoáng nóng Trạm Tấu..."
+                  className="h-10.5 w-full rounded-xl border border-stone-200 bg-white px-3.5 text-sm text-stone-800 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
                 />
               </div>
 
-              {/* Row 5: Nội dung chi tiết */}
+              {/* Row 7: Nội dung chi tiết */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#485951]">
-                  Nội dung chi tiết lịch trình *
+                <label className="block text-sm font-medium text-stone-700 mb-1.5">
+                  Nội dung chi tiết lịch trình <span className="text-rose-500">*</span>
                 </label>
                 <textarea
                   rows={6}
@@ -1294,23 +1467,23 @@ export function LocalMateKnowledgeView() {
                     setTourFormData({ ...tourFormData, content: e.target.value })
                   }
                   placeholder="Chi tiết từng ngày, hoạt động trải nghiệm, địa điểm ăn uống, thông tin văn hóa..."
-                  className="mt-1.5 w-full rounded-xl border border-[#25483F]/15 bg-white p-3.5 text-sm leading-relaxed text-[#142823] placeholder:text-[#788880] focus:border-[#173F35] focus:outline-none focus:ring-2 focus:ring-[#173F35]/15"
+                  className="w-full rounded-xl border border-stone-200 bg-white p-3.5 text-sm leading-relaxed text-stone-800 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors resize-y"
                 />
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-3 border-t border-[#25483F]/10 pt-4">
+              <div className="flex items-center justify-end gap-3 border-t border-stone-100 pt-4">
                 <button
                   type="button"
                   onClick={() => setIsTourModalOpen(false)}
-                  className="rounded-xl border border-[#25483F]/15 px-5 py-2.5 text-sm font-bold text-[#5A6861] hover:bg-[#FAF8F5] hover:text-[#142823] transition-colors cursor-pointer"
+                  className="rounded-xl border border-stone-200 bg-white px-5 py-2.5 text-sm font-medium text-stone-600 hover:bg-stone-50 hover:text-stone-900 transition-colors cursor-pointer"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#173F35] to-[#245347] px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:opacity-95 disabled:opacity-50 transition-all cursor-pointer"
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-6 py-2.5 text-sm font-medium text-white shadow-xs hover:shadow-sm disabled:opacity-50 transition-all cursor-pointer"
                 >
                   <VsIcon name={editingTourId ? "save" : "check"} className="text-base" />
                   <span>{isSaving ? "Đang lưu..." : editingTourId ? "Lưu thay đổi" : "Tạo lịch trình"}</span>
