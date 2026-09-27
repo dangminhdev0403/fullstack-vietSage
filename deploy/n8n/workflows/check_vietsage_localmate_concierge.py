@@ -17,14 +17,24 @@ json.loads(tf["schema"])
 assert "$env" not in nodes["04 · Tra cứu Tour & LocalMate"]["parameters"]["url"]
 normalizer=nodes["02 · Chuẩn hóa & phân loại"]["parameters"]["jsCode"]
 assert all(field in normalizer for field in ("hotelId", "hotelName", "radiusKm"))
+assert "!hotelId || hotelId.length > 160" in normalizer
+assert "const destinations = [" not in normalizer and "resolveDestination" not in normalizer
+assert "attractionKeywords" not in normalizer
+assert "const destination = explicitDestination;" in normalizer
+assert "Tây Bắc" not in normalizer and "Northwest Vietnam" not in normalizer
 knowledge_body=nodes["04 · Tra cứu Tour & LocalMate"]["parameters"]["jsonBody"]
-assert all(field in knowledge_body for field in ("hotelId", "radiusKm"))
+assert all(field in knowledge_body for field in ("cleanQuery", "hotelId", "radiusKm"))
 context_code=nodes["05 · Đóng gói ngữ cảnh"]["parameters"]["jsCode"]
 assert "distanceKm" in context_code and "locationScope" in context_code
-assert ".filter(" not in context_code
-assert "tourCode" not in context_code and "guideCode" not in context_code
+assert "payload.metadata?.destination" in context_code and "effectiveDestination" in context_code
+assert "PROVINCE_POLICY" in context_code and "outsideHotelProvince" in context_code
+assert ".filter(" not in context_code and "tourCode" not in context_code and "guideCode" not in context_code
+
+fallback_code=nodes[fallback]["parameters"]["jsCode"]
+assert all(term not in fallback_code for term in ("Mù Cang Chải", "Trạm Tấu", "Mu Cang Chai", "Tram Tau"))
 sys_prompt = ai["parameters"]["responses"]["values"][0]["content"]
 assert all(term in sys_prompt for term in ("KNOWLEDGE", "title", "duration", "fullName", "Không hiển thị ID", "JSON theo schema"))
+assert all(term in sys_prompt for term in ("LOCATION_SCOPE.province", "em", "Quý khách", "mình/tôi"))
 assert "\n\n" not in sys_prompt
 assert w["settings"]["saveDataSuccessExecution"] == "none"
 assert w["settings"]["saveExecutionProgress"] is False

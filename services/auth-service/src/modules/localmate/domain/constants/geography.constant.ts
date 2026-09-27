@@ -318,6 +318,76 @@ export const GEOGRAPHY_TAXONOMY: Record<string, ProvinceTaxonomy> = {
   },
 };
 
+const KNOWLEDGE_SEARCH_TERMS = [
+  "khoáng nóng",
+  "săn mây",
+  "ruộng bậc thang",
+  "chèo sup",
+  "chè shan tuyết",
+  "ẩm thực",
+  "trekking",
+  "camping",
+  "hot spring",
+] as const;
+
+function normalizeGeographyText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase();
+}
+
+export function resolveDestinationFromText(value?: string): string | undefined {
+  if (!value?.trim()) return undefined;
+  const normalized = normalizeGeographyText(value);
+  const destinations = Object.values(GEOGRAPHY_TAXONOMY).flatMap((province) =>
+    province.destinations.flatMap((destination) =>
+      [destination.name, ...destination.keywords].map((keyword) => ({
+        name: destination.name,
+        keyword: normalizeGeographyText(keyword),
+      })),
+    ),
+  );
+  destinations.sort((left, right) => right.keyword.length - left.keyword.length);
+  return destinations.find(({ keyword }) => normalized.includes(keyword))?.name;
+}
+
+export function resolveProvinceFromText(
+  value?: string,
+): Pick<ProvinceTaxonomy, "code" | "name"> | undefined {
+  if (!value?.trim()) return undefined;
+  const normalized = normalizeGeographyText(value);
+  const matches = Object.values(GEOGRAPHY_TAXONOMY).flatMap((province) =>
+    [
+      province.name,
+      ...province.aliases,
+      ...province.destinations.flatMap((destination) => [
+        destination.name,
+        ...destination.keywords,
+      ]),
+    ].map((keyword) => ({
+      province: { code: province.code, name: province.name },
+      keyword: normalizeGeographyText(keyword),
+    })),
+  );
+  matches.sort((left, right) => right.keyword.length - left.keyword.length);
+  return matches.find(({ keyword }) => normalized.includes(keyword))?.province;
+}
+
+export function isLocationInProvince(value: string, provinceCode: string): boolean {
+  return resolveProvinceFromText(value)?.code === provinceCode;
+}
+
+export function resolveKnowledgeSearchTerm(value?: string): string | undefined {
+  if (!value?.trim()) return undefined;
+  const normalized = normalizeGeographyText(value);
+  return KNOWLEDGE_SEARCH_TERMS.find((term) =>
+    normalized.includes(normalizeGeographyText(term)),
+  );
+}
+
 export interface InferredProvinceAndScope {
   provinceCode: string;
   province: string;

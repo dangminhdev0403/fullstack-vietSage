@@ -23,7 +23,11 @@ import type {
 } from "../domain/schemas/localmate.schema";
 import {
   inferProvinceAndScope,
+  isLocationInProvince,
   normalizeTourDuration,
+  resolveDestinationFromText,
+  resolveKnowledgeSearchTerm,
+  resolveProvinceFromText,
 } from "../domain/constants/geography.constant";
 
 export interface MatchedLocalMateResult {
@@ -376,6 +380,10 @@ export class LocalMateService {
   async getKnowledge(query: Partial<QueryLocalMateKnowledgeDto>) {
     const limit = query.limit ?? 5;
     const radiusKm = query.radiusKm ?? 50;
+    const inferredDestination = query.destination
+      ? undefined
+      : resolveDestinationFromText(query.query);
+    const requestedDestination = query.destination || inferredDestination;
 
     let hotel: {
       id: string;
@@ -393,8 +401,25 @@ export class LocalMateService {
       }
     }
 
+    const requestedProvince = resolveProvinceFromText(query.destination || query.query);
+    const outsideHotelProvince = Boolean(
+      hotel?.provinceCode &&
+        requestedProvince?.code &&
+        requestedProvince.code !== hotel.provinceCode,
+    );
+    const destination = outsideHotelProvince ? undefined : requestedDestination;
+    const effectiveDestination = outsideHotelProvince
+      ? hotel?.province || hotel?.area || undefined
+      : destination;
+    const search = outsideHotelProvince
+      ? undefined
+      : query.destination
+        ? query.query
+        : resolveKnowledgeSearchTerm(query.query);
+    const provinceCode = hotel?.provinceCode || query.provinceCode;
+
     const hotelCoordinates = this.coordinatesOf(hotel?.latitude, hotel?.longitude);
-    const useHotelRadius = Boolean(hotelCoordinates && !query.destination);
+    const useHotelRadius = Boolean(hotelCoordinates && !destination);
     const bounds = useHotelRadius
       ? this.createGeographicBounds(
           hotelCoordinates!.latitude,
@@ -408,24 +433,22 @@ export class LocalMateService {
     );
 
     const fallbackDestination =
-      hotel && !hotelCoordinates && !query.destination
+      hotel && !hotelCoordinates && !destination
         ? hotel.area || hotel.province || undefined
         : undefined;
 
     const [toursRaw, qualifiedGuides] = await Promise.all([
       this.repository.searchTourKnowledge({
-        destination: query.destination,
-        search: query.query,
-        provinceCode:
-          query.provinceCode ||
-          (fallbackDestination ? (hotel?.provinceCode ?? undefined) : undefined),
+        destination,
+        search,
+        provinceCode,
         tourScope: query.scope,
         bounds,
         fallbackProvinceCode: useHotelRadius ? (hotel?.provinceCode ?? undefined) : undefined,
         limit: candidateLimit,
       }),
       this.repository.findQualifiedGuides({
-        destination: query.destination || fallbackDestination,
+        destination: destination || fallbackDestination,
         bounds,
         fallbackRegions: useHotelRadius ? fallbackRegions : undefined,
         limit: candidateLimit,
@@ -433,6 +456,11 @@ export class LocalMateService {
     ]);
 
     const projectedTours = toursRaw
+      .filter(
+        (tour) =>
+          !hotel?.provinceCode ||
+          (tour.provinceCode === hotel.provinceCode && tour.tourScope !== "INTERPROVINCIAL"),
+      )
       .map((tour) => ({
         tour,
         distanceKm: this.distanceKm(hotelCoordinates, tour.latitude, tour.longitude),
@@ -464,7 +492,14 @@ export class LocalMateService {
           guide.serviceLongitude,
         ),
       }))
-      .filter((item) => !useHotelRadius || item.distanceKm === null || item.distanceKm <= radiusKm)
+      .filter(
+        (item) =>
+          (!hotel?.provinceCode ||
+            item.guide.operatingRegions.some((region) =>
+              isLocationInProvince(region, hotel.provinceCode!),
+            )) &&
+          (!useHotelRadius || item.distanceKm === null || item.distanceKm <= radiusKm),
+      )
       .sort(
         (left, right) =>
           this.compareDistance(left.distanceKm, right.distanceKm) ||
@@ -497,7 +532,7 @@ export class LocalMateService {
       metadata: {
         totalTours: projectedTours.length,
         totalGuides: projectedGuides.length,
-        destination: query.destination,
+        destination: effectiveDestination,
         query: query.query,
         ...(query.hotelId && { hotelId: query.hotelId }),
         ...(hotel && {
@@ -505,12 +540,17 @@ export class LocalMateService {
             hotelName: hotel.name,
             area: hotel.area,
             province: hotel.province,
+            provinceCode: hotel.provinceCode,
+            requestedDestination,
+            outsideHotelProvince,
             radiusKm,
-            mode: query.destination
-              ? "EXPLICIT_DESTINATION"
-              : useHotelRadius
-                ? "RADIUS"
-                : "ADMINISTRATIVE_FALLBACK",
+            mode: outsideHotelProvince
+              ? "HOTEL_PROVINCE_FALLBACK"
+              : destination
+                ? "HOTEL_PROVINCE_DESTINATION"
+                : useHotelRadius
+                  ? "RADIUS"
+                  : "ADMINISTRATIVE_FALLBACK",
           },
         }),
         ...(query.provinceCode && { provinceCode: query.provinceCode }),

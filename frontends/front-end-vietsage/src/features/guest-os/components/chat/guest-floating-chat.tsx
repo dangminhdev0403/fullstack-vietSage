@@ -26,19 +26,19 @@ type QuickSuggestion = {
 const SUGGESTIONS_BY_LOCALE: Record<string, QuickSuggestion[]> = {
   vi: [
     {
-      id: "tour_mcc",
-      label: "🌾 Tour Mù Cang Chải",
-      query: "Gợi ý cho tôi các tour du lịch Mù Cang Chải ruộng bậc thang đẹp nhất",
+      id: "nearby",
+      label: "📍 Gần khách sạn",
+      query: "Gợi ý trải nghiệm gần khách sạn",
     },
     {
-      id: "hotspring",
-      label: "♨️ Khoáng nóng Trạm Tấu",
-      query: "Trạm Tấu có suối khoáng nóng và điểm săn mây nào nổi bật?",
+      id: "day_tour",
+      label: "🗓️ Tour trong ngày",
+      query: "Gợi ý tour trong ngày gần khách sạn",
     },
     {
       id: "guide",
       label: "🧭 Hướng dẫn viên bản địa",
-      query: "Tôi muốn tìm hiểu các bạn LocalMate hướng dẫn viên bản địa ở Tây Bắc",
+      query: "Gợi ý hướng dẫn viên trong khu vực khách sạn",
     },
     {
       id: "clean",
@@ -68,14 +68,14 @@ const SUGGESTIONS_BY_LOCALE: Record<string, QuickSuggestion[]> = {
   ],
   en: [
     {
-      id: "tour_mcc",
-      label: "🌾 Mu Cang Chai Tours",
-      query: "Can you recommend the best terraced rice fields tours in Mu Cang Chai?",
+      id: "nearby",
+      label: "📍 Near the hotel",
+      query: "Recommend experiences near my hotel",
     },
     {
-      id: "hotspring",
-      label: "♨️ Tram Tau Hot Springs",
-      query: "What are the top hot springs and cloud hunting spots in Tram Tau?",
+      id: "day_tour",
+      label: "🗓️ Day tours",
+      query: "Recommend day tours near my hotel",
     },
     {
       id: "guide",
@@ -110,14 +110,14 @@ const SUGGESTIONS_BY_LOCALE: Record<string, QuickSuggestion[]> = {
   ],
   zh: [
     {
-      id: "tour_mcc",
-      label: "🌾 木江界梯田行程",
-      query: "请推荐木江界最美的梯田旅游线路",
+      id: "nearby",
+      label: "📍 酒店附近",
+      query: "推荐酒店所在省份的附近体验",
     },
     {
-      id: "hotspring",
-      label: "♨️ 站凑温泉与云海",
-      query: "站凑有哪些著名的天然温泉和云海徒步点？",
+      id: "day_tour",
+      label: "🗓️ 一日游",
+      query: "推荐酒店所在省份的一日游",
     },
     {
       id: "guide",
@@ -147,14 +147,14 @@ const SUGGESTIONS_BY_LOCALE: Record<string, QuickSuggestion[]> = {
   ],
   ko: [
     {
-      id: "tour_mcc",
-      label: "🌾 무깡차이 투어",
-      query: "무깡차이 계단식 논 추천 투어 일정을 알려주세요",
+      id: "nearby",
+      label: "📍 호텔 주변",
+      query: "호텔이 위치한 지역의 체험을 추천해 주세요",
     },
     {
-      id: "hotspring",
-      label: "♨️ 짬따우 온천/운해",
-      query: "짬따우 온천과 운해 트레킹 명소를 추천해 주세요",
+      id: "day_tour",
+      label: "🗓️ 당일 투어",
+      query: "호텔이 위치한 지역의 당일 투어를 추천해 주세요",
     },
     {
       id: "guide",
@@ -179,14 +179,14 @@ const SUGGESTIONS_BY_LOCALE: Record<string, QuickSuggestion[]> = {
   ],
   ru: [
     {
-      id: "tour_mcc",
-      label: "🌾 Туры в Мукангчай",
-      query: "Порекомендуйте лучшие туры по рисовым террасам в Мукангчае",
+      id: "nearby",
+      label: "📍 Рядом с отелем",
+      query: "Порекомендуйте места рядом с отелем",
     },
     {
-      id: "hotspring",
-      label: "♨️ Источники Чамтау",
-      query: "Какие горячие источники и смотровые площадки есть в Чамтау?",
+      id: "day_tour",
+      label: "🗓️ Однодневные туры",
+      query: "Порекомендуйте однодневные туры в регионе отеля",
     },
     {
       id: "guide",
@@ -216,14 +216,14 @@ const SUGGESTIONS_BY_LOCALE: Record<string, QuickSuggestion[]> = {
   ],
   hi: [
     {
-      id: "tour_mcc",
-      label: "🌾 मु कांग चाई टूर",
-      query: "मु कांग चाई सीढ़ीदार खेतों के सर्वोत्तम टूर की सिफारिश करें",
+      id: "nearby",
+      label: "📍 होटल के पास",
+      query: "होटल के पास के अनुभव सुझाएं",
     },
     {
-      id: "hotspring",
-      label: "♨️ ट्राम ताउ हॉट स्प्रिंग्स",
-      query: "ट्राम ताउ में प्रसिद्ध गर्म पानी के झरने कौन से हैं?",
+      id: "day_tour",
+      label: "🗓️ एक-दिवसीय यात्रा",
+      query: "होटल के क्षेत्र में एक-दिवसीय यात्रा सुझाएं",
     },
     {
       id: "guide",
@@ -275,7 +275,7 @@ function getWelcomeMessage(locale: GuestLocale, guestName?: string): string {
     case "hi":
       return `नमस्ते${name}! मैं **LocalMate AI और VietSage कंसीयज** हूँ। 🌿\n\nकमरे की सेवाओं और स्थानीय पर्यटन मार्गदर्शन के लिए मैं 24/7 उपलब्ध हूँ। आज मैं आपकी क्या सहायता कर सकता हूँ?`;
     default:
-      return `Dạ xin chào${name}! Em là **LocalMate AI & Trợ lý Lễ tân VietSage**. 🌿\n\nEm luôn sẵn sàng hỗ trợ Quý khách 24/7 về các dịch vụ phòng, lịch trình du lịch bản địa Tây Bắc hoặc kết nối hướng dẫn viên. Quý khách cần hỗ trợ gì hôm nay ạ?`;
+      return `Dạ xin chào${name}! Em là **LocalMate AI & Trợ lý Lễ tân VietSage**. 🌿\n\nEm luôn sẵn sàng hỗ trợ Quý khách 24/7 về dịch vụ phòng, trải nghiệm trong khu vực khách sạn hoặc kết nối hướng dẫn viên. Quý khách cần em hỗ trợ gì hôm nay ạ?`;
   }
 }
 
@@ -359,7 +359,7 @@ function getChatUiText(locale: GuestLocale) {
         readyText: "Trực tuyến",
         bannerText: "Trợ lý du lịch bản địa & Lễ tân 24/7",
         typing: "LocalMate đang soạn câu trả lời...",
-        suggestionsTitle: "Gợi ý nhanh cho bạn:",
+        suggestionsTitle: "Gợi ý nhanh cho Quý khách:",
         suggestionsScroll: "Vuốt ngang xem thêm",
         placeholder: "Hỏi về tour, hướng dẫn viên, tiện ích phòng, Wi-Fi...",
         sendAria: "Gửi tin nhắn",

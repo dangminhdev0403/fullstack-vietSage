@@ -40,11 +40,11 @@ Mọi phản hồi thành công tuân theo format chuẩn của VietSage Core AP
 
 ### 2.1. Truy vấn Kho Tri Thức LocalMate (Structured Knowledge)
 
-Cung cấp dữ liệu tri thức có cấu trúc (gồm cả tour gợi ý và thông tin hướng dẫn viên bản địa) theo địa phương và câu hỏi của khách.
+Cung cấp dữ liệu tri thức có cấu trúc (gồm cả tour gợi ý và thông tin hướng dẫn viên bản địa) theo địa phương và câu hỏi của khách. Khi có `hotelId`, tỉnh của khách sạn là ranh giới bắt buộc: câu hỏi về tỉnh khác chỉ nhận gợi ý trong tỉnh của khách sạn; backend không trả tour hoặc hướng dẫn viên ngoài tỉnh dù dữ liệu đó tồn tại.
 
 - **Endpoint (GET)**: `/localmate/knowledge`
   - **Query Params**:
-    - `query` *(string, optional)*: Câu hỏi hoặc từ khóa của khách (vd: `"gợi ý tour ruộng bậc thang"`).
+    - `query` *(string, optional)*: Toàn bộ câu hỏi đã giới hạn độ dài của khách (vd: `"gợi ý tour ruộng bậc thang"`). Backend tự suy ra điểm đến theo taxonomy canonical và chỉ giữ từ khóa trải nghiệm cần thiết cho tìm kiếm.
     - `destination` *(string, optional)*: Điểm đến (vd: `"Mù Cang Chải"`, `"Yên Bái"`, `"Hà Giang"`).
     - `hotelId` *(string, optional)*: Mốc khách sạn do BFF lấy từ phiên GuestOS đã xác thực; browser không được tự chọn giá trị này.
     - `radiusKm` *(number, optional, default: 50, range: 1–300)*: Bán kính quanh khách sạn; chỉ áp dụng khi khách không nêu `destination` rõ ràng.
@@ -97,6 +97,7 @@ Cung cấp dữ liệu tri thức có cấu trúc (gồm cả tour gợi ý và 
 #### Phạm vi theo vị trí khách sạn
 
 - Backend tự đọc tọa độ khách sạn từ `hotelId`, tạo bounding box có giới hạn, sau đó tính khoảng cách Haversine chính xác.
+- Khi `destination` không được truyền nhưng `query` nêu rõ một điểm đến đã biết, backend dùng điểm đến đó làm phạm vi tường minh. Nếu câu hỏi không nêu điểm đến, `hotelId` là mốc bắt buộc của luồng GuestOS và backend chỉ truy vấn trong bán kính/địa giới fallback tương ứng.
 - Tour và LocalMate trong bán kính được xếp gần nhất trước; mỗi item có `distanceKm` hoặc `null`.
 - `metadata.locationScope` mô tả `hotelName`, `area`, `province`, `radiusKm` và mode `RADIUS`, `EXPLICIT_DESTINATION` hoặc `ADMINISTRATIVE_FALLBACK`.
 - Bản ghi cũ chưa có tọa độ chỉ được fallback trong cùng tỉnh/khu vực; API không tải full list cho n8n tự lọc.

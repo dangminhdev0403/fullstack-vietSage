@@ -16,7 +16,7 @@ Flow:
 
 ```text
 Authenticated webhook
-  -> normalize bounded guest input + trusted hotel context
+  -> normalize bounded guest input + require trusted hotel context
   -> private VietSage Knowledge API (hotel radius; backend-bounded results)
   -> grounded LocalMate model prompt
   -> minimal public chat response
@@ -65,5 +65,6 @@ Before publishing, verify:
 9. Successful execution payload retention stays disabled (`saveDataSuccessExecution: none`).
 10. BFF sends the authenticated session's `hotelId`; n8n forwards `hotelId` and bounded `radiusKm` to the Knowledge API.
 11. Grounding context keeps backend-provided `distanceKm` and `locationScope`; n8n does not fetch a full list or re-filter geography.
+12. n8n forwards the full bounded guest question as `query`; destination detection and location filtering stay canonical in the backend. The hotel's province is a hard recommendation boundary, including for explicit destinations; n8n keeps no duplicate destination taxonomy.
 
 Do not expose the n8n webhook or either secret to browser code. The frontend BFF authenticates the guest session, then calls n8n server-to-server.

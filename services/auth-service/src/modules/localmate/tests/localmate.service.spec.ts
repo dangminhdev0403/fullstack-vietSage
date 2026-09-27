@@ -354,9 +354,30 @@ describe("LocalMateService", () => {
         longitude: 104,
       });
       repository.searchTourKnowledge.mockResolvedValueOnce([
-        { ...mockTours[0], tourCode: "NEAR", latitude: 21.01, longitude: 104.01 },
-        { ...mockTours[0], tourCode: "FAR", latitude: 22, longitude: 105 },
-        { ...mockTours[0], tourCode: "FALLBACK", latitude: null, longitude: null },
+        {
+          ...mockTours[0],
+          tourCode: "NEAR",
+          provinceCode: "YEN_BAI",
+          tourScope: "LOCAL",
+          latitude: 21.01,
+          longitude: 104.01,
+        },
+        {
+          ...mockTours[0],
+          tourCode: "FAR",
+          provinceCode: "YEN_BAI",
+          tourScope: "LOCAL",
+          latitude: 22,
+          longitude: 105,
+        },
+        {
+          ...mockTours[0],
+          tourCode: "FALLBACK",
+          provinceCode: "YEN_BAI",
+          tourScope: "LOCAL",
+          latitude: null,
+          longitude: null,
+        },
       ] as any);
       repository.findQualifiedGuides.mockResolvedValueOnce([
         {
@@ -390,7 +411,7 @@ describe("LocalMateService", () => {
       );
     });
 
-    it("does not apply hotel radius to an explicit destination", async () => {
+    it("uses an in-province destination without applying the hotel radius", async () => {
       repository.findHotelLocation.mockResolvedValueOnce({
         id: "hotel-1",
         name: "Hotel",
@@ -401,7 +422,14 @@ describe("LocalMateService", () => {
         longitude: 104,
       });
       repository.searchTourKnowledge.mockResolvedValueOnce([
-        { ...mockTours[0], latitude: 22, longitude: 105 },
+        {
+          ...mockTours[0],
+          provinceCode: "YEN_BAI",
+          province: "Yên Bái",
+          tourScope: "LOCAL",
+          latitude: 22,
+          longitude: 105,
+        },
       ] as any);
       repository.findQualifiedGuides.mockResolvedValueOnce([
         { ...mockQualifiedGuides[0], serviceLatitude: 22, serviceLongitude: 105 },
@@ -417,6 +445,71 @@ describe("LocalMateService", () => {
       expect(response.guides).toHaveLength(1);
       expect(repository.searchTourKnowledge).toHaveBeenCalledWith(
         expect.objectContaining({ bounds: undefined, limit: 5 }),
+      );
+    });
+
+    it("keeps an out-of-province request inside the hotel's province", async () => {
+      repository.findHotelLocation.mockResolvedValueOnce({
+        id: "hotel-hanoi",
+        name: "Hotel Hà Nội",
+        provinceCode: "HA_NOI",
+        province: "Hà Nội",
+        area: "Hoàn Kiếm",
+        latitude: 21.0285,
+        longitude: 105.8542,
+      });
+
+      const response = await service.getKnowledge({
+        hotelId: "hotel-hanoi",
+        query: "Gợi ý tour Sa Pa",
+        radiusKm: 50,
+      });
+
+      expect(repository.searchTourKnowledge).toHaveBeenCalledWith(
+        expect.objectContaining({
+          destination: undefined,
+          search: undefined,
+          provinceCode: "HA_NOI",
+          fallbackProvinceCode: "HA_NOI",
+          bounds: expect.any(Object),
+        }),
+      );
+      expect(repository.findQualifiedGuides).toHaveBeenCalledWith(
+        expect.objectContaining({ destination: undefined, bounds: expect.any(Object) }),
+      );
+      expect(response.metadata).toEqual(
+        expect.objectContaining({
+          destination: "Hà Nội",
+          locationScope: expect.objectContaining({
+            province: "Hà Nội",
+            requestedDestination: "Sa Pa",
+            outsideHotelProvince: true,
+            mode: "HOTEL_PROVINCE_FALLBACK",
+          }),
+        }),
+      );
+      expect(response.tours).toEqual([]);
+      expect(response.guides).toEqual([]);
+    });
+
+    it("keeps a bounded attraction keyword while resolving the destination", async () => {
+      repository.findHotelLocation.mockResolvedValueOnce({
+        id: "hotel-1",
+        name: "Hotel",
+        provinceCode: "YEN_BAI",
+        province: "Yên Bái",
+        area: "Hồ Thác Bà",
+        latitude: 21,
+        longitude: 104,
+      });
+
+      await service.getKnowledge({
+        query: "Gợi ý khoáng nóng ở Trạm Tấu",
+        hotelId: "hotel-1",
+      });
+
+      expect(repository.searchTourKnowledge).toHaveBeenCalledWith(
+        expect.objectContaining({ destination: "Trạm Tấu", search: "khoáng nóng" }),
       );
     });
 
@@ -489,13 +582,12 @@ describe("LocalMateService", () => {
 
       expect(repository.findHotelLocation).toHaveBeenCalledWith("hotel-thac-ba");
       expect(res.metadata).toHaveProperty("hotelId", "hotel-thac-ba");
-      expect(res.tours.length).toBe(3);
+      expect(res.tours.length).toBe(2);
       // First is local (Hồ Thác Bà / LOCAL)
       expect(res.tours[0].tourCode).toBe("HVTB-0001-23");
       // Second is regional daytrip in Yên Bái
       expect(res.tours[1].tourCode).toBe("HVNT-0003-24");
-      // Third is interprovincial
-      expect(res.tours[2].tourCode).toBe("HVNT-0007-24");
+      expect(res.tours.map((tour) => tour.tourCode)).not.toContain("HVNT-0007-24");
     });
   });
 
