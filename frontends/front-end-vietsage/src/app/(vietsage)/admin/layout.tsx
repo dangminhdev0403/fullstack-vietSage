@@ -10,7 +10,10 @@ import { resolveWorkspacePersona } from "@/features/workspace/utils/workspace-co
 import { WorkspaceProfileProvider } from "@/features/workspace/components/workspace-profile-context";
 
 import { AdminShell } from "./_components/admin-shell";
-import { buildWorkspaceNavigation } from "@/features/workspace/config/workspace-registry";
+import {
+  buildWorkspaceNavigation,
+  getWorkspaceDefinition,
+} from "@/features/workspace/config/workspace-registry";
 
 function redirectToLogin(reason: string): never {
   console.info("[AUTH_REDIRECT_LOGIN_SOURCE]", {
@@ -62,7 +65,11 @@ export default async function AdminLayout({
   return (
     <AuthRefreshGate accessTokenExpiresAt={session.accessTokenExpiresAt}>
       <WorkspaceProfileProvider profileName={context.fullName}>
-        <AdminShell navItems={navItems} subtitle={context.activeRole.name}>
+        <AdminShell
+          definition={getWorkspaceDefinition(persona)}
+          navItems={navItems}
+          subtitle={context.activeRole.name}
+        >
           {children}
         </AdminShell>
       </WorkspaceProfileProvider>

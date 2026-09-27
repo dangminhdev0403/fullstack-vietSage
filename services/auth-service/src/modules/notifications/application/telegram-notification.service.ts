@@ -376,7 +376,7 @@ export class TelegramNotificationService {
     };
   }
 
-  private async callTelegram<T>(method: string, body: unknown): Promise<T> {
+  async callTelegram<T>(method: string, body: unknown): Promise<T> {
     const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
     if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
     const controller = new AbortController();

@@ -25,10 +25,29 @@ import { calculateFeePercentage, calculateOnSiteServiceFee } from "../domain/mar
 
 @Injectable()
 export class MarketplaceOrderService {
+  private static notificationDispatcher?: {
+    dispatchOrderNotification?: (order: unknown) => Promise<void> | void;
+    dispatchOrderCancelledNotification?: (order: unknown) => Promise<void> | void;
+  };
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly portal: ServicePortalService,
   ) {}
+
+  static setNotificationDispatcher(dispatcher: {
+    dispatchOrderNotification?: (order: unknown) => Promise<void> | void;
+    dispatchOrderCancelledNotification?: (order: unknown) => Promise<void> | void;
+  }) {
+    this.notificationDispatcher = dispatcher;
+  }
+
+  setNotificationDispatcher(dispatcher: {
+    dispatchOrderNotification?: (order: unknown) => Promise<void> | void;
+    dispatchOrderCancelledNotification?: (order: unknown) => Promise<void> | void;
+  }) {
+    MarketplaceOrderService.notificationDispatcher = dispatcher;
+  }
 
   async createGuestOrder(
     scope: { hotelId: string; stayId: string; sessionId?: string },
@@ -70,6 +89,40 @@ export class MarketplaceOrderService {
         });
         if (!service) throw new NotFoundException("Không tìm thấy dịch vụ Marketplace");
 
+        if (service.localMateProfileId) {
+          const profile = await tx.localMateProfile.findUnique({
+            where: { id: service.localMateProfileId },
+            select: { id: true, status: true, operatingRegions: true },
+          });
+          if (!profile || profile.status !== "QUALIFIED") {
+            throw new ConflictException("Hướng dẫn viên chưa đủ điều kiện nhận yêu cầu");
+          }
+          const hotel = await tx.hotel.findUnique({
+            where: { id: scope.hotelId },
+            select: { province: true, provinceCode: true },
+          });
+          const rawProvinces = [hotel?.province, hotel?.provinceCode].filter(Boolean) as string[];
+          const normalize = (s: string) =>
+            s
+              .toLowerCase()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .replace(/_/g, " ")
+              .trim();
+          const normalizedHotelProvinces = rawProvinces.map(normalize);
+          const matchesProvince =
+            normalizedHotelProvinces.length === 0 ||
+            profile.operatingRegions.some((r) => {
+              const normR = normalize(r);
+              return normalizedHotelProvinces.some(
+                (hp) => normR.includes(hp) || hp.includes(normR),
+              );
+            });
+          if (!matchesProvince) {
+            throw new ConflictException("Hướng dẫn viên không hoạt động tại khu vực của khách sạn");
+          }
+        }
+
         const reserved =
           service.capacityAvailable == null
             ? 1
@@ -107,6 +160,9 @@ export class MarketplaceOrderService {
             stayId: scope.stayId,
             serviceTenantId: service.serviceTenantId,
             serviceId: service.id,
+            assignedLocalMateProfileId: service.localMateProfileId ?? null,
+            requestedStartAt: body.requestedStartAt ? new Date(body.requestedStartAt) : null,
+            partySize: body.partySize ?? null,
             quantity: body.quantity,
             unitPriceSnapshot: service.unitPrice,
             pricingUnitSnapshot: service.pricingUnit,
@@ -222,6 +278,8 @@ export class MarketplaceOrderService {
             customerTotalAmount: it.customerTotalAmount.toString(),
           })),
         });
+
+        this.notifyOrderCreatedSafely(orderWithDetails);
       }
 
       return created;
@@ -238,6 +296,129 @@ export class MarketplaceOrderService {
       throw error;
     }
   }
+
+  async cancelGuestOrder(
+    scope: { hotelId: string; stayId: string; sessionId?: string },
+    orderId: string,
+    guestNote?: string,
+  ) {
+    const order = await this.prisma.marketplaceOrder.findFirst({
+      where: {
+        id: orderId,
+        hotelId: scope.hotelId,
+        stayId: scope.stayId,
+      },
+      include: {
+        items: true,
+        stay: {
+          select: {
+            guestDisplayName: true,
+            room: { select: { id: true, roomNumber: true } },
+            guestSessions: { select: { id: true }, take: 1, orderBy: { createdAt: "desc" } },
+          },
+        },
+      },
+    });
+    if (!order) {
+      throw new NotFoundException("Không tìm thấy đơn hàng");
+    }
+    if (order.status !== MarketplaceOrderStatus.PENDING) {
+      throw new ConflictException("Chỉ có thể hủy đơn hàng khi đang ở trạng thái chờ xử lý (PENDING)");
+    }
+
+    const cancelledOrder = await this.prisma.$transaction(async (tx) => {
+      const updateResult = await tx.marketplaceOrder.updateMany({
+        where: {
+          id: order.id,
+          version: order.version,
+          status: MarketplaceOrderStatus.PENDING,
+        },
+        data: {
+          status: MarketplaceOrderStatus.CANCELLED,
+          version: { increment: 1 },
+          cancelledAt: new Date(),
+          guestNote: guestNote ?? order.guestNote,
+        },
+      });
+      if (updateResult.count !== 1) {
+        throw new ConflictException("Đơn hàng đã thay đổi trạng thái, vui lòng tải lại");
+      }
+
+      if (order.capacityReservationStatus === CapacityReservationStatus.RESERVED) {
+        await tx.marketplaceService.update({
+          where: { id: order.serviceId },
+          data: {
+            capacityAvailable: { increment: order.quantity },
+            version: { increment: 1 },
+          },
+        });
+        await tx.marketplaceOrder.update({
+          where: { id: order.id },
+          data: {
+            capacityReservationStatus: CapacityReservationStatus.RELEASED,
+          },
+        });
+      }
+
+      await tx.marketplaceOrderEvent.create({
+        data: {
+          orderId: order.id,
+          actorType: MarketplaceOrderActorType.GUEST,
+          fromStatus: MarketplaceOrderStatus.PENDING,
+          toStatus: MarketplaceOrderStatus.CANCELLED,
+          note: guestNote ?? "Khách đã hủy đơn hàng",
+        },
+      });
+
+      return tx.marketplaceOrder.findUnique({
+        where: { id: order.id },
+        include: {
+          items: true,
+          events: { orderBy: { createdAt: "asc" } },
+        },
+      });
+    });
+
+    if (cancelledOrder) {
+      RequestRealtimeEmitter.emitExternalServiceOrderStatusChanged({
+        orderId: cancelledOrder.id,
+        orderNumber: cancelledOrder.orderNumber,
+        hotelId: cancelledOrder.hotelId,
+        stayId: cancelledOrder.stayId,
+        roomId: order.stay?.room?.id ?? undefined,
+        serviceTenantId: cancelledOrder.serviceTenantId,
+        serviceId: cancelledOrder.serviceId,
+        sessionId: order.stay?.guestSessions?.[0]?.id ?? undefined,
+        serviceName: cancelledOrder.serviceNameSnapshot,
+        fromStatus: MarketplaceOrderStatus.PENDING,
+        toStatus: MarketplaceOrderStatus.CANCELLED,
+        version: cancelledOrder.version,
+        actorType: MarketplaceOrderActorType.GUEST,
+        note: guestNote ?? undefined,
+      });
+
+      this.notifyOrderCancelledSafely(cancelledOrder);
+    }
+
+    return cancelledOrder;
+  }
+
+  private notifyOrderCreatedSafely(order: unknown) {
+    try {
+      MarketplaceOrderService.notificationDispatcher?.dispatchOrderNotification?.(order);
+    } catch {
+      // Ignored: external provider failure must not roll back order creation
+    }
+  }
+
+  private notifyOrderCancelledSafely(order: unknown) {
+    try {
+      MarketplaceOrderService.notificationDispatcher?.dispatchOrderCancelledNotification?.(order);
+    } catch {
+      // Ignored: external provider failure must not roll back order cancellation
+    }
+  }
+
 
   async checkoutGuestCart(
     scope: { hotelId: string; stayId: string; sessionId: string },

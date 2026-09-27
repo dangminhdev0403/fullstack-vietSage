@@ -13,6 +13,9 @@ import type {
   MarketplaceServicesPage,
   SyncMarketplaceCartInput,
   UpdateMarketplaceCartItemInput,
+  MarketplaceConversation,
+  MarketplaceConversationMessage,
+  SendMarketplaceConversationMessageInput,
 } from "../types/marketplace-contract";
 
 async function request<T>(sessionToken: string, path: string, init?: RequestInit, locale?: string): Promise<T> {
@@ -41,6 +44,12 @@ export const guestMarketplaceRepository = {
     request<MarketplaceOrder[]>(token, "/api/guest/marketplace/orders", undefined, locale),
   orderDetail: (token: string, orderId: string, locale?: string) =>
     request<MarketplaceOrder>(token, `/api/guest/marketplace/orders/${encodeURIComponent(orderId)}`, undefined, locale),
+  cancelOrder: (token: string, orderId: string, locale?: string) =>
+    request<MarketplaceOrder>(token, `/api/guest/marketplace/orders/${encodeURIComponent(orderId)}/cancel`, { method: "PATCH" }, locale),
+  conversation: (token: string, orderId: string, locale?: string) =>
+    request<MarketplaceConversation>(token, `/api/guest/marketplace/orders/${encodeURIComponent(orderId)}/conversation`, undefined, locale),
+  sendMessage: (token: string, orderId: string, input: SendMarketplaceConversationMessageInput, locale?: string) =>
+    request<MarketplaceConversationMessage>(token, `/api/guest/marketplace/orders/${encodeURIComponent(orderId)}/conversation/messages`, { method: "POST", body: JSON.stringify(input) }, locale),
   cart: (token: string, locale?: string) =>
     request<MarketplaceCart>(token, "/api/guest/marketplace/cart", undefined, locale),
   checkoutCart: (token: string, input: CheckoutMarketplaceCartInput, locale?: string) =>

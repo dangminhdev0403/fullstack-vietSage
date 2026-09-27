@@ -265,13 +265,13 @@ describe("LocalMateService", () => {
 
       // Exact public projection for guides
       expect(response.guides[0]).toEqual({
+        candidateKey: "cand_LM-YB-001",
         guideCode: "LM-YB-001",
         fullName: "Giàng A Pháo",
         avatarUrl: "https://example.com/phao.jpg",
         languages: ["English", "Vietnamese", "H'Mông"],
         operatingRegions: ["Mù Cang Chải", "Trạm Tấu", "Yên Bái"],
         specialties: ["Chụp ảnh flycam", "Trekking đỉnh núi"],
-        dailyRateVnd: 1200000,
         rating: 4.95,
         totalReviews: 48,
         bio: "Local guide Mù Cang Chải",

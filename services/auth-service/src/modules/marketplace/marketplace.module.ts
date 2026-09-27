@@ -16,6 +16,10 @@ import { MarketplaceCategorySheetService } from "./application/marketplace-categ
 import { MarketplaceServiceItemImportAdapter } from "./infrastructure/imports/marketplace-service-item-import.adapter";
 import { ServiceItemImportService } from "./application/service-item-import.service";
 
+import { GuestMarketplaceConversationController } from "./api/guest-marketplace-conversation.controller";
+import { MarketplaceConversationService } from "./application/marketplace-conversation.service";
+import { MarketplaceConversationRepository } from "./infrastructure/marketplace-conversation.repository";
+
 @Module({
   imports: [PropertyModule, GuestOperationsModule, RequestRealtimeModule, ImportModule],
   controllers: [
@@ -23,16 +27,20 @@ import { ServiceItemImportService } from "./application/service-item-import.serv
     ServicePortalController,
     GuestMarketplaceController,
     HotelMarketplaceController,
+    GuestMarketplaceConversationController,
   ],
   providers: [
     MarketplaceAdminService,
     ServicePortalService,
     GuestMarketplaceService,
     MarketplaceOrderService,
+    MarketplaceConversationService,
+    MarketplaceConversationRepository,
     MarketplaceCategoryImportAdapter,
     MarketplaceCategorySheetService,
     MarketplaceServiceItemImportAdapter,
     ServiceItemImportService,
   ],
+  exports: [MarketplaceOrderService, MarketplaceConversationService],
 })
 export class MarketplaceModule {}

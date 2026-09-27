@@ -45,6 +45,14 @@ test("configures dedicated localmate manager workspace and navigation", () => {
     "localmate_manager",
   );
   assert.equal(
+    resolveWorkspacePersona("LOCALMATE"),
+    "localmate_manager",
+  );
+  assert.equal(
+    resolveWorkspacePersona("LOCAL_MATE"),
+    "localmate_manager",
+  );
+  assert.equal(
     getWorkspaceDefinition("localmate_manager").homePath,
     "/admin/localmate/guides",
   );
@@ -69,6 +77,20 @@ test("configures dedicated localmate manager workspace and navigation", () => {
       },
     ],
   );
+
+  // Ensure super_admin / platform_admin does not have localmate items in navigation
+  const platformAdminNav = buildWorkspaceNavigation({
+    persona: "platform_admin",
+    permissions: [
+      "platform.hotels.view",
+      "platform.hotels.manage",
+      "platform.localmate.view",
+      "platform.localmate.manage",
+    ],
+  });
+  const adminNavKeys = platformAdminNav.map((item) => item.key);
+  assert.equal(adminNavKeys.includes("admin.localmate.guides"), false);
+  assert.equal(adminNavKeys.includes("admin.localmate.knowledge"), false);
 });
 
 test("provides service navigation only to configured staff personas", () => {

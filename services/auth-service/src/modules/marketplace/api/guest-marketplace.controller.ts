@@ -200,4 +200,22 @@ export class GuestMarketplaceController {
       parseWithZod(marketplaceOrderIdSchema, id),
     );
   }
+
+  @Patch("orders/:orderId/cancel")
+  cancelOrder(
+    @Req() req: RequestWithGuestSession,
+    @Param("orderId") id: string,
+    @Body() body?: { note?: string },
+  ) {
+    return this.orders.cancelGuestOrder(
+      {
+        hotelId: req.guestSession.hotelId,
+        stayId: req.guestSession.stayId,
+        sessionId: req.guestSession.sessionId,
+      },
+      parseWithZod(marketplaceOrderIdSchema, id),
+      body?.note,
+    );
+  }
 }
+

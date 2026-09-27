@@ -206,6 +206,55 @@ every list/get/send/reply/read API independently enforces the active-stay predic
 `expiresAt = planned checkout + 14 days` for operational cleanup, but checked-out history is not
 returned to staff or a later guest in the same room.
 
+## LocalMate Marketplace order and Web ↔ Telegram bridge flow
+
+LocalMate tour guide bookings use the authoritative `MarketplaceOrder` lifecycle connected to a private Telegram bot bridge:
+
+```txt
+Guest selects LocalMate from AI action card
+  -> POST /guest/marketplace/orders with requestedStartAt, partySize, idempotencyKey
+  -> Transaction validates LocalMate QUALIFIED status, hotel province match, service active link
+  -> Atomically reserve capacity (decrement capacityAvailable)
+  -> Commit MarketplaceOrder with status PENDING, assignedLocalMateProfileId
+  -> RequestRealtimeEmitter emits external_service_order.created to guest session and hotel staff
+  -> TelegramMarketplaceBridgeService sends order card notification to LocalMate private Telegram chat
+     (includes protect_content: true and Inline Keyboard [Accept mo:a:orderId] / [Reject mo:r:orderId])
+
+LocalMate responds in Telegram:
+  Case A: Accepts (mo:a:orderId)
+    -> Webhook validates secret and caller Telegram user/chat against active LocalMateTelegramBinding
+    -> Transaction transitions order PENDING -> ACKNOWLEDGED
+    -> Emits external_service_order.status_changed
+    -> Removes inline buttons, confirms acceptance
+    -> GuestOS receives realtime update and opens LocalMate human chat
+
+  Case B: Rejects (mo:r:orderId)
+    -> Transaction transitions order PENDING -> REJECTED, restores reserved capacity
+    -> Emits external_service_order.status_changed
+    -> GuestOS receives realtime update ("View other choices")
+
+Guest sends chat message:
+  -> POST /guest/marketplace/orders/:orderId/conversation/messages with clientMessageId
+  -> Validates active stay, order is ACKNOWLEDGED
+  -> Appends MarketplaceConversationMessage (idempotent on clientMessageId)
+  -> Realtime fan-out to guest session
+  -> Dispatches to LocalMate Telegram private chat: "💬 Khách nhắn (Đơn MP...): <body_escaped>"
+  -> Saves telegramMessageId on success; schedules exponential retry on transient failure; marks blocked on 403
+
+LocalMate replies in Telegram:
+  -> LocalMate uses native Telegram Reply to the bot message
+  -> Webhook parses message.reply_to_message.message_id
+  -> Resolves target conversation, validates caller identity and ACKNOWLEDGED status
+  -> Idempotent insert by (telegramChatId, telegramMessageId)
+  -> Emits marketplace_conversation.message_created to guest session
+  -> Message displays in GuestOS human chat; NEVER echoes back to Telegram
+
+Guest cancels while PENDING:
+  -> PATCH /guest/marketplace/orders/:orderId/cancel
+  -> Transaction transitions order PENDING -> CANCELLED, restores reserved capacity once
+  -> Emits external_service_order.status_changed
+```
+
 Do not add Kafka/RabbitMQ/Redis streams in V1. Add a broker or outbox worker only after delivery retries, cross-service isolation, or throughput needs are documented.
 
 ## Outbox readiness

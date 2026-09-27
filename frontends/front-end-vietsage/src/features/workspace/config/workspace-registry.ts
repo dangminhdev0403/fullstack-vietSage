@@ -140,6 +140,8 @@ const ROLE_ALIASES: Record<string, WorkspacePersona> = {
   HOTEL_FNB: "front_desk",
   SERVICE_STAFF: "service_partner",
   LOCALMATE_MANAGER: "localmate_manager",
+  LOCALMATE: "localmate_manager",
+  LOCAL_MATE: "localmate_manager",
 };
 
 const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
@@ -211,7 +213,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
   },
   {
     key: "admin.localmate.guides",
-    personas: ["platform_admin", "localmate_manager"],
+    personas: ["localmate_manager"],
     href: "/admin/localmate/guides",
     label: "Hướng dẫn viên",
     icon: "handshake",
@@ -226,7 +228,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
   },
   {
     key: "admin.localmate.knowledge",
-    personas: ["platform_admin", "localmate_manager"],
+    personas: ["localmate_manager"],
     href: "/admin/localmate/knowledge",
     label: "Kho tri thức Tour AI",
     icon: "explore",

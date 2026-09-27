@@ -240,3 +240,10 @@ export const listLocalMateToursQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
 export type ListLocalMateToursQueryDto = z.infer<typeof listLocalMateToursQuerySchema>;
+
+export const resolveBookingCandidateSchema = z.object({
+  candidateKey: z.string().trim().min(1).max(80),
+  hotelId: z.string().trim().min(1).max(80),
+});
+export type ResolveBookingCandidateDto = z.infer<typeof resolveBookingCandidateSchema>;
+

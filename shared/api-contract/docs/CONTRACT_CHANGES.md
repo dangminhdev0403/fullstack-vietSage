@@ -9,6 +9,23 @@
 
 ## Unreleased
 
+- **LocalMate Web ↔ Telegram Bridge & Marketplace Order Conversation**:
+  - Added additive Prisma schema fields: `MarketplaceService.localMateProfileId`, `MarketplaceOrder.assignedLocalMateProfileId`, `MarketplaceOrder.requestedStartAt`, `MarketplaceOrder.partySize`.
+  - Added models: `LocalMateTelegramBinding` (unique private Telegram binding per guide), `LocalMateTelegramPairingToken` (hashed one-time pairing token), `MarketplaceConversation` (unique per order), and `MarketplaceConversationMessage` (bidirectional chat messages with delivery status, retry attempts, and Telegram tracking).
+  - Added guest order conversation endpoints:
+    - `GET /guest/marketplace/orders/:orderId/conversation`: returns conversation state and messages.
+    - `POST /guest/marketplace/orders/:orderId/conversation/messages`: sends trimmed plain-text message (1..1000 chars) with client idempotency key (`clientMessageId`).
+  - Added guest order cancel endpoint:
+    - `PATCH /guest/marketplace/orders/:orderId/cancel`: allows guest to cancel a same-stay `PENDING` order, atomically restoring reserved service capacity.
+  - Added server-side candidate resolution endpoint:
+    - `GET /localmate/ai/booking-candidate/:candidateKey?hotelId=:hotelId`: validates guide qualification, active service link, and hotel province match, returning verified action payload without exposing private guide contact data.
+  - Added bidirectional Telegram bridge:
+    - Order creation dispatches protected order notification card with inline buttons (`mo:a:<orderId>` and `mo:r:<orderId>`).
+    - Webhook routes `mo:` callbacks with Telegram identity validation against active bindings.
+    - Guides reply using native Telegram Reply to route messages back to the exact order conversation; ambiguous no-reply messages prompt for Reply without leaking data; duplicate deliveries are deduplicated by `(telegramChatId, telegramMessageId)`.
+    - Durable DB-backed retry with exponential backoff handles transient Telegram delivery failures; bot blocking marks binding `blockedAt` and ceases retries.
+    - Text-only: strictly excludes WebRTC/audio/video calls and media attachments.
+
 - **Hotel feature entitlements**:
   - Separated actor RBAC capabilities from hotel product entitlements.
   - Added generic `HotelFeatureEntitlement` model keyed by `(hotelId, featureKey)` with status `ENABLED` | `DISABLED`.

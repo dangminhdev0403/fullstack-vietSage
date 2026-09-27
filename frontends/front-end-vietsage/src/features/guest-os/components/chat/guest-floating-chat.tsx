@@ -8,12 +8,17 @@ import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/
 import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
 import type { GuestLocale } from "@/features/guest-os/i18n/config";
 import { GUEST_AI_FLOATING_CHAT, hasHotelFeature } from "@/features/hotel-features/hotel-features";
+import type { GuestChatAction } from "@/features/marketplace/types/marketplace-contract";
+import { LocalMateBookingCard } from "./localmate-booking-card";
+import { LocalMateOrderRequestDialog } from "@/features/marketplace/components/localmate-order-request-dialog";
+import { LocalMateOrderChat } from "@/features/marketplace/components/localmate-order-chat";
 
 type ChatMessage = {
   id: string;
   sender: "guest" | "concierge";
   text: string;
   time: string;
+  action?: GuestChatAction | null;
 };
 
 type QuickSuggestion = {
@@ -479,6 +484,8 @@ export function GuestFloatingChat() {
   );
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [selectedBookingAction, setSelectedBookingAction] = useState<GuestChatAction | null>(null);
+  const [activeChatOrderId, setActiveChatOrderId] = useState<string | null>(null);
 
   const welcomeMessage: ChatMessage = useMemo(
     () => ({
@@ -580,11 +587,14 @@ export function GuestFloatingChat() {
           payload?.data?.reply ||
           getNetworkErrorReply(locale);
 
+        const action = (payload?.action ?? null) as GuestChatAction | null;
+
         const botMsg: ChatMessage = {
           id: `bot-${messageIdRef.current++}`,
           sender: "concierge",
           text: replyText,
           time: getCurrentTimeString(),
+          action,
         };
         setChatHistory((prev) => [...prev, botMsg]);
 
@@ -748,8 +758,16 @@ export function GuestFloatingChat() {
           aria-label="Hộp thoại tin nhắn lễ tân và LocalMate AI"
           className="fixed inset-x-0 bottom-0 top-3 z-50 flex flex-col overflow-hidden rounded-t-[28px] border-t border-[#25483f]/25 bg-[#fffdfa] shadow-[0_-12px_44px_rgba(15,35,30,0.32)] transition-all sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[420px] sm:h-[680px] sm:max-h-[min(720px,calc(100vh-48px))] sm:rounded-3xl sm:border sm:border-[#25483f]/15"
         >
-          {/* Header */}
-          <header className="relative flex flex-col border-b border-[#25483f]/15 bg-gradient-to-r from-[#142823] via-[#1b352e] to-[#264b40] text-white shadow-sm">
+          {activeChatOrderId && sessionToken ? (
+            <LocalMateOrderChat
+              orderId={activeChatOrderId}
+              sessionToken={sessionToken}
+              onBackToAiChat={() => setActiveChatOrderId(null)}
+            />
+          ) : (
+            <>
+              {/* Header */}
+              <header className="relative flex flex-col border-b border-[#25483f]/15 bg-gradient-to-r from-[#142823] via-[#1b352e] to-[#264b40] text-white shadow-sm">
             {/* Mobile Sheet Grabber Handle */}
             <div
               className="flex justify-center pt-2 pb-0.5 sm:hidden cursor-pointer"
@@ -829,6 +847,13 @@ export function GuestFloatingChat() {
                     <div className="break-words space-y-1">
                       {renderFormattedMessage(msg.text)}
                     </div>
+
+                    {!isGuest && msg.action && (
+                      <LocalMateBookingCard
+                        action={msg.action}
+                        onBook={(act) => setSelectedBookingAction(act)}
+                      />
+                    )}
 
                     <span
                       className={`mt-1.5 block text-right text-[10.5px] ${
@@ -932,8 +957,19 @@ export function GuestFloatingChat() {
               <VsIcon name="send" className="text-base" />
             </button>
           </form>
+            </>
+          )}
         </section>
       )}
+
+      {/* Booking Request Dialog */}
+      <LocalMateOrderRequestDialog
+        action={selectedBookingAction}
+        isOpen={Boolean(selectedBookingAction)}
+        onClose={() => setSelectedBookingAction(null)}
+        sessionToken={sessionToken ?? ""}
+        onOpenChat={(orderId) => setActiveChatOrderId(orderId)}
+      />
     </>
   );
 }

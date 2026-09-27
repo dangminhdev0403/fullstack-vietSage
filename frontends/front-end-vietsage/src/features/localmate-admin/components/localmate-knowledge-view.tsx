@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
@@ -220,8 +220,6 @@ export function LocalMateKnowledgeView() {
     setCurrentPage(1);
   };
 
-  const [openMenuTourId, setOpenMenuTourId] = useState<string | null>(null);
-
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -233,23 +231,6 @@ export function LocalMateKnowledgeView() {
   const [durationDays, setDurationDays] = useState<number | string>(1);
   const [durationNights, setDurationNights] = useState<number | string>(0);
   const [mapsUrlInput, setMapsUrlInput] = useState("");
-
-  const menuRef = useRef<HTMLDivElement | null>(null);
-
-  // Close popup menu on outside click
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setOpenMenuTourId(null);
-      }
-    }
-    if (openMenuTourId) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [openMenuTourId]);
 
   // Query
   const resource = localMateAdminResource.bind({});
@@ -408,7 +389,6 @@ export function LocalMateKnowledgeView() {
       latitude: tour.latitude == null ? "" : String(tour.latitude),
       longitude: tour.longitude == null ? "" : String(tour.longitude),
     });
-    setOpenMenuTourId(null);
     setIsTourModalOpen(true);
   };
 
@@ -440,7 +420,6 @@ export function LocalMateKnowledgeView() {
       latitude: tour.latitude == null ? "" : String(tour.latitude),
       longitude: tour.longitude == null ? "" : String(tour.longitude),
     });
-    setOpenMenuTourId(null);
     setIsTourModalOpen(true);
   };
 
@@ -587,7 +566,6 @@ export function LocalMateKnowledgeView() {
 
   // Delete Tour
   const handleDeleteTour = async (tour: LocalMateTourKnowledge) => {
-    setOpenMenuTourId(null);
     const confirmResult = await SwalVietSage.fire({
       title: "Xoá lịch trình tour?",
       text: `Bạn có chắc muốn xoá lịch trình "${tour.title}" (${tour.tourCode})? Hành động này không thể hoàn tác.`,
@@ -889,11 +867,11 @@ export function LocalMateKnowledgeView() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="sticky top-0 z-10 border-b border-stone-200/90 bg-stone-100/90 text-xs font-bold text-stone-700 uppercase tracking-wider">
-                  <th className="px-5 py-3.5 min-w-[360px]">Chương trình Tour</th>
-                  <th className="px-4 py-3.5 min-w-[210px]">Tỉnh thành & Phạm vi</th>
-                  <th className="px-4 py-3.5 min-w-[140px]">Thời lượng</th>
-                  <th className="px-5 py-3.5 w-[110px] min-w-[110px] whitespace-nowrap text-right">Thao tác</th>
+                <tr className="sticky top-0 z-10 border-b border-stone-200/90 bg-stone-50/95 text-[11px] font-bold text-stone-600 uppercase tracking-wider backdrop-blur-xs">
+                  <th className="px-5 py-3.5 min-w-[340px]">Chương trình Tour</th>
+                  <th className="px-4 py-3.5 min-w-[280px]">Tỉnh thành & Phạm vi</th>
+                  <th className="px-4 py-3.5 min-w-[130px]">Thời lượng</th>
+                  <th className="px-5 py-3.5 w-[85px] min-w-[85px] whitespace-nowrap text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
@@ -919,13 +897,21 @@ export function LocalMateKnowledgeView() {
                     <tr
                       key={tour.id}
                       onClick={() => handleOpenEditModal(tour)}
-                      className="group cursor-pointer transition-colors hover:bg-stone-50/80"
+                      className="group cursor-pointer transition-colors hover:bg-stone-50/80 active:bg-stone-100/60"
+                      title="Nhấp vào dòng để chỉnh sửa lịch trình"
                     >
                       {/* Tour Column */}
                       <td className="px-5 py-4 align-top">
                         <div className="flex flex-col gap-1.5">
-                          <div className="font-bold text-sm sm:text-[15px] text-stone-900 group-hover:text-emerald-800 transition-colors leading-snug line-clamp-2">
-                            {tour.title}
+                          <div className="flex items-start gap-2">
+                            {tour.tourCode && (
+                              <span className="font-mono text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded shadow-2xs shrink-0 mt-0.5">
+                                {tour.tourCode}
+                              </span>
+                            )}
+                            <span className="font-bold text-sm sm:text-[14.5px] text-stone-900 group-hover:text-emerald-800 transition-colors leading-snug line-clamp-2">
+                              {tour.title}
+                            </span>
                           </div>
 
                           {hlList.length > 0 && (
@@ -933,10 +919,10 @@ export function LocalMateKnowledgeView() {
                               {hlList.slice(0, 3).map((item, idx) => (
                                 <span
                                   key={idx}
-                                  className="inline-flex items-center gap-1 rounded-md bg-stone-50 border border-stone-200/80 px-2 py-0.5 text-xs text-stone-600 font-medium"
+                                  className="inline-flex items-center gap-1.5 rounded-md bg-stone-50 border border-stone-200/80 px-2 py-0.5 text-xs text-stone-600 font-medium"
                                 >
-                                  <span className="h-1 w-1 rounded-full bg-emerald-600 shrink-0" />
-                                  <span className="truncate max-w-[220px]">{item}</span>
+                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 shrink-0" />
+                                  <span className="truncate max-w-[240px]">{item}</span>
                                 </span>
                               ))}
                               {hlList.length > 3 && (
@@ -950,10 +936,10 @@ export function LocalMateKnowledgeView() {
                       </td>
 
                       {/* Geography & Scope Column */}
-                      <td className="px-4 py-4 align-top">
-                        <div className="flex flex-wrap items-center gap-1.5">
+                      <td className="px-4 py-4 align-top whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
                           {/* Badge Tỉnh */}
-                          <span className="inline-flex items-center gap-1.5 rounded-lg bg-stone-100 border border-stone-200/90 px-2.5 py-1 text-xs font-semibold text-stone-800 shadow-2xs">
+                          <span className="inline-flex items-center gap-1 rounded-lg bg-stone-100 border border-stone-200/90 px-2.5 py-1 text-xs font-semibold text-stone-800 shadow-2xs">
                             <VsIcon name="location_on" className="text-sm text-stone-500" />
                             <span>{provName}</span>
                           </span>
@@ -972,10 +958,10 @@ export function LocalMateKnowledgeView() {
                           {/* GPS Badge */}
                           {hasGps && (
                             <span
-                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 border border-emerald-200 px-2 py-1 text-xs font-semibold text-emerald-800 shadow-2xs"
+                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 border border-emerald-200/80 px-2 py-1 text-xs font-semibold text-emerald-800 shadow-2xs"
                               title={`Tọa độ: ${tour.latitude}, ${tour.longitude}`}
                             >
-                              <VsIcon name="my_location" className="text-xs" />
+                              <VsIcon name="my_location" className="text-xs text-emerald-700" />
                               <span>GPS</span>
                             </span>
                           )}
@@ -984,73 +970,26 @@ export function LocalMateKnowledgeView() {
 
                       {/* Duration Column */}
                       <td className="px-4 py-4 align-top whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50/80 border border-amber-200/90 px-3 py-1.5 text-xs sm:text-[13px] font-semibold text-amber-900 shadow-2xs">
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50/90 border border-amber-200/90 px-3 py-1.5 text-xs font-semibold text-amber-900 shadow-2xs">
                           <VsIcon name="schedule" className="text-sm text-amber-700" />
                           <span>{normalizeTourDuration(tour.duration) || "Chưa rõ"}</span>
                         </span>
                       </td>
 
-                      {/* Action Menu Column */}
+                      {/* Action Column: Chỉ hiện nút Xoá Lịch Trình theo yêu cầu */}
                       <td
-                        className="px-5 py-4 align-top text-right relative"
+                        className="px-5 py-4 align-top text-right whitespace-nowrap"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditModal(tour)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-600 hover:border-emerald-700 hover:text-emerald-800 hover:bg-emerald-50/60 shadow-2xs transition-colors cursor-pointer"
-                            title="Chỉnh sửa lịch trình"
-                          >
-                            <VsIcon name="edit" className="text-sm" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setOpenMenuTourId(
-                                openMenuTourId === tour.id ? null : tour.id,
-                              )
-                            }
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-500 hover:text-stone-800 hover:bg-stone-50 shadow-2xs transition-colors cursor-pointer"
-                            title="Tùy chọn khác"
-                          >
-                            <VsIcon name="more_vert" className="text-base" />
-                          </button>
-                        </div>
-
-                        {/* Floating Popup Menu */}
-                        {openMenuTourId === tour.id && (
-                          <div
-                            ref={menuRef}
-                            className="absolute right-5 top-14 z-20 w-48 rounded-xl border border-stone-200 bg-white py-1.5 shadow-xl shadow-stone-900/10 text-left"
-                          >
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEditModal(tour)}
-                              className="flex min-h-11 w-full items-center gap-2.5 px-3.5 py-2 text-base font-medium text-stone-700 hover:bg-stone-50 hover:text-stone-900 cursor-pointer"
-                            >
-                              <VsIcon name="edit" className="text-base text-stone-400" />
-                              <span>Chỉnh sửa chi tiết</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDuplicateTour(tour)}
-                              className="flex min-h-11 w-full items-center gap-2.5 px-3.5 py-2 text-base font-medium text-stone-700 hover:bg-stone-50 hover:text-stone-900 cursor-pointer"
-                            >
-                              <VsIcon name="content_copy" className="text-base text-stone-400" />
-                              <span>Nhân bản</span>
-                            </button>
-                            <div className="my-1 border-t border-stone-100" />
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteTour(tour)}
-                              className="flex min-h-11 w-full items-center gap-2.5 px-3.5 py-2 text-base font-medium text-rose-600 hover:bg-rose-50 cursor-pointer"
-                            >
-                              <VsIcon name="delete" className="text-base text-rose-500" />
-                              <span>Xoá lịch trình</span>
-                            </button>
-                          </div>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTour(tour)}
+                          className="inline-flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-stone-200/90 bg-white text-stone-400 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 shadow-2xs transition-all cursor-pointer group/del"
+                          title="Xoá lịch trình"
+                          aria-label={`Xoá lịch trình ${tour.title}`}
+                        >
+                          <VsIcon name="delete" className="text-base transition-transform group-hover/del:scale-110" />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -1126,14 +1065,30 @@ export function LocalMateKnowledgeView() {
                   Nạp dữ liệu vào kho tri thức LocalMate AI phục vụ phân vùng gợi ý và tư vấn tự động.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsTourModalOpen(false)}
-                className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition-colors cursor-pointer"
-                aria-label="Đóng"
-              >
-                <VsIcon name="close" className="text-xl" />
-              </button>
+              <div className="flex items-center gap-2">
+                {editingTourId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const currentTour = tours.find((t) => t.id === editingTourId);
+                      if (currentTour) handleDuplicateTour(currentTour);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-100 hover:text-stone-900 transition-colors cursor-pointer"
+                    title="Nhân bản lịch trình này thành một bản sao mới"
+                  >
+                    <VsIcon name="content_copy" className="text-sm" />
+                    <span>Nhân bản</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsTourModalOpen(false)}
+                  className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition-colors cursor-pointer"
+                  aria-label="Đóng"
+                >
+                  <VsIcon name="close" className="text-xl" />
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleSaveTour} className="mt-5 space-y-4.5">

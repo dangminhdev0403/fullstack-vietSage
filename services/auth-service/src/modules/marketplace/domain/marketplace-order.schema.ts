@@ -3,9 +3,23 @@ import { z } from "zod";
 export const createMarketplaceOrderSchema = z.object({
   serviceId: z.string().trim().min(1).max(80),
   quantity: z.number().int().min(1).max(100),
+  requestedStartAt: z.string().trim().datetime().nullish(),
+  partySize: z.number().int().min(1).max(100).nullish(),
   guestNote: z.string().trim().max(500).nullish(),
   idempotencyKey: z.string().trim().min(8).max(120),
 });
+
+export const createLocalMateOrderSchema = z.object({
+  serviceId: z.string().trim().min(1).max(80),
+  quantity: z.number().int().min(1).max(100).default(1),
+  requestedStartAt: z.string().trim().datetime({ message: "requestedStartAt must be a valid ISO datetime" }),
+  partySize: z.number().int().min(1).max(100),
+  guestNote: z.string().trim().max(500).nullish(),
+  idempotencyKey: z.string().trim().min(8).max(120),
+});
+
+export type LocalMateOrderRequest = z.infer<typeof createLocalMateOrderSchema>;
+
 
 export const checkoutCartSchema = z.object({
   idempotencyKey: z.string().trim().min(8).max(120),

@@ -30,20 +30,24 @@ export type ExternalServiceOrderPayload = {
   serviceTenantName?: string | null;
   serviceId: string;
   serviceName: string;
-  status: string;
+  status?: string;
+  fromStatus?: string | null;
+  toStatus?: string | null;
+  actorType?: string | null;
+  note?: string | null;
   hotelStatus?: string | null;
   voucherNumber?: string | null;
-  quantity: number;
-  unitPrice: number | string;
+  quantity?: number;
+  unitPrice?: number | string;
   pricingUnit?: string | null;
   partnerSubtotal?: number | string;
   hotelServiceFeeAmount?: number | string;
   customerTotalAmount?: number | string;
-  totalAmount: number | string;
-  currency: string;
+  totalAmount?: number | string;
+  currency?: string;
   guestNote?: string | null;
-  serviceMode: string;
-  createdAt: string;
+  serviceMode?: string;
+  createdAt?: string;
   updatedAt?: string;
   version?: number;
   items?: ExternalServiceOrderItemPayload[];
@@ -153,6 +157,40 @@ export class RequestRealtimeEmitter {
     }
     this.serverRef?.to(this.guestStayRoom(input.stayId)).emit("conversation.closed", payload);
   }
+
+  static emitMarketplaceConversationMessageCreated(input: {
+    eventId?: string;
+    hotelId: string;
+    stayId: string;
+    sessionId?: string;
+    orderId: string;
+    message: {
+      id: string;
+      orderId: string;
+      senderType: string;
+      body: string;
+      deliveryStatus: string;
+      createdAt: string;
+    };
+  }) {
+    const eventId = input.eventId ?? randomUUID();
+    const payload = {
+      eventId,
+      orderId: input.orderId,
+      message: input.message,
+    };
+    if (input.stayId) {
+      this.serverRef
+        ?.to(this.guestStayRoom(input.stayId))
+        .emit("marketplace_conversation.message_created", payload);
+    }
+    if (input.sessionId) {
+      this.serverRef
+        ?.to(this.guestSessionRoom(input.sessionId))
+        .emit("marketplace_conversation.message_created", payload);
+    }
+  }
+
 
   static emitExternalServiceOrderCreated(
     input: ExternalServiceOrderPayload & { sessionId?: string | null },

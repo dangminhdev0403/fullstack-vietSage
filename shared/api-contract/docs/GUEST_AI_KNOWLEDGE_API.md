@@ -282,6 +282,20 @@ Khi khách hỏi: *"Yêu cầu nước uống của tôi đã có ai mang lên c
 - **Endpoint**: `GET /guest/requests`
 - **Response**: Danh sách các yêu cầu đang thực hiện kèm trạng thái (`CREATED` -> `ACKNOWLEDGED` -> `IN_PROGRESS` -> `COMPLETED`).
 
+### 4.3. Đặt Hướng Dẫn Viên LocalMate (Book LocalMate Action)
+
+Khi khách chọn hướng dẫn viên từ câu trả lời của AI Concierge:
+1. AI trả về action `BOOK_LOCALMATE` kèm `candidateKey` (lấy từ trường `candidateKey` của mảng `guides` trong `/localmate/knowledge`).
+2. BFF GuestOS gọi endpoint xác thực server-side để giải mã và kiểm tra điều kiện hoạt động:
+   - **Endpoint**: `GET /localmate/ai/booking-candidate/:candidateKey?hotelId=:hotelId`
+   - **Xác thực**: Header `X-VietSage-Knowledge-Key` (M2M)
+   - **Response**: Trả về dữ liệu public đã xác minh gồm: `candidateKey`, `guideCode`, `guideName`, `serviceId`, `serviceName`, `priceAmount`, `currency`, `telegramConfigured`, `province`.
+3. GuestOS render card xác nhận `LocalMateBookingCard` và mở popup đặt dịch vụ:
+   - Thu thập ngày giờ hẹn (`requestedStartAt`), số lượng khách (`partySize`), ghi chú (`guestNote`).
+   - Gửi yêu cầu đặt dịch vụ qua `POST /guest/marketplace/orders`.
+   - Đơn hàng vào trạng thái `PENDING`. Thông báo đơn kèm nút Nhận/Từ chối được gửi tới Telegram riêng của LocalMate.
+   - Khi LocalMate nhấn Nhận đơn, đơn chuyển sang `ACKNOWLEDGED` và phòng chat 2 chiều Web ↔ Telegram được kích hoạt.
+
 ---
 
 ## 5. Hướng Dẫn Tích Hợp n8n AI Agent / LangChain

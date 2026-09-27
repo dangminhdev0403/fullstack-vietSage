@@ -7,6 +7,7 @@ import type {
   CreateMarketplaceOrderInput,
   SyncMarketplaceCartInput,
   UpdateMarketplaceCartItemInput,
+  SendMarketplaceConversationMessageInput,
 } from "../types/marketplace-contract";
 
 export const guestMarketplaceResource = createResource<{ sessionToken: string; locale?: string }>()({
@@ -38,12 +39,26 @@ export const guestMarketplaceResource = createResource<{ sessionToken: string; l
       inputKey: () => [],
       queryFn: ({ scope }) => guestMarketplaceRepository.cart(scope.sessionToken, scope.locale),
     }),
+    conversation: defineQuery({
+      inputKey: (input: { orderId: string }) => [input.orderId],
+      queryFn: ({ scope, input }) => guestMarketplaceRepository.conversation(scope.sessionToken, input.orderId, scope.locale),
+    }),
   },
   mutations: {
     order: defineMutation({
       mutationFn: ({ scope, variables }: { scope: { sessionToken: string; locale?: string }; variables: CreateMarketplaceOrderInput }) =>
         guestMarketplaceRepository.order(scope.sessionToken, variables, scope.locale),
       invalidates: [{ type: "query", operation: "orders" }],
+    }),
+    cancelOrder: defineMutation({
+      mutationFn: ({ scope, variables }: { scope: { sessionToken: string; locale?: string }; variables: { orderId: string } }) =>
+        guestMarketplaceRepository.cancelOrder(scope.sessionToken, variables.orderId, scope.locale),
+      invalidates: [{ type: "query", operation: "orders" }, { type: "query", operation: "orderDetail" }],
+    }),
+    sendMessage: defineMutation({
+      mutationFn: ({ scope, variables }: { scope: { sessionToken: string; locale?: string }; variables: { orderId: string; input: SendMarketplaceConversationMessageInput } }) =>
+        guestMarketplaceRepository.sendMessage(scope.sessionToken, variables.orderId, variables.input, scope.locale),
+      invalidates: [{ type: "query", operation: "conversation" }],
     }),
     checkoutCart: defineMutation({
       mutationFn: ({ scope, variables }: { scope: { sessionToken: string; locale?: string }; variables: CheckoutMarketplaceCartInput }) =>

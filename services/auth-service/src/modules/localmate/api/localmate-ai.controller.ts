@@ -25,6 +25,7 @@ import {
   queryLocalMateKnowledgeSchema,
   queryLocalMateKnowledgeOpenApiSchema,
   listLocalMateToursQuerySchema,
+  resolveBookingCandidateSchema,
 } from "../domain/schemas/localmate.schema";
 
 @ApiTags("localmate")
@@ -159,5 +160,28 @@ export class LocalMateAiController {
       rawQuery ?? (destination ? { destination } : {}),
     );
     return this.service.listTours(filters);
+  }
+
+  @SkipAuthorization()
+  @AuthRateLimit("knowledge")
+  @UseGuards(LocalmateKnowledgeKeyGuard)
+  @ApiHeader({
+    name: "X-VietSage-Knowledge-Key",
+    required: true,
+    description: "Dedicated API key for machine-to-machine knowledge access",
+  })
+  @ApiResponse({ status: 200, description: "Resolved LocalMate booking candidate" })
+  @ApiResponse({ status: 404, description: "Guide or service not found" })
+  @ApiResponse({ status: 400, description: "Validation failed or region mismatch" })
+  @ApiQuery({ name: "hotelId", required: true, type: String })
+  @SuccessMessage("Xác thực thông tin LocalMate thành công")
+  @ApiDescript("Xác thực thông tin candidate LocalMate và gói dịch vụ khả dụng từ máy chủ")
+  @Get("booking-candidate/:candidateKey")
+  async resolveBookingCandidate(
+    @Param("candidateKey") candidateKey: string,
+    @Query("hotelId") hotelId: string,
+  ) {
+    const dto = parseWithZod(resolveBookingCandidateSchema, { candidateKey, hotelId });
+    return this.service.resolveBookingCandidate(dto);
   }
 }

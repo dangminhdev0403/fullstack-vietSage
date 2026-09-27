@@ -1,13 +1,35 @@
-import { Body, Controller, ForbiddenException, Headers, Post } from "@nestjs/common";
+import { Body, Controller, ForbiddenException, Headers, Inject, Optional, Post } from "@nestjs/common";
 import { ApiHeader } from "@nestjs/swagger";
 import { timingSafeEqual } from "node:crypto";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import { SkipAuthorization } from "../../../shared/decorators/skip-authorization.decorator";
 import { TelegramNotificationService } from "../application/telegram-notification.service";
+import { TelegramMarketplaceBridgeService } from "../application/telegram-marketplace-bridge.service";
+import { TelegramUpdateSchema } from "../domain/schemas/telegram-update.schema";
+
+export type TelegramPairingDelegate = {
+  handleStartPairing: (input: {
+    token: string;
+    telegramUserId: string;
+    telegramChatId: string;
+    chatType: string;
+  }) => Promise<unknown>;
+};
 
 @Controller("integrations/telegram")
 export class TelegramWebhookController {
-  constructor(private readonly telegramNotificationService: TelegramNotificationService) {}
+  private static pairingDelegate?: TelegramPairingDelegate;
+
+  static setPairingDelegate(delegate: TelegramPairingDelegate | undefined) {
+    this.pairingDelegate = delegate;
+  }
+
+  constructor(
+    private readonly telegramNotificationService: TelegramNotificationService,
+    @Optional()
+    @Inject(TelegramMarketplaceBridgeService)
+    private readonly bridgeService?: TelegramMarketplaceBridgeService,
+  ) {}
 
   @Post("webhook")
   @SkipAuthorization()
@@ -23,15 +45,37 @@ export class TelegramWebhookController {
   ) {
     this.assertWebhookSecret(secret);
 
-    const update = body as {
-      callback_query?: {
-        id: string;
-        data?: string;
-        from?: { id?: number; first_name?: string; last_name?: string; username?: string };
-      };
-    };
+    const parseResult = TelegramUpdateSchema.safeParse(body);
+    if (!parseResult.success) {
+      return { ok: true };
+    }
+
+    const update = parseResult.data;
+
     if (update.callback_query?.id) {
-      await this.telegramNotificationService.handleCallback(update.callback_query);
+      if (update.callback_query.data?.startsWith("mo:") && this.bridgeService) {
+        await this.bridgeService.handleCallbackQuery(update.callback_query);
+      } else {
+        await this.telegramNotificationService.handleCallback(update.callback_query as any);
+      }
+    }
+
+    if (update.message?.text?.startsWith("/start ") && TelegramWebhookController.pairingDelegate) {
+      const token = update.message.text.slice(7).trim();
+      if (token && update.message.chat && update.message.from) {
+        await TelegramWebhookController.pairingDelegate.handleStartPairing({
+          token,
+          telegramUserId: String(update.message.from.id),
+          telegramChatId: String(update.message.chat.id),
+          chatType: update.message.chat.type || "unknown",
+        });
+      }
+    } else if (
+      update.message?.text &&
+      !update.message.text.startsWith("/") &&
+      this.bridgeService
+    ) {
+      await this.bridgeService.handleInboundMessage(update.message);
     }
 
     return { ok: true };

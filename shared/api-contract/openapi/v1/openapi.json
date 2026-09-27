@@ -11198,6 +11198,29 @@
         ]
       }
     },
+    "/guest/marketplace/orders/{orderId}/cancel": {
+      "patch": {
+        "operationId": "GuestMarketplaceController_cancelOrder",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GuestMarketplace"
+        ]
+      }
+    },
     "/hotels/{hotelId}/marketplace/providers": {
       "get": {
         "operationId": "HotelMarketplaceController_providers",
@@ -11525,6 +11548,52 @@
         },
         "tags": [
           "HotelMarketplace"
+        ]
+      }
+    },
+    "/guest/marketplace/orders/{orderId}/conversation": {
+      "get": {
+        "operationId": "GuestMarketplaceConversationController_getConversation",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GuestMarketplaceConversation"
+        ]
+      }
+    },
+    "/guest/marketplace/orders/{orderId}/conversation/messages": {
+      "post": {
+        "operationId": "GuestMarketplaceConversationController_sendMessage",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GuestMarketplaceConversation"
         ]
       }
     },
@@ -13610,6 +13679,94 @@
         },
         "tags": [
           "localmate"
+        ]
+      }
+    },
+    "/localmate/booking-candidate/{candidateKey}": {
+      "get": {
+        "operationId": "LocalMateAiController_resolveBookingCandidate",
+        "parameters": [
+          {
+            "name": "candidateKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-VietSage-Knowledge-Key",
+            "in": "header",
+            "description": "Dedicated API key for machine-to-machine knowledge access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resolved LocalMate booking candidate"
+          },
+          "400": {
+            "description": "Validation failed or region mismatch"
+          },
+          "404": {
+            "description": "Guide or service not found"
+          }
+        },
+        "tags": [
+          "localmate"
+        ]
+      }
+    },
+    "/localmate/telegram/pair": {
+      "post": {
+        "operationId": "LocalMateTelegramController_createPairingLink",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-telegram"
+        ]
+      }
+    },
+    "/localmate/telegram/disconnect": {
+      "post": {
+        "operationId": "LocalMateTelegramController_disconnect",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-telegram"
+        ]
+      }
+    },
+    "/localmate/telegram/status": {
+      "get": {
+        "operationId": "LocalMateTelegramController_getStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-telegram"
         ]
       }
     }

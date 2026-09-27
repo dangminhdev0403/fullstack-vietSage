@@ -416,4 +416,48 @@ export class LocalMateRepository {
       create: { ...data },
     });
   }
+
+  async findActiveServiceForGuide(guideId: string, hotelId: string) {
+    return this.prisma.marketplaceService.findFirst({
+      where: {
+        localMateProfileId: guideId,
+        status: "ACTIVE",
+        OR: [
+          {
+            serviceTenant: {
+              hotelServiceLinks: {
+                some: {
+                  hotelId,
+                  status: "ACTIVE",
+                },
+              },
+            },
+          },
+          {
+            serviceTenant: {
+              hotel: {
+                id: hotelId,
+              },
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        importKey: true,
+        name: true,
+        unitPrice: true,
+        currency: true,
+        pricingUnit: true,
+        capacityAvailable: true,
+      },
+    });
+  }
+
+  async findTelegramBinding(guideId: string) {
+    return this.prisma.localMateTelegramBinding.findUnique({
+      where: { localMateProfileId: guideId },
+    });
+  }
 }
+

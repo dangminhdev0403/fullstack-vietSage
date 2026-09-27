@@ -20,6 +20,7 @@ import type {
   UpdateLocalMateTourDto,
   QueryLocalMateKnowledgeDto,
   ListLocalMateToursQueryDto,
+  ResolveBookingCandidateDto,
 } from "../domain/schemas/localmate.schema";
 import {
   inferProvinceAndScope,
@@ -508,13 +509,13 @@ export class LocalMateService {
       )
       .slice(0, limit)
       .map(({ guide, distanceKm }) => ({
+        candidateKey: `cand_${guide.guideCode}`,
         guideCode: guide.guideCode,
         fullName: guide.fullName,
         avatarUrl: guide.avatarUrl,
         languages: guide.languages,
         operatingRegions: guide.operatingRegions,
         specialties: guide.specialties,
-        dailyRateVnd: guide.dailyRateVnd,
         rating: guide.rating,
         totalReviews: guide.totalReviews,
         bio: guide.bio,
@@ -659,4 +660,101 @@ export class LocalMateService {
       .replace(/(?<!\d)(?:\+?84|0)(?:[\s.-]?\d){8,10}(?!\d)/g, "[REDACTED_PHONE]")
       .replace(/\b\d{9,12}\b/g, "[REDACTED_ID]");
   }
+
+  async resolveBookingCandidate(dto: ResolveBookingCandidateDto) {
+    const rawKey = dto.candidateKey.trim();
+    const guideCode = rawKey.startsWith("cand_") ? rawKey.slice(5) : rawKey;
+    const guide = await this.repository.findGuideByCode(guideCode);
+    if (!guide || guide.status !== LocalMateStatus.QUALIFIED) {
+      throw new NotFoundException(
+        `Hướng dẫn viên '${guideCode}' không tồn tại hoặc chưa đạt điều kiện hợp lệ`,
+      );
+    }
+
+    const hotel = await this.repository.findHotelLocation(dto.hotelId);
+    if (!hotel) {
+      throw new NotFoundException(`Không tìm thấy khách sạn với ID '${dto.hotelId}'`);
+    }
+
+    const normalize = (val: string | null | undefined) =>
+      (val || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[_-]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const hotelProvinceNorm = normalize(hotel.province);
+    const hotelAreaNorm = normalize(hotel.area);
+
+    const regionMatches =
+      (!hotel.provinceCode && !hotel.province && !hotel.area) ||
+      guide.operatingRegions.some((region) => {
+        if (hotel.provinceCode && isLocationInProvince(region, hotel.provinceCode)) {
+          return true;
+        }
+        const regNorm = normalize(region);
+        if (
+          hotelProvinceNorm &&
+          (hotelProvinceNorm.includes(regNorm) || regNorm.includes(hotelProvinceNorm))
+        ) {
+          return true;
+        }
+        if (hotelAreaNorm && (hotelAreaNorm.includes(regNorm) || regNorm.includes(hotelAreaNorm))) {
+          return true;
+        }
+        return false;
+      });
+
+    if (!regionMatches) {
+      throw new BadRequestException(
+        `LocalMate ${guide.fullName} không phục vụ tại khu vực của khách sạn ${hotel.name}`,
+      );
+    }
+
+    const service = await this.repository.findActiveServiceForGuide(guide.id, hotel.id);
+    if (!service) {
+      throw new NotFoundException(
+        `LocalMate ${guide.fullName} hiện chưa có gói dịch vụ hợp lệ tại khách sạn này`,
+      );
+    }
+
+    const telegramBinding = await this.repository.findTelegramBinding(guide.id);
+    const telegramReady = Boolean(
+      telegramBinding && !telegramBinding.revokedAt && !telegramBinding.blockedAt,
+    );
+
+    return {
+      candidateKey: dto.candidateKey,
+      guide: {
+        id: guide.id,
+        guideCode: guide.guideCode,
+        fullName: guide.fullName,
+        avatarUrl: guide.avatarUrl,
+        languages: guide.languages,
+        specialties: guide.specialties,
+        rating: guide.rating,
+        totalReviews: guide.totalReviews,
+      },
+      service: {
+        id: service.id,
+        code: service.importKey ?? "LOCALMATE_SERVICE",
+        name: service.name,
+        price: Number(service.unitPrice),
+        currency: service.currency,
+        unit: service.pricingUnit ?? "tour",
+        minDurationHours: 4,
+        maxPartySize: service.capacityAvailable ?? 6,
+      },
+      hotel: {
+        id: hotel.id,
+        name: hotel.name,
+        province: hotel.province ?? hotel.area ?? "Vietnam",
+      },
+      telegramReady,
+      action: "LOCALMATE_BOOKING" as const,
+    };
+  }
 }
+

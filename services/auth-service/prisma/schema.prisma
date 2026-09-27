@@ -402,37 +402,37 @@ enum CapacityReservationStatus {
 }
 
 model User {
-  id                    String                 @id @default(cuid())
-  email                 String                 @unique @db.VarChar(320)
-  passwordHash          String                 @db.VarChar(255)
-  fullName              String                 @db.VarChar(120)
-  status                UserStatus             @default(ACTIVE)
+  id                    String                     @id @default(cuid())
+  email                 String                     @unique @db.VarChar(320)
+  passwordHash          String                     @db.VarChar(255)
+  fullName              String                     @db.VarChar(120)
+  status                UserStatus                 @default(ACTIVE)
   userType              UserType
   lastLoginAt           DateTime?
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
   userRoles             UserRole[]
   refreshTokens         RefreshToken[]
   authSessions          AuthSession[]
   tenantUsers           TenantUser[]
-  hotelAssignments      HotelStaffAssignment[] @relation("HotelStaffAssignmentUser")
-  assignedHotelStaff    HotelStaffAssignment[] @relation("HotelStaffAssignmentAssignedBy")
-  revokedHotelStaff     HotelStaffAssignment[] @relation("HotelStaffAssignmentRevokedBy")
-  auditLogs             AuditLog[]             @relation("AuditActor")
-  createdStays          GuestStay[]            @relation("GuestStayCreatedBy")
-  closedStays           GuestStay[]            @relation("GuestStayClosedBy")
-  assignedGuestRequests GuestRequest[]         @relation("GuestRequestAssignedTo")
-  guestRequestEvents    GuestRequestEvent[]    @relation("GuestRequestEventActor")
-  sentGuestMessages     GuestMessage[]         @relation("GuestMessageStaffSender")
-  createdFolios         Folio[]                @relation("FolioCreatedBy")
-  closedFolios          Folio[]                @relation("FolioClosedBy")
-  postedFolioItems      FolioItem[]            @relation("FolioItemPostedBy")
-  voidedFolioItems      FolioItem[]            @relation("FolioItemVoidedBy")
-  issuedInvoices        Invoice[]              @relation("InvoiceIssuedBy")
-  paidInvoices          Invoice[]              @relation("InvoicePaidBy")
-  voidedInvoices        Invoice[]              @relation("InvoiceVoidedBy")
-  createdPayments       Payment[]              @relation("PaymentCreatedBy")
-  roomStaffAssignment   HotelRoomStaffAssignment? @relation("HotelRoomStaffUser")
+  hotelAssignments      HotelStaffAssignment[]     @relation("HotelStaffAssignmentUser")
+  assignedHotelStaff    HotelStaffAssignment[]     @relation("HotelStaffAssignmentAssignedBy")
+  revokedHotelStaff     HotelStaffAssignment[]     @relation("HotelStaffAssignmentRevokedBy")
+  auditLogs             AuditLog[]                 @relation("AuditActor")
+  createdStays          GuestStay[]                @relation("GuestStayCreatedBy")
+  closedStays           GuestStay[]                @relation("GuestStayClosedBy")
+  assignedGuestRequests GuestRequest[]             @relation("GuestRequestAssignedTo")
+  guestRequestEvents    GuestRequestEvent[]        @relation("GuestRequestEventActor")
+  sentGuestMessages     GuestMessage[]             @relation("GuestMessageStaffSender")
+  createdFolios         Folio[]                    @relation("FolioCreatedBy")
+  closedFolios          Folio[]                    @relation("FolioClosedBy")
+  postedFolioItems      FolioItem[]                @relation("FolioItemPostedBy")
+  voidedFolioItems      FolioItem[]                @relation("FolioItemVoidedBy")
+  issuedInvoices        Invoice[]                  @relation("InvoiceIssuedBy")
+  paidInvoices          Invoice[]                  @relation("InvoicePaidBy")
+  voidedInvoices        Invoice[]                  @relation("InvoiceVoidedBy")
+  createdPayments       Payment[]                  @relation("PaymentCreatedBy")
+  roomStaffAssignment   HotelRoomStaffAssignment?  @relation("HotelRoomStaffUser")
   assignedRoomStaff     HotelRoomStaffAssignment[] @relation("HotelRoomStaffAssignedBy")
   localMateProfile      LocalMateProfile?          @relation("UserLocalMateProfile")
 }
@@ -573,12 +573,12 @@ model AuthRefreshIdempotency {
 }
 
 model Tenant {
-  id                  String               @id @default(cuid())
-  code                String               @unique @db.VarChar(80)
-  name                String               @db.VarChar(160)
-  type                TenantType           @default(HOTEL)
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+  id                  String                @id @default(cuid())
+  code                String                @unique @db.VarChar(80)
+  name                String                @db.VarChar(160)
+  type                TenantType            @default(HOTEL)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
   tenantUsers         TenantUser[]
   auditLogs           AuditLog[]
   hotel               Hotel?
@@ -586,10 +586,10 @@ model Tenant {
   emergencyCallEvents EmergencyCallEvent[]
   emergencyIncidents  EmergencyIncident[]
   serviceProfile      ServiceTenantProfile?
-  marketplaceServices MarketplaceService[]      @relation("TenantMarketplaceServices")
-  hotelServiceLinks   HotelServiceLink[]        @relation("ServiceTenantHotelLinks")
-  marketplaceOrders  MarketplaceOrder[]        @relation("ServiceTenantMarketplaceOrders")
-  localMateProfiles   LocalMateProfile[]        @relation("TenantLocalMateProfiles")
+  marketplaceServices MarketplaceService[]  @relation("TenantMarketplaceServices")
+  hotelServiceLinks   HotelServiceLink[]    @relation("ServiceTenantHotelLinks")
+  marketplaceOrders   MarketplaceOrder[]    @relation("ServiceTenantMarketplaceOrders")
+  localMateProfiles   LocalMateProfile[]    @relation("TenantLocalMateProfiles")
 }
 
 model TenantUser {
@@ -624,52 +624,52 @@ model AuditLog {
 }
 
 model Hotel {
-  id                       String                        @id @default(cuid())
-  tenantId                 String                        @unique
-  name                     String                        @db.VarChar(160)
-  code                     String                        @db.VarChar(80)
-  brandSettings            Json?
-  googleSheetId            String?                       @unique @db.VarChar(200)
-  googleMapsUrl            String?                       @db.VarChar(500)
-  latitude                 Decimal?                      @db.Decimal(9, 6)
-  longitude                Decimal?                      @db.Decimal(9, 6)
-  locationAccuracyMeters   Float?                        @db.DoublePrecision
-  locationSource           MarketplaceLocationSource?
-  locationVerifiedAt       DateTime?
-  timezone                 String                        @default("Asia/Ho_Chi_Minh") @db.VarChar(80)
-  status                   HotelStatus                   @default(ACTIVE)
-  staffScopeMode           HotelStaffScopeMode           @default(HOTEL_WIDE)
-  provinceCode             String?                       @db.VarChar(40)
-  province                 String?                       @db.VarChar(80)
-  area                     String?                       @db.VarChar(120)
-  createdAt                DateTime                      @default(now())
-  updatedAt                DateTime                      @updatedAt
-  tenant                   Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  rooms                    Room[]
-  roomQRCodes              RoomQRCode[]
-  guestStays               GuestStay[]
-  reservations             Reservation[]
-  guestSessions            GuestSession[]
-  guestRequests            GuestRequest[]
-  guestMessageThreads      GuestMessageThread[]
-  guestMessages            GuestMessage[]
-  notificationRoutes       NotificationRoute[]
-  requestEvents            GuestRequestEvent[]
-  serviceCategories        HotelServiceCategory[]
-  serviceItems             HotelServiceItem[]
-  domainEvents             DomainEvent[]
-  folios                   Folio[]
-  folioItems               FolioItem[]
-  invoices                 Invoice[]
-  payments                 Payment[]
-  paymentTransactions      PaymentTransaction[]
-  staffAssignments         HotelStaffAssignment[]
-  roomStaffAssignments     HotelRoomStaffAssignment[]
-  emergencyLocations       EmergencyLocation[]
-  emergencyCallEvents      EmergencyCallEvent[]
-  emergencyIncidents       EmergencyIncident[]
-  biometricPairings        BiometricWorkstationPairing[]
-  biometricWorkstations    BiometricWorkstation[]
+  id                            String                        @id @default(cuid())
+  tenantId                      String                        @unique
+  name                          String                        @db.VarChar(160)
+  code                          String                        @db.VarChar(80)
+  brandSettings                 Json?
+  googleSheetId                 String?                       @unique @db.VarChar(200)
+  googleMapsUrl                 String?                       @db.VarChar(500)
+  latitude                      Decimal?                      @db.Decimal(9, 6)
+  longitude                     Decimal?                      @db.Decimal(9, 6)
+  locationAccuracyMeters        Float?                        @db.DoublePrecision
+  locationSource                MarketplaceLocationSource?
+  locationVerifiedAt            DateTime?
+  timezone                      String                        @default("Asia/Ho_Chi_Minh") @db.VarChar(80)
+  status                        HotelStatus                   @default(ACTIVE)
+  staffScopeMode                HotelStaffScopeMode           @default(HOTEL_WIDE)
+  provinceCode                  String?                       @db.VarChar(40)
+  province                      String?                       @db.VarChar(80)
+  area                          String?                       @db.VarChar(120)
+  createdAt                     DateTime                      @default(now())
+  updatedAt                     DateTime                      @updatedAt
+  tenant                        Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rooms                         Room[]
+  roomQRCodes                   RoomQRCode[]
+  guestStays                    GuestStay[]
+  reservations                  Reservation[]
+  guestSessions                 GuestSession[]
+  guestRequests                 GuestRequest[]
+  guestMessageThreads           GuestMessageThread[]
+  guestMessages                 GuestMessage[]
+  notificationRoutes            NotificationRoute[]
+  requestEvents                 GuestRequestEvent[]
+  serviceCategories             HotelServiceCategory[]
+  serviceItems                  HotelServiceItem[]
+  domainEvents                  DomainEvent[]
+  folios                        Folio[]
+  folioItems                    FolioItem[]
+  invoices                      Invoice[]
+  payments                      Payment[]
+  paymentTransactions           PaymentTransaction[]
+  staffAssignments              HotelStaffAssignment[]
+  roomStaffAssignments          HotelRoomStaffAssignment[]
+  emergencyLocations            EmergencyLocation[]
+  emergencyCallEvents           EmergencyCallEvent[]
+  emergencyIncidents            EmergencyIncident[]
+  biometricPairings             BiometricWorkstationPairing[]
+  biometricWorkstations         BiometricWorkstation[]
   platformBillingContracts      PlatformBillingContract[]
   platformUsages                PlatformUsage[]
   platformBillableDays          PlatformBillableDay[]
@@ -687,12 +687,12 @@ model Hotel {
 }
 
 model HotelFeatureEntitlement {
-  hotelId     String
-  featureKey  String             @db.VarChar(120)
-  status      HotelFeatureStatus
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  hotel       Hotel               @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  hotelId    String
+  featureKey String             @db.VarChar(120)
+  status     HotelFeatureStatus
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  hotel      Hotel              @relation(fields: [hotelId], references: [id], onDelete: Cascade)
 
   @@id([hotelId, featureKey])
   @@index([featureKey, status])
@@ -700,20 +700,20 @@ model HotelFeatureEntitlement {
 }
 
 model KbttHotelConnection {
-  hotelId            String   @id
-  ciphertext         String
-  iv                 String   @db.VarChar(24)
-  authTag            String   @db.VarChar(32)
-  keyVersion         Int      @default(1)
-  status             String   @default("CONNECTED") @db.VarChar(20)
-  csltId             String   @db.VarChar(32)
-  lastCheckedAt      DateTime
-  lastConnectedAt    DateTime
-  lastErrorCode      String?  @db.VarChar(40)
-  lastErrorMessage   String?  @db.VarChar(200)
-  autoSubmitEnabled  Boolean  @default(false)
-  autoSubmitTime     String?  @db.VarChar(8)
-  hotel              Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  hotelId           String   @id
+  ciphertext        String
+  iv                String   @db.VarChar(24)
+  authTag           String   @db.VarChar(32)
+  keyVersion        Int      @default(1)
+  status            String   @default("CONNECTED") @db.VarChar(20)
+  csltId            String   @db.VarChar(32)
+  lastCheckedAt     DateTime
+  lastConnectedAt   DateTime
+  lastErrorCode     String?  @db.VarChar(40)
+  lastErrorMessage  String?  @db.VarChar(200)
+  autoSubmitEnabled Boolean  @default(false)
+  autoSubmitTime    String?  @db.VarChar(8)
+  hotel             Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
 }
 
 model KbttGuestDeclaration {
@@ -735,9 +735,9 @@ model KbttGuestDeclaration {
   createdAt                   DateTime              @default(now())
   updatedAt                   DateTime              @updatedAt
 
-  hotel                       Hotel                 @relation(fields: [hotelId], references: [id], onDelete: Restrict)
-  stay                        GuestStay             @relation(fields: [stayId], references: [id], onDelete: Restrict)
-  occupant                    GuestStayOccupant     @relation(fields: [occupantId], references: [id], onDelete: Restrict)
+  hotel    Hotel             @relation(fields: [hotelId], references: [id], onDelete: Restrict)
+  stay     GuestStay         @relation(fields: [stayId], references: [id], onDelete: Restrict)
+  occupant GuestStayOccupant @relation(fields: [occupantId], references: [id], onDelete: Restrict)
 
   @@unique([hotelId, stayId, occupantId, revision])
   @@index([hotelId, status])
@@ -746,23 +746,23 @@ model KbttGuestDeclaration {
 }
 
 model KbttAutoSubmitRun {
-  id                 String                   @id @default(cuid())
-  hotelId            String
-  scheduledFor       DateTime
-  status             KbttAutoSubmitRunStatus  @default(RUNNING)
-  leaseExpiresAt     DateTime
-  dryRun             Boolean                  @default(true)
-  totalCount         Int                      @default(0)
-  successCount       Int                      @default(0)
-  failedCount        Int                      @default(0)
-  unknownCount       Int                      @default(0)
-  telegramSent       Boolean                  @default(false)
-  telegramMessageId  String?                  @db.VarChar(64)
-  summaryJson        Json?
-  createdAt          DateTime                 @default(now())
-  updatedAt          DateTime                 @updatedAt
+  id                String                  @id @default(cuid())
+  hotelId           String
+  scheduledFor      DateTime
+  status            KbttAutoSubmitRunStatus @default(RUNNING)
+  leaseExpiresAt    DateTime
+  dryRun            Boolean                 @default(true)
+  totalCount        Int                     @default(0)
+  successCount      Int                     @default(0)
+  failedCount       Int                     @default(0)
+  unknownCount      Int                     @default(0)
+  telegramSent      Boolean                 @default(false)
+  telegramMessageId String?                 @db.VarChar(64)
+  summaryJson       Json?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
 
-  hotel              Hotel                    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
 
   @@unique([hotelId, scheduledFor])
   @@index([hotelId, createdAt])
@@ -902,21 +902,21 @@ model PlatformBillingPeriod {
 }
 
 model PlatformBillingAdjustment {
-  id                   String                   @id @default(cuid())
+  id                   String                  @id @default(cuid())
   contractId           String
   billableDayId        String?
   periodId             String?
-  amount               Decimal                  @db.Decimal(12, 2)
-  currency             String                   @default("VND") @db.VarChar(3)
-  reasonCode           String                   @db.VarChar(80)
-  note                 String?                  @db.VarChar(500)
+  amount               Decimal                 @db.Decimal(12, 2)
+  currency             String                  @default("VND") @db.VarChar(3)
+  reasonCode           String                  @db.VarChar(80)
+  note                 String?                 @db.VarChar(500)
   actorUserId          String?
   reversesAdjustmentId String?
-  idempotencyKey       String                   @db.VarChar(120)
-  createdAt            DateTime                 @default(now())
-  contract             PlatformBillingContract  @relation(fields: [contractId], references: [id], onDelete: Restrict)
-  billableDay          PlatformBillableDay?     @relation(fields: [billableDayId], references: [id], onDelete: SetNull)
-  period               PlatformBillingPeriod?   @relation(fields: [periodId], references: [id], onDelete: SetNull)
+  idempotencyKey       String                  @db.VarChar(120)
+  createdAt            DateTime                @default(now())
+  contract             PlatformBillingContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  billableDay          PlatformBillableDay?    @relation(fields: [billableDayId], references: [id], onDelete: SetNull)
+  period               PlatformBillingPeriod?  @relation(fields: [periodId], references: [id], onDelete: SetNull)
 
   @@unique([contractId, idempotencyKey])
   @@index([contractId, createdAt])
@@ -964,15 +964,15 @@ model HotelStaffAssignment {
   status                HotelStaffAssignmentStatus @default(ACTIVE)
   hasHotelWideRoomScope Boolean                    @default(false)
   assignedAt            DateTime                   @default(now())
-  assignedById String?
-  revokedAt    DateTime?
-  revokedById  String?
-  createdAt    DateTime                   @default(now())
-  updatedAt    DateTime                   @updatedAt
-  user         User                       @relation("HotelStaffAssignmentUser", fields: [userId], references: [id], onDelete: Cascade)
-  hotel        Hotel                      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  assignedBy   User?                      @relation("HotelStaffAssignmentAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
-  revokedBy    User?                      @relation("HotelStaffAssignmentRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+  assignedById          String?
+  revokedAt             DateTime?
+  revokedById           String?
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+  user                  User                       @relation("HotelStaffAssignmentUser", fields: [userId], references: [id], onDelete: Cascade)
+  hotel                 Hotel                      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  assignedBy            User?                      @relation("HotelStaffAssignmentAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  revokedBy             User?                      @relation("HotelStaffAssignmentRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
 
   @@unique([userId, hotelId])
   @@index([userId, status])
@@ -1023,18 +1023,18 @@ model BiometricWorkstation {
 }
 
 model Room {
-  id                    String               @id @default(cuid())
+  id                    String                    @id @default(cuid())
   hotelId               String
-  code                  String               @unique @db.VarChar(80)
-  roomNumber            String               @db.VarChar(40)
-  floor                 String?              @db.VarChar(40)
-  type                  String?              @db.VarChar(80)
-  price                 Decimal?             @db.Decimal(12, 2)
+  code                  String                    @unique @db.VarChar(80)
+  roomNumber            String                    @db.VarChar(40)
+  floor                 String?                   @db.VarChar(40)
+  type                  String?                   @db.VarChar(80)
+  price                 Decimal?                  @db.Decimal(12, 2)
   maxActiveGuestDevices Int?
-  status                RoomStatus           @default(AVAILABLE)
-  createdAt             DateTime             @default(now())
-  updatedAt             DateTime             @updatedAt
-  hotel                 Hotel                @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  status                RoomStatus                @default(AVAILABLE)
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  hotel                 Hotel                     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   qrCodes               RoomQRCode[]
   guestStays            GuestStay[]
   reservations          Reservation[]
@@ -1099,44 +1099,44 @@ model Reservation {
 }
 
 model GuestStay {
-  id                  String               @id @default(cuid())
-  reservationId       String?              @unique
-  hotelId             String
-  roomId              String
-  reservationCode     String               @db.VarChar(80)
-  guestDisplayName    String               @db.VarChar(120)
-  guestPhone          String?              @db.VarChar(40)
-  guestIdentityNumber String?              @db.VarChar(32)
-  guestDateOfBirth    String?              @db.VarChar(20)
-  guestGender         String?              @db.VarChar(20)
-  guestNationality    String?              @db.VarChar(80)
-  guestResidencePlace String?              @db.VarChar(500)
-  status              GuestStayStatus      @default(RESERVED)
-  plannedCheckInAt    DateTime
-  plannedCheckOutAt   DateTime
-  checkedInAt         DateTime?
-  activatedAt         DateTime?
-  checkedOutAt        DateTime?
-  accessCodeHash      String?              @db.VarChar(64)
-  accessCodeExpiresAt DateTime?
-  createdByUserId     String?
-  closedByUserId      String?
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  hotel               Hotel                @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  room                Room                 @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  reservation         Reservation?         @relation(fields: [reservationId], references: [id], onDelete: SetNull)
-  createdBy           User?                @relation("GuestStayCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  closedBy            User?                @relation("GuestStayClosedBy", fields: [closedByUserId], references: [id], onDelete: SetNull)
-  guestSessions       GuestSession[]
-  guestRequests       GuestRequest[]
-  guestMessages       GuestMessage[]
-  folios              Folio[]
-  folioItems          FolioItem[]
-  invoices            Invoice[]
-  payments            Payment[]
-  messageThreads      GuestMessageThread[]
-  occupants           GuestStayOccupant[]
+  id                          String                       @id @default(cuid())
+  reservationId               String?                      @unique
+  hotelId                     String
+  roomId                      String
+  reservationCode             String                       @db.VarChar(80)
+  guestDisplayName            String                       @db.VarChar(120)
+  guestPhone                  String?                      @db.VarChar(40)
+  guestIdentityNumber         String?                      @db.VarChar(32)
+  guestDateOfBirth            String?                      @db.VarChar(20)
+  guestGender                 String?                      @db.VarChar(20)
+  guestNationality            String?                      @db.VarChar(80)
+  guestResidencePlace         String?                      @db.VarChar(500)
+  status                      GuestStayStatus              @default(RESERVED)
+  plannedCheckInAt            DateTime
+  plannedCheckOutAt           DateTime
+  checkedInAt                 DateTime?
+  activatedAt                 DateTime?
+  checkedOutAt                DateTime?
+  accessCodeHash              String?                      @db.VarChar(64)
+  accessCodeExpiresAt         DateTime?
+  createdByUserId             String?
+  closedByUserId              String?
+  createdAt                   DateTime                     @default(now())
+  updatedAt                   DateTime                     @updatedAt
+  hotel                       Hotel                        @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room                        Room                         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  reservation                 Reservation?                 @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  createdBy                   User?                        @relation("GuestStayCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  closedBy                    User?                        @relation("GuestStayClosedBy", fields: [closedByUserId], references: [id], onDelete: SetNull)
+  guestSessions               GuestSession[]
+  guestRequests               GuestRequest[]
+  guestMessages               GuestMessage[]
+  folios                      Folio[]
+  folioItems                  FolioItem[]
+  invoices                    Invoice[]
+  payments                    Payment[]
+  messageThreads              GuestMessageThread[]
+  occupants                   GuestStayOccupant[]
   localPartnerBookingRequests LocalPartnerBookingRequest[]
   localPartnerInteractionLogs LocalPartnerInteractionLog[]
   marketplaceOrders           MarketplaceOrder[]
@@ -1870,47 +1870,47 @@ enum LocalPartnerInteractionType {
 }
 
 model LocalPartnerCategory {
-  id          String         @id @default(cuid())
-  code        String         @unique @db.VarChar(80)
-  nameVi      String         @db.VarChar(120)
-  nameEn      String         @db.VarChar(120)
-  icon        String         @db.VarChar(80)
-  sortOrder   Int            @default(0)
-  isActive    Boolean        @default(true)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  partners    LocalPartner[]
+  id        String         @id @default(cuid())
+  code      String         @unique @db.VarChar(80)
+  nameVi    String         @db.VarChar(120)
+  nameEn    String         @db.VarChar(120)
+  icon      String         @db.VarChar(80)
+  sortOrder Int            @default(0)
+  isActive  Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  partners  LocalPartner[]
 
   @@index([sortOrder, isActive])
 }
 
 model LocalPartner {
-  id                 String                       @id @default(cuid())
-  hotelId            String
-  categoryId         String
-  name               String                       @db.VarChar(160)
-  description        String?                      @db.VarChar(1000)
-  address            String                       @db.VarChar(255)
-  latitude           Float?
-  longitude          Float?
-  distanceMeters     Int?
-  phone              String?                      @db.VarChar(40)
-  zaloUrl            String?                      @db.VarChar(255)
-  websiteUrl         String?                      @db.VarChar(255)
-  googleMapUrl       String?                      @db.VarChar(500)
-  coverImageUrl      String?                      @db.VarChar(500)
-  images             String[]
-  operatingHours     String?                      @db.VarChar(160)
-  status             LocalPartnerStatus           @default(ACTIVE)
-  isFeatured         Boolean                      @default(false)
-  sortOrder          Int                          @default(0)
-  createdAt          DateTime                     @default(now())
-  updatedAt          DateTime                     @updatedAt
-  hotel              Hotel                        @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  category           LocalPartnerCategory         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  offers             LocalPartnerOffer[]
-  bookingRequests    LocalPartnerBookingRequest[]
-  interactionLogs    LocalPartnerInteractionLog[]
+  id              String                       @id @default(cuid())
+  hotelId         String
+  categoryId      String
+  name            String                       @db.VarChar(160)
+  description     String?                      @db.VarChar(1000)
+  address         String                       @db.VarChar(255)
+  latitude        Float?
+  longitude       Float?
+  distanceMeters  Int?
+  phone           String?                      @db.VarChar(40)
+  zaloUrl         String?                      @db.VarChar(255)
+  websiteUrl      String?                      @db.VarChar(255)
+  googleMapUrl    String?                      @db.VarChar(500)
+  coverImageUrl   String?                      @db.VarChar(500)
+  images          String[]
+  operatingHours  String?                      @db.VarChar(160)
+  status          LocalPartnerStatus           @default(ACTIVE)
+  isFeatured      Boolean                      @default(false)
+  sortOrder       Int                          @default(0)
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
+  hotel           Hotel                        @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  category        LocalPartnerCategory         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  offers          LocalPartnerOffer[]
+  bookingRequests LocalPartnerBookingRequest[]
+  interactionLogs LocalPartnerInteractionLog[]
 
   @@index([hotelId, status, sortOrder])
   @@index([categoryId, status])
@@ -1963,56 +1963,56 @@ model LocalPartnerBookingRequest {
 }
 
 model LocalPartnerInteractionLog {
-  id          String                      @id @default(cuid())
-  hotelId     String
-  stayId      String?
-  partnerId   String
-  actionType  LocalPartnerInteractionType
-  createdAt   DateTime                    @default(now())
-  hotel       Hotel                       @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  stay        GuestStay?                  @relation(fields: [stayId], references: [id], onDelete: SetNull)
-  partner     LocalPartner                @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  id         String                      @id @default(cuid())
+  hotelId    String
+  stayId     String?
+  partnerId  String
+  actionType LocalPartnerInteractionType
+  createdAt  DateTime                    @default(now())
+  hotel      Hotel                       @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  stay       GuestStay?                  @relation(fields: [stayId], references: [id], onDelete: SetNull)
+  partner    LocalPartner                @relation(fields: [partnerId], references: [id], onDelete: Cascade)
 
   @@index([hotelId, partnerId, createdAt])
   @@index([actionType, createdAt])
 }
 
 model ServiceTenantProfile {
-  tenantId             String                    @id
-  displayName          String                    @db.VarChar(160)
-  description          String?                   @db.VarChar(1000)
-  phone                String?                   @db.VarChar(40)
-  address              String?                   @db.VarChar(255)
-  googleMapsUrl        String?                   @db.VarChar(500)
-  googleSheetsUrl      String?                   @db.VarChar(500)
-  latitude             Decimal?                  @db.Decimal(9, 6)
-  longitude            Decimal?                  @db.Decimal(9, 6)
-  locationAccuracyMeters Float?                    @db.DoublePrecision
-  locationSource     MarketplaceLocationSource?
-  locationVerifiedAt DateTime?
-  coverImageUrl        String?                   @db.VarChar(500)
-  deliveryServiceFeeRate Decimal?                @db.Decimal(5, 2)
-  status               MarketplaceRecordStatus   @default(DRAFT)
-  createdAt            DateTime                  @default(now())
-  updatedAt            DateTime                  @updatedAt
-  categoryId           String?
-  tenant               Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  category             MarketplaceCategory?     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  tenantId               String                     @id
+  displayName            String                     @db.VarChar(160)
+  description            String?                    @db.VarChar(1000)
+  phone                  String?                    @db.VarChar(40)
+  address                String?                    @db.VarChar(255)
+  googleMapsUrl          String?                    @db.VarChar(500)
+  googleSheetsUrl        String?                    @db.VarChar(500)
+  latitude               Decimal?                   @db.Decimal(9, 6)
+  longitude              Decimal?                   @db.Decimal(9, 6)
+  locationAccuracyMeters Float?                     @db.DoublePrecision
+  locationSource         MarketplaceLocationSource?
+  locationVerifiedAt     DateTime?
+  coverImageUrl          String?                    @db.VarChar(500)
+  deliveryServiceFeeRate Decimal?                   @db.Decimal(5, 2)
+  status                 MarketplaceRecordStatus    @default(DRAFT)
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
+  categoryId             String?
+  tenant                 Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category               MarketplaceCategory?       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
   @@index([categoryId, status])
 }
 
 model MarketplaceCategory {
-  id           String                           @id @default(cuid())
-  code         String                           @unique @db.VarChar(80)
-  importKey    String?                          @unique @db.VarChar(80)
-  nameVi       String                           @db.VarChar(120)
-  sortOrder    Int                              @default(0)
-  isActive     Boolean                          @default(true)
-  createdAt    DateTime                         @default(now())
-  updatedAt    DateTime                         @updatedAt
-  translations MarketplaceCategoryTranslation[]
-  services     MarketplaceService[]
+  id             String                           @id @default(cuid())
+  code           String                           @unique @db.VarChar(80)
+  importKey      String?                          @unique @db.VarChar(80)
+  nameVi         String                           @db.VarChar(120)
+  sortOrder      Int                              @default(0)
+  isActive       Boolean                          @default(true)
+  createdAt      DateTime                         @default(now())
+  updatedAt      DateTime                         @updatedAt
+  translations   MarketplaceCategoryTranslation[]
+  services       MarketplaceService[]
   serviceTenants ServiceTenantProfile[]
 
   @@index([isActive, sortOrder])
@@ -2032,34 +2032,37 @@ model MarketplaceCategoryTranslation {
 }
 
 model MarketplaceService {
-  id                String                 @id @default(cuid())
-  serviceTenantId   String
-  importKey         String?              @db.VarChar(120)
-  categoryId        String
-  name              String                 @db.VarChar(160)
-  description       String?                @db.VarChar(1000)
-  unitPrice         Decimal                @db.Decimal(12, 2)
-  pricingUnit       String?                @db.VarChar(32)
-  currency          String                 @default("VND") @db.Char(3)
-  imageUrls         String[]
-  mode              MarketplaceServiceMode
-  capacityAvailable Int?
-  waitingMinutes    Int                    @default(0)
-  status            MarketplaceRecordStatus @default(DRAFT)
-  version           Int                    @default(1)
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
-  serviceTenant     Tenant                 @relation("TenantMarketplaceServices", fields: [serviceTenantId], references: [id], onDelete: Cascade)
-  category          MarketplaceCategory    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  orders            MarketplaceOrder[]
-  orderItems        MarketplaceOrderItem[]
-  cartItems         GuestCartItem[]
-  translations      MarketplaceServiceTranslation[]
+  id                 String                          @id @default(cuid())
+  serviceTenantId    String
+  importKey          String?                         @db.VarChar(120)
+  categoryId         String
+  name               String                          @db.VarChar(160)
+  description        String?                         @db.VarChar(1000)
+  unitPrice          Decimal                         @db.Decimal(12, 2)
+  pricingUnit        String?                         @db.VarChar(32)
+  currency           String                          @default("VND") @db.Char(3)
+  imageUrls          String[]
+  mode               MarketplaceServiceMode
+  capacityAvailable  Int?
+  waitingMinutes     Int                             @default(0)
+  status             MarketplaceRecordStatus         @default(DRAFT)
+  version            Int                             @default(1)
+  createdAt          DateTime                        @default(now())
+  updatedAt          DateTime                        @updatedAt
+  serviceTenant      Tenant                          @relation("TenantMarketplaceServices", fields: [serviceTenantId], references: [id], onDelete: Cascade)
+  category           MarketplaceCategory             @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  localMateProfileId String?
+  localMateProfile   LocalMateProfile?               @relation(fields: [localMateProfileId], references: [id], onDelete: SetNull)
+  orders             MarketplaceOrder[]
+  orderItems         MarketplaceOrderItem[]
+  cartItems          GuestCartItem[]
+  translations       MarketplaceServiceTranslation[]
 
   @@unique([serviceTenantId, importKey])
   @@index([serviceTenantId, status, updatedAt])
   @@index([categoryId, status])
   @@index([status])
+  @@index([localMateProfileId])
 }
 
 model MarketplaceServiceTranslation {
@@ -2096,9 +2099,9 @@ model HotelServiceLink {
 model MarketplacePricingConfig {
   id                     String   @id @default("default") @db.VarChar(20)
   deliveryServiceFeeRate Decimal  @default(10.00) @db.Decimal(5, 2)
-  updatedBy               String?  @db.VarChar(80)
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  updatedBy              String?  @db.VarChar(80)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 }
 
 enum MarketplaceSettlementStatus {
@@ -2166,47 +2169,53 @@ model ServiceVoucher {
 }
 
 model MarketplaceOrder {
-  id                        String                    @id @default(cuid())
-  orderNumber               String                    @unique @db.VarChar(32)
-  idempotencyKey            String                    @db.VarChar(120)
-  hotelId                   String
-  stayId                    String
-  serviceTenantId           String
-  serviceId                 String
-  quantity                  Int
-  unitPriceSnapshot         Decimal                   @db.Decimal(12, 2)
-  pricingUnitSnapshot       String?                   @db.VarChar(32)
-  partnerSubtotal           Decimal                   @default(0) @db.Decimal(12, 2)
-  hotelServiceFeeAmount     Decimal                   @default(0) @db.Decimal(12, 2)
-  customerTotalAmount       Decimal                   @default(0) @db.Decimal(12, 2)
-  totalAmount               Decimal                   @db.Decimal(12, 2)
-  currency                  String                    @db.Char(3)
-  serviceNameSnapshot       String                    @db.VarChar(160)
-  serviceModeSnapshot       MarketplaceServiceMode
-  waitingMinutesSnapshot    Int
-  guestNote                 String?                   @db.VarChar(500)
-  status                    MarketplaceOrderStatus    @default(PENDING)
-  hotelCoordinationStatus   HotelCoordinationStatus   @default(RECEIVED)
-  capacityReservationStatus CapacityReservationStatus
-  version                   Int                       @default(1)
-  completedAt               DateTime?
-  cancelledAt               DateTime?
-  createdAt                 DateTime                  @default(now())
-  updatedAt                 DateTime                  @updatedAt
-  hotel                     Hotel                     @relation(fields: [hotelId], references: [id], onDelete: Restrict)
-  stay                      GuestStay                 @relation(fields: [stayId], references: [id], onDelete: Restrict)
-  serviceTenant             Tenant                    @relation("ServiceTenantMarketplaceOrders", fields: [serviceTenantId], references: [id], onDelete: Restrict)
-  service                   MarketplaceService        @relation(fields: [serviceId], references: [id], onDelete: Restrict)
-  items                     MarketplaceOrderItem[]
-  events                    MarketplaceOrderEvent[]
-  revenue                   MarketplaceRevenueEntry?
-  settlement                MarketplaceSettlement?
-  voucher                   ServiceVoucher?
+  id                         String                    @id @default(cuid())
+  orderNumber                String                    @unique @db.VarChar(32)
+  idempotencyKey             String                    @db.VarChar(120)
+  hotelId                    String
+  stayId                     String
+  serviceTenantId            String
+  serviceId                  String
+  quantity                   Int
+  unitPriceSnapshot          Decimal                   @db.Decimal(12, 2)
+  pricingUnitSnapshot        String?                   @db.VarChar(32)
+  partnerSubtotal            Decimal                   @default(0) @db.Decimal(12, 2)
+  hotelServiceFeeAmount      Decimal                   @default(0) @db.Decimal(12, 2)
+  customerTotalAmount        Decimal                   @default(0) @db.Decimal(12, 2)
+  totalAmount                Decimal                   @db.Decimal(12, 2)
+  currency                   String                    @db.Char(3)
+  serviceNameSnapshot        String                    @db.VarChar(160)
+  serviceModeSnapshot        MarketplaceServiceMode
+  waitingMinutesSnapshot     Int
+  guestNote                  String?                   @db.VarChar(500)
+  status                     MarketplaceOrderStatus    @default(PENDING)
+  hotelCoordinationStatus    HotelCoordinationStatus   @default(RECEIVED)
+  capacityReservationStatus  CapacityReservationStatus
+  version                    Int                       @default(1)
+  completedAt                DateTime?
+  cancelledAt                DateTime?
+  createdAt                  DateTime                  @default(now())
+  updatedAt                  DateTime                  @updatedAt
+  hotel                      Hotel                     @relation(fields: [hotelId], references: [id], onDelete: Restrict)
+  stay                       GuestStay                 @relation(fields: [stayId], references: [id], onDelete: Restrict)
+  serviceTenant              Tenant                    @relation("ServiceTenantMarketplaceOrders", fields: [serviceTenantId], references: [id], onDelete: Restrict)
+  service                    MarketplaceService        @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  assignedLocalMateProfileId String?
+  requestedStartAt           DateTime?
+  partySize                  Int?
+  assignedLocalMateProfile   LocalMateProfile?         @relation(fields: [assignedLocalMateProfileId], references: [id], onDelete: SetNull)
+  items                      MarketplaceOrderItem[]
+  events                     MarketplaceOrderEvent[]
+  revenue                    MarketplaceRevenueEntry?
+  settlement                 MarketplaceSettlement?
+  voucher                    ServiceVoucher?
+  conversation               MarketplaceConversation?
 
   @@unique([stayId, idempotencyKey])
   @@index([serviceTenantId, status, createdAt])
   @@index([hotelId, status, createdAt])
   @@index([stayId, createdAt])
+  @@index([assignedLocalMateProfileId])
 }
 
 model MarketplaceOrderItem {
@@ -2295,29 +2304,33 @@ model GuestCartItem {
 }
 
 model LocalMateProfile {
-  id               String          @id @default(cuid())
-  userId           String?         @unique
-  tenantId         String?
-  guideCode        String          @unique @db.VarChar(40)
-  fullName         String          @db.VarChar(120)
-  phone            String          @db.VarChar(40)
-  email            String?         @db.VarChar(120)
-  avatarUrl        String          @db.VarChar(500)
-  status           LocalMateStatus @default(PENDING)
-  position         String          @default("GUIDE") @db.VarChar(80)
-  languages        String[]
-  operatingRegions String[]
-  specialties      String[]
-  bio              String?         @db.VarChar(1000)
-  serviceLatitude  Decimal?        @db.Decimal(9, 6)
-  serviceLongitude Decimal?        @db.Decimal(9, 6)
-  dailyRateVnd     Int             @default(1000000)
-  rating           Float           @default(5.0)
-  totalReviews     Int             @default(0)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  user             User?           @relation("UserLocalMateProfile", fields: [userId], references: [id], onDelete: SetNull)
-  tenant           Tenant?         @relation("TenantLocalMateProfiles", fields: [tenantId], references: [id], onDelete: SetNull)
+  id                    String                          @id @default(cuid())
+  userId                String?                         @unique
+  tenantId              String?
+  guideCode             String                          @unique @db.VarChar(40)
+  fullName              String                          @db.VarChar(120)
+  phone                 String                          @db.VarChar(40)
+  email                 String?                         @db.VarChar(120)
+  avatarUrl             String                          @db.VarChar(500)
+  status                LocalMateStatus                 @default(PENDING)
+  position              String                          @default("GUIDE") @db.VarChar(80)
+  languages             String[]
+  operatingRegions      String[]
+  specialties           String[]
+  bio                   String?                         @db.VarChar(1000)
+  serviceLatitude       Decimal?                        @db.Decimal(9, 6)
+  serviceLongitude      Decimal?                        @db.Decimal(9, 6)
+  dailyRateVnd          Int                             @default(1000000)
+  rating                Float                           @default(5.0)
+  totalReviews          Int                             @default(0)
+  createdAt             DateTime                        @default(now())
+  updatedAt             DateTime                        @updatedAt
+  user                  User?                           @relation("UserLocalMateProfile", fields: [userId], references: [id], onDelete: SetNull)
+  tenant                Tenant?                         @relation("TenantLocalMateProfiles", fields: [tenantId], references: [id], onDelete: SetNull)
+  marketplaceServices   MarketplaceService[]
+  marketplaceOrders     MarketplaceOrder[]
+  telegramBinding       LocalMateTelegramBinding?
+  telegramPairingTokens LocalMateTelegramPairingToken[]
 
   @@index([status])
   @@index([guideCode])
@@ -2356,3 +2369,83 @@ model LocalMateTourKnowledge {
   @@index([latitude, longitude])
 }
 
+enum MarketplaceMessageDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  RECEIVED
+}
+
+model LocalMateTelegramBinding {
+  id                 String           @id @default(cuid())
+  localMateProfileId String           @unique
+  telegramUserId     String           @db.VarChar(128)
+  telegramChatId     String           @db.VarChar(128)
+  pairedAt           DateTime         @default(now())
+  revokedAt          DateTime?
+  blockedAt          DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  localMateProfile   LocalMateProfile @relation(fields: [localMateProfileId], references: [id], onDelete: Cascade)
+
+  @@index([telegramUserId])
+  @@index([telegramChatId])
+  @@index([localMateProfileId, revokedAt, blockedAt])
+}
+
+model LocalMateTelegramPairingToken {
+  id                 String           @id @default(cuid())
+  localMateProfileId String
+  tokenHash          String           @unique @db.VarChar(64)
+  expiresAt          DateTime
+  consumedAt         DateTime?
+  createdAt          DateTime         @default(now())
+  localMateProfile   LocalMateProfile @relation(fields: [localMateProfileId], references: [id], onDelete: Cascade)
+
+  @@index([localMateProfileId, expiresAt])
+  @@index([tokenHash])
+}
+
+model MarketplaceConversation {
+  id                         String                           @id @default(cuid())
+  orderId                    String                           @unique
+  hotelId                    String
+  stayId                     String
+  serviceTenantId            String
+  assignedLocalMateProfileId String?
+  status                     String                           @default("ACTIVE") @db.VarChar(16)
+  lastMessageAt              DateTime                         @default(now())
+  createdAt                  DateTime                         @default(now())
+  updatedAt                  DateTime                         @updatedAt
+  order                      MarketplaceOrder                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  messages                   MarketplaceConversationMessage[]
+
+  @@index([stayId, lastMessageAt])
+  @@index([hotelId, lastMessageAt])
+  @@index([serviceTenantId, lastMessageAt])
+}
+
+model MarketplaceConversationMessage {
+  id                String                           @id @default(cuid())
+  conversationId    String
+  orderId           String
+  senderType        MarketplaceOrderActorType
+  senderUserId      String?
+  body              String                           @db.VarChar(1000)
+  clientMessageId   String?                          @db.VarChar(80)
+  telegramChatId    String?                          @db.VarChar(128)
+  telegramMessageId String?                          @db.VarChar(64)
+  deliveryStatus    MarketplaceMessageDeliveryStatus @default(PENDING)
+  attemptCount      Int                              @default(0)
+  nextAttemptAt     DateTime?
+  lastDeliveryError String?                          @db.VarChar(500)
+  createdAt         DateTime                         @default(now())
+  updatedAt         DateTime                         @updatedAt
+  conversation      MarketplaceConversation          @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, clientMessageId])
+  @@unique([telegramChatId, telegramMessageId])
+  @@index([conversationId, createdAt])
+  @@index([orderId, createdAt])
+  @@index([deliveryStatus, nextAttemptAt])
+}

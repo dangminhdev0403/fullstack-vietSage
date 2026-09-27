@@ -48,6 +48,11 @@ export async function GET(request: Request, context: Context) {
       return guestSuccessResponse({ status: 200, error: null, message: "OK", data });
     }
 
+    if (pathParts[0] === "orders" && pathParts[1] && pathParts[2] === "conversation") {
+      const data = await guestOsService.getMarketplaceOrderConversation(token, pathParts[1], locale);
+      return guestSuccessResponse({ status: 200, error: null, message: "OK", data });
+    }
+
     if (pathParts[0] === "orders" && pathParts[1]) {
       const data = await guestOsService.getMarketplaceOrderDetail<MarketplaceOrder>(token, pathParts[1], locale);
       return guestSuccessResponse({ status: 200, error: null, message: "OK", data });
@@ -79,6 +84,12 @@ export async function POST(request: Request, context: Context) {
       const body = (await readJsonBody(request)) as CreateMarketplaceOrderInput | null;
       if (!body) return guestValidationErrorResponse("invalid JSON body");
       const data = await guestOsService.createMarketplaceOrder<MarketplaceOrder, CreateMarketplaceOrderInput>(token, body, locale);
+      return guestSuccessResponse({ status: 201, error: null, message: "OK", data }, 201);
+    }
+
+    if (pathParts[0] === "orders" && pathParts[1] && pathParts[2] === "conversation" && pathParts[3] === "messages") {
+      const body = await readJsonBody(request);
+      const data = await guestOsService.sendMarketplaceOrderMessage(token, pathParts[1], body, locale);
       return guestSuccessResponse({ status: 201, error: null, message: "OK", data }, 201);
     }
 
@@ -126,17 +137,23 @@ export async function PATCH(request: Request, context: Context) {
   const pathParts = (await context.params).path;
   const locale = normalizeGuestLocale(request.headers.get("x-lang") ?? request.headers.get("accept-language"));
 
-  if (pathParts[0] === "cart") {
-    try {
+  try {
+    if (pathParts[0] === "orders" && pathParts[1] && pathParts[2] === "cancel") {
+      const data = await guestOsService.cancelMarketplaceOrder(token, pathParts[1], locale);
+      return guestSuccessResponse({ status: 200, error: null, message: "OK", data });
+    }
+
+    if (pathParts[0] === "cart") {
       const body = await readJsonBody(request);
       const subpath = pathParts.slice(1).join("/");
       const data = await guestOsService.mutateMarketplaceCart(token, "PATCH", subpath, body, locale);
       return guestSuccessResponse({ status: 200, error: null, message: "OK", data });
-    } catch (error) {
-      return error instanceof HttpError ? guestHttpErrorResponse(error) : guestUnknownErrorResponse();
     }
+
+    return guestValidationErrorResponse("unsupported marketplace path");
+  } catch (error) {
+    return error instanceof HttpError ? guestHttpErrorResponse(error) : guestUnknownErrorResponse();
   }
-  return guestValidationErrorResponse("unsupported marketplace path");
 }
 
 export async function DELETE(request: Request, context: Context) {

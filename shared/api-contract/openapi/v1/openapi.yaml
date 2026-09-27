@@ -7470,6 +7470,19 @@ paths:
         "200":
           description: ""
       tags: *a25
+  /guest/marketplace/orders/{orderId}/cancel:
+    patch:
+      operationId: GuestMarketplaceController_cancelOrder
+      parameters:
+        - name: orderId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a25
   /hotels/{hotelId}/marketplace/providers:
     get:
       operationId: HotelMarketplaceController_providers
@@ -7661,6 +7674,33 @@ paths:
         "201":
           description: ""
       tags: *a26
+  /guest/marketplace/orders/{orderId}/conversation:
+    get:
+      operationId: GuestMarketplaceConversationController_getConversation
+      parameters:
+        - name: orderId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: &a27
+        - GuestMarketplaceConversation
+  /guest/marketplace/orders/{orderId}/conversation/messages:
+    post:
+      operationId: GuestMarketplaceConversationController_sendMessage
+      parameters:
+        - name: orderId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a27
   /hotels/{hotelId}/kbtt/connection:
     get:
       operationId: KbttController_get
@@ -7735,18 +7775,18 @@ paths:
                   - error
                   - message
                   - data
-        "401": &a27
+        "401": &a28
           description: Authentication required
-        "403": &a28
+        "403": &a29
           description: Hotel scope or business permission denied
-        "422": &a29
+        "422": &a30
           description: KBTT_AUTH_FAILED; sanitized provider authentication failure
-        "503": &a30
+        "503": &a31
           description: KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable
-      security: &a31
+      security: &a32
         - bearer: []
       summary: View saved hotel KBTT connection; never contacts provider
-      tags: &a32
+      tags: &a33
         - hotel-kbtt
     put:
       operationId: KbttController_connect
@@ -7842,13 +7882,13 @@ paths:
                   - error
                   - message
                   - data
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: Authenticate and save encrypted hotel credentials only after success
-      tags: *a32
+      tags: *a33
     delete:
       operationId: KbttController_disconnect
       parameters:
@@ -7922,13 +7962,13 @@ paths:
                   - error
                   - message
                   - data
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: Best-effort revoke and remove saved credentials and local tokens
-      tags: *a32
+      tags: *a33
   /hotels/{hotelId}/kbtt/connection/check:
     post:
       operationId: KbttController_check
@@ -8003,14 +8043,14 @@ paths:
                   - error
                   - message
                   - data
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: Manually authenticate saved credentials; refresh near expiry, otherwise
         re-login
-      tags: *a32
+      tags: *a33
   /hotels/{hotelId}/kbtt/declarations:
     get:
       operationId: KbttController_listDeclarations
@@ -8023,13 +8063,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: List active occupants combined with KBTT declaration status
-      tags: *a32
+      tags: *a33
   /hotels/{hotelId}/kbtt/declarations/{occupantId}:
     get:
       operationId: KbttController_getDeclaration
@@ -8047,13 +8087,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: Get occupant profile and latest KBTT declaration
-      tags: *a32
+      tags: *a33
   /hotels/{hotelId}/kbtt/declarations/{occupantId}/draft:
     put:
       operationId: KbttController_saveDraft
@@ -8071,13 +8111,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: Create or update KBTT declaration draft
-      tags: *a32
+      tags: *a33
   /hotels/{hotelId}/kbtt/declarations/{occupantId}/submit:
     post:
       operationId: KbttController_submit
@@ -8095,13 +8135,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: Submit validated declaration to KBTT provider (API 4/5)
-      tags: *a32
+      tags: *a33
   /hotels/{hotelId}/kbtt/catalogs:
     get:
       operationId: KbttController_listCatalogByQuery
@@ -8119,13 +8159,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: List cached KBTT reference catalog items by query
-      tags: *a32
+      tags: *a33
   /hotels/{hotelId}/kbtt/catalogs/{kind}:
     get:
       operationId: KbttController_listCatalog
@@ -8150,13 +8190,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: List cached KBTT reference catalog items
-      tags: *a32
+      tags: *a33
   /hotels/{hotelId}/kbtt/catalogs/sync:
     post:
       operationId: KbttController_syncCatalogByBody
@@ -8169,14 +8209,14 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: Manually synchronize a reference catalog from provider into local cache
         by payload
-      tags: *a32
+      tags: *a33
   /hotels/{hotelId}/kbtt/catalogs/{kind}/sync:
     post:
       operationId: KbttController_syncCatalog
@@ -8201,13 +8241,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: Manually synchronize a reference catalog from provider into local cache
-      tags: *a32
+      tags: *a33
   /hotels/{hotelId}/kbtt/auto-submit:
     get:
       operationId: KbttController_getAutoSubmitConfig
@@ -8220,13 +8260,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: Get KBTT auto-submit schedule configuration and recent runs
-      tags: *a32
+      tags: *a33
     put:
       operationId: KbttController_updateAutoSubmitConfig
       parameters:
@@ -8238,13 +8278,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: Update KBTT auto-submit schedule configuration
-      tags: *a32
+      tags: *a33
   /hotels/{hotelId}/kbtt/auto-submit/test:
     post:
       operationId: KbttController_testAutoSubmit
@@ -8257,13 +8297,13 @@ paths:
       responses:
         "201":
           description: ""
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: Trigger a test execution of KBTT auto-submit (defaults to dryRun=true)
-      tags: *a32
+      tags: *a33
   /hotels/{hotelId}/kbtt/auto-submit/telegram-test:
     post:
       operationId: KbttController_testTelegram
@@ -8276,13 +8316,13 @@ paths:
       responses:
         "201":
           description: ""
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: Send a Telegram-only KBTT connectivity test; never contacts C06
-      tags: *a32
+      tags: *a33
   /hotels/{hotelId}/kbtt/auto-submit/summary:
     post:
       operationId: KbttController_sendAutoSubmitSummary
@@ -8295,13 +8335,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: Send aggregated batch submission summary to Telegram aggregate channel
-      tags: *a32
+      tags: *a33
   /hotels/{hotelId}/kbtt/declarations/batch-summary:
     post:
       operationId: KbttController_sendDeclarationsBatchSummary
@@ -8314,13 +8354,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: Send aggregated batch submission summary to Telegram aggregate channel
-      tags: *a32
+      tags: *a33
   /hotels/{hotelId}/kbtt/auto-submit/schedule:
     post:
       operationId: KbttController_scheduleAutoSubmit
@@ -8333,13 +8373,13 @@ paths:
       responses:
         "201":
           description: ""
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: Schedule one KBTT auto-submit in 15 seconds
-      tags: *a32
+      tags: *a33
     delete:
       operationId: KbttController_cancelScheduledAutoSubmit
       parameters:
@@ -8351,13 +8391,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: Cancel the pending one-shot KBTT auto-submit
-      tags: *a32
+      tags: *a33
   /hotels/{hotelId}/kbtt/dev/reset-declarations:
     post:
       operationId: KbttController_devResetDeclarations
@@ -8370,14 +8410,14 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: "[DEV] Reset all hotel declarations to DRAFT and optionally generate
         new identity numbers"
-      tags: *a32
+      tags: *a33
   /hotels/{hotelId}/kbtt/dev/update-occupants:
     post:
       operationId: KbttController_devUpdateOccupants
@@ -8390,14 +8430,14 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a27
-        "403": *a28
-        "422": *a29
-        "503": *a30
-      security: *a31
+        "401": *a28
+        "403": *a29
+        "422": *a30
+        "503": *a31
+      security: *a32
       summary: "[DEV] Intervene in DB to update occupant document numbers / details
         and optionally reset to DRAFT"
-      tags: *a32
+      tags: *a33
   /localmate-admin/guides:
     post:
       operationId: LocalMateAdminController_createGuide
@@ -8480,7 +8520,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: &a33
+      tags: &a34
         - localmate-admin
     get:
       operationId: LocalMateAdminController_listGuides
@@ -8488,7 +8528,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a33
+      tags: *a34
   /localmate-admin/guides/{id}:
     get:
       operationId: LocalMateAdminController_getGuide
@@ -8501,7 +8541,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a33
+      tags: *a34
     patch:
       operationId: LocalMateAdminController_updateGuide
       parameters:
@@ -8582,7 +8622,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a33
+      tags: *a34
   /localmate-admin/guides/{id}/qualification:
     patch:
       operationId: LocalMateAdminController_updateQualification
@@ -8595,7 +8635,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a33
+      tags: *a34
   /localmate-admin/knowledge/tours:
     post:
       operationId: LocalMateAdminController_createTour
@@ -8659,14 +8699,14 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a33
+      tags: *a34
     get:
       operationId: LocalMateAdminController_listTours
       parameters: []
       responses:
         "200":
           description: ""
-      tags: *a33
+      tags: *a34
   /localmate-admin/knowledge/tours/{id}:
     patch:
       operationId: LocalMateAdminController_updateTour
@@ -8731,7 +8771,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a33
+      tags: *a34
     delete:
       operationId: LocalMateAdminController_deleteTour
       parameters:
@@ -8743,7 +8783,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a33
+      tags: *a34
   /localmate/knowledge:
     get:
       operationId: LocalMateAiController_getKnowledge
@@ -8804,7 +8844,7 @@ paths:
           description: Knowledge request rate limit exceeded
         "503":
           description: Knowledge service key unconfigured
-      tags: &a34
+      tags: &a35
         - localmate
     post:
       operationId: LocalMateAiController_queryKnowledge
@@ -8857,7 +8897,7 @@ paths:
           description: Knowledge request rate limit exceeded
         "503":
           description: Knowledge service key unconfigured
-      tags: *a34
+      tags: *a35
   /localmate/ai/match:
     post:
       operationId: LocalMateAiController_matchLocalMates
@@ -8875,7 +8915,7 @@ paths:
           description: Invalid or missing knowledge API key
         "429":
           description: Knowledge request rate limit exceeded
-      tags: *a34
+      tags: *a35
   /localmate/guides/{guideCode}:
     get:
       operationId: LocalMateAiController_getGuideByCode
@@ -8888,7 +8928,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a34
+      tags: *a35
   /localmate/tours:
     get:
       operationId: LocalMateAiController_listTours
@@ -8913,7 +8953,60 @@ paths:
           description: Knowledge request rate limit exceeded
         "503":
           description: Knowledge service key unconfigured
-      tags: *a34
+      tags: *a35
+  /localmate/booking-candidate/{candidateKey}:
+    get:
+      operationId: LocalMateAiController_resolveBookingCandidate
+      parameters:
+        - name: candidateKey
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: hotelId
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: X-VietSage-Knowledge-Key
+          in: header
+          description: Dedicated API key for machine-to-machine knowledge access
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Resolved LocalMate booking candidate
+        "400":
+          description: Validation failed or region mismatch
+        "404":
+          description: Guide or service not found
+      tags: *a35
+  /localmate/telegram/pair:
+    post:
+      operationId: LocalMateTelegramController_createPairingLink
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: &a36
+        - localmate-telegram
+  /localmate/telegram/disconnect:
+    post:
+      operationId: LocalMateTelegramController_disconnect
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a36
+  /localmate/telegram/status:
+    get:
+      operationId: LocalMateTelegramController_getStatus
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a36
 info:
   title: VietSage Auth Service API
   description: HTTP API contract for auth, rbac, and hotel-users modules
