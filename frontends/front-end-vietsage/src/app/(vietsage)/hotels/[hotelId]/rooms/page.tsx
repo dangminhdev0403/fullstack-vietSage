@@ -115,12 +115,14 @@ export default async function StaffRoomsPage({
     ["Bảo trì", dashboard.rooms.byStatus.maintenance, "text-red-700"],
   ] as const;
 
+  const currentHotel = context.accessibleHotels.find((h) => h.id === hotelId);
+
   return (
     <>
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--secondary)]">
-            SƠ ĐỒ PHÒNG
+            SƠ ĐỒ PHÒNG{currentHotel?.name ? ` — ${currentHotel.name}` : ""}
           </p>
           <h1 className="vs-display mt-2 text-4xl font-semibold text-[var(--primary)]">
             Mở phòng và lưu trú

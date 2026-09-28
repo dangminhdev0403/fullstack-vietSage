@@ -52,9 +52,8 @@ export default async function HotelOpsLayout({
     notFound();
   }
 
-  const enabledFeatures =
-    context.accessibleHotels.find((hotel) => hotel.id === hotelId)
-      ?.enabledFeatures ?? [];
+  const currentHotel = context.accessibleHotels.find((hotel) => hotel.id === hotelId);
+  const enabledFeatures = currentHotel?.enabledFeatures ?? [];
 
   const sidebarItems = buildWorkspaceNavigationForContext({
     ...context,
@@ -63,12 +62,18 @@ export default async function HotelOpsLayout({
   });
 
   return (
-    <WorkspaceProfileProvider profileName={context.fullName}>
+    <WorkspaceProfileProvider
+      profileName={context.fullName}
+      hotelName={currentHotel?.name}
+      roleName={context.activeRole.name}
+      accessibleHotels={context.accessibleHotels}
+    >
       <HotelOpsRealtimeNotifier hotelId={hotelId} />
       <WorkspaceShell
         definition={getWorkspaceDefinition(persona)}
         navItems={sidebarItems}
         contextLabel={context.activeRole.name}
+        hotelName={currentHotel?.name}
         profileName={context.fullName}
       >
         {children}

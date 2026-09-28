@@ -62,12 +62,18 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
     { label: "Yêu cầu mới", value: dashboard.requests.byStatus.sent, icon: "notifications_active", tone: "border-[var(--primary-fixed-dim)]", iconTone: "bg-[var(--surface-container-highest)] text-[var(--primary)]" },
   ] as const;
 
+  const currentHotel = context.accessibleHotels.find((h) => h.id === hotelId);
+  const hotelDisplayName = currentHotel?.name ?? "Khách sạn";
+  const roleDisplayName = context.activeRole.name || "Lễ tân";
+
   return (
     <main className="space-y-8">
       <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
           <h1 className="vs-display text-4xl font-bold text-[var(--primary)]">Tổng quan điều hành &amp; Tài chính</h1>
-          <p className="mt-2 text-base italic text-[var(--on-surface-variant)]">Kính chào Quý Quản lý. Báo cáo doanh thu và giám sát vận hành cơ sở lưu trú thời gian thực.</p>
+          <p className="mt-2 text-base italic text-[var(--on-surface-variant)]">
+            Kính chào {roleDisplayName}. Báo cáo doanh thu và giám sát vận hành cơ sở lưu trú thời gian thực tại {hotelDisplayName}.
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Link

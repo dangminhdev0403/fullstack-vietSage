@@ -20,6 +20,7 @@ type WorkspaceShellProps = {
   definition: WorkspaceDefinition;
   navItems: readonly DashboardNavItem[];
   contextLabel?: string;
+  hotelName?: string | null;
   activePath?: string;
   profileName?: string | null;
   printFriendly?: boolean;
@@ -57,6 +58,7 @@ export function WorkspaceShell({
   definition,
   navItems,
   contextLabel,
+  hotelName,
   activePath: explicitActivePath,
   profileName,
   printFriendly = false,
@@ -99,7 +101,16 @@ export function WorkspaceShell({
   }, []);
 
   const hotelIdMatch = pathname?.match(/^\/(?:hotels|owner\/hotels)\/([^/]+)/);
+  const currentHotelId = hotelIdMatch?.[1] ?? searchParams?.get("hotelId") ?? null;
   const hotelId = hotelIdMatch?.[1] ?? null;
+
+  const matchedHotel =
+    currentHotelId && inheritedProfile.accessibleHotels
+      ? inheritedProfile.accessibleHotels.find((h) => h.id === currentHotelId)
+      : null;
+
+  const resolvedHotelName =
+    hotelName ?? matchedHotel?.name ?? inheritedProfile.hotelName ?? null;
 
   const effectiveNavItems = useMemo(() => {
     if (!hotelId) return navItems;
@@ -153,6 +164,7 @@ export function WorkspaceShell({
           rightMode="profile"
           rightLabel={resolvedProfileName ?? definition.profileLabel}
           subtitle={contextLabel ?? definition.profileLabel}
+          hotelName={resolvedHotelName}
           headerClassName={`transition-all duration-300 ${
             isCollapsed
               ? "md:left-20 md:w-[calc(100%-5rem)]"
@@ -166,6 +178,7 @@ export function WorkspaceShell({
           items={effectiveNavItems}
           eyebrow={definition.eyebrow}
           description={definition.description}
+          hotelName={resolvedHotelName}
           badgeByKey={badgeByKey}
           isCollapsed={isCollapsed}
           onToggleCollapse={toggleCollapse}

@@ -9,13 +9,21 @@ type OwnerShellProps = {
   children: ReactNode;
   navItems: readonly DashboardNavItem[];
   subtitle?: string;
+  hotelName?: string | null;
 };
 
-export function OwnerShell({ activePath, children, navItems, subtitle = "Không gian chủ khách sạn" }: Readonly<OwnerShellProps>) {
+export function OwnerShell({
+  activePath,
+  children,
+  navItems,
+  subtitle = "Không gian chủ khách sạn",
+  hotelName,
+}: Readonly<OwnerShellProps>) {
   return (
     <WorkspaceShell
       activePath={activePath}
       contextLabel={subtitle}
+      hotelName={hotelName}
       definition={getWorkspaceDefinition("owner")}
       navItems={navItems}
       printFriendly

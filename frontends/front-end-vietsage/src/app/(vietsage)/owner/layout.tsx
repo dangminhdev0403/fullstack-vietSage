@@ -23,11 +23,22 @@ export default async function OwnerLayout({ children }: { children: ReactNode })
     hotelId: defaultHotelId,
   });
 
+  const currentHotel = context.accessibleHotels[0];
+
   return (
     <AuthRefreshGate accessTokenExpiresAt={session.accessTokenExpiresAt}>
       <OwnerRequestRealtimeNotifier />
-      <WorkspaceProfileProvider profileName={context.fullName}>
-        <OwnerShell navItems={sidebarItems} subtitle={context.activeRole.name}>
+      <WorkspaceProfileProvider
+        profileName={context.fullName}
+        hotelName={currentHotel?.name}
+        roleName={context.activeRole.name}
+        accessibleHotels={context.accessibleHotels}
+      >
+        <OwnerShell
+          navItems={sidebarItems}
+          subtitle={context.activeRole.name}
+          hotelName={currentHotel?.name}
+        >
           {children}
         </OwnerShell>
       </WorkspaceProfileProvider>

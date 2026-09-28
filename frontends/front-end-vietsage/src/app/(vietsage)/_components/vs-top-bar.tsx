@@ -12,6 +12,7 @@ type VsTopBarProps = {
   leftLabel?: string;
   rightLabel?: string;
   subtitle?: string;
+  hotelName?: string | null;
   showRightInfo?: boolean;
   titleClassName?: string;
   menuAsButton?: boolean;
@@ -24,6 +25,16 @@ type VsTopBarProps = {
 };
 
 const profileImage = "/brand/vietsage-logo.jpg";
+
+function formatHotelDisplayName(name: string | null | undefined): string | null {
+  if (!name) return null;
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+  if (/(?:khách sạn|khach san|hotel)\b/i.test(trimmed)) {
+    return trimmed;
+  }
+  return `Khách sạn ${trimmed}`;
+}
 
 function TopBarLeftControl({
   showLeftControl,
@@ -53,12 +64,14 @@ function TopBarRightControls({
   rightMode,
   rightLabel,
   subtitle,
+  hotelName,
   showRightInfo,
   languageBadge,
 }: {
   rightMode: "profile" | "icons" | "none";
   rightLabel: string;
   subtitle?: string;
+  hotelName?: string | null;
   showRightInfo: boolean;
   languageBadge: string;
 }) {
@@ -87,18 +100,30 @@ function TopBarRightControls({
     );
   }
 
+  const formattedHotel = formatHotelDisplayName(hotelName);
+
   return (
     <div className="flex min-w-0 items-center gap-4">
       {showRightInfo ? (
-        <div className="hidden min-w-0 max-w-[13rem] flex-col justify-center text-right leading-tight md:flex">
+        <div className="hidden min-w-0 max-w-[16rem] lg:max-w-[20rem] flex-col justify-center text-right leading-tight md:flex">
           <span className="truncate text-sm font-semibold text-[#17201b]">
             {rightLabel}
           </span>
-          {subtitle ? (
-            <span className="mt-0.5 truncate text-xs font-medium text-[#5f6b63]">
-              {subtitle}
-            </span>
-          ) : null}
+          <div className="mt-0.5 flex flex-col items-end">
+            {subtitle ? (
+              <span className="truncate text-xs font-semibold text-[#215744]">
+                {subtitle}
+              </span>
+            ) : null}
+            {formattedHotel ? (
+              <span
+                className="truncate text-[11px] font-medium text-[#5f6b63]"
+                title={formattedHotel}
+              >
+                {formattedHotel}
+              </span>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
@@ -123,6 +148,7 @@ export function VsTopBar({
   leftLabel = "menu",
   rightLabel = "Khach",
   subtitle,
+  hotelName,
   showRightInfo = true,
   titleClassName,
   menuAsButton = true,
@@ -178,6 +204,7 @@ export function VsTopBar({
         rightMode={rightMode}
         rightLabel={rightLabel}
         subtitle={subtitle}
+        hotelName={hotelName}
         showRightInfo={showRightInfo}
         languageBadge={languageBadge}
       />
