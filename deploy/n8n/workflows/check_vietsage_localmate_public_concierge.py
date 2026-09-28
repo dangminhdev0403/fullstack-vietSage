@@ -90,7 +90,7 @@ process.stdout.write(JSON.stringify(output[0].json));
                 "title": "Phố Cổ Hà Nội",
                 "duration": "4 giờ",
                 "highlights": ["36 phố phường", "di sản Thăng Long"],
-                "content": "Khám phá văn hóa đô thị và kiến trúc Pháp.",
+                "content": "Khám phá văn hóa đô thị và kiến trúc Pháp cùng LocalMate. Hướng dẫn viên Nguyễn Văn Minh đồng hành.",
                 "suitableGuides": [{"fullName": "Nguyễn Văn Minh"}],
             }
         ],
@@ -116,11 +116,61 @@ process.stdout.write(JSON.stringify(output[0].json));
     assert "GUIDE_INTENT: NO" in discovery["userPrompt"]
     assert "Nguyễn Văn Minh" not in discovery["userPrompt"]
     assert "suitableGuides" not in discovery["userPrompt"]
+    assert "Hướng dẫn viên" not in discovery["userPrompt"]
+    assert "cùng LocalMate" not in discovery["userPrompt"]
 
     guide_request = context_result("Tìm hướng dẫn viên phù hợp")
     assert guide_request["guideIntent"] is True
     assert "GUIDE_INTENT: YES" in guide_request["userPrompt"]
     assert "Nguyễn Văn Minh" in guide_request["userPrompt"]
+
+    response_code = nodes["07 · Chuẩn hóa phản hồi công khai"]["parameters"]["jsCode"]
+    response_source = Path(directory) / "response.js"
+    response_source.write_text(response_code, encoding="utf-8")
+    response_harness = Path(directory) / "response-harness.js"
+    response_harness.write_text(
+        """const fs = require('fs');
+const code = fs.readFileSync(process.argv[2], 'utf8');
+const model = JSON.parse(process.argv[3]);
+const prepared = JSON.parse(process.argv[4]);
+const $input = { first: () => ({ json: model }) };
+const selector = (name) => {
+  if (name !== '05 · Đóng gói tri thức địa phương') throw new Error(`Unexpected selector: ${name}`);
+  return { first: () => ({ json: prepared }) };
+};
+const output = new Function('$input', '$', code)($input, selector);
+process.stdout.write(JSON.stringify(output[0].json));
+""",
+        encoding="utf-8",
+    )
+    model = {
+        "reply": "Phố Cổ nổi bật với 36 phố phường. Hướng dẫn viên Nguyễn Văn Minh đồng hành. Hồ Tây phù hợp đi 3 giờ cùng LocalMate.",
+        "suggestions": [
+            {"label": "Xem Phố Cổ", "query": "Điểm nổi bật Phố Cổ"},
+            {"label": "Tìm hướng dẫn viên", "query": "Guide nào phù hợp?"},
+        ],
+    }
+
+    def response_result(guide_intent: bool) -> dict:
+        prepared = {"guideIntent": guide_intent, "knowledgeVersion": "sha256:test", "cached": False}
+        result = subprocess.run(
+            ["node", str(response_harness), str(response_source), json.dumps(model, ensure_ascii=False), json.dumps(prepared)],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+        return json.loads(result.stdout)
+
+    discovery_response = response_result(False)
+    assert "Nguyễn Văn Minh" not in discovery_response["reply"]
+    assert "Hướng dẫn viên" not in discovery_response["reply"]
+    assert "cùng LocalMate" not in discovery_response["reply"]
+    assert discovery_response["suggestions"] == [{"label": "Xem Phố Cổ", "query": "Điểm nổi bật Phố Cổ"}]
+
+    guide_response = response_result(True)
+    assert "Nguyễn Văn Minh" in guide_response["reply"]
+    assert len(guide_response["suggestions"]) == 2
 
     for node in workflow["nodes"]:
         code = node.get("parameters", {}).get("jsCode")
