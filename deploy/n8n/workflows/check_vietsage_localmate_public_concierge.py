@@ -48,6 +48,7 @@ context_code = nodes["05 · Đóng gói tri thức địa phương"]["parameters
 assert "hasKnowledge: false" in context_code
 assert "RECENT_CONVERSATION_UNTRUSTED" in context_code
 knowledge_branch = "05b · Có tri thức phù hợp?"
+assert workflow["connections"]["03 · Cần tra cứu tri thức?"]["main"][1][0]["node"] == "08 · Trả JSON về Public BFF"
 assert workflow["connections"]["05 · Đóng gói tri thức địa phương"]["main"][0][0]["node"] == knowledge_branch
 assert workflow["connections"][knowledge_branch]["main"][0][0]["node"] == "06 · Sinh phản hồi LocalMate công khai"
 assert workflow["connections"][knowledge_branch]["main"][1][0]["node"] == "08 · Trả JSON về Public BFF"
