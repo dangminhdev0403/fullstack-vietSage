@@ -89,7 +89,7 @@ export function Hero({
   text,
   children,
   image,
-  locale = "vi",
+  locale: _locale = "vi",
 }: {
   eyebrow: string;
   title: string;
@@ -283,7 +283,7 @@ export function CardGrid({ items, reveal = "scale" }: { items: CardItem[]; revea
   );
 }
 
-export function CTA({ locale = "vi" }: { locale?: MarketingLocale } = {}) {
+export function CTA({ locale: _locale = "vi" }: { locale?: MarketingLocale } = {}) {
   return (
     <section className="px-5 py-16 lg:px-8">
       <div data-reveal="cta" className="vs-cta-panel relative mx-auto max-w-7xl overflow-hidden rounded-[2.5rem] bg-[#123d2a] p-8 text-white shadow-2xl shadow-[#123d2a]/20 md:p-12">
@@ -311,7 +311,7 @@ export function CTA({ locale = "vi" }: { locale?: MarketingLocale } = {}) {
   );
 }
 
-function Footer({ locale = "vi" }: { locale?: MarketingLocale }) {
+function Footer({ locale: _locale = "vi" }: { locale?: MarketingLocale }) {
   // Loại bỏ Blog, B2B, Health theo yêu cầu người dùng
   const cols = [
     {

@@ -9,7 +9,6 @@ import {
   type FormEvent,
 } from "react";
 
-import { HttpError } from "@/core/http/http-error";
 import {
   formatAlertErrorMessage,
   formatBatchResultHtml,
@@ -265,6 +264,7 @@ function formatStayDateTimeForForm(
   return `${values.hour}:${values.minute}:${values.second} ${values.day}/${values.month}/${values.year}`;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function formatNationality(row: KbttDeclarationListItem): string {
   if (row.citizenshipKind === "VIETNAMESE" || row.nationality === "VNM") {
     return "VNM (Việt Nam)";
@@ -407,6 +407,7 @@ function CloudUploadIcon({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function ChevronDownIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg
@@ -506,8 +507,8 @@ function RowActionMenu({
   onViewError,
   dirty,
   disabled,
-  isDevMode,
-  onDevResetSingle,
+  isDevMode: _isDevMode,
+  onDevResetSingle: _onDevResetSingle,
 }: {
   statusInfo: { key: string; label: string };
   canEdit: boolean;
@@ -1083,6 +1084,7 @@ export function KbttDeclarationsPage({
     }
   }, [devModalEdits, devUpdateOccupantsMutation, handleRefresh]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleSubmitAll = useCallback(async () => {
     if (!isListReady || isSubmittingBatch) return;
     if (!isConnected) {
@@ -2170,7 +2172,7 @@ function DeclarationModal({
   occupantSummary,
   canManage,
   isConnected = true,
-  isDevMode = false,
+  isDevMode: _isDevMode = false,
   onClose,
   onUpdated,
 }: {

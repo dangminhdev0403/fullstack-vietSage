@@ -595,16 +595,17 @@ export class LocalMateService {
                   : "ADMINISTRATIVE_FALLBACK",
           },
         }),
-        ...(!hotel && requestedProvince && {
-          locationScope: {
-            area: requestedDestination,
-            province: requestedProvince.name,
-            provinceCode: requestedProvince.code,
-            requestedDestination,
-            outsideHotelProvince: false,
-            mode: "PUBLIC_LOCATION",
-          },
-        }),
+        ...(!hotel &&
+          requestedProvince && {
+            locationScope: {
+              area: requestedDestination,
+              province: requestedProvince.name,
+              provinceCode: requestedProvince.code,
+              requestedDestination,
+              outsideHotelProvince: false,
+              mode: "PUBLIC_LOCATION",
+            },
+          }),
         ...(query.provinceCode && { provinceCode: query.provinceCode }),
         ...(query.scope && { scope: query.scope }),
       },

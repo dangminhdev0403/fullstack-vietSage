@@ -4,10 +4,9 @@ const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   allowedDevOrigins: [
-    "t62jk3dx-3000.asse.devtunnels.ms",
     "*.devtunnels.ms",
-    "192.168.185.184",
-    "192.168.55.10",
+    "*.ngrok.io",
+    "*.ngrok-free.app",
     "localhost",
     "127.0.0.1",
   ],

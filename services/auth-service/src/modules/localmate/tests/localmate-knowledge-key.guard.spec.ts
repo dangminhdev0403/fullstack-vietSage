@@ -54,7 +54,7 @@ describe("LocalmateKnowledgeKeyGuard", () => {
         get: jest.fn((key: string) =>
           key === "localMate.knowledgeApiKey" ? mockServerKey : undefined,
         ),
-      });
+      } as any);
 
       const context = createMockContext({});
 
@@ -68,7 +68,7 @@ describe("LocalmateKnowledgeKeyGuard", () => {
         get: jest.fn((key: string) =>
           key === "localMate.knowledgeApiKey" ? mockServerKey : undefined,
         ),
-      });
+      } as any);
 
       const context = createMockContext({
         "x-vietsage-knowledge-key": "too-short",
@@ -84,7 +84,7 @@ describe("LocalmateKnowledgeKeyGuard", () => {
         get: jest.fn((key: string) =>
           key === "localMate.knowledgeApiKey" ? mockServerKey : undefined,
         ),
-      });
+      } as any);
 
       const wrongKey = mockServerKey.slice(0, -1) + "X";
       const context = createMockContext({
@@ -101,7 +101,7 @@ describe("LocalmateKnowledgeKeyGuard", () => {
         get: jest.fn((key: string) =>
           key === "localMate.knowledgeApiKey" ? mockServerKey : undefined,
         ),
-      });
+      } as any);
 
       const context = createMockContext({
         "x-vietsage-knowledge-key": mockServerKey,
@@ -115,7 +115,7 @@ describe("LocalmateKnowledgeKeyGuard", () => {
         get: jest.fn((key: string) =>
           key === "localMate.knowledgeApiKey" ? mockServerKey : undefined,
         ),
-      });
+      } as any);
 
       const context = createMockContext({
         "X-VietSage-Knowledge-Key": mockServerKey,
@@ -140,7 +140,7 @@ describe("LocalmateKnowledgeKeyGuard", () => {
         get: jest.fn((key: string) =>
           key === "LOCALMATE_KNOWLEDGE_API_KEY" ? mockServerKey : undefined,
         ),
-      });
+      } as any);
 
       const context = createMockContext({
         "x-vietsage-knowledge-key": [mockServerKey, "another-key"],

@@ -337,6 +337,7 @@ export default function LoginPage() {
       // fresh session cookie and resolves the redirect server-side.
       // This eliminates the client-side session polling race condition.
       const postLoginUrl = `/api/auth/post-login${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`;
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.assign(postLoginUrl);
     } catch {
       Swal.close();

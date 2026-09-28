@@ -9,14 +9,12 @@ import { kbttRepository } from "../repositories/kbtt-repository";
 import type { PaginatedKbttDeclarations } from "../repositories/kbtt-repository";
 import type {
   KbttAutoSubmitConfig,
-  KbttAutoSubmitRunSummary,
   KbttAutoSubmitState,
   KbttBatchSubmitSummary,
   KbttCatalogItem,
   KbttCatalogKind,
   KbttConnection,
   KbttCredentials,
-  KbttDeclarationListItem,
   KbttDeclarationRecord,
   KbttDevOccupantUpdateItem,
   KbttOccupantDeclarationDetail,

@@ -204,7 +204,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
       0,
   );
   const totalSettled = Number(data.debtSummary?.totalSettledAmount ?? 0);
-  const unpaidCount = Number(
+  const _unpaidCount = Number(
     data.debtSummary?.unpaidPeriodCount ?? reminder?.unpaidPeriodCount ?? 0,
   );
 

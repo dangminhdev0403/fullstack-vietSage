@@ -33,7 +33,7 @@ function isActivePath(pathname: string, href: string) {
 
 export function MarketingHeader({
   accountAction,
-  locale = "vi",
+  locale: _locale = "vi",
 }: {
   accountAction: { label: string; href: string };
   locale?: "en" | "vi";

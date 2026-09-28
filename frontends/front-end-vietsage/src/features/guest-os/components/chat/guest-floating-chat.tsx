@@ -753,7 +753,7 @@ export function GuestFloatingChat() {
             className="pointer-events-auto flex h-13 w-13 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#142823] via-[#1d3d34] to-[#2c584b] text-[#fbf9f4] ring-2 ring-[#e8b363]/85 shadow-[0_10px_28px_rgba(20,40,35,0.4)] transition-all duration-300 hover:scale-105 active:scale-90 cursor-pointer"
           >
             <span className="relative flex items-center justify-center">
-              <VsIcon name="explore" className="text-[22px] sm:text-2xl text-[#fdfaf4]" />
+              <VsIcon name="sparkles" className="text-[22px] sm:text-2xl text-[#fdfaf4]" />
               {hasUnread && (
                 <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#e8b363] opacity-75" />
@@ -792,7 +792,7 @@ export function GuestFloatingChat() {
                 <div className="flex items-center justify-between px-4 pb-3 sm:py-3.5">
                   <div className="flex items-center gap-3">
                     <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#25483f] to-[#3a685b] ring-2 ring-[#e8b363]/85 shadow-[0_0_12px_rgba(232,179,99,0.3)]">
-                      <VsIcon name="explore" className="text-xl text-[#e8b363]" />
+                      <VsIcon name="sparkles" className="text-xl text-[#e8b363]" />
                       <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center">
                         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#10b981] opacity-75" />
                         <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#10b981] ring-1.5 ring-[#142823]" />

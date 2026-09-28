@@ -30,6 +30,13 @@ describe("LocalMateService", () => {
       dailyRateVnd: 1200000,
       rating: 4.95,
       totalReviews: 48,
+      userId: null,
+      tenantId: null,
+      position: "Local Guide",
+      serviceLatitude: null,
+      serviceLongitude: null,
+      user: null,
+      telegramBinding: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -48,6 +55,13 @@ describe("LocalMateService", () => {
       dailyRateVnd: 1000000,
       rating: 4.9,
       totalReviews: 35,
+      userId: null,
+      tenantId: null,
+      position: "Local Guide",
+      serviceLatitude: null,
+      serviceLongitude: null,
+      user: null,
+      telegramBinding: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -66,6 +80,13 @@ describe("LocalMateService", () => {
       dailyRateVnd: 1100000,
       rating: 4.85,
       totalReviews: 29,
+      userId: null,
+      tenantId: null,
+      position: "Local Guide",
+      serviceLatitude: null,
+      serviceLongitude: null,
+      user: null,
+      telegramBinding: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -80,6 +101,11 @@ describe("LocalMateService", () => {
       highlights: ["Ruộng bậc thang", "Khoáng nóng"],
       content: "Chi tiết tour Mù Cang Chải...",
       sourceFileName: "HVNT 0007-24.docx",
+      latitude: null,
+      longitude: null,
+      provinceCode: "15",
+      province: "Yên Bái",
+      tourScope: "LOCAL" as const,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -171,7 +197,7 @@ describe("LocalMateService", () => {
         ...mockQualifiedGuides[0],
         temporaryPassword: expect.any(String),
       });
-      expect(result.temporaryPassword).toHaveLength(20);
+      expect((result as any).temporaryPassword).toHaveLength(20);
       expect(repository.createGuide).toHaveBeenCalled();
     });
   });
@@ -268,7 +294,7 @@ describe("LocalMateService", () => {
           highlights: ["Ruộng bậc thang", "Khoáng nóng"],
           content: "Chi tiết tour Mù Cang Chải...",
           distanceKm: null,
-          suitableGuides: ["Giàng A Pháo"],
+          suitableGuides: ["Giàng A Pháo", "Vũ Tuấn Anh"],
         },
       ]);
 
@@ -390,7 +416,7 @@ describe("LocalMateService", () => {
           ...mockTours[0],
           title: "HÀ NỘI - LÀNG GỐM CỔ BÁT TRÀNG (0.5N)",
         },
-      ] as any);
+      ]);
 
       const response = await service.getKnowledge({
         destination: "Bát Tràng",
@@ -491,7 +517,7 @@ describe("LocalMateService", () => {
         area: "Hồ Thác Bà",
         latitude: 21,
         longitude: 104,
-      });
+      } as any);
       repository.searchTourKnowledge.mockResolvedValueOnce([
         {
           ...mockTours[0],
@@ -559,7 +585,7 @@ describe("LocalMateService", () => {
         area: "Hồ Thác Bà",
         latitude: 21,
         longitude: 104,
-      });
+      } as any);
       repository.searchTourKnowledge.mockResolvedValueOnce([
         {
           ...mockTours[0],
@@ -596,7 +622,7 @@ describe("LocalMateService", () => {
         area: "Hoàn Kiếm",
         latitude: 21.0285,
         longitude: 105.8542,
-      });
+      } as any);
 
       const response = await service.getKnowledge({
         hotelId: "hotel-hanoi",
@@ -640,7 +666,7 @@ describe("LocalMateService", () => {
         area: "Hồ Thác Bà",
         latitude: 21,
         longitude: 104,
-      });
+      } as any);
 
       await service.getKnowledge({
         query: "Gợi ý khoáng nóng ở Trạm Tấu",
@@ -665,7 +691,7 @@ describe("LocalMateService", () => {
         provinceCode: "YEN_BAI",
         province: "Yên Bái",
         area: "Hồ Thác Bà",
-      });
+      } as any);
 
       const candidateTours = [
         {
@@ -676,6 +702,8 @@ describe("LocalMateService", () => {
           highlights: [],
           content: "Nội dung tour liên tỉnh...",
           sourceFileName: null,
+          latitude: null,
+          longitude: null,
           provinceCode: "YEN_BAI",
           province: "Yên Bái",
           tourScope: "INTERPROVINCIAL" as const,
@@ -690,6 +718,8 @@ describe("LocalMateService", () => {
           highlights: [],
           content: "Nội dung tour nội tỉnh...",
           sourceFileName: null,
+          latitude: null,
+          longitude: null,
           provinceCode: "YEN_BAI",
           province: "Yên Bái",
           tourScope: "REGIONAL_DAYTRIP" as const,
@@ -704,6 +734,8 @@ describe("LocalMateService", () => {
           highlights: [],
           content: "Nội dung tour Thác Bà...",
           sourceFileName: null,
+          latitude: null,
+          longitude: null,
           provinceCode: "YEN_BAI",
           province: "Yên Bái",
           tourScope: "LOCAL" as const,
@@ -738,7 +770,7 @@ describe("LocalMateService", () => {
         provinceCode: "YEN_BAI",
         province: "Yên Bái",
         area: "Hồ Thác Bà",
-      });
+      } as any);
 
       repository.searchTourKnowledge.mockResolvedValueOnce([
         {
@@ -749,6 +781,8 @@ describe("LocalMateService", () => {
           highlights: [],
           content: "Nội dung tour liên tỉnh...",
           sourceFileName: null,
+          latitude: null,
+          longitude: null,
           provinceCode: "YEN_BAI",
           province: "Yên Bái",
           tourScope: "INTERPROVINCIAL" as const,
@@ -763,6 +797,8 @@ describe("LocalMateService", () => {
           highlights: [],
           content: "Nội dung tour Thác Bà...",
           sourceFileName: null,
+          latitude: null,
+          longitude: null,
           provinceCode: "YEN_BAI",
           province: "Yên Bái",
           tourScope: "LOCAL" as const,

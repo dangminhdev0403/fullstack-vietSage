@@ -30,8 +30,8 @@ type OwnerFormState = {
   tenantUserStatus: TenantOwner["tenantUser"]["status"];
 };
 
-const ownerStatuses: TenantOwner["status"][] = ["ACTIVE", "LOCKED", "DISABLED"];
-const tenantUserStatuses: TenantOwner["tenantUser"]["status"][] = ["ACTIVE", "INVITED", "DISABLED"];
+const _ownerStatuses: TenantOwner["status"][] = ["ACTIVE", "LOCKED", "DISABLED"];
+const _tenantUserStatuses: TenantOwner["tenantUser"]["status"][] = ["ACTIVE", "INVITED", "DISABLED"];
 
 const createOwnerSchema = z.object({
   fullName: z.string().trim().min(1, "Tên người đại diện là bắt buộc."),
@@ -100,6 +100,7 @@ async function requestJson<TData>(path: string, options: { method: "POST" | "PAT
   } catch (error) {
     if (error instanceof HttpError && error.status === 401) {
       if (typeof window !== "undefined") {
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
       }
       throw new Error("UNAUTHORIZED");

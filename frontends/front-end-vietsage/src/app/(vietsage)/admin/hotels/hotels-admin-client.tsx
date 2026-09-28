@@ -161,6 +161,7 @@ async function requestJson<TData>(path: string, options: { method: "GET" | "POST
       reason: "backend_401_after_refresh_failed",
       pathname: callbackUrl,
     });
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.assign(`/dangnhap?reauth=1&callbackUrl=${encodeURIComponent(callbackUrl)}`);
     throw new Error("UNAUTHORIZED");
   }

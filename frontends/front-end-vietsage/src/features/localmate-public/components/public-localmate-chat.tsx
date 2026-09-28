@@ -130,7 +130,7 @@ export function PublicLocalMateChat() {
           <header className="relative flex shrink-0 items-center justify-between bg-gradient-to-r from-[#123d2a] to-[#245942] px-5 py-4 text-white">
             <div className="flex items-center gap-3">
               <div className="relative flex h-11 w-11 items-center justify-center rounded-full bg-[#f3c66b]/15 ring-1 ring-[#f3c66b]/65">
-                <VsIcon name="explore" className="text-2xl text-[#f3c66b]" />
+                <VsIcon name="sparkles" className="text-2xl text-[#f3c66b]" />
                 <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#10b981] opacity-75 motion-reduce:animate-none" />
                   <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#10b981] ring-1 ring-[#123d2a]" />
@@ -171,7 +171,7 @@ export function PublicLocalMateChat() {
               <div key={message.id} className={`flex ${message.sender === "guest" ? "justify-end" : "justify-start"}`}>
                 {message.sender === "localmate" && (
                   <span className="mr-2 mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#123d2a]/10">
-                    <VsIcon name="explore" className="text-sm text-[#2a6649]" />
+                    <VsIcon name="sparkles" className="text-sm text-[#2a6649]" />
                   </span>
                 )}
                 <p
@@ -188,7 +188,7 @@ export function PublicLocalMateChat() {
             {mutation.isPending && (
               <div className="flex items-center gap-2">
                 <span className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#123d2a]/10">
-                  <VsIcon name="explore" className="text-sm text-[#2a6649]" />
+                  <VsIcon name="sparkles" className="text-sm text-[#2a6649]" />
                 </span>
                 <div className="flex items-center gap-2 rounded-2xl rounded-tl-sm border border-[#123d2a]/10 bg-white px-4 py-3 shadow-sm">
                   <span className="text-sm text-[#627064]">LocalMate đang soạn</span>
@@ -312,7 +312,7 @@ export function PublicLocalMateChat() {
             className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-[#123d2a] via-[#1a5038] to-[#2a6649] shadow-[0_8px_28px_rgba(18,61,42,0.38)] ring-2 ring-[#f3c66b]/80 transition-all duration-300 hover:scale-110 hover:shadow-[0_12px_36px_rgba(18,61,42,0.50)] active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f] motion-reduce:transform-none cursor-pointer"
           >
             <span className="absolute inset-[-4px] animate-ping rounded-full bg-[#f3c66b]/20 motion-reduce:animate-none" />
-            <VsIcon name="explore" className="relative text-[26px] text-[#f3c66b]" />
+            <VsIcon name="sparkles" className="relative text-[26px] text-[#f3c66b]" />
           </button>
         </div>
       )}

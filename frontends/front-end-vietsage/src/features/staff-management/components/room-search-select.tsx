@@ -30,7 +30,7 @@ function inferFloor(roomNumber: string, floor?: string | null): string {
 
 export function RoomSearchSelect({
   rooms,
-  roomUserAssignmentMap,
+  roomUserAssignmentMap: _roomUserAssignmentMap,
   value,
   onChange,
   disabled = false,

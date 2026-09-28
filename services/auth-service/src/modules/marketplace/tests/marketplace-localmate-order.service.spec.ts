@@ -268,7 +268,7 @@ describe("T1 - Marketplace LocalMate Order Lifecycle", () => {
         "Thay đổi kế hoạch",
       );
 
-      expect(result.status).toBe(MarketplaceOrderStatus.CANCELLED);
+      expect(result?.status).toBe(MarketplaceOrderStatus.CANCELLED);
       expect(tx.marketplaceService.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: "srv-1" },

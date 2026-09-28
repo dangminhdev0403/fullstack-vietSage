@@ -1095,7 +1095,12 @@ describe("BillingService checkout safety", () => {
       }),
     };
     const service = createService(prisma, repository);
-    const summary = await service.getFolioSummary("user-1", "active-role", "hotel-1", "folio-open-1");
+    const summary = await service.getFolioSummary(
+      "user-1",
+      "active-role",
+      "hotel-1",
+      "folio-open-1",
+    );
 
     expect(summary).toBeDefined();
     expect(summary.estimatedRoomCharge).toBeDefined();

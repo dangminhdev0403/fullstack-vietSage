@@ -40,7 +40,7 @@ const SECTION_LABELS: Record<DashboardNavSection, string> = {
 
 export function VsDashboardSidebar({
   activePath,
-  description = "Trung tâm điều hành theo phạm vi và quyền của phiên hiện tại.",
+  description: _description = "Trung tâm điều hành theo phạm vi và quyền của phiên hiện tại.",
   eyebrow = "Workspace",
   hotelName,
   items,

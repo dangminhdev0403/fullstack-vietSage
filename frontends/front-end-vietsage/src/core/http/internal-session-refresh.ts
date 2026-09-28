@@ -38,6 +38,7 @@ export function dispatchAuthLogoutRequired(reason: string, pathname: string): vo
   runtimeConsole.warn("[AUTH_LOGOUT_REQUIRED]", { reason, pathname, targetUrl, timestamp: Date.now() });
 
   if (window.location.pathname !== "/dangnhap") {
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = targetUrl;
   }
 

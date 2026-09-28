@@ -633,7 +633,7 @@ export class BillingService {
       counts.roomChargeCount === 0 &&
       Boolean((result.folio as any).room)
     ) {
-      estimatedRoomCharge = this.calculateEstimatedRoomCharge(result.folio as any);
+      estimatedRoomCharge = this.calculateEstimatedRoomCharge(result.folio);
       subtotal = subtotal.add(estimatedRoomCharge.subtotal);
       total = total.add(estimatedRoomCharge.subtotal);
     }
@@ -1459,7 +1459,9 @@ export class BillingService {
 
     const rawEnd = folio.stay?.plannedCheckOutAt;
     const chargeEnd = rawEnd
-      ? new Date(Math.min(Date.now(), (rawEnd instanceof Date ? rawEnd : new Date(rawEnd)).getTime()))
+      ? new Date(
+          Math.min(Date.now(), (rawEnd instanceof Date ? rawEnd : new Date(rawEnd)).getTime()),
+        )
       : new Date();
 
     const defaultPrice = new Prisma.Decimal(500000);

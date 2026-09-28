@@ -733,7 +733,7 @@ export function RequestQueueClient({
     pushFilters(nextFilters);
   }
 
-  function applyFilters(event?: FormEvent<HTMLFormElement>) {
+  function _applyFilters(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
   }
 
