@@ -15,11 +15,7 @@ const welcome: Message = {
   text: "Dạ em là LocalMate AI. Quý khách đang ở đâu ạ? Vui lòng cho em biết quận, thành phố hoặc tỉnh để em dò đúng nguồn tri thức địa phương.",
 };
 
-const defaultSuggestions: PublicLocalMateSuggestion[] = [
-  { label: "Trải nghiệm nổi bật", query: "Gợi ý trải nghiệm nổi bật gần đây" },
-  { label: "Tour trong ngày", query: "Có tour nào phù hợp trong ngày?" },
-  { label: "Hướng dẫn viên", query: "Tìm hướng dẫn viên LocalMate phù hợp" },
-];
+const initialDiscoveryQuery = "Gợi ý các địa danh và trải nghiệm nổi bật gần đây";
 
 export function PublicLocalMateChat() {
   const mutation = useMutation(publicLocalMateResource.bind({}).mutations.chat.options());
@@ -51,33 +47,14 @@ export function PublicLocalMateChat() {
     if (isOpen) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [isOpen, messages, mutation.isPending]);
 
-  const saveLocation = () => {
-    const value = locationInput.trim();
-    if (value.length < 2 || value.length > 120) {
-      setLocationError("Vui lòng nhập địa điểm từ 2 đến 120 ký tự.");
-      return;
-    }
-    setLocation(value);
-    setLocationError("");
-    setMessages((current) => [
-      ...current,
-      { id: nextId.current++, sender: "guest", text: value },
-      {
-        id: nextId.current++,
-        sender: "localmate",
-        text: `Dạ em đã ghi nhận Quý khách đang ở ${value}. Quý khách muốn khám phá điều gì ạ?`,
-      },
-    ]);
-    setSuggestions(defaultSuggestions);
-  };
-
-  const send = async (suggested?: string) => {
+  const send = async (suggested?: string, locationOverride?: string, guestText?: string) => {
     const message = (suggested ?? input).trim();
-    if (!location || !message || mutation.isPending) return;
+    const activeLocation = locationOverride ?? location;
+    if (!activeLocation || !message || mutation.isPending) return;
 
     setMessages((current) => [
       ...current,
-      { id: nextId.current++, sender: "guest", text: message },
+      { id: nextId.current++, sender: "guest", text: guestText ?? message },
     ]);
     setInput("");
     setSuggestions([]);
@@ -86,7 +63,7 @@ export function PublicLocalMateChat() {
       const result = await mutation.mutateAsync({
         input: {
           message,
-          location,
+          location: activeLocation,
           language: "vi",
           history: messages.slice(-8).map(({ sender, text }) => ({ role: sender, text })),
         },
@@ -106,6 +83,17 @@ export function PublicLocalMateChat() {
         },
       ]);
     }
+  };
+
+  const saveLocation = () => {
+    const value = locationInput.trim();
+    if (value.length < 2 || value.length > 120) {
+      setLocationError("Vui lòng nhập địa điểm từ 2 đến 120 ký tự.");
+      return;
+    }
+    setLocation(value);
+    setLocationError("");
+    void send(initialDiscoveryQuery, value, value);
   };
 
   const changeLocation = () => {
