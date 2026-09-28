@@ -1,0 +1,73 @@
+
+[*] Changed the `Hotel` table
+  [*] Altered column `timezone` (default changed from `Some(Value(String("Asia/Saigon")))` to `Some(Value(String("Asia/Ho_Chi_Minh")))`)
+
+[*] Changed the `LocalMateProfile` table
+  [*] Altered column `languages` (default changed from `Some(Value(List([])))` to `None`)
+  [*] Altered column `operatingRegions` (default changed from `Some(Value(List([])))` to `None`)
+  [*] Altered column `specialties` (default changed from `Some(Value(List([])))` to `None`)
+  [*] Altered column `updatedAt` (default changed from `Some(Now)` to `None`)
+  [+] Added index on columns (userId)
+
+[*] Changed the `LocalMateTelegramBinding` table
+  [*] Renamed index `LocalMateTelegramBinding_localMateProfileId_revokedAt_blockedAt` to `LocalMateTelegramBinding_localMateProfileId_revokedAt_block_idx`
+
+[*] Changed the `LocalMateTourKnowledge` table
+  [*] Altered column `highlights` (default changed from `Some(Value(List([])))` to `None`)
+  [*] Altered column `updatedAt` (default changed from `Some(Now)` to `None`)
+
+[*] Changed the `MarketplaceConversationMessage` table
+  [*] Renamed index `MarketplaceConversationMessage_conversationId_clientMessageId_k` to `MarketplaceConversationMessage_conversationId_clientMessage_key`
+  [*] Renamed index `MarketplaceConversationMessage_telegramChatId_telegramMessageId` to `MarketplaceConversationMessage_telegramChatId_telegramMessa_key`
+
+[*] Changed the `MarketplaceService` table
+  [-] Removed index on columns (serviceTenantId, status)
+  [+] Added index on columns (serviceTenantId, status, updatedAt)
+
+[*] Changed the `PlatformBillableDay` table
+  [-] Removed foreign key on columns (contractId)
+  [-] Removed foreign key on columns (contractRevisionId)
+  [-] Removed foreign key on columns (hotelId)
+  [+] Added foreign key on columns (contractId)
+  [+] Added foreign key on columns (contractRevisionId)
+  [+] Added foreign key on columns (hotelId)
+  [*] Renamed index `PlatformBillableDay_contract_subject_date_key` to `PlatformBillableDay_contractId_subjectType_subjectId_servic_key`
+
+[*] Changed the `PlatformBillingAdjustment` table
+  [-] Removed foreign key on columns (billableDayId)
+  [-] Removed foreign key on columns (contractId)
+  [-] Removed foreign key on columns (periodId)
+  [+] Added foreign key on columns (contractId)
+  [+] Added foreign key on columns (billableDayId)
+  [+] Added foreign key on columns (periodId)
+
+[*] Changed the `PlatformBillingContract` table
+  [-] Removed foreign key on columns (hotelId)
+  [+] Added foreign key on columns (hotelId)
+
+[*] Changed the `PlatformBillingContractRevision` table
+  [-] Removed foreign key on columns (contractId)
+  [+] Added foreign key on columns (contractId)
+
+[*] Changed the `PlatformBillingDailySummary` table
+  [-] Removed foreign key on columns (contractId)
+  [-] Removed foreign key on columns (hotelId)
+  [*] Altered column `updatedAt` (default changed from `Some(Now)` to `None`)
+  [+] Added foreign key on columns (contractId)
+  [+] Added foreign key on columns (hotelId)
+
+[*] Changed the `PlatformBillingPeriod` table
+  [-] Removed foreign key on columns (contractId)
+  [+] Added foreign key on columns (contractId)
+  [*] Renamed index `PlatformBillingPeriod_contractId_status_periodStart_periodEnd_i` to `PlatformBillingPeriod_contractId_status_periodStart_periodE_idx`
+
+[*] Changed the `PlatformBillingSettlement` table
+  [-] Removed foreign key on columns (periodId)
+  [+] Added foreign key on columns (periodId)
+
+[*] Changed the `PlatformUsage` table
+  [-] Removed foreign key on columns (hotelId)
+  [+] Added foreign key on columns (hotelId)
+
+[*] Changed the `Reservation` table
+  [*] Renamed index `Reservation_roomId_status_plannedCheckInAt_plannedCheckOutAt_id` to `Reservation_roomId_status_plannedCheckInAt_plannedCheckOutA_idx`

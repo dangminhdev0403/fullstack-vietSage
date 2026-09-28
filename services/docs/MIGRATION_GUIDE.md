@@ -25,3 +25,12 @@ The nested path
 `services/auth-service/services/auth-service/prisma/migrations/0025_remove_service_category_request_type`
 was accidental. Prisma ignores it because it is outside this canonical
 migrations directory.
+
+## Schema drift gate
+
+CI applies every migration to a clean PostgreSQL database, then compares that
+database with `prisma/schema.prisma`. Existing reviewed drift is recorded in
+`prisma/known-schema-drift.txt`; any new difference fails CI.
+
+Do not update the baseline to make CI pass. Add a migration instead. Change the
+baseline only when intentionally removing an existing listed drift.

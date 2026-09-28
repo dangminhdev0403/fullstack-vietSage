@@ -75,6 +75,21 @@ jobs:
       - name: Prisma migrate deploy
         run: npm run prisma:deploy
 
+      - name: Prisma schema drift check
+        run: |
+          npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma > "$RUNNER_TEMP/prisma-schema-drift.txt"
+          python - <<'PY'
+          import os
+          from difflib import unified_diff
+          from pathlib import Path
+
+          expected = Path("prisma/known-schema-drift.txt").read_text().rstrip()
+          actual = (Path(os.environ["RUNNER_TEMP"]) / "prisma-schema-drift.txt").read_text().rstrip()
+          if actual != expected:
+              print("".join(unified_diff(expected.splitlines(True), actual.splitlines(True), "known", "actual")))
+              raise SystemExit(1)
+          PY
+
       - name: Lint
         run: npx eslint "{src,apps,libs,test}/**/*.ts"
 
