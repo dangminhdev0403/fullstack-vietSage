@@ -79,9 +79,7 @@ export function GuestRequestRealtimeNotifier() {
         });
       },
       onCreated: (request: GuestRequest) => {
-        playGuestRequestSound("created");
         dispatchGuestRequestRealtime({ kind: "created", request });
-        toast.success(t("requests.updatedNew"));
       },
       onUpdated: (request: Partial<GuestRequest> & { id: string }) => {
         playGuestRequestSound("updated");

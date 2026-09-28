@@ -411,6 +411,7 @@ function GuestServicesContent() {
         payload.priority === "URGENT"
           ? t("services.urgentSent")
           : t("services.sent"),
+        { duration: 3000 },
       );
       setSelectedService(null);
       router.push("/g/requests");

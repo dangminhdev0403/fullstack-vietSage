@@ -47,7 +47,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
           {
             id: `hotel-ops-request-created-${request.id}`,
             description: `Phòng ${request.roomNumber} - ${request.displayName}`,
-            duration: isUrgent ? 20000 : 10000,
+            duration: isUrgent ? 5000 : 3000,
             action: {
               label: "Xem ngay",
               onClick: () => {
@@ -75,7 +75,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
             {
               id: `hotel-ops-request-cancelled-${request.id}`,
               description: `Khách hàng vừa hủy yêu cầu ${request.displayName ?? ""}`,
-              duration: 8000,
+              duration: 3000,
               action: {
                 label: "Xem ngay",
                 onClick: () => {
@@ -120,7 +120,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
             toast.info("Có tin nhắn mới từ khách", {
               id: `hotel-ops-message-${raw.message.id ?? Date.now()}`,
               description: `Phòng ${raw.thread?.roomNumber ?? ""}: ${raw.message.body ?? ""}`,
-              duration: 8000,
+              duration: 3000,
               action: {
                 label: "Xem tin nhắn",
                 onClick: () => {
@@ -157,7 +157,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         toast.success("Có yêu cầu dịch vụ đối tác mới", {
           id: `hotel-ops-ext-order-created-${raw?.orderId ?? Date.now()}`,
           description: `${roomLabel} - ${guestName}: ${serviceName}`,
-          duration: 10000,
+          duration: 3000,
           action: {
             label: "Xem ngay",
             onClick: () => {

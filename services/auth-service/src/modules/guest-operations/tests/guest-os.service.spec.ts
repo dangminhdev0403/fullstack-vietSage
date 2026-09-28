@@ -1391,12 +1391,7 @@ describe("GuestOsService", () => {
       publishGuestMessageCreated: jest.fn(),
       publishConversationClosed: jest.fn(),
     };
-    const service = new GuestOsService(
-      repository as never,
-      undefined,
-      undefined,
-      eventPublisher,
-    );
+    const service = new GuestOsService(repository as never, undefined, undefined, eventPublisher);
 
     await expect(
       service.cancelRequest(
