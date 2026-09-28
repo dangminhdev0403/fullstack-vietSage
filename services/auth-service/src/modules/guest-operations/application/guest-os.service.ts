@@ -461,6 +461,7 @@ export class GuestOsService {
       hotelId: current.hotelId,
       sessionId: current.id,
       requestId: request.id,
+      roomId: current.roomId,
       ownerRequest: {
         id: request.id,
         displayName: request.serviceItem?.name ?? request.title ?? "Request",
@@ -593,6 +594,7 @@ export class GuestOsService {
       hotelId: current.hotelId,
       sessionId: current.id,
       requestId: cancelled.id,
+      roomId: current.roomId,
       ownerRequest: {
         id: cancelled.id,
         displayName: cancelled.serviceItem?.name ?? cancelled.title ?? "Yêu cầu",

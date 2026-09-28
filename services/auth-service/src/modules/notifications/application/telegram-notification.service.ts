@@ -285,6 +285,7 @@ export class TelegramNotificationService {
         hotelId: updated.hotelId,
         sessionId: updated.sessionId,
         requestId,
+        roomId: updated.roomId,
         ownerRequest: this.toRealtimeOwnerRequest(updated),
         guestRequest: this.toRealtimeGuestRequest(updated),
       });

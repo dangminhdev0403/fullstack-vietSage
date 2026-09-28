@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Swal from "sweetalert2";
 import { toast } from "sonner";
+import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 
 import { RequestDetailClient } from "./[requestId]/request-detail-client";
 
@@ -469,6 +470,25 @@ export function RequestQueueClient({
     [],
   );
 
+  const realtimeHandlers = useMemo(
+    () => ({
+      onCreated: (request: StaffRequestListItem) => {
+        applyLiveRequestChange(request);
+      },
+      onUpdated: (request: Partial<StaffRequestListItem> & { id: string }) => {
+        applyLiveRequestChange(request);
+      },
+      onAnswered: (request?: Partial<StaffRequestListItem> & { id?: string }) => {
+        if (request?.id) {
+          applyLiveRequestChange(request as Partial<StaffRequestListItem> & { id: string });
+        }
+      },
+    }),
+    [applyLiveRequestChange],
+  );
+
+  useOwnerRequestRealtime(hotelId, realtimeHandlers);
+
   const { orders: externalOrdersQuery } = useNearbyServiceProviders(hotelId);
   const externalOrders = useMemo(
     () => externalOrdersQuery.data ?? [],
@@ -654,6 +674,8 @@ export function RequestQueueClient({
   function syncUpdatedRequest(updated: HotelGuestRequest) {
     const listItem = requestToListItem(updated);
     applyLiveRequestChange(listItem);
+    toast.dismiss(`hotel-ops-request-created-${updated.id}`);
+    toast.dismiss(`owner-request-created-${updated.id}`);
     queryClient
       .invalidateQueries({ queryKey: ["hotel-ops", hotelId] })
       .catch(() => {});

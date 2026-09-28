@@ -47,19 +47,29 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
           {
             id: `hotel-ops-request-created-${request.id}`,
             description: `Phòng ${request.roomNumber} - ${request.displayName}`,
-            duration: isUrgent ? Number.POSITIVE_INFINITY : 10000,
+            duration: isUrgent ? 20000 : 10000,
             action: {
               label: "Xem ngay",
-              onClick: () => router.push(`/hotels/${hotelId}/requests`),
+              onClick: () => {
+                toast.dismiss(`hotel-ops-request-created-${request.id}`);
+                router.push(`/hotels/${hotelId}/requests`);
+              },
             },
           },
         );
 
-        // Invalidate TanStack Query caches so UI updates without page reload
+        // Invalidate TanStack Query caches and refresh server components
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        router.refresh();
       },
       onUpdated: (request: Partial<StaffRequestListItem> & { id: string }) => {
-        if (String(request.status) === "CANCELLED") {
+        const status = String(request.status ?? "");
+        if (status && status !== "PENDING") {
+          toast.dismiss(`hotel-ops-request-created-${request.id}`);
+        }
+
+        if (status === "CANCELLED") {
+          toast.dismiss(`hotel-ops-request-created-${request.id}`);
           toast.warning(
             `Phòng ${request.roomNumber ?? ""} đã HỦY yêu cầu`,
             {
@@ -68,20 +78,29 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
               duration: 8000,
               action: {
                 label: "Xem ngay",
-                onClick: () => router.push(`/hotels/${hotelId}/requests`),
+                onClick: () => {
+                  toast.dismiss(`hotel-ops-request-cancelled-${request.id}`);
+                  router.push(`/hotels/${hotelId}/requests`);
+                },
               },
             },
           );
-        } else if (String(request.status) === "PENDING") {
+        } else if (status === "PENDING") {
           playRequestAlertSound(false);
         }
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        router.refresh();
       },
-      onAnswered: () => {
+      onAnswered: (request?: Partial<StaffRequestListItem> & { id?: string }) => {
+        if (request?.id) {
+          toast.dismiss(`hotel-ops-request-created-${request.id}`);
+        }
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        router.refresh();
       },
       onGuestMessageCreated: (event: unknown) => {
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        router.refresh();
 
         const raw = event as {
           hotelId?: string;
@@ -104,7 +123,10 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
               duration: 8000,
               action: {
                 label: "Xem tin nhắn",
-                onClick: () => router.push(`/hotels/${hotelId}/messages`),
+                onClick: () => {
+                  if (raw.message?.id) toast.dismiss(`hotel-ops-message-${raw.message.id}`);
+                  router.push(`/hotels/${hotelId}/messages`);
+                },
               },
             });
           }
@@ -112,6 +134,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
       },
       onConversationClosed: () => {
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        router.refresh();
       },
       onExternalOrderCreated: (event: unknown) => {
         playRequestAlertSound(false);
@@ -137,23 +160,39 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
           duration: 10000,
           action: {
             label: "Xem ngay",
-            onClick: () => router.push(`/hotels/${hotelId}/requests`),
+            onClick: () => {
+              if (raw?.orderId) toast.dismiss(`hotel-ops-ext-order-created-${raw.orderId}`);
+              router.push(`/hotels/${hotelId}/requests`);
+            },
           },
         });
 
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        router.refresh();
       },
-      onExternalOrderStatusChanged: () => {
+      onExternalOrderStatusChanged: (event: unknown) => {
+        const raw = event as { orderId?: string } | null;
+        if (raw?.orderId) {
+          toast.dismiss(`hotel-ops-ext-order-created-${raw.orderId}`);
+        }
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        router.refresh();
       },
-      onExternalOrderHotelAcknowledged: () => {
+      onExternalOrderHotelAcknowledged: (event: unknown) => {
+        const raw = event as { orderId?: string } | null;
+        if (raw?.orderId) {
+          toast.dismiss(`hotel-ops-ext-order-created-${raw.orderId}`);
+        }
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        router.refresh();
       },
       onExternalOrderVoucherIssued: () => {
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        router.refresh();
       },
       onReconnect: () => {
         void invalidateHotelRequestRealtimeQueries(targetQueryClient, hotelId);
+        router.refresh();
       },
     }),
     [hotelId, router, targetQueryClient],

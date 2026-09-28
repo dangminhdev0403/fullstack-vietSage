@@ -640,6 +640,7 @@ describe("GuestOsService", () => {
         hotelId: "hotel-1",
         sessionId: "session-1",
         requestId: "request-1",
+        roomId: "room-1",
         ownerRequest: expect.objectContaining({ id: "request-1" }),
         guestRequest: expect.objectContaining({ id: "request-1" }),
       }),
@@ -1384,7 +1385,18 @@ describe("GuestOsService", () => {
         events: [],
       }),
     };
-    const service = new GuestOsService(repository as never);
+    const eventPublisher = {
+      publishGuestRequestCreated: jest.fn(),
+      publishGuestRequestUpdated: jest.fn(),
+      publishGuestMessageCreated: jest.fn(),
+      publishConversationClosed: jest.fn(),
+    };
+    const service = new GuestOsService(
+      repository as never,
+      undefined,
+      undefined,
+      eventPublisher,
+    );
 
     await expect(
       service.cancelRequest(
@@ -1418,6 +1430,15 @@ describe("GuestOsService", () => {
       requestId: "request-1",
       sourceStatus: GuestRequestStatus.PENDING,
     });
+    expect(eventPublisher.publishGuestRequestUpdated).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hotelId: "hotel-1",
+        sessionId: "session-1",
+        requestId: "request-1",
+        roomId: "room-1",
+        ownerRequest: expect.objectContaining({ id: "request-1", status: "CANCELLED" }),
+      }),
+    );
   });
 
   it("rejects guest cancellation after a request leaves CREATED", async () => {

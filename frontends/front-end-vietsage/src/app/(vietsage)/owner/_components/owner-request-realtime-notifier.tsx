@@ -78,17 +78,27 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
           {
             id: `owner-request-created-${request.id}`,
             description: `Phòng ${request.roomNumber} - ${request.displayName}`,
-            duration: isUrgent ? Number.POSITIVE_INFINITY : 10_000,
+            duration: isUrgent ? 20000 : 10_000,
             action: {
               label: isUrgent ? "Xử lý ngay" : "Xử lý",
-              onClick: () => router.push(href),
+              onClick: () => {
+                toast.dismiss(`owner-request-created-${request.id}`);
+                router.push(href);
+              },
             },
           },
         );
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        router.refresh();
       },
       onUpdated: (request: Partial<StaffRequestListItem> & { id: string }) => {
-        if (String(request.status) === "CANCELLED") {
+        const status = String(request.status ?? "");
+        if (status && status !== "PENDING") {
+          toast.dismiss(`owner-request-created-${request.id}`);
+        }
+
+        if (status === "CANCELLED") {
+          toast.dismiss(`owner-request-created-${request.id}`);
           toast.warning(
             `Phòng ${request.roomNumber ?? ""} đã HỦY yêu cầu`,
             {
@@ -97,18 +107,27 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
               duration: 8000,
               action: {
                 label: "Xem ngay",
-                onClick: () => router.push(`/owner/hotels/${hotelId}/requests`),
+                onClick: () => {
+                  toast.dismiss(`owner-request-cancelled-${request.id}`);
+                  router.push(`/owner/hotels/${hotelId}/requests`);
+                },
               },
             },
           );
         }
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        router.refresh();
       },
-      onAnswered: () => {
+      onAnswered: (request?: Partial<StaffRequestListItem> & { id?: string }) => {
+        if (request?.id) {
+          toast.dismiss(`owner-request-created-${request.id}`);
+        }
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        router.refresh();
       },
       onGuestMessageCreated: (event: unknown) => {
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        router.refresh();
         const raw = event as {
           hotelId?: string;
           thread?: { roomNumber?: string };
@@ -127,6 +146,7 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
       },
       onConversationClosed: () => {
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        router.refresh();
       },
       onExternalOrderCreated: (event: unknown) => {
         const raw = event as {
@@ -150,23 +170,39 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
           duration: 10000,
           action: {
             label: "Xem ngay",
-            onClick: () => router.push(requestQueuePath(hotelId)),
+            onClick: () => {
+              if (raw?.orderId) toast.dismiss(`owner-ext-order-created-${raw.orderId}`);
+              router.push(requestQueuePath(hotelId));
+            },
           },
         });
 
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        router.refresh();
       },
-      onExternalOrderStatusChanged: () => {
+      onExternalOrderStatusChanged: (event: unknown) => {
+        const raw = event as { orderId?: string } | null;
+        if (raw?.orderId) {
+          toast.dismiss(`owner-ext-order-created-${raw.orderId}`);
+        }
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        router.refresh();
       },
-      onExternalOrderHotelAcknowledged: () => {
+      onExternalOrderHotelAcknowledged: (event: unknown) => {
+        const raw = event as { orderId?: string } | null;
+        if (raw?.orderId) {
+          toast.dismiss(`owner-ext-order-created-${raw.orderId}`);
+        }
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        router.refresh();
       },
       onExternalOrderVoucherIssued: () => {
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        router.refresh();
       },
       onReconnect: () => {
         void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
+        router.refresh();
       },
     }),
     [hotelId, queryClient, router],
