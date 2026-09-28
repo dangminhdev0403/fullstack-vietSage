@@ -28,6 +28,8 @@ normalizer = nodes["02 · Chuẩn hóa vị trí & câu hỏi"]["parameters"]["j
 assert "location.length < 2" in normalizer
 assert "locationPrompts" in normalizer
 assert "body.history" in normalizer and ".slice(-8)" in normalizer
+assert "$input.first()?.json" in normalizer
+assert "$('01 · Nhận yêu cầu công khai')" not in normalizer
 assert "hotelId" not in normalizer
 
 knowledge = nodes["04 · Tra cứu tri thức theo vị trí"]
