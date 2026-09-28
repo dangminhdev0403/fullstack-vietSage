@@ -44,11 +44,15 @@ assert ai["typeVersion"] == 2.3 and schema["strict"] is True
 json.loads(schema["schema"])
 system_prompt = ai["parameters"]["responses"]["values"][0]["content"]
 assert all(term in system_prompt for term in ("STATED_LOCATION", "KNOWLEDGE", "Quý khách", "Không tạo hành động đặt dịch vụ"))
-assert all(term in system_prompt for term in ("RECENT_CONVERSATION_UNTRUSTED", "LATEST_QUESTION", "một câu làm rõ"))
+assert all(term in system_prompt for term in ("RECENT_CONVERSATION_UNTRUSTED", "LATEST_QUESTION", "một câu làm rõ", "ĐỊA DANH TRƯỚC"))
+assert all(term in system_prompt for term in ("GUIDE_INTENT là NO", "không ghép địa danh với hướng dẫn viên", "GUIDE_INTENT là YES"))
 
 context_code = nodes["05 · Đóng gói tri thức địa phương"]["parameters"]["jsCode"]
 assert "hasKnowledge: false" in context_code
 assert "RECENT_CONVERSATION_UNTRUSTED" in context_code
+assert "GUIDE_INTENT:" in context_code
+assert "guideIntent ?" in context_code
+assert "const guides = guideIntent" in context_code
 knowledge_branch = "05b · Có tri thức phù hợp?"
 assert workflow["connections"]["03 · Cần tra cứu tri thức?"]["main"][1][0]["node"] == "08 · Trả JSON về Public BFF"
 assert workflow["connections"]["05 · Đóng gói tri thức địa phương"]["main"][0][0]["node"] == knowledge_branch
@@ -62,6 +66,62 @@ assert workflow["settings"]["saveDataSuccessExecution"] == "none"
 assert workflow["active"] is False
 
 with tempfile.TemporaryDirectory() as directory:
+    context_source = Path(directory) / "context.js"
+    context_source.write_text(context_code, encoding="utf-8")
+    harness = Path(directory) / "context-harness.js"
+    harness.write_text(
+        """const fs = require('fs');
+const code = fs.readFileSync(process.argv[2], 'utf8');
+const normalized = JSON.parse(process.argv[3]);
+const payload = JSON.parse(process.argv[4]);
+const $input = { first: () => ({ json: payload }) };
+const selector = (name) => {
+  if (name !== '02 · Chuẩn hóa vị trí & câu hỏi') throw new Error(`Unexpected selector: ${name}`);
+  return { first: () => ({ json: normalized }) };
+};
+const output = new Function('$input', '$', code)($input, selector);
+process.stdout.write(JSON.stringify(output[0].json));
+""",
+        encoding="utf-8",
+    )
+    payload = {
+        "tours": [
+            {
+                "title": "Phố Cổ Hà Nội",
+                "duration": "4 giờ",
+                "highlights": ["36 phố phường", "di sản Thăng Long"],
+                "content": "Khám phá văn hóa đô thị và kiến trúc Pháp.",
+                "suitableGuides": [{"fullName": "Nguyễn Văn Minh"}],
+            }
+        ],
+        "guides": [{"fullName": "Nguyễn Văn Minh", "operatingRegions": ["Hà Nội"]}],
+        "metadata": {"locationScope": {"province": "Hà Nội"}},
+        "knowledgeVersion": "sha256:test",
+        "cached": False,
+    }
+
+    def context_result(message: str) -> dict:
+        normalized = {"message": message, "location": "Hà Nội", "history": [], "lang": "vi"}
+        result = subprocess.run(
+            ["node", str(harness), str(context_source), json.dumps(normalized, ensure_ascii=False), json.dumps(payload, ensure_ascii=False)],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+        return json.loads(result.stdout)
+
+    discovery = context_result("Gợi ý trải nghiệm nổi bật")
+    assert discovery["guideIntent"] is False
+    assert "GUIDE_INTENT: NO" in discovery["userPrompt"]
+    assert "Nguyễn Văn Minh" not in discovery["userPrompt"]
+    assert "suitableGuides" not in discovery["userPrompt"]
+
+    guide_request = context_result("Tìm hướng dẫn viên phù hợp")
+    assert guide_request["guideIntent"] is True
+    assert "GUIDE_INTENT: YES" in guide_request["userPrompt"]
+    assert "Nguyễn Văn Minh" in guide_request["userPrompt"]
+
     for node in workflow["nodes"]:
         code = node.get("parameters", {}).get("jsCode")
         if not code:
