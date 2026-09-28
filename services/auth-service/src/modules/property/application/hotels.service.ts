@@ -4,7 +4,8 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { HotelStatus, Prisma } from "@prisma/client";
+import { HotelFeatureStatus, HotelStatus, Prisma } from "@prisma/client";
+import { CANONICAL_HOTEL_FEATURE_KEYS } from "../../../common/config/hotel-features.registry";
 import { AppLogger } from "../../../common/logging/app-logger.service";
 import { CodesService } from "../../codes/codes-public";
 import { HotelAccessService } from "./hotel-access.service";
@@ -69,6 +70,12 @@ export class HotelsService {
         brandSettings: dto.brandSettings as Prisma.InputJsonValue | undefined,
         googleSheetId: dto.googleSheetUrl,
         status: HotelStatus.ACTIVE,
+        featureEntitlements: {
+          create: CANONICAL_HOTEL_FEATURE_KEYS.map((featureKey) => ({
+            featureKey,
+            status: HotelFeatureStatus.DISABLED,
+          })),
+        },
       });
     } catch (error) {
       if (

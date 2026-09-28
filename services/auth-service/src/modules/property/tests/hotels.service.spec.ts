@@ -8,6 +8,7 @@ import {
   CategoryPriceUpdateMode,
   GuestRequestPriority,
   GuestRequestStatus,
+  HotelFeatureStatus,
   RoomQRCodeStatus,
   RoomStatus,
   ServiceCatalogStatus,
@@ -357,6 +358,18 @@ describe("HotelsService", () => {
       expect.objectContaining({
         name: "Riverside Hotel",
         code: "VSH_HOTEL_0001",
+        featureEntitlements: {
+          create: [
+            {
+              featureKey: "guest.ai_floating_chat",
+              status: HotelFeatureStatus.DISABLED,
+            },
+            {
+              featureKey: "frontdesk.hn2n_cccd_scanner",
+              status: HotelFeatureStatus.DISABLED,
+            },
+          ],
+        },
       }),
     );
   });

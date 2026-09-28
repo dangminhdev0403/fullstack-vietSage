@@ -1,38 +1,40 @@
-# Guest AI Knowledge & Action API Catalog
+# Guest AI Knowledge & Action API Catalog (LocalMate AI)
 
-Tài liệu đặc tả danh mục API chuyên biệt dành riêng cho các hệ thống **AI Agent (n8n, LangChain, Voicebot, Chatbot Concierge, LLM Tool Calling)** sử dụng làm **Kho Tri Thức (Knowledge Base)** và **Công Cụ Tác Vụ (Tool Calling)** khi tương tác, giao tiếp với khách lưu trú (Guest).
+Tài liệu đặc tả danh mục API chuyên biệt dành riêng cho hệ thống **LocalMate AI Agent (n8n, LangChain, Chatbot Concierge, LLM Tool Calling)** sử dụng làm **Kho Tri Thức Bản Địa (Knowledge Base)** và **Công Cụ Tác Vụ Đặt Hướng Dẫn Viên (Action Calling)** khi giao tiếp với du khách lưu trú (Guest).
 
-Tài liệu này được tách riêng khỏi bộ API quản trị chung (`API_CATALOG.md`) nhằm đảm bảo **tính bảo mật (Least Privilege)**, **tối ưu context window của LLM**, và **phân định ranh giới xác thực**.
+Tài liệu này được tách riêng khỏi bộ API quản trị chung (`API_CATALOG.md`) nhằm đảm bảo **tính bảo mật (Least Privilege)**, **tối ưu context window của LLM**, và **phân định ranh giới kiến trúc rõ ràng**.
 
 ---
 
-## 1. Tổng Quan Kiến Trúc & Ranh Giới Xác Thực (Authentication Boundaries)
+## 1. Ranh Giới Kiến Trúc & Nguyên Tắc Phân Định (Architectural Boundaries)
 
-Các API dành cho AI giao tiếp với khách được chia thành 2 cơ chế xác thực riêng biệt:
+### 1.1. Phạm vi tập trung duy nhất: Trợ lý bản địa LocalMate
+- Khung chat floating message và hệ thống AI Agent được thiết kế **tập trung chuyên biệt 100% cho phân hệ LocalMate**:
+  - Tư vấn cẩm nang du lịch bản địa, điểm tham quan, nét đẹp văn hóa, lễ hội.
+  - Gợi ý ẩm thực truyền thống và các điểm check-in, ngắm cảnh đặc sắc.
+  - Tra cứu lịch trình tour khám phá trong ngày hoặc ngắn ngày trong tỉnh/khu vực.
+  - Tìm kiếm, đối sánh và kết nối với các Hướng dẫn viên bản địa (LocalMate) đã được kiểm duyệt.
+  - Hỗ trợ tạo đơn đặt Hướng dẫn viên LocalMate đồng hành (`LOCALMATE_BOOKING`).
 
-1. **Machine-to-Machine (M2M) API Key**: Dành cho các endpoint kho tri thức chung (tri thức bản địa, cẩm nang du lịch, danh sách tour, hồ sơ HDV LocalMate).
+### 1.2. Tách biệt hoàn toàn với Nghiệp vụ Buồng phòng / Dịch vụ Khách sạn
+- Khung chat LocalMate AI **hoàn toàn KHÔNG quản lý, không can thiệp và không lan sang các dịch vụ khách sạn khác (In-Stay Hotel Services)**:
+  - **Không** tra cứu danh mục dịch vụ phòng (ẩm thực tại phòng, spa, giặt là, mượn đồ dùng).
+  - **Không** tạo hay theo dõi yêu cầu buồng phòng (Housekeeping, dọn phòng, thêm nước suối, xin khăn tắm, mật khẩu Wi-Fi, giờ check-out).
+- **Lý do phân định**:
+  - Dịch vụ khách sạn yêu cầu SLA nghiêm ngặt, điều phối trực tiếp tới nhân viên ca trực lễ tân/buồng phòng và quản lý tồn kho/phí phòng nội bộ.
+  - Du khách thực hiện các nhu cầu này trực tiếp qua giao diện phân hệ GuestOS chuyên biệt (Tab **Dịch vụ phòng** `/g/services` và Tab **Yêu cầu của tôi** `/g/requests`).
+  - Nếu khách hỏi về các dịch vụ này trong khung chat, LocalMate AI sẽ lịch sự hướng dẫn khách mở tab Dịch vụ phòng trên màn hình hoặc liên hệ trực tiếp quầy lễ tân.
+
+### 1.3. Cơ chế xác thực (Authentication Boundaries)
+1. **Machine-to-Machine (M2M) API Key**:
    - Header bắt buộc: `X-VietSage-Knowledge-Key: <LOCALMATE_KNOWLEDGE_API_KEY>`
-   - Không yêu cầu phiên đăng nhập hay JWT của người dùng.
-   - Thích hợp cấu hình cố định trong n8n Credentials hoặc LangChain Tool headers.
+   - Dành riêng cho n8n AI Agent và các tác vụ server-to-server tra cứu kho tri thức LocalMate.
+   - Thích hợp cấu hình cố định trong n8n Header Auth Credentials hoặc LangChain Tool headers.
 
-2. **Guest Session Token (In-Stay Context)**: Dành cho các endpoint mang tính ngữ cảnh phòng lưu trú (dịch vụ khách sạn, yêu cầu dọn phòng, thông tin phòng ở, đối tác lân cận của khách sạn đang ở).
-   - Header bắt buộc: `Authorization: Bearer <GUEST_SESSION_TOKEN>`
-   - Token này được sinh ra khi khách quét mã QR tại phòng (`/guest/qr/scan`) và được hệ thống gửi kèm trong phiên chat của khách.
-
-Guest chat BFF waits at most 45 seconds for the authenticated n8n webhook. An upstream timeout returns HTTP `504` with stable code `CHAT_UPSTREAM_TIMEOUT`; other invalid/upstream responses remain `502` errors. Browsers never receive the webhook secret or call n8n directly.
-
-### Chuẩn dữ liệu phản hồi (Response Envelope)
-
-Mọi phản hồi thành công tuân theo format chuẩn của VietSage Core API:
-
-```json
-{
-  "status": 200,
-  "error": null,
-  "message": "Thông điệp thành công",
-  "data": {}
-}
-```
+2. **Guest Chat Proxy (BFF Gateway)**:
+   - Endpoint: `POST /api/guest/chat`
+   - Header: `Authorization: Bearer <GUEST_SESSION_TOKEN>`
+   - Trình duyệt **tuyệt đối không** gọi trực tiếp n8n và không nắm giữ API Key kho tri thức. Mọi yêu cầu chat đi qua Next.js BFF để xác thực phiên lưu trú, kiểm tra tính năng `guest.ai_floating_chat`, gắn mốc `hotelId` và giới hạn bán kính bản địa trước khi chuyển tiếp tới webhook n8n với secret `X-VietSage-Chat-Key`. Timeout tối đa 45 giây (`CHAT_UPSTREAM_TIMEOUT`).
 
 ---
 
@@ -42,15 +44,15 @@ Mọi phản hồi thành công tuân theo format chuẩn của VietSage Core AP
 
 ### 2.1. Truy vấn Kho Tri Thức LocalMate (Structured Knowledge)
 
-Cung cấp dữ liệu tri thức có cấu trúc (gồm cả tour gợi ý và thông tin hướng dẫn viên bản địa) theo địa phương và câu hỏi của khách. Khi có `hotelId`, tỉnh của khách sạn là ranh giới bắt buộc: câu hỏi về tỉnh khác chỉ nhận gợi ý trong tỉnh của khách sạn; backend không trả tour hoặc hướng dẫn viên ngoài tỉnh dù dữ liệu đó tồn tại.
+Cung cấp dữ liệu tri thức có cấu trúc (gồm cả tour gợi ý và hồ sơ hướng dẫn viên bản địa) theo địa phương và câu hỏi của khách. Khi có `hotelId`, tỉnh của khách sạn là ranh giới bắt buộc: câu hỏi về tỉnh khác chỉ nhận gợi ý trong tỉnh của khách sạn; backend không trả tour hoặc hướng dẫn viên ngoài tỉnh.
 
 - **Endpoint (GET)**: `/localmate/knowledge`
   - **Query Params**:
-    - `query` *(string, optional)*: Toàn bộ câu hỏi đã giới hạn độ dài của khách (vd: `"gợi ý tour ruộng bậc thang"`). Backend tự suy ra điểm đến theo taxonomy canonical và chỉ giữ từ khóa trải nghiệm cần thiết cho tìm kiếm.
-    - `destination` *(string, optional)*: Điểm đến (vd: `"Mù Cang Chải"`, `"Yên Bái"`, `"Hà Giang"`).
+    - `query` *(string, optional)*: Câu hỏi của du khách (vd: `"gợi ý tour ruộng bậc thang"`). Backend tự suy ra điểm đến theo taxonomy canonical và chỉ giữ từ khóa trải nghiệm cần thiết cho tìm kiếm.
+    - `destination` *(string, optional)*: Điểm đến mong muốn (vd: `"Mù Cang Chải"`, `"Yên Bái"`).
     - `hotelId` *(string, optional)*: Mốc khách sạn do BFF lấy từ phiên GuestOS đã xác thực; browser không được tự chọn giá trị này.
     - `radiusKm` *(number, optional, default: 50, range: 1–300)*: Bán kính quanh khách sạn; áp dụng khi khách không nêu điểm đến nội tỉnh rõ ràng.
-    - `limit` *(number, optional, default: 5)*: Số lượng kết quả tối đa mỗi loại.
+    - `limit` *(number, optional, default: 5)*: Số lượng kết quả tối đa mỗi loại (1–10).
 
 - **Endpoint (POST)**: `/localmate/knowledge`
   - **Body JSON**:
@@ -74,7 +76,7 @@ Cung cấp dữ liệu tri thức có cấu trúc (gồm cả tour gợi ý và 
         "title": "Khám phá Mùa Vàng Mù Cang Chải",
         "destination": "Mù Cang Chải",
         "durationDays": 2,
-        "summary": "Trải nghiệm chụp ảnh mâm xôi, đi đèo Khau Phạ và thưởng thức nếp tú lệ.",
+        "summary": "Trải nghiệm chụp ảnh mâm xôi, đi đèo Khau Phạ và thưởng thức nếp Tú Lệ.",
         "highlights": ["Đồi mâm xôi La Pán Tẩn", "Đèo Khau Phạ", "Bản Lìm Mông"],
         "priceVnd": 1500000,
         "suitableFor": ["chụp ảnh", "văn hóa", "trekking nhẹ"]
@@ -90,27 +92,26 @@ Cung cấp dữ liệu tri thức có cấu trúc (gồm cả tour gợi ý và 
         "dailyRateVnd": 800000,
         "rating": 4.9,
         "totalReviews": 38,
-        "bio": "Sinh ra và lớn lên tại La Pán Tẩn, am hiểu từng góc ruộng bậc thang đẹp nhất."
+        "bio": "Sinh ra và lớn lên tại La Pán Tẩn, am hiểu từng góc ruộng bậc thang đẹp nhất.",
+        "candidateKey": "cand_LM-YB-001_service_abc"
       }
-    ]
+    ],
+    "metadata": {
+      "locationScope": {
+        "hotelName": "VietSage Ecolodge Resort",
+        "province": "Yên Bái",
+        "radiusKm": 50,
+        "mode": "RADIUS"
+      }
+    }
   }
   ```
-
-#### Phạm vi theo vị trí khách sạn
-
-- Backend tự đọc tọa độ khách sạn từ `hotelId`, tạo bounding box có giới hạn, sau đó tính khoảng cách Haversine chính xác.
-- Khi có `hotelId`, tỉnh khách sạn luôn là hard boundary. Điểm đến nội tỉnh trong `destination` hoặc `query` được dùng để thu hẹp kết quả; điểm đến ngoài tỉnh không thay đổi phạm vi và backend fallback về tỉnh khách sạn.
-- Nếu câu hỏi không nêu điểm đến, `hotelId` là mốc bắt buộc của luồng GuestOS và backend chỉ truy vấn trong bán kính/địa giới fallback tương ứng.
-- Tour và LocalMate trong bán kính được xếp gần nhất trước; mỗi item có `distanceKm` hoặc `null`.
-- `metadata.locationScope` mô tả `hotelName`, `area`, `province`, `provinceCode`, `requestedDestination`, `outsideHotelProvince`, `radiusKm` và mode `RADIUS`, `HOTEL_PROVINCE_DESTINATION`, `HOTEL_PROVINCE_FALLBACK` hoặc `ADMINISTRATIVE_FALLBACK`.
-- Bản ghi cũ chưa có tọa độ chỉ được fallback trong cùng tỉnh/khu vực; API không tải full list cho n8n tự lọc.
-- Response không trả tọa độ điểm phục vụ của LocalMate cho AI/browser.
 
 ---
 
 ### 2.2. Tìm kiếm Lịch trình Tour (Tour Knowledge)
 
-Tra cứu sâu các tour du lịch bản địa theo bộ lọc chi tiết để AI tư vấn lịch trình cho khách.
+Tra cứu sâu các tour du lịch bản địa theo bộ lọc chi tiết để AI tư vấn lịch trình cụ thể cho du khách.
 
 - **Endpoint**: `GET /localmate/tours`
 - **Query Params**:
@@ -118,17 +119,16 @@ Tra cứu sâu các tour du lịch bản địa theo bộ lọc chi tiết để
   - `category` *(string, optional)*: Thể loại (`CULTURE`, `TREKKING`, `PHOTOGRAPHY`, `FOOD`, `RELAX`).
   - `durationDays` *(number, optional)*: Số ngày mong muốn.
   - `maxPriceVnd` *(number, optional)*: Ngân sách tối đa.
-
-- **Response `data`**: Danh sách các tour chi tiết kèm lịch trình từng ngày (itinerary).
+- **Response `data`**: Danh sách tour chi tiết kèm điểm nổi bật, lịch trình và giá ước tính.
 
 ---
 
-### 2.3. AI Matching LocalMate (Gợi ý Hướng dẫn viên phù hợp)
+### 2.3. Đối Soát Hướng Dẫn Viên Phù Hợp (LocalMate AI Matching)
 
-Sử dụng engine đối soát để chọn ra Top 3 hướng dẫn viên bản địa phù hợp nhất với nhu cầu cụ thể của khách.
+Sử dụng engine đối soát để chọn ra Top hướng dẫn viên bản địa phù hợp nhất với sở thích và ngôn ngữ của khách.
 
 - **Endpoint**: `POST /localmate/ai/match`
-- **Headers**: Không bắt buộc token (hoặc dùng `X-VietSage-Knowledge-Key`).
+- **Headers**: `X-VietSage-Knowledge-Key: <API_KEY>`
 - **Body JSON**:
   ```json
   {
@@ -138,29 +138,13 @@ Sử dụng engine đối soát để chọn ra Top 3 hướng dẫn viên bản
     "limit": 3
   }
   ```
-- **Response `data`**:
-  ```json
-  {
-    "matches": [
-      {
-        "guideCode": "LM-YB-001",
-        "fullName": "Giàng A Páo",
-        "avatarUrl": "https://...",
-        "matchScore": 0.95,
-        "matchReasons": ["Nói được tiếng Anh", "Chuyên môn trekking và chụp ảnh", "Bản địa Yên Bái"],
-        "dailyRateVnd": 800000,
-        "rating": 4.9,
-        "phone": "0987654321"
-      }
-    ]
-  }
-  ```
+- **Response `data`**: Danh sách hướng dẫn viên đạt điểm đối soát cao nhất kèm lý do phù hợp (`matchReasons`).
 
 ---
 
 ### 2.4. Tra cứu Hồ sơ Hướng dẫn viên (Guide Profile)
 
-Lấy đầy đủ thông tin chi tiết của một hướng dẫn viên khi khách muốn xem kỹ trước khi đặt.
+Lấy thông tin chi tiết đầy đủ của một hướng dẫn viên khi du khách muốn tìm hiểu kỹ lưỡng.
 
 - **Endpoint**: `GET /localmate/guides/:guideCode`
 - **Params**:
@@ -168,146 +152,99 @@ Lấy đầy đủ thông tin chi tiết của một hướng dẫn viên khi kh
 
 ---
 
-## 3. Danh Mục API Tri Thức Khách Sạn & Tiện Ích Phòng (In-Stay Hotel Knowledge)
+### 2.5. Xác Thực Ứng Viên Đặt Lịch (Resolve Booking Candidate)
 
-> **Cơ chế xác thực**: Header `Authorization: Bearer <GUEST_SESSION_TOKEN>`
+Xác thực tính hợp lệ của LocalMate và gói dịch vụ khả dụng từ máy chủ trước khi mở popup đặt dịch vụ cho khách.
 
-### 3.1. Ngữ Cảnh Phòng của Khách (Guest Session Context)
-
-Cho phép AI biết khách đang ở khách sạn nào, phòng số mấy, lưu trú từ ngày nào đến ngày nào.
-
-- **Endpoint**: `GET /guest/session/me`
+- **Endpoint**: `GET /localmate/booking-candidate/:candidateKey?hotelId=:hotelId`
+- **Headers**: `X-VietSage-Knowledge-Key: <API_KEY>`
 - **Response `data`**:
   ```json
   {
-    "session": {
-      "id": "uuid-session",
-      "status": "ACTIVE",
-      "room": {
-        "id": "uuid-room",
-        "roomNumber": "302",
-        "roomType": "Deluxe Mountain View"
-      },
-      "hotel": {
-        "id": "uuid-hotel",
-        "name": "VietSage Ecolodge Resort",
-        "address": "Bản Ít Thái, Mù Cang Chải"
-      },
-      "stay": {
-        "checkInAt": "2026-09-24T14:00:00.000Z",
-        "plannedCheckOutAt": "2026-09-27T12:00:00.000Z"
-      }
-    }
+    "candidateKey": "cand_LM-YB-001_service_abc",
+    "guide": {
+      "fullName": "Giàng A Páo",
+      "avatarUrl": "https://...",
+      "languages": ["Vietnamese", "H'Mông"],
+      "specialties": ["Văn hóa người H'Mông"],
+      "rating": 4.9,
+      "totalReviews": 38
+    },
+    "service": {
+      "id": "srv-guide-daily",
+      "name": "Hướng dẫn viên bản địa theo ngày",
+      "price": 800000,
+      "currency": "VND"
+    },
+    "hotel": {
+      "id": "hotel-123",
+      "name": "VietSage Ecolodge Resort",
+      "province": "Yên Bái"
+    },
+    "telegramReady": true
   }
   ```
 
 ---
 
-### 3.2. Danh Mục Dịch Vụ Khách Sạn (Hotel Services Catalog)
+## 3. Quy Trình Tác Vụ Đặt LocalMate (LocalMate Action Calling Flow)
 
-Cung cấp thông tin về các dịch vụ do chính khách sạn cung cấp (menu đồ ăn tại phòng, giặt là, spa, mượn đồ dùng).
+Khung chat LocalMate AI chỉ có **duy nhất một hành vi tác vụ (Action Calling)** là đặt Hướng dẫn viên bản địa:
 
-- **Endpoint**: `GET /guest/services`
-- **Response `data`**:
-  ```json
-  {
-    "categories": [
-      {
-        "id": "cat-dining",
-        "name": "Ẩm thực tại phòng (In-room Dining)",
-        "serviceCount": 12
-      },
-      {
-        "id": "cat-housekeeping",
-        "name": "Dịch vụ phòng (Housekeeping)",
-        "serviceCount": 6
-      }
-    ]
-  }
-  ```
-
-- **Endpoint**: `GET /guest/service-categories/:categoryId/services`
-  - Tra cứu chi tiết từng món/dịch vụ trong danh mục (tên món, giá tiền, thời gian mở bán).
-
----
-
-### 3.3. Đối Tác Lân Cận Khách Sạn (Local Partners)
-
-Cung cấp danh sách các quán ăn, quán cafe, hiệu thuốc, điểm thuê xe máy đã được khách sạn kiểm duyệt và có chính sách ưu đãi cho khách.
-
-- **Endpoint**: `GET /guest/local-partners/categories`: Danh mục đối tác (Cafe, Nhà hàng, Y tế, Phương tiện...).
-- **Endpoint**: `GET /guest/local-partners`: Danh sách đối tác kèm khoảng cách tính từ khách sạn (vd: cách 250m).
-- **Endpoint**: `GET /guest/local-partners/:partnerId`: Chi tiết đối tác, địa chỉ, menu nổi bật, ưu đãi cho khách của khách sạn.
+```
+[Du khách chat]
+       │
+       ▼
+[LocalMate AI Agent (n8n)]
+  - Nhận diện nhu cầu đặt HDV
+  - Trả về JSON: { reply: "...", action: { type: "LOCALMATE_BOOKING", candidateKey: "..." } }
+       │
+       ▼
+[Next.js BFF (/api/guest/chat)]
+  - Gọi GET /localmate/booking-candidate/:candidateKey?hotelId=:hotelId (Server-to-Server M2M)
+  - Xác thực gói dịch vụ, giá tiền, tính sẵn sàng của Telegram bridge
+  - Đính kèm resolved action vào response
+       │
+       ▼
+[Guest Floating Chat UI]
+  - Hiển thị LocalMateBookingCard trong dòng tin nhắn
+  - Du khách bấm "Đặt dịch vụ ngay"
+  - Mở LocalMateOrderRequestDialog: chọn ngày giờ, số lượng khách, ghi chú
+  - Gửi POST /guest/marketplace/orders với Session Token của khách
+       │
+       ▼
+[Đơn Hàng & Telegram Bridge]
+  - Đơn tạo ở trạng thái PENDING
+  - Bot Telegram thông báo tới HDV với nút [Nhận đơn] / [Từ chối]
+  - Khi HDV nhận đơn -> Kích hoạt phòng chat 2 chiều Web ↔ Telegram
+```
 
 ---
 
-### 3.4. Dịch Vụ Mở Rộng (Marketplace Experiences)
+## 4. Hướng Dẫn Tích Hợp n8n AI Agent / LangChain
 
-- **Endpoint**: `GET /guest/marketplace/categories`: Danh mục dịch vụ liên kết (Tour trải nghiệm, xe đưa đón sân bay...).
-- **Endpoint**: `GET /guest/marketplace/services`: Danh sách dịch vụ kèm giá niêm yết.
-- **Endpoint**: `GET /guest/marketplace/services/:serviceId`: Chi tiết điều khoản dịch vụ.
+Khi cấu hình AI Agent chuyên biệt cho LocalMate (vd: n8n `AI Agent` node hoặc LLM Tool Calling):
 
----
+### 4.1. System Prompt Định Hướng
+- **Vai trò**: Em là **LocalMate AI** — Trợ lý du lịch bản địa thân thiện, am hiểu văn hóa và phong cảnh địa phương.
+- **Phạm vi phục vụ**: Chỉ tư vấn về cẩm nang du lịch, văn hóa, ẩm thực đặc sản, lịch trình tour và kết nối hướng dẫn viên bản địa LocalMate.
+- **Ranh giới dịch vụ phòng**: Khi khách yêu cầu dọn phòng, thêm nước suối, mượn đồ dùng, hỏi mật khẩu Wi-Fi hoặc giờ trả phòng, AI sẽ từ chối khéo léo và hướng dẫn khách mở tab **Dịch vụ phòng** trên thanh điều hướng hoặc liên hệ trực tiếp quầy lễ tân.
 
-## 4. Danh Mục API Tác Vụ Cho AI (Action / Tool Calling APIs)
+### 4.2. Khai Báo Công Cụ (Tools)
+1. `get_localmate_knowledge`:
+   - URL: `http://auth-service:8080/localmate/knowledge`
+   - Method: `POST` (hoặc `GET`)
+   - Header: `X-VietSage-Knowledge-Key: <LOCALMATE_KNOWLEDGE_API_KEY>`
+   - Params: `query`, `hotelId`, `radiusKm`
+2. `match_localmate_guide`:
+   - URL: `http://auth-service:8080/localmate/ai/match`
+   - Method: `POST`
+   - Header: `X-VietSage-Knowledge-Key: <LOCALMATE_KNOWLEDGE_API_KEY>`
+   - Params: `destination`, `language`, `preferences`
+3. `list_localmate_tours`:
+   - URL: `http://auth-service:8080/localmate/tours`
+   - Method: `GET`
+   - Header: `X-VietSage-Knowledge-Key: <LOCALMATE_KNOWLEDGE_API_KEY>`
+   - Params: `destination`, `category`, `durationDays`
 
-> **Cơ chế xác thực**: Header `Authorization: Bearer <GUEST_SESSION_TOKEN>`
-
-Khi khách trò chuyện với AI và đưa ra yêu cầu thực tế, AI có thể gọi các tool này để thay khách tạo phiếu yêu cầu:
-
-### 4.1. Tạo Yêu Cầu Phục Vụ Phòng (Create Guest Request)
-
-Khi khách chat: *"Mang thêm cho tôi 2 chai nước suối và 1 bộ khăn tắm lên phòng 302"*
-AI parse thành payload và gọi:
-
-- **Endpoint**: `POST /guest/requests`
-- **Body JSON**:
-  ```json
-  {
-    "serviceItemId": "optional-uuid-neu-la-dich-vu-cu-the",
-    "title": "Yêu cầu thêm nước uống và khăn tắm",
-    "description": "Khách cần 2 chai nước suối và 1 bộ khăn tắm sạch",
-    "guestNotes": "Giao trước 21h",
-    "priority": "NORMAL"
-  }
-  ```
-- **Response**: Trả về phiếu yêu cầu đã tạo thành công với mã `requestId` và trạng thái `CREATED`. Khách sạn nhận thông báo realtime qua chuông lễ tân và Telegram bot.
-
----
-
-### 4.2. Tra Cứu Trạng Thái Yêu Cầu (Check Guest Request Status)
-
-Khi khách hỏi: *"Yêu cầu nước uống của tôi đã có ai mang lên chưa?"*
-
-- **Endpoint**: `GET /guest/requests`
-- **Response**: Danh sách các yêu cầu đang thực hiện kèm trạng thái (`CREATED` -> `ACKNOWLEDGED` -> `IN_PROGRESS` -> `COMPLETED`).
-
-### 4.3. Đặt Hướng Dẫn Viên LocalMate (Book LocalMate Action)
-
-Khi khách chọn hướng dẫn viên từ câu trả lời của AI Concierge:
-1. AI trả về action `BOOK_LOCALMATE` kèm `candidateKey` (lấy từ trường `candidateKey` của mảng `guides` trong `/localmate/knowledge`).
-2. BFF GuestOS gọi endpoint xác thực server-side để giải mã và kiểm tra điều kiện hoạt động:
-   - **Endpoint**: `GET /localmate/ai/booking-candidate/:candidateKey?hotelId=:hotelId`
-   - **Xác thực**: Header `X-VietSage-Knowledge-Key` (M2M)
-   - **Response**: Trả về dữ liệu public đã xác minh gồm: `candidateKey`, `guideCode`, `guideName`, `serviceId`, `serviceName`, `priceAmount`, `currency`, `telegramConfigured`, `province`.
-3. GuestOS render card xác nhận `LocalMateBookingCard` và mở popup đặt dịch vụ:
-   - Thu thập ngày giờ hẹn (`requestedStartAt`), số lượng khách (`partySize`), ghi chú (`guestNote`).
-   - Gửi yêu cầu đặt dịch vụ qua `POST /guest/marketplace/orders`.
-   - Đơn hàng vào trạng thái `PENDING`. Thông báo đơn kèm nút Nhận/Từ chối được gửi tới Telegram riêng của LocalMate.
-   - Khi LocalMate nhấn Nhận đơn, đơn chuyển sang `ACKNOWLEDGED` và phòng chat 2 chiều Web ↔ Telegram được kích hoạt.
-
----
-
-## 5. Hướng Dẫn Tích Hợp n8n AI Agent / LangChain
-
-Khi cấu hình AI Agent (vd: n8n `AI Agent` node hoặc Custom GPT):
-
-1. **System Prompt / Tool Setup**:
-   - Khai báo tool `get_localmate_knowledge` trỏ tới `GET /localmate/knowledge` với Header `X-VietSage-Knowledge-Key`.
-   - Khai báo tool `match_localmate_guide` trỏ tới `POST /localmate/ai/match`.
-   - Khai báo tool `get_hotel_services` trỏ tới `GET /guest/services` với Header `Authorization: Bearer {{ $json.sessionToken }}`.
-   - Khai báo tool `create_room_request` trỏ tới `POST /guest/requests`.
-
-2. **Ưu điểm khi sử dụng Catalog này**:
-   - AI chỉ thấy các công cụ phục vụ khách, **không bao giờ thấy** các API quản lý nhân viên, doanh thu, thanh toán hay hệ thống nội bộ.
-   - Dung lượng prompt của tool cực nhỏ (~2 KB so với 389 KB của toàn hệ thống), giúp giảm tối đa chi phí token và tăng tốc độ phản hồi cho khách.
+*(Tuyệt đối không cấp các tool phòng/khách sạn như `get_hotel_services` hay `create_room_request` cho LocalMate AI).*

@@ -323,7 +323,9 @@ export class MarketplaceOrderService {
       throw new NotFoundException("Không tìm thấy đơn hàng");
     }
     if (order.status !== MarketplaceOrderStatus.PENDING) {
-      throw new ConflictException("Chỉ có thể hủy đơn hàng khi đang ở trạng thái chờ xử lý (PENDING)");
+      throw new ConflictException(
+        "Chỉ có thể hủy đơn hàng khi đang ở trạng thái chờ xử lý (PENDING)",
+      );
     }
 
     const cancelledOrder = await this.prisma.$transaction(async (tx) => {
@@ -418,7 +420,6 @@ export class MarketplaceOrderService {
       // Ignored: external provider failure must not roll back order cancellation
     }
   }
-
 
   async checkoutGuestCart(
     scope: { hotelId: string; stayId: string; sessionId: string },

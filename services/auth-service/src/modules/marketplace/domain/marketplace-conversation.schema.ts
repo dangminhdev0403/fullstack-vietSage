@@ -1,10 +1,6 @@
 import { z } from "zod";
 
-export const marketplaceConversationSenderTypeSchema = z.enum([
-  "GUEST",
-  "SERVICE_STAFF",
-  "SYSTEM",
-]);
+export const marketplaceConversationSenderTypeSchema = z.enum(["GUEST", "SERVICE_STAFF", "SYSTEM"]);
 
 export const marketplaceMessageDeliveryStatusSchema = z.enum([
   "PENDING",
@@ -28,11 +24,7 @@ export const sendMarketplaceConversationMessageSchema = z.object({
     .trim()
     .min(1, "Tin nhắn phải có từ 1 đến 1000 ký tự")
     .max(1000, "Tin nhắn không được vượt quá 1000 ký tự"),
-  clientMessageId: z
-    .string()
-    .trim()
-    .min(1, "clientMessageId là bắt buộc")
-    .max(80),
+  clientMessageId: z.string().trim().min(1, "clientMessageId là bắt buộc").max(80),
 });
 
 export const listMarketplaceConversationMessagesQuerySchema = z.object({
@@ -46,9 +38,7 @@ export type MarketplaceConversationSenderType = z.infer<
 export type MarketplaceMessageDeliveryStatus = z.infer<
   typeof marketplaceMessageDeliveryStatusSchema
 >;
-export type MarketplaceConversationMessage = z.infer<
-  typeof marketplaceConversationMessageSchema
->;
+export type MarketplaceConversationMessage = z.infer<typeof marketplaceConversationMessageSchema>;
 export type SendMarketplaceConversationMessageInput = z.infer<
   typeof sendMarketplaceConversationMessageSchema
 >;

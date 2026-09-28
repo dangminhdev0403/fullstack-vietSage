@@ -380,12 +380,36 @@ export function isLocationInProvince(value: string, provinceCode: string): boole
   return resolveProvinceFromText(value)?.code === provinceCode;
 }
 
+export function resolveExpandedRegionsForDestination(destination?: string): string[] {
+  if (!destination?.trim()) return [];
+  const regions = new Set<string>();
+  const trimmed = destination.trim();
+  regions.add(trimmed);
+  const province = resolveProvinceFromText(trimmed);
+  if (province) {
+    regions.add(province.name);
+    const taxonomy = GEOGRAPHY_TAXONOMY[province.code];
+    if (taxonomy) {
+      for (const alias of taxonomy.aliases) {
+        regions.add(alias);
+      }
+      const matchedDest = taxonomy.destinations.find((d) =>
+        [d.name, ...d.keywords].some(
+          (k) => normalizeGeographyText(k) === normalizeGeographyText(trimmed),
+        ),
+      );
+      if (matchedDest) {
+        regions.add(matchedDest.name);
+      }
+    }
+  }
+  return Array.from(regions);
+}
+
 export function resolveKnowledgeSearchTerm(value?: string): string | undefined {
   if (!value?.trim()) return undefined;
   const normalized = normalizeGeographyText(value);
-  return KNOWLEDGE_SEARCH_TERMS.find((term) =>
-    normalized.includes(normalizeGeographyText(term)),
-  );
+  return KNOWLEDGE_SEARCH_TERMS.find((term) => normalized.includes(normalizeGeographyText(term)));
 }
 
 export interface InferredProvinceAndScope {

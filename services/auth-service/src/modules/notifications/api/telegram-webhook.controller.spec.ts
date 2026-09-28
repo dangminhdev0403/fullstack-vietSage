@@ -27,7 +27,9 @@ describe("TelegramWebhookController", () => {
 
   describe("metadata", () => {
     it("skips authorization only on the webhook method", () => {
-      expect(Reflect.getMetadata(SKIP_AUTHORIZATION_KEY, TelegramWebhookController)).toBeUndefined();
+      expect(
+        Reflect.getMetadata(SKIP_AUTHORIZATION_KEY, TelegramWebhookController),
+      ).toBeUndefined();
       const method = Object.getOwnPropertyDescriptor(
         TelegramWebhookController.prototype,
         "handleWebhook",
@@ -38,15 +40,13 @@ describe("TelegramWebhookController", () => {
 
   describe("secret validation", () => {
     it("throws ForbiddenException when secret does not match", async () => {
-      await expect(
-        controller.handleWebhook("wrong-secret", {}),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(controller.handleWebhook("wrong-secret", {})).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it("throws ForbiddenException when secret header is missing", async () => {
-      await expect(
-        controller.handleWebhook(undefined, {}),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(controller.handleWebhook(undefined, {})).rejects.toThrow(ForbiddenException);
     });
   });
 

@@ -41,6 +41,29 @@ export const localMateAdminRepository = {
       })
     ).data,
 
+  pairTelegram: async (guideId: string) =>
+    (
+      await requestInternalApiEnvelope<{
+        pairingUrl: string;
+        expiresAt: string;
+        expiresInSeconds: number;
+      }>("/api/admin/localmate", {
+        method: "POST",
+        body: { action: "pairTelegram", guideId },
+      })
+    ).data,
+
+  disconnectTelegram: async (guideId: string) =>
+    (
+      await requestInternalApiEnvelope<{ disconnected: boolean; alreadyDisconnected: boolean }>(
+        "/api/admin/localmate",
+        {
+          method: "POST",
+          body: { action: "disconnectTelegram", guideId },
+        },
+      )
+    ).data,
+
   createTour: async (input: CreateLocalMateTourInput) =>
     (
       await requestInternalApiEnvelope<LocalMateTourKnowledge>("/api/admin/localmate", {

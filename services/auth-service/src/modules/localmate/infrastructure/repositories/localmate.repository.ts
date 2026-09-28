@@ -114,6 +114,16 @@ export class LocalMateRepository {
         user: {
           select: { id: true, email: true, fullName: true, status: true },
         },
+        telegramBinding: {
+          select: {
+            id: true,
+            telegramUserId: true,
+            telegramChatId: true,
+            pairedAt: true,
+            revokedAt: true,
+            blockedAt: true,
+          },
+        },
       },
     });
   }
@@ -142,6 +152,16 @@ export class LocalMateRepository {
         user: {
           select: { id: true, email: true, fullName: true, status: true },
         },
+        telegramBinding: {
+          select: {
+            id: true,
+            telegramUserId: true,
+            telegramChatId: true,
+            pairedAt: true,
+            revokedAt: true,
+            blockedAt: true,
+          },
+        },
       },
     });
   }
@@ -153,6 +173,16 @@ export class LocalMateRepository {
         user: {
           select: { id: true, email: true, fullName: true, status: true },
         },
+        telegramBinding: {
+          select: {
+            id: true,
+            telegramUserId: true,
+            telegramChatId: true,
+            pairedAt: true,
+            revokedAt: true,
+            blockedAt: true,
+          },
+        },
       },
     });
   }
@@ -163,6 +193,16 @@ export class LocalMateRepository {
       include: {
         user: {
           select: { id: true, email: true, fullName: true, status: true },
+        },
+        telegramBinding: {
+          select: {
+            id: true,
+            telegramUserId: true,
+            telegramChatId: true,
+            pairedAt: true,
+            revokedAt: true,
+            blockedAt: true,
+          },
         },
       },
     });
@@ -207,6 +247,16 @@ export class LocalMateRepository {
           user: {
             select: { id: true, email: true, fullName: true, status: true },
           },
+          telegramBinding: {
+            select: {
+              id: true,
+              telegramUserId: true,
+              telegramChatId: true,
+              pairedAt: true,
+              revokedAt: true,
+              blockedAt: true,
+            },
+          },
         },
       }),
     ]);
@@ -223,6 +273,7 @@ export class LocalMateRepository {
   async findQualifiedGuides(
     options: {
       destination?: string;
+      targetRegions?: string[];
       bounds?: GeographicBounds;
       fallbackRegions?: string[];
       limit?: number;
@@ -243,10 +294,17 @@ export class LocalMateRepository {
       }
     }
 
+    const regionConditions: Prisma.LocalMateProfileWhereInput[] = [];
+    if (options.targetRegions && options.targetRegions.length > 0) {
+      regionConditions.push({ operatingRegions: { hasSome: options.targetRegions } });
+    } else if (options.destination) {
+      regionConditions.push({ operatingRegions: { has: options.destination } });
+    }
+
     return this.prisma.localMateProfile.findMany({
       where: {
         status: LocalMateStatus.QUALIFIED,
-        ...(options.destination ? { operatingRegions: { has: options.destination } } : {}),
+        ...(regionConditions.length > 0 ? { AND: regionConditions } : {}),
         ...(locationConditions.length > 0 ? { OR: locationConditions } : {}),
       },
       ...(options.limit ? { take: options.limit } : {}),
@@ -460,4 +518,3 @@ export class LocalMateRepository {
     });
   }
 }
-

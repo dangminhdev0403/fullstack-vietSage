@@ -397,9 +397,7 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       "Invalid REQUEST_REALTIME_TICKET_SECRET environment variable. Expected at least 32 non-blank characters when request realtime is enabled.",
     );
   }
-  const localMateKnowledgeApiKey = normalizeOptionalEnvText(
-    validated.LOCALMATE_KNOWLEDGE_API_KEY,
-  );
+  const localMateKnowledgeApiKey = normalizeOptionalEnvText(validated.LOCALMATE_KNOWLEDGE_API_KEY);
   if (
     validated.NODE_ENV === "production" &&
     (!localMateKnowledgeApiKey || localMateKnowledgeApiKey.length < 32)

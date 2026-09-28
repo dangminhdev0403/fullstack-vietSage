@@ -58,6 +58,20 @@ export const localMateAdminClient = {
       { status },
     ),
 
+  pairTelegram: (token: string, guideId: string) =>
+    call<{ pairingUrl: string; expiresAt: string; expiresInSeconds: number }>(
+      token,
+      "POST",
+      `/localmate-admin/guides/${guideId}/telegram-pair`,
+    ),
+
+  disconnectTelegram: (token: string, guideId: string) =>
+    call<{ disconnected: boolean; alreadyDisconnected: boolean }>(
+      token,
+      "POST",
+      `/localmate-admin/guides/${guideId}/telegram-disconnect`,
+    ),
+
   createTour: (token: string, dto: CreateLocalMateTourInput) =>
     call<LocalMateTourKnowledge, CreateLocalMateTourInput>(
       token,

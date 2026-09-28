@@ -1,7 +1,9 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { QRCodeSVG } from "qrcode.react";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { SwalVietSage } from "@/libs/swal";
@@ -112,6 +114,23 @@ export function LocalMateGuidesView() {
   const updateGuideMutation = useMutation(
     resource.mutations.updateGuide.options(),
   );
+  const pairTelegramMutation = useMutation(
+    resource.mutations.pairTelegram.options(),
+  );
+  const disconnectTelegramMutation = useMutation(
+    resource.mutations.disconnectTelegram.options(),
+  );
+
+  // Telegram pairing modal state
+  const [pairingModalOpen, setPairingModalOpen] = useState(false);
+  const [pairingGuide, setPairingGuide] = useState<LocalMateGuide | null>(null);
+  const [pairingData, setPairingData] = useState<{
+    pairingUrl: string;
+    expiresAt: string;
+    expiresInSeconds: number;
+  } | null>(null);
+  const [isPairingLoading, setIsPairingLoading] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const guides: LocalMateGuide[] = useMemo(() => data?.guides ?? [], [data?.guides]);
 
@@ -140,7 +159,6 @@ export function LocalMateGuidesView() {
   // Statistics
   const qualifiedCount = guides.filter((g) => g.status === "QUALIFIED").length;
   const pendingCount = guides.filter((g) => g.status === "PENDING").length;
-  const suspendedCount = guides.filter((g) => g.status === "SUSPENDED").length;
   const avgRating =
     guides.length > 0
       ? (guides.reduce((acc, g) => acc + g.rating, 0) / guides.length).toFixed(2)
@@ -375,6 +393,101 @@ export function LocalMateGuidesView() {
         showConfirmButton: true,
         confirmButtonText: "OK",
       });
+    }
+  };
+
+  // Telegram pairing handlers
+  const handleConnectTelegram = async (guide: LocalMateGuide) => {
+    setOpenMenuGuideId(null);
+    setPairingGuide(guide);
+    setPairingData(null);
+    setCopiedLink(false);
+    setIsPairingLoading(true);
+    setPairingModalOpen(true);
+
+    try {
+      const res = await pairTelegramMutation.mutateAsync({ guideId: guide.id });
+      setPairingData(res);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Không thể tạo liên kết kết nối Telegram.";
+      setPairingModalOpen(false);
+      await SwalVietSage.fire({
+        title: "Lỗi kết nối Telegram",
+        text: msg,
+        icon: "error",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+    } finally {
+      setIsPairingLoading(false);
+    }
+  };
+
+  const handleDisconnectTelegram = async (guide: LocalMateGuide) => {
+    setOpenMenuGuideId(null);
+    const confirmResult = await SwalVietSage.fire({
+      title: "Hủy kết nối Telegram?",
+      text: `Bạn có chắc chắn muốn ngắt kết nối Telegram của hướng dẫn viên ${guide.fullName}? Hướng dẫn viên sẽ không còn nhận được thông báo chuyến đi qua bot.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Đồng ý ngắt kết nối",
+      cancelButtonText: "Giữ lại",
+      reverseButtons: false,
+    });
+
+    if (!confirmResult.isConfirmed) return;
+
+    try {
+      await disconnectTelegramMutation.mutateAsync({ guideId: guide.id });
+      await SwalVietSage.fire({
+        title: "Đã hủy kết nối",
+        text: `Đã ngắt liên kết Telegram cho ${guide.fullName}.`,
+        icon: "success",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Không thể hủy kết nối Telegram.";
+      await SwalVietSage.fire({
+        title: "Lỗi",
+        text: msg,
+        icon: "error",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+    }
+  };
+
+  const handleCopyPairingLink = async () => {
+    if (!pairingData?.pairingUrl) return;
+    try {
+      await navigator.clipboard.writeText(pairingData.pairingUrl);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 3000);
+    } catch {
+      setCopiedLink(false);
+    }
+  };
+
+  const handleRefreshTelegramStatus = async () => {
+    const refreshed = await refetch();
+    if (pairingGuide) {
+      const refreshedGuides = refreshed.data?.guides ?? [];
+      const updated = refreshedGuides.find((g: LocalMateGuide) => g.id === pairingGuide.id);
+      if (
+        updated?.telegramBinding &&
+        !updated.telegramBinding.revokedAt &&
+        !updated.telegramBinding.blockedAt
+      ) {
+        setPairingModalOpen(false);
+        await SwalVietSage.fire({
+          title: "Kết nối Telegram thành công!",
+          text: `Hướng dẫn viên ${updated.fullName} đã liên kết thành công với tài khoản Telegram. Giờ đây các thông báo đặt tour sẽ tự động chuyển về Telegram!`,
+          icon: "success",
+          showConfirmButton: true,
+          confirmButtonText: "OK",
+        });
+      }
     }
   };
 
@@ -709,13 +822,48 @@ export function LocalMateGuidesView() {
                                   Trưởng nhóm
                                 </span>
                               ) : null}
+
+                              {/* Telegram Binding Badge */}
+                              {guide.telegramBinding &&
+                              !guide.telegramBinding.revokedAt &&
+                              !guide.telegramBinding.blockedAt ? (
+                                <span
+                                  className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-300 px-2.5 py-0.5 text-xs font-bold text-emerald-800"
+                                  title={`Telegram Chat ID: ${guide.telegramBinding.telegramChatId}`}
+                                >
+                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                  Telegram đã kết nối
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleConnectTelegram(guide);
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded-full bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2.5 py-0.5 text-xs font-bold text-sky-700 transition-colors cursor-pointer"
+                                  title="Bấm để kết nối Telegram"
+                                >
+                                  <VsIcon name="send" className="text-xs text-sky-600" />
+                                  Kết nối Telegram
+                                </button>
+                              )}
                             </div>
 
-                            {/* Subtitle */}
-                            <div className="mt-1 text-sm text-[#52635A] group-hover:text-[#173F35] font-medium transition-colors line-clamp-1">
+                            {/* Account Email & Phone */}
+                            <div className="mt-1 flex items-center gap-2 text-xs text-[#52635A]">
+                              <span className="font-mono text-[#142823] font-medium">
+                                ✉ {guide.user?.email || guide.email || "Chưa có tài khoản"}
+                              </span>
+                              <span>•</span>
+                              <span>📞 {guide.phone}</span>
+                            </div>
+
+                            {/* Subtitle / Specialties */}
+                            <div className="mt-0.5 text-xs text-[#788880] group-hover:text-[#173F35] font-medium transition-colors line-clamp-1">
                               {guide.specialties && guide.specialties.length > 0
                                 ? guide.specialties.join(" · ")
-                                : guide.phone}
+                                : guide.bio || "Hướng dẫn viên du lịch trải nghiệm"}
                             </div>
                           </div>
                         </div>
@@ -826,6 +974,28 @@ export function LocalMateGuidesView() {
                                   : "Duyệt Qualified"}
                               </span>
                             </button>
+                            <div className="my-1 border-t border-[#25483F]/10" />
+                            {guide.telegramBinding &&
+                            !guide.telegramBinding.revokedAt &&
+                            !guide.telegramBinding.blockedAt ? (
+                              <button
+                                type="button"
+                                onClick={() => handleDisconnectTelegram(guide)}
+                                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-50 cursor-pointer transition-colors"
+                              >
+                                <VsIcon name="link_off" className="text-lg text-amber-600" />
+                                <span>Hủy kết nối Telegram</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleConnectTelegram(guide)}
+                                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-sky-700 hover:bg-sky-50 cursor-pointer transition-colors"
+                              >
+                                <VsIcon name="send" className="text-lg text-sky-600" />
+                                <span>Kết nối Telegram</span>
+                              </button>
+                            )}
                           </div>
                         )}
                       </td>
@@ -1154,6 +1324,175 @@ export function LocalMateGuidesView() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Telegram Pairing Modal */}
+      {pairingModalOpen && pairingGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-[#25483F]/15 bg-white shadow-2xl transition-all">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-[#25483F]/10 bg-gradient-to-r from-[#173F35] to-[#245347] px-6 py-5 text-white">
+              <div className="flex items-center gap-3">
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/15 text-white shadow-xs">
+                  <VsIcon name="send" className="text-xl" />
+                </span>
+                <div>
+                  <h3 className="text-lg font-black tracking-tight text-white">
+                    Kết nối Telegram cho LocalMate
+                  </h3>
+                  <p className="text-xs text-white/80">
+                    Ghép nối bot để nhận đơn và chat 2 chiều với khách
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPairingModalOpen(false)}
+                className="grid h-9 w-9 place-items-center rounded-xl text-white/80 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+              >
+                <VsIcon name="close" className="text-xl" />
+              </button>
+            </div>
+
+            {/* Guide Profile Preview */}
+            <div className="flex items-center gap-3.5 bg-[#FAF7F0] px-6 py-4 border-b border-[#25483F]/10">
+              <img
+                src={pairingGuide.avatarUrl}
+                alt={pairingGuide.fullName}
+                className="h-12 w-12 rounded-2xl object-cover ring-2 ring-[#25483F]/15 shadow-xs"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-base text-[#142823]">{pairingGuide.fullName}</span>
+                  <span className="font-mono text-xs font-bold text-[#485951] bg-white border border-[#25483F]/15 px-2 py-0.5 rounded-md">
+                    {pairingGuide.guideCode}
+                  </span>
+                </div>
+                <div className="text-xs text-[#52635A] mt-0.5">
+                  Tài khoản:{" "}
+                  <span className="font-mono font-medium text-[#142823]">
+                    {pairingGuide.user?.email || pairingGuide.email || "—"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Content Body */}
+            <div className="p-6 space-y-5">
+              {isPairingLoading ? (
+                <div className="py-12 text-center text-[#52635A] space-y-3">
+                  <VsIcon name="sync" className="mx-auto text-4xl text-[#173F35] animate-spin" />
+                  <p className="text-sm font-semibold">Đang khởi tạo liên kết kết nối Telegram...</p>
+                </div>
+              ) : pairingData ? (
+                <>
+                  {/* QR Code & Direct Open */}
+                  <div className="flex flex-col sm:flex-row items-center gap-5 rounded-2xl border border-sky-200/80 bg-sky-50/50 p-4">
+                    <div className="shrink-0 bg-white p-2.5 rounded-2xl border border-sky-100 shadow-xs">
+                      <QRCodeSVG
+                        value={pairingData.pairingUrl}
+                        size={128}
+                        aria-label="QR ghép nối Telegram có hiệu lực mười phút"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1 text-center sm:text-left space-y-2">
+                      <div className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-bold text-sky-800">
+                        <span className="h-1.5 w-1.5 rounded-full bg-sky-500 animate-ping" />
+                        Liên kết một lần (10 phút)
+                      </div>
+                      <h4 className="font-bold text-sm text-neutral-900">
+                        Quét mã QR hoặc mở ứng dụng Telegram
+                      </h4>
+                      <p className="text-xs text-neutral-600 leading-relaxed">
+                        Dùng camera điện thoại để quét mã QR mở bot trên Telegram hoặc click nút bên dưới.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          window.open(pairingData.pairingUrl, "_blank", "noopener,noreferrer")
+                        }
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-sky-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:from-sky-600 hover:to-sky-700 transition-all cursor-pointer"
+                      >
+                        <VsIcon name="send" className="text-sm" />
+                        <span>Mở Telegram ngay</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Copy Link Input */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#485951]">
+                      Đường dẫn ghép nối Telegram
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={pairingData.pairingUrl}
+                        className="h-10 flex-1 rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3 font-mono text-xs text-[#142823] focus:outline-none select-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCopyPairingLink}
+                        className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[#25483F]/15 bg-white px-3.5 text-xs font-bold text-[#142823] hover:bg-[#FAF7F0] transition-colors cursor-pointer shrink-0"
+                      >
+                        <VsIcon
+                          name={copiedLink ? "check" : "content_copy"}
+                          className="text-sm"
+                        />
+                        <span>{copiedLink ? "Đã chép!" : "Sao chép"}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 3 Step Instructions */}
+                  <div className="rounded-2xl border border-[#25483F]/10 bg-[#FAF7F0]/60 p-4 space-y-2 text-xs text-[#52635A]">
+                    <div className="font-bold text-[#142823] uppercase tracking-wider text-[11px]">
+                      Các bước hoàn tất kết nối:
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="font-black text-[#173F35]">1.</span>
+                      <span>
+                        Bấm nút <b>Mở Telegram ngay</b> hoặc gửi link trên cho hướng dẫn viên.
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="font-black text-[#173F35]">2.</span>
+                      <span>
+                        Trong cửa sổ chat với VietSage Bot trên Telegram, bấm nút <b>START</b> (hoặc gửi <code>/start</code>).
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="font-black text-[#173F35]">3.</span>
+                      <span>
+                        Bot sẽ xác nhận kết nối thành công. Sau đó quay lại đây bấm nút <b>Kiểm tra trạng thái</b> bên dưới!
+                      </span>
+                    </div>
+                  </div>
+                </>
+              ) : null}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 border-t border-[#25483F]/10 bg-[#FAF7F0] px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setPairingModalOpen(false)}
+                className="h-10 rounded-xl border border-[#25483F]/15 bg-white px-4 text-xs font-bold text-[#52635A] hover:bg-[#FAF7F0] cursor-pointer transition-colors"
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                onClick={handleRefreshTelegramStatus}
+                className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#173F35] px-5 text-xs font-bold text-white shadow-xs hover:bg-[#12322a] cursor-pointer transition-all"
+              >
+                <VsIcon name="refresh" className="text-sm" />
+                <span>Kiểm tra trạng thái</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

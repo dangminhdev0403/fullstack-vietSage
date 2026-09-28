@@ -27,4 +27,3 @@ export class LocalMateModule implements OnModuleInit {
     TelegramWebhookController.setPairingDelegate(this.pairingService);
   }
 }
-

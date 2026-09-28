@@ -33,7 +33,7 @@ describe("resolveChatAction", () => {
         ok: false,
         status: 404,
         json: async () => ({ status: 404, message: "Not found" }),
-      }) as any;
+      }) as unknown as Response;
 
     const result = await resolveChatAction(
       { type: "LOCALMATE_BOOKING", candidateKey: "cand_LM-001" },
@@ -99,8 +99,8 @@ describe("resolveChatAction", () => {
             action: "LOCALMATE_BOOKING",
           },
         }),
-      } as any;
-    }) as any;
+      } as unknown as Response;
+    }) as unknown as typeof fetch;
 
     const result = await resolveChatAction(
       { type: "LOCALMATE_BOOKING", candidateKey: "cand_LM-LC-001" },

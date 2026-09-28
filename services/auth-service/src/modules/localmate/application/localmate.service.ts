@@ -29,6 +29,7 @@ import {
   resolveDestinationFromText,
   resolveKnowledgeSearchTerm,
   resolveProvinceFromText,
+  resolveExpandedRegionsForDestination,
 } from "../domain/constants/geography.constant";
 
 export interface MatchedLocalMateResult {
@@ -405,8 +406,8 @@ export class LocalMateService {
     const requestedProvince = resolveProvinceFromText(query.destination || query.query);
     const outsideHotelProvince = Boolean(
       hotel?.provinceCode &&
-        requestedProvince?.code &&
-        requestedProvince.code !== hotel.provinceCode,
+      requestedProvince?.code &&
+      requestedProvince.code !== hotel.provinceCode,
     );
     const destination = outsideHotelProvince ? undefined : requestedDestination;
     const effectiveDestination = outsideHotelProvince
@@ -438,6 +439,10 @@ export class LocalMateService {
         ? hotel.area || hotel.province || undefined
         : undefined;
 
+    const targetRegions = destination
+      ? resolveExpandedRegionsForDestination(destination)
+      : undefined;
+
     const [toursRaw, qualifiedGuides] = await Promise.all([
       this.repository.searchTourKnowledge({
         destination,
@@ -450,49 +455,29 @@ export class LocalMateService {
       }),
       this.repository.findQualifiedGuides({
         destination: destination || fallbackDestination,
+        targetRegions,
         bounds,
         fallbackRegions: useHotelRadius ? fallbackRegions : undefined,
         limit: candidateLimit,
       }),
     ]);
 
-    const projectedTours = toursRaw
-      .filter(
-        (tour) =>
-          !hotel?.provinceCode ||
-          (tour.provinceCode === hotel.provinceCode && tour.tourScope !== "INTERPROVINCIAL"),
-      )
-      .map((tour) => ({
-        tour,
-        distanceKm: this.distanceKm(hotelCoordinates, tour.latitude, tour.longitude),
-        fallbackScore: hotel ? this.calculateTourLocationScore(tour, hotel) : 0,
-      }))
-      .filter((item) => !useHotelRadius || item.distanceKm === null || item.distanceKm <= radiusKm)
-      .sort(
-        (left, right) =>
-          this.compareDistance(left.distanceKm, right.distanceKm) ||
-          right.fallbackScore - left.fallbackScore ||
-          left.tour.tourCode.localeCompare(right.tour.tourCode),
-      )
-      .slice(0, limit)
-      .map(({ tour, distanceKm }) => ({
-        tourCode: tour.tourCode,
-        title: tour.title,
-        duration: tour.duration,
-        highlights: tour.highlights,
-        content: this.sanitizeKnowledgeContent(tour.content),
-        distanceKm,
-      }));
-
     const projectedGuides = qualifiedGuides
-      .map((guide) => ({
-        guide,
-        distanceKm: this.distanceKm(
-          hotelCoordinates,
-          guide.serviceLatitude,
-          guide.serviceLongitude,
-        ),
-      }))
+      .map((guide) => {
+        const matchesExactDestination = Boolean(
+          destination &&
+          guide.operatingRegions.some((r) => r.toLowerCase() === destination.toLowerCase()),
+        );
+        return {
+          guide,
+          matchesExactDestination,
+          distanceKm: this.distanceKm(
+            hotelCoordinates,
+            guide.serviceLatitude,
+            guide.serviceLongitude,
+          ),
+        };
+      })
       .filter(
         (item) =>
           (!hotel?.provinceCode ||
@@ -501,12 +486,15 @@ export class LocalMateService {
             )) &&
           (!useHotelRadius || item.distanceKm === null || item.distanceKm <= radiusKm),
       )
-      .sort(
-        (left, right) =>
+      .sort((left, right) => {
+        if (left.matchesExactDestination && !right.matchesExactDestination) return -1;
+        if (!left.matchesExactDestination && right.matchesExactDestination) return 1;
+        return (
           this.compareDistance(left.distanceKm, right.distanceKm) ||
           right.guide.rating - left.guide.rating ||
-          left.guide.guideCode.localeCompare(right.guide.guideCode),
-      )
+          left.guide.guideCode.localeCompare(right.guide.guideCode)
+        );
+      })
       .slice(0, limit)
       .map(({ guide, distanceKm }) => ({
         candidateKey: `cand_${guide.guideCode}`,
@@ -521,6 +509,65 @@ export class LocalMateService {
         bio: guide.bio,
         distanceKm,
       }));
+
+    const projectedTours =
+      projectedGuides.length === 0
+        ? []
+        : toursRaw
+            .filter(
+              (tour) =>
+                !hotel?.provinceCode ||
+                (tour.provinceCode === hotel.provinceCode && tour.tourScope !== "INTERPROVINCIAL"),
+            )
+            .map((tour) => {
+              const distanceKm = this.distanceKm(hotelCoordinates, tour.latitude, tour.longitude);
+              const fallbackScore = hotel ? this.calculateTourLocationScore(tour, hotel) : 0;
+              const titleLower = tour.title.toLowerCase();
+              const suitableGuides = projectedGuides
+                .filter((g) => {
+                  if (g.operatingRegions.some((reg) => titleLower.includes(reg.toLowerCase()))) {
+                    return true;
+                  }
+                  if (
+                    tour.provinceCode &&
+                    g.operatingRegions.some((reg) => isLocationInProvince(reg, tour.provinceCode))
+                  ) {
+                    return true;
+                  }
+                  if (tour.province && g.operatingRegions.includes(tour.province)) {
+                    return true;
+                  }
+                  return false;
+                })
+                .map((g) => g.fullName);
+
+              return {
+                tour,
+                distanceKm,
+                fallbackScore,
+                suitableGuides,
+              };
+            })
+            .filter((item) => item.suitableGuides.length > 0)
+            .filter(
+              (item) => !useHotelRadius || item.distanceKm === null || item.distanceKm <= radiusKm,
+            )
+            .sort(
+              (left, right) =>
+                this.compareDistance(left.distanceKm, right.distanceKm) ||
+                right.fallbackScore - left.fallbackScore ||
+                left.tour.tourCode.localeCompare(right.tour.tourCode),
+            )
+            .slice(0, limit)
+            .map(({ tour, distanceKm, suitableGuides }) => ({
+              tourCode: tour.tourCode,
+              title: tour.title,
+              duration: tour.duration,
+              highlights: tour.highlights,
+              content: this.sanitizeKnowledgeContent(tour.content),
+              distanceKm,
+              suitableGuides,
+            }));
 
     const payloadToHash = JSON.stringify({
       tours: projectedTours,
@@ -757,4 +804,3 @@ export class LocalMateService {
     };
   }
 }
-

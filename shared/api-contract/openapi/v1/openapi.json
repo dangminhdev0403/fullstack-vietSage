@@ -13200,6 +13200,52 @@
         ]
       }
     },
+    "/localmate-admin/guides/{id}/telegram-pair": {
+      "post": {
+        "operationId": "LocalMateAdminController_createTelegramPairingLink",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      }
+    },
+    "/localmate-admin/guides/{id}/telegram-disconnect": {
+      "post": {
+        "operationId": "LocalMateAdminController_disconnectTelegram",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      }
+    },
     "/localmate-admin/knowledge/tours": {
       "post": {
         "operationId": "LocalMateAdminController_createTour",

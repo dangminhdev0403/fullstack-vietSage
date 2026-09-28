@@ -2,6 +2,15 @@ export type LocalMateStatus = "PENDING" | "QUALIFIED" | "SUSPENDED";
 
 export type LocalMatePosition = "GUIDE" | "COORDINATOR" | "LEADER";
 
+export type LocalMateTelegramBindingInfo = {
+  id: string;
+  telegramUserId: string;
+  telegramChatId: string;
+  pairedAt: string;
+  revokedAt: string | null;
+  blockedAt: string | null;
+};
+
 export type LocalMateGuide = {
   id: string;
   userId?: string | null;
@@ -30,6 +39,7 @@ export type LocalMateGuide = {
     fullName: string;
     status: string;
   } | null;
+  telegramBinding?: LocalMateTelegramBindingInfo | null;
 };
 
 export type CreateLocalMateGuideInput = {

@@ -64,19 +64,6 @@ export async function seedAiKnowledge() {
     `);
     console.log("  -> Cập nhật tọa độ Phố Cổ Hà Nội cho Test Hotel");
 
-    console.log("\n=== 2. KÍCH HOẠT TÍNH NĂNG AI FLOATING CHAT CHO TẤT CẢ KHÁCH SẠN ===");
-    await pool.query(`
-      INSERT INTO "hotel_feature_entitlements" ("hotelId", "featureKey", "status", "createdAt", "updatedAt")
-      SELECT h."id", f."featureKey", 'ENABLED'::"HotelFeatureStatus", CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-      FROM "Hotel" h
-      CROSS JOIN (
-        VALUES ('guest.ai_floating_chat'), ('frontdesk.hn2n_cccd_scanner')
-      ) AS f("featureKey")
-      ON CONFLICT ("hotelId", "featureKey")
-      DO UPDATE SET "status" = 'ENABLED'::"HotelFeatureStatus", "updatedAt" = CURRENT_TIMESTAMP
-    `);
-    console.log("  -> Đã bật guest.ai_floating_chat & frontdesk.hn2n_cccd_scanner cho toàn bộ khách sạn");
-
     console.log("\n=== 3. CẬP NHẬT TỌA ĐỘ VÀ BỔ SUNG NỘI DUNG CHI TIẾT CHO 22 TOUR HIỆN CÓ ===");
     const existingTourUpdates = [
       {
@@ -504,7 +491,7 @@ NGÀY 2: BẢO NGỌC - THĂM LÀNG NGHỀ VEN HỒ - TRỞ VỀ
             update.highlights,
             update.content,
             update.tourCode,
-          ]
+          ],
         );
       } else {
         await pool.query(
@@ -527,13 +514,15 @@ NGÀY 2: BẢO NGỌC - THĂM LÀNG NGHỀ VEN HỒ - TRỞ VỀ
             canonicalDuration,
             update.highlights,
             update.tourCode,
-          ]
+          ],
         );
       }
       console.log(`  -> Đã cập nhật tọa độ & chi tiết tour [${update.tourCode}]`);
     }
 
-    console.log("\n=== 4. BỔ SUNG CÁC TOUR DI SẢN & ĐIỂM ĐẾN PHỔ BIẾN (HÀ NỘI, SA PA, ĐÀ NẴNG, HỘI AN) ===");
+    console.log(
+      "\n=== 4. BỔ SUNG CÁC TOUR DI SẢN & ĐIỂM ĐẾN PHỔ BIẾN (HÀ NỘI, SA PA, ĐÀ NẴNG, HỘI AN) ===",
+    );
     const newTours = [
       {
         tourCode: "TOUR-HN-0001",
@@ -542,8 +531,8 @@ NGÀY 2: BẢO NGỌC - THĂM LÀNG NGHỀ VEN HỒ - TRỞ VỀ
         provinceCode: "HA_NOI",
         province: "Hà Nội",
         tourScope: "LOCAL",
-        latitude: 21.033300,
-        longitude: 105.850000,
+        latitude: 21.0333,
+        longitude: 105.85,
         highlights: [
           "Hoàng thành Thăng Long ngàn năm văn hiến",
           "Chùa Trấn Quốc & Vãn cảnh Hồ Tây",
@@ -567,8 +556,8 @@ NGÀY 2: BẢO NGỌC - THĂM LÀNG NGHỀ VEN HỒ - TRỞ VỀ
         provinceCode: "HA_NOI",
         province: "Hà Nội",
         tourScope: "LOCAL",
-        latitude: 20.978000,
-        longitude: 105.912000,
+        latitude: 20.978,
+        longitude: 105.912,
         highlights: [
           "Làng gốm cổ Bát Tràng hơn 700 năm tuổi",
           "Trải nghiệm tự tay vuốt nặn gốm và nung sản phẩm",
@@ -590,8 +579,8 @@ NGÀY 2: BẢO NGỌC - THĂM LÀNG NGHỀ VEN HỒ - TRỞ VỀ
         provinceCode: "LAO_CAI",
         province: "Lào Cai",
         tourScope: "LOCAL",
-        latitude: 22.336400,
-        longitude: 103.843800,
+        latitude: 22.3364,
+        longitude: 103.8438,
         highlights: [
           "Chinh phục Nóc nhà Đông Dương Fansipan 3.143m",
           "Bản Cát Cát người H'Mông với cọn nước khổng lồ",
@@ -621,8 +610,8 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
         provinceCode: "LAO_CAI",
         province: "Lào Cai",
         tourScope: "LOCAL",
-        latitude: 22.355000,
-        longitude: 103.775000,
+        latitude: 22.355,
+        longitude: 103.775,
         highlights: [
           "Chinh phục Đèo Ô Quy Hồ - Vua đèo Tây Bắc",
           "Check-in Cầu kính Rồng Mây ngắm thung lũng sâu thẳm",
@@ -644,8 +633,8 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
         provinceCode: "DA_NANG",
         province: "Đà Nẵng",
         tourScope: "LOCAL",
-        latitude: 16.100000,
-        longitude: 108.260000,
+        latitude: 16.1,
+        longitude: 108.26,
         highlights: [
           "Bán đảo Sơn Trà & Đỉnh Bàn Cờ tiên cảnh",
           "Tượng Phật Bà Quan Âm 67m tại Chùa Linh Ứng",
@@ -669,8 +658,8 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
         provinceCode: "QUANG_NAM",
         province: "Quảng Nam",
         tourScope: "LOCAL",
-        latitude: 15.880000,
-        longitude: 108.330000,
+        latitude: 15.88,
+        longitude: 108.33,
         highlights: [
           "Phố cổ Hội An - Di sản Văn hóa Thế giới UNESCO",
           "Chèo thuyền thúng xoay điệu nghệ tại Rừng Dừa Bảy Mẫu",
@@ -719,7 +708,7 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
           tour.tourScope,
           tour.latitude,
           tour.longitude,
-        ]
+        ],
       );
       console.log(`  -> Đã thêm/cập nhật tour di sản [${tour.tourCode}] ${tour.title}`);
     }
@@ -748,7 +737,7 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
     `);
     console.log("  -> Đã cập nhật tọa độ dịch vụ chuẩn xác cho 4 LocalMate Yên Bái");
 
-    // Thêm HDV chất lượng cao cho Hà Nội và Sa Pa
+    // Thêm HDV chất lượng cao cho Hà Nội, Sa Pa, Đà Nẵng, Hội An (đầy đủ phủ khắp các tour)
     const additionalGuides = [
       {
         guideCode: "LM-HN-001",
@@ -760,18 +749,42 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
         status: "QUALIFIED",
         position: "GUIDE",
         languages: ["Vietnamese", "English", "French"],
-        operatingRegions: ["Hoàn Kiếm", "Ba Đình", "Tây Hồ", "Hà Nội"],
+        operatingRegions: ["Hoàn Kiếm", "Ba Đình", "Tây Hồ", "Gia Lâm", "Bát Tràng", "Hà Nội"],
         specialties: [
           "Tour Phố Cổ & Di sản Thăng Long",
           "Food tour ẩm thực đường phố Hà Nội",
           "Kể chuyện lịch sử & kiến trúc thời Pháp",
+          "Làng nghề gốm Bát Tràng & tour ngoại thành",
         ],
         bio: "Hướng dẫn viên bản địa sinh ra và lớn lên tại 36 Phố Phường Hà Nội, hơn 7 năm kinh nghiệm đưa khách quốc tế trải nghiệm ngõ ngách, di sản và văn hóa ẩm thực tinh tế đất Tràng An.",
         dailyRateVnd: 1000000,
         rating: 4.96,
         totalReviews: 62,
-        serviceLatitude: 21.033300,
-        serviceLongitude: 105.850000,
+        serviceLatitude: 21.0333,
+        serviceLongitude: 105.85,
+      },
+      {
+        guideCode: "LM-HN-002",
+        fullName: "Lê Hoàng Anh",
+        phone: "0913344556",
+        email: "hoanganh.le@localmate.vietsage.vn",
+        avatarUrl:
+          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
+        status: "QUALIFIED",
+        position: "GUIDE",
+        languages: ["Vietnamese", "English"],
+        operatingRegions: ["Bát Tràng", "Gia Lâm", "Long Biên", "Hà Nội"],
+        specialties: [
+          "Làng gốm Bát Tràng & nghệ thuật gốm cổ hơn 700 năm",
+          "Trải nghiệm tự tay vuốt nặn gốm và nung men thủ công",
+          "Văn hóa làng nghề ven sông Hồng & ẩm thực ngoại ô Hà Nội",
+        ],
+        bio: "Nghệ nhân trẻ sinh ra trong gia đình làm gốm 5 đời tại Bát Tràng, hơn 6 năm hướng dẫn du khách trong và ngoài nước khám phá bảo tàng gốm, nghệ thuật nặn gốm tại xưởng và các di tích cổ ngàn năm.",
+        dailyRateVnd: 900000,
+        rating: 4.95,
+        totalReviews: 48,
+        serviceLatitude: 20.978,
+        serviceLongitude: 105.912,
       },
       {
         guideCode: "LM-LC-001",
@@ -793,8 +806,77 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
         dailyRateVnd: 1100000,
         rating: 4.94,
         totalReviews: 54,
-        serviceLatitude: 22.336400,
-        serviceLongitude: 103.843800,
+        serviceLatitude: 22.3364,
+        serviceLongitude: 103.8438,
+      },
+      {
+        guideCode: "LM-LC-002",
+        fullName: "Chảo Mẩy Phin",
+        phone: "0984556677",
+        email: "phin.chao@localmate.vietsage.vn",
+        avatarUrl:
+          "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80",
+        status: "QUALIFIED",
+        position: "GUIDE",
+        languages: ["Vietnamese", "English", "Dao"],
+        operatingRegions: ["Sa Pa", "Tả Phìn", "Ô Quy Hồ", "Lào Cai"],
+        specialties: [
+          "Văn hóa người Dao Đỏ & bài thuốc tắm thảo dược",
+          "Khám phá Đèo Ô Quy Hồ & Cầu kính Rồng Mây",
+          "Tu viện cổ Tả Phìn & thổ cẩm thêu tay",
+        ],
+        bio: "Cô gái Dao Đỏ bản Tả Phìn đam mê gìn giữ văn hóa truyền thống, thành thạo tiếng Anh du lịch, chuyên dẫn các tour tắm lá thuốc hồi phục sức khỏe và khám phá thiên nhiên Sa Pa.",
+        dailyRateVnd: 950000,
+        rating: 4.93,
+        totalReviews: 39,
+        serviceLatitude: 22.355,
+        serviceLongitude: 103.775,
+      },
+      {
+        guideCode: "LM-DN-001",
+        fullName: "Trần Anh Tuấn",
+        phone: "0905123456",
+        email: "tuan.tran@localmate.vietsage.vn",
+        avatarUrl:
+          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
+        status: "QUALIFIED",
+        position: "GUIDE",
+        languages: ["Vietnamese", "English", "Korean"],
+        operatingRegions: ["Sơn Trà", "Ngũ Hành Sơn", "Hải Châu", "Mỹ Khê", "Bà Nà", "Đà Nẵng"],
+        specialties: [
+          "Bán đảo Sơn Trà & Đỉnh Bàn Cờ ngắm Voọc",
+          "Danh thắng Ngũ Hành Sơn & Làng đá Non Nước",
+          "Ẩm thực miền Trung & Cầu Rồng sông Hàn",
+        ],
+        bio: "Hướng dẫn viên kỳ cựu hơn 8 năm gắn bó với thành phố biển Đà Nẵng, am hiểu tường tận từng hang động Ngũ Hành Sơn, cung đường đèo Sơn Trà và các quán ăn bản địa đậm vị xứ Quảng.",
+        dailyRateVnd: 1000000,
+        rating: 4.95,
+        totalReviews: 58,
+        serviceLatitude: 16.1,
+        serviceLongitude: 108.26,
+      },
+      {
+        guideCode: "LM-QN-001",
+        fullName: "Nguyễn Mai Lan",
+        phone: "0905678901",
+        email: "lan.nguyen@localmate.vietsage.vn",
+        avatarUrl:
+          "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80",
+        status: "QUALIFIED",
+        position: "GUIDE",
+        languages: ["Vietnamese", "English", "Japanese"],
+        operatingRegions: ["Hội An", "Cẩm Thanh", "Thanh Hà", "Điện Bàn", "Quảng Nam"],
+        specialties: [
+          "Phố cổ Hội An & Văn hóa di sản đèn lồng",
+          "Chèo thuyền thúng Rừng Dừa Bảy Mẫu",
+          "Làng gốm cổ Thanh Hà & ẩm thực Cao Lầu",
+        ],
+        bio: "Sinh ra tại trung tâm phố cổ Hội An, chuyên gia kể chuyện văn hóa di sản, dẫn dắt du khách trải nghiệm mộc mạc từ thuyền thúng sông nước đến các làng nghề truyền thống lâu đời.",
+        dailyRateVnd: 950000,
+        rating: 4.97,
+        totalReviews: 64,
+        serviceLatitude: 15.88,
+        serviceLongitude: 108.33,
       },
     ];
 
@@ -844,36 +926,126 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
           guide.totalReviews,
           guide.serviceLatitude,
           guide.serviceLongitude,
-        ]
+        ],
       );
       console.log(`  -> Đã tạo/cập nhật hồ sơ LocalMate [${guide.guideCode}] ${guide.fullName}`);
     }
 
-    console.log("\n=== 6. BỔ SUNG ĐỐI TÁC LÂN CẬN (LOCAL PARTNERS) CHO HCA HOMESTAY & MINH 123 ===");
+    // Chỉ quản lý service tenant chuyên biệt của LocalMate; không chiếm tenant SERVICE bất kỳ.
+    const localMateTenant = await pool.query(`
+      INSERT INTO "Tenant" ("id", "code", "name", "type", "createdAt", "updatedAt")
+      VALUES (gen_random_uuid(), 'LOCALMATE_SERVICE_TENANT', 'Mạng lưới LocalMate VietSage', 'SERVICE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT ("code") DO UPDATE
+      SET "name" = EXCLUDED."name", "updatedAt" = CURRENT_TIMESTAMP
+      WHERE "Tenant"."type" = 'SERVICE'
+      RETURNING "id"
+    `);
+    const serviceTenantId = localMateTenant.rows[0]?.id;
+    if (!serviceTenantId) {
+      throw new Error("LOCALMATE_SERVICE_TENANT đã tồn tại nhưng không phải SERVICE tenant");
+    }
+    await pool.query(
+      `
+      INSERT INTO "ServiceTenantProfile" ("tenantId", "displayName", "status", "phone", "address", "createdAt", "updatedAt")
+      VALUES ($1, 'Mạng lưới LocalMate Toàn Quốc', 'ACTIVE', '0901234567', 'Việt Nam', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT ("tenantId") DO UPDATE
+      SET "displayName" = EXCLUDED."displayName", "status" = EXCLUDED."status", "updatedAt" = CURRENT_TIMESTAMP
+    `,
+      [serviceTenantId],
+    );
+
+    // Đảm bảo Category Marketplace
+    const catTourRes = await pool.query(
+      `SELECT id FROM "MarketplaceCategory" WHERE "code" IN ('TOUR_TRANSPORT', 'TOURS', 'LOCALMATE') LIMIT 1`,
+    );
+    let catTourId = catTourRes.rows[0]?.id;
+    if (!catTourId) {
+      const anyCat = await pool.query(`SELECT id FROM "MarketplaceCategory" LIMIT 1`);
+      catTourId = anyCat.rows[0]?.id;
+      if (!catTourId) {
+        const newCat = await pool.query(`
+          INSERT INTO "MarketplaceCategory" ("id", "code", "nameVi", "nameEn", "sortOrder", "createdAt", "updatedAt")
+          VALUES (gen_random_uuid(), 'TOUR_LOCALMATE', 'Tour & Hướng dẫn viên bản địa', 'Tours & LocalMate Guides', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          RETURNING "id"
+        `);
+        catTourId = newCat.rows[0].id;
+      }
+    }
+
+    // Tạo dịch vụ Marketplace cho từng hướng dẫn viên
+    const allGuidesRes = await pool.query(
+      `SELECT id, "guideCode", "fullName", "dailyRateVnd", "avatarUrl", "bio" FROM "LocalMateProfile"`,
+    );
+    for (const g of allGuidesRes.rows) {
+      const importKey = `SVC_${g.guideCode}`;
+      await pool.query(
+        `
+        INSERT INTO "MarketplaceService" (
+          "id", "serviceTenantId", "importKey", "categoryId", "name", "description",
+          "unitPrice", "pricingUnit", "currency", "imageUrls", "mode", "capacityAvailable",
+          "status", "localMateProfileId", "createdAt", "updatedAt"
+        )
+        VALUES (
+          gen_random_uuid(), $1, $2, $3, $4, $5, $6, 'tour', 'VND', ARRAY[$7],
+          'CUSTOMER_AT_SERVICE'::"MarketplaceServiceMode", 6, 'ACTIVE'::"MarketplaceRecordStatus",
+          $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+        ON CONFLICT ("serviceTenantId", "importKey") DO UPDATE
+        SET "localMateProfileId" = EXCLUDED."localMateProfileId",
+            "name" = EXCLUDED."name",
+            "unitPrice" = EXCLUDED."unitPrice",
+            "status" = 'ACTIVE'::"MarketplaceRecordStatus",
+            "updatedAt" = CURRENT_TIMESTAMP
+      `,
+        [
+          serviceTenantId,
+          importKey,
+          catTourId,
+          `Tour trải nghiệm cùng LocalMate ${g.fullName}`,
+          g.bio || `Tour đồng hành hướng dẫn viên bản địa ${g.fullName}`,
+          g.dailyRateVnd || 1000000,
+          g.avatarUrl ||
+            "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80",
+          g.id,
+        ],
+      );
+    }
+    console.log(
+      "  -> Đã tạo gói dịch vụ Marketplace cho LocalMate; liên kết hotel và Telegram phải được cấp thật",
+    );
+
+    console.log(
+      "\n=== 6. BỔ SUNG ĐỐI TÁC LÂN CẬN (LOCAL PARTNERS) CHO HCA HOMESTAY & MINH 123 ===",
+    );
     // Lấy ID các category đối tác
     const catRes = await pool.query(`SELECT id, code FROM "LocalPartnerCategory"`);
     const catMap = new Map<string, string>(catRes.rows.map((r) => [r.code, r.id]));
 
     // Lấy ID các khách sạn
-    const hcaHotel = (await pool.query(`SELECT id FROM "Hotel" WHERE "code" = 'HCA_HOMESTAY'`)).rows[0];
-    const minhHotel = (await pool.query(`SELECT id FROM "Hotel" WHERE "code" = 'VSH_HOTEL_0005'`)).rows[0];
+    const hcaHotel = (await pool.query(`SELECT id FROM "Hotel" WHERE "code" = 'HCA_HOMESTAY'`))
+      .rows[0];
+    const minhHotel = (await pool.query(`SELECT id FROM "Hotel" WHERE "code" = 'VSH_HOTEL_0005'`))
+      .rows[0];
 
     if (hcaHotel && catMap.size > 0) {
       const hcaPartners = [
         {
           name: "Nhà hàng Hương Rừng Mù Cang Chải",
           categoryCode: "RESTAURANT",
-          description: "Chuyên đặc sản núi rừng Tây Bắc: gà đồi nướng mắc khén, cá suối chiên giòn, xôi nếp nương Tú Lệ thơm dẻo.",
+          description:
+            "Chuyên đặc sản núi rừng Tây Bắc: gà đồi nướng mắc khén, cá suối chiên giòn, xôi nếp nương Tú Lệ thơm dẻo.",
           address: "Tổ 3, Thị trấn Mù Cang Chải, Yên Bái",
-          lat: 21.855000,
-          lng: 104.086000,
+          lat: 21.855,
+          lng: 104.086,
           distanceMeters: 350,
           phone: "02163878999",
-          coverImageUrl: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80",
+          coverImageUrl:
+            "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80",
           offers: [
             {
               title: "Giảm 10% tổng hóa đơn ăn uống",
-              description: "Dành riêng cho khách lưu trú xuất trình khóa phòng hoặc app VietSage GuestOS.",
+              description:
+                "Dành riêng cho khách lưu trú xuất trình khóa phòng hoặc app VietSage GuestOS.",
               discountCode: "VIETSAGE10",
               discountType: "PERCENTAGE",
               discountValue: 10,
@@ -883,13 +1055,15 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
         {
           name: "Suối Mây Coffee & Homestay",
           categoryCode: "CAFE",
-          description: "Quán cafe view ngắm trọn thung lũng ruộng bậc thang đẹp nhất Mù Cang Chải, phục vụ cafe pha phin, trà hoa cúc và điểm tâm.",
+          description:
+            "Quán cafe view ngắm trọn thung lũng ruộng bậc thang đẹp nhất Mù Cang Chải, phục vụ cafe pha phin, trà hoa cúc và điểm tâm.",
           address: "Bản La Pán Tẩn, Mù Cang Chải, Yên Bái",
-          lat: 21.858000,
-          lng: 104.091000,
+          lat: 21.858,
+          lng: 104.091,
           distanceMeters: 800,
           phone: "0978112233",
-          coverImageUrl: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=600&q=80",
+          coverImageUrl:
+            "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=600&q=80",
           offers: [
             {
               title: "Tặng 1 phần bánh ngọt khi gọi đồ uống",
@@ -903,13 +1077,15 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
         {
           name: "Cho Thuê Xe Máy Phượt A Pháo",
           categoryCode: "RENTAL_TRANSPORT",
-          description: "Dàn xe máy Honda Wave Alpha, Blade và tay côn cào cào máy khỏe, đầy đủ mũ bảo hiểm 3/4 và đồ nghề vá xe.",
+          description:
+            "Dàn xe máy Honda Wave Alpha, Blade và tay côn cào cào máy khỏe, đầy đủ mũ bảo hiểm 3/4 và đồ nghề vá xe.",
           address: "QL32, Thị trấn Mù Cang Chải, Yên Bái",
-          lat: 21.853000,
-          lng: 104.084000,
+          lat: 21.853,
+          lng: 104.084,
           distanceMeters: 200,
           phone: "0987654321",
-          coverImageUrl: "https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=600&q=80",
+          coverImageUrl:
+            "https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=600&q=80",
           offers: [
             {
               title: "Ưu đãi giá thuê xe 130.000đ/ngày",
@@ -923,13 +1099,15 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
         {
           name: "Tắm Khoáng & Thảo Dược Bản Hốc",
           categoryCode: "SPA_MASSAGE",
-          description: "Khu ngâm tắm khoáng nóng tự nhiên và xông hơi thuốc lá thảo mộc gia truyền dân tộc Thái, giúp lưu thông khí huyết.",
+          description:
+            "Khu ngâm tắm khoáng nóng tự nhiên và xông hơi thuốc lá thảo mộc gia truyền dân tộc Thái, giúp lưu thông khí huyết.",
           address: "Bản Hốc, Xã Sơn Thịnh, Văn Chấn, Yên Bái",
-          lat: 21.608000,
-          lng: 104.520000,
+          lat: 21.608,
+          lng: 104.52,
           distanceMeters: 1500,
           phone: "0912998877",
-          coverImageUrl: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=600&q=80",
+          coverImageUrl:
+            "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=600&q=80",
           offers: [
             {
               title: "Giảm 15% gói tắm khoáng thảo dược VIP",
@@ -946,7 +1124,7 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
         const catId = catMap.get(p.categoryCode) || catMap.get("OTHER")!;
         const existing = await pool.query(
           `SELECT "id" FROM "LocalPartner" WHERE "hotelId" = $1 AND "name" = $2`,
-          [hcaHotel.id, p.name]
+          [hcaHotel.id, p.name],
         );
         let partnerId: string;
         if (existing.rows.length > 0) {
@@ -957,7 +1135,17 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
                  "latitude" = $4, "longitude" = $5, "distanceMeters" = $6,
                  "phone" = $7, "coverImageUrl" = $8, "updatedAt" = CURRENT_TIMESTAMP
              WHERE "id" = $9`,
-            [catId, p.description, p.address, p.lat, p.lng, p.distanceMeters, p.phone, p.coverImageUrl, partnerId]
+            [
+              catId,
+              p.description,
+              p.address,
+              p.lat,
+              p.lng,
+              p.distanceMeters,
+              p.phone,
+              p.coverImageUrl,
+              partnerId,
+            ],
           );
         } else {
           const insertRes = await pool.query(
@@ -979,7 +1167,7 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
               p.distanceMeters,
               p.phone,
               p.coverImageUrl,
-            ]
+            ],
           );
           partnerId = insertRes.rows[0].id;
         }
@@ -999,7 +1187,7 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
                 offer.discountCode,
                 offer.discountType,
                 offer.discountValue,
-              ]
+              ],
             );
           }
         }
@@ -1012,13 +1200,15 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
         {
           name: "Phở Bát Đàn Truyền Thống",
           categoryCode: "RESTAURANT",
-          description: "Thương hiệu phở bò cổ truyền Hà Nội với nước dùng ninh xương ngọt thanh trong vắt và thịt bò tái lăn mềm thơm.",
+          description:
+            "Thương hiệu phở bò cổ truyền Hà Nội với nước dùng ninh xương ngọt thanh trong vắt và thịt bò tái lăn mềm thơm.",
           address: "49 Bát Đàn, Hoàn Kiếm, Hà Nội",
-          lat: 21.033500,
-          lng: 105.847200,
+          lat: 21.0335,
+          lng: 105.8472,
           distanceMeters: 1200,
           phone: "02438234567",
-          coverImageUrl: "https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?auto=format&fit=crop&w=600&q=80",
+          coverImageUrl:
+            "https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?auto=format&fit=crop&w=600&q=80",
           offers: [
             {
               title: "Tặng quẩy giòn & trà đá khi dùng phở",
@@ -1032,13 +1222,15 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
         {
           name: "Cafe Giảng - Cà Phê Trứng Hà Nội",
           categoryCode: "CAFE",
-          description: "Nơi khai sinh món cà phê trứng nức tiếng từ năm 1946 với lớp kem trứng béo ngậy mịn màng như tơ.",
+          description:
+            "Nơi khai sinh món cà phê trứng nức tiếng từ năm 1946 với lớp kem trứng béo ngậy mịn màng như tơ.",
           address: "39 Nguyễn Hữu Huân, Hoàn Kiếm, Hà Nội",
-          lat: 21.034200,
-          lng: 105.854000,
+          lat: 21.0342,
+          lng: 105.854,
           distanceMeters: 900,
           phone: "0989898989",
-          coverImageUrl: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=600&q=80",
+          coverImageUrl:
+            "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=600&q=80",
           offers: [
             {
               title: "Giảm 10% khi mua hạt cà phê rang xay mang về",
@@ -1055,7 +1247,7 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
         const catId = catMap.get(p.categoryCode) || catMap.get("OTHER")!;
         const existing = await pool.query(
           `SELECT "id" FROM "LocalPartner" WHERE "hotelId" = $1 AND "name" = $2`,
-          [minhHotel.id, p.name]
+          [minhHotel.id, p.name],
         );
         let partnerId: string;
         if (existing.rows.length > 0) {
@@ -1066,7 +1258,17 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
                  "latitude" = $4, "longitude" = $5, "distanceMeters" = $6,
                  "phone" = $7, "coverImageUrl" = $8, "updatedAt" = CURRENT_TIMESTAMP
              WHERE "id" = $9`,
-            [catId, p.description, p.address, p.lat, p.lng, p.distanceMeters, p.phone, p.coverImageUrl, partnerId]
+            [
+              catId,
+              p.description,
+              p.address,
+              p.lat,
+              p.lng,
+              p.distanceMeters,
+              p.phone,
+              p.coverImageUrl,
+              partnerId,
+            ],
           );
         } else {
           const insertRes = await pool.query(
@@ -1088,7 +1290,7 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
               p.distanceMeters,
               p.phone,
               p.coverImageUrl,
-            ]
+            ],
           );
           partnerId = insertRes.rows[0].id;
         }
@@ -1108,7 +1310,7 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
                 offer.discountCode,
                 offer.discountType,
                 offer.discountValue,
-              ]
+              ],
             );
           }
         }
@@ -1124,7 +1326,7 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
          VALUES (gen_random_uuid(), $1, 'CAT_FOOD', 'Ẩm thực tại phòng (In-room Dining)', 1, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
          ON CONFLICT ("hotelId", "importKey") DO UPDATE SET "name" = EXCLUDED."name"
          RETURNING "id"`,
-        [hcaHotel.id]
+        [hcaHotel.id],
       );
       const catFoodId = catFoodRes.rows[0].id;
 
@@ -1134,7 +1336,7 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
          VALUES (gen_random_uuid(), $1, 'CAT_HK', 'Dịch vụ phòng & Tiện ích (Housekeeping & Amenities)', 2, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
          ON CONFLICT ("hotelId", "importKey") DO UPDATE SET "name" = EXCLUDED."name"
          RETURNING "id"`,
-        [hcaHotel.id]
+        [hcaHotel.id],
       );
       const catHkId = catHkRes.rows[0].id;
 
@@ -1143,19 +1345,22 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
         {
           importKey: "FOOD_CHICKEN",
           name: "Gà đồi nướng mắc khén & Xôi nương Tú Lệ",
-          description: "Gà chạy bộ vùng cao tẩm ướp hạt dổi, mắc khén nướng than hồng giòn thơm, ăn kèm xôi nếp thơm nương Tú Lệ.",
+          description:
+            "Gà chạy bộ vùng cao tẩm ướp hạt dổi, mắc khén nướng than hồng giòn thơm, ăn kèm xôi nếp thơm nương Tú Lệ.",
           price: 180000,
         },
         {
           importKey: "FOOD_FISH",
           name: "Cá suối chiên giòn chấm muối ớt chanh",
-          description: "Cá suối Mù Cang Chải tươi rói bắt trong ngày, chiên giòn nguyên con ăn kèm rau thơm rừng và nước chấm chua ngọt.",
+          description:
+            "Cá suối Mù Cang Chải tươi rói bắt trong ngày, chiên giòn nguyên con ăn kèm rau thơm rừng và nước chấm chua ngọt.",
           price: 95000,
         },
         {
           importKey: "DRINK_TEA",
           name: "Ấm trà Shan Tuyết cổ thụ Suối Giàng",
-          description: "Búp chè Shan Tuyết 1 tôm 2 lá cổ thụ 300 năm tuổi, nước vàng sánh óng ả, vị ngọt hậu sâu lắng.",
+          description:
+            "Búp chè Shan Tuyết 1 tôm 2 lá cổ thụ 300 năm tuổi, nước vàng sánh óng ả, vị ngọt hậu sâu lắng.",
           price: 45000,
         },
         {
@@ -1177,7 +1382,7 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
               "description" = EXCLUDED."description",
               "priceOverride" = EXCLUDED."priceOverride",
               "updatedAt" = CURRENT_TIMESTAMP`,
-          [hcaHotel.id, catFoodId, item.importKey, item.name, item.description, item.price]
+          [hcaHotel.id, catFoodId, item.importKey, item.name, item.description, item.price],
         );
       }
 
@@ -1186,7 +1391,8 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
         {
           importKey: "HK_CLEAN",
           name: "Yêu cầu dọn phòng & Thay ga khăn sạch",
-          description: "Nhân viên buồng phòng sẽ đến hút bụi, dọn phòng và thay mới khăn tắm, ga trải giường trong vòng 15-30 phút.",
+          description:
+            "Nhân viên buồng phòng sẽ đến hút bụi, dọn phòng và thay mới khăn tắm, ga trải giường trong vòng 15-30 phút.",
           price: 0,
         },
         {
@@ -1220,10 +1426,12 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
               "description" = EXCLUDED."description",
               "priceOverride" = EXCLUDED."priceOverride",
               "updatedAt" = CURRENT_TIMESTAMP`,
-          [hcaHotel.id, catHkId, item.importKey, item.name, item.description, item.price]
+          [hcaHotel.id, catHkId, item.importKey, item.name, item.description, item.price],
         );
       }
-      console.log(`  -> Đã tạo 2 danh mục dịch vụ phòng & ẩm thực với 8 dịch vụ tiêu chuẩn cho HCA HomeStay`);
+      console.log(
+        `  -> Đã tạo 2 danh mục dịch vụ phòng & ẩm thực với 8 dịch vụ tiêu chuẩn cho HCA HomeStay`,
+      );
     }
 
     console.log("\n=======================================================");

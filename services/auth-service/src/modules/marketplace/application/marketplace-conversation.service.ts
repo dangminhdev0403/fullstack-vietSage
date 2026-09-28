@@ -62,11 +62,7 @@ export class MarketplaceConversationService {
       assignedLocalMateProfileId: order.assignedLocalMateProfileId,
     });
 
-    const items = await this.repo.listMessages(
-      conversation.id,
-      query?.limit ?? 50,
-      query?.before,
-    );
+    const items = await this.repo.listMessages(conversation.id, query?.limit ?? 50, query?.before);
 
     return {
       id: conversation.id,

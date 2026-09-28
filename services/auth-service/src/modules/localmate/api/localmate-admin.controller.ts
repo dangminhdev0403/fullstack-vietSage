@@ -5,6 +5,7 @@ import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import { LocalMateService } from "../application/localmate.service";
+import { LocalMateTelegramPairingService } from "../application/localmate-telegram-pairing.service";
 import {
   createLocalMateGuideSchema,
   createLocalMateGuideOpenApiSchema,
@@ -23,7 +24,10 @@ import {
 @ApiTags("localmate-admin")
 @Controller("localmate-admin")
 export class LocalMateAdminController {
-  constructor(private readonly service: LocalMateService) {}
+  constructor(
+    private readonly service: LocalMateService,
+    private readonly pairingService: LocalMateTelegramPairingService,
+  ) {}
 
   @SuccessMessage("Tạo hồ sơ hướng dẫn viên LocalMate thành công")
   @RequirePermission("platform.localmate.manage")
@@ -72,6 +76,24 @@ export class LocalMateAdminController {
     const id = parseWithZod(idParamSchema, idParam);
     const dto = parseWithZod(updateQualificationStatusSchema, body);
     return this.service.updateQualification(id, dto);
+  }
+
+  @SuccessMessage("Tạo liên kết kết nối Telegram cho hướng dẫn viên thành công")
+  @RequirePermission("platform.localmate.manage")
+  @ApiDescript("Tạo liên kết một lần để kết nối tài khoản Telegram với hướng dẫn viên")
+  @Post("guides/:id/telegram-pair")
+  async createTelegramPairingLink(@Param("id") idParam: string) {
+    const id = parseWithZod(idParamSchema, idParam);
+    return this.pairingService.createPairingLinkForProfile(id);
+  }
+
+  @SuccessMessage("Hủy kết nối Telegram của hướng dẫn viên thành công")
+  @RequirePermission("platform.localmate.manage")
+  @ApiDescript("Hủy kết nối tài khoản Telegram của hướng dẫn viên")
+  @Post("guides/:id/telegram-disconnect")
+  async disconnectTelegram(@Param("id") idParam: string) {
+    const id = parseWithZod(idParamSchema, idParam);
+    return this.pairingService.disconnectForProfile(id);
   }
 
   @SuccessMessage("Tạo lịch trình tour mới vào kho tri thức thành công")

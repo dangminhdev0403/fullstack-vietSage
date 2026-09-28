@@ -136,9 +136,7 @@ describe("T3 - Marketplace Conversation Service", () => {
 
       expect(result.id).toBe("msg-1");
       expect(result.body).toBe("Em có mặt ở sảnh rồi ạ");
-      expect(
-        RequestRealtimeEmitter.emitMarketplaceConversationMessageCreated,
-      ).toHaveBeenCalledWith(
+      expect(RequestRealtimeEmitter.emitMarketplaceConversationMessageCreated).toHaveBeenCalledWith(
         expect.objectContaining({
           stayId: "stay-1",
           orderId: "order-1",
@@ -164,11 +162,10 @@ describe("T3 - Marketplace Conversation Service", () => {
 
       const service = new MarketplaceConversationService(prisma as never, {} as never);
       await expect(
-        service.sendGuestMessage(
-          { hotelId: "hotel-1", stayId: "stay-1" },
-          "order-1",
-          { body: "Hello", clientMessageId: "cid-1" },
-        ),
+        service.sendGuestMessage({ hotelId: "hotel-1", stayId: "stay-1" }, "order-1", {
+          body: "Hello",
+          clientMessageId: "cid-1",
+        }),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -188,11 +185,10 @@ describe("T3 - Marketplace Conversation Service", () => {
 
       const service = new MarketplaceConversationService(prisma as never, {} as never);
       await expect(
-        service.sendGuestMessage(
-          { hotelId: "hotel-1", stayId: "stay-1" },
-          "order-1",
-          { body: "Hello", clientMessageId: "cid-1" },
-        ),
+        service.sendGuestMessage({ hotelId: "hotel-1", stayId: "stay-1" }, "order-1", {
+          body: "Hello",
+          clientMessageId: "cid-1",
+        }),
       ).rejects.toThrow(ConflictException);
     });
 

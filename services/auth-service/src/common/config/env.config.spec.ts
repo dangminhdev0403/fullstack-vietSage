@@ -185,9 +185,7 @@ describe("env config", () => {
       JWT_REFRESH_SECRET: "a-secure-refresh-secret-with-32-characters",
       LOCALMATE_KNOWLEDGE_API_KEY: "a-valid-production-knowledge-key-with-32-chars",
     });
-    expect(config.localMate.knowledgeApiKey).toBe(
-      "a-valid-production-knowledge-key-with-32-chars",
-    );
+    expect(config.localMate.knowledgeApiKey).toBe("a-valid-production-knowledge-key-with-32-chars");
   });
 
   it("defaults localMate.knowledgeApiKey to null in development when not set", () => {

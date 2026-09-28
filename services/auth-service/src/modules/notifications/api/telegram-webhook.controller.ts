@@ -1,4 +1,12 @@
-import { Body, Controller, ForbiddenException, Headers, Inject, Optional, Post } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Headers,
+  Inject,
+  Optional,
+  Post,
+} from "@nestjs/common";
 import { ApiHeader } from "@nestjs/swagger";
 import { timingSafeEqual } from "node:crypto";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
@@ -56,7 +64,7 @@ export class TelegramWebhookController {
       if (update.callback_query.data?.startsWith("mo:") && this.bridgeService) {
         await this.bridgeService.handleCallbackQuery(update.callback_query);
       } else {
-        await this.telegramNotificationService.handleCallback(update.callback_query as any);
+        await this.telegramNotificationService.handleCallback(update.callback_query);
       }
     }
 
@@ -70,11 +78,7 @@ export class TelegramWebhookController {
           chatType: update.message.chat.type || "unknown",
         });
       }
-    } else if (
-      update.message?.text &&
-      !update.message.text.startsWith("/") &&
-      this.bridgeService
-    ) {
+    } else if (update.message?.text && !update.message.text.startsWith("/") && this.bridgeService) {
       await this.bridgeService.handleInboundMessage(update.message);
     }
 

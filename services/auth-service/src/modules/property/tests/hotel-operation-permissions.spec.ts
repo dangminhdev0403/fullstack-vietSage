@@ -119,21 +119,21 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
           REQUIRED_PERMISSION_KEY,
           BiometricWorkstationsController.prototype.issuePairing,
         ),
-      ).toBe("hotel.stays.check-in");
+      ).toEqual(["hotel.stays.manage", "hotel.stays.check-in"]);
 
       expect(
         Reflect.getMetadata(
           REQUIRED_PERMISSION_KEY,
           BiometricWorkstationsController.prototype.status,
         ),
-      ).toBe("hotel.stays.check-in");
+      ).toEqual(["hotel.stays.manage", "hotel.stays.check-in"]);
 
       expect(
         Reflect.getMetadata(
           REQUIRED_PERMISSION_KEY,
           BiometricWorkstationsController.prototype.disconnect,
         ),
-      ).toBe("hotel.stays.check-in");
+      ).toEqual(["hotel.stays.manage", "hotel.stays.check-in"]);
     });
   });
 

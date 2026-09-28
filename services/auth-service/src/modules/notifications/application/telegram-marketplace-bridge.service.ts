@@ -9,13 +9,13 @@ import {
 import { PrismaService } from "../../../prisma/prisma.service";
 import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 import { TelegramNotificationService } from "./telegram-notification.service";
-import type { TelegramCallbackQuery, TelegramMessage } from "../domain/schemas/telegram-update.schema";
+import type {
+  TelegramCallbackQuery,
+  TelegramMessage,
+} from "../domain/schemas/telegram-update.schema";
 
 export function escapeTelegramHtml(text: string): string {
-  return String(text)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 @Injectable()
@@ -64,7 +64,9 @@ export class TelegramMarketplaceBridgeService {
       }
 
       const guestName = order.stay?.guestDisplayName ?? "Khách lưu trú";
-      const roomNumber = order.stay?.room?.roomNumber ? ` (Phòng ${order.stay.room.roomNumber})` : "";
+      const roomNumber = order.stay?.room?.roomNumber
+        ? ` (Phòng ${order.stay.room.roomNumber})`
+        : "";
       const startTime = order.requestedStartAt
         ? new Date(order.requestedStartAt).toLocaleString("vi-VN", {
             timeZone: "Asia/Ho_Chi_Minh",
@@ -110,19 +112,21 @@ export class TelegramMarketplaceBridgeService {
       // Find or create conversation and record initial order notification message for reply routing
       if (res.result?.message_id) {
         const conversation = await this.findOrCreateConversation(order);
-        await this.prisma.marketplaceConversationMessage.create({
-          data: {
-            conversationId: conversation.id,
-            orderId: order.id,
-            senderType: MarketplaceOrderActorType.SYSTEM,
-            body: `Yêu cầu đặt dịch vụ LocalMate ${order.orderNumber}`,
-            deliveryStatus: MarketplaceMessageDeliveryStatus.SENT,
-            telegramChatId: binding.telegramChatId,
-            telegramMessageId: String(res.result.message_id),
-          },
-        }).catch(() => {
-          // Non-blocking duplicate protection
-        });
+        await this.prisma.marketplaceConversationMessage
+          .create({
+            data: {
+              conversationId: conversation.id,
+              orderId: order.id,
+              senderType: MarketplaceOrderActorType.SYSTEM,
+              body: `Yêu cầu đặt dịch vụ LocalMate ${order.orderNumber}`,
+              deliveryStatus: MarketplaceMessageDeliveryStatus.SENT,
+              telegramChatId: binding.telegramChatId,
+              telegramMessageId: String(res.result.message_id),
+            },
+          })
+          .catch(() => {
+            // Non-blocking duplicate protection
+          });
       }
     } catch (error) {
       this.logger.error("Failed to send order notification to guide via Telegram", error);

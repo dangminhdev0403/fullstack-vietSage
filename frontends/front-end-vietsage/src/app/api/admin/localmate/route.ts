@@ -126,10 +126,22 @@ const matchAiSchema = z.object({
   }),
 });
 
+const pairTelegramSchema = z.object({
+  action: z.literal("pairTelegram"),
+  guideId: z.string().min(1),
+});
+
+const disconnectTelegramSchema = z.object({
+  action: z.literal("disconnectTelegram"),
+  guideId: z.string().min(1),
+});
+
 const actionSchema = z.discriminatedUnion("action", [
   createGuideSchema,
   updateGuideSchema,
   updateQualificationSchema,
+  pairTelegramSchema,
+  disconnectTelegramSchema,
   createTourSchema,
   updateTourSchema,
   deleteTourSchema,
@@ -182,6 +194,10 @@ export async function POST(request: Request) {
               action.guideId,
               action.status,
             );
+          case "pairTelegram":
+            return localMateAdminClient.pairTelegram(token, action.guideId);
+          case "disconnectTelegram":
+            return localMateAdminClient.disconnectTelegram(token, action.guideId);
           case "createTour":
             return localMateAdminClient.createTour(token, action.input);
           case "updateTour":

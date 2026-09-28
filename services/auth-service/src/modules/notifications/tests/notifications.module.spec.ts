@@ -3,13 +3,14 @@ import { join } from "node:path";
 import { MODULE_METADATA } from "@nestjs/common/constants";
 import { NotificationsModule } from "../notifications.module";
 import { TelegramNotificationService } from "../application/telegram-notification.service";
+import { TelegramMarketplaceBridgeService } from "../application/telegram-marketplace-bridge.service";
 import { HotelNotificationRoutesService } from "../application/hotel-notification-routes.service";
 
 describe("NotificationsModule public boundary", () => {
   it("exports provider delivery service without exposing route configuration internals", () => {
     const moduleExports = Reflect.getMetadata(MODULE_METADATA.EXPORTS, NotificationsModule) ?? [];
 
-    expect(moduleExports).toEqual([TelegramNotificationService]);
+    expect(moduleExports).toEqual([TelegramNotificationService, TelegramMarketplaceBridgeService]);
     expect(moduleExports).not.toContain(HotelNotificationRoutesService);
   });
 

@@ -14,13 +14,13 @@ const PAIRING_TOKEN_TTL_SECONDS = 600; // 10 minutes
 export class LocalMateTelegramPairingService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createPairingLink(userId: string) {
+  async createPairingLinkForProfile(profileId: string) {
     const profile = await this.prisma.localMateProfile.findUnique({
-      where: { userId },
+      where: { id: profileId },
       select: { id: true, fullName: true, status: true },
     });
     if (!profile) {
-      throw new NotFoundException("Không tìm thấy hồ sơ LocalMate cho tài khoản này");
+      throw new NotFoundException("Không tìm thấy hồ sơ LocalMate");
     }
 
     // Invalidate prior unconsumed tokens
@@ -54,6 +54,18 @@ export class LocalMateTelegramPairingService {
     };
   }
 
+  async createPairingLink(userId: string) {
+    const profile = await this.prisma.localMateProfile.findUnique({
+      where: { userId },
+      select: { id: true, fullName: true, status: true },
+    });
+    if (!profile) {
+      throw new NotFoundException("Không tìm thấy hồ sơ LocalMate cho tài khoản này");
+    }
+
+    return this.createPairingLinkForProfile(profile.id);
+  }
+
   async handleStartPairing(input: TelegramStartPairingInput) {
     if (input.chatType !== "private") {
       throw new BadRequestException("Chỉ hỗ trợ liên kết qua cuộc trò chuyện riêng tư với Bot");
@@ -83,7 +95,9 @@ export class LocalMateTelegramPairingService {
       },
     });
     if (conflictingUser) {
-      throw new ConflictException("Tài khoản Telegram này đã được liên kết với một hướng dẫn viên khác");
+      throw new ConflictException(
+        "Tài khoản Telegram này đã được liên kết với một hướng dẫn viên khác",
+      );
     }
 
     const conflictingChat = await this.prisma.localMateTelegramBinding.findFirst({
@@ -94,7 +108,9 @@ export class LocalMateTelegramPairingService {
       },
     });
     if (conflictingChat) {
-      throw new ConflictException("Cuộc trò chuyện Telegram này đã được liên kết với một hướng dẫn viên khác");
+      throw new ConflictException(
+        "Cuộc trò chuyện Telegram này đã được liên kết với một hướng dẫn viên khác",
+      );
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -130,9 +146,9 @@ export class LocalMateTelegramPairingService {
     };
   }
 
-  async disconnect(userId: string) {
+  async disconnectForProfile(profileId: string) {
     const profile = await this.prisma.localMateProfile.findUnique({
-      where: { userId },
+      where: { id: profileId },
       select: { id: true },
     });
     if (!profile) {
@@ -152,6 +168,18 @@ export class LocalMateTelegramPairingService {
     });
 
     return { disconnected: true, alreadyDisconnected: false };
+  }
+
+  async disconnect(userId: string) {
+    const profile = await this.prisma.localMateProfile.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!profile) {
+      throw new NotFoundException("Không tìm thấy hồ sơ LocalMate");
+    }
+
+    return this.disconnectForProfile(profile.id);
   }
 
   async getBindingStatus(userId: string) {

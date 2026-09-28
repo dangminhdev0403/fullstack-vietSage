@@ -19,6 +19,4 @@ export const telegramStartPairingInputSchema = z.object({
   }),
 });
 
-export type TelegramStartPairingInput = z.infer<
-  typeof telegramStartPairingInputSchema
->;
+export type TelegramStartPairingInput = z.infer<typeof telegramStartPairingInputSchema>;

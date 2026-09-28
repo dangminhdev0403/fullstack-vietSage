@@ -23,10 +23,7 @@ export class GuestMarketplaceConversationController {
     @Query() query: unknown,
   ) {
     const orderId = parseWithZod(marketplaceOrderIdSchema, orderIdParam);
-    const parsedQuery = parseWithZod(
-      listMarketplaceConversationMessagesQuerySchema,
-      query ?? {},
-    );
+    const parsedQuery = parseWithZod(listMarketplaceConversationMessagesQuerySchema, query ?? {});
 
     return this.service.getConversation(
       {

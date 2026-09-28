@@ -40,6 +40,16 @@ export const localMateAdminResource = createResource<Record<string, never>>()({
         localMateAdminRepository.updateQualification(variables.guideId, variables.status),
       invalidates,
     }),
+    pairTelegram: defineMutation({
+      mutationFn: ({ variables }: { variables: { guideId: string } }) =>
+        localMateAdminRepository.pairTelegram(variables.guideId),
+      invalidates,
+    }),
+    disconnectTelegram: defineMutation({
+      mutationFn: ({ variables }: { variables: { guideId: string } }) =>
+        localMateAdminRepository.disconnectTelegram(variables.guideId),
+      invalidates,
+    }),
     createTour: defineMutation({
       mutationFn: ({ variables }: { variables: { input: CreateLocalMateTourInput } }) =>
         localMateAdminRepository.createTour(variables.input),

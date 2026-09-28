@@ -11,8 +11,12 @@ import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 
 describe("T1 - Marketplace LocalMate Order Lifecycle", () => {
   beforeEach(() => {
-    jest.spyOn(RequestRealtimeEmitter, "emitExternalServiceOrderCreated").mockImplementation(() => {});
-    jest.spyOn(RequestRealtimeEmitter, "emitExternalServiceOrderStatusChanged").mockImplementation(() => {});
+    jest
+      .spyOn(RequestRealtimeEmitter, "emitExternalServiceOrderCreated")
+      .mockImplementation(() => {});
+    jest
+      .spyOn(RequestRealtimeEmitter, "emitExternalServiceOrderStatusChanged")
+      .mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -83,7 +87,8 @@ describe("T1 - Marketplace LocalMate Order Lifecycle", () => {
         marketplaceOrder: {
           findUnique: jest.fn().mockImplementation(({ where }) => {
             if (where.stayId_idempotencyKey) return null;
-            if (where.id) return { ...mockOrder, stay: { room: { id: "room-1" }, guestSessions: [] } };
+            if (where.id)
+              return { ...mockOrder, stay: { room: { id: "room-1" }, guestSessions: [] } };
             return null;
           }),
         },
@@ -294,10 +299,7 @@ describe("T1 - Marketplace LocalMate Order Lifecycle", () => {
       const service = new MarketplaceOrderService(prisma as never, {} as never);
 
       await expect(
-        service.cancelGuestOrder(
-          { hotelId: "hotel-1", stayId: "stay-1" },
-          "order-ack-1",
-        ),
+        service.cancelGuestOrder({ hotelId: "hotel-1", stayId: "stay-1" }, "order-ack-1"),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -311,10 +313,7 @@ describe("T1 - Marketplace LocalMate Order Lifecycle", () => {
       const service = new MarketplaceOrderService(prisma as never, {} as never);
 
       await expect(
-        service.cancelGuestOrder(
-          { hotelId: "hotel-1", stayId: "stay-other" },
-          "order-nonexistent",
-        ),
+        service.cancelGuestOrder({ hotelId: "hotel-1", stayId: "stay-other" }, "order-nonexistent"),
       ).rejects.toThrow(NotFoundException);
     });
   });

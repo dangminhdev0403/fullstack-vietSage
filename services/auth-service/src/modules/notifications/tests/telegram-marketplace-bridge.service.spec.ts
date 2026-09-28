@@ -1,4 +1,8 @@
-import { MarketplaceMessageDeliveryStatus, MarketplaceOrderActorType, MarketplaceOrderStatus } from "@prisma/client";
+import {
+  MarketplaceMessageDeliveryStatus,
+  MarketplaceOrderActorType,
+  MarketplaceOrderStatus,
+} from "@prisma/client";
 import { TelegramMarketplaceBridgeService } from "../application/telegram-marketplace-bridge.service";
 import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 
@@ -9,8 +13,12 @@ describe("TelegramMarketplaceBridgeService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.spyOn(RequestRealtimeEmitter, "emitExternalServiceOrderStatusChanged").mockImplementation(() => {});
-    jest.spyOn(RequestRealtimeEmitter, "emitMarketplaceConversationMessageCreated").mockImplementation(() => {});
+    jest
+      .spyOn(RequestRealtimeEmitter, "emitExternalServiceOrderStatusChanged")
+      .mockImplementation(() => {});
+    jest
+      .spyOn(RequestRealtimeEmitter, "emitMarketplaceConversationMessageCreated")
+      .mockImplementation(() => {});
 
     mockPrisma = {
       marketplaceOrder: {
@@ -256,7 +264,9 @@ describe("TelegramMarketplaceBridgeService", () => {
         id: "bind_1",
         telegramChatId: "tg_chat_1",
       });
-      mockTelegram.callTelegram.mockRejectedValue(new Error("Forbidden: bot was blocked by the user"));
+      mockTelegram.callTelegram.mockRejectedValue(
+        new Error("Forbidden: bot was blocked by the user"),
+      );
 
       await service.sendGuestMessageToGuide({
         message: { id: "msg_1", body: "Alo" },

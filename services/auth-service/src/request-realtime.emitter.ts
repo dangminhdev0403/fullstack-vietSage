@@ -191,7 +191,6 @@ export class RequestRealtimeEmitter {
     }
   }
 
-
   static emitExternalServiceOrderCreated(
     input: ExternalServiceOrderPayload & { sessionId?: string | null },
   ) {

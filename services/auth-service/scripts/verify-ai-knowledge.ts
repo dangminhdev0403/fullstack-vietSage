@@ -86,8 +86,18 @@ async function verifyAiKnowledge() {
 
     const totalGuides = guidesRes.rows.length;
     const guidesWithCoords = guidesRes.rows.filter(g => g.serviceLatitude && g.serviceLongitude).length;
-    if (totalGuides < 6 || guidesWithCoords < totalGuides) {
+    if (totalGuides < 10 || guidesWithCoords < totalGuides) {
       throw new Error(`Kiểm tra dữ liệu HDV không đạt: totalGuides=${totalGuides}, withCoords=${guidesWithCoords}`);
+    }
+
+    // 6. Kiểm tra Dịch vụ Marketplace liên kết với Hướng dẫn viên
+    const mktRes = await pool.query(`
+      SELECT count(*) as total FROM "MarketplaceService" WHERE "localMateProfileId" IS NOT NULL
+    `);
+    const totalLinkedServices = Number(mktRes.rows[0].total);
+    console.log(`\n6. Dịch vụ Marketplace liên kết LocalMate: ${totalLinkedServices}/${totalGuides}`);
+    if (totalLinkedServices < totalGuides) {
+      throw new Error(`Thiếu dịch vụ Marketplace cho LocalMate: ${totalLinkedServices}/${totalGuides}`);
     }
 
     console.log("\n=======================================================");

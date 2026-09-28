@@ -251,7 +251,7 @@ describe("LocalMateService", () => {
       expect((response as any).promptContext).toBeUndefined();
       expect((response as any).metadata.generatedAt).toBeUndefined();
 
-      // Exact public projection for tours
+      // Exact public projection for tours with verified suitable guides
       expect(response.tours).toEqual([
         {
           tourCode: "HVNT-0007-24",
@@ -260,6 +260,7 @@ describe("LocalMateService", () => {
           highlights: ["Ruộng bậc thang", "Khoáng nóng"],
           content: "Chi tiết tour Mù Cang Chải...",
           distanceKm: null,
+          suitableGuides: ["Giàng A Pháo"],
         },
       ]);
 
@@ -290,6 +291,7 @@ describe("LocalMateService", () => {
       });
       expect(repository.findQualifiedGuides).toHaveBeenCalledWith({
         destination: "Mù Cang Chải",
+        targetRegions: ["Mù Cang Chải", "Yên Bái", "yen bai", "yên bái"],
         bounds: undefined,
         fallbackRegions: undefined,
         limit: 3,
@@ -337,10 +339,110 @@ describe("LocalMateService", () => {
       });
       expect(repository.findQualifiedGuides).toHaveBeenCalledWith({
         destination: "Mù Cang Chải",
+        targetRegions: ["Mù Cang Chải", "Yên Bái", "yen bai", "yên bái"],
         bounds: undefined,
         fallbackRegions: undefined,
         limit: 5,
       });
+    });
+
+    it("strictly omits tours when no qualified guides are available, avoiding orphan tours without guides", async () => {
+      repository.findQualifiedGuides.mockResolvedValueOnce([]);
+      repository.searchTourKnowledge.mockResolvedValueOnce([
+        {
+          ...mockTours[0],
+          title: "HÀ NỘI - LÀNG GỐM CỔ BÁT TRÀNG (0.5N)",
+        },
+      ] as any);
+
+      const response = await service.getKnowledge({
+        destination: "Bát Tràng",
+      });
+
+      expect(response.guides).toEqual([]);
+      expect(response.tours).toEqual([]);
+      expect(response.metadata.totalTours).toBe(0);
+      expect(response.metadata.totalGuides).toBe(0);
+    });
+
+    it("matches Bát Tràng tour with both hyper-local Bát Tràng guide and Hà Nội province guide, prioritizing hyper-local guide", async () => {
+      const batTrangTour = {
+        id: "tour-bt",
+        tourCode: "TOUR-HN-0002",
+        title: "HÀ NỘI - LÀNG GỐM CỔ BÁT TRÀNG & TRẢI NGHIỆM NẶN GỐM (0.5N)",
+        duration: "Nửa Ngày",
+        highlights: ["Gốm Bát Tràng 700 năm", "Nặn gốm"],
+        content: "Chi tiết tour Bát Tràng...",
+        provinceCode: "HA_NOI",
+        province: "Hà Nội",
+        tourScope: "LOCAL" as const,
+        latitude: 20.978,
+        longitude: 105.912,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const batTrangGuide = {
+        id: "guide-bt",
+        guideCode: "LM-HN-002",
+        fullName: "Lê Hoàng Anh",
+        phone: "0912345678",
+        email: "hoanganh@localmate.vietsage.vn",
+        avatarUrl: "https://example.com/hoanganh.jpg",
+        status: LocalMateStatus.QUALIFIED,
+        languages: ["Vietnamese", "English"],
+        operatingRegions: ["Bát Tràng", "Gia Lâm", "Hà Nội"],
+        specialties: ["Làng gốm Bát Tràng", "Nặn gốm thủ công"],
+        bio: "Nghệ nhân gốm Bát Tràng 5 đời",
+        dailyRateVnd: 900000,
+        rating: 4.95,
+        totalReviews: 48,
+        serviceLatitude: 20.978,
+        serviceLongitude: 105.912,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const hanoiGuide = {
+        id: "guide-hn",
+        guideCode: "LM-HN-001",
+        fullName: "Nguyễn Văn Minh",
+        phone: "0912233445",
+        email: "minh@localmate.vietsage.vn",
+        avatarUrl: "https://example.com/minh.jpg",
+        status: LocalMateStatus.QUALIFIED,
+        languages: ["Vietnamese", "English"],
+        operatingRegions: ["Hoàn Kiếm", "Ba Đình", "Hà Nội"],
+        specialties: ["Phố Cổ", "Ẩm thực"],
+        bio: "HDV Phố Cổ",
+        dailyRateVnd: 1000000,
+        rating: 4.96,
+        totalReviews: 62,
+        serviceLatitude: 21.033,
+        serviceLongitude: 105.85,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      repository.searchTourKnowledge.mockResolvedValueOnce([batTrangTour] as any);
+      // Repository returns both guides (general Hanoi guide has higher rating 4.96 vs 4.95)
+      repository.findQualifiedGuides.mockResolvedValueOnce([hanoiGuide, batTrangGuide] as any);
+
+      const response = await service.getKnowledge({
+        destination: "Bát Tràng",
+      });
+
+      expect(response.tours).toHaveLength(1);
+      expect(response.tours[0].tourCode).toBe("TOUR-HN-0002");
+      // Tour has both suitable guides identified
+      expect(response.tours[0].suitableGuides).toContain("Lê Hoàng Anh");
+      expect(response.tours[0].suitableGuides).toContain("Nguyễn Văn Minh");
+
+      // Hyper-local guide for Bát Tràng is sorted FIRST ahead of general Hanoi guide despite rating
+      expect(response.guides[0].guideCode).toBe("LM-HN-002");
+      expect(response.guides[0].fullName).toBe("Lê Hoàng Anh");
+      expect(response.guides[1].guideCode).toBe("LM-HN-001");
+      expect(response.guides[1].fullName).toBe("Nguyễn Văn Minh");
     });
 
     it("filters far coordinates, keeps administrative null-coordinate fallback, caps candidates and hides coordinates", async () => {

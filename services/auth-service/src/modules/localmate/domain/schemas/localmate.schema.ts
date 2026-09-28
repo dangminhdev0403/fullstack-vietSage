@@ -246,4 +246,3 @@ export const resolveBookingCandidateSchema = z.object({
   hotelId: z.string().trim().min(1).max(80),
 });
 export type ResolveBookingCandidateDto = z.infer<typeof resolveBookingCandidateSchema>;
-
