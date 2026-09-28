@@ -19,6 +19,7 @@ export const PUBLIC_REGEX: RegExp[] = [
   /^\/emergency\/guest\/calls$/,
   /^\/payments\/webhook\/[^/]+$/,
   /^\/localmate\/(?:ai\/match|guides\/[^/]+)$/,
+  /^\/api\/v1\/channel-manager\/ical\/[^/]+(?:\.ics)?$/,
 ];
 
 export const publicMatcher = new PublicRouteMatcher(PUBLIC_PATTERNS, PUBLIC_REGEX);

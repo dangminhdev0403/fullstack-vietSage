@@ -684,6 +684,10 @@ model Hotel {
   kbttGuestDeclarations         KbttGuestDeclaration[]
   kbttAutoSubmitRuns            KbttAutoSubmitRun[]
   featureEntitlements           HotelFeatureEntitlement[]
+  channelConnections           ChannelConnection[]
+  channelDailyAvailabilities   ChannelDailyAvailability[]
+  channelDailyRestrictions     ChannelDailyRestriction[]
+  channelSyncLogs              ChannelSyncLog[]
 }
 
 model HotelFeatureEntitlement {
@@ -1046,6 +1050,7 @@ model Room {
   folioItems            FolioItem[]
   emergencyCallEvents   EmergencyCallEvent[]
   roomStaffAssignment   HotelRoomStaffAssignment?
+  channelRoomMappings   ChannelRoomMapping[]
 
   @@unique([hotelId, roomNumber])
   @@index([hotelId, status])
@@ -2449,3 +2454,107 @@ model MarketplaceConversationMessage {
   @@index([orderId, createdAt])
   @@index([deliveryStatus, nextAttemptAt])
 }
+
+enum ChannelCode {
+  AIRBNB_ICAL
+  BOOKING_ICAL
+  AGODA_ICAL
+  DIRECT_BOOKING
+}
+
+enum ChannelConnectionStatus {
+  ACTIVE
+  PAUSED
+  ERROR
+}
+
+model ChannelConnection {
+  id               String                  @id @default(cuid())
+  hotelId          String
+  channelCode      ChannelCode
+  title            String                  @db.VarChar(160)
+  status           ChannelConnectionStatus @default(ACTIVE)
+  inboundIcalUrl   String?                 @db.Text
+  outboundToken    String                  @unique @db.VarChar(120)
+  priceMultiplier  Decimal                 @default(1.0) @db.Decimal(5, 2)
+  lastSyncAt       DateTime?
+  lastSyncStatus   String?                 @db.VarChar(40)
+  syncErrorMessage String?                 @db.Text
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  hotel            Hotel                   @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  roomMappings     ChannelRoomMapping[]
+  syncLogs         ChannelSyncLog[]
+
+  @@index([hotelId])
+  @@index([channelCode])
+  @@index([status])
+}
+
+model ChannelRoomMapping {
+  id                  String            @id @default(cuid())
+  channelConnectionId String
+  roomId              String?
+  roomType            String?           @db.VarChar(80)
+  channelRoomCode     String            @db.VarChar(120)
+  channelRoomName     String            @db.VarChar(160)
+  connection          ChannelConnection @relation(fields: [channelConnectionId], references: [id], onDelete: Cascade)
+  room                Room?             @relation(fields: [roomId], references: [id], onDelete: SetNull)
+
+  @@index([channelConnectionId])
+  @@index([roomId])
+}
+
+model ChannelDailyAvailability {
+  id                String   @id @default(cuid())
+  hotelId           String
+  roomType          String   @db.VarChar(80)
+  date              DateTime @db.Date
+  totalRooms        Int      @default(0)
+  bookedRooms       Int      @default(0)
+  blockedRooms      Int      @default(0)
+  availableRooms    Int      @default(0)
+  overrideAvailable Int?
+  updatedAt         DateTime @updatedAt
+  hotel             Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, roomType, date])
+  @@index([hotelId, date])
+}
+
+model ChannelDailyRestriction {
+  id                String   @id @default(cuid())
+  hotelId           String
+  roomType          String   @db.VarChar(80)
+  ratePlanCode      String   @default("STANDARD") @db.VarChar(80)
+  date              DateTime @db.Date
+  rate              Decimal  @db.Decimal(12, 2)
+  minStayArrival    Int      @default(1)
+  minStayThrough    Int      @default(1)
+  maxStay           Int      @default(0)
+  stopSell          Boolean  @default(false)
+  closedToArrival   Boolean  @default(false)
+  closedToDeparture Boolean  @default(false)
+  updatedAt         DateTime @updatedAt
+  hotel             Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, roomType, ratePlanCode, date])
+  @@index([hotelId, date])
+}
+
+model ChannelSyncLog {
+  id                  String             @id @default(cuid())
+  hotelId             String
+  channelConnectionId String?
+  syncType            String             @db.VarChar(40)
+  status              String             @db.VarChar(40)
+  details             String?            @db.Text
+  eventsCount         Int                @default(0)
+  createdAt           DateTime           @default(now())
+  hotel               Hotel              @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  connection          ChannelConnection? @relation(fields: [channelConnectionId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId, createdAt])
+  @@index([channelConnectionId, createdAt])
+}
+

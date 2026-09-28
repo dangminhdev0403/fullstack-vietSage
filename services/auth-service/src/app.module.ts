@@ -24,6 +24,7 @@ import { LocalPartnersModule } from "./modules/local-partners/local-partners.mod
 import { MarketplaceModule } from "./modules/marketplace/marketplace.module";
 import { KbttModule } from "./modules/kbtt/kbtt.module";
 import { LocalMateModule } from "./modules/localmate/localmate.module";
+import { ChannelManagerModule } from "./modules/channel-manager/channel-manager.module";
 import { StayCheckInEventsModule } from "./shared/events";
 
 @Module({
@@ -48,6 +49,7 @@ import { StayCheckInEventsModule } from "./shared/events";
     MarketplaceModule,
     KbttModule,
     LocalMateModule,
+    ChannelManagerModule,
   ],
   providers: [
     {

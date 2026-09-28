@@ -173,6 +173,11 @@ test("builds owner sidebar with operational modules and hotel settings", () => {
         label: "Phòng & QR",
       },
       {
+        key: "owner.hotel.channel-manager",
+        href: "/owner/hotels/hotel-1/channel-manager",
+        label: "Kho Phòng & Kênh Bán",
+      },
+      {
         key: "owner.hotel.services",
         href: "/owner/hotels/hotel-1/services",
         label: "Danh mục dịch vụ",
