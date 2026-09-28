@@ -48,7 +48,13 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
   const context = await loadServerWorkspaceContext(callbackUrl);
   const persona = resolveWorkspacePersona(context.activeRole.code);
   if (persona === "platform_finance") redirect("/finance/billing");
-  if (persona === "localmate_manager") redirect("/admin/localmate/guides");
+  if (
+    persona === "localmate_manager" ||
+    context.activeRole.code.includes("LOCALMATE") ||
+    context.activeRole.code.includes("LOCAL_MATE")
+  ) {
+    redirect("/localmate/guides");
+  }
   if (persona !== "platform_admin") notFound();
 
   const session = await auth();

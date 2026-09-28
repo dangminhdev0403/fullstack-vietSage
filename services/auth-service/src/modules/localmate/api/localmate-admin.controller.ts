@@ -79,7 +79,7 @@ export class LocalMateAdminController {
   }
 
   @SuccessMessage("Tạo liên kết kết nối Telegram cho hướng dẫn viên thành công")
-  @RequirePermission("platform.localmate.manage")
+  @RequirePermission(["platform.localmate.manage", "platform.localmate.view"])
   @ApiDescript("Tạo liên kết một lần để kết nối tài khoản Telegram với hướng dẫn viên")
   @Post("guides/:id/telegram-pair")
   async createTelegramPairingLink(@Param("id") idParam: string) {
@@ -88,7 +88,7 @@ export class LocalMateAdminController {
   }
 
   @SuccessMessage("Hủy kết nối Telegram của hướng dẫn viên thành công")
-  @RequirePermission("platform.localmate.manage")
+  @RequirePermission(["platform.localmate.manage", "platform.localmate.view"])
   @ApiDescript("Hủy kết nối tài khoản Telegram của hướng dẫn viên")
   @Post("guides/:id/telegram-disconnect")
   async disconnectTelegram(@Param("id") idParam: string) {

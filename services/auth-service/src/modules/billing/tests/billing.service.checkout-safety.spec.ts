@@ -1062,6 +1062,50 @@ describe("BillingService checkout safety", () => {
     expect(prisma.folioItem.update).not.toHaveBeenCalled();
   });
 
+  it("getFolioSummary computes estimated room charge for OPEN folio with room rate and stay dates", async () => {
+    const prisma = {
+      guestRequest: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    };
+    const repository = {
+      getFolioSummary: jest.fn().mockResolvedValue({
+        latestItemPostedAt: null,
+        grouped: [],
+        folio: {
+          id: "folio-open-1",
+          hotelId: "hotel-1",
+          stayId: "stay-1",
+          folioNumber: "FOL-OPEN-1",
+          status: FolioStatus.OPEN,
+          currency: "VND",
+          subtotalAmount: new Prisma.Decimal(0),
+          taxAmount: new Prisma.Decimal(0),
+          discountAmount: new Prisma.Decimal(0),
+          totalAmount: new Prisma.Decimal(0),
+          updatedAt: new Date("2026-07-18T00:00:00.000Z"),
+          room: { id: "room-501", roomNumber: "501", price: new Prisma.Decimal(600000) },
+          stay: {
+            id: "stay-1",
+            checkedInAt: new Date("2026-07-17T14:00:00.000Z"),
+            plannedCheckInAt: new Date("2026-07-17T14:00:00.000Z"),
+            plannedCheckOutAt: new Date("2026-07-18T12:00:00.000Z"),
+          },
+        },
+      }),
+    };
+    const service = createService(prisma, repository);
+    const summary = await service.getFolioSummary("user-1", "active-role", "hotel-1", "folio-open-1");
+
+    expect(summary).toBeDefined();
+    expect(summary.estimatedRoomCharge).toBeDefined();
+    expect(summary.estimatedRoomCharge?.nights).toBe(1);
+    expect(summary.estimatedRoomCharge?.nightlyRate).toEqual(new Prisma.Decimal(600000));
+    expect(summary.estimatedRoomCharge?.subtotal).toEqual(new Prisma.Decimal(600000));
+    expect(summary.subtotal).toEqual(new Prisma.Decimal(600000));
+    expect(summary.total).toEqual(new Prisma.Decimal(600000));
+  });
+
   it("requires hotel.billing.checkout permission for issueInvoice and confirmManualPayment", () => {
     const issueInvoicePermission = Reflect.getMetadata(
       REQUIRED_PERMISSION_KEY,

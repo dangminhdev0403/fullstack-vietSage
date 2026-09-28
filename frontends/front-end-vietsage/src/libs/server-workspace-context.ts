@@ -31,9 +31,11 @@ export const loadServerWorkspaceContext = cache(
     } catch (error) {
       if (
         error instanceof AuthServiceError &&
-        (error.code === "INVALID_CREDENTIALS" || error.code === "UNAUTHORIZED")
+        (error.code === "INVALID_CREDENTIALS" ||
+          error.code === "UNAUTHORIZED" ||
+          error.code === "NETWORK_ERROR")
       ) {
-        redirectToLogin(callbackUrl, "invalid_credentials", "server-workspace-context");
+        redirectToLogin(callbackUrl, error.code.toLowerCase(), "server-workspace-context");
       }
 
       throw error;

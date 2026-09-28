@@ -39,7 +39,7 @@ export default function GuestHomePage() {
   return (
     <div className="vs-page-shell vs-guest-readable vs-safe-bottom min-h-screen overflow-x-hidden bg-[#f8f4ea] text-[#18211d]">
       <VsTopBar showLeftControl={false} rightMode="icons" rightLabel={roomLabel} languageBadge={locale} />
-      <main className="relative min-h-screen pt-16">
+      <main className="relative min-h-screen pt-16 pb-28 sm:pb-16">
         <GuestHomeHero greeting={t("home.hello", { name: guestName })} title={t("home.heroTitle", { room: roomLabel.toLowerCase() })} description={t("home.heroText", { hotel: hotelName })} primaryLabel={t("home.sendRequest")} secondaryLabel={t("home.myRequests")} imageAlt={t("home.heroAlt")} />
         <GuestHomeHighlights items={highlights} />
         <GuestHomeExperiences

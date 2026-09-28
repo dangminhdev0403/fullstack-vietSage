@@ -243,6 +243,14 @@ describe("LocalMateService", () => {
         totalGuides: 3,
         destination: "Mù Cang Chải",
         query: "Tôi muốn đi du lịch 3 ngày 2 đêm",
+        locationScope: {
+          area: "Mù Cang Chải",
+          province: "Yên Bái",
+          provinceCode: "YEN_BAI",
+          requestedDestination: "Mù Cang Chải",
+          outsideHotelProvince: false,
+          mode: "PUBLIC_LOCATION",
+        },
       });
 
       // No dead prompt/orchestration fields
@@ -282,8 +290,8 @@ describe("LocalMateService", () => {
       // Bounds both tours and guides
       expect(repository.searchTourKnowledge).toHaveBeenCalledWith({
         destination: "Mù Cang Chải",
-        search: "Tôi muốn đi du lịch 3 ngày 2 đêm",
-        provinceCode: undefined,
+        search: undefined,
+        provinceCode: "YEN_BAI",
         tourScope: undefined,
         bounds: undefined,
         fallbackProvinceCode: undefined,
@@ -296,6 +304,35 @@ describe("LocalMateService", () => {
         fallbackRegions: undefined,
         limit: 3,
       });
+    });
+
+    it("uses the stated public location as a province-bounded knowledge scope", async () => {
+      const response = await service.getKnowledge({
+        destination: "Hoàn Kiếm, Hà Nội",
+        query: "Gợi ý trải nghiệm ẩm thực",
+        limit: 5,
+      });
+
+      expect(repository.searchTourKnowledge).toHaveBeenCalledWith(
+        expect.objectContaining({
+          destination: "Hoàn Kiếm & Phố Cổ",
+          search: "ẩm thực",
+          provinceCode: "HA_NOI",
+        }),
+      );
+      expect(repository.findQualifiedGuides).toHaveBeenCalledWith(
+        expect.objectContaining({
+          destination: "Hoàn Kiếm & Phố Cổ",
+          targetRegions: expect.arrayContaining(["Hà Nội"]),
+        }),
+      );
+      expect(response.metadata.locationScope).toEqual(
+        expect.objectContaining({
+          province: "Hà Nội",
+          provinceCode: "HA_NOI",
+          mode: "PUBLIC_LOCATION",
+        }),
+      );
     });
 
     it("produces deterministic hash for identical data and changes hash when content changes", async () => {
@@ -331,7 +368,7 @@ describe("LocalMateService", () => {
       expect(repository.searchTourKnowledge).toHaveBeenCalledWith({
         destination: "Mù Cang Chải",
         search: undefined,
-        provinceCode: undefined,
+        provinceCode: "YEN_BAI",
         tourScope: undefined,
         bounds: undefined,
         fallbackProvinceCode: undefined,

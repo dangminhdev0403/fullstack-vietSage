@@ -1,31 +1,28 @@
 import { auth } from "@/auth";
 import { type ReactNode } from "react";
-
 import { notFound, redirect } from "next/navigation";
+
 import { AuthRefreshGate } from "../_components/auth-refresh-gate";
 import { hasAppRole } from "@/libs/rbac";
 import { requireRefreshableServerSession } from "@/libs/server-session-tokens";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { resolveWorkspacePersona } from "@/features/workspace/utils/workspace-context";
 import { WorkspaceProfileProvider } from "@/features/workspace/components/workspace-profile-context";
+import { buildWorkspaceNavigation } from "@/features/workspace/config/workspace-registry";
 
-import { AdminShell } from "./_components/admin-shell";
-import {
-  buildWorkspaceNavigation,
-  getWorkspaceDefinition,
-} from "@/features/workspace/config/workspace-registry";
+import { LocalMateShell } from "./_components/localmate-shell";
 
 function redirectToLogin(reason: string): never {
   console.info("[AUTH_REDIRECT_LOGIN_SOURCE]", {
-    source: "admin-layout",
+    source: "localmate-layout",
     reason,
-    pathname: "/admin/dashboard",
+    pathname: "/localmate/guides",
   });
 
-  redirect("/dangnhap?reauth=1&callbackUrl=/admin/dashboard");
+  redirect("/dangnhap?reauth=1&callbackUrl=/localmate/guides");
 }
 
-export default async function AdminLayout({
+export default async function LocalMateLayout({
   children,
 }: Readonly<{
   children: ReactNode;
@@ -48,38 +45,44 @@ export default async function AdminLayout({
     notFound();
   }
 
-  await requireRefreshableServerSession("/admin/dashboard", "admin-layout");
+  await requireRefreshableServerSession("/localmate/guides", "localmate-layout");
 
-  const context = await loadServerWorkspaceContext("/admin/dashboard");
+  const context = await loadServerWorkspaceContext("/localmate/guides");
   const persona = resolveWorkspacePersona(context.activeRole.code);
-  if (persona === "platform_finance") {
-    redirect("/finance/billing");
-  }
-  if (
+
+  const isAllowed =
     persona === "localmate_manager" ||
+    persona === "platform_admin" ||
     context.activeRole.code.includes("LOCALMATE") ||
-    context.activeRole.code.includes("LOCAL_MATE")
-  ) {
-    redirect("/localmate/guides");
+    context.activeRole.code.includes("LOCAL_MATE");
+
+  if (!isAllowed) {
+    notFound();
   }
 
-  if (persona !== "platform_admin") notFound();
+  const isGuideRole = context.activeRole.code === "LOCALMATE_GUIDE";
 
-  const navItems = buildWorkspaceNavigation({
-    persona: "platform_admin",
+  const allNavItems = buildWorkspaceNavigation({
+    persona: "localmate_manager",
     permissions: context.permissions,
   });
+
+  const navItems = isGuideRole
+    ? allNavItems
+        .filter((item) => item.key === "localmate.guides")
+        .map((item) => ({ ...item, label: "Hồ sơ & Kết nối Tour" }))
+    : allNavItems;
+
+  const subtitle = isGuideRole
+    ? "Hướng dẫn viên bản địa"
+    : (context.activeRole.name || "Quản trị viên LocalMate");
 
   return (
     <AuthRefreshGate accessTokenExpiresAt={session.accessTokenExpiresAt}>
       <WorkspaceProfileProvider profileName={context.fullName}>
-        <AdminShell
-          definition={getWorkspaceDefinition("platform_admin")}
-          navItems={navItems}
-          subtitle={context.activeRole.name}
-        >
+        <LocalMateShell navItems={navItems} subtitle={subtitle}>
           {children}
-        </AdminShell>
+        </LocalMateShell>
       </WorkspaceProfileProvider>
     </AuthRefreshGate>
   );

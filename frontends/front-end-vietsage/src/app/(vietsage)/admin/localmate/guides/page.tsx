@@ -1,10 +1,6 @@
-import { LocalMateGuidesView } from "@/features/localmate-admin/components/localmate-guides-view";
+import { redirect } from "next/navigation";
 
-export default function LocalMateGuidesPage() {
-  return (
-    <div className="w-full">
-      <LocalMateGuidesView />
-    </div>
-  );
+export default function AdminLocalMateGuidesPage() {
+  redirect("/localmate/guides");
 }
 

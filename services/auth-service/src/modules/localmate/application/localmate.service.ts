@@ -382,10 +382,8 @@ export class LocalMateService {
   async getKnowledge(query: Partial<QueryLocalMateKnowledgeDto>) {
     const limit = query.limit ?? 5;
     const radiusKm = query.radiusKm ?? 50;
-    const inferredDestination = query.destination
-      ? undefined
-      : resolveDestinationFromText(query.query);
-    const requestedDestination = query.destination || inferredDestination;
+    const inferredDestination = resolveDestinationFromText(query.destination || query.query);
+    const requestedDestination = inferredDestination || query.destination;
 
     let hotel: {
       id: string;
@@ -413,12 +411,8 @@ export class LocalMateService {
     const effectiveDestination = outsideHotelProvince
       ? hotel?.province || hotel?.area || undefined
       : destination;
-    const search = outsideHotelProvince
-      ? undefined
-      : query.destination
-        ? query.query
-        : resolveKnowledgeSearchTerm(query.query);
-    const provinceCode = hotel?.provinceCode || query.provinceCode;
+    const search = outsideHotelProvince ? undefined : resolveKnowledgeSearchTerm(query.query);
+    const provinceCode = hotel?.provinceCode || query.provinceCode || requestedProvince?.code;
 
     const hotelCoordinates = this.coordinatesOf(hotel?.latitude, hotel?.longitude);
     const useHotelRadius = Boolean(hotelCoordinates && !destination);
@@ -599,6 +593,16 @@ export class LocalMateService {
                 : useHotelRadius
                   ? "RADIUS"
                   : "ADMINISTRATIVE_FALLBACK",
+          },
+        }),
+        ...(!hotel && requestedProvince && {
+          locationScope: {
+            area: requestedDestination,
+            province: requestedProvince.name,
+            provinceCode: requestedProvince.code,
+            requestedDestination,
+            outsideHotelProvince: false,
+            mode: "PUBLIC_LOCATION",
           },
         }),
         ...(query.provinceCode && { provinceCode: query.provinceCode }),

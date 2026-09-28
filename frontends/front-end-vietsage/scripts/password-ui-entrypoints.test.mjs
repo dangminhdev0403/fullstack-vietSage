@@ -8,6 +8,7 @@ const changePasswordDialog = read("src/features/account/security/change-password
 const owners = read("src/app/(vietsage)/admin/users/tenant-owners-client.tsx");
 const staff = read("src/features/staff-management/components/staff-management-client.tsx");
 const secretDialog = read("src/features/account/security/one-time-password-dialog.tsx");
+const loginPage = read("src/features/auth/components/login-page.tsx");
 
 test("authenticated topbar exposes self-service password change", () => {
   assert.match(topbar, /ChangePasswordDialog/);
@@ -35,4 +36,8 @@ test("temporary password dialog clears the secret on every close", () => {
   assert.match(secretDialog, /onClose\(\)/);
   assert.match(secretDialog, /temporaryPassword/);
   assert.doesNotMatch(secretDialog, /localStorage|sessionStorage|console\./);
+});
+
+test("login form fallback never serializes credentials into a GET URL", () => {
+  assert.match(loginPage, /<form[^>]*method="post"/);
 });

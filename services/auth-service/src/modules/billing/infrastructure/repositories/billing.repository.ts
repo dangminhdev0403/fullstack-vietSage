@@ -19,8 +19,18 @@ export const folioListSelect = {
   closedAt: true,
   createdAt: true,
   updatedAt: true,
-  room: { select: { id: true, roomNumber: true } },
-  stay: { select: { id: true, reservationCode: true, guestDisplayName: true, status: true } },
+  room: { select: { id: true, roomNumber: true, price: true } },
+  stay: {
+    select: {
+      id: true,
+      reservationCode: true,
+      guestDisplayName: true,
+      status: true,
+      checkedInAt: true,
+      plannedCheckInAt: true,
+      plannedCheckOutAt: true,
+    },
+  },
   invoices: {
     select: { id: true, invoiceNumber: true, status: true },
     orderBy: [{ issuedAt: "desc" }, { id: "desc" }],
@@ -29,7 +39,7 @@ export const folioListSelect = {
 } satisfies Prisma.FolioSelect;
 
 export const folioDetailInclude = {
-  room: { select: { id: true, roomNumber: true, floor: true, status: true } },
+  room: { select: { id: true, roomNumber: true, floor: true, status: true, price: true } },
   stay: {
     select: {
       id: true,
@@ -167,7 +177,18 @@ export class BillingRepository {
           taxAmount: true,
           discountAmount: true,
           totalAmount: true,
+          openedAt: true,
+          createdAt: true,
           updatedAt: true,
+          room: { select: { id: true, roomNumber: true, price: true } },
+          stay: {
+            select: {
+              id: true,
+              checkedInAt: true,
+              plannedCheckInAt: true,
+              plannedCheckOutAt: true,
+            },
+          },
         },
       });
 

@@ -1,10 +1,6 @@
-import { LocalMateKnowledgeView } from "@/features/localmate-admin/components/localmate-knowledge-view";
+import { redirect } from "next/navigation";
 
-export default function LocalMateKnowledgePage() {
-  return (
-    <div className="w-full">
-      <LocalMateKnowledgeView />
-    </div>
-  );
+export default function AdminLocalMateKnowledgePage() {
+  redirect("/localmate/knowledge");
 }
 

@@ -17,6 +17,8 @@ import { runtimeConsole } from "./core/logging/runtime-console";
 
 const protectedPrefixes = [
   "/admin",
+  "/finance",
+  "/localmate",
   "/owner",
   "/staff",
   "/hotels",
@@ -127,7 +129,37 @@ function buildRefreshSessionRedirect(request: NextRequest): NextResponse {
 }
 
 export const proxy = auth((request) => {
-  const { pathname } = request.nextUrl;
+  const rawPathname = request.nextUrl.pathname;
+  let decodedPath = rawPathname;
+  try {
+    decodedPath = decodeURIComponent(rawPathname);
+  } catch {
+    decodedPath = rawPathname;
+  }
+
+  // 1. Sanitize trailing whitespace / encoded spaces (e.g. /localmate/guides%20)
+  const trimmedPath = decodedPath.trim();
+  if (decodedPath !== trimmedPath) {
+    const cleanUrl = request.nextUrl.clone();
+    cleanUrl.pathname = trimmedPath;
+    return NextResponse.redirect(cleanUrl);
+  }
+
+  // 2. Redirect legacy /admin/localmate/* to dedicated /localmate/* workspace
+  if (
+    trimmedPath === "/admin/localmate" ||
+    trimmedPath.startsWith("/admin/localmate/")
+  ) {
+    const localMatePath = trimmedPath.replace(
+      /^\/admin\/localmate/,
+      "/localmate",
+    );
+    const targetUrl = request.nextUrl.clone();
+    targetUrl.pathname = localMatePath;
+    return NextResponse.redirect(targetUrl);
+  }
+
+  const pathname = trimmedPath;
 
   if (pathname.startsWith("/api/")) {
     return isAllowedApiMutationRequest(request)

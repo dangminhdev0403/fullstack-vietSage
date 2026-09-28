@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, m } from "motion/react";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
@@ -507,37 +507,57 @@ export function GuestFloatingChat() {
     }
   }, [messages, isTyping, isOpen]);
 
-  // Floating teaser message appears after selecting language / entering guest workspace
+  const dismissTeaser = useCallback(() => {
+    setShowTeaser(false);
+    try {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("vietsage_guest_teaser_seen", "true");
+      }
+    } catch {}
+  }, []);
+
+  // Floating teaser message appears once after entering guest workspace / selecting language
   useEffect(() => {
     if (!hasSelectedLanguage || !isWorkspace) return;
+
+    try {
+      if (typeof window !== "undefined" && sessionStorage.getItem("vietsage_guest_teaser_seen") === "true") {
+        return;
+      }
+    } catch {}
 
     // Delay entrance slightly so guest sees the workspace before being greeted
     const showTimer = setTimeout(() => {
       setShowTeaser(true);
-    }, 800);
+    }, 1200);
 
-    // Auto-dismiss teaser after 12 seconds
+    // Auto-dismiss teaser after 7 seconds so it doesn't block workspace actions
     const hideTimer = setTimeout(() => {
       setShowTeaser(false);
-    }, 12800);
+      try {
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("vietsage_guest_teaser_seen", "true");
+        }
+      } catch {}
+    }, 7200);
 
     return () => {
       clearTimeout(showTimer);
       clearTimeout(hideTimer);
     };
-  }, [hasSelectedLanguage, isWorkspace, locale]);
+  }, [hasSelectedLanguage, isWorkspace]);
 
   // Focus input when opened
   useEffect(() => {
     if (isOpen) {
       const timer = setTimeout(() => {
         setHasUnread(false);
-        setShowTeaser(false);
+        dismissTeaser();
         inputRef.current?.focus();
       }, 80);
       return () => clearTimeout(timer);
     }
-  }, [isOpen]);
+  }, [isOpen, dismissTeaser]);
 
   const destinationSubtitle = hotel?.name
     ? (room?.roomNumber ? `${hotel.name} • P.${room.roomNumber}` : hotel.name)
@@ -667,23 +687,23 @@ export function GuestFloatingChat() {
 
       {/* Floating Action Button & Rectangular Tour Suggestion Box (Only visible when chat window is closed) */}
       {!isOpen && (
-        <div className="fixed bottom-20 right-4 z-50 flex flex-col items-end gap-2.5 pointer-events-none sm:bottom-8 sm:right-8">
+        <div className="fixed z-40 flex flex-col items-end gap-2.5 pointer-events-none right-3.5 bottom-[calc(5rem+14px+env(safe-area-inset-bottom,0px))] sm:bottom-8 sm:right-8">
           <AnimatePresence>
             {showTeaser && (
               <m.aside
                 initial={{ opacity: 0, y: 14, scale: 0.94 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.94 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
                 aria-label="Tin nhắn tư vấn từ LocalMate AI"
                 onClick={() => {
                   setIsOpen(true);
-                  setShowTeaser(false);
+                  dismissTeaser();
                 }}
-                className="relative pointer-events-auto w-[268px] sm:w-[286px] rounded-2xl border border-[#b18b26]/30 bg-[#fffdfa] p-3.5 text-left shadow-[0_12px_36px_rgba(27,53,46,0.18)] transition-all hover:border-[#b18b26]/60 cursor-pointer group"
+                className="relative pointer-events-auto w-[calc(100vw-32px)] max-w-[276px] sm:w-[286px] rounded-2xl border border-[#b18b26]/30 bg-[#fffdfa] p-3 sm:p-3.5 text-left shadow-[0_12px_36px_rgba(27,53,46,0.18)] transition-all hover:border-[#b18b26]/60 cursor-pointer group"
               >
                 {/* Speech bubble pointer pointing down directly to the button */}
-                <div className="absolute -bottom-1.5 right-6 h-3 w-3 rotate-45 border-b border-r border-[#b18b26]/30 bg-[#fffdfa]" />
+                <div className="absolute -bottom-1.5 right-5 sm:right-6 h-3 w-3 rotate-45 border-b border-r border-[#b18b26]/30 bg-[#fffdfa]" />
 
                 {/* Header: Tag, Ping & Close */}
                 <div className="flex items-center justify-between gap-1 pb-1">
@@ -700,21 +720,21 @@ export function GuestFloatingChat() {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setShowTeaser(false);
+                      dismissTeaser();
                     }}
                     aria-label="Đóng tin nhắn"
-                    className="rounded-md p-1 text-[#8a948e] hover:bg-[#25483f]/10 hover:text-[#1b352e] cursor-pointer transition-colors"
+                    className="flex h-6 w-6 items-center justify-center rounded-md text-[#8a948e] hover:bg-[#25483f]/10 hover:text-[#1b352e] cursor-pointer transition-colors"
                   >
                     <VsIcon name="close" className="text-xs" />
                   </button>
                 </div>
 
                 {/* Content */}
-                <div className="pt-1">
-                  <h4 className="text-[12.5px] font-bold text-[#1b352e] group-hover:text-[#916e15] transition-colors leading-snug">
+                <div className="pt-0.5">
+                  <h4 className="text-[12px] sm:text-[12.5px] font-bold text-[#1b352e] group-hover:text-[#916e15] transition-colors leading-snug">
                     {uiText.teaserTitle}
                   </h4>
-                  <p className="mt-1 text-[11px] leading-relaxed text-[#55675f]">
+                  <p className="mt-1 text-[11px] leading-relaxed text-[#55675f] line-clamp-3">
                     {uiText.teaserDesc}
                   </p>
                 </div>
@@ -726,16 +746,16 @@ export function GuestFloatingChat() {
             type="button"
             onClick={() => {
               setIsOpen(true);
-              setShowTeaser(false);
+              dismissTeaser();
             }}
             aria-label="Mở hộp chat trợ lý du lịch bản địa LocalMate AI"
             aria-expanded={false}
-            className="pointer-events-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#142823] via-[#1d3d34] to-[#2c584b] text-[#fbf9f4] ring-2 ring-[#e8b363]/80 shadow-[0_12px_32px_rgba(20,40,35,0.4)] transition-all duration-300 hover:scale-105 active:scale-90 cursor-pointer"
+            className="pointer-events-auto flex h-13 w-13 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#142823] via-[#1d3d34] to-[#2c584b] text-[#fbf9f4] ring-2 ring-[#e8b363]/85 shadow-[0_10px_28px_rgba(20,40,35,0.4)] transition-all duration-300 hover:scale-105 active:scale-90 cursor-pointer"
           >
             <span className="relative flex items-center justify-center">
-              <VsIcon name="chat" className="text-2xl text-[#fdfaf4]" />
+              <VsIcon name="explore" className="text-[22px] sm:text-2xl text-[#fdfaf4]" />
               {hasUnread && (
-                <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center">
+                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#e8b363] opacity-75" />
                   <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#e8b363] ring-1.5 ring-white" />
                 </span>
@@ -749,7 +769,7 @@ export function GuestFloatingChat() {
       {isOpen && (
         <section
           aria-label="Hộp thoại trợ lý du lịch bản địa LocalMate AI"
-          className="fixed inset-x-0 bottom-0 top-3 z-50 flex flex-col overflow-hidden rounded-t-[28px] border-t border-[#25483f]/25 bg-[#fffdfa] shadow-[0_-12px_44px_rgba(15,35,30,0.32)] transition-all sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[420px] sm:h-[680px] sm:max-h-[min(720px,calc(100vh-48px))] sm:rounded-3xl sm:border sm:border-[#25483f]/15"
+          className="fixed inset-x-0 bottom-0 z-50 flex h-[calc(100dvh-0.75rem)] max-h-[100dvh] flex-col overflow-hidden rounded-t-[24px] border-t border-[#25483f]/25 bg-[#fffdfa] shadow-[0_-12px_44px_rgba(15,35,30,0.32)] transition-all sm:inset-auto sm:bottom-6 sm:right-6 sm:h-[680px] sm:max-h-[min(720px,calc(100vh-48px))] sm:w-[420px] sm:rounded-3xl sm:border sm:border-[#25483f]/15"
         >
           {activeChatOrderId && sessionToken ? (
             <LocalMateOrderChat
@@ -760,196 +780,191 @@ export function GuestFloatingChat() {
           ) : (
             <>
               {/* Header */}
-              <header className="relative flex flex-col border-b border-[#25483f]/15 bg-gradient-to-r from-[#142823] via-[#1b352e] to-[#264b40] text-white shadow-sm">
-            {/* Mobile Sheet Grabber Handle */}
-            <div
-              className="flex justify-center pt-2 pb-0.5 sm:hidden cursor-pointer"
-              onClick={() => setIsOpen(false)}
-            >
-              <div className="h-1.5 w-12 rounded-full bg-white/30 active:bg-white/60 transition-colors" />
-            </div>
-
-            <div className="flex items-center justify-between px-4 py-3 sm:py-3.5">
-              <div className="flex items-center gap-3">
-                <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#25483f] to-[#3a685b] ring-2 ring-[#e8b363]/85 shadow-[0_0_12px_rgba(232,179,99,0.3)]">
-                  <VsIcon name="explore" className="text-xl text-[#e8b363]" />
-                  <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#10b981] opacity-75" />
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#10b981] ring-1.5 ring-[#142823]" />
-                  </span>
-                </div>
-                <div className="text-left">
-                  <h3 className="text-sm font-bold tracking-wide text-white">
-                    LocalMate AI
-                  </h3>
-                  <p className="text-[11.5px] text-[#e8e4dc]/85 flex items-center gap-1.5 mt-0.5">
-                    <span className="font-medium text-[#f3eedf]">{destinationSubtitle}</span>
-                    <span>•</span>
-                    <span className="text-[#a7f3d0] font-medium flex items-center gap-1">
-                      {uiText.readyText}
-                    </span>
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center">
-                <button
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  title={uiText.closeAria}
-                  aria-label={uiText.closeAria}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-white/75 hover:bg-white/12 hover:text-white transition-colors cursor-pointer active:scale-90"
-                >
-                  <VsIcon name="close" className="text-lg" />
-                </button>
-              </div>
-            </div>
-          </header>
-
-          {/* Messages Scroll Area */}
-          <div className="flex-1 overflow-y-auto bg-gradient-to-b from-[#fbf9f4] via-[#f7f3ea]/70 to-[#f2ecdf]/50 p-4 space-y-3.5 text-sm">
-            <div className="text-center my-0.5">
-              <span className="inline-block rounded-full bg-[#25483f]/8 px-3.5 py-1 text-[10.5px] font-medium text-[#485a51]">
-                {uiText.bannerText}
-              </span>
-            </div>
-
-            {/* Conversation Messages */}
-            {messages.map((msg) => {
-              const isGuest = msg.sender === "guest";
-
-              return (
+              <header className="relative flex flex-col border-b border-[#25483f]/15 bg-gradient-to-r from-[#142823] via-[#1b352e] to-[#264b40] text-white shadow-sm shrink-0">
+                {/* Mobile Sheet Grabber Handle */}
                 <div
-                  key={msg.id}
-                  className={`flex flex-col ${isGuest ? "items-end" : "items-start"}`}
+                  className="flex justify-center py-2 sm:hidden cursor-pointer"
+                  onClick={() => setIsOpen(false)}
                 >
-                  <div
-                    className={`relative max-w-[90%] sm:max-w-[85%] rounded-2xl px-4 py-3 text-[13.5px] leading-relaxed shadow-sm transition-all ${
-                      isGuest
-                        ? "rounded-tr-xs bg-gradient-to-br from-[#1b352e] to-[#295045] text-[#fffdfa] shadow-[0_2px_8px_rgba(27,53,46,0.18)]"
-                        : "rounded-tl-xs border border-[#25483f]/12 bg-white text-[#1b352e] shadow-[0_2px_12px_rgba(27,53,46,0.05)]"
-                    }`}
-                  >
-                    {!isGuest && (
-                      <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold text-[#b18b26]">
-                        <VsIcon name="sparkles" className="text-xs" />
-                        <span>LocalMate AI</span>
-                      </div>
-                    )}
+                  <div className="h-1.5 w-12 rounded-full bg-white/30 active:bg-white/60 transition-colors" />
+                </div>
 
-                    <div className="break-words space-y-1">
-                      {renderFormattedMessage(msg.text)}
+                <div className="flex items-center justify-between px-4 pb-3 sm:py-3.5">
+                  <div className="flex items-center gap-3">
+                    <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#25483f] to-[#3a685b] ring-2 ring-[#e8b363]/85 shadow-[0_0_12px_rgba(232,179,99,0.3)]">
+                      <VsIcon name="explore" className="text-xl text-[#e8b363]" />
+                      <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#10b981] opacity-75" />
+                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#10b981] ring-1.5 ring-[#142823]" />
+                      </span>
                     </div>
-
-                    {!isGuest && msg.action && (
-                      <LocalMateBookingCard
-                        action={msg.action}
-                        onBook={(act) => setSelectedBookingAction(act)}
-                      />
-                    )}
-
-                    <span
-                      className={`mt-1.5 block text-right text-[10.5px] ${
-                        isGuest ? "text-[#fffdfa]/65" : "text-[#7a8880]"
-                      }`}
-                    >
-                      {msg.time}
-                    </span>
+                    <div className="text-left">
+                      <h3 className="text-sm font-bold tracking-wide text-white">
+                        LocalMate AI
+                      </h3>
+                      <p className="text-[11.5px] text-[#e8e4dc]/85 flex items-center gap-1.5 mt-0.5">
+                        <span className="font-medium text-[#f3eedf]">{destinationSubtitle}</span>
+                        <span>•</span>
+                        <span className="text-[#a7f3d0] font-medium flex items-center gap-1">
+                          {uiText.readyText}
+                        </span>
+                      </p>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
 
-            {/* Typing Indicator */}
-            {isTyping && (
-              <div className="flex items-center gap-2 text-xs text-[#5a6a62]">
-                <div className="flex items-center gap-2 rounded-2xl rounded-tl-xs border border-[#25483f]/12 bg-white px-3.5 py-2.5 shadow-sm">
-                  <span className="text-[12px] font-medium text-[#65766e]">
-                    {uiText.typing}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-[#25483f] [animation-delay:-0.3s]" />
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-[#25483f] [animation-delay:-0.15s]" />
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-[#25483f]" />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Quick Suggestions Tray — dynamic from agent, static at welcome */}
-          {(() => {
-            // Determine which chips to show
-            const isWelcome = dynamicSuggestions === null;
-            const chipsToShow = isWelcome ? suggestions : dynamicSuggestions;
-
-            // Hide tray entirely when agent returned no suggestions
-            if (!isWelcome && (!chipsToShow || chipsToShow.length === 0)) return null;
-
-            return (
-              <div className="border-t border-[#25483f]/10 bg-[#fffdfa] px-3.5 pt-2.5 pb-2">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="flex items-center gap-1.5 text-[11.5px] font-bold text-[#b18b26]">
-                    <VsIcon name="sparkles" className="text-xs" />
-                    {isWelcome ? uiText.suggestionsTitle : (
-                      locale === "en" ? "Ask next:" :
-                      locale === "zh" ? "继续提问：" :
-                      locale === "ko" ? "이어서 질문:" :
-                      locale === "ru" ? "Спросить далее:" :
-                      locale === "hi" ? "आगे पूछें:" :
-                      "Hỏi tiếp:"
-                    )}
-                  </span>
-                  {isWelcome && (
-                    <span className="text-[10px] text-[#7a8880]">{uiText.suggestionsScroll}</span>
-                  )}
-                </div>
-                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-                  {(chipsToShow ?? []).map((item) => (
+                  <div className="flex items-center">
                     <button
-                      key={item.id}
                       type="button"
-                      onClick={() => handleSelectSuggestion(item)}
-                      disabled={isTyping}
-                      className="inline-flex shrink-0 items-center rounded-full border border-[#b18b26]/30 bg-[#b18b26]/8 px-3 py-1.5 text-[12px] font-medium text-[#654d12] shadow-2xs transition-all hover:bg-[#b18b26]/18 hover:border-[#b18b26]/60 cursor-pointer active:scale-95 disabled:opacity-50"
+                      onClick={() => setIsOpen(false)}
+                      title={uiText.closeAria}
+                      aria-label={uiText.closeAria}
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-white/75 hover:bg-white/12 hover:text-white transition-colors cursor-pointer active:scale-90"
                     >
-                      {item.label}
+                      <VsIcon name="close" className="text-lg" />
                     </button>
-                  ))}
+                  </div>
                 </div>
+              </header>
+
+              {/* Messages Scroll Area */}
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-gradient-to-b from-[#fbf9f4] via-[#f7f3ea]/70 to-[#f2ecdf]/50 p-4 space-y-3.5 text-sm">
+                <div className="text-center my-0.5">
+                  <span className="inline-block rounded-full bg-[#25483f]/8 px-3.5 py-1 text-[10.5px] font-medium text-[#485a51]">
+                    {uiText.bannerText}
+                  </span>
+                </div>
+
+                {/* Conversation Messages */}
+                {messages.map((msg) => {
+                  const isGuest = msg.sender === "guest";
+
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex flex-col ${isGuest ? "items-end" : "items-start"}`}
+                    >
+                      <div
+                        className={`relative max-w-[90%] sm:max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm transition-all ${
+                          isGuest
+                            ? "rounded-tr-xs bg-gradient-to-br from-[#1b352e] to-[#295045] text-[#fffdfa] shadow-[0_2px_8px_rgba(27,53,46,0.18)]"
+                            : "rounded-tl-xs border border-[#25483f]/12 bg-white text-[#1b352e] shadow-[0_2px_12px_rgba(27,53,46,0.05)]"
+                        }`}
+                      >
+                        {!isGuest && (
+                          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold text-[#b18b26]">
+                            <VsIcon name="sparkles" className="text-xs" />
+                            <span>LocalMate AI</span>
+                          </div>
+                        )}
+
+                        <div className="break-words space-y-1">
+                          {renderFormattedMessage(msg.text)}
+                        </div>
+
+                        {!isGuest && msg.action && (
+                          <LocalMateBookingCard
+                            action={msg.action}
+                            onBook={(act) => setSelectedBookingAction(act)}
+                          />
+                        )}
+
+                        <span
+                          className={`mt-1.5 block text-right text-[10.5px] ${
+                            isGuest ? "text-[#fffdfa]/65" : "text-[#7a8880]"
+                          }`}
+                        >
+                          {msg.time}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Typing Indicator */}
+                {isTyping && (
+                  <div className="flex items-center gap-2 text-xs text-[#5a6a62]">
+                    <div className="flex items-center gap-2 rounded-2xl rounded-tl-xs border border-[#25483f]/12 bg-white px-3.5 py-2.5 shadow-sm">
+                      <span className="text-[12px] font-medium text-[#65766e]">
+                        {uiText.typing}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-[#25483f] [animation-delay:-0.3s]" />
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-[#25483f] [animation-delay:-0.15s]" />
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-[#25483f]" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div ref={messagesEndRef} />
               </div>
-            );
-          })()}
 
+              {/* Quick Suggestions Tray — dynamic from agent, fallback to localized chips */}
+              {(() => {
+                const hasDynamic = dynamicSuggestions && dynamicSuggestions.length > 0;
+                const chipsToShow = hasDynamic ? dynamicSuggestions : suggestions;
 
-          {/* Input Bar */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendMessage();
-            }}
-            className="flex items-center gap-2.5 border-t border-[#25483f]/10 bg-[#fffdfa] px-3.5 py-3 pb-[max(12px,env(safe-area-inset-bottom))]"
-          >
-            <input
-              ref={inputRef}
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder={uiText.placeholder}
-              disabled={isTyping}
-              className="flex-1 rounded-full border border-[#25483f]/20 bg-[#f7f5ef] px-4 py-2.5 text-[15px] sm:text-sm text-[#1b352e] placeholder:text-[#8a948e] focus:border-[#25483f] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25483f]/20 transition-all disabled:opacity-60"
-            />
-            <button
-              type="submit"
-              disabled={!inputValue.trim() || isTyping}
-              aria-label={uiText.sendAria}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#1b352e] to-[#2d564b] text-[#fffdfa] shadow-sm transition-all hover:from-[#142823] hover:to-[#22443b] hover:shadow-md cursor-pointer active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <VsIcon name="send" className="text-base" />
-            </button>
-          </form>
+                if (!chipsToShow || chipsToShow.length === 0) return null;
+
+                return (
+                  <div className="shrink-0 border-t border-[#25483f]/10 bg-[#fffdfa] px-3.5 pt-2.5 pb-2">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="flex items-center gap-1.5 text-[11.5px] font-bold text-[#b18b26]">
+                        <VsIcon name="sparkles" className="text-xs" />
+                        {hasDynamic ? (
+                          locale === "en" ? "Ask next:" :
+                          locale === "zh" ? "继续提问：" :
+                          locale === "ko" ? "이어서 질문:" :
+                          locale === "ru" ? "Спросить далее:" :
+                          locale === "hi" ? "आगे पूछें:" :
+                          "Hỏi tiếp:"
+                        ) : uiText.suggestionsTitle}
+                      </span>
+                      <span className="text-[10px] text-[#7a8880]">{uiText.suggestionsScroll}</span>
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none overscroll-contain">
+                      {chipsToShow.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => handleSelectSuggestion(item)}
+                          disabled={isTyping}
+                          className="inline-flex shrink-0 items-center rounded-full border border-[#b18b26]/30 bg-[#b18b26]/8 px-3 py-1.5 text-[12px] font-medium text-[#654d12] shadow-2xs transition-all hover:bg-[#b18b26]/18 hover:border-[#b18b26]/60 cursor-pointer active:scale-95 disabled:opacity-50"
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Input Bar */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSendMessage();
+                }}
+                className="shrink-0 flex items-center gap-2 border-t border-[#25483f]/10 bg-[#fffdfa] p-3 sm:px-3.5 sm:py-3 pb-[max(12px,env(safe-area-inset-bottom))]"
+              >
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder={uiText.placeholder}
+                  disabled={isTyping}
+                  className="flex-1 min-w-0 rounded-full border border-[#25483f]/20 bg-[#f7f5ef] px-4 py-2.5 text-base sm:text-sm text-[#1b352e] placeholder:text-[#8a948e] focus:border-[#25483f] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25483f]/20 transition-all disabled:opacity-60"
+                />
+                <button
+                  type="submit"
+                  disabled={!inputValue.trim() || isTyping}
+                  aria-label={uiText.sendAria}
+                  className="flex h-11 w-11 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#1b352e] to-[#2d564b] text-[#fffdfa] shadow-sm transition-all hover:from-[#142823] hover:to-[#22443b] hover:shadow-md cursor-pointer active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <VsIcon name="send" className="text-base" />
+                </button>
+              </form>
             </>
           )}
         </section>

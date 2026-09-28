@@ -76,3 +76,19 @@ Before publishing, verify:
 12. n8n forwards the full bounded guest question as `query`; destination detection and location filtering stay canonical in the backend. The hotel's province is a hard recommendation boundary, including for explicit destinations; n8n keeps no duplicate destination taxonomy.
 
 Do not expose the n8n webhook or either secret to browser code. The frontend BFF authenticates the guest session, then calls n8n server-to-server.
+
+## LocalMate Public Concierge
+
+Workflow: `workflows/vietsage-localmate-public-concierge.json`.
+
+```text
+Authenticated webhook
+  -> validate public message + stated location + bounded recent context
+  -> ask for location when missing
+  -> private VietSage Knowledge API (province bounded from stated location)
+  -> no knowledge: deterministic clarification, no model call
+  -> knowledge found: grounded LocalMate model prompt
+  -> minimal public chat response
+```
+
+The browser calls only `/api/localmate/public-chat`. The BFF keeps the webhook key server-side and forwards the bounded location. This flow never accepts or invents a hotel context, never exposes credentials, and never returns a booking action.

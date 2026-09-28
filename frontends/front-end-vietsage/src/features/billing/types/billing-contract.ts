@@ -25,6 +25,12 @@ export type FolioSummary = {
   requiresRecalculation?: boolean;
   hasDuplicateOpenFolios?: boolean;
   activeServiceRequests?: Array<{ id: string; name: string; roomNumber: string | null; status: string; quantity: number; unitPrice: MoneyValue }>;
+  estimatedRoomCharge?: {
+    nights: number;
+    nightlyRate: MoneyValue;
+    subtotal: MoneyValue;
+    roomNumber?: string | null;
+  } | null;
 };
 
 export type FolioListItem = FolioSummary & {
@@ -38,8 +44,23 @@ export type FolioListItem = FolioSummary & {
   totalAmount?: MoneyValue;
   openedAt?: string | null;
   createdAt?: string | null;
-  room?: { id?: string; roomNumber?: string | null } | null;
-  stay?: { id?: string; guestNameSnapshot?: string | null; status?: string | null } | null;
+  room?: { id?: string; roomNumber?: string | null; price?: MoneyValue | null } | null;
+  stay?: {
+    id?: string;
+    guestNameSnapshot?: string | null;
+    status?: string | null;
+    reservationCode?: string | null;
+    guestDisplayName?: string | null;
+    checkedInAt?: string | null;
+    plannedCheckInAt?: string | null;
+    plannedCheckOutAt?: string | null;
+  } | null;
+  estimatedRoomCharge?: {
+    nights: number;
+    nightlyRate: MoneyValue;
+    subtotal: MoneyValue;
+    roomNumber?: string | null;
+  } | null;
 };
 
 export type FolioItem = {

@@ -16,6 +16,7 @@ const LOCAL_ORIGIN = "http://localhost";
 const routePolicies: readonly RoutePolicy[] = [
   { prefix: "/admin", roles: ["admin"] },
   { prefix: "/finance", roles: ["admin"] },
+  { prefix: "/localmate", roles: ["admin"] },
   { prefix: "/owner", roles: ["tenant_owner"] },
   { prefix: "/staff", roles: ["staff", "admin"] },
   { prefix: "/hotels", roles: ["staff", "admin"] },
@@ -152,12 +153,33 @@ export function canAccessPathByRoles(
       }
     }
 
-    if (
-      persona === "platform_admin" ||
-      persona === "platform_finance" ||
-      persona === "localmate_manager"
-    ) {
-      if (matchesPrefix(pathname, "/owner") || matchesPrefix(pathname, "/staff")) {
+    if (persona === "platform_finance") {
+      if (
+        matchesPrefix(pathname, "/owner") ||
+        matchesPrefix(pathname, "/staff") ||
+        matchesPrefix(pathname, "/admin")
+      ) {
+        return false;
+      }
+    }
+
+    if (persona === "localmate_manager") {
+      if (
+        matchesPrefix(pathname, "/owner") ||
+        matchesPrefix(pathname, "/staff") ||
+        matchesPrefix(pathname, "/finance") ||
+        matchesPrefix(pathname, "/admin")
+      ) {
+        return false;
+      }
+    }
+
+    if (persona === "platform_admin") {
+      if (
+        matchesPrefix(pathname, "/owner") ||
+        matchesPrefix(pathname, "/staff") ||
+        matchesPrefix(pathname, "/finance")
+      ) {
         return false;
       }
     }

@@ -433,7 +433,7 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <form className="space-y-6" onSubmit={handleLoginSubmit} noValidate>
+            <form method="post" className="space-y-6" onSubmit={handleLoginSubmit} noValidate>
               <div className="space-y-1.5">
                 <label
                   htmlFor="email"

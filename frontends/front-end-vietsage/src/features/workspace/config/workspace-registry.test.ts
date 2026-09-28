@@ -53,8 +53,20 @@ test("configures dedicated localmate manager workspace and navigation", () => {
     "localmate_manager",
   );
   assert.equal(
+    resolveWorkspacePersona("LOCALMATE_GUIDE"),
+    "localmate_manager",
+  );
+  assert.equal(
+    resolveWorkspacePersona("LOCALMATE_COORDINATOR"),
+    "localmate_manager",
+  );
+  assert.equal(
+    resolveWorkspacePersona("ANY_FUTURE_LOCALMATE_ROLE"),
+    "localmate_manager",
+  );
+  assert.equal(
     getWorkspaceDefinition("localmate_manager").homePath,
-    "/admin/localmate/guides",
+    "/localmate/guides",
   );
 
   const navigation = buildWorkspaceNavigation({
@@ -66,13 +78,13 @@ test("configures dedicated localmate manager workspace and navigation", () => {
     navigation.map((item) => ({ key: item.key, href: item.href, label: item.label })),
     [
       {
-        key: "admin.localmate.guides",
-        href: "/admin/localmate/guides",
+        key: "localmate.guides",
+        href: "/localmate/guides",
         label: "Hướng dẫn viên",
       },
       {
-        key: "admin.localmate.knowledge",
-        href: "/admin/localmate/knowledge",
+        key: "localmate.knowledge",
+        href: "/localmate/knowledge",
         label: "Kho tri thức Tour AI",
       },
     ],
@@ -89,8 +101,8 @@ test("configures dedicated localmate manager workspace and navigation", () => {
     ],
   });
   const adminNavKeys = platformAdminNav.map((item) => item.key);
-  assert.equal(adminNavKeys.includes("admin.localmate.guides"), false);
-  assert.equal(adminNavKeys.includes("admin.localmate.knowledge"), false);
+  assert.equal(adminNavKeys.includes("localmate.guides"), false);
+  assert.equal(adminNavKeys.includes("localmate.knowledge"), false);
 });
 
 test("provides service navigation only to configured staff personas", () => {

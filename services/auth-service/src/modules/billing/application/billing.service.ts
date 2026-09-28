@@ -141,15 +141,31 @@ export class BillingService {
       items: result.rows.map((folio) => {
         const invoice = folio.invoices[0] ?? null;
 
+        let subtotal = folio.subtotalAmount;
+        let total = folio.totalAmount;
+        let estimatedRoomCharge: {
+          nights: number;
+          nightlyRate: Prisma.Decimal;
+          subtotal: Prisma.Decimal;
+          roomNumber: string | null;
+        } | null = null;
+
+        if (folio.status === FolioStatus.OPEN && !invoice) {
+          estimatedRoomCharge = this.calculateEstimatedRoomCharge(folio);
+          subtotal = subtotal.add(estimatedRoomCharge.subtotal);
+          total = total.add(estimatedRoomCharge.subtotal);
+        }
+
         return {
           ...folio,
           invoices: undefined,
           invoiceId: invoice?.id ?? null,
           invoice,
-          subtotal: folio.subtotalAmount,
+          subtotal,
           tax: folio.taxAmount,
           discount: folio.discountAmount,
-          total: folio.totalAmount,
+          total,
+          estimatedRoomCharge,
         };
       }),
     };
@@ -603,6 +619,25 @@ export class BillingService {
       });
     }
 
+    let subtotal = result.folio.subtotalAmount;
+    let total = result.folio.totalAmount;
+    let estimatedRoomCharge: {
+      nights: number;
+      nightlyRate: Prisma.Decimal;
+      subtotal: Prisma.Decimal;
+      roomNumber: string | null;
+    } | null = null;
+
+    if (
+      result.folio.status === FolioStatus.OPEN &&
+      counts.roomChargeCount === 0 &&
+      Boolean((result.folio as any).room)
+    ) {
+      estimatedRoomCharge = this.calculateEstimatedRoomCharge(result.folio as any);
+      subtotal = subtotal.add(estimatedRoomCharge.subtotal);
+      total = total.add(estimatedRoomCharge.subtotal);
+    }
+
     return {
       id: result.folio.id,
       hotelId: result.folio.hotelId,
@@ -610,10 +645,11 @@ export class BillingService {
       folioNumber: result.folio.folioNumber,
       status: result.folio.status,
       currency: result.folio.currency,
-      subtotal: result.folio.subtotalAmount,
+      subtotal,
       tax: result.folio.taxAmount,
       discount: result.folio.discountAmount,
-      total: result.folio.totalAmount,
+      total,
+      estimatedRoomCharge,
       ...counts,
       isStale,
       requiresRecalculation,
@@ -1403,6 +1439,47 @@ export class BillingService {
     return null;
   }
 
+  calculateEstimatedRoomCharge(folio: {
+    openedAt?: Date | string | null;
+    createdAt?: Date | string;
+    room?: { roomNumber?: string | null; price?: Prisma.Decimal | number | null } | null;
+    stay?: {
+      checkedInAt?: Date | string | null;
+      plannedCheckInAt?: Date | string | null;
+      plannedCheckOutAt?: Date | string | null;
+    } | null;
+  }) {
+    const rawStart =
+      folio.stay?.checkedInAt ??
+      folio.stay?.plannedCheckInAt ??
+      folio.openedAt ??
+      folio.createdAt ??
+      new Date();
+    const chargeStart = rawStart instanceof Date ? rawStart : new Date(rawStart);
+
+    const rawEnd = folio.stay?.plannedCheckOutAt;
+    const chargeEnd = rawEnd
+      ? new Date(Math.min(Date.now(), (rawEnd instanceof Date ? rawEnd : new Date(rawEnd)).getTime()))
+      : new Date();
+
+    const defaultPrice = new Prisma.Decimal(500000);
+    const unitPrice =
+      folio.room?.price && !new Prisma.Decimal(folio.room.price).isZero()
+        ? new Prisma.Decimal(folio.room.price)
+        : defaultPrice;
+
+    const diffMs = Math.max(0, chargeEnd.getTime() - chargeStart.getTime());
+    const nights = Math.max(1, Math.ceil(diffMs / 86400000));
+    const subtotal = unitPrice.mul(nights);
+
+    return {
+      nights,
+      nightlyRate: unitPrice,
+      subtotal,
+      roomNumber: folio.room?.roomNumber ?? null,
+    };
+  }
+
   private async ensureRoomChargeFolioItem(
     tx: Prisma.TransactionClient,
     folio: Prisma.FolioGetPayload<{
@@ -1423,16 +1500,12 @@ export class BillingService {
         voidedAt: null,
       },
     });
+    const est = this.calculateEstimatedRoomCharge(folio);
     const chargeStart = folio.stay.checkedInAt ?? folio.stay.plannedCheckInAt;
     const chargeEnd = new Date(Math.min(Date.now(), folio.stay.plannedCheckOutAt.getTime()));
-    const defaultPrice = new Prisma.Decimal(500000);
-    const unitPrice =
-      folio.room.price && !folio.room.price.isZero() ? folio.room.price : defaultPrice;
-    const nights = Math.max(
-      1,
-      Math.ceil(Math.max(0, chargeEnd.getTime() - chargeStart.getTime()) / 86400000),
-    );
-    const subtotal = unitPrice.mul(nights);
+    const unitPrice = est.nightlyRate;
+    const nights = est.nights;
+    const subtotal = est.subtotal;
     const chargeData = {
       quantity: nights,
       unitPriceSnapshot: unitPrice,

@@ -44,7 +44,7 @@ export class LocalMateTelegramPairingService {
     });
 
     const botUsername =
-      process.env.TELEGRAM_BOT_USERNAME?.replace(/^@/, "").trim() || "VietSageBot";
+      process.env.TELEGRAM_BOT_USERNAME?.replace(/^@/, "").trim() || "viet_sage_bot";
     const pairingUrl = `https://t.me/${botUsername}?start=${rawToken}`;
 
     return {

@@ -302,16 +302,51 @@ export function StaffBillingWorkspaceClient({
   );
 
   const currency = activeSummary?.currency ?? selectedFolio?.currency ?? "VND";
-  const subtotal = toNumber(activeSummary?.subtotal ?? 0);
-  const tax = toNumber(activeSummary?.tax ?? 0);
+  const hasPostedRoomCharge = useMemo(() => {
+    return activeItems.some(
+      (item) => item.itemType === "ROOM_CHARGE" && !isFolioItemVoided(item),
+    );
+  }, [activeItems]);
+
+  const estimatedRoomChargeData = useMemo(() => {
+    if (activeSummary?.estimatedRoomCharge) {
+      return {
+        nights: Number(activeSummary.estimatedRoomCharge.nights || 1),
+        nightlyRate: toNumber(activeSummary.estimatedRoomCharge.nightlyRate || 500000),
+        subtotal: toNumber(activeSummary.estimatedRoomCharge.subtotal || 500000),
+      };
+    }
+    if (selectedFolio?.estimatedRoomCharge) {
+      return {
+        nights: Number(selectedFolio.estimatedRoomCharge.nights || 1),
+        nightlyRate: toNumber(selectedFolio.estimatedRoomCharge.nightlyRate || 500000),
+        subtotal: toNumber(selectedFolio.estimatedRoomCharge.subtotal || 500000),
+      };
+    }
+    if (selectedFolio?.status === "OPEN") {
+      const price = toNumber(selectedFolio?.room?.price ?? 500000);
+      const nightlyRate = price > 0 ? price : 500000;
+      return {
+        nights: 1,
+        nightlyRate,
+        subtotal: nightlyRate,
+      };
+    }
+    return null;
+  }, [activeSummary, selectedFolio]);
 
   const roomChargeTotal = useMemo(() => {
-    return activeItems
+    const fromItems = activeItems
       .filter(
         (item) => item.itemType === "ROOM_CHARGE" && !isFolioItemVoided(item),
       )
       .reduce((sum, item) => sum + toNumber(item.totalSnapshot), 0);
-  }, [activeItems]);
+    if (fromItems > 0) return fromItems;
+    if (selectedFolio?.status === "OPEN" && estimatedRoomChargeData) {
+      return estimatedRoomChargeData.subtotal;
+    }
+    return 0;
+  }, [activeItems, selectedFolio, estimatedRoomChargeData]);
 
   const hotelServiceChargeTotal = useMemo(() => {
     return activeItems
@@ -343,6 +378,24 @@ export function StaffBillingWorkspaceClient({
       )
       .reduce((sum, item) => sum + toNumber(item.totalSnapshot), 0);
   }, [activeItems]);
+
+  const subtotal = useMemo(() => {
+    const fromSummary = toNumber(activeSummary?.subtotal ?? 0);
+    const itemTotal =
+      roomChargeTotal +
+      hotelServiceChargeTotal +
+      externalServiceCollectionTotal +
+      manualChargeTotal;
+    return Math.max(fromSummary, itemTotal);
+  }, [
+    activeSummary,
+    roomChargeTotal,
+    hotelServiceChargeTotal,
+    externalServiceCollectionTotal,
+    manualChargeTotal,
+  ]);
+
+  const tax = toNumber(activeSummary?.tax ?? 0);
 
   const existingDiscountTotal = useMemo(() => {
     const fromItems = activeItems
@@ -670,7 +723,15 @@ export function StaffBillingWorkspaceClient({
                   <div className="text-right shrink-0">
                     <p className="text-base font-black text-[var(--primary)]">
                       {formatMoney(
-                        toNumber(folio.total ?? folio.totalAmount),
+                        (() => {
+                          const val = toNumber(folio.total ?? folio.totalAmount);
+                          if (val > 0) return val;
+                          if (folio.status === "OPEN") {
+                            const rPrice = toNumber(folio.room?.price ?? 0);
+                            return rPrice > 0 ? rPrice : 500000;
+                          }
+                          return 0;
+                        })(),
                         folio.currency ?? "VND",
                       )}
                     </p>
@@ -800,6 +861,46 @@ export function StaffBillingWorkspaceClient({
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--outline-variant)]/50 text-sm">
+              {/* Hàng Tiền phòng (Ước tính theo thời gian lưu trú) khi folio đang mở và chưa phát hành hóa đơn */}
+              {!hasPostedRoomCharge && selectedFolio?.status === "OPEN" && roomChargeTotal > 0 ? (
+                <tr className="border-b border-amber-200/80 bg-amber-50/50 hover:bg-amber-100/40 transition">
+                  <td className="py-4 px-4">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100/80 border border-amber-300 text-amber-900 shrink-0 shadow-2xs">
+                        <VsIcon name="hotel" className="text-xl" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-extrabold text-base text-[var(--primary)] truncate">
+                          Tiền phòng - {displayRoom(selectedFolio)}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="inline-block text-xs font-extrabold text-amber-900 bg-amber-200/70 border border-amber-300/80 rounded-md px-2.5 py-0.5">
+                            Tiền phòng (Tạm tính)
+                          </span>
+                          <span className="text-xs text-[var(--on-surface-variant)]">
+                            {estimatedRoomChargeData?.nights ?? 1} đêm × {formatMoney(estimatedRoomChargeData?.nightlyRate ?? roomChargeTotal, currency)} / đêm
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-4 text-center font-bold text-base text-[var(--primary)]">
+                    {estimatedRoomChargeData?.nights ?? 1}
+                  </td>
+                  <td className="py-4 px-4 text-right font-semibold text-base text-[var(--on-surface-variant)]">
+                    {formatMoney(estimatedRoomChargeData?.nightlyRate ?? roomChargeTotal, currency)}
+                  </td>
+                  <td className="py-4 px-4 text-right font-black text-base text-[var(--primary)]">
+                    {formatMoney(roomChargeTotal, currency)}
+                  </td>
+                  <td className="py-4 px-4 text-center">
+                    <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-100/90 text-emerald-900 border border-emerald-300 px-2 py-1 text-xs font-black">
+                      <VsIcon name="auto_awesome" className="text-xs" />
+                      Tự động
+                    </span>
+                  </td>
+                </tr>
+              ) : null}
               {activeItems.map((item) => {
                 const isVoided = item.status === "VOID";
                 return (
@@ -992,18 +1093,17 @@ export function StaffBillingWorkspaceClient({
             </tbody>
           </table>
 
-          {!loading && activeItems.length === 0 ? (
+          {!loading && activeItems.length === 0 && (!roomChargeTotal || selectedFolio?.status !== "OPEN") ? (
             <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-[var(--on-surface-variant)]">
               <VsIcon
                 name="receipt_long"
                 className="text-4xl text-[var(--outline)] mb-2"
               />
               <p className="text-sm font-bold text-[var(--primary)]">
-                Chưa có phí dịch vụ ghi nhận trong folio
+                Chưa có khoản phí nào trong folio
               </p>
               <p className="text-xs mt-1 text-[var(--on-surface-variant)] max-w-sm">
-                Tiền phòng sẽ được hệ thống tính tự động dựa trên thời gian thực
-                tế khi tiến hành checkout.
+                Vui lòng kiểm tra lại thông tin lưu trú hoặc thêm phụ thu/dịch vụ nếu cần.
               </p>
             </div>
           ) : null}

@@ -55,19 +55,22 @@ Per-file AST caches keyed by content hash.
 
 For every coding task:
 
-1. **Start from the graph, not the filesystem.**
-   - Grep or parse `graph.json` to find relevant nodes by `label`, `norm_label`, or `source_file`.
-   - Use `links[]` to trace `imports`, `imports_from`, `calls`, `contains` relationships.
+1. **Start from the graph, not the filesystem — with Symbolic Anchoring.**
+   - **DO NOT run `graphify query` with long natural-language user prompts** (> 3 words or descriptive error reports). Naive NL queries trigger broad BFS traversal and explode irrelevant nodes across the 14MB graph.
+   - **Extract 1–2 Domain Anchor Symbols first** (e.g., `HotelOpsRealtimeNotifier`, `useOwnerRequestRealtime`, `RequestRealtimeGateway`).
+   - Run `graphify explain "<Symbol>"` or `graphify affected "<Symbol>"` (or inspect `graph.json` directly) to retrieve the exact 1-hop neighborhood in 1–2 seconds.
+   - Use `links[]` to trace direct `imports`, `calls`, `contains` relationships.
    - Use `.graphify_analysis.json → communities` to identify related symbol clusters.
    - Use `.graphify_analysis.json → gods` to identify high-coupling hub nodes.
-   - Use `.graphify_analysis.json → surprises` to catch non-obvious cross-boundary dependencies.
 
-2. **Build the smallest possible working set.**
+2. **Build the smallest possible working set (Zero Repo Scan).**
    - Identify the target symbol(s) in `nodes[]`.
-   - Traverse `links[]` one hop at a time to find direct dependencies.
+   - Never search, grep, or walk the entire filesystem at turn 1 ("chưa cần quét repo").
+   - Traverse `links[]` one hop at a time to find direct dependencies (typically 3–5 files).
    - Resolve `source_file` paths to actual files only after the working set is defined.
 
-3. **Read only those files.**
+3. **Pack with Scoped Repomix & read only those files.**
+   - Pack the resolved paths into `graphify-out/repomix/task-scope.xml`.
    - Open only files identified by the graph traversal.
    - Prefer reading specific line ranges using `source_location`.
 

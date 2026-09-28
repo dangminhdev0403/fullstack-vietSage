@@ -48,7 +48,7 @@ const WORKSPACE_DEFINITIONS: Record<WorkspacePersona, WorkspaceDefinition> = {
     title: "Quản trị LocalMate",
     description: "Quản lý hướng dẫn viên bản địa, thẩm định và kho tri thức AI.",
     profileLabel: "Quản trị viên LocalMate",
-    homePath: "/admin/localmate/guides",
+    homePath: "/localmate/guides",
   },
   owner: {
     persona: "owner",
@@ -142,6 +142,10 @@ const ROLE_ALIASES: Record<string, WorkspacePersona> = {
   LOCALMATE_MANAGER: "localmate_manager",
   LOCALMATE: "localmate_manager",
   LOCAL_MATE: "localmate_manager",
+  LOCALMATE_GUIDE: "localmate_manager",
+  LOCAL_MATE_GUIDE: "localmate_manager",
+  LOCALMATE_COORDINATOR: "localmate_manager",
+  LOCAL_MATE_COORDINATOR: "localmate_manager",
 };
 
 const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
@@ -212,9 +216,9 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     ],
   },
   {
-    key: "admin.localmate.guides",
+    key: "localmate.guides",
     personas: ["localmate_manager"],
-    href: "/admin/localmate/guides",
+    href: "/localmate/guides",
     label: "Hướng dẫn viên",
     icon: "handshake",
     order: 26,
@@ -227,9 +231,9 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     ],
   },
   {
-    key: "admin.localmate.knowledge",
+    key: "localmate.knowledge",
     personas: ["localmate_manager"],
-    href: "/admin/localmate/knowledge",
+    href: "/localmate/knowledge",
     label: "Kho tri thức Tour AI",
     icon: "explore",
     order: 27,
@@ -791,6 +795,9 @@ export function resolveWorkspacePersona(
   if (alias) return alias;
   if (normalized.includes("PRINCIPAL") || normalized.includes("HIEU_TRUONG")) {
     return "principal";
+  }
+  if (normalized.includes("LOCALMATE") || normalized.includes("LOCAL_MATE")) {
+    return "localmate_manager";
   }
   return null;
 }

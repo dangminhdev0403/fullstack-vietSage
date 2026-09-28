@@ -5,6 +5,7 @@ import {
   MarketingShell,
   SectionHeader,
 } from "@/components/marketing/marketing-shell";
+import { PublicLocalMateChat } from "@/features/localmate-public/components/public-localmate-chat";
 import type { Metadata } from "next";
 
 export const marketingMetadata: Metadata = {
@@ -215,6 +216,7 @@ export function MarketingHome() {
         </div>
       </section>
       <Cta locale="vi" />
+      <PublicLocalMateChat />
     </MarketingShell>
   );
 }

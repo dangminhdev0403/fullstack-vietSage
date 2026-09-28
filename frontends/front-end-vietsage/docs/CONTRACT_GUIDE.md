@@ -71,6 +71,15 @@ Backend API
 - Normal UI submission allows only missing profiles, drafts, ready declarations, or corrected failures. Public draft-save and submit operations reject `SENDING`, `UNKNOWN`, and `CANCELLED` with HTTP 409 / `KBTT_DECLARATION_LOCKED`, before changing data or contacting BCA. Unknown outcomes require reconciliation, not blind resubmission.
 - Loading, failed reads, empty pages, and empty filtered results never imply successful submission. Success banners describe only the loaded page and require every row on that page to be `SUBMITTED`; filters must not change that conclusion. Client submission pauses while list data is unavailable or refreshing.
 
+## Public LocalMate chat
+
+- `/trangchu` calls same-origin `POST /api/localmate/public-chat`; browser code never receives the n8n webhook URL, chat key, or Knowledge API key.
+- The BFF accepts a bounded message, stated location, supported locale, and at most eight bounded recent chat entries; it applies request-size and rate limits before forwarding server-to-server.
+- Recent chat is untrusted conversational context only. The current Knowledge API result remains the sole factual source for every turn.
+- The public n8n flow has no hotel or guest-session context. Missing location produces a follow-up question; supplied location is forwarded as `destination`, while the backend remains canonical for destination/province resolution and knowledge filtering.
+- Empty knowledge returns deterministic clarification without spending a model call. Ambiguous grounded questions may ask one clarification with up to three suggestions.
+- Public responses expose only `reply`, up to three follow-up `suggestions`, `knowledgeVersion`, and `cached`; `action` is always `null`.
+
 ## Anti-patterns
 
 - Raw `fetch` scattered in components.
