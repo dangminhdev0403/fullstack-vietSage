@@ -87,7 +87,24 @@ export function createOwnerConnectionManager(deps: {
         let wasConnected = false;
         entry.socket = socket;
 
+        const seenEventIds = new Set<string>();
+        const isDuplicateEvent = (evt: unknown): boolean => {
+          if (typeof evt !== "object" || evt === null) return false;
+          const e = evt as Record<string, unknown>;
+          const id =
+            (typeof e.eventId === "string" && e.eventId) ||
+            (typeof e.id === "string" && e.id) ||
+            (typeof e.bookingId === "string" && `${e.bookingId}:${e.status ?? ""}`) ||
+            (typeof e.orderId === "string" && `${e.orderId}:${e.status ?? ""}`);
+          if (!id) return false;
+          if (seenEventIds.has(id)) return true;
+          seenEventIds.add(id);
+          setTimeout(() => seenEventIds.delete(id), 30_000);
+          return false;
+        };
+
         const fanout = (name: keyof OwnerRealtimeHandlers) => (event?: unknown) => {
+          if (isDuplicateEvent(event)) return;
           const request =
             typeof event === "object" && event !== null && "request" in event
               ? event.request
@@ -95,6 +112,7 @@ export function createOwnerConnectionManager(deps: {
           notifySubscribers(entry.subscribers, name, request);
         };
         const fanoutRaw = (name: keyof OwnerRealtimeHandlers) => (event?: unknown) => {
+          if (isDuplicateEvent(event)) return;
           notifySubscribers(entry.subscribers, name, event);
         };
 
@@ -122,13 +140,9 @@ export function createOwnerConnectionManager(deps: {
         socket.on("external_service_order.hotel_acknowledged", fanoutRaw("onExternalOrderHotelAcknowledged"));
         socket.on("external_service_order.voucher_issued", fanoutRaw("onExternalOrderVoucherIssued"));
         socket.on("partner_settlement.created", fanoutRaw("onPartnerSettlementCreated"));
-        socket.on("PARTNER_SETTLEMENT_CREATED", fanoutRaw("onPartnerSettlementCreated"));
         socket.on("partner_settlement.updated", fanoutRaw("onPartnerSettlementUpdated"));
-        socket.on("PARTNER_SETTLEMENT_UPDATED", fanoutRaw("onPartnerSettlementUpdated"));
         socket.on("channel_booking.created", fanoutRaw("onChannelBookingCreated"));
-        socket.on("CHANNEL_BOOKING_CREATED", fanoutRaw("onChannelBookingCreated"));
         socket.on("channel_booking.cancelled", fanoutRaw("onChannelBookingCancelled"));
-        socket.on("CHANNEL_BOOKING_CANCELLED", fanoutRaw("onChannelBookingCancelled"));
         socket.on("request_realtime.error", (error) => {
           terminal = isTerminalRealtimeError(error);
           fanout("onError")(error);

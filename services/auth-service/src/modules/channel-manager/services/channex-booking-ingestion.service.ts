@@ -344,7 +344,18 @@ export class ChannexBookingIngestionService {
             where: { hotelId, kind: "booking", channexId: attrs.booking_id },
           });
           const reservationIds = this.mappedReservationIds(bookingMapping);
+          const meta = (bookingMapping?.metadata as any) || {};
+          let resCode: string | undefined = meta.otaReservationCode;
+
           if (reservationIds.length) {
+            const firstRes = await tx.reservation.findUnique({
+              where: { id: reservationIds[0] },
+              select: { reservationCode: true },
+            });
+            if (firstRes?.reservationCode) {
+              resCode = firstRes.reservationCode;
+            }
+
             await tx.reservation.updateMany({
               where: {
                 id: { in: reservationIds },
@@ -363,7 +374,12 @@ export class ChannexBookingIngestionService {
               details: JSON.stringify({ bookingId: attrs.booking_id, reservationIds }),
             },
           });
-          return { action: "CANCELLED", reservationId: reservationIds[0] };
+          return {
+            action: "CANCELLED",
+            reservationId: reservationIds[0],
+            reservationCode: resCode || attrs.ota_reservation_code,
+            otaName: meta.otaName || attrs.ota_name,
+          };
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
@@ -374,7 +390,8 @@ export class ChannexBookingIngestionService {
             hotelId,
             bookingId: attrs.booking_id,
             reservationId: outcome.reservationId,
-            otaName: attrs.ota_name,
+            reservationCode: (outcome as any).reservationCode,
+            otaName: (outcome as any).otaName || attrs.ota_name,
           });
         } catch (emitErr) {
           this.logger.warn(`[Channex Ingestion] Realtime cancel emit thất bại: ${emitErr}`);

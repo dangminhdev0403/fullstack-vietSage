@@ -96,6 +96,7 @@ export function AdminChannelManagerClient({
       onChannelBookingCreated: (event: unknown) => {
         const raw = event as {
           hotelId?: string;
+          bookingId?: string;
           otaName?: string;
           roomNumber?: string | null;
           roomType?: string | null;
@@ -105,8 +106,10 @@ export function AdminChannelManagerClient({
 
         if (raw?.hotelId && raw.hotelId !== selectedHotelId) return;
 
+        const bookingKey = raw?.bookingId || raw?.reservationCode || "latest";
+
         toast.success(`Đơn đặt phòng mới từ ${raw?.otaName || "OTA"}!`, {
-          id: `admin-cm-booking-${Date.now()}`,
+          id: `admin-cm-booking-${bookingKey}`,
           description: `${
             raw?.roomNumber
               ? `Phòng ${raw.roomNumber}`
@@ -129,15 +132,19 @@ export function AdminChannelManagerClient({
       onChannelBookingCancelled: (event: unknown) => {
         const raw = event as {
           hotelId?: string;
+          bookingId?: string;
           otaName?: string;
           reservationCode?: string;
         } | null;
 
         if (raw?.hotelId && raw.hotelId !== selectedHotelId) return;
 
+        const bookingKey = raw?.bookingId || raw?.reservationCode || "latest";
+        const codeDisplay = raw?.reservationCode ? `#${raw.reservationCode} ` : "";
+
         toast.warning("Đơn đặt phòng OTA đã HỦY", {
-          id: `admin-cm-cancel-${Date.now()}`,
-          description: `Đơn ${raw?.reservationCode || ""} (${raw?.otaName || "OTA"}) đã bị hủy trên sàn. Đã giải phóng ô phòng trống trong PMS.`,
+          id: `admin-cm-cancel-${bookingKey}`,
+          description: `Đơn ${codeDisplay}(${raw?.otaName || "OTA"}) đã bị hủy trên sàn. Đã giải phóng ô phòng trống trong PMS.`,
           duration: 9000,
         });
 

@@ -325,14 +325,8 @@ export class RequestRealtimeEmitter {
       ?.to(this.ownerHotelRoom(input.hotelId))
       .emit("partner_settlement.created", payload);
     this.serverRef
-      ?.to(this.ownerHotelRoom(input.hotelId))
-      .emit("PARTNER_SETTLEMENT_CREATED", payload);
-    this.serverRef
       ?.to(this.serviceTenantRoom(input.serviceTenantId))
       .emit("partner_settlement.created", payload);
-    this.serverRef
-      ?.to(this.serviceTenantRoom(input.serviceTenantId))
-      .emit("PARTNER_SETTLEMENT_CREATED", payload);
   }
 
   static emitPartnerSettlementUpdated(input: {
@@ -353,14 +347,8 @@ export class RequestRealtimeEmitter {
       ?.to(this.ownerHotelRoom(input.hotelId))
       .emit("partner_settlement.updated", payload);
     this.serverRef
-      ?.to(this.ownerHotelRoom(input.hotelId))
-      .emit("PARTNER_SETTLEMENT_UPDATED", payload);
-    this.serverRef
       ?.to(this.serviceTenantRoom(input.serviceTenantId))
       .emit("partner_settlement.updated", payload);
-    this.serverRef
-      ?.to(this.serviceTenantRoom(input.serviceTenantId))
-      .emit("PARTNER_SETTLEMENT_UPDATED", payload);
   }
 
   static emitChannelBookingCreated(input: {
@@ -383,9 +371,6 @@ export class RequestRealtimeEmitter {
     this.serverRef
       ?.to(this.ownerHotelRoom(input.hotelId))
       .emit("channel_booking.created", payload);
-    this.serverRef
-      ?.to(this.ownerHotelRoom(input.hotelId))
-      .emit("CHANNEL_BOOKING_CREATED", payload);
   }
 
   static emitChannelBookingCancelled(input: {
@@ -401,9 +386,6 @@ export class RequestRealtimeEmitter {
     this.serverRef
       ?.to(this.ownerHotelRoom(input.hotelId))
       .emit("channel_booking.cancelled", payload);
-    this.serverRef
-      ?.to(this.ownerHotelRoom(input.hotelId))
-      .emit("CHANNEL_BOOKING_CANCELLED", payload);
   }
 
   static ownerHotelRoom(hotelId: string): string {

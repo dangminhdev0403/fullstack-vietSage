@@ -193,6 +193,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
       onChannelBookingCreated: (event: unknown) => {
         const raw = event as {
           hotelId?: string;
+          bookingId?: string;
           otaName?: string;
           roomNumber?: string | null;
           roomType?: string | null;
@@ -205,6 +206,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
 
         playRequestAlertSound(true);
 
+        const bookingKey = raw?.bookingId || raw?.reservationCode || "latest";
         const roomInfo = raw?.roomNumber
           ? `Phòng #${raw.roomNumber}`
           : raw?.roomType
@@ -214,7 +216,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         const guest = raw?.guestName || "Khách OTA";
 
         toast.success(`Đơn đặt phòng mới từ ${ota}!`, {
-          id: `hotel-ops-channel-booking-${Date.now()}`,
+          id: `hotel-ops-channel-booking-${bookingKey}`,
           description: `${roomInfo} • Khách: ${guest}`,
           duration: 12_000,
           action: {
@@ -231,15 +233,19 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
       onChannelBookingCancelled: (event: unknown) => {
         const raw = event as {
           hotelId?: string;
+          bookingId?: string;
           otaName?: string;
           reservationCode?: string;
         } | null;
 
         if (raw?.hotelId && raw.hotelId !== hotelId) return;
 
+        const bookingKey = raw?.bookingId || raw?.reservationCode || "latest";
+        const codeDisplay = raw?.reservationCode ? `(${raw.reservationCode}) ` : "";
+
         toast.warning("Đơn đặt phòng OTA đã HỦY", {
-          id: `hotel-ops-channel-booking-cancelled-${Date.now()}`,
-          description: `Đơn từ ${raw?.otaName || "OTA"} (${raw?.reservationCode || ""}) đã bị hủy trên sàn.`,
+          id: `hotel-ops-channel-booking-cancelled-${bookingKey}`,
+          description: `Đơn từ ${raw?.otaName || "OTA"} ${codeDisplay}đã bị hủy trên sàn. Đã giải phóng ô phòng trống trong PMS.`,
           duration: 10_000,
         });
 

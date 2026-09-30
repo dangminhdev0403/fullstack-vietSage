@@ -9,7 +9,7 @@ export class ChannexFeedScheduler {
 
   constructor(private readonly ingestion: ChannexBookingIngestionService) {}
 
-  @Cron("0 * * * * *", { name: "channex-booking-feed" })
+  @Cron("*/10 * * * * *", { name: "channex-booking-feed" })
   async poll(): Promise<unknown> {
     if (!process.env.CHANNEX_API_KEY?.trim()) {
       return { skipped: true, reason: "not_configured" };

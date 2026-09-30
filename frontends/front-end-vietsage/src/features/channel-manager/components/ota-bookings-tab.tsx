@@ -166,23 +166,21 @@ export function OtaBookingsTab({
     }
   }, [selectedBooking]);
 
-  // Realtime WebSocket synchronization
+  // Realtime WebSocket synchronization (data refetch only - toasts handled by page/layout notifier)
   const realtimeHandlers = useMemo(
     () => ({
       onChannelBookingCreated: () => {
-        toast.info("Có đơn đặt phòng OTA mới từ Channex!");
         void refreshSimulatedBookings();
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
       },
       onChannelBookingCancelled: () => {
-        toast.warning("Một đơn đặt phòng OTA vừa bị hủy trên sàn!");
         void refreshSimulatedBookings();
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
       },
     }),
     [queryClient, hotelId, refreshSimulatedBookings],
   );
-  useOwnerRequestRealtime(hotelId, realtimeHandlers);
+  useOwnerRequestRealtime(hotelId, realtimeHandlers, { showConnectionToasts: false });
 
   const handleCopy = (text: string, id: string) => {
     void navigator.clipboard.writeText(text);
