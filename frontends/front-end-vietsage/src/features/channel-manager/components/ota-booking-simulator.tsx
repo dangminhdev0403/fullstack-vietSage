@@ -673,7 +673,7 @@ export function OtaBookingSimulator({
         {/* Form controls (7 cols) */}
         <div className="rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] p-6 shadow-sm lg:col-span-7 flex flex-col justify-between">
           <div>
-            {/* Mode Switcher: status: new vs status: cancelled */}
+            {/* Mode Switcher: Bắn Đơn Mới vs Mô Phỏng Hủy Đơn */}
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <h3 className="flex items-center gap-2 text-base font-bold text-gray-900">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs text-blue-700 font-extrabold">
