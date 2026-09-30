@@ -256,6 +256,10 @@ export class ChannexApiClient {
     return this.defaultBaseUrl;
   }
 
+  isConfigured(): boolean {
+    return Boolean(this.defaultApiKey && this.defaultApiKey.trim().length > 0);
+  }
+
   getEffectiveApiKey(overrideApiKey?: string): string {
     const key = overrideApiKey?.trim() || this.defaultApiKey;
     if (!key) {

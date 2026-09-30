@@ -211,7 +211,10 @@ export function ChannexHubTab({
         {/* Warning banner when property mapping is missing */}
         {!propertyMapping && (
           <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900">
-            <strong>Lưu ý:</strong> Để kết nối các kênh OTA bên dưới, vui lòng liên kết khách sạn với Property trên Channex trong tab <strong>Cấu hình Channex</strong> trước.
+            <strong>Lưu ý:</strong> Khách sạn chưa được cấu hình liên kết với Channex.{" "}
+            {roleScope === "admin"
+              ? "Vui lòng liên kết khách sạn với Property trên Channex trong tab Cấu hình Channex trước khi kết nối OTA."
+              : "Vui lòng liên hệ quản trị viên nền tảng để hoàn tất liên kết thuộc tính (Property Mapping) trước khi mở bán OTA."}
           </div>
         )}
 
@@ -265,8 +268,25 @@ export function ChannexHubTab({
           </div>
         </div>
 
-        {/* Content: Error, Loading, Empty, or Providers Grid */}
-        {isErrorChannelCatalog ? (
+        {/* Content: Unconfigured, Error, Loading, Empty, or Providers Grid */}
+        {channelCatalog && channelCatalog.isConfigured === false ? (
+          <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-6 text-center space-y-2">
+            <p className="font-bold text-amber-950 text-base">
+              Channex API chưa được cấu hình trên hệ thống
+            </p>
+            <p className="text-xs text-amber-800 max-w-lg mx-auto leading-relaxed">
+              Biến môi trường CHANNEX_API_KEY chưa được thiết lập trên máy chủ. Vui lòng kiểm tra lại cấu hình hệ thống để kích hoạt danh mục kênh và kết nối OTA.
+            </p>
+            <button
+              type="button"
+              onClick={() => void refreshChannelCatalog()}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-amber-800 px-4 text-xs font-bold text-white hover:bg-amber-900 transition cursor-pointer mt-2"
+            >
+              <VsIcon name="refresh" className="text-sm" />
+              <span>Kiểm tra lại</span>
+            </button>
+          </div>
+        ) : isErrorChannelCatalog ? (
           <div className="mt-6 rounded-xl border border-rose-200 bg-rose-50 p-5 text-center space-y-2">
             <p className="font-bold text-rose-900">
               Không thể tải danh mục kênh từ Channex

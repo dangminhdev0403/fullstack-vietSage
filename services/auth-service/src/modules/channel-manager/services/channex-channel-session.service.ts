@@ -104,14 +104,26 @@ export class ChannexChannelSessionService {
       select: { channexId: true },
     });
 
-    const [adapterResponse, channelResponse] = await Promise.all([
-      this.client.getChannelAdapters(),
-      property
-        ? this.client.getChannels(property.channexId)
-        : Promise.resolve<ChannexResponse<ChannexChannelConnectionResource[]>>({
-            data: [],
-          }),
-    ]);
+    const isConfigured = this.client.isConfigured();
+    let adapterResponse: ChannexResponse<ChannexChannelAdapterResource[]> = { data: [] };
+    let channelResponse: ChannexResponse<ChannexChannelConnectionResource[]> = { data: [] };
+
+    if (!isConfigured) {
+      this.logger.warn(`[Channex Hub] Channex API key chưa được cấu hình cho khách sạn ${hotelId}`);
+    } else {
+      try {
+        [adapterResponse, channelResponse] = await Promise.all([
+          this.client.getChannelAdapters(),
+          property
+            ? this.client.getChannels(property.channexId)
+            : Promise.resolve<ChannexResponse<ChannexChannelConnectionResource[]>>({
+                data: [],
+              }),
+        ]);
+      } catch (err: any) {
+        this.logger.warn(`[Channex Hub] Không thể tải danh mục kênh từ Channex: ${err.message}`);
+      }
+    }
 
     const providers = (adapterResponse.data ?? [])
       .map((provider) => this.toAdapterDescriptor(channelAdapterAttributes(provider)))
@@ -133,6 +145,7 @@ export class ChannexChannelSessionService {
       propertyId: property?.channexId ?? null,
       providers,
       connections,
+      isConfigured,
     };
   }
 

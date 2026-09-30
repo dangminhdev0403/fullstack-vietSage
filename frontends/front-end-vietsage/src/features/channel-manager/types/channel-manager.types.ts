@@ -148,6 +148,7 @@ export interface ChannexChannelCatalog {
   propertyId: string | null;
   providers: ChannexChannelProvider[];
   connections: ChannexConnectedChannel[];
+  isConfigured?: boolean;
 }
 
 export interface ChannexLocalRatePlan {

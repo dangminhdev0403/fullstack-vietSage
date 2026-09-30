@@ -59,6 +59,7 @@ describe("Channex Channel Manager Integration Suite", () => {
 
     mockApiClient = {
       getBaseUrl: jest.fn(() => "https://staging.channex.io/api/v1"),
+      isConfigured: jest.fn(() => true),
       getProperties: jest.fn(),
       getProperty: jest.fn().mockResolvedValue({
         data: { attributes: { currency: "VND" } },
@@ -1262,6 +1263,37 @@ describe("Channex Channel Manager Integration Suite", () => {
           isActive: false,
         },
       ]);
+      expect(result.isConfigured).toBe(true);
+    });
+
+    it("trả danh sách rỗng và isConfigured=false thay vì ném ngoại lệ khi API key chưa được cấu hình", async () => {
+      mockApiClient.isConfigured.mockReturnValueOnce(false);
+      mockPrisma.channexMapping.findUnique.mockResolvedValue({
+        channexId: "property_1",
+      });
+      const service = new ChannexChannelSessionService(mockPrisma, mockApiClient);
+
+      const result = await service.getCatalog("hotel_1");
+
+      expect(mockApiClient.getChannelAdapters).not.toHaveBeenCalled();
+      expect(result.providers).toEqual([]);
+      expect(result.connections).toEqual([]);
+      expect(result.isConfigured).toBe(false);
+    });
+
+    it("bắt lỗi Channex API và trả danh sách rỗng thay vì ném ngoại lệ khi Channex lỗi", async () => {
+      mockApiClient.isConfigured.mockReturnValueOnce(true);
+      mockApiClient.getChannelAdapters.mockRejectedValueOnce(
+        new Error("Channex 502 Bad Gateway"),
+      );
+      mockPrisma.channexMapping.findUnique.mockResolvedValue(null);
+      const service = new ChannexChannelSessionService(mockPrisma, mockApiClient);
+
+      const result = await service.getCatalog("hotel_1");
+
+      expect(result.providers).toEqual([]);
+      expect(result.connections).toEqual([]);
+      expect(result.isConfigured).toBe(true);
     });
 
     it("chuẩn bị wizard động bằng adapter, group, rate plans và mapping OTA", async () => {
