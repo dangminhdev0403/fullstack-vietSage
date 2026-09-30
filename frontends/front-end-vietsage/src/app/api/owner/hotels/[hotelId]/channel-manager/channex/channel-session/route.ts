@@ -10,9 +10,16 @@ type Params = {
   params: Promise<{ hotelId: string }>;
 };
 
-export async function POST(_request: Request, context: Params) {
+export async function POST(request: Request, context: Params) {
   const { hotelId } = await context.params;
   if (!hotelId) return validationErrorResponse("hotelId is required");
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    body = {};
+  }
 
   try {
     const result = await executeOwnerBackendRequest(
@@ -26,7 +33,7 @@ export async function POST(_request: Request, context: Params) {
               Authorization: `Bearer ${accessToken}`,
               "Content-Type": "application/json",
             },
-            body: "{}",
+            body: JSON.stringify(body),
             cache: "no-store",
           },
         );

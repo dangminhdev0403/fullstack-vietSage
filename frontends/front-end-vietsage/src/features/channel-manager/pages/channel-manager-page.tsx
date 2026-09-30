@@ -74,8 +74,9 @@ export function ChannelManagerPage({
           Giá và quỹ phòng OTA
         </h1>
         <p className="mt-2 text-base text-[#5a6760]">
-          {currentDisplayName}. Chỉnh dữ liệu PMS, lưu thay đổi, sau đó đồng bộ
-          lên Channex.
+          {currentDisplayName}. Chỉnh sửa giá và quỹ phòng trực tiếp trên bảng
+          (tự động lưu vào hệ thống PMS). Sau khi hoàn tất, nhấn nút Đồng bộ lên
+          OTA để cập nhật lên các sàn phân phối.
         </p>
       </header>
 

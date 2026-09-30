@@ -229,8 +229,11 @@ export class ChannexChannelSessionService {
       const groupId = resolveGroupId(propertyResponse.data);
       if (!groupId) throw new BadRequestException("Property Channex chưa thuộc Group nào");
 
-      const allowedRatePlans = new Set(
-        (ratePlansResponse.data ?? []).map((item) => item.id ?? item.attributes?.id),
+      const allowedRatePlans = new Map(
+        (ratePlansResponse.data ?? []).map((item) => [
+          item.id ?? item.attributes?.id,
+          Number(item.attributes?.occupancy ?? item.occupancy) || null,
+        ]),
       );
       const settings = buildAdapterSettings(adapter.params ?? {}, input.settings);
       const tested = await this.client.testChannelConnection(input.channel, settings);
@@ -290,9 +293,7 @@ export class ChannexChannelSessionService {
         if (!target) throw new BadRequestException("Rate OTA không tồn tại");
 
         const submittedOcc =
-          mappingSettings.occupancy !== undefined
-            ? Number(mappingSettings.occupancy)
-            : undefined;
+          mappingSettings.occupancy !== undefined ? Number(mappingSettings.occupancy) : undefined;
 
         if (target.size > 0) {
           if (
@@ -305,7 +306,8 @@ export class ChannexChannelSessionService {
             const validOptions = Array.from(target).sort((a, b) => a - b);
             const fallback =
               submittedOcc !== undefined && !Number.isNaN(submittedOcc)
-                ? (validOptions.find((opt) => opt >= submittedOcc) ?? validOptions[validOptions.length - 1])
+                ? (validOptions.find((opt) => opt >= submittedOcc) ??
+                  validOptions[validOptions.length - 1])
                 : validOptions[0];
 
             if (fallback !== undefined) {
@@ -321,6 +323,13 @@ export class ChannexChannelSessionService {
           }
         } else if (submittedOcc !== undefined && !Number.isNaN(submittedOcc)) {
           mappingSettings.occupancy = submittedOcc;
+        }
+
+        const localOccupancy = allowedRatePlans.get(mapping.rate_plan_id);
+        if (localOccupancy && Number(mappingSettings.occupancy) > localOccupancy) {
+          throw new BadRequestException(
+            `Occupancy OTA ${mappingSettings.occupancy} vượt quá sức chứa ${localOccupancy} của rate plan VietSage`,
+          );
         }
 
         return {
@@ -475,7 +484,7 @@ export class ChannexChannelSessionService {
     };
   }
 
-  async create(hotelId: string, username: string) {
+  async create(hotelId: string, username: string, channelId?: string) {
     const property = await this.prisma.channexMapping.findUnique({
       where: {
         hotelId_kind_localId: { hotelId, kind: "property", localId: hotelId },
@@ -487,6 +496,16 @@ export class ChannexChannelSessionService {
     }
 
     const remoteProperty = await this.client.getProperty(property.channexId);
+    if (channelId) {
+      const channels = await this.client.getChannels(property.channexId);
+      const ownsChannel = (channels.data ?? []).some((channel) => {
+        const attributes = channelConnectionAttributes(channel);
+        return (channel.id ?? attributes.id) === channelId;
+      });
+      if (!ownsChannel) {
+        throw new BadRequestException("Channel không thuộc Property hiện tại");
+      }
+    }
     const groupId = remoteProperty.data?.relationships?.groups?.[0]?.id as string | undefined;
     const response = await this.client.createChannelOneTimeToken({
       property_id: property.channexId,
@@ -501,7 +520,10 @@ export class ChannexChannelSessionService {
     const iframeUrl = new URL("/auth/exchange", origin);
     iframeUrl.searchParams.set("oauth_session_key", response.data.token);
     iframeUrl.searchParams.set("app_mode", "headless");
-    iframeUrl.searchParams.set("redirect_to", "/channels");
+    iframeUrl.searchParams.set(
+      "redirect_to",
+      channelId ? `/channels/${channelId}/edit` : "/channels",
+    );
     iframeUrl.searchParams.set("property_id", property.channexId);
     if (groupId) iframeUrl.searchParams.set("group_id", groupId);
     iframeUrl.searchParams.set("lng", "en");

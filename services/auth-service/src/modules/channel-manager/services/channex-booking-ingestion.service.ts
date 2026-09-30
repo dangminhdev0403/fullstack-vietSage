@@ -1,5 +1,5 @@
 import { Injectable, Logger, BadRequestException, NotFoundException } from "@nestjs/common";
-import { Prisma, ReservationStatus, RoomStatus } from "@prisma/client";
+import { Prisma, ReservationStatus, RoomStatus, type ChannexMapping } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { ChannexApiClient, ChannexRevisionItem } from "./channex-api-client.service";
 import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
@@ -518,17 +518,12 @@ export class ChannexBookingIngestionService {
     };
   }
 
-
   /**
    * Giả lập một đặt phòng từ sàn OTA (Agoda, Booking.com, v.v.) trực tiếp vào PMS.
    * Channex Staging POST /bookings không khả dụng với PMS client (chỉ OTA thật mới được),
    * nên ta tạo synthetic ChannexRevisionItem và xử lý qua processSingleRevision.
    */
-  async simulateOtaBooking(
-    hotelId: string,
-    input: ChannexSimulateBookingDto,
-    apiKey?: string,
-  ) {
+  async simulateOtaBooking(hotelId: string, input: ChannexSimulateBookingDto, apiKey?: string) {
     const hotel = await this.prisma.hotel.findUnique({
       where: { id: hotelId },
       include: { rooms: true },
@@ -590,8 +585,7 @@ export class ChannexBookingIngestionService {
 
     // Lấy giá từ phòng thực tế hoặc mặc định
     const sampleRoom = hotel.rooms.find((r) => r.type === targetRoomTypeMapping.localId);
-    const amountVal =
-      input.amount || (sampleRoom?.price ? Number(sampleRoom.price) * 2 : 2000000);
+    const amountVal = input.amount || (sampleRoom?.price ? Number(sampleRoom.price) * 2 : 2000000);
     const randomSuffix = Math.floor(100000 + Math.random() * 900000);
     const otaCode = `${input.otaName.toUpperCase()}-${randomSuffix}`;
     const syntheticBookingId = `sim-${Date.now()}-${randomSuffix}`;
@@ -692,12 +686,8 @@ export class ChannexBookingIngestionService {
    * Tạo synthetic cancellation revision và xử lý qua processSingleRevision,
    * đồng thời phát realtime event channel_booking.cancelled.
    */
-  async simulateCancelOtaBooking(
-    hotelId: string,
-    input: ChannexCancelBookingDto,
-    apiKey?: string,
-  ) {
-    let bookingMapping = null;
+  async simulateCancelOtaBooking(hotelId: string, input: ChannexCancelBookingDto, apiKey?: string) {
+    let bookingMapping: ChannexMapping | null = null;
     if (input.bookingId) {
       bookingMapping = await this.prisma.channexMapping.findFirst({
         where: { hotelId, kind: "booking", channexId: input.bookingId },

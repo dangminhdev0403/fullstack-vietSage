@@ -60,7 +60,9 @@ describe("Channex Channel Manager Integration Suite", () => {
     mockApiClient = {
       getBaseUrl: jest.fn(() => "https://staging.channex.io/api/v1"),
       getProperties: jest.fn(),
-      getProperty: jest.fn(),
+      getProperty: jest.fn().mockResolvedValue({
+        data: { attributes: { currency: "VND" } },
+      }),
       createProperty: jest.fn(),
       updateProperty: jest.fn(),
       getRoomTypes: jest.fn(),
@@ -401,6 +403,7 @@ describe("Channex Channel Manager Integration Suite", () => {
     let ariSyncService: ChannexAriSyncService;
 
     beforeEach(() => {
+      mockApiClient.getProperty.mockResolvedValue({ data: { attributes: { currency: "VND" } } });
       ariSyncService = new ChannexAriSyncService(mockPrisma, ariCoreService, mockApiClient);
     });
 
@@ -602,6 +605,56 @@ describe("Channex Channel Manager Integration Suite", () => {
         ]),
         undefined,
       );
+    });
+
+    it("quy đổi VND sang GBP minor units chỉ trên Channex staging", async () => {
+      const previousRate = process.env.CHANNEX_STAGING_VND_TO_GBP_RATE;
+      process.env.CHANNEX_STAGING_VND_TO_GBP_RATE = "0.000029";
+      mockApiClient.getProperty.mockResolvedValue({ data: { attributes: { currency: "GBP" } } });
+      mockPrisma.channexMapping.findUnique.mockResolvedValue({ channexId: "prop_chx_1" });
+      mockPrisma.channexMapping.findMany.mockResolvedValue([
+        { kind: "room_type", localId: "STANDARD", channexId: "rt_std_chx" },
+        { kind: "rate_plan", localId: "STANDARD:STANDARD", channexId: "rp_std_chx" },
+      ]);
+      mockPrisma.room.findMany.mockResolvedValue([{ id: "r1", type: "STANDARD", price: 900000 }]);
+      mockPrisma.room.findFirst.mockResolvedValue({ price: 900000 });
+      mockPrisma.channelDailyAvailability.findMany.mockResolvedValue([]);
+      mockPrisma.channelDailyRestriction.findMany.mockResolvedValue([]);
+      mockApiClient.postAvailability.mockResolvedValue({ data: {} });
+      mockApiClient.postRestrictions.mockResolvedValue({ data: {} });
+      mockApiClient.getAvailability.mockResolvedValue({
+        data: { rt_std_chx: { "2026-10-15": 1 } },
+      });
+      mockApiClient.getRestrictions.mockResolvedValue({
+        data: {
+          rp_std_chx: {
+            "2026-10-15": { rate: "26.10", min_stay_arrival: 1, stop_sell: false },
+          },
+        },
+      });
+
+      try {
+        const result = await ariSyncService.pushAri("hotel_viet_1", {
+          startDate: "2026-10-15",
+          endDate: "2026-10-15",
+        });
+
+        expect(mockApiClient.postRestrictions).toHaveBeenCalledWith(
+          expect.arrayContaining([expect.objectContaining({ rate: 2610 })]),
+          undefined,
+        );
+        expect(result).toEqual(
+          expect.objectContaining({
+            sourceCurrency: "VND",
+            targetCurrency: "GBP",
+            rateConversionApplied: true,
+            rateConversionMultiplier: 0.0029,
+          }),
+        );
+      } finally {
+        if (previousRate === undefined) delete process.env.CHANNEX_STAGING_VND_TO_GBP_RATE;
+        else process.env.CHANNEX_STAGING_VND_TO_GBP_RATE = previousRate;
+      }
     });
 
     it("tự động tìm ngày cập nhật mới nhất thay vì ép cứng 30 ngày khi không truyền endDate", async () => {
@@ -1365,7 +1418,7 @@ describe("Channex Channel Manager Integration Suite", () => {
       expect(result.channelId).toBe("channel_1");
     });
 
-    it("tự động điều chỉnh occupancy phù hợp khi client gửi occupancy lệch so với danh sách hợp lệ của OTA", async () => {
+    it("từ chối occupancy OTA vượt sức chứa rate plan VietSage", async () => {
       mockPrisma.channexMapping.findUnique.mockResolvedValue({
         channexId: "property_1",
       });
@@ -1376,7 +1429,7 @@ describe("Channex Channel Manager Integration Suite", () => {
         },
       });
       mockApiClient.getRatePlanOptions.mockResolvedValue({
-        data: [{ id: "rate_1" }],
+        data: [{ id: "rate_1", attributes: { occupancy: 2 } }],
       });
       mockApiClient.getChannelAdapter.mockResolvedValue({
         data: {
@@ -1397,13 +1450,12 @@ describe("Channex Channel Manager Integration Suite", () => {
       mockApiClient.getChannelConnectionDetails.mockResolvedValue({
         data: { attributes: { currency: "USD" } },
       });
-      // Rate OTA trên Channex chỉ cho phép occupancy [2]
       mockApiClient.getChannelMappingDetails.mockResolvedValue({
         data: {
           rooms: [
             {
               id: 100,
-              rates: [{ id: 200, occupancies: [2] }],
+              rates: [{ id: 200, occupancies: [2, 3] }],
             },
           ],
         },
@@ -1414,34 +1466,24 @@ describe("Channex Channel Manager Integration Suite", () => {
       mockApiClient.checkChannelReadiness.mockResolvedValue({ data: [] });
       const service = new ChannexChannelSessionService(mockPrisma, mockApiClient);
 
-      // Client gửi occupancy = 1 (hoặc lệch)
-      const result = await service.createNativeChannel("hotel_1", {
-        channel: "BookingCom",
-        title: "Booking.com — Auto Fallback Test",
-        settings: { hotel_id: "5868189" },
-        ratePlans: [
-          {
-            rate_plan_id: "rate_1",
-            settings: {
-              room_type_code: 100,
-              rate_plan_code: 200,
-              occupancy: 1, // Lệch so với 2 của OTA
+      await expect(
+        service.createNativeChannel("hotel_1", {
+          channel: "BookingCom",
+          title: "Booking.com — Invalid Occupancy Test",
+          settings: { hotel_id: "5868189" },
+          ratePlans: [
+            {
+              rate_plan_id: "rate_1",
+              settings: {
+                room_type_code: 100,
+                rate_plan_code: 200,
+                occupancy: 3,
+              },
             },
-          },
-        ],
-      });
-
-      // Hệ thống tự động điều chỉnh về 2 thay vì crash 400
-      expect(mockApiClient.createChannel).toHaveBeenCalledWith(
-        expect.objectContaining({
-          rate_plans: [
-            expect.objectContaining({
-              settings: expect.objectContaining({ occupancy: 2 }),
-            }),
           ],
         }),
-      );
-      expect(result.channelId).toBe("channel_1");
+      ).rejects.toThrow("vượt quá sức chứa 2");
+      expect(mockApiClient.createChannel).not.toHaveBeenCalled();
     });
 
     it("chỉ kích hoạt channel thuộc property và đã đạt readiness", async () => {
@@ -1506,6 +1548,30 @@ describe("Channex Channel Manager Integration Suite", () => {
         group_id: "dccd3b3d-b0f7-4d39-83dc-c60187b2b802",
         username: "owner@example.com",
       });
+    });
+
+    it("mở thẳng giao diện sửa mapping của channel thuộc property", async () => {
+      mockPrisma.channexMapping.findUnique.mockResolvedValue({
+        channexId: "90958ec0-9214-4796-873e-4add0d834670",
+      });
+      mockApiClient.getProperty.mockResolvedValue({ data: { relationships: { groups: [] } } });
+      mockApiClient.getChannels.mockResolvedValue({
+        data: [{ id: "11111111-1111-4111-8111-111111111111", attributes: {} }],
+      });
+      mockApiClient.createChannelOneTimeToken.mockResolvedValue({
+        data: { token: "one-time-token" },
+      });
+      const service = new ChannexChannelSessionService(mockPrisma, mockApiClient);
+
+      const result = await service.create(
+        "hotel_1",
+        "owner@example.com",
+        "11111111-1111-4111-8111-111111111111",
+      );
+
+      expect(new URL(result.iframeUrl).searchParams.get("redirect_to")).toBe(
+        "/channels/11111111-1111-4111-8111-111111111111/edit",
+      );
     });
   });
 });

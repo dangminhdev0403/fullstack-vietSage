@@ -6,6 +6,7 @@ import {
   ChannexRatePlanPayload,
   ChannexRoomTypePayload,
 } from "./channex-api-client.service";
+import { resolveChannexRateMultiplier } from "./channex-currency";
 
 export interface SyncContentResult {
   success: boolean;
@@ -98,9 +99,25 @@ export class ChannexSyncService {
       },
     });
 
+    let effectiveCurrency = options?.currency || "VND";
+    if (propertyMapping) {
+      try {
+        const existingProperty = await this.channexClient.getProperty(
+          propertyMapping.channexId,
+          apiKey,
+        );
+        effectiveCurrency =
+          existingProperty.data?.attributes?.currency ??
+          existingProperty.data?.currency ??
+          effectiveCurrency;
+      } catch (err) {
+        if (!(err instanceof NotFoundException)) throw err;
+      }
+    }
+
     const propertyPayload: ChannexPropertyPayload = {
       title: hotel.name,
-      currency: options?.currency || "VND",
+      currency: effectiveCurrency,
       country: "VN",
       city: hotel.province || undefined,
       address: hotel.area || undefined,
@@ -147,9 +164,11 @@ export class ChannexSyncService {
     }
 
     // Xác định đơn vị tiền tệ và giá sàn an toàn dự phòng
-    const effectiveCurrency = options?.currency || "VND";
-    const fallbackBasePrice =
-      effectiveCurrency === "GBP" ? 50 : effectiveCurrency === "USD" || effectiveCurrency === "EUR" ? 50 : 500000;
+    const rateConversionMultiplier = resolveChannexRateMultiplier(
+      this.channexClient.getBaseUrl(),
+      effectiveCurrency,
+    );
+    const fallbackBasePrice = 500_000;
 
     const fallbackRoomTypes: string[] = [];
 
@@ -276,7 +295,7 @@ export class ChannexSyncService {
           {
             occupancy: 2,
             is_primary: true,
-            rate: Math.round(stats.defaultPrice), // minor unit
+            rate: Math.round(stats.defaultPrice * rateConversionMultiplier),
           },
         ],
       };
@@ -372,7 +391,9 @@ export class ChannexSyncService {
     const secret = process.env.CHANNEX_WEBHOOK_SECRET?.trim();
     if (!callbackUrl) return;
     if (!secret || secret.length < 32) {
-      throw new Error("Cấu hình Channex webhook chưa đầy đủ: thiếu CHANNEX_WEBHOOK_SECRET (tối thiểu 32 ký tự)");
+      throw new Error(
+        "Cấu hình Channex webhook chưa đầy đủ: thiếu CHANNEX_WEBHOOK_SECRET (tối thiểu 32 ký tự)",
+      );
     }
 
     const parsedUrl = new URL(callbackUrl);
@@ -397,11 +418,7 @@ export class ChannexSyncService {
   /**
    * Cấu hình liên kết thủ công Channex Property ID cho một khách sạn VietSage
    */
-  async configureProperty(
-    hotelId: string,
-    channexPropertyId: string,
-    apiKey?: string,
-  ) {
+  async configureProperty(hotelId: string, channexPropertyId: string, apiKey?: string) {
     const hotel = await this.prisma.hotel.findUnique({
       where: { id: hotelId },
     });
@@ -538,4 +555,3 @@ export class ChannexSyncService {
     };
   }
 }
-

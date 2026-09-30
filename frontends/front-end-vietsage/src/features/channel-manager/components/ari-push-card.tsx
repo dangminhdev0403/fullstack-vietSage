@@ -74,7 +74,10 @@ export function AriPushCard({
 
   const handlePush = async () => {
     if (!startDate) {
-      await showErrorAlert("Thiếu ngày bắt đầu", "Vui lòng chọn ngày bắt đầu đồng bộ.");
+      await showErrorAlert(
+        "Thiếu ngày bắt đầu",
+        "Vui lòng chọn ngày bắt đầu đồng bộ.",
+      );
       return;
     }
     if (endDate && endDate < startDate) {
@@ -101,6 +104,9 @@ export function AriPushCard({
           : result.startDate || startDate;
 
       const summary = `Đã gửi ${result.availabilityPushedCount ?? 0} dải phòng trống và ${result.restrictionsPushedCount ?? 0} dải giá (${range}).`;
+      const conversionNote = result.rateConversionApplied
+        ? ` Giá đã quy đổi ${result.sourceCurrency} → ${result.targetCurrency} bằng tỷ giá staging đã cấu hình.`
+        : "";
 
       const nowStr = new Intl.DateTimeFormat("vi-VN", {
         timeZone: "Asia/Ho_Chi_Minh",
@@ -121,14 +127,14 @@ export function AriPushCard({
       if (!readbackMatched) {
         await showErrorAlert(
           "Đã gửi nhưng đối soát chưa khớp",
-          `${summary} Dữ liệu đọc lại từ Channex chưa khớp hoàn toàn. Vui lòng kiểm tra lại kết nối hoặc chạy kiểm tra trong Sandbox.`,
+          `${summary}${conversionNote} Dữ liệu đọc lại từ Channex chưa khớp hoàn toàn. Vui lòng kiểm tra lại kết nối hoặc chạy kiểm tra trong Sandbox.`,
         );
         return;
       }
 
       await showSuccessAlert(
         "Đồng bộ OTA thành công",
-        `${summary} Dữ liệu đọc lại từ Channex đã khớp hoàn toàn.`,
+        `${summary}${conversionNote} Dữ liệu đọc lại từ Channex đã khớp hoàn toàn.`,
       );
     } catch (error: unknown) {
       await showErrorAlert("Không thể đồng bộ giá và quỹ phòng", error);
@@ -137,6 +143,7 @@ export function AriPushCard({
 
   return (
     <section
+      id="ari-push-section"
       data-ui="ari-push-card"
       className="rounded-2xl border border-[#e5ddcd] bg-gradient-to-b from-[#fffdfa] to-[#faf6ed] p-5 shadow-[0_4px_20px_rgba(23,32,27,0.03)] sm:p-6"
     >
@@ -157,16 +164,23 @@ export function AriPushCard({
             Gửi giá và quỹ phòng đã lưu sang Channex
           </h2>
           <p className="mt-1 text-sm text-[#5a6760]">
-            Phân phối tức thời dữ liệu phòng trống & biểu giá từ PMS tới các kênh Booking.com, Agoda, Traveloka, Airbnb.
+            Phân phối tức thời dữ liệu phòng trống & biểu giá từ PMS tới các
+            kênh Booking.com, Agoda, Traveloka, Airbnb.
           </p>
         </div>
       </div>
 
       {/* Workflow Pre-condition Notice */}
       <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200/90 bg-amber-50/80 p-3 text-xs leading-relaxed text-amber-950 sm:text-sm">
-        <VsIcon name="info" className="mt-0.5 shrink-0 text-base text-amber-700" />
+        <VsIcon
+          name="info"
+          className="mt-0.5 shrink-0 text-base text-amber-700"
+        />
         <p>
-          <strong>Lưu ý quan trọng:</strong> Nếu bạn vừa chỉnh sửa giá hoặc quỹ phòng trong bảng lịch bên dưới, vui lòng nhấn nút <strong>Lưu thay đổi</strong> trước. Thao tác đồng bộ sẽ đọc dữ liệu đã lưu trong hệ thống để đẩy sang OTA.
+          <strong>Lưu ý quan trọng:</strong> Nếu bạn vừa chỉnh sửa giá hoặc quỹ
+          phòng trong bảng lịch bên dưới, vui lòng nhấn nút{" "}
+          <strong>Lưu thay đổi</strong> trước. Thao tác đồng bộ sẽ đọc dữ liệu
+          đã lưu trong hệ thống để đẩy sang OTA.
         </p>
       </div>
 
@@ -231,7 +245,10 @@ export function AriPushCard({
                 htmlFor={endDateInputId}
                 className="block text-xs font-bold uppercase tracking-wider text-[#3d4942]"
               >
-                Đến ngày <span className="font-normal lowercase text-[#6a786f]">(tùy chọn)</span>
+                Đến ngày{" "}
+                <span className="font-normal lowercase text-[#6a786f]">
+                  (tùy chọn)
+                </span>
               </label>
               {endDate && (
                 <button
@@ -276,7 +293,11 @@ export function AriPushCard({
                 name={pushAri.isPending ? "refresh" : "sync_alt"}
                 className={`text-lg ${pushAri.isPending ? "animate-spin" : ""}`}
               />
-              <span>{pushAri.isPending ? "Đang gửi sang Channex..." : "Đồng bộ lên OTA"}</span>
+              <span>
+                {pushAri.isPending
+                  ? "Đang gửi sang Channex..."
+                  : "Đồng bộ lên OTA"}
+              </span>
             </button>
           </div>
         </div>
@@ -299,7 +320,11 @@ export function AriPushCard({
               }`}
             />
             <span>
-              <strong>{lastSync.matched ? "Đồng bộ thành công:" : "Cảnh báo đối soát:"}</strong>{" "}
+              <strong>
+                {lastSync.matched
+                  ? "Đồng bộ thành công:"
+                  : "Cảnh báo đối soát:"}
+              </strong>{" "}
               {lastSync.message}
             </span>
           </div>

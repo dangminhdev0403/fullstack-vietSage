@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
+import {
+  showConfirmDialog,
+  showErrorAlert,
+  showSuccessAlert,
+} from "@/libs/swal";
 import { useChannex } from "../hooks/use-channel-manager";
 
 type SupportedCurrency = "VND" | "GBP" | "USD" | "EUR";
@@ -15,15 +19,14 @@ export function ChannexPropertyConfigCard({
   hotelName: string;
   roleScope?: "owner" | "admin";
 }) {
-  const {
-    config,
-    isLoadingConfig,
-    syncContent,
-    refreshConfig,
-  } = useChannex(hotelId, roleScope, {
-    loadMappings: false,
-    loadSimulatedBookings: false,
-  });
+  const { config, isLoadingConfig, syncContent, refreshConfig } = useChannex(
+    hotelId,
+    roleScope,
+    {
+      loadMappings: false,
+      loadSimulatedBookings: false,
+    },
+  );
   const [selectedCurrency, setSelectedCurrency] =
     useState<SupportedCurrency>("VND");
 
@@ -49,7 +52,9 @@ export function ChannexPropertyConfigCard({
 
     try {
       const result = await syncContent.mutateAsync({
-        currency: selectedCurrency,
+        currency:
+          (currentProperty?.currency as SupportedCurrency | undefined) ??
+          selectedCurrency,
       });
       await refreshConfig();
       const fallbackRoomTypes = (
@@ -67,7 +72,6 @@ export function ChannexPropertyConfigCard({
       await showErrorAlert("Không thể đồng bộ nội dung Channex", error);
     }
   };
-
 
   return (
     <section className="space-y-6 rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] p-5 shadow-sm sm:p-6">
@@ -137,9 +141,7 @@ export function ChannexPropertyConfigCard({
         </div>
       ) : (
         <div className="rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-5">
-          <h3 className="text-xl font-bold text-[#17201b]">
-            Khởi tạo tự động
-          </h3>
+          <h3 className="text-xl font-bold text-[#17201b]">Khởi tạo tự động</h3>
           <p className="mt-2 text-base text-[#5a6760]">
             Chọn tiền tệ của Property. Có thể chạy lại Content Sync mà không tạo
             mapping trùng.
@@ -171,7 +173,6 @@ export function ChannexPropertyConfigCard({
           </div>
         </div>
       )}
-
     </section>
   );
 }

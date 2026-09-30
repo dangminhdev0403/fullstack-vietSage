@@ -15,8 +15,13 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .
-RUN --mount=type=secret,id=frontend_build_auth,required=true \
-    export NEXTAUTH_SECRET="$(cat /run/secrets/frontend_build_auth)" && \
+RUN --mount=type=secret,id=frontend_build_auth,required=false \
+    RAW_SECRET="$(cat /run/secrets/frontend_build_auth 2>/dev/null || true)" && \
+    if [ -n "$RAW_SECRET" ] && [ ${#RAW_SECRET} -ge 32 ]; then \
+      export NEXTAUTH_SECRET="$RAW_SECRET"; \
+    else \
+      export NEXTAUTH_SECRET="build-time-fallback-secret-vietsage-auth-32chars"; \
+    fi && \
     export AUTH_SECRET="$NEXTAUTH_SECRET" && \
     pnpm run build
 

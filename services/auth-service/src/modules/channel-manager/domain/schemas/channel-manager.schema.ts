@@ -239,6 +239,10 @@ export const channexCreateChannelSchema = z
 
 export const channexChannelIdSchema = z.string().uuid();
 
+export const channexChannelSessionSchema = z
+  .object({ channelId: channexChannelIdSchema.optional() })
+  .strict();
+
 export const channexConfigurePropertySchema = z
   .object({
     channexPropertyId: z.string().uuid("channexPropertyId phải là định dạng UUID hợp lệ"),

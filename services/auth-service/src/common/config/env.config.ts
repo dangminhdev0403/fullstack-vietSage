@@ -67,6 +67,7 @@ const ConfigSchema = z.object({
     .refine((value) => new URL(value).protocol === "https:", "KBTT_BASE_URL must use HTTPS")
     .optional(),
   LOCALMATE_KNOWLEDGE_API_KEY: z.string().optional(),
+  CHANNEX_STAGING_VND_TO_GBP_RATE: z.string().optional(),
 });
 
 export type EnvConfig = z.infer<typeof ConfigSchema>;

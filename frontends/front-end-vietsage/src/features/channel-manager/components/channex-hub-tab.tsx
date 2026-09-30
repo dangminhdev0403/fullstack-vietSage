@@ -87,9 +87,9 @@ export function ChannexHubTab({
     (provider) => provider.code === selectedProviderCode,
   );
 
-  const handleOpenChannels = async () => {
+  const handleOpenChannels = async (channelId?: string) => {
     try {
-      const session = await channelSession.mutateAsync(undefined);
+      const session = await channelSession.mutateAsync({ channelId });
       setChannelIframeUrl(session.iframeUrl);
     } catch (error: unknown) {
       await showErrorAlert("Không thể mở quản lý kênh OTA", error);
@@ -289,18 +289,20 @@ export function ChannexHubTab({
                     <button
                       type="button"
                       onClick={() =>
-                        provider.nativeSupported
-                          ? setSelectedProviderCode(provider.code)
-                          : void handleOpenChannels()
+                        providerConnections.length
+                          ? void handleOpenChannels(providerConnections[0]?.id)
+                          : provider.nativeSupported
+                            ? setSelectedProviderCode(provider.code)
+                            : void handleOpenChannels()
                       }
                       disabled={!propertyMapping || channelSession.isPending}
                       className="mt-4 min-h-11 w-full rounded-xl border border-[var(--primary)] bg-white px-4 text-base font-bold text-[var(--primary)] hover:bg-[var(--surface-container-low)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {provider.nativeSupported
-                        ? providerConnections.length
-                          ? "Cấu hình thêm"
-                          : "Thiết lập trực tiếp"
-                        : "Mở Channex"}
+                      {providerConnections.length
+                        ? "Quản lý mapping"
+                        : provider.nativeSupported
+                          ? "Thiết lập trực tiếp"
+                          : "Mở Channex"}
                     </button>
                   </article>
                 );

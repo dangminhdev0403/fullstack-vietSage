@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Headers,
+  Logger,
   Param,
   Post,
   Query,
@@ -22,6 +23,7 @@ import {
   bulkUpdateRestrictionsSchema,
   channexCancelBookingSchema,
   channexChannelIdSchema,
+  channexChannelSessionSchema,
   channexConfigurePropertySchema,
   channexCreateChannelSchema,
   channexPollFeedSchema,
@@ -64,9 +66,23 @@ export class ChannelManagerController {
     private readonly hotelAccessService: HotelAccessService,
   ) {}
 
+  private readonly logger = new Logger(ChannelManagerController.name);
+
   private async assertAccess(req: RequestWithRequiredUser, hotelId: string): Promise<string> {
     await this.hotelAccessService.assertHotelAccess(req.user.userId, req.user.roleId, hotelId);
     return hotelId;
+  }
+
+  private triggerBackgroundChannexPush(hotelId: string) {
+    setImmediate(async () => {
+      try {
+        await this.channexAriSyncService.pushAri(hotelId);
+      } catch (err: any) {
+        this.logger.debug?.(
+          `[AutoChannexPush] Hotel ${hotelId} push skipped or failed: ${err.message}`,
+        );
+      }
+    });
   }
 
   @ApiDescript("Danh sách các kết nối kênh phân phối phòng của khách sạn")
@@ -139,7 +155,9 @@ export class ChannelManagerController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     await this.assertAccess(req, hotelId);
     const payload = parseWithZod(updateRestrictionsSchema, body);
-    return this.ariCoreService.updateRestrictions(hotelId, payload.items);
+    const result = await this.ariCoreService.updateRestrictions(hotelId, payload.items);
+    this.triggerBackgroundChannexPush(hotelId);
+    return result;
   }
 
   @ApiDescript("Cập nhật số lượng phòng trống và phòng chặn cho các ngày")
@@ -154,7 +172,9 @@ export class ChannelManagerController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     await this.assertAccess(req, hotelId);
     const payload = parseWithZod(updateAvailabilitySchema, body);
-    return this.ariCoreService.updateAvailability(hotelId, payload.items);
+    const result = await this.ariCoreService.updateAvailability(hotelId, payload.items);
+    this.triggerBackgroundChannexPush(hotelId);
+    return result;
   }
 
   @ApiDescript("Áp dụng giá và hạn chế hàng loạt theo dải ngày và các thứ trong tuần")
@@ -169,7 +189,9 @@ export class ChannelManagerController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     await this.assertAccess(req, hotelId);
     const payload = parseWithZod(bulkUpdateRestrictionsSchema, body);
-    return this.ariCoreService.bulkUpdateRestrictions(hotelId, payload);
+    const result = await this.ariCoreService.bulkUpdateRestrictions(hotelId, payload);
+    this.triggerBackgroundChannexPush(hotelId);
+    return result;
   }
 
   @ApiDescript("Kênh đồng bộ iCal công khai (Airbnb/Booking.com/Agoda lấy lịch phòng đã đặt/chặn)")
@@ -374,10 +396,12 @@ export class ChannelManagerController {
   async createChannexChannelSession(
     @Req() req: RequestWithRequiredUser,
     @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     await this.assertAccess(req, hotelId);
-    return this.channexChannelSessionService.create(hotelId, req.user.email);
+    const payload = parseWithZod(channexChannelSessionSchema, body);
+    return this.channexChannelSessionService.create(hotelId, req.user.email, payload.channelId);
   }
 
   @ApiDescript(

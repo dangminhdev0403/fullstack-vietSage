@@ -204,6 +204,7 @@ export interface ChannexRatePlanOptionResource {
   id?: string;
   title?: string;
   room_type_id?: string;
+  occupancy?: number;
   attributes?: {
     id?: string;
     title?: string;
@@ -617,6 +618,13 @@ export class ChannexApiClient {
         "filter[property_id]": propertyId,
         "pagination[limit]": 100,
       },
+      apiKey,
+    });
+  }
+
+  async fullSyncChannel(channelId: string, apiKey?: string): Promise<ChannexResponse<any>> {
+    return this.request<any>(`/channels/${channelId}/full_sync`, {
+      method: "POST",
       apiKey,
     });
   }

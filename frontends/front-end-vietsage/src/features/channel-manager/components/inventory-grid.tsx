@@ -1,34 +1,21 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  showConfirmDialog,
-  showErrorAlert,
-  showSuccessAlert,
-} from "@/libs/swal";
+import { toast } from "sonner";
+import { showErrorAlert, SwalVietSage } from "@/libs/swal";
+import { channelManagerRepository } from "../api/channel-manager.repository";
 import {
   useInventoryGrid,
   useUpdateAvailability,
   useUpdateRestrictions,
 } from "../hooks/use-channel-manager";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
-import type {
-  AvailabilityUpdateItem,
-  DayInventory,
-  RestrictionUpdateItem,
-} from "../types/channel-manager.types";
+import type { DayInventory } from "../types/channel-manager.types";
 import { BulkUpdateModal } from "./bulk-update-modal";
 
 interface InventoryGridProps {
   hotelId: string;
   roleScope?: "owner" | "admin";
-}
-
-interface CellPendingState {
-  rate?: number;
-  available?: number;
-  stopSell?: boolean;
-  minStay?: number;
 }
 
 function formatDate(date: Date): string {
@@ -115,15 +102,13 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
   const { updateAvailability, isUpdating: isUpdatingAvailability } =
     useUpdateAvailability({ hotelId, roleScope });
 
-  // Pending unsaved changes: Map<`${roomTypeId}_${date}`, CellPendingState>
-  const [pendingChanges, setPendingChanges] = useState<
-    Map<string, CellPendingState>
-  >(new Map());
-
   // Active inline editing cell: `${roomTypeId}_${date}_${field}`
   const [editingCellKey, setEditingCellKey] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Active cell being saved: `${roomTypeId}_${date}_${field}`
+  const [savingCellKey, setSavingCellKey] = useState<string | null>(null);
 
   // Bulk update modal state
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
@@ -132,6 +117,30 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
   const [collapsedRoomTypes, setCollapsedRoomTypes] = useState<Set<string>>(
     new Set(),
   );
+
+  const [isPushingAri, setIsPushingAri] = useState(false);
+
+  const handleManualPushToOta = async () => {
+    try {
+      setIsPushingAri(true);
+      await channelManagerRepository.pushChannexAri(
+        hotelId,
+        { startDate, endDate },
+        roleScope,
+      );
+      void SwalVietSage.fire({
+        icon: "success",
+        title: "Đã đồng bộ sang OTA",
+        text: "Toàn bộ giá phòng và trạng thái đóng/mở bán trên bảng đã được đẩy sang Booking.com thành công!",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+    } catch (err: unknown) {
+      showErrorAlert("Đồng bộ OTA thất bại", err);
+    } finally {
+      setIsPushingAri(false);
+    }
+  };
 
   useEffect(() => {
     if (editingCellKey && inputRef.current) {
@@ -164,22 +173,7 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
     });
   };
 
-  // Helper to get effective day values (server + pending)
-  const getEffectiveDay = (rtId: string, day: DayInventory): DayInventory => {
-    const key = `${rtId}_${day.date}`;
-    const pending = pendingChanges.get(key);
-    if (!pending) return day;
-
-    return {
-      ...day,
-      rate: pending.rate !== undefined ? pending.rate : day.rate,
-      available:
-        pending.available !== undefined ? pending.available : day.available,
-      stopSell:
-        pending.stopSell !== undefined ? pending.stopSell : day.stopSell,
-      minStay: pending.minStay !== undefined ? pending.minStay : day.minStay,
-    };
-  };
+  const roomTypes = gridData?.roomTypes ?? [];
 
   // Inline edit start
   const startEditing = (
@@ -193,11 +187,12 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
     setEditingValue(initialVal === null ? "" : String(initialVal));
   };
 
-  // Inline edit commit
-  const commitEditing = (
+  // Inline edit commit (auto-save directly to PMS database)
+  const commitEditing = async (
     rtId: string,
     date: string,
     field: "rate" | "available",
+    currentVal: number | null,
   ) => {
     if (!editingCellKey) return;
 
@@ -212,25 +207,59 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
       return;
     }
 
-    const cellKey = `${rtId}_${date}`;
-    setPendingChanges((prev) => {
-      const next = new Map(prev);
-      const current = next.get(cellKey) || {};
+    // Do not call API if value was unchanged
+    if (currentVal !== null && numVal === currentVal) {
+      setEditingCellKey(null);
+      return;
+    }
 
-      if (field === "rate") {
-        current.rate = numVal;
-      } else if (field === "available") {
-        current.available = numVal;
-        if (numVal === 0) {
-          current.stopSell = true;
-        }
-      }
+    const roomType = roomTypes.find((item) => item.roomTypeId === rtId);
+    const day = roomType?.days.find((item) => item.date === date);
+    if (!roomType || !day) {
+      setEditingCellKey(null);
+      return;
+    }
 
-      next.set(cellKey, current);
-      return next;
-    });
-
+    const cellKey = `${rtId}_${date}_${field}`;
+    setSavingCellKey(cellKey);
     setEditingCellKey(null);
+
+    try {
+      if (field === "available") {
+        await updateAvailability([
+          {
+            roomTypeId: rtId,
+            date,
+            available: numVal,
+            totalRooms: roomType.totalRooms,
+          },
+        ]);
+        toast.success(
+          `Đã lưu tồn kho ${roomType.roomTypeCode} (${date}): ${numVal} phòng`,
+          { id: `avail-${rtId}-${date}`, duration: 2000 },
+        );
+      } else if (field === "rate") {
+        await updateRestrictions([
+          {
+            roomTypeId: rtId,
+            date,
+            rate: numVal,
+            stopSell: day.stopSell,
+            minStay: day.minStay,
+          },
+        ]);
+        toast.success(
+          `Đã lưu giá ${roomType.roomTypeCode} (${date}): ${formatCurrencyCompact(numVal)}`,
+          { id: `rate-${rtId}-${date}`, duration: 2000 },
+        );
+      }
+      void refetch();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Lỗi lưu dữ liệu";
+      toast.error(msg, { id: `err-${rtId}-${date}` });
+    } finally {
+      setSavingCellKey(null);
+    }
   };
 
   // Inline edit cancel
@@ -239,102 +268,51 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
     setEditingValue("");
   };
 
-  // Toggle Stop Sell
-  const toggleStopSell = (rtId: string, day: DayInventory) => {
-    const effective = getEffectiveDay(rtId, day);
-    const newStopSell = !effective.stopSell;
+  // Toggle Stop Sell (auto-save directly)
+  const toggleStopSell = async (rtId: string, day: DayInventory) => {
+    const roomType = roomTypes.find((item) => item.roomTypeId === rtId);
+    if (!roomType) return;
 
-    const cellKey = `${rtId}_${day.date}`;
-    setPendingChanges((prev) => {
-      const next = new Map(prev);
-      const current = next.get(cellKey) || {};
-      current.stopSell = newStopSell;
-      next.set(cellKey, current);
-      return next;
-    });
-  };
+    const cellKey = `${rtId}_${day.date}_stopsell`;
+    setSavingCellKey(cellKey);
 
-  // Reset all pending changes
-  const handleResetChanges = async () => {
-    const confirmed = await showConfirmDialog({
-      title: "Hủy các thay đổi?",
-      text: "Tất cả các giá trị chỉnh sửa chưa lưu sẽ bị xóa và quay về dữ liệu hiện tại.",
-      confirmText: "Đồng ý hủy",
-      cancelText: "Tiếp tục chỉnh sửa",
-      icon: "warning",
-    });
+    const newStopSell = !day.stopSell;
+    const effectiveRate = day.rate ?? roomType.basePrice;
 
-    if (confirmed.isConfirmed) {
-      setPendingChanges(new Map());
-    }
-  };
-
-  // Save all pending changes
-  const handleSaveChanges = async () => {
-    if (pendingChanges.size === 0) return;
-
-    const restrictionItems: RestrictionUpdateItem[] = [];
-    const availabilityItems: AvailabilityUpdateItem[] = [];
-
-    for (const [cellKey, changes] of pendingChanges.entries()) {
-      const date = cellKey.slice(-10);
-      const roomTypeId = cellKey.slice(0, -11);
-      const roomType = roomTypes.find((item) => item.roomTypeId === roomTypeId);
-      const day = roomType?.days.find((item) => item.date === date);
-      if (!roomType || !day) continue;
-      const effectiveDay = getEffectiveDay(roomTypeId, day);
-
-      if (
-        changes.rate !== undefined ||
-        changes.stopSell !== undefined ||
-        changes.minStay !== undefined
-      ) {
-        if (effectiveDay.rate === null) {
-          await showErrorAlert(
-            "Thiếu giá phòng",
-            `Hạng phòng ${roomType.roomTypeName} chưa có giá thật trong DB.`,
-          );
-          return;
-        }
-        restrictionItems.push({
-          roomTypeId,
-          date,
-          rate: effectiveDay.rate,
-          stopSell: changes.stopSell,
-          minStay: changes.minStay,
-        });
-      }
-
-      if (changes.available !== undefined) {
-        availabilityItems.push({
-          roomTypeId,
-          date,
-          available: changes.available,
-          totalRooms: roomType.totalRooms,
-        });
-      }
+    if (effectiveRate === null && newStopSell === false) {
+      toast.error(
+        `Hạng phòng ${roomType.roomTypeCode} chưa có giá gốc, không thể mở bán.`,
+        { id: `stopsell-err-${rtId}-${day.date}` },
+      );
+      setSavingCellKey(null);
+      return;
     }
 
     try {
-      if (restrictionItems.length > 0) {
-        await updateRestrictions(restrictionItems);
-      }
-      if (availabilityItems.length > 0) {
-        await updateAvailability(availabilityItems);
-      }
-
-      setPendingChanges(new Map());
-      await showSuccessAlert(
-        "Lưu thay đổi thành công",
-        `Đã lưu cập nhật bảng giá và kho phòng thành công cho ${pendingChanges.size} ngày/phòng.`,
+      await updateRestrictions([
+        {
+          roomTypeId: rtId,
+          date: day.date,
+          rate: effectiveRate ?? 0,
+          stopSell: newStopSell,
+          minStay: day.minStay,
+        },
+      ]);
+      toast.success(
+        newStopSell
+          ? `Đã đóng bán ${roomType.roomTypeCode} (${day.date})`
+          : `Đã mở bán ${roomType.roomTypeCode} (${day.date})`,
+        { id: `stopsell-${rtId}-${day.date}`, duration: 2000 },
       );
       void refetch();
     } catch (err) {
-      await showErrorAlert("Lưu thay đổi thất bại", err);
+      const msg = err instanceof Error ? err.message : "Không thể cập nhật đóng/mở bán";
+      toast.error(msg, { id: `stopsell-err-${rtId}-${day.date}` });
+    } finally {
+      setSavingCellKey(null);
     }
   };
 
-  const roomTypes = gridData?.roomTypes ?? [];
   const daysHeader = useMemo(() => {
     const list = [];
     for (let i = 0; i < 14; i++) {
@@ -347,9 +325,6 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
     }
     return list;
   }, [startDate]);
-
-  const totalPendingCount = pendingChanges.size;
-  const isSaving = isUpdatingRestrictions || isUpdatingAvailability;
 
   return (
     <div className="space-y-4">
@@ -405,7 +380,16 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center flex-wrap gap-2.5">
+          <div className="hidden lg:flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50/90 px-3 py-2 rounded-xl border border-emerald-200 shadow-2xs">
+            <span className="font-extrabold flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              Tự động lưu PMS
+            </span>
+            <span className="text-slate-300">|</span>
+            <span className="text-slate-600">Đổi là lưu ngay</span>
+          </div>
+
           {isFetching && !isLoading && (
             <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100 animate-pulse">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
@@ -422,6 +406,17 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
           >
             <span className={isFetching ? "animate-spin" : ""}>🔄</span>
             <span className="hidden sm:inline">Làm mới</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => void handleManualPushToOta()}
+            disabled={isPushingAri || isFetching}
+            title="Đẩy ngay toàn bộ giá và phòng trống trên bảng sang Booking.com qua Channex"
+            className="h-10 sm:h-11 px-4 rounded-2xl bg-sky-700 hover:bg-sky-800 text-white text-sm font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+          >
+            <span className={isPushingAri ? "animate-spin" : ""}>☁️</span>
+            <span>{isPushingAri ? "Đang đẩy..." : "Đồng bộ sang OTA"}</span>
           </button>
 
           <button
@@ -582,28 +577,26 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
                               </div>
                             </td>
                             {rt.days.map((day) => {
-                              const eff = getEffectiveDay(rt.roomTypeId, day);
-                              const isSoldOut = eff.available === 0;
-                              const isCellPending =
-                                pendingChanges.get(
-                                  `${rt.roomTypeId}_${day.date}`,
-                                )?.available !== undefined;
+                              const isSoldOut = day.available === 0;
                               const isEditing =
                                 editingCellKey ===
+                                `${rt.roomTypeId}_${day.date}_available`;
+                              const isSaving =
+                                savingCellKey ===
                                 `${rt.roomTypeId}_${day.date}_available`;
 
                               return (
                                 <td
                                   key={day.date}
-                                  className={`p-2 text-center border-r border-slate-200 align-middle ${
-                                    isCellPending ? "bg-amber-50/70" : ""
+                                  className={`p-2 text-center border-r border-slate-200 align-middle transition-colors ${
+                                    isSaving ? "bg-emerald-50/70 animate-pulse" : ""
                                   }`}
                                   onDoubleClick={() =>
                                     startEditing(
                                       rt.roomTypeId,
                                       day.date,
                                       "available",
-                                      eff.available,
+                                      day.available,
                                     )
                                   }
                                 >
@@ -619,20 +612,22 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
                                       }
                                       onKeyDown={(e) => {
                                         if (e.key === "Enter") {
-                                          commitEditing(
+                                          void commitEditing(
                                             rt.roomTypeId,
                                             day.date,
                                             "available",
+                                            day.available,
                                           );
                                         } else if (e.key === "Escape") {
                                           cancelEditing();
                                         }
                                       }}
                                       onBlur={() =>
-                                        commitEditing(
+                                        void commitEditing(
                                           rt.roomTypeId,
                                           day.date,
                                           "available",
+                                          day.available,
                                         )
                                       }
                                       className="w-14 h-8 text-center text-sm font-black rounded-lg border-2 border-emerald-600 bg-white shadow-xs focus:outline-none"
@@ -640,25 +635,34 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
                                   ) : (
                                     <button
                                       type="button"
+                                      disabled={isSaving}
                                       onClick={() =>
                                         startEditing(
                                           rt.roomTypeId,
                                           day.date,
                                           "available",
-                                          eff.available,
+                                          day.available,
                                         )
                                       }
-                                      title="Nhấn hoặc đúp chuột để chỉnh sửa tồn kho"
+                                      title="Nhấn để sửa tồn kho (tự động lưu)"
                                       className={`w-full py-1 px-1.5 rounded-xl text-center font-extrabold text-sm transition-all border cursor-pointer ${
                                         isSoldOut
                                           ? "bg-rose-100 text-rose-800 border-rose-200 font-black"
                                           : "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
-                                      } ${isCellPending ? "ring-2 ring-amber-400" : ""}`}
+                                      }`}
                                     >
-                                      {eff.available}
-                                      <span className="text-[10px] font-normal text-slate-500 ml-0.5">
-                                        /{rt.totalRooms}
-                                      </span>
+                                      {isSaving ? (
+                                        <span className="text-xs font-bold text-emerald-700">
+                                          Lưu...
+                                        </span>
+                                      ) : (
+                                        <>
+                                          {day.available}
+                                          <span className="text-[10px] font-normal text-slate-500 ml-0.5">
+                                            /{rt.totalRooms}
+                                          </span>
+                                        </>
+                                      )}
                                     </button>
                                   )}
                                 </td>
@@ -679,27 +683,25 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
                               </div>
                             </td>
                             {rt.days.map((day) => {
-                              const eff = getEffectiveDay(rt.roomTypeId, day);
-                              const isCellPending =
-                                pendingChanges.get(
-                                  `${rt.roomTypeId}_${day.date}`,
-                                )?.rate !== undefined;
                               const isEditing =
                                 editingCellKey ===
+                                `${rt.roomTypeId}_${day.date}_rate`;
+                              const isSaving =
+                                savingCellKey ===
                                 `${rt.roomTypeId}_${day.date}_rate`;
 
                               return (
                                 <td
                                   key={day.date}
-                                  className={`p-1.5 text-center border-r border-slate-200 align-middle ${
-                                    isCellPending ? "bg-amber-50/80" : ""
+                                  className={`p-1.5 text-center border-r border-slate-200 align-middle transition-colors ${
+                                    isSaving ? "bg-emerald-50/70 animate-pulse" : ""
                                   }`}
                                   onDoubleClick={() =>
                                     startEditing(
                                       rt.roomTypeId,
                                       day.date,
                                       "rate",
-                                      eff.rate,
+                                      day.rate,
                                     )
                                   }
                                 >
@@ -715,20 +717,22 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
                                         }
                                         onKeyDown={(e) => {
                                           if (e.key === "Enter") {
-                                            commitEditing(
+                                            void commitEditing(
                                               rt.roomTypeId,
                                               day.date,
                                               "rate",
+                                              day.rate,
                                             );
                                           } else if (e.key === "Escape") {
                                             cancelEditing();
                                           }
                                         }}
                                         onBlur={() =>
-                                          commitEditing(
+                                          void commitEditing(
                                             rt.roomTypeId,
                                             day.date,
                                             "rate",
+                                            day.rate,
                                           )
                                         }
                                         className="w-full h-8 px-1 text-center text-xs font-black rounded-lg border-2 border-emerald-600 bg-white shadow-xs focus:outline-none"
@@ -737,28 +741,31 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
                                   ) : (
                                     <button
                                       type="button"
+                                      disabled={isSaving}
                                       onClick={() =>
                                         startEditing(
                                           rt.roomTypeId,
                                           day.date,
                                           "rate",
-                                          eff.rate,
+                                          day.rate,
                                         )
                                       }
                                       title={
-                                        eff.rate === null
-                                          ? "Chưa có giá trong DB - Nhấp để nhập"
-                                          : `Giá: ${formatCurrencyFull(eff.rate)} - Nhấp để sửa`
+                                        day.rate === null
+                                          ? "Chưa có giá trong DB - Nhấp để nhập (tự động lưu)"
+                                          : `Giá: ${formatCurrencyFull(day.rate)} - Nhấp để sửa (tự động lưu)`
                                       }
-                                      className={`w-full py-1.5 px-1 rounded-xl text-center font-bold text-xs transition-all border cursor-pointer ${
-                                        isCellPending
-                                          ? "bg-amber-100 text-amber-950 border-amber-300 ring-2 ring-amber-400 font-extrabold"
-                                          : "bg-white text-slate-800 border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/50"
-                                      }`}
+                                      className="w-full py-1.5 px-1 rounded-xl text-center font-bold text-xs transition-all border cursor-pointer bg-white text-slate-800 border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/50"
                                     >
-                                      {eff.rate === null
-                                        ? "Chưa có giá"
-                                        : formatCurrencyCompact(eff.rate)}
+                                      {isSaving ? (
+                                        <span className="text-xs font-bold text-emerald-700">
+                                          Lưu...
+                                        </span>
+                                      ) : day.rate === null ? (
+                                        "Chưa có giá"
+                                      ) : (
+                                        formatCurrencyCompact(day.rate)
+                                      )}
                                     </button>
                                   )}
                                 </td>
@@ -779,36 +786,35 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
                               </div>
                             </td>
                             {rt.days.map((day) => {
-                              const eff = getEffectiveDay(rt.roomTypeId, day);
-                              const isCellPending =
-                                pendingChanges.get(
-                                  `${rt.roomTypeId}_${day.date}`,
-                                )?.stopSell !== undefined;
+                              const isSaving =
+                                savingCellKey ===
+                                `${rt.roomTypeId}_${day.date}_stopsell`;
 
                               return (
                                 <td
                                   key={day.date}
-                                  className={`p-1.5 text-center border-r border-slate-200 align-middle ${
-                                    isCellPending ? "bg-amber-50/70" : ""
+                                  className={`p-1.5 text-center border-r border-slate-200 align-middle transition-colors ${
+                                    isSaving ? "bg-emerald-50/70 animate-pulse" : ""
                                   }`}
                                 >
                                   <button
                                     type="button"
+                                    disabled={isSaving}
                                     onClick={() =>
-                                      toggleStopSell(rt.roomTypeId, day)
+                                      void toggleStopSell(rt.roomTypeId, day)
                                     }
                                     title={
-                                      eff.stopSell
-                                        ? "Đang đóng bán - Nhấp để mở bán"
-                                        : "Đang mở bán - Nhấp để đóng bán"
+                                      day.stopSell
+                                        ? "Đang đóng bán - Nhấp để mở bán (tự động lưu)"
+                                        : "Đang mở bán - Nhấp để đóng bán (tự động lưu)"
                                     }
                                     className={`w-full py-1 px-1 rounded-xl text-xs font-black transition-all border cursor-pointer ${
-                                      eff.stopSell
+                                      day.stopSell
                                         ? "bg-rose-600 text-white border-rose-700 shadow-2xs"
                                         : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200 hover:text-slate-800"
-                                    } ${isCellPending ? "ring-2 ring-amber-400" : ""}`}
+                                    }`}
                                   >
-                                    {eff.stopSell ? "⛔ Đóng" : "Mở"}
+                                    {isSaving ? "..." : day.stopSell ? "⛔ Đóng" : "Mở"}
                                   </button>
                                 </td>
                               );
@@ -824,68 +830,6 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
           </div>
         )}
       </div>
-
-      {/* Floating Action Bar for Unsaved Changes */}
-      {totalPendingCount > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 text-white px-6 py-3.5 rounded-full shadow-2xl border border-slate-700 backdrop-blur-md flex items-center gap-4 animate-bounce-short">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
-            <span className="text-sm font-extrabold text-slate-100">
-              Có{" "}
-              <strong className="text-amber-300 font-black">
-                {totalPendingCount}
-              </strong>{" "}
-              thay đổi chưa lưu
-            </span>
-          </div>
-
-          <div className="h-5 w-px bg-slate-700"></div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={isSaving}
-              onClick={handleResetChanges}
-              className="px-4 py-2 rounded-full border border-slate-600 bg-slate-800 text-xs sm:text-sm font-bold text-slate-300 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer"
-            >
-              Hủy thay đổi
-            </button>
-            <button
-              type="button"
-              disabled={isSaving}
-              onClick={handleSaveChanges}
-              className="px-5 py-2 rounded-full bg-emerald-600 text-xs sm:text-sm font-extrabold text-white shadow-md shadow-emerald-900/50 hover:bg-emerald-500 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              {isSaving ? (
-                <>
-                  <svg
-                    className="animate-spin h-3.5 w-3.5 text-white"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                  Đang lưu...
-                </>
-              ) : (
-                "Lưu thay đổi"
-              )}
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Bulk Update Modal */}
       <BulkUpdateModal

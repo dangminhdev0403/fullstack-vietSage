@@ -281,12 +281,14 @@ export const channelManagerResource = createResource<ChannelManagerScope>()({
     createChannexChannelSession: defineMutation({
       mutationFn: ({
         scope,
+        variables,
       }: ResourceMutationContext<
         ChannelManagerScope,
-        void
+        { channelId?: string }
       >): Promise<ChannexChannelSession> =>
         channelManagerRepository.createChannexChannelSession(
           scope.hotelId,
+          variables,
           scope.roleScope,
         ),
     }),

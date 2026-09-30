@@ -246,6 +246,10 @@ export const channelManagerRepository = {
     endDate?: string;
     availabilityPushedCount: number;
     restrictionsPushedCount: number;
+    sourceCurrency: "VND";
+    targetCurrency: string;
+    rateConversionApplied: boolean;
+    rateConversionMultiplier: number;
     readbackVerified: {
       availabilityMatch: boolean;
       restrictionsMatch: boolean;
@@ -256,6 +260,10 @@ export const channelManagerRepository = {
       endDate?: string;
       availabilityPushedCount: number;
       restrictionsPushedCount: number;
+      sourceCurrency: "VND";
+      targetCurrency: string;
+      rateConversionApplied: boolean;
+      rateConversionMultiplier: number;
       readbackVerified: {
         availabilityMatch: boolean;
         restrictionsMatch: boolean;
@@ -313,11 +321,12 @@ export const channelManagerRepository = {
 
   async createChannexChannelSession(
     hotelId: string,
+    input: { channelId?: string } = {},
     scope: ChannelManagerRoleScope = "owner",
   ): Promise<ChannexChannelSession> {
     const response = await requestInternalApiEnvelope<ChannexChannelSession>(
       `${basePath(hotelId, scope)}/channex/channel-session`,
-      { method: "POST", body: {} },
+      { method: "POST", body: input },
     );
     return response.data;
   },

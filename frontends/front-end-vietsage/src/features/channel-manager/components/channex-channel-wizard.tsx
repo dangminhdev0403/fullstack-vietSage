@@ -143,8 +143,16 @@ export function ChannexChannelWizard({
         (item) => item.key === selectedRates[localRatePlan.id],
       );
       if (!remote) return [];
+      const compatibleRemote = {
+        ...remote,
+        occupancies: remote.occupancies.filter(
+          (value) =>
+            !localRatePlan.occupancy || value <= localRatePlan.occupancy,
+        ),
+      };
+      if (!compatibleRemote.occupancies.length) return [];
       const occupancy = resolveRateOccupancy(
-        remote,
+        compatibleRemote,
         occupancies[localRatePlan.id] ?? localRatePlan.occupancy,
       );
       return [
@@ -369,7 +377,11 @@ export function ChannexChannelWizard({
                   (item) => item.key === selectedRates[localRatePlan.id],
                 );
                 const occupancyOptions = selected?.occupancies.length
-                  ? selected.occupancies
+                  ? selected.occupancies.filter(
+                      (value) =>
+                        !localRatePlan.occupancy ||
+                        value <= localRatePlan.occupancy,
+                    )
                   : [selected?.maxPersons ?? localRatePlan.occupancy ?? 1];
                 const selectedOccupancy = selected
                   ? resolveRateOccupancy(
@@ -408,11 +420,19 @@ export function ChannexChannelWizard({
                         className="mt-1 min-h-11 w-full rounded-xl border border-[var(--outline-variant)] bg-white px-3 text-base"
                       >
                         <option value="">Không map</option>
-                        {remoteRates.map((remoteRate) => (
-                          <option key={remoteRate.key} value={remoteRate.key}>
-                            {remoteRate.roomTitle} — {remoteRate.rateTitle}
-                          </option>
-                        ))}
+                        {remoteRates
+                          .filter(
+                            (remoteRate) =>
+                              !localRatePlan.occupancy ||
+                              remoteRate.occupancies.some(
+                                (value) => value <= localRatePlan.occupancy!,
+                              ),
+                          )
+                          .map((remoteRate) => (
+                            <option key={remoteRate.key} value={remoteRate.key}>
+                              {remoteRate.roomTitle} — {remoteRate.rateTitle}
+                            </option>
+                          ))}
                       </select>
                     </label>
                     <label className="text-base font-semibold">

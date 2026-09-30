@@ -6,6 +6,7 @@ import {
   ChannexAvailabilityValue,
   ChannexRestrictionValue,
 } from "./channex-api-client.service";
+import { channexMinorUnitScale, resolveChannexRateMultiplier } from "./channex-currency";
 
 export interface AriPushResult {
   success: boolean;
@@ -15,6 +16,10 @@ export interface AriPushResult {
   endDate: string;
   availabilityPushedCount: number;
   restrictionsPushedCount: number;
+  sourceCurrency: "VND";
+  targetCurrency: string;
+  rateConversionApplied: boolean;
+  rateConversionMultiplier: number;
   readbackVerified: {
     availabilityMatch: boolean;
     restrictionsMatch: boolean;
@@ -134,6 +139,16 @@ export class ChannexAriSyncService {
       );
     }
     const channexPropertyId = propertyMapping.channexId;
+    const remoteProperty = await this.channexClient.getProperty(channexPropertyId, options.apiKey);
+    const targetCurrency =
+      remoteProperty.data?.attributes?.currency ?? remoteProperty.data?.currency;
+    if (!targetCurrency) {
+      throw new BadRequestException("Property Channex chưa xác định tiền tệ");
+    }
+    const rateConversionMultiplier = resolveChannexRateMultiplier(
+      this.channexClient.getBaseUrl(),
+      targetCurrency,
+    );
 
     // 2. Lấy toàn bộ room_type mappings và rate_plan mappings
     const allMappings = await this.prisma.channexMapping.findMany({
@@ -240,7 +255,7 @@ export class ChannexAriSyncService {
           }
           return {
             date: d.date,
-            rate: Math.round(resolvedRate), // VND minor unit (integer)
+            rate: Math.round(resolvedRate * rateConversionMultiplier),
             min_stay_arrival: d.minStayArrival,
             stop_sell: d.stopSell,
             closed_to_arrival: d.closedToArrival,
@@ -332,7 +347,9 @@ export class ChannexAriSyncService {
         const actual = readbackRest.data?.[value.rate_plan_id]?.[sampleDate];
         return (
           actual !== undefined &&
-          (value.rate === undefined || Number(actual.rate) === value.rate) &&
+          (value.rate === undefined ||
+            Math.round(Number(actual.rate) * channexMinorUnitScale(targetCurrency)) ===
+              value.rate) &&
           (value.min_stay_arrival === undefined ||
             Number(actual.min_stay_arrival) === value.min_stay_arrival) &&
           (value.stop_sell === undefined || actual.stop_sell === value.stop_sell)
@@ -356,10 +373,30 @@ export class ChannexAriSyncService {
           endDate: effectiveEnd,
           availabilityRanges: availabilityValues.length,
           restrictionsRanges: restrictionValues.length,
+          sourceCurrency: "VND",
+          targetCurrency,
+          rateConversionMultiplier,
           readbackVerification: { avlMatch, restMatch, sampleDate },
         }),
       },
     });
+
+    // 6.5. Tự động kích hoạt full_sync cho các kênh OTA active (Booking.com, Agoda...)
+    try {
+      const activeChannelsRes = await this.channexClient.getChannels(
+        channexPropertyId,
+        options.apiKey,
+      );
+      for (const ch of activeChannelsRes?.data || []) {
+        const isAct = (ch as any).attributes?.is_active ?? (ch as any).is_active;
+        const chId = (ch as any).id;
+        if (isAct && chId) {
+          await this.channexClient.fullSyncChannel(chId, options.apiKey);
+        }
+      }
+    } catch (syncErr: any) {
+      this.logger.warn(`[ChannexAriSync] Auto full_sync warning: ${syncErr.message}`);
+    }
 
     return {
       success: true,
@@ -369,6 +406,10 @@ export class ChannexAriSyncService {
       endDate: effectiveEnd,
       availabilityPushedCount: availabilityValues.length,
       restrictionsPushedCount: restrictionValues.length,
+      sourceCurrency: "VND",
+      targetCurrency,
+      rateConversionApplied: targetCurrency !== "VND",
+      rateConversionMultiplier,
       readbackVerified: {
         availabilityMatch: avlMatch,
         restrictionsMatch: restMatch,
