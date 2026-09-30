@@ -1258,7 +1258,7 @@ export function OtaBookingSimulator({
                     }}
                     className="flex w-full items-center justify-center gap-2 rounded-xl border border-blue-300 bg-blue-50 px-4 py-2.5 text-xs font-bold text-blue-700 shadow-2xs hover:bg-blue-100 transition"
                   >
-                    <span>🚀 Bắn Thử Đơn Mới Khác (status: new)</span>
+                    <span>🚀 Bắn Thử Đơn Mới Khác</span>
                   </button>
                 ) : (
                   <div className="pt-1">
@@ -1283,7 +1283,7 @@ export function OtaBookingSimulator({
                       ) : (
                         <>
                           <span className="text-base">❌</span>
-                          <span>Hủy Đơn Đặt Phòng Này [status: cancelled] ➔ Trả Ô Phòng Ngay</span>
+                          <span>Hủy Đơn Đặt Phòng Này ➔ Trả Ô Phòng Ngay</span>
                         </>
                       )}
                     </button>
@@ -1297,7 +1297,7 @@ export function OtaBookingSimulator({
                   Chưa có kết quả bắn đơn gần nhất
                 </p>
                 <p className="mt-1 max-w-xs text-xs text-gray-400">
-                  Chọn &quot;Bắn Đơn Mới (status: new)&quot; bên trái để mô phỏng đặt phòng và quan sát luồng xếp phòng thời gian thực!
+                  Chọn &quot;Bắn Đơn Mới&quot; bên trái để mô phỏng đặt phòng và quan sát luồng xếp phòng thời gian thực!
                 </p>
               </div>
             )}
@@ -1309,10 +1309,10 @@ export function OtaBookingSimulator({
               <span>💡</span> Chu trình kiểm thử Đặt & Hủy phòng OTA:
             </span>
             <p>
-              <strong>1. Bắn đơn (status: new):</strong> Channex nhận đơn ➔ PMS tự động tìm phòng trống thực tế của hạng phòng và chuyển trạng thái sang CONFIRMED ➔ Bảng ARI giảm 1 phòng trống.
+              <strong>1. Bắn đơn mới:</strong> Channex nhận đơn ➔ PMS tự động tìm phòng trống thực tế của hạng phòng và chuyển trạng thái sang CONFIRMED ➔ Bảng ARI giảm 1 phòng trống.
             </p>
             <p>
-              <strong>2. Hủy đơn (status: cancelled):</strong> Channex nhận lệnh hủy ➔ PMS chuyển đơn sang CANCELLED ➔ Phòng được trả về trạng thái trống ban đầu trên ARI và sơ đồ phòng PMS mà không cần F5.
+              <strong>2. Hủy đơn:</strong> Channex nhận lệnh hủy ➔ PMS chuyển đơn sang CANCELLED ➔ Phòng được trả về trạng thái trống ban đầu trên ARI và sơ đồ phòng PMS mà không cần F5.
             </p>
           </div>
         </div>
@@ -1332,7 +1332,7 @@ export function OtaBookingSimulator({
               </span>
             </h3>
             <p className="mt-1 text-xs text-gray-500">
-              Danh sách các đơn đặt phòng OTA test đã tạo vào PMS. Bạn có thể nhấn <strong>&quot;Hủy đơn (status: cancelled)&quot;</strong> trên bất kỳ đơn nào để kiểm tra luồng Realtime giải phóng phòng tự động.
+              Danh sách các đơn đặt phòng OTA test đã tạo vào PMS. Bạn có thể nhấn <strong>&quot;Hủy đơn&quot;</strong> trên bất kỳ đơn nào để kiểm tra luồng Realtime giải phóng phòng tự động.
             </p>
           </div>
 
@@ -1490,12 +1490,12 @@ export function OtaBookingSimulator({
                         {isCancelled ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-semibold text-gray-600 border border-gray-300">
                             <span>🚫</span>
-                            <span>status: cancelled</span>
+                            <span>Đã hủy</span>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-300">
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span>status: new (CONFIRMED)</span>
+                            <span>Đã xác nhận</span>
                           </span>
                         )}
                       </td>
@@ -1523,7 +1523,7 @@ export function OtaBookingSimulator({
                             ) : (
                               <span>❌</span>
                             )}
-                            <span>Hủy đơn (status: cancelled)</span>
+                            <span>Hủy đơn</span>
                           </button>
                         )}
                       </td>
