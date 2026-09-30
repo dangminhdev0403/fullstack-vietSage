@@ -37,8 +37,8 @@ export class ChannexBookingIngestionService {
   ) {}
 
   /**
-   * Drain toÃ n bá»™ feed unacked revisions tá»« Channex.
-   * Cháº¡y vÃ²ng láº·p drain liÃªn tá»¥c cho Ä‘áº¿n khi rá»—ng hoáº·c meta.total == 0.
+   * Drain toàn bộ feed unacked revisions từ Channex.
+   * Chạy vòng lặp drain liên tục cho đến khi rỗng hoặc meta.total == 0.
    */
   async drainFeed(
     options: {
@@ -59,7 +59,7 @@ export class ChannexBookingIngestionService {
 
     let hasMore = true;
     let iteration = 0;
-    const MAX_ITERATIONS = 20; // PhÃ²ng ngá»«a vÃ²ng láº·p vÃ´ háº¡n
+    const MAX_ITERATIONS = 20; // Phòng ngừa vòng lặp vô hạn
 
     while (hasMore && iteration < MAX_ITERATIONS) {
       iteration++;
@@ -92,7 +92,7 @@ export class ChannexBookingIngestionService {
         } catch (err: any) {
           errorsCount++;
           this.logger.error(
-            `[Channex Ingestion] Lá»—i khi xá»­ lÃ½ revision ${rev.id} (Booking ${rev.attributes?.booking_id}): ${err.message}`,
+            `[Channex Ingestion] Lỗi khi xử lý revision ${rev.id} (Booking ${rev.attributes?.booking_id}): ${err.message}`,
           );
           details.push({
             revisionId: rev.id,
@@ -101,11 +101,11 @@ export class ChannexBookingIngestionService {
             action: "ERROR",
             error: err.message,
           });
-          // KhÃ´ng break Ä‘á»ƒ trÃ¡nh 1 poison revision lÃ m ngháº½n toÃ n bá»™ feed
+          // Không break để tránh 1 poison revision làm nghẽn toàn bộ feed
         }
       }
 
-      // Kiá»ƒm tra náº¿u feed cÃ²n nhiá»u hÆ¡n trang vá»«a láº¥y thÃ¬ tiáº¿p tá»¥c loop
+      // Kiểm tra nếu feed còn nhiều hơn trang vừa lấy thì tiếp tục loop
       const metaTotal = feedRes.meta?.total ?? 0;
       if (metaTotal <= revisions.length) {
         hasMore = false;
@@ -132,13 +132,13 @@ export class ChannexBookingIngestionService {
       select: { channexId: true },
     });
     if (!mapping) {
-      throw new BadRequestException("KhÃ¡ch sáº¡n chÆ°a liÃªn káº¿t Property Channex");
+      throw new BadRequestException("Khách sạn chưa liên kết Property Channex");
     }
     return mapping.channexId;
   }
 
   /**
-   * Xá»­ lÃ½ 1 revision Ä‘Æ¡n láº» (Ã¡p dá»¥ng cho cáº£ Feed Poller vÃ  Webhook Handler)
+   * Xử lý 1 revision đơn lẻ (áp dụng cho cả Feed Poller và Webhook Handler)
    */
   async processSingleRevision(
     rev: ChannexRevisionItem,
@@ -154,7 +154,7 @@ export class ChannexBookingIngestionService {
 
     if (!propertyMapping) {
       this.logger.warn(
-        `[Channex Ingestion] Revision ${revisionId} thuá»™c property láº¡ ${attrs.property_id}. Ack vÃ  bá» qua.`,
+        `[Channex Ingestion] Revision ${revisionId} thuộc property lạ ${attrs.property_id}. Ack và bỏ qua.`,
       );
       if (acknowledge) await this.channexClient.ackBookingRevision(revisionId, apiKey);
       return { action: "SKIPPED" };
@@ -186,7 +186,7 @@ export class ChannexBookingIngestionService {
                 ];
             const guestName =
               `${attrs.customer?.name || ""} ${attrs.customer?.surname || ""}`.trim() ||
-              "KhÃ¡ch Ä‘áº·t qua OTA";
+              "Khách đặt qua OTA";
             const otaCode = attrs.ota_reservation_code || attrs.booking_id.slice(0, 8);
             const baseReservationCode = `${attrs.ota_name || "OTA"}-${otaCode}`;
             const usedRoomIds: string[] = [];
@@ -416,13 +416,13 @@ export class ChannexBookingIngestionService {
       return outcome;
     }
 
-    throw new BadRequestException("Tráº¡ng thÃ¡i booking revision khÃ´ng há»— trá»£");
+    throw new BadRequestException("Trạng thái booking revision không hỗ trợ");
   }
 
   private vietnamStayTime(date: string, localHour: 12 | 14): Date {
     const value = new Date(`${date}T${localHour === 14 ? "07" : "05"}:00:00.000Z`);
     if (Number.isNaN(value.getTime())) {
-      throw new BadRequestException("NgÃ y lÆ°u trÃº tá»« Channex khÃ´ng há»£p lá»‡");
+      throw new BadRequestException("Ngày lưu trú từ Channex không hợp lệ");
     }
     return value;
   }
@@ -454,15 +454,15 @@ export class ChannexBookingIngestionService {
   }
 
   /**
-   * Xá»­ lÃ½ Webhook gá»­i tá»›i tá»« Channex: POST /api/v1/channel-manager/channex/webhook
+   * Xử lý Webhook gửi tới từ Channex: POST /api/v1/channel-manager/channex/webhook
    */
   async handleWebhook(payload: ChannexWebhookDto, apiKey?: string) {
     const revisionId = payload.payload.revision_id;
 
-    // Theo kiáº¿n trÃºc Channex Skill: Webhook chá»‰ lÃ  Notification, kÃ©o trá»±c tiáº¿p GET /booking_revisions/:id Ä‘á»ƒ láº¥y báº£n ghi chuáº©n
+    // Theo kiến trúc Channex: Webhook chỉ là Notification, kéo trực tiếp GET /booking_revisions/:id để lấy bản ghi chuẩn
     const revisionRes = await this.channexClient.getBookingRevision(revisionId, apiKey);
     if (!revisionRes || !revisionRes.data) {
-      throw new BadRequestException(`KhÃ´ng tÃ¬m tháº¥y revision ${revisionId} trÃªn Channex`);
+      throw new BadRequestException(`Không tìm thấy revision ${revisionId} trên Channex`);
     }
 
     const outcome = await this.processSingleRevision(revisionRes.data, apiKey);
@@ -470,8 +470,8 @@ export class ChannexBookingIngestionService {
   }
 
   /**
-   * KhÃ´i phá»¥c sau sá»± cá»‘ (Manual Time-scoped Outage Recovery)
-   * Sá»­ dá»¥ng endpoint GET /bookings?filter[inserted_at][gte]=... Ä‘á»ƒ quÃ©t cÃ¡c booking bá»‹ trá»… quÃ¡ 30 phÃºt
+   * Khôi phục sau sự cố (Manual Time-scoped Outage Recovery)
+   * Sử dụng endpoint GET /bookings?filter[inserted_at][gte]=... để quét các booking bị trễ quá 30 phút
    */
   async recoverOutage(hotelId: string, sinceIsoDate: string, apiKey?: string) {
     const propertyId = await this.resolvePropertyId(hotelId);
@@ -489,7 +489,7 @@ export class ChannexBookingIngestionService {
     for (const booking of bookings) {
       const attributes = booking.attributes ?? {};
       if (!booking.id || !attributes.arrival_date || !attributes.departure_date) {
-        this.logger.warn("[Channex Recovery] Bá» qua booking thiáº¿u ID hoáº·c ngÃ y lÆ°u trÃº");
+        this.logger.warn("[Channex Recovery] Bỏ qua booking thiếu ID hoặc ngày lưu trú");
         continue;
       }
       const outcome = await this.processSingleRevision(

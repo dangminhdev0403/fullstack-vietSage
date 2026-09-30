@@ -34,6 +34,8 @@ dist
 **/dist
 coverage
 **/coverage
+tmp/
+**/tmp/
 
 .pnpm-store
 **/.pnpm-store

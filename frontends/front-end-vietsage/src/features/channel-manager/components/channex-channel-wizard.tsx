@@ -18,6 +18,7 @@ import type {
 import {
   buildRateMappingSettings,
   flattenRemoteRates,
+  resolveRateOccupancy,
 } from "./channex-channel-wizard.utils";
 
 const COMMON_NATIVE_RATE_FIELDS = new Set([
@@ -142,12 +143,10 @@ export function ChannexChannelWizard({
         (item) => item.key === selectedRates[localRatePlan.id],
       );
       if (!remote) return [];
-      const occupancy =
-        occupancies[localRatePlan.id] ??
-        localRatePlan.occupancy ??
-        remote.maxPersons ??
-        remote.occupancies.at(-1) ??
-        1;
+      const occupancy = resolveRateOccupancy(
+        remote,
+        occupancies[localRatePlan.id] ?? localRatePlan.occupancy,
+      );
       return [
         {
           rate_plan_id: localRatePlan.id,
@@ -372,6 +371,12 @@ export function ChannexChannelWizard({
                 const occupancyOptions = selected?.occupancies.length
                   ? selected.occupancies
                   : [selected?.maxPersons ?? localRatePlan.occupancy ?? 1];
+                const selectedOccupancy = selected
+                  ? resolveRateOccupancy(
+                      selected,
+                      occupancies[localRatePlan.id] ?? localRatePlan.occupancy,
+                    )
+                  : occupancyOptions.at(-1);
                 return (
                   <div
                     key={localRatePlan.id}
@@ -389,12 +394,17 @@ export function ChannexChannelWizard({
                       Rate OTA
                       <select
                         value={selectedRates[localRatePlan.id] ?? ""}
-                        onChange={(event) =>
+                        onChange={(event) => {
                           setSelectedRates((current) => ({
                             ...current,
                             [localRatePlan.id]: event.target.value,
-                          }))
-                        }
+                          }));
+                          setOccupancies((current) => {
+                            const next = { ...current };
+                            delete next[localRatePlan.id];
+                            return next;
+                          });
+                        }}
                         className="mt-1 min-h-11 w-full rounded-xl border border-[var(--outline-variant)] bg-white px-3 text-base"
                       >
                         <option value="">Không map</option>
@@ -409,11 +419,7 @@ export function ChannexChannelWizard({
                       Số khách
                       <select
                         disabled={!selected}
-                        value={
-                          occupancies[localRatePlan.id] ??
-                          localRatePlan.occupancy ??
-                          occupancyOptions.at(-1)
-                        }
+                        value={selectedOccupancy}
                         onChange={(event) =>
                           setOccupancies((current) => ({
                             ...current,

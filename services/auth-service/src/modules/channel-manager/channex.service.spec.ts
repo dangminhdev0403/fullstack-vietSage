@@ -42,7 +42,7 @@ describe("Channex Channel Manager Integration Suite", () => {
         update: jest.fn(),
       },
       channelSyncLog: {
-        create: jest.fn(),
+        create: jest.fn().mockResolvedValue({}),
         findFirst: jest.fn(),
       },
       channelDailyAvailability: {
@@ -1362,6 +1362,85 @@ describe("Channex Channel Manager Integration Suite", () => {
       );
       expect(mockApiClient.activateChannel).not.toHaveBeenCalled();
       expect(result.ready).toBe(true);
+      expect(result.channelId).toBe("channel_1");
+    });
+
+    it("tự động điều chỉnh occupancy phù hợp khi client gửi occupancy lệch so với danh sách hợp lệ của OTA", async () => {
+      mockPrisma.channexMapping.findUnique.mockResolvedValue({
+        channexId: "property_1",
+      });
+      mockApiClient.getProperty.mockResolvedValue({
+        data: {
+          attributes: { currency: "USD" },
+          relationships: { groups: [{ id: "group_1" }] },
+        },
+      });
+      mockApiClient.getRatePlanOptions.mockResolvedValue({
+        data: [{ id: "rate_1" }],
+      });
+      mockApiClient.getChannelAdapter.mockResolvedValue({
+        data: {
+          code: "BookingCom",
+          title: "Booking.com",
+          mapping_mode: "room_rate_multioccupancy",
+          params: { hotel_id: { type: "string", required: true } },
+          rate_params: {
+            room_type_code: { type: "string", required: true },
+            rate_plan_code: { type: "string", required: true },
+            occupancy: { type: "integer", required: true },
+          },
+        },
+      });
+      mockApiClient.testChannelConnection.mockResolvedValue({
+        data: { success: true },
+      });
+      mockApiClient.getChannelConnectionDetails.mockResolvedValue({
+        data: { attributes: { currency: "USD" } },
+      });
+      // Rate OTA trên Channex chỉ cho phép occupancy [2]
+      mockApiClient.getChannelMappingDetails.mockResolvedValue({
+        data: {
+          rooms: [
+            {
+              id: 100,
+              rates: [{ id: 200, occupancies: [2] }],
+            },
+          ],
+        },
+      });
+      mockApiClient.createChannel.mockResolvedValue({
+        data: { id: "channel_1", attributes: { is_active: false } },
+      });
+      mockApiClient.checkChannelReadiness.mockResolvedValue({ data: [] });
+      const service = new ChannexChannelSessionService(mockPrisma, mockApiClient);
+
+      // Client gửi occupancy = 1 (hoặc lệch)
+      const result = await service.createNativeChannel("hotel_1", {
+        channel: "BookingCom",
+        title: "Booking.com — Auto Fallback Test",
+        settings: { hotel_id: "5868189" },
+        ratePlans: [
+          {
+            rate_plan_id: "rate_1",
+            settings: {
+              room_type_code: 100,
+              rate_plan_code: 200,
+              occupancy: 1, // Lệch so với 2 của OTA
+            },
+          },
+        ],
+      });
+
+      // Hệ thống tự động điều chỉnh về 2 thay vì crash 400
+      expect(mockApiClient.createChannel).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rate_plans: [
+            expect.objectContaining({
+              settings: expect.objectContaining({ occupancy: 2 }),
+            }),
+          ],
+        }),
+      );
       expect(result.channelId).toBe("channel_1");
     });
 

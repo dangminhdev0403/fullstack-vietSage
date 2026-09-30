@@ -1,4 +1,4 @@
-import { BadGatewayException, BadRequestException, Injectable } from "@nestjs/common";
+import { BadGatewayException, BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../../prisma/prisma.service";
 import {
   ChannexApiClient,
@@ -89,6 +89,8 @@ function buildAdapterSettings(
 
 @Injectable()
 export class ChannexChannelSessionService {
+  private readonly logger = new Logger(ChannexChannelSessionService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly client: ChannexApiClient,
@@ -209,96 +211,192 @@ export class ChannexChannelSessionService {
       ratePlans: Array<{ rate_plan_id: string; settings: ChannelSettings }>;
     },
   ) {
-    const property = await this.requireProperty(hotelId);
-    const [adapterResponse, propertyResponse, ratePlansResponse] = await Promise.all([
-      this.client.getChannelAdapter(input.channel),
-      this.client.getProperty(property.channexId),
-      this.client.getRatePlanOptions(property.channexId),
-    ]);
-    const adapter = channelAdapterAttributes(adapterResponse.data);
-    if (!supportsNativeWizard(adapter)) {
-      throw new BadRequestException("Kênh này cần flow Channex đặc biệt");
-    }
-    const groupId = resolveGroupId(propertyResponse.data);
-    if (!groupId) throw new BadRequestException("Property Channex chưa thuộc Group nào");
-
-    const allowedRatePlans = new Set(
-      (ratePlansResponse.data ?? []).map((item) => item.id ?? item.attributes?.id),
+    this.logger.log(
+      `[Channex Kênh] Bắt đầu thiết lập kênh OTA ${input.channel} ("${input.title}") cho khách sạn ${hotelId}`,
     );
-    const settings = buildAdapterSettings(adapter.params ?? {}, input.settings);
-    const tested = await this.client.testChannelConnection(input.channel, settings);
-    if (!tested.data?.success) {
-      throw new BadRequestException(
-        `Channex từ chối cấu hình: ${JSON.stringify(tested.data?.errors ?? "Không rõ lỗi")}`,
+
+    try {
+      const property = await this.requireProperty(hotelId);
+      const [adapterResponse, propertyResponse, ratePlansResponse] = await Promise.all([
+        this.client.getChannelAdapter(input.channel),
+        this.client.getProperty(property.channexId),
+        this.client.getRatePlanOptions(property.channexId),
+      ]);
+      const adapter = channelAdapterAttributes(adapterResponse.data);
+      if (!supportsNativeWizard(adapter)) {
+        throw new BadRequestException("Kênh này cần flow Channex đặc biệt");
+      }
+      const groupId = resolveGroupId(propertyResponse.data);
+      if (!groupId) throw new BadRequestException("Property Channex chưa thuộc Group nào");
+
+      const allowedRatePlans = new Set(
+        (ratePlansResponse.data ?? []).map((item) => item.id ?? item.attributes?.id),
       );
-    }
-    const [connectionDetails, mappingDetails] = await Promise.all([
-      ["BookingCom", "Expedia", "Agoda"].includes(input.channel)
-        ? this.client.getChannelConnectionDetails(input.channel, settings)
-        : Promise.resolve<ChannexResponse<any>>({ data: null }),
-      this.client.getChannelMappingDetails(input.channel, settings),
-    ]);
-    const currency =
-      connectionDetails.data?.attributes?.currency ??
-      connectionDetails.data?.currency ??
-      propertyResponse.data?.attributes?.currency ??
-      propertyResponse.data?.currency;
-    if (typeof currency !== "string" || !/^[A-Z]{3}$/.test(currency)) {
-      throw new BadRequestException("Không xác định được tiền tệ của Channel");
-    }
-    const remoteRates = new Map<string, Set<number>>();
-    for (const room of (mappingDetails.data?.rooms ?? []) as RemoteRoom[]) {
-      for (const rate of room.rates ?? []) {
-        remoteRates.set(
-          `${String(room.id)}:${String(rate.id)}`,
-          new Set<number>(rate.occupancies ?? []),
+      const settings = buildAdapterSettings(adapter.params ?? {}, input.settings);
+      const tested = await this.client.testChannelConnection(input.channel, settings);
+      if (!tested.data?.success) {
+        throw new BadRequestException(
+          `Channex từ chối cấu hình: ${JSON.stringify(tested.data?.errors ?? "Không rõ lỗi")}`,
         );
       }
-    }
-    const ratePlans = input.ratePlans.map((mapping) => {
-      if (!allowedRatePlans.has(mapping.rate_plan_id)) {
-        throw new BadRequestException("Rate plan không thuộc Property hiện tại");
+      const [connectionDetails, mappingDetails] = await Promise.all([
+        ["BookingCom", "Expedia", "Agoda"].includes(input.channel)
+          ? this.client.getChannelConnectionDetails(input.channel, settings)
+          : Promise.resolve<ChannexResponse<any>>({ data: null }),
+        this.client.getChannelMappingDetails(input.channel, settings),
+      ]);
+      const currency =
+        connectionDetails.data?.attributes?.currency ??
+        connectionDetails.data?.currency ??
+        propertyResponse.data?.attributes?.currency ??
+        propertyResponse.data?.currency;
+      if (typeof currency !== "string" || !/^[A-Z]{3}$/.test(currency)) {
+        throw new BadRequestException("Không xác định được tiền tệ của Channel");
       }
-      const mappingSettings = buildAdapterSettings(adapter.rate_params ?? {}, mapping.settings);
-      const target = remoteRates.get(
-        `${String(mappingSettings.room_type_code)}:${String(mappingSettings.rate_plan_code)}`,
-      );
-      if (!target) throw new BadRequestException("Rate OTA không tồn tại");
-      if (
-        mappingSettings.occupancy !== undefined &&
-        target.size &&
-        !target.has(Number(mappingSettings.occupancy))
-      ) {
-        throw new BadRequestException("Occupancy OTA không hợp lệ");
-      }
-      return {
-        rate_plan_id: mapping.rate_plan_id,
-        settings: mappingSettings,
-      };
-    });
-    const duplicateTargets = ratePlans.map(
-      (mapping) =>
-        `${String(mapping.settings.room_type_code)}:${String(mapping.settings.rate_plan_code)}`,
-    );
-    if (new Set(duplicateTargets).size !== duplicateTargets.length) {
-      throw new BadRequestException("Một rate OTA không thể map trùng nhiều lần");
-    }
 
-    const created = await this.client.createChannel({
-      channel: input.channel,
-      group_id: groupId,
-      title: input.title,
-      currency,
-      properties: [property.channexId],
-      is_active: false,
-      settings,
-      rate_plans: ratePlans,
-    });
-    const channelId = created.data?.id ?? created.data?.attributes?.id;
-    if (!channelId) throw new BadGatewayException("Channex không trả về Channel ID");
-    const readiness = await this.client.checkChannelReadiness(channelId);
-    const issues = readiness.data ?? [];
-    return { channelId, ready: issues.length === 0, issues };
+      const remoteRates = new Map<string, Set<number>>();
+      for (const room of (mappingDetails.data?.rooms ?? []) as RemoteRoom[]) {
+        for (const rate of (room.rates ?? []) as RemoteRoomRate[]) {
+          const occupancies = new Set<number>();
+          const rawList = Array.isArray(rate.occupancies)
+            ? rate.occupancies
+            : (rate as any).occupancy !== undefined
+              ? [(rate as any).occupancy]
+              : [];
+          for (const occ of rawList) {
+            const parsed = Number(occ);
+            if (!Number.isNaN(parsed) && parsed > 0) {
+              occupancies.add(parsed);
+            }
+          }
+          if ((rate as any).max_persons !== undefined && (rate as any).max_persons !== null) {
+            const maxP = Number((rate as any).max_persons);
+            if (!Number.isNaN(maxP) && maxP > 0) {
+              occupancies.add(maxP);
+            }
+          }
+          remoteRates.set(`${String(room.id)}:${String(rate.id)}`, occupancies);
+        }
+      }
+
+      const ratePlans = input.ratePlans.map((mapping) => {
+        if (!allowedRatePlans.has(mapping.rate_plan_id)) {
+          throw new BadRequestException("Rate plan không thuộc Property hiện tại");
+        }
+        const mappingSettings = buildAdapterSettings(adapter.rate_params ?? {}, mapping.settings);
+        const target = remoteRates.get(
+          `${String(mappingSettings.room_type_code)}:${String(mappingSettings.rate_plan_code)}`,
+        );
+        if (!target) throw new BadRequestException("Rate OTA không tồn tại");
+
+        const submittedOcc =
+          mappingSettings.occupancy !== undefined
+            ? Number(mappingSettings.occupancy)
+            : undefined;
+
+        if (target.size > 0) {
+          if (
+            submittedOcc !== undefined &&
+            !Number.isNaN(submittedOcc) &&
+            target.has(submittedOcc)
+          ) {
+            mappingSettings.occupancy = submittedOcc;
+          } else {
+            const validOptions = Array.from(target).sort((a, b) => a - b);
+            const fallback =
+              submittedOcc !== undefined && !Number.isNaN(submittedOcc)
+                ? (validOptions.find((opt) => opt >= submittedOcc) ?? validOptions[validOptions.length - 1])
+                : validOptions[0];
+
+            if (fallback !== undefined) {
+              this.logger.warn(
+                `[Channex Kênh] Tự động điều chỉnh occupancy của rate OTA ${mappingSettings.rate_plan_code} từ ${mappingSettings.occupancy ?? "chưa gán"} thành ${fallback} để khớp với quy định sàn OTA`,
+              );
+              mappingSettings.occupancy = fallback;
+            } else {
+              throw new BadRequestException(
+                `Số khách (occupancy) OTA không hợp lệ (${mappingSettings.occupancy}). Kênh yêu cầu một trong các mức: ${validOptions.join(", ")}`,
+              );
+            }
+          }
+        } else if (submittedOcc !== undefined && !Number.isNaN(submittedOcc)) {
+          mappingSettings.occupancy = submittedOcc;
+        }
+
+        return {
+          rate_plan_id: mapping.rate_plan_id,
+          settings: mappingSettings,
+        };
+      });
+
+      const duplicateTargets = ratePlans.map(
+        (mapping) =>
+          `${String(mapping.settings.room_type_code)}:${String(mapping.settings.rate_plan_code)}`,
+      );
+      if (new Set(duplicateTargets).size !== duplicateTargets.length) {
+        throw new BadRequestException("Một rate OTA không thể map trùng nhiều lần");
+      }
+
+      const created = await this.client.createChannel({
+        channel: input.channel,
+        group_id: groupId,
+        title: input.title,
+        currency,
+        properties: [property.channexId],
+        is_active: false,
+        settings,
+        rate_plans: ratePlans,
+      });
+      const channelId = created.data?.id ?? created.data?.attributes?.id;
+      if (!channelId) throw new BadGatewayException("Channex không trả về Channel ID");
+      const readiness = await this.client.checkChannelReadiness(channelId);
+      const issues = readiness.data ?? [];
+
+      this.logger.log(
+        `[Channex Kênh] Tạo kênh OTA ${input.channel} thành công (Channel ID: ${channelId}, Sẵn sàng: ${issues.length === 0 ? "CÓ" : "CHƯA"})`,
+      );
+
+      // Ghi log đồng bộ append-only (không ghi đè lịch sử)
+      await this.recordSyncLog({
+        hotelId,
+        syncType: "CHANNEX_CHANNEL_CREATE",
+        status: issues.length === 0 ? "SUCCESS" : "WARNING",
+        eventsCount: ratePlans.length,
+        details: JSON.stringify({
+          channel: input.channel,
+          channelId,
+          title: input.title,
+          currency,
+          ratePlansCount: ratePlans.length,
+          ready: issues.length === 0,
+          issues,
+          note: "Tạo kênh OTA ở trạng thái tắt và kiểm tra độ sẵn sàng thành công",
+        }),
+      });
+
+      return { channelId, ready: issues.length === 0, issues };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(
+        `[Channex Kênh] Thất bại khi tạo kênh OTA ${input.channel} cho khách sạn ${hotelId}: ${msg}`,
+      );
+
+      // Ghi nhận log lỗi vào database (append-only)
+      await this.recordSyncLog({
+        hotelId,
+        syncType: "CHANNEX_CHANNEL_CREATE",
+        status: "FAILED",
+        eventsCount: 0,
+        details: JSON.stringify({
+          channel: input.channel,
+          title: input.title,
+          error: msg,
+          note: "Lỗi cấu hình hoặc tạo kênh OTA trên Channex",
+        }),
+      });
+
+      throw err;
+    }
   }
 
   async activateNativeChannel(hotelId: string, channelId: string) {
@@ -315,7 +413,35 @@ export class ChannexChannelSessionService {
       throw new BadRequestException("Channel chưa sẵn sàng để kích hoạt");
     }
     await this.client.activateChannel(channelId);
+
+    this.logger.log(
+      `[Channex Kênh] Kích hoạt thành công kênh OTA ${channelId} cho khách sạn ${hotelId}`,
+    );
+
+    // Ghi log kích hoạt append-only
+    await this.recordSyncLog({
+      hotelId,
+      syncType: "CHANNEX_CHANNEL_ACTIVATE",
+      status: "SUCCESS",
+      eventsCount: 1,
+      details: JSON.stringify({
+        channelId,
+        activatedAt: new Date().toISOString(),
+        note: "Đã kích hoạt đồng bộ trực tiếp hai chiều với kênh OTA",
+      }),
+    });
+
     return { channelId, isActive: true };
+  }
+
+  private async recordSyncLog(data: any): Promise<void> {
+    try {
+      if (this.prisma.channelSyncLog?.create) {
+        await this.prisma.channelSyncLog.create({ data });
+      }
+    } catch {
+      // Bỏ qua lỗi ghi log phụ trợ để không làm gián đoạn luồng nghiệp vụ
+    }
   }
 
   private async requireProperty(hotelId: string) {

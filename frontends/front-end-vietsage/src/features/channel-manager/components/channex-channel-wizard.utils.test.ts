@@ -4,7 +4,8 @@ import test from "node:test";
 // @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
 import * as wizardUtils from "./channex-channel-wizard.utils.ts";
 
-const { buildRateMappingSettings, flattenRemoteRates } = wizardUtils;
+const { buildRateMappingSettings, flattenRemoteRates, resolveRateOccupancy } =
+  wizardUtils;
 
 test("returns no rates before mapping details load", () => {
   assert.deepEqual(flattenRemoteRates(undefined), []);
@@ -42,6 +43,25 @@ test("flattens common room-rate mapping details", () => {
         maxPersons: 2,
       },
     ],
+  );
+});
+
+test("uses OTA occupancy when local occupancy is unsupported", () => {
+  assert.equal(
+    resolveRateOccupancy(
+      {
+        key: "single:standard",
+        roomCode: "single",
+        roomTitle: "Single Room",
+        rateCode: "standard",
+        rateTitle: "Standard rate",
+        pricing: "OBP",
+        occupancies: [1],
+        maxPersons: 1,
+      },
+      2,
+    ),
+    1,
   );
 });
 
