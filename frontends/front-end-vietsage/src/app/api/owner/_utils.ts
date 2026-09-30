@@ -4,6 +4,7 @@ import type { Session } from "next-auth";
 import { auth } from "@/auth";
 import { HttpError } from "@/core/http/http-error";
 import { refreshAndSaveSessionTokens } from "@/libs/auth-session-refresh";
+import type { UserRole } from "@/libs/auth";
 import { hasAppRole } from "@/libs/rbac";
 import { readServerSessionTokens } from "@/libs/server-session-tokens";
 
@@ -38,7 +39,9 @@ function shouldRefreshOwnerSession(tokens: OwnerSessionTokenMetadata, session: S
   return Date.now() >= tokens.accessTokenExpiresAt - OWNER_API_REFRESH_EARLY_MS;
 }
 
-async function getOwnerAuthTokens(): Promise<OwnerAuthTokens | NextResponse> {
+export async function getOwnerAuthTokens(
+  allowedRoles: readonly UserRole[] = ["tenant_owner", "admin"],
+): Promise<OwnerAuthTokens | NextResponse> {
   const session = await auth();
 
   if (!session?.user) {
@@ -48,7 +51,11 @@ async function getOwnerAuthTokens(): Promise<OwnerAuthTokens | NextResponse> {
     );
   }
 
-  if (!session.activeRoleCode || !hasAppRole([session.activeRoleCode], "tenant_owner")) {
+  const hasAllowedRole =
+    Boolean(session.activeRoleCode) &&
+    allowedRoles.some((role) => hasAppRole([session.activeRoleCode!], role));
+
+  if (!hasAllowedRole) {
     return NextResponse.json(
       { status: 403, message: "FORBIDDEN", data: { detail: "Không có quyền truy cập." } },
       { status: 403 },
@@ -81,8 +88,10 @@ async function getOwnerAuthTokens(): Promise<OwnerAuthTokens | NextResponse> {
   return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
 }
 
-export async function getOwnerAccessToken(): Promise<string | NextResponse> {
-  const ownerAuth = await getOwnerAuthTokens();
+export async function getOwnerAccessToken(
+  allowedRoles: readonly UserRole[] = ["tenant_owner", "admin"],
+): Promise<string | NextResponse> {
+  const ownerAuth = await getOwnerAuthTokens(allowedRoles);
   if (ownerAuth instanceof NextResponse) return ownerAuth;
 
   return ownerAuth.accessToken;
@@ -91,8 +100,9 @@ export async function getOwnerAccessToken(): Promise<string | NextResponse> {
 export async function executeOwnerBackendRequest<T>(
   _operationName: string,
   request: OwnerBackendRequest<T>,
+  allowedRoles: readonly UserRole[] = ["tenant_owner", "admin"],
 ): Promise<T | NextResponse> {
-  const ownerAuth = await getOwnerAuthTokens();
+  const ownerAuth = await getOwnerAuthTokens(allowedRoles);
   if (ownerAuth instanceof NextResponse) return ownerAuth;
 
   try {

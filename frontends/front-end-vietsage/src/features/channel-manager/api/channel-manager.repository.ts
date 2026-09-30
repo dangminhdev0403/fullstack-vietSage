@@ -397,7 +397,7 @@ export const channelManagerRepository = {
 
   async getChannexConfig(
     hotelId: string,
-    scope: ChannelManagerRoleScope = "admin",
+    scope: ChannelManagerRoleScope = "owner",
   ): Promise<ChannexPropertyConfig> {
     const response = await requestInternalApiEnvelope<ChannexPropertyConfig>(
       `${basePath(hotelId, scope)}/channex/config`,
@@ -409,7 +409,7 @@ export const channelManagerRepository = {
   async configureChannexProperty(
     hotelId: string,
     channexPropertyId: string,
-    scope: ChannelManagerRoleScope = "admin",
+    scope: ChannelManagerRoleScope = "owner",
   ): Promise<ConfigureChannexPropertyResult> {
     const response =
       await requestInternalApiEnvelope<ConfigureChannexPropertyResult>(
@@ -425,7 +425,7 @@ export const channelManagerRepository = {
   async cancelSimulatedBooking(
     hotelId: string,
     payload: CancelSimulatedBookingInput,
-    scope: ChannelManagerRoleScope = "admin",
+    scope: ChannelManagerRoleScope = "owner",
   ): Promise<CancelSimulatedBookingResult> {
     const response =
       await requestInternalApiEnvelope<CancelSimulatedBookingResult>(
@@ -440,7 +440,7 @@ export const channelManagerRepository = {
 
   async getSimulatedBookings(
     hotelId: string,
-    scope: ChannelManagerRoleScope = "admin",
+    scope: ChannelManagerRoleScope = "owner",
   ): Promise<SimulatedBookingItem[]> {
     const response = await requestInternalApiEnvelope<SimulatedBookingItem[]>(
       `${basePath(hotelId, scope)}/channex/simulated-bookings`,

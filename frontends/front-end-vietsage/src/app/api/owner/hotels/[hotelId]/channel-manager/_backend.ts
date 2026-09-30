@@ -44,6 +44,7 @@ export async function proxyChannelManagerRequest<T>(input: {
             timeoutMs: 60_000,
           },
         ),
+      ["tenant_owner", "admin", "staff"],
     );
     if (result instanceof Response) return result;
 
