@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { showErrorAlert, SwalVietSage } from "@/libs/swal";
-import { channelManagerRepository } from "../api/channel-manager.repository";
+
 import {
   useInventoryGrid,
   useUpdateAvailability,
@@ -118,29 +117,7 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
     new Set(),
   );
 
-  const [isPushingAri, setIsPushingAri] = useState(false);
 
-  const handleManualPushToOta = async () => {
-    try {
-      setIsPushingAri(true);
-      await channelManagerRepository.pushChannexAri(
-        hotelId,
-        { startDate, endDate },
-        roleScope,
-      );
-      void SwalVietSage.fire({
-        icon: "success",
-        title: "Đã đồng bộ sang OTA",
-        text: "Toàn bộ giá phòng và trạng thái đóng/mở bán trên bảng đã được đẩy sang Booking.com thành công!",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
-    } catch (err: unknown) {
-      showErrorAlert("Đồng bộ OTA thất bại", err);
-    } finally {
-      setIsPushingAri(false);
-    }
-  };
 
   useEffect(() => {
     if (editingCellKey && inputRef.current) {
@@ -408,16 +385,6 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
             <span className="hidden sm:inline">Làm mới</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => void handleManualPushToOta()}
-            disabled={isPushingAri || isFetching}
-            title="Đẩy ngay toàn bộ giá và phòng trống trên bảng sang Booking.com qua Channex"
-            className="h-10 sm:h-11 px-4 rounded-2xl bg-sky-700 hover:bg-sky-800 text-white text-sm font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-          >
-            <span className={isPushingAri ? "animate-spin" : ""}>☁️</span>
-            <span>{isPushingAri ? "Đang đẩy..." : "Đồng bộ sang OTA"}</span>
-          </button>
 
           <button
             type="button"

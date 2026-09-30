@@ -6,17 +6,16 @@ import { toast } from "sonner";
 import type { Hotel } from "@/features/admin/types/admin-contract";
 import { AriPushCard } from "@/features/channel-manager/components/ari-push-card";
 import { ChannexHubTab } from "@/features/channel-manager/components/channex-hub-tab";
-import { ChannelConnectionsTab } from "@/features/channel-manager/components/channel-connections-tab";
 import { ChannexPropertyConfigCard } from "@/features/channel-manager/components/channex-property-config-card";
 import { InventoryGrid } from "@/features/channel-manager/components/inventory-grid";
-import { OtaBookingSimulator } from "@/features/channel-manager/components/ota-booking-simulator";
+import { OtaBookingsTab } from "@/features/channel-manager/components/ota-bookings-tab";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 
 const STORAGE_KEY_HOTEL = "vietsage_admin_selected_cm_hotel_id";
 const STORAGE_KEY_TAB = "vietsage_admin_selected_cm_tab";
 
-type TabType = "SETUP" | "ARI" | "SIMULATOR" | "CHANNELS" | "ICAL";
+type TabType = "SETUP" | "ARI" | "BOOKINGS" | "CHANNELS";
 
 interface TabDefinition {
   id: TabType;
@@ -29,13 +28,8 @@ interface TabDefinition {
 const TABS: TabDefinition[] = [
   { id: "SETUP", label: "Cấu hình Channex", icon: "⚙️" },
   { id: "ARI", label: "Giá & Quỹ phòng (ARI)", icon: "📊" },
-  {
-    id: "SIMULATOR",
-    label: "Giả lập & Test đặt/hủy phòng",
-    icon: "🧪",
-  },
+  { id: "BOOKINGS", label: "Đơn đặt phòng OTA", icon: "🛎️" },
   { id: "CHANNELS", label: "Kênh OTA & Mapping", icon: "🌐" },
-  { id: "ICAL", label: "iCal Dự phòng", icon: "📅" },
 ];
 
 export function AdminChannelManagerClient({
@@ -219,16 +213,6 @@ export function AdminChannelManagerClient({
               <span>Realtime: KẾT NỐI</span>
             </span>
 
-            {activeTab !== "SIMULATOR" && (
-              <button
-                type="button"
-                onClick={() => setActiveTab("SIMULATOR")}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-gradient-to-r from-blue-600 to-indigo-600 px-3.5 py-1.5 font-bold text-white shadow-xs transition hover:from-blue-700 hover:to-indigo-700"
-              >
-                <span>🧪</span>
-                <span>Test Bắn/Hủy Đơn OTA</span>
-              </button>
-            )}
           </div>
         </div>
       </section>
@@ -289,22 +273,6 @@ export function AdminChannelManagerClient({
 
         {activeTab === "ARI" && (
           <div className="space-y-5">
-            <div className="flex flex-col gap-2 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-xs text-emerald-950 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-2.5">
-                <span className="text-xl">💡</span>
-                <span>
-                  Bảng ARI hiển thị trực tiếp số phòng trống và phòng đã đặt theo thời gian thực.
-                  Bạn có thể mở tab <strong>Giả lập & Test đặt/hủy phòng</strong> để bắn đơn mới (chiếm ô) hoặc hủy đơn (trả ô) và quan sát số liệu nhảy tức thì.
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveTab("SIMULATOR")}
-                className="shrink-0 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 transition"
-              >
-                Mở Sandbox Test ➔
-              </button>
-            </div>
             <AriPushCard hotelId={selectedHotel.id} roleScope="admin" />
             <InventoryGrid
               key={`grid-${selectedHotel.id}`}
@@ -314,13 +282,12 @@ export function AdminChannelManagerClient({
           </div>
         )}
 
-        {activeTab === "SIMULATOR" && (
-          <OtaBookingSimulator
-            key={`sim-${selectedHotel.id}`}
+        {activeTab === "BOOKINGS" && (
+          <OtaBookingsTab
+            key={`bookings-${selectedHotel.id}`}
             hotelId={selectedHotel.id}
-            hotelName={selectedHotel.name}
             roleScope="admin"
-            onSwitchTab={setActiveTab}
+            onSwitchToAri={() => setActiveTab("ARI")}
           />
         )}
 
@@ -330,20 +297,6 @@ export function AdminChannelManagerClient({
             hotelId={selectedHotel.id}
             roleScope="admin"
           />
-        )}
-
-        {activeTab === "ICAL" && (
-          <div className="space-y-4">
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-base text-amber-950">
-              iCal là kênh dự phòng cho lịch phòng cơ bản. Giá, hạn chế bán và
-              mapping OTA vẫn quản lý qua Channex.
-            </div>
-            <ChannelConnectionsTab
-              key={`ical-${selectedHotel.id}`}
-              hotelId={selectedHotel.id}
-              roleScope="admin"
-            />
-          </div>
         )}
       </div>
     </div>

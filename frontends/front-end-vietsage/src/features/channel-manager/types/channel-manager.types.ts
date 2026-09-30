@@ -264,6 +264,7 @@ export interface SimulatedBookingItem {
   checkInDate: string | null;
   checkOutDate: string | null;
   amount: number | null;
+  currency?: string | null;
   createdAt: string;
 }
 

@@ -820,6 +820,7 @@ export class ChannexBookingIngestionService {
         checkInDate: res?.plannedCheckInAt?.toISOString().split("T")[0] || null,
         checkOutDate: res?.plannedCheckOutAt?.toISOString().split("T")[0] || null,
         amount: meta.amount ? Number(meta.amount) : null,
+        currency: meta.currency || "VND",
         createdAt: m.createdAt.toISOString(),
       };
     });

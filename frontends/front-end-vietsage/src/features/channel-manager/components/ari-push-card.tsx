@@ -171,16 +171,16 @@ export function AriPushCard({
       </div>
 
       {/* Workflow Pre-condition Notice */}
-      <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200/90 bg-amber-50/80 p-3 text-xs leading-relaxed text-amber-950 sm:text-sm">
+      <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-emerald-200/90 bg-emerald-50/80 p-3 text-xs leading-relaxed text-emerald-950 sm:text-sm">
         <VsIcon
           name="info"
-          className="mt-0.5 shrink-0 text-base text-amber-700"
+          className="mt-0.5 shrink-0 text-base text-emerald-700"
         />
         <p>
-          <strong>Lưu ý quan trọng:</strong> Nếu bạn vừa chỉnh sửa giá hoặc quỹ
-          phòng trong bảng lịch bên dưới, vui lòng nhấn nút{" "}
-          <strong>Lưu thay đổi</strong> trước. Thao tác đồng bộ sẽ đọc dữ liệu
-          đã lưu trong hệ thống để đẩy sang OTA.
+          <strong>Lưu ý:</strong> Mọi thay đổi giá hoặc số lượng phòng trong bảng
+          lịch bên dưới đều được tự động lưu ngay vào PMS. Nhấn nút{" "}
+          <strong>Đồng bộ lên OTA</strong> bên dưới để phân phối dữ liệu mới nhất
+          sang Channex và các kênh bán phòng.
         </p>
       </div>
 

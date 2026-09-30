@@ -1002,6 +1002,15 @@ export function StaffRoomsClient({
               <VsIcon name="print" className="text-base" />
               In danh sách lưu trú
             </button>
+            <button
+              type="button"
+              onClick={() => router.push(`/hotels/${encodeURIComponent(hotelId)}/channel-manager?tab=BOOKINGS`)}
+              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-4 text-sm font-bold text-[var(--primary)] hover:bg-[var(--surface-container)] whitespace-nowrap shadow-2xs transition"
+              title="Xem danh sách đơn đặt phòng từ Booking.com, Trip.com, Agoda"
+            >
+              <VsIcon name="book_online" className="text-base" />
+              <span>Đơn đặt phòng OTA</span>
+            </button>
           </div>
           <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 2xl:ml-auto">
             <div className="grid grid-cols-2 gap-4 text-center shrink-0">
