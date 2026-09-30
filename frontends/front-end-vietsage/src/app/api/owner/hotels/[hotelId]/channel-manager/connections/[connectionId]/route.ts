@@ -1,5 +1,8 @@
-import { channelManagerMockStore } from "@/features/channel-manager/api/channel-manager-mock-store";
-import { successResponse, validationErrorResponse } from "../../../../../_utils";
+import {
+  channelManagerBackendPath,
+  proxyChannelManagerRequest,
+} from "../../_backend";
+import { validationErrorResponse } from "../../../../../_utils";
 
 type Params = {
   params: Promise<{ hotelId: string; connectionId: string }>;
@@ -11,6 +14,12 @@ export async function DELETE(_request: Request, context: Params) {
     return validationErrorResponse("hotelId and connectionId are required");
   }
 
-  const result = channelManagerMockStore.deleteConnection(hotelId, connectionId);
-  return successResponse(result, 200, "Connection deleted successfully");
+  return proxyChannelManagerRequest({
+    operation: "delete channel connection",
+    method: "DELETE",
+    path: channelManagerBackendPath(
+      hotelId,
+      `connections/${encodeURIComponent(connectionId)}`,
+    ),
+  });
 }

@@ -169,6 +169,24 @@ Potential future events:
 - `emergency_incident.created`
 - `notification.delivery_failed`
 
+## Channex booking ingestion
+
+```txt
+Authenticated Channex webhook or minute feed poll
+  -> Pull authoritative booking revision
+  -> Resolve durable property mapping
+  -> Transaction deduplicates provider booking ID
+  -> New: create one reservation segment per provider room + booking mapping + sync log
+  -> Cancelled: cancel every mapped segment that is not already checked in + sync log
+  -> Modified: append reconciliation warning only; do not overwrite live reservations
+  -> Commit
+  -> Acknowledge revision to Channex
+```
+
+The provider feed is a roughly 30-minute delivery window, not a durable queue. Webhook and minute
+polling are complementary. A failed transaction is not acknowledged. After a known outage longer
+than the feed window, an authorized operator runs the bounded `inserted_at >= outage_start` recovery.
+
 ## Guest stay message flow
 
 Guest-to-front-desk messages are a short-lived, stay-scoped conversation rather than a guest

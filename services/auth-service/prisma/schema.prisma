@@ -684,10 +684,11 @@ model Hotel {
   kbttGuestDeclarations         KbttGuestDeclaration[]
   kbttAutoSubmitRuns            KbttAutoSubmitRun[]
   featureEntitlements           HotelFeatureEntitlement[]
-  channelConnections           ChannelConnection[]
-  channelDailyAvailabilities   ChannelDailyAvailability[]
-  channelDailyRestrictions     ChannelDailyRestriction[]
-  channelSyncLogs              ChannelSyncLog[]
+  channelConnections            ChannelConnection[]
+  channelDailyAvailabilities    ChannelDailyAvailability[]
+  channelDailyRestrictions      ChannelDailyRestriction[]
+  channelSyncLogs               ChannelSyncLog[]
+  channexMappings               ChannexMapping[]
 }
 
 model HotelFeatureEntitlement {
@@ -1081,6 +1082,7 @@ model Reservation {
   id                String            @id @default(cuid())
   hotelId           String
   roomId            String?
+  roomTypeSnapshot  String?           @db.VarChar(80)
   reservationCode   String            @db.VarChar(80)
   guestDisplayName  String            @db.VarChar(120)
   guestPhone        String?           @db.VarChar(40)
@@ -2460,6 +2462,7 @@ enum ChannelCode {
   BOOKING_ICAL
   AGODA_ICAL
   DIRECT_BOOKING
+  CHANNEX
 }
 
 enum ChannelConnectionStatus {
@@ -2485,6 +2488,7 @@ model ChannelConnection {
   hotel            Hotel                   @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   roomMappings     ChannelRoomMapping[]
   syncLogs         ChannelSyncLog[]
+  channexMappings  ChannexMapping[]
 
   @@index([hotelId])
   @@index([channelCode])
@@ -2558,3 +2562,20 @@ model ChannelSyncLog {
   @@index([channelConnectionId, createdAt])
 }
 
+model ChannexMapping {
+  id                  String             @id @default(cuid())
+  hotelId             String
+  channelConnectionId String?
+  kind                String             @db.VarChar(40) // 'property', 'room_type', 'rate_plan', 'booking'
+  localId             String             @db.VarChar(120)
+  channexId           String             @db.VarChar(120)
+  metadata            Json?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  hotel               Hotel              @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  connection          ChannelConnection? @relation(fields: [channelConnectionId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, kind, localId])
+  @@unique([kind, channexId])
+  @@index([hotelId, kind])
+}

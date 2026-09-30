@@ -9,6 +9,13 @@
 
 ## Unreleased
 
+- **Channex staging channel manager**:
+  - Added hotel-scoped Content Sync, ARI Push, booking-feed poll, outage recovery, Doctor, mapping, and one-time Channel IFrame session endpoints under `/api/v1/channel-manager/hotels/{hotelId}/channex/*`.
+  - Added exact public `POST /api/v1/channel-manager/channex/webhook`; requests require `X-Channex-Webhook-Secret` and a strict booking-event payload.
+  - Provider API keys remain backend-only. Channel IFrame URLs are one-time, non-cacheable sessions; frontend/BFF payloads never accept Channex credentials.
+  - Incoming bookings use transactional apply-then-ack, durable provider-ID deduplication, one reservation segment per OTA room, date-overlap-safe assignment, and manual reconciliation for modifications.
+  - Added channel-manager persistence and `Reservation.roomTypeSnapshot` migration so unassigned OTA reservations still reduce the correct room-type availability.
+
 - **LocalMate Web ↔ Telegram Bridge & Marketplace Order Conversation**:
   - Added additive Prisma schema fields: `MarketplaceService.localMateProfileId`, `MarketplaceOrder.assignedLocalMateProfileId`, `MarketplaceOrder.requestedStartAt`, `MarketplaceOrder.partySize`.
   - Added models: `LocalMateTelegramBinding` (unique private Telegram binding per guide), `LocalMateTelegramPairingToken` (hashed one-time pairing token), `MarketplaceConversation` (unique per order), and `MarketplaceConversationMessage` (bidirectional chat messages with delivery status, retry attempts, and Telegram tracking).

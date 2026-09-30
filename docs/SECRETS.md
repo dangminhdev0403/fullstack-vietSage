@@ -20,6 +20,16 @@ Docker Compose is the production/local-container runtime path. Real secrets live
 - `LOCALMATE_N8N_WEBHOOK_SECRET`: separate server-to-server key used by the frontend BFF when calling n8n via `X-VietSage-Chat-Key`. Never reuse the knowledge key.
 - `LOCALMATE_N8N_WEBHOOK_URL`: server-only n8n production webhook URL. Never expose either value through `NEXT_PUBLIC_*` variables.
 
+## Channex channel manager
+
+- `CHANNEX_BASE_URL` is server-only and accepts only `https://staging.channex.io/api/v1` or `https://app.channex.io/api/v1`. Use staging until certification and an approved production cutover.
+- `CHANNEX_API_KEY` is sent only by the NestJS provider adapter in the `user-api-key` header. Never put it in a browser request, query string, database JSON, screenshot, log, or tracked file.
+- `CHANNEX_WEBHOOK_URL` is the public HTTPS backend callback ending in `/api/v1/channel-manager/channex/webhook`. Content Sync registers it idempotently for the mapped property. A loopback/private URL cannot receive Channex callbacks; expose staging through the approved Tailscale Funnel/public ingress.
+- `CHANNEX_WEBHOOK_SECRET` must contain at least 32 random characters. Configure the same value in Channex as custom header `X-Channex-Webhook-Secret`; the public callback rejects missing or mismatched values before parsing or applying a booking revision.
+- A Channex key was previously present in local working source during development. Revoke/rotate it in Channex before staging verification; deleting the literal from Git does not revoke the credential.
+- The Channel IFrame uses a server-created one-time token. It expires after 15 minutes before first use, is returned with `Cache-Control: no-store`, and must never be persisted in browser storage.
+- The booking feed poller runs once per minute only when `CHANNEX_API_KEY` is configured. Webhooks provide low latency; polling drains missed revisions. Manual recovery remains time-scoped after a known outage over 30 minutes.
+
 ## Local environment backup flow
 
 Before committing environment-template changes, copy each service's real local `.env` into the repository-root `secrets/` folder:
@@ -131,6 +141,10 @@ GOOGLE_SERVICE_CATEGORY_RANGE="'Nhóm dịch vụ'!A1:Z"
 GOOGLE_SERVICE_ITEM_RANGE="'Danh sách dịch vụ'!A1:Z"
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_WEBHOOK_SECRET=
+CHANNEX_BASE_URL=https://staging.channex.io/api/v1
+CHANNEX_API_KEY=
+CHANNEX_WEBHOOK_URL=
+CHANNEX_WEBHOOK_SECRET=
 SWAGGER_ENABLED=
 LOG_LEVEL=
 LOCALMATE_KNOWLEDGE_API_KEY=

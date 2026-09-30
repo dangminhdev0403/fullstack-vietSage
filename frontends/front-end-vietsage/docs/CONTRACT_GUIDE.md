@@ -80,6 +80,16 @@ Backend API
 - Empty knowledge returns deterministic clarification without spending a model call. Ambiguous grounded questions may ask one clarification with up to three suggestions.
 - Public responses expose only `reply`, up to three follow-up `suggestions`, `knowledgeVersion`, and `cached`; `action` is always `null`.
 
+## Channex channel manager
+
+- `/channel-manager` consumes same-origin role-scoped BFF routes through the channel-manager repository/resource/hooks. Browser payloads never contain `CHANNEX_API_KEY` or the webhook secret.
+- Platform admins run idempotent Content Sync. Admin/owner users edit and save PMS ARI before explicitly pushing it to Channex. Readback is displayed as matched only when sampled availability and rate/restriction values equal the values sent.
+- The OTA tab reads the complete provider catalog from Channex `GET /channels/list` and connected-channel status from property-scoped `GET /channels`; do not hardcode a small test-provider list.
+- Adapters using the common `room_rate_multioccupancy` contract and known rate fields render a native dynamic wizard from `params`/`rate_params`: test connection, load mapping details, map local rate plans, create inactive, run readiness, then require a separate confirmed activation. OAuth/listing/tree or unknown mapping fields fall back to the official Channex iframe. The one-time iframe URL stays only in component state; it is never stored in local/session storage.
+- Manual booking-feed polling, Doctor results, and raw mappings stay under admin operational tools. The backend minute poller and authenticated webhook are the normal inbound paths.
+- Real inbound certification tests use Channex Booking CRS or an official OTA test channel; the normal UI does not present PMS-local synthetic reservations as Channex-created bookings.
+- A provider modification creates a reconciliation warning; staff must review it instead of the UI claiming that dates were automatically changed.
+
 ## Anti-patterns
 
 - Raw `fetch` scattered in components.

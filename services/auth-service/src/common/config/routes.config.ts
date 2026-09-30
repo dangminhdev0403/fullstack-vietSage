@@ -11,6 +11,7 @@ export const PUBLIC_PATTERNS = [
   // Bypass global JWT because they are protected by LocalmateKnowledgeKeyGuard
   "/localmate/knowledge",
   "/localmate/tours",
+  "/api/v1/channel-manager/channex/webhook",
 ];
 
 // Regex should be exceptional. Prefer exact paths in PUBLIC_PATTERNS.

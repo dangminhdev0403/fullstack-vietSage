@@ -54,3 +54,8 @@ graphify-out/
 
 # LocalMate raw source data
 LocalMateData/
+
+# Python cache & agent metadata
+__pycache__/
+*.py[cod]
+.claude/

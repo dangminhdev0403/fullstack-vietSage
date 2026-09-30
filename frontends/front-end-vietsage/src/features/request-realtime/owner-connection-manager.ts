@@ -11,6 +11,8 @@ export type OwnerRealtimeHandlers = {
   onExternalOrderVoucherIssued?: (event: unknown) => void;
   onPartnerSettlementCreated?: (event: unknown) => void;
   onPartnerSettlementUpdated?: (event: unknown) => void;
+  onChannelBookingCreated?: (event: unknown) => void;
+  onChannelBookingCancelled?: (event: unknown) => void;
   onReconnect?: () => void;
   onError?: (error: unknown) => void;
 };
@@ -123,6 +125,10 @@ export function createOwnerConnectionManager(deps: {
         socket.on("PARTNER_SETTLEMENT_CREATED", fanoutRaw("onPartnerSettlementCreated"));
         socket.on("partner_settlement.updated", fanoutRaw("onPartnerSettlementUpdated"));
         socket.on("PARTNER_SETTLEMENT_UPDATED", fanoutRaw("onPartnerSettlementUpdated"));
+        socket.on("channel_booking.created", fanoutRaw("onChannelBookingCreated"));
+        socket.on("CHANNEL_BOOKING_CREATED", fanoutRaw("onChannelBookingCreated"));
+        socket.on("channel_booking.cancelled", fanoutRaw("onChannelBookingCancelled"));
+        socket.on("CHANNEL_BOOKING_CANCELLED", fanoutRaw("onChannelBookingCancelled"));
         socket.on("request_realtime.error", (error) => {
           terminal = isTerminalRealtimeError(error);
           fanout("onError")(error);

@@ -17,13 +17,14 @@ export default async function OwnerLayout({ children }: { children: ReactNode })
   await requireOwnerServerTokens("/owner/dashboard");
 
   const context = await loadServerWorkspaceContext("/owner/dashboard");
-  const defaultHotelId = context.accessibleHotels[0]?.id ?? null;
+  const currentHotel = context.accessibleHotels[0];
+  const defaultHotelId = currentHotel?.id ?? null;
+  const enabledFeatures = currentHotel?.enabledFeatures ?? [];
   const sidebarItems = buildWorkspaceNavigationForContext({
     ...context,
     hotelId: defaultHotelId,
+    enabledFeatures,
   });
-
-  const currentHotel = context.accessibleHotels[0];
 
   return (
     <AuthRefreshGate accessTokenExpiresAt={session.accessTokenExpiresAt}>

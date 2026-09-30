@@ -53,12 +53,25 @@ export async function GET(request: Request, context: Params) {
   const url = new URL(request.url);
   const q = url.searchParams.get("q")?.trim() || undefined;
   const status = url.searchParams.get("status")?.trim() || undefined;
+  const type = url.searchParams.get("type")?.trim() || undefined;
+  const floor = url.searchParams.get("floor")?.trim() || undefined;
+  const page = Number(url.searchParams.get("page")) || 1;
+  const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit")) || 100));
 
   try {
-    const data = await executeOwnerBackendRequest("list owner rooms", (accessToken) => hotelOpsService.listRooms(hotelId, {
-      query: { page: 1, limit: 100, ...(q ? { q } : {}), ...(status ? { status } : {}) },
-      accessToken,
-    }));
+    const data = await executeOwnerBackendRequest("list owner rooms", (accessToken) =>
+      hotelOpsService.listRooms(hotelId, {
+        query: {
+          page,
+          limit,
+          ...(q ? { q } : {}),
+          ...(status ? { status } : {}),
+          ...(type ? { type } : {}),
+          ...(floor ? { floor } : {}),
+        },
+        accessToken,
+      }),
+    );
     if (data instanceof Response) return data;
     return successResponse(data, 200, "Owner rooms fetched successfully");
   } catch (error) {

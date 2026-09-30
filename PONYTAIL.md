@@ -90,6 +90,31 @@ smallest thing that fails if the logic breaks: an `assert`-based
 fixtures, no per-function suites unless asked. Trivial one-liners need no
 test, YAGNI applies to tests too.
 
+## Concurrent Subagent Orchestration
+
+> **Universal Multi-Agent Policy**: This orchestration policy applies universally to ALL AI coding agents and execution runtimes (AGY, Claude Code, Codex, Cursor, Windsurf, Hermes, etc.) whenever subagent concurrency, worker delegation, or parallel tasks are supported.
+
+Ponytail favors the simplest execution model: do not spawn subagents for what a single agent can do linearly in fewer steps. Coordination overhead is process complexity debt.
+
+Parallel subagent execution (**Task Decomposition via Fan-Out / Fan-In**) is **permitted only when tasks satisfy Orthogonal Decoupling**:
+
+### 1. Qualifying Criteria for Concurrent Fan-Out
+- **Orthogonal Slices**: Subtasks have zero runtime, temporal, or data dependencies on each other.
+- **Disjoint File Ownership**: Each subagent operates on mutually exclusive file sets. Zero concurrent writes to shared files (never parallelize edits touching the same `schema.prisma`, `routes.config.ts`, context providers, or barrel exports).
+- **Contract Freeze**: Shared APIs, Zod schemas, types, and interfaces must be drafted and frozen by the Lead Orchestrator *before* dispatching worker subagents.
+- **Significant Scope**: Slices represent substantial independent modules (e.g., Backend Module X vs Frontend UI Y; or decoupled domain audits). Trivial fixes, single-function refactors, text/copy, and styling tweaks must remain single-agent.
+
+### 2. Standard Execution Protocol (Fan-Out / Fan-In)
+1. **P1 - Contract Freeze**: Orchestrator locks boundary types, Zod schemas, and acceptance criteria.
+2. **P2 - Atomic Fan-Out**: Dispatch subagents via the agent runtime's supported parallel mechanism (e.g., AGY `invoke_subagent`, Claude Code subagents/tasks, background workers, or git worktree isolation) in a single batch with explicit `Role`, isolated workspace/context, and bounded file scope.
+3. **P3 - Decentralized Targeted Verification**: Each worker subagent executes at most ONE focused check (e.g., unit test/lint for its own slice). No worker runs full builds or module-wide suites.
+4. **P4 - Fan-In & Orchestrator Consolidation**: Lead Orchestrator receives slice completions, resolves cross-slice integrations, verifies diffs, and runs the final module gate once.
+
+### 3. Anti-Patterns (Premature Swarming / Agent Sprawl)
+- **Sequential Pipeline via Parallelism**: Spawning Worker B before Worker A's output is verified (violates YAGNI and root-cause analysis).
+- **Shared-State Contention**: Multiple subagents attempting concurrent mutations on overlapping files.
+- **Over-Orchestration on Minor Edits**: Spawning subagents for minor edits (UI tweaks, text/copy, CSS). The shortest path to done is direct linear editing.
+
 ## Boundaries
 
 Ponytail governs what you build, not how you talk (pair with Caveman for

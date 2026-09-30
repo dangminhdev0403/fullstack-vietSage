@@ -27,7 +27,7 @@ describe("ChannelManager Module Core Services", () => {
         syncInboundIcal: jest.fn(),
         generateOutboundIcal: jest.fn(),
       };
-      service = new ChannelManagerService(mockPrisma as any, mockIcalService as any);
+      service = new ChannelManagerService(mockPrisma, mockIcalService);
     });
 
     it("tạo kết nối kênh thành công với outboundToken tự sinh", async () => {
@@ -94,10 +94,22 @@ describe("ChannelManager Module Core Services", () => {
     beforeEach(() => {
       mockPrisma = {
         room: { findMany: jest.fn() },
+        reservation: { findMany: jest.fn() },
         channelDailyAvailability: { findMany: jest.fn(), upsert: jest.fn() },
         channelDailyRestriction: { findMany: jest.fn(), findUnique: jest.fn(), upsert: jest.fn() },
       };
-      service = new AriCoreService(mockPrisma as any);
+      service = new AriCoreService(mockPrisma);
+    });
+
+    it("không sinh hạng phòng hoặc giá giả khi DB rỗng", async () => {
+      mockPrisma.room.findMany.mockResolvedValue([]);
+      mockPrisma.reservation.findMany.mockResolvedValue([]);
+      mockPrisma.channelDailyAvailability.findMany.mockResolvedValue([]);
+      mockPrisma.channelDailyRestriction.findMany.mockResolvedValue([]);
+
+      const result = await service.getInventoryGrid("hotel_1", "2026-10-01", "2026-10-02");
+
+      expect(result.roomTypes).toEqual([]);
     });
 
     it("collapseDateRanges gộp chính xác các ngày liên tiếp có cùng giá trị", () => {
@@ -174,7 +186,7 @@ describe("ChannelManager Module Core Services", () => {
         reservation: { findMany: jest.fn() },
         channelDailyAvailability: { findMany: jest.fn(), findUnique: jest.fn(), upsert: jest.fn() },
       };
-      service = new IcalService(mockPrisma as any);
+      service = new IcalService(mockPrisma);
     });
 
     it("parseIcalFeed trích xuất đúng các VEVENT từ chuỗi iCal chuẩn", () => {

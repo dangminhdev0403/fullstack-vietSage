@@ -6,7 +6,11 @@ type WorkspaceProfile = {
   profileName: string | null;
   roleName?: string | null;
   hotelName?: string | null;
-  accessibleHotels?: readonly { id: string; name: string }[];
+  accessibleHotels?: readonly {
+    id: string;
+    name: string;
+    enabledFeatures?: readonly string[];
+  }[];
 };
 
 const WorkspaceProfileContext = createContext<WorkspaceProfile>({

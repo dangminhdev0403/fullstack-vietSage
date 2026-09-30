@@ -58,6 +58,15 @@ A service that owns tables owns:
 - Webhooks must validate provider authenticity where supported.
 - Integration failures should be observable and should not leak provider internals to API consumers.
 
+### Channex staging contract
+
+- The backend is the only holder of `CHANNEX_API_KEY`; frontend and BFF payloads never accept provider credentials.
+- Content sync is idempotent through durable property, room-type, and rate-plan mappings. ARI sends availability and restrictions separately, filters past dates, compresses equal date ranges, and compares sampled live readback values.
+- Incoming bookings use apply-then-ack. New multi-room bookings create one reservation segment per provider room inside one transaction; duplicate provider booking IDs are idempotent. Cancellations update all non-checked-in segments. Modifications are recorded as `RECONCILIATION_REQUIRED` instead of blindly rewriting live stays.
+- The exact public webhook requires `X-Channex-Webhook-Secret`. Channex has no built-in HMAC signature; configure a long custom shared-secret header and HTTPS.
+- The minute poller drains the account-wide revision feed as webhook backstop. A hotel-scoped manual poll filters by that hotel's mapped Channex property. The in-process overlap guard is sufficient for the current single backend runtime; use a shared lease before running multiple replicas.
+- OTA setup uses Channex Channel IFrame with a 15-minute one-time token. Do not build or persist a parallel provider credential form in the browser.
+
 ## Anti-patterns
 
 - Frontend-specific assumptions defining backend contracts.

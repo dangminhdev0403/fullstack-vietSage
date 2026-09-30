@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
+import {
+  showConfirmDialog,
+  showErrorAlert,
+  showSuccessAlert,
+} from "@/libs/swal";
 import {
   useChannelConnections,
   useCreateConnection,
@@ -15,6 +19,7 @@ import type {
 
 interface ChannelConnectionsTabProps {
   hotelId: string;
+  roleScope?: "owner" | "admin";
 }
 
 const CHANNEL_CONFIG: Record<
@@ -48,12 +53,19 @@ const CHANNEL_CONFIG: Record<
     iconText: "🔷",
     defaultOtaHost: "ycs.agoda.com",
   },
-  DIRECT_ENGINE: {
+  DIRECT_BOOKING: {
     label: "VietSage Direct Engine",
     brandColor: "text-emerald-800 bg-emerald-50 border-emerald-200",
     badgeBg: "bg-emerald-600",
     iconText: "⚡",
     defaultOtaHost: "vietsage.com",
+  },
+  CHANNEX: {
+    label: "Channex Global OTA (API Direct)",
+    brandColor: "text-purple-700 bg-purple-50 border-purple-200",
+    badgeBg: "bg-purple-600",
+    iconText: "🌐",
+    defaultOtaHost: "staging.channex.io",
   },
 };
 
@@ -75,15 +87,24 @@ function formatDateTime(isoString: string | null): string {
   }
 }
 
-export function ChannelConnectionsTab({ hotelId }: ChannelConnectionsTabProps) {
-  const { connections, isLoading, isFetching, refetch } = useChannelConnections({
-    hotelId,
-  });
+export function ChannelConnectionsTab({
+  hotelId,
+  roleScope = "owner",
+}: ChannelConnectionsTabProps) {
+  const { connections, isLoading, isFetching, isError, error, refetch } =
+    useChannelConnections({ hotelId, roleScope });
 
-  const { createConnection, isCreating } = useCreateConnection({ hotelId });
-  const { deleteConnection, isDeleting } = useDeleteConnection({ hotelId });
+  const { createConnection, isCreating } = useCreateConnection({
+    hotelId,
+    roleScope,
+  });
+  const { deleteConnection, isDeleting } = useDeleteConnection({
+    hotelId,
+    roleScope,
+  });
   const { syncConnection, isSyncing, syncingConnectionId } = useSyncConnection({
     hotelId,
+    roleScope,
   });
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -127,7 +148,10 @@ export function ChannelConnectionsTab({ hotelId }: ChannelConnectionsTabProps) {
     if (confirmed.isConfirmed) {
       try {
         await deleteConnection(conn.id);
-        await showSuccessAlert("Đã xóa kết nối", `Đã xóa thành công kênh "${conn.name}".`);
+        await showSuccessAlert(
+          "Đã xóa kết nối",
+          `Đã xóa thành công kênh "${conn.name}".`,
+        );
         void refetch();
       } catch (err) {
         await showErrorAlert("Không thể xóa kết nối", err);
@@ -139,12 +163,18 @@ export function ChannelConnectionsTab({ hotelId }: ChannelConnectionsTabProps) {
     e.preventDefault();
 
     if (!connectionName.trim()) {
-      await showErrorAlert("Thiếu tên gợi nhớ", "Vui lòng nhập tên nhận diện cho kết nối này.");
+      await showErrorAlert(
+        "Thiếu tên gợi nhớ",
+        "Vui lòng nhập tên nhận diện cho kết nối này.",
+      );
       return;
     }
 
     if (!inboundUrl.trim()) {
-      await showErrorAlert("Thiếu link iCal", "Vui lòng dán link iCal (Inbound URL) từ sàn OTA.");
+      await showErrorAlert(
+        "Thiếu link iCal",
+        "Vui lòng dán link iCal (Inbound URL) từ sàn OTA.",
+      );
       return;
     }
 
@@ -181,7 +211,8 @@ export function ChannelConnectionsTab({ hotelId }: ChannelConnectionsTabProps) {
             </span>
           </h2>
           <p className="text-sm font-medium text-slate-600 mt-1">
-            Đồng bộ lịch phòng 2 chiều (2-Way iCal Sync) tự động giữa VietSage và các nền tảng OTA quốc tế.
+            Đồng bộ lịch phòng 2 chiều (2-Way iCal Sync) tự động giữa VietSage
+            và các nền tảng OTA quốc tế.
           </p>
         </div>
 
@@ -212,7 +243,27 @@ export function ChannelConnectionsTab({ hotelId }: ChannelConnectionsTabProps) {
       {isLoading ? (
         <div className="bg-white p-16 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center justify-center space-y-3">
           <div className="w-9 h-9 border-4 border-emerald-700 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-base font-bold text-slate-700">Đang tải danh sách kết nối kênh...</p>
+          <p className="text-base font-bold text-slate-700">
+            Đang tải danh sách kết nối kênh...
+          </p>
+        </div>
+      ) : isError ? (
+        <div className="bg-rose-50 p-10 rounded-3xl border border-rose-200 text-center space-y-3">
+          <h3 className="text-lg font-extrabold text-rose-900">
+            Không thể tải kết nối từ DB
+          </h3>
+          <p className="text-sm font-medium text-rose-700">
+            {error instanceof Error
+              ? error.message
+              : "Yêu cầu tới backend thất bại"}
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            className="h-10 px-5 rounded-full bg-rose-800 text-white text-sm font-bold"
+          >
+            Thử lại
+          </button>
         </div>
       ) : connections.length === 0 ? (
         <div className="bg-white p-12 rounded-3xl border border-slate-200 shadow-sm text-center space-y-4">
@@ -224,7 +275,8 @@ export function ChannelConnectionsTab({ hotelId }: ChannelConnectionsTabProps) {
               Chưa có kênh phân phối nào được kết nối
             </h3>
             <p className="text-sm font-medium text-slate-500 max-w-md mx-auto mt-1">
-              Thêm kết nối iCal từ Airbnb, Booking.com hoặc Agoda để đồng bộ lịch đặt phòng và chống trùng phòng (Overbooking) tự động.
+              Thêm kết nối iCal từ Airbnb, Booking.com hoặc Agoda để đồng bộ
+              lịch đặt phòng và chống trùng phòng (Overbooking) tự động.
             </p>
           </div>
           <button
@@ -287,6 +339,11 @@ export function ChannelConnectionsTab({ hotelId }: ChannelConnectionsTabProps) {
                             Chờ đồng bộ
                           </span>
                         )}
+                        {conn.syncStatus === "PAUSED" && (
+                          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                            Tạm dừng
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs font-semibold text-slate-500 mt-1">
                         Cập nhật lần cuối:{" "}
@@ -294,6 +351,11 @@ export function ChannelConnectionsTab({ hotelId }: ChannelConnectionsTabProps) {
                           {formatDateTime(conn.lastSyncAt)}
                         </strong>
                       </p>
+                      {conn.errorReason && (
+                        <p className="text-xs font-semibold text-rose-700 mt-1">
+                          Lỗi gần nhất: {conn.errorReason}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -305,8 +367,12 @@ export function ChannelConnectionsTab({ hotelId }: ChannelConnectionsTabProps) {
                       onClick={() => handleSyncNow(conn)}
                       className="h-10 px-4 rounded-full bg-emerald-50 text-emerald-900 border border-emerald-300/80 hover:bg-emerald-100 text-xs sm:text-sm font-extrabold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                     >
-                      <span className={isSyncingThis ? "animate-spin" : ""}>🔄</span>
-                      <span>{isSyncingThis ? "Đang đồng bộ..." : "Đồng bộ ngay"}</span>
+                      <span className={isSyncingThis ? "animate-spin" : ""}>
+                        🔄
+                      </span>
+                      <span>
+                        {isSyncingThis ? "Đang đồng bộ..." : "Đồng bộ ngay"}
+                      </span>
                     </button>
 
                     <button
@@ -328,7 +394,7 @@ export function ChannelConnectionsTab({ hotelId }: ChannelConnectionsTabProps) {
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                        Inbound iCal URL (Nhập từ OTA)
+                        Liên kết lịch từ kênh OTA (Nhập vào)
                       </span>
                       <span className="text-[11px] font-semibold text-slate-500">
                         VietSage đọc dữ liệu từ đây
@@ -344,7 +410,7 @@ export function ChannelConnectionsTab({ hotelId }: ChannelConnectionsTabProps) {
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
-                        Outbound iCal URL (VietSage cấp)
+                        Liên kết lịch VietSage (Xuất đi)
                       </span>
                       <span className="text-[11px] font-semibold text-emerald-700">
                         Dán link này sang {config.label}
@@ -356,7 +422,9 @@ export function ChannelConnectionsTab({ hotelId }: ChannelConnectionsTabProps) {
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleCopyOutboundUrl(conn.outboundUrl, conn.id)}
+                        onClick={() =>
+                          handleCopyOutboundUrl(conn.outboundUrl, conn.id)
+                        }
                         className={`h-10 px-3.5 rounded-xl text-xs font-extrabold transition-all shrink-0 flex items-center gap-1 cursor-pointer border ${
                           copiedId === conn.id
                             ? "bg-emerald-700 text-white border-emerald-800"
@@ -364,7 +432,9 @@ export function ChannelConnectionsTab({ hotelId }: ChannelConnectionsTabProps) {
                         }`}
                       >
                         <span>{copiedId === conn.id ? "✓" : "📋"}</span>
-                        <span>{copiedId === conn.id ? "Đã copy!" : "Copy Link"}</span>
+                        <span>
+                          {copiedId === conn.id ? "Đã copy!" : "Copy Link"}
+                        </span>
                       </button>
                     </div>
                   </div>
@@ -403,7 +473,10 @@ export function ChannelConnectionsTab({ hotelId }: ChannelConnectionsTabProps) {
             </div>
 
             {/* Modal Form */}
-            <form onSubmit={handleCreateSubmit} className="p-6 space-y-5 overflow-y-auto">
+            <form
+              onSubmit={handleCreateSubmit}
+              className="p-6 space-y-5 overflow-y-auto"
+            >
               {/* Channel Type Selector */}
               <div>
                 <label className="block text-sm font-bold text-slate-900 mb-1.5">
@@ -415,7 +488,7 @@ export function ChannelConnectionsTab({ hotelId }: ChannelConnectionsTabProps) {
                       "AIRBNB_ICAL",
                       "BOOKING_ICAL",
                       "AGODA_ICAL",
-                      "DIRECT_ENGINE",
+                      "DIRECT_BOOKING",
                     ] as ChannelType[]
                   ).map((type) => {
                     const cfg = CHANNEL_CONFIG[type];
@@ -432,7 +505,9 @@ export function ChannelConnectionsTab({ hotelId }: ChannelConnectionsTabProps) {
                         }`}
                       >
                         <span className="text-xl">{cfg.iconText}</span>
-                        <span className="text-sm leading-tight">{cfg.label}</span>
+                        <span className="text-sm leading-tight">
+                          {cfg.label}
+                        </span>
                       </button>
                     );
                   })}
@@ -446,7 +521,7 @@ export function ChannelConnectionsTab({ hotelId }: ChannelConnectionsTabProps) {
                 </label>
                 <input
                   type="text"
-                  placeholder="Ví dụ: Căn hộ 301 - Airbnb, Deluxe Ocean View - Booking..."
+                  placeholder="Ví dụ: Căn hộ 301 - Airbnb, Bungalow Vườn - Booking..."
                   value={connectionName}
                   onChange={(e) => setConnectionName(e.target.value)}
                   className="w-full h-11 px-4 rounded-2xl border border-slate-200 bg-white text-slate-900 text-sm sm:text-base font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
@@ -458,9 +533,11 @@ export function ChannelConnectionsTab({ hotelId }: ChannelConnectionsTabProps) {
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-sm font-bold text-slate-900">
-                    Đường dẫn iCal từ OTA (Inbound URL)
+                    Đường dẫn xuất lịch từ kênh OTA
                   </label>
-                  <span className="text-xs text-slate-500">Bắt đầu bằng http:// hoặc https://</span>
+                  <span className="text-xs text-slate-500">
+                    Bắt đầu bằng http:// hoặc https://
+                  </span>
                 </div>
                 <textarea
                   rows={3}
@@ -476,10 +553,12 @@ export function ChannelConnectionsTab({ hotelId }: ChannelConnectionsTabProps) {
               <div className="bg-amber-50/80 border border-amber-200/90 rounded-2xl p-4 text-xs text-amber-950 space-y-1">
                 <div className="font-bold flex items-center gap-1.5 text-sm">
                   <span>💡</span>
-                  <span>Nguyên lý đồng bộ 2 chiều (2-Way iCal):</span>
+                  <span>Nguyên lý đồng bộ lịch 2 chiều:</span>
                 </div>
                 <p className="leading-relaxed pl-5">
-                  Sau khi tạo kết nối, VietSage sẽ cấp cho bạn một đường dẫn <strong>Outbound iCal</strong>. Hãy sao chép link đó dán vào mục Nhập Lịch (Import Calendar) của sàn để phòng đóng trên VietSage lập tức đóng trên sàn.
+                  Sau khi tạo kết nối, VietSage sẽ cấp cho bạn một{" "}
+                  <strong>Liên kết lịch VietSage</strong>. Hãy sao chép link đó dán vào
+                  mục Nhập Lịch trên sàn để khi phòng đóng trên VietSage thì cũng lập tức được đóng trên sàn.
                 </p>
               </div>
 

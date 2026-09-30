@@ -38,9 +38,15 @@ import {
   getRoomNumber,
 } from "./room-qr-utils";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
+import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import { RoomDetailDrawer } from "@/features/hotel-ops/components/room-detail-drawer";
 
-type Props = { hotelId: string; initialRooms: HotelRoomSummary[] };
+type Props = {
+  hotelId: string;
+  initialRooms: HotelRoomSummary[];
+  initialTypes?: string[];
+  initialFloors?: string[];
+};
 type RoomSortKey =
   | "roomNumber"
   | "type"
@@ -60,15 +66,12 @@ type RoomFormState = {
 
 type RoomFormErrors = Partial<Record<keyof Omit<RoomFormState, "id">, string>>;
 
-const roomTypeOptions = ["Deluxe", "Superior", "Suite", "Family", "Standard"];
-
-function randomRoomForm(): RoomFormState {
-  const roomNumber = String(Math.floor(100 + Math.random() * 899));
+function createInitialRoomForm(): RoomFormState {
   return {
-    roomNumber,
-    floor: roomNumber.slice(0, 1),
-    type: roomTypeOptions[Math.floor(Math.random() * roomTypeOptions.length)],
-    price: String(Math.floor(8 + Math.random() * 22) * 100000),
+    roomNumber: "",
+    floor: "",
+    type: "",
+    price: "",
     maxActiveGuestDevices: "",
   };
 }
@@ -374,31 +377,21 @@ function showLoading(title: string) {
   });
 }
 
-export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
+export function OwnerRoomsClient({
+  hotelId,
+  initialRooms,
+  initialTypes = [],
+  initialFloors = [],
+}: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const qrCodeRef = useRef<SVGSVGElement | null>(null);
-  const {
-    data: roomsPage,
-    refetch: refetchRooms,
-  } = useQuery({
-    ...ownerRoomsResource.bind({ hotelId }).queries.list.options(undefined),
-    initialData: {
-      page: 1,
-      limit: 100,
-      total: initialRooms.length,
-      items: initialRooms,
-    },
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: false,
-  });
-
-  const rooms = roomsPage.items;
-
-
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [query, setQuery] = useState("");
+  const [floorFilter, setFloorFilter] = useState("");
   const [qrStatusFilter, setQrStatusFilter] = useState("");
   const [roomStatusFilter, setRoomStatusFilter] = useState("");
+  const [roomTypeFilter, setRoomTypeFilter] = useState("");
   const [roomForm, setRoomForm] = useState<RoomFormState | null>(null);
   const [sortKey, setSortKey] = useState<RoomSortKey>("roomNumber");
   const [sortDirection, setSortDirection] =
@@ -416,22 +409,139 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
   const [isBulkQrBusy, setIsBulkQrBusy] = useState(false);
   const clientOrigin = useClientOrigin();
 
+  const queryInput = useMemo(
+    () => ({
+      q: query.trim() || undefined,
+      status: roomStatusFilter || undefined,
+      type: roomTypeFilter || undefined,
+      floor: floorFilter || undefined,
+      page: 1,
+      limit: 100,
+    }),
+    [query, roomStatusFilter, roomTypeFilter, floorFilter],
+  );
+
+  const isDefaultQuery =
+    !query.trim() && !roomStatusFilter && !roomTypeFilter && !floorFilter;
+
+  const {
+    data: roomsPage,
+    refetch: refetchRooms,
+    isFetching,
+  } = useQuery({
+    ...ownerRoomsResource.bind({ hotelId }).queries.list.options(queryInput),
+    initialData: isDefaultQuery
+      ? {
+          page: 1,
+          limit: 100,
+          total: initialRooms.length,
+          items: initialRooms,
+          types: initialTypes,
+          floors: initialFloors,
+        }
+      : undefined,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
+  });
+
+  // Realtime updates for channel bookings and hotel events
+  useOwnerRequestRealtime(
+    hotelId,
+    useMemo(
+      () => ({
+        onChannelBookingCreated: () => {
+          void refetchRooms();
+          router.refresh();
+        },
+        onChannelBookingCancelled: () => {
+          void refetchRooms();
+          router.refresh();
+        },
+      }),
+      [refetchRooms, router],
+    ),
+    { enabled: Boolean(hotelId), showConnectionToasts: false },
+  );
+
+  const rooms = roomsPage?.items ?? (isDefaultQuery ? initialRooms : []);
+
+  const existingFloors = useMemo(() => {
+    const map = new Map<string, string>();
+    const sourceFloors = roomsPage?.floors?.length ? roomsPage.floors : initialFloors;
+    if (sourceFloors && Array.isArray(sourceFloors)) {
+      sourceFloors.forEach((floor) => {
+        if (floor && floor.trim()) {
+          const trimmed = floor.trim();
+          map.set(trimmed.toLowerCase(), trimmed);
+        }
+      });
+    }
+    rooms.forEach((room) => {
+      if (room.floor && room.floor.trim()) {
+        const trimmed = room.floor.trim();
+        map.set(trimmed.toLowerCase(), trimmed);
+      }
+    });
+    return Array.from(map.values()).sort((a, b) =>
+      a.localeCompare(b, "vi", { numeric: true, sensitivity: "base" }),
+    );
+  }, [roomsPage?.floors, initialFloors, rooms]);
+
+  const existingRoomTypes = useMemo(() => {
+    const map = new Map<string, string>();
+    const sourceTypes = roomsPage?.types?.length ? roomsPage.types : initialTypes;
+    if (sourceTypes && Array.isArray(sourceTypes)) {
+      sourceTypes.forEach((type) => {
+        if (type && type.trim()) {
+          const trimmed = type.trim();
+          const key = trimmed.toLowerCase();
+          if (!map.has(key) || /^[A-Z][a-z]/.test(trimmed)) {
+            map.set(key, trimmed);
+          }
+        }
+      });
+    }
+    rooms.forEach((room) => {
+      if (room.type && room.type.trim()) {
+        const trimmed = room.type.trim();
+        const key = trimmed.toLowerCase();
+        if (!map.has(key) || /^[A-Z][a-z]/.test(trimmed)) {
+          map.set(key, trimmed);
+        }
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => a.localeCompare(b));
+  }, [roomsPage?.types, initialTypes, rooms]);
+
   const filteredRooms = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
+    const normalizedFloor = floorFilter.trim().toLowerCase();
     const normalizedQrStatus = qrStatusFilter.trim().toUpperCase();
     const normalizedRoomStatus = roomStatusFilter.trim().toUpperCase();
+    const normalizedRoomType = roomTypeFilter.trim().toLowerCase();
 
     return rooms.filter((room) => {
       const matchesQuery =
         !normalizedQuery || roomSearchText(room).includes(normalizedQuery);
+      const matchesFloor =
+        !normalizedFloor || (room.floor ?? "").trim().toLowerCase() === normalizedFloor;
       const matchesQrStatus =
         !normalizedQrStatus || getQrStatus(room) === normalizedQrStatus;
       const currentRoomStatus = room.status?.trim().toUpperCase() || "AVAILABLE";
       const matchesRoomStatus =
         !normalizedRoomStatus || currentRoomStatus === normalizedRoomStatus;
-      return matchesQuery && matchesQrStatus && matchesRoomStatus;
+      const matchesRoomType =
+        !normalizedRoomType || (room.type ?? "").trim().toLowerCase() === normalizedRoomType;
+
+      return (
+        matchesQuery &&
+        matchesFloor &&
+        matchesQrStatus &&
+        matchesRoomStatus &&
+        matchesRoomType
+      );
     });
-  }, [query, qrStatusFilter, roomStatusFilter, rooms]);
+  }, [query, floorFilter, qrStatusFilter, roomStatusFilter, roomTypeFilter, rooms]);
 
   const sortedRooms = useMemo(
     () =>
@@ -441,17 +551,31 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
     [filteredRooms, sortDirection, sortKey],
   );
 
+  const roomsByFloor = useMemo(() => {
+    const map = new Map<string, HotelRoomSummary[]>();
+    for (const room of sortedRooms) {
+      const floorKey = room.floor?.trim()
+        ? `Tầng ${room.floor.trim()}`
+        : "Khác / Chưa phân tầng";
+      if (!map.has(floorKey)) {
+        map.set(floorKey, []);
+      }
+      map.get(floorKey)!.push(room);
+    }
+    return Array.from(map.entries());
+  }, [sortedRooms]);
+
   const stats = useMemo(() => {
     const activeQr = rooms.filter(isQrActive).length;
     const inactiveQr = rooms.length - activeQr;
-    const floors = new Set(
-      rooms.map((room) => room.floor?.trim()).filter(Boolean),
-    ).size;
+    const floors =
+      existingFloors.length ||
+      new Set(rooms.map((room) => room.floor?.trim()).filter(Boolean)).size;
 
     return [
       {
         label: "Tổng số phòng",
-        value: String(rooms.length),
+        value: String(roomsPage?.total ?? rooms.length),
         icon: "hotel",
         className: "text-[var(--primary)]",
       },
@@ -504,7 +628,7 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
   }
 
   function openCreateRoom() {
-    setRoomForm(randomRoomForm());
+    setRoomForm(createInitialRoomForm());
     setRoomFormErrors({});
   }
 
@@ -1125,46 +1249,117 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
   ];
 
   const tableHeader = (
-    <div className="flex flex-wrap items-center gap-4 border-b border-[var(--outline-variant)] p-5">
-      <label className="relative min-w-[240px] flex-1">
-        <span className="sr-only">Tìm kiếm phòng</span>
-        <VsIcon
-          name="search"
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-lg text-[var(--outline)]"
-        />
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => updateQuery(event.target.value)}
-          placeholder="Tìm số phòng, loại phòng hoặc tầng..."
-          className="min-h-12 w-full rounded-xl border-0 bg-[var(--surface-container-low)] pl-10 pr-4 text-sm outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
-        />
-      </label>
-      <select
-        value={roomStatusFilter}
-        onChange={(event) => {
-          setRoomStatusFilter(event.target.value);
-          setPage(1);
-        }}
-        className="min-h-12 min-w-[180px] shrink-0 rounded-xl border-0 bg-[var(--surface-container-low)] px-4 text-sm outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
-      >
-        <option value="">Trạng thái: Tất cả</option>
-        <option value="AVAILABLE">Trống (Sẵn sàng)</option>
-        <option value="OCCUPIED">Đang ở</option>
-        <option value="PROCESSING">Chờ dọn</option>
-        <option value="MAINTENANCE">Bảo trì</option>
-        <option value="BLOCKED">Đã khóa</option>
-      </select>
-      <select
-        value={qrStatusFilter}
-        onChange={(event) => updateQrStatusFilter(event.target.value)}
-        className="min-h-12 min-w-[180px] shrink-0 rounded-xl border-0 bg-[var(--surface-container-low)] px-4 text-sm outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
-      >
-        <option value="">QR: Tất cả</option>
-        <option value="ACTIVE">Đang hoạt động</option>
-        <option value="INACTIVE">Tạm tắt</option>
-        <option value="EXPIRED">Hết hạn</option>
-      </select>
+    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--outline-variant)] p-5">
+      <div className="flex flex-1 flex-wrap items-center gap-3">
+        <label className="relative min-w-[220px] flex-1">
+          <span className="sr-only">Tìm kiếm phòng</span>
+          <VsIcon
+            name="search"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-lg text-[var(--outline)]"
+          />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => updateQuery(event.target.value)}
+            placeholder="Tìm số phòng, loại phòng hoặc tầng..."
+            className="min-h-12 w-full rounded-xl border-0 bg-[var(--surface-container-low)] pl-10 pr-4 text-sm outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
+          />
+        </label>
+        {existingFloors.length > 0 && (
+          <select
+            value={floorFilter}
+            onChange={(e) => {
+              e.stopPropagation();
+              setFloorFilter(e.target.value);
+              setPage(1);
+            }}
+            className="min-h-12 min-w-[140px] shrink-0 rounded-xl border-0 bg-[var(--surface-container-low)] px-4 text-sm outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
+          >
+            <option value="">Tầng: Tất cả</option>
+            {existingFloors.map((fl) => (
+              <option key={fl} value={fl}>
+                Tầng {fl}
+              </option>
+            ))}
+          </select>
+        )}
+        <select
+          value={roomStatusFilter}
+          onChange={(e) => {
+            e.stopPropagation();
+            setRoomStatusFilter(e.target.value);
+            setPage(1);
+          }}
+          className="min-h-12 min-w-[170px] shrink-0 rounded-xl border-0 bg-[var(--surface-container-low)] px-4 text-sm outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
+        >
+          <option value="">Trạng thái: Tất cả</option>
+          <option value="AVAILABLE">Trống (Sẵn sàng)</option>
+          <option value="OCCUPIED">Đang ở</option>
+          <option value="PROCESSING">Chờ dọn</option>
+          <option value="MAINTENANCE">Bảo trì</option>
+          <option value="BLOCKED">Đã khóa</option>
+        </select>
+        {existingRoomTypes.length > 0 && (
+          <select
+            value={roomTypeFilter}
+            onChange={(e) => {
+              e.stopPropagation();
+              setRoomTypeFilter(e.target.value);
+              setPage(1);
+            }}
+            className="min-h-12 min-w-[160px] shrink-0 rounded-xl border-0 bg-[var(--surface-container-low)] px-4 text-sm outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
+          >
+            <option value="">Loại phòng: Tất cả</option>
+            {existingRoomTypes.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+        )}
+        <select
+          value={qrStatusFilter}
+          onChange={(e) => {
+            e.stopPropagation();
+            updateQrStatusFilter(e.target.value);
+          }}
+          className="min-h-12 min-w-[160px] shrink-0 rounded-xl border-0 bg-[var(--surface-container-low)] px-4 text-sm outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
+        >
+          <option value="">QR: Tất cả</option>
+          <option value="ACTIVE">Đang hoạt động</option>
+          <option value="INACTIVE">Tạm tắt</option>
+          <option value="EXPIRED">Hết hạn</option>
+        </select>
+      </div>
+
+      <div className="flex items-center gap-1.5 rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-1 shrink-0">
+        <button
+          type="button"
+          onClick={() => setViewMode("grid")}
+          className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
+            viewMode === "grid"
+              ? "bg-[var(--primary)] text-white shadow-sm"
+              : "text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]"
+          }`}
+          title="Chế độ sơ đồ phòng"
+        >
+          <VsIcon name="grid_view" className="text-base" />
+          <span>Sơ đồ phòng</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode("table")}
+          className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
+            viewMode === "table"
+              ? "bg-[var(--primary)] text-white shadow-sm"
+              : "text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]"
+          }`}
+          title="Chế độ bảng chi tiết"
+        >
+          <VsIcon name="table_rows" className="text-base" />
+          <span>Bảng chi tiết</span>
+        </button>
+      </div>
     </div>
   );
 
@@ -1288,33 +1483,247 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
         </div>
       </section>
 
-      <DataTable
-        columns={roomColumns}
-        data={sortedRooms}
-        getRowKey={(room) => room.id}
-        emptyMessage="Chưa có phòng phù hợp với bộ lọc hiện tại."
-        minWidth="980px"
-        rowClassName={(room) =>
-          selectedDetailRoom?.id === room.id
-            ? "bg-[#f8f1e6]/90 font-medium shadow-xs"
-            : "group"
-        }
-        onRowClick={(room) => setSelectedDetailRoom(room)}
-        header={tableHeader}
-        sort={{
-          key: sortKey,
-          direction: sortDirection,
-          onSortChange: updateSort,
-        }}
-        pagination={{
-          page,
-          pageSize,
-          pageSizeOptions: roomPageSizeOptions,
-          totalItems: sortedRooms.length,
-          onPageChange: setPage,
-          onPageSizeChange: updatePageSize,
-        }}
-      />
+      {viewMode === "grid" ? (
+        <div className="rounded-3xl border border-[var(--outline-variant)] bg-white shadow-xs overflow-hidden">
+          {tableHeader}
+          <div className="p-5 sm:p-6 space-y-8">
+            {isFetching && rooms.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <span className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--primary)] border-t-transparent mb-3" />
+                <p className="text-base font-semibold text-[var(--on-surface)]">
+                  Đang tải danh sách phòng...
+                </p>
+              </div>
+            ) : roomsByFloor.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <VsIcon name="meeting_room" className="text-5xl text-[var(--outline)] mb-3" />
+                <p className="text-base font-semibold text-[var(--on-surface)]">
+                  Chưa có phòng phù hợp với bộ lọc hiện tại.
+                </p>
+                <p className="text-sm text-[var(--on-surface-variant)] mt-1">
+                  Hãy thử thay đổi từ khóa tìm kiếm hoặc các tiêu chí lọc.
+                </p>
+              </div>
+            ) : (
+              roomsByFloor.map(([floorName, floorRooms]) => (
+                <div key={floorName} className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-[var(--outline-variant)]/60 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="grid h-8 w-8 place-items-center rounded-xl bg-[var(--surface-container-high)] text-[var(--primary)] font-bold text-sm">
+                        <VsIcon name="layers" className="text-base" />
+                      </span>
+                      <h3 className="text-lg font-bold text-[var(--primary)]">{floorName}</h3>
+                      <span className="rounded-full bg-[var(--surface-container-high)] px-2.5 py-0.5 text-xs font-bold text-[var(--on-surface-variant)]">
+                        {floorRooms.length} phòng
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-[var(--on-surface-variant)]">
+                      <span className="flex items-center gap-1 font-semibold text-emerald-700">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                        {floorRooms.filter(r => (r.status?.toUpperCase() || "AVAILABLE") === "AVAILABLE").length} Trống
+                      </span>
+                      <span className="flex items-center gap-1 font-semibold text-blue-700">
+                        <span className="h-2 w-2 rounded-full bg-blue-500" />
+                        {floorRooms.filter(r => r.status?.toUpperCase() === "OCCUPIED").length} Đang ở
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4">
+                    {floorRooms.map((room) => {
+                      const roomStatus = room.status?.toUpperCase() || "AVAILABLE";
+                      const statusMeta = getRoomStatusMeta(room);
+                      const qrMeta = getQrMeta(room);
+                      const qrIsActive = isQrActive(room);
+                      const showActivate = canActivateQr(room);
+                      const isSelected = selectedDetailRoom?.id === room.id;
+
+                      let cardBorderBg = "border-emerald-200/90 bg-gradient-to-br from-emerald-50/40 via-white to-emerald-50/20 hover:border-emerald-400";
+                      if (roomStatus === "OCCUPIED") {
+                        cardBorderBg = "border-blue-200/90 bg-gradient-to-br from-blue-50/40 via-white to-blue-50/20 hover:border-blue-400";
+                      } else if (roomStatus === "PROCESSING") {
+                        cardBorderBg = "border-amber-200/90 bg-gradient-to-br from-amber-50/40 via-white to-amber-50/20 hover:border-amber-400";
+                      } else if (roomStatus === "MAINTENANCE") {
+                        cardBorderBg = "border-rose-200/90 bg-gradient-to-br from-rose-50/40 via-white to-rose-50/20 hover:border-rose-400";
+                      } else if (roomStatus === "BLOCKED") {
+                        cardBorderBg = "border-slate-300 bg-gradient-to-br from-slate-100/70 via-white to-slate-100/40 hover:border-slate-400";
+                      }
+
+                      return (
+                        <div
+                          key={room.id}
+                          tabIndex={0}
+                          role="button"
+                          onClick={() => setSelectedDetailRoom(room)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSelectedDetailRoom(room);
+                            }
+                          }}
+                          className={`flex flex-col justify-between rounded-2xl border-2 p-4 text-left shadow-xs transition-all duration-150 cursor-pointer hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#e8b363] ${cardBorderBg} ${
+                            isSelected ? "ring-2 ring-[#e8b363] shadow-md" : ""
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <span className="text-2xl font-black text-[var(--primary)] tracking-tight">
+                                  #{getRoomNumber(room)}
+                                </span>
+                                <p className="text-xs font-semibold text-[var(--on-surface-variant)] truncate mt-0.5 max-w-[140px]">
+                                  {room.type || "Tiêu chuẩn"}
+                                </p>
+                              </div>
+                              <span
+                                className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider shrink-0 ${statusMeta.className}`}
+                              >
+                                {statusMeta.label}
+                              </span>
+                            </div>
+
+                            <div className="my-3 space-y-1.5 border-t border-[var(--outline-variant)]/40 pt-2.5">
+                              <div className="flex items-baseline justify-between text-xs">
+                                <span className="text-[var(--on-surface-variant)]">Giá niêm yết:</span>
+                                <strong className="font-bold text-emerald-800 tabular-nums">
+                                  {formatVnd(room.price)}
+                                </strong>
+                              </div>
+
+                              {room.activeStay?.guestDisplayName ? (
+                                <div className="flex items-center gap-1.5 rounded-lg bg-blue-100/80 px-2 py-1 text-xs font-bold text-blue-900 truncate">
+                                  <VsIcon name="person" className="text-sm shrink-0" />
+                                  <span className="truncate">{room.activeStay.guestDisplayName}</span>
+                                </div>
+                              ) : null}
+
+                              <div className="flex items-center justify-between text-[11px] pt-1">
+                                <span
+                                  className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-bold ${
+                                    qrIsActive
+                                      ? "bg-green-100 text-green-800"
+                                      : "bg-slate-100 text-slate-700"
+                                  }`}
+                                >
+                                  <VsIcon name="qr_code" className="text-xs" />
+                                  {qrMeta.label}
+                                </span>
+                                <span className="text-slate-600 font-medium">
+                                  {getActiveGuestDeviceCount(room)}/{getResolvedMaxActiveGuestDevices(room)} thiết bị
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div
+                            className="flex items-center justify-end gap-1 border-t border-[var(--outline-variant)]/40 pt-2.5"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              title="Chỉnh sửa phòng"
+                              aria-label="Chỉnh sửa phòng"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEditRoom(room);
+                              }}
+                              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
+                            >
+                              <VsIcon name="edit" className="text-base" />
+                            </button>
+
+                            {qrIsActive ? (
+                              <>
+                                <button
+                                  type="button"
+                                  title="Quản lý QR"
+                                  aria-label="Quản lý QR"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedQrRoom(room);
+                                  }}
+                                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
+                                >
+                                  <VsIcon name="qr_code" className="text-base" />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Lịch sử / Đổi mã QR"
+                                  aria-label="Lịch sử hoặc đổi mã QR"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void updateRoomFromQrAction(room, "rotate");
+                                  }}
+                                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-blue-700 transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
+                                >
+                                  <VsIcon name="history" className="text-base" />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Tạm tắt QR"
+                                  aria-label="Tạm tắt QR"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void updateRoomFromQrAction(room, "deactivate");
+                                  }}
+                                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-amber-700 transition hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
+                                >
+                                  <VsIcon name="visibility_off" className="text-base" />
+                                </button>
+                              </>
+                            ) : showActivate ? (
+                              <button
+                                type="button"
+                                title="Kích hoạt QR"
+                                aria-label="Kích hoạt QR"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void updateRoomFromQrAction(room, "activate");
+                                }}
+                                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-emerald-700 transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
+                              >
+                                <VsIcon name="verified" className="text-base" />
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      ) : (
+        <DataTable
+          columns={roomColumns}
+          data={sortedRooms}
+          getRowKey={(room) => room.id}
+          emptyMessage="Chưa có phòng phù hợp với bộ lọc hiện tại."
+          minWidth="980px"
+          rowClassName={(room) =>
+            selectedDetailRoom?.id === room.id
+              ? "bg-[#f8f1e6]/90 font-medium shadow-xs"
+              : "group"
+          }
+          onRowClick={(room) => setSelectedDetailRoom(room)}
+          header={tableHeader}
+          sort={{
+            key: sortKey,
+            direction: sortDirection,
+            onSortChange: updateSort,
+          }}
+          pagination={{
+            page,
+            pageSize,
+            pageSizeOptions: roomPageSizeOptions,
+            totalItems: sortedRooms.length,
+            onPageChange: setPage,
+            onPageSizeChange: updatePageSize,
+          }}
+        />
+      )}
 
       <RoomDetailDrawer
         room={selectedDetailRoom}
@@ -1404,9 +1813,16 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
                   onChange={(event) =>
                     updateRoomFormField("type", event.target.value)
                   }
+                  list="hotel-room-types-datalist"
+                  placeholder="Nhập loại phòng (VD: Bungalow, Nhà sàn...)"
                   aria-invalid={Boolean(roomFormErrors.type)}
                   className={roomInputClass(Boolean(roomFormErrors.type))}
                 />
+                <datalist id="hotel-room-types-datalist">
+                  {existingRoomTypes.map((type) => (
+                    <option key={type} value={type} />
+                  ))}
+                </datalist>
                 <RoomFieldError message={roomFormErrors.type} />
               </label>
               <label className="space-y-2">

@@ -12,6 +12,7 @@ interface BulkUpdateModalProps {
   roomTypes: RoomTypeInventory[];
   defaultDateFrom?: string;
   defaultDateTo?: string;
+  roleScope?: "owner" | "admin";
 }
 
 const DAYS_OF_WEEK = [
@@ -31,8 +32,12 @@ export function BulkUpdateModal({
   roomTypes,
   defaultDateFrom,
   defaultDateTo,
+  roleScope = "owner",
 }: BulkUpdateModalProps) {
-  const { bulkUpdate, isBulkUpdating } = useBulkUpdateRestrictions({ hotelId });
+  const { bulkUpdate, isBulkUpdating } = useBulkUpdateRestrictions({
+    hotelId,
+    roleScope,
+  });
 
   const [dateFrom, setDateFrom] = useState(
     () => defaultDateFrom || new Date().toISOString().split("T")[0],
@@ -44,11 +49,15 @@ export function BulkUpdateModal({
   );
 
   const [selectedRoomTypes, setSelectedRoomTypes] = useState<string[]>([]);
-  const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5, 6, 0]);
+  const [selectedDays, setSelectedDays] = useState<number[]>([
+    1, 2, 3, 4, 5, 6, 0,
+  ]);
 
   const [rate, setRate] = useState<string>("");
   const [minStay, setMinStay] = useState<string>("");
-  const [stopSellAction, setStopSellAction] = useState<"keep" | "open" | "close">("keep");
+  const [stopSellAction, setStopSellAction] = useState<
+    "keep" | "open" | "close"
+  >("keep");
 
   if (!isOpen) return null;
 
@@ -90,43 +99,72 @@ export function BulkUpdateModal({
     e.preventDefault();
 
     if (!dateFrom || !dateTo) {
-      await showErrorAlert("Thiếu thông tin", "Vui lòng chọn ngày bắt đầu và kết thúc.");
+      await showErrorAlert(
+        "Thiếu thông tin",
+        "Vui lòng chọn ngày bắt đầu và kết thúc.",
+      );
       return;
     }
 
     if (new Date(dateFrom) > new Date(dateTo)) {
-      await showErrorAlert("Lỗi ngày tháng", "Ngày bắt đầu không được lớn hơn ngày kết thúc.");
+      await showErrorAlert(
+        "Lỗi ngày tháng",
+        "Ngày bắt đầu không được lớn hơn ngày kết thúc.",
+      );
       return;
     }
 
     if (selectedDays.length === 0) {
-      await showErrorAlert("Thiếu thứ trong tuần", "Vui lòng chọn ít nhất một thứ trong tuần cần áp dụng.");
+      await showErrorAlert(
+        "Thiếu thứ trong tuần",
+        "Vui lòng chọn ít nhất một thứ trong tuần cần áp dụng.",
+      );
       return;
     }
 
     const rateNum = rate ? Number(rate) : undefined;
     if (rate && (isNaN(Number(rate)) || Number(rate) < 0)) {
-      await showErrorAlert("Giá không hợp lệ", "Mức giá phải là một số nguyên dương hợp lệ.");
+      await showErrorAlert(
+        "Giá không hợp lệ",
+        "Mức giá phải là một số nguyên dương hợp lệ.",
+      );
       return;
     }
 
     const minStayNum = minStay ? Number(minStay) : undefined;
     if (minStay && (isNaN(Number(minStay)) || Number(minStay) < 1)) {
-      await showErrorAlert("Số đêm không hợp lệ", "Số đêm tối thiểu phải từ 1 trở lên.");
+      await showErrorAlert(
+        "Số đêm không hợp lệ",
+        "Số đêm tối thiểu phải từ 1 trở lên.",
+      );
       return;
     }
 
-    if (rateNum === undefined && minStayNum === undefined && stopSellAction === "keep") {
-      await showErrorAlert("Chưa nhập thay đổi", "Vui lòng nhập ít nhất một giá trị cần cập nhật (Giá phòng, Min Stay hoặc Đóng bán).");
+    if (
+      rateNum === undefined &&
+      minStayNum === undefined &&
+      stopSellAction === "keep"
+    ) {
+      await showErrorAlert(
+        "Chưa nhập thay đổi",
+        "Vui lòng nhập ít nhất một giá trị cần cập nhật (Giá phòng, Số đêm tối thiểu hoặc Đóng bán).",
+      );
       return;
     }
 
     const stopSellVal =
-      stopSellAction === "close" ? true : stopSellAction === "open" ? false : undefined;
+      stopSellAction === "close"
+        ? true
+        : stopSellAction === "open"
+          ? false
+          : undefined;
 
     try {
       const res = await bulkUpdate({
-        roomTypeIds: selectedRoomTypes.length > 0 ? selectedRoomTypes : undefined,
+        roomTypeIds:
+          selectedRoomTypes.length > 0
+            ? selectedRoomTypes
+            : roomTypes.map((roomType) => roomType.roomTypeId),
         dateFrom,
         dateTo,
         daysOfWeek: selectedDays,
@@ -164,7 +202,8 @@ export function BulkUpdateModal({
               </h2>
             </div>
             <p className="text-sm font-medium text-emerald-100/90 mt-1 pl-10">
-              Đồng bộ giá, số đêm tối thiểu & trạng thái đóng bán đồng thời cho nhiều ngày
+              Đồng bộ giá, số đêm tối thiểu & trạng thái đóng bán đồng thời cho
+              nhiều ngày
             </p>
           </div>
           <button
@@ -190,7 +229,10 @@ export function BulkUpdateModal({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+        <form
+          onSubmit={handleSubmit}
+          className="flex-1 overflow-y-auto p-6 space-y-6"
+        >
           {/* Room types selector */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -235,7 +277,11 @@ export function BulkUpdateModal({
                       }`}
                     >
                       {isChecked && (
-                        <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                        <svg
+                          className="w-3.5 h-3.5"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
                           <path
                             fillRule="evenodd"
                             d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -250,7 +296,8 @@ export function BulkUpdateModal({
             </div>
             {selectedRoomTypes.length === 0 && (
               <p className="text-xs font-semibold text-slate-500 italic">
-                * Chưa chọn hạng phòng nào (Mặc định áp dụng cho tất cả các hạng phòng)
+                * Chưa chọn hạng phòng nào (Mặc định áp dụng cho tất cả các hạng
+                phòng)
               </p>
             )}
           </div>
@@ -263,7 +310,7 @@ export function BulkUpdateModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <span className="block text-sm font-semibold text-slate-700 mb-1">
-                  Từ ngày (Date From)
+                  Từ ngày
                 </span>
                 <input
                   type="date"
@@ -275,7 +322,7 @@ export function BulkUpdateModal({
               </div>
               <div>
                 <span className="block text-sm font-semibold text-slate-700 mb-1">
-                  Đến ngày (Date To)
+                  Đến ngày
                 </span>
                 <input
                   type="date"
@@ -378,7 +425,7 @@ export function BulkUpdateModal({
             {/* Min stay */}
             <div>
               <span className="block text-sm font-semibold text-slate-700 mb-1">
-                Số đêm lưu trú tối thiểu (Min Stay)
+                Số đêm lưu trú tối thiểu
               </span>
               <input
                 type="number"
@@ -393,7 +440,7 @@ export function BulkUpdateModal({
             {/* Stop Sell Options */}
             <div>
               <span className="block text-sm font-semibold text-slate-700 mb-2">
-                Trạng thái đóng/mở bán (Stop Sell)
+                Trạng thái đóng/mở bán
               </span>
               <div className="grid grid-cols-3 gap-2">
                 <button
@@ -427,7 +474,7 @@ export function BulkUpdateModal({
                       : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
                   }`}
                 >
-                  ⛔ Đóng bán (Stop Sell)
+                  ⛔ Đóng bán
                 </button>
               </div>
             </div>

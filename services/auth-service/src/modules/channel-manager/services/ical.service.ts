@@ -289,7 +289,10 @@ export class IcalService {
       const mappedRoomTypes = connection.roomMappings
         .map((m) => m.roomType)
         .filter((t): t is string => Boolean(t));
-      const targetRoomTypes = mappedRoomTypes.length > 0 ? mappedRoomTypes : ["STANDARD"];
+      if (mappedRoomTypes.length === 0) {
+        throw new BadRequestException("Kết nối iCal chưa ánh xạ hạng phòng trong DB");
+      }
+      const targetRoomTypes = mappedRoomTypes;
 
       // 3. Với mỗi event, tính toán các ngày bị chặn và cập nhật ChannelDailyAvailability
       for (const event of events) {
@@ -311,7 +314,14 @@ export class IcalService {
               },
             });
 
-            const total = existing ? existing.totalRooms : 1;
+            const total =
+              existing?.totalRooms ??
+              (await this.prisma.room.count({
+                where: { hotelId: connection.hotelId, type: roomType },
+              }));
+            if (total === 0) {
+              throw new BadRequestException(`Hạng phòng ${roomType} không có phòng thật trong DB`);
+            }
             const booked = existing ? existing.bookedRooms : 0;
             const blocked = Math.max(existing ? existing.blockedRooms : 0, 1);
             const override = existing ? existing.overrideAvailable : null;

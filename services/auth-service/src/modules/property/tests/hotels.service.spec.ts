@@ -368,6 +368,10 @@ describe("HotelsService", () => {
               featureKey: "frontdesk.hn2n_cccd_scanner",
               status: HotelFeatureStatus.DISABLED,
             },
+            {
+              featureKey: "hotel.channel_manager",
+              status: HotelFeatureStatus.DISABLED,
+            },
           ],
         },
       }),

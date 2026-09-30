@@ -244,12 +244,14 @@ Report:
 - docs updated;
 - remaining risks/blockers.
 
-## AGY / Ponytail execution policy
+## Universal Agent / Ponytail execution policy
 
+- **Phạm vi áp dụng (Universal Scope):** Quy chuẩn này mang tính phổ quát, áp dụng bắt buộc cho **mọi AI coding agent** làm việc trong repository (AGY, Claude Code, Codex, Cursor, Windsurf, Hermes, v.v.) có hỗ trợ cơ chế subagents hoặc điều phối đa tác vụ song song.
 - `PONYTAIL.md` is mandatory for every coding agent and corrective run. Read it before editing; Ponytail `full` remains active unless the user explicitly disables it.
 - **Thao tác chỉnh sửa thông thường (Minor Edits):** Đối với các thay đổi không quá lớn như chỉnh UI nhẹ, đổi tên, text/copy, css/spacing: **KHÔNG cần run test** và **KHÔNG run graphify**.
-- Với thay đổi logic nghiệp vụ, AGY chạy tối đa một focused check duy nhất bao phủ hành vi thay đổi. AGY không chạy full lint, full test suite, hoặc full build.
+- Với thay đổi logic nghiệp vụ, bất kỳ coding agent nào cũng chỉ chạy tối đa một focused check duy nhất bao phủ hành vi thay đổi. Agent không chạy full lint, full test suite, hoặc full build.
 - Host verification runs each slice's targeted gate in parallel.
+- **Concurrent Subagent Orchestration:** Chỉ phân rã tác vụ song song (Fan-Out) khi các slice hoàn toàn trực giao (Orthogonal Decoupling), độc quyền tệp (Disjoint File Ownership), và contract đã đóng băng (Contract Freeze). Cấm lạm dụng agent tràn lan (Anti-Premature Swarming) cho các tác vụ tuần tự hoặc chỉnh sửa vi mô.
 - Integration cherry-picks accepted slices without rerunning module-wide gates after every commit.
 - After all slices integrate, run affected/module lint, tests, and build once via the orchestrator final gate. Run the full merge gate once before PR/merge when required.
 - Never skip trust-boundary validation, security, accessibility, or data-loss prevention to save time.

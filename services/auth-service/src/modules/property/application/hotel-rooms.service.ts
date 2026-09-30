@@ -147,11 +147,11 @@ export class HotelRoomsService {
     }
 
     if (query.floor) {
-      where.floor = query.floor;
+      where.floor = { equals: query.floor.trim(), mode: "insensitive" };
     }
 
     if (query.type) {
-      where.type = query.type;
+      where.type = { equals: query.type.trim(), mode: "insensitive" };
     }
 
     if (query.vipOnly) {

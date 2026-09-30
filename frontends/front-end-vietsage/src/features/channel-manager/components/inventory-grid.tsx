@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
+import {
+  showConfirmDialog,
+  showErrorAlert,
+  showSuccessAlert,
+} from "@/libs/swal";
 import {
   useInventoryGrid,
   useUpdateAvailability,
   useUpdateRestrictions,
 } from "../hooks/use-channel-manager";
+import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import type {
   AvailabilityUpdateItem,
   DayInventory,
@@ -16,6 +21,7 @@ import { BulkUpdateModal } from "./bulk-update-modal";
 
 interface InventoryGridProps {
   hotelId: string;
+  roleScope?: "owner" | "admin";
 }
 
 interface CellPendingState {
@@ -39,7 +45,11 @@ function addDays(dateStr: string, days: number): string {
   return formatDate(date);
 }
 
-function formatDayOfWeek(dateStr: string): { dow: string; dayNum: string; isWeekend: boolean } {
+function formatDayOfWeek(dateStr: string): {
+  dow: string;
+  dayNum: string;
+  isWeekend: boolean;
+} {
   const [y, m, d] = dateStr.split("-").map(Number);
   const date = new Date(y, m - 1, d);
   const dayIndex = date.getDay();
@@ -68,26 +78,47 @@ function formatCurrencyFull(amount: number): string {
   return new Intl.NumberFormat("vi-VN").format(amount) + " ₫";
 }
 
-export function InventoryGrid({ hotelId }: InventoryGridProps) {
+export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridProps) {
   // Calendar Window: 14 days
-  const [startDate, setStartDate] = useState<string>(() => formatDate(new Date()));
+  const [startDate, setStartDate] = useState<string>(() =>
+    formatDate(new Date()),
+  );
   const endDate = useMemo(() => addDays(startDate, 13), [startDate]);
 
-  const { gridData, isLoading, isFetching, refetch } = useInventoryGrid({
+  const { gridData, isLoading, isFetching, isError, error, refetch } =
+    useInventoryGrid({
+      hotelId,
+      dateFrom: startDate,
+      dateTo: endDate,
+      roleScope,
+    });
+
+  // Listen for realtime booking creation and cancellation to update ARI cells immediately
+  useOwnerRequestRealtime(
     hotelId,
-    dateFrom: startDate,
-    dateTo: endDate,
-  });
+    useMemo(
+      () => ({
+        onChannelBookingCreated: () => {
+          void refetch();
+        },
+        onChannelBookingCancelled: () => {
+          void refetch();
+        },
+      }),
+      [refetch],
+    ),
+    { enabled: Boolean(hotelId), showConnectionToasts: false },
+  );
 
   const { updateRestrictions, isUpdating: isUpdatingRestrictions } =
-    useUpdateRestrictions({ hotelId });
+    useUpdateRestrictions({ hotelId, roleScope });
   const { updateAvailability, isUpdating: isUpdatingAvailability } =
-    useUpdateAvailability({ hotelId });
+    useUpdateAvailability({ hotelId, roleScope });
 
   // Pending unsaved changes: Map<`${roomTypeId}_${date}`, CellPendingState>
-  const [pendingChanges, setPendingChanges] = useState<Map<string, CellPendingState>>(
-    new Map(),
-  );
+  const [pendingChanges, setPendingChanges] = useState<
+    Map<string, CellPendingState>
+  >(new Map());
 
   // Active inline editing cell: `${roomTypeId}_${date}_${field}`
   const [editingCellKey, setEditingCellKey] = useState<string | null>(null);
@@ -98,7 +129,9 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
 
   // Expanded room types
-  const [collapsedRoomTypes, setCollapsedRoomTypes] = useState<Set<string>>(new Set());
+  const [collapsedRoomTypes, setCollapsedRoomTypes] = useState<Set<string>>(
+    new Set(),
+  );
 
   useEffect(() => {
     if (editingCellKey && inputRef.current) {
@@ -140,22 +173,38 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
     return {
       ...day,
       rate: pending.rate !== undefined ? pending.rate : day.rate,
-      available: pending.available !== undefined ? pending.available : day.available,
-      stopSell: pending.stopSell !== undefined ? pending.stopSell : day.stopSell,
+      available:
+        pending.available !== undefined ? pending.available : day.available,
+      stopSell:
+        pending.stopSell !== undefined ? pending.stopSell : day.stopSell,
       minStay: pending.minStay !== undefined ? pending.minStay : day.minStay,
     };
   };
 
   // Inline edit start
-  const startEditing = (rtId: string, date: string, field: "rate" | "available", initialVal: number) => {
+  const startEditing = (
+    rtId: string,
+    date: string,
+    field: "rate" | "available",
+    initialVal: number | null,
+  ) => {
     const key = `${rtId}_${date}_${field}`;
     setEditingCellKey(key);
-    setEditingValue(String(initialVal));
+    setEditingValue(initialVal === null ? "" : String(initialVal));
   };
 
   // Inline edit commit
-  const commitEditing = (rtId: string, date: string, field: "rate" | "available") => {
+  const commitEditing = (
+    rtId: string,
+    date: string,
+    field: "rate" | "available",
+  ) => {
     if (!editingCellKey) return;
+
+    if (field === "rate" && editingValue.trim() === "") {
+      setEditingCellKey(null);
+      return;
+    }
 
     const numVal = Number(editingValue);
     if (isNaN(numVal) || numVal < 0) {
@@ -228,17 +277,29 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
     const availabilityItems: AvailabilityUpdateItem[] = [];
 
     for (const [cellKey, changes] of pendingChanges.entries()) {
-      const [roomTypeId, date] = cellKey.split("_");
+      const date = cellKey.slice(-10);
+      const roomTypeId = cellKey.slice(0, -11);
+      const roomType = roomTypes.find((item) => item.roomTypeId === roomTypeId);
+      const day = roomType?.days.find((item) => item.date === date);
+      if (!roomType || !day) continue;
+      const effectiveDay = getEffectiveDay(roomTypeId, day);
 
       if (
         changes.rate !== undefined ||
         changes.stopSell !== undefined ||
         changes.minStay !== undefined
       ) {
+        if (effectiveDay.rate === null) {
+          await showErrorAlert(
+            "Thiếu giá phòng",
+            `Hạng phòng ${roomType.roomTypeName} chưa có giá thật trong DB.`,
+          );
+          return;
+        }
         restrictionItems.push({
           roomTypeId,
           date,
-          rate: changes.rate,
+          rate: effectiveDay.rate,
           stopSell: changes.stopSell,
           minStay: changes.minStay,
         });
@@ -249,6 +310,7 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
           roomTypeId,
           date,
           available: changes.available,
+          totalRooms: roomType.totalRooms,
         });
       }
     }
@@ -353,6 +415,17 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
 
           <button
             type="button"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            title="Làm mới ma trận giá & phòng trống"
+            className="h-10 sm:h-11 px-3.5 sm:px-4 rounded-2xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 text-sm font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+          >
+            <span className={isFetching ? "animate-spin" : ""}>🔄</span>
+            <span className="hidden sm:inline">Làm mới</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setIsBulkModalOpen(true)}
             className="h-10 sm:h-11 px-5 rounded-2xl bg-gradient-to-r from-emerald-800 to-[#1a352d] text-white text-sm sm:text-base font-extrabold shadow-md shadow-emerald-950/15 hover:shadow-lg hover:from-emerald-900 hover:to-emerald-950 transition-all flex items-center gap-2 cursor-pointer"
           >
@@ -369,6 +442,33 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
             <div className="w-10 h-10 border-4 border-emerald-700 border-t-transparent rounded-full animate-spin"></div>
             <p className="text-base font-bold text-slate-700">
               Đang tải ma trận kho phòng & bảng giá 14 ngày...
+            </p>
+          </div>
+        ) : isError ? (
+          <div className="p-12 text-center space-y-3 bg-rose-50">
+            <h3 className="text-lg font-extrabold text-rose-900">
+              Không thể tải dữ liệu phòng & giá
+            </h3>
+            <p className="text-sm font-medium text-rose-700">
+              {error instanceof Error
+                ? error.message
+                : "Yêu cầu tới backend thất bại"}
+            </p>
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              className="h-10 px-5 rounded-full bg-rose-800 text-white text-sm font-bold"
+            >
+              Thử lại
+            </button>
+          </div>
+        ) : roomTypes.length === 0 ? (
+          <div className="p-12 text-center space-y-2">
+            <h3 className="text-lg font-extrabold text-slate-900">
+              DB chưa có hạng phòng để hiển thị
+            </h3>
+            <p className="text-sm font-medium text-slate-500">
+              Hãy tạo phòng thật, nhập hạng phòng và giá trong quản lý phòng.
             </p>
           </div>
         ) : (
@@ -392,14 +492,16 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
                         d.isToday
                           ? "bg-emerald-50/90 text-emerald-950 font-black border-b-2 border-b-emerald-600"
                           : d.isWeekend
-                          ? "bg-amber-50/60 text-amber-950 font-bold"
-                          : "text-slate-700"
+                            ? "bg-amber-50/60 text-amber-950 font-bold"
+                            : "text-slate-700"
                       }`}
                     >
                       <div className="text-xs uppercase tracking-wider font-extrabold opacity-80">
                         {d.dow}
                       </div>
-                      <div className="text-sm font-black mt-0.5">{d.dayNum}</div>
+                      <div className="text-sm font-black mt-0.5">
+                        {d.dayNum}
+                      </div>
                       {d.isToday && (
                         <div className="mt-0.5 inline-block text-[9px] font-bold px-1.5 rounded-full bg-emerald-600 text-white">
                           Hôm nay
@@ -426,7 +528,9 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
                             <div className="flex items-center gap-3">
                               <button
                                 type="button"
-                                onClick={() => toggleRoomTypeCollapse(rt.roomTypeId)}
+                                onClick={() =>
+                                  toggleRoomTypeCollapse(rt.roomTypeId)
+                                }
                                 className="w-7 h-7 rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center justify-center font-bold text-xs shadow-2xs transition-colors cursor-pointer"
                               >
                                 {isCollapsed ? "＋" : "－"}
@@ -452,7 +556,9 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
                               <span className="hidden sm:inline">
                                 Giá gốc:{" "}
                                 <strong className="text-emerald-800 font-extrabold text-sm">
-                                  {formatCurrencyFull(rt.basePrice)}
+                                  {rt.basePrice === null
+                                    ? "Chưa có giá"
+                                    : formatCurrencyFull(rt.basePrice)}
                                 </strong>
                               </span>
                             </div>
@@ -463,15 +569,15 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
                       {/* Content rows (if not collapsed) */}
                       {!isCollapsed && (
                         <>
-                          {/* 1. AVL (Availability) Row */}
+                          {/* 1. Room Availability Row */}
                           <tr className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
                             <td className="sticky left-0 z-10 bg-white p-3 font-bold text-slate-800 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                               <div className="flex items-center justify-between pl-7">
                                 <span className="text-sm font-extrabold text-slate-800">
-                                  AVL (Phòng trống)
+                                  Phòng trống
                                 </span>
                                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
-                                  Kho
+                                  Kho phòng
                                 </span>
                               </div>
                             </td>
@@ -479,10 +585,12 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
                               const eff = getEffectiveDay(rt.roomTypeId, day);
                               const isSoldOut = eff.available === 0;
                               const isCellPending =
-                                pendingChanges.get(`${rt.roomTypeId}_${day.date}`)
-                                  ?.available !== undefined;
+                                pendingChanges.get(
+                                  `${rt.roomTypeId}_${day.date}`,
+                                )?.available !== undefined;
                               const isEditing =
-                                editingCellKey === `${rt.roomTypeId}_${day.date}_available`;
+                                editingCellKey ===
+                                `${rt.roomTypeId}_${day.date}_available`;
 
                               return (
                                 <td
@@ -506,16 +614,26 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
                                       min="0"
                                       max={rt.totalRooms}
                                       value={editingValue}
-                                      onChange={(e) => setEditingValue(e.target.value)}
+                                      onChange={(e) =>
+                                        setEditingValue(e.target.value)
+                                      }
                                       onKeyDown={(e) => {
                                         if (e.key === "Enter") {
-                                          commitEditing(rt.roomTypeId, day.date, "available");
+                                          commitEditing(
+                                            rt.roomTypeId,
+                                            day.date,
+                                            "available",
+                                          );
                                         } else if (e.key === "Escape") {
                                           cancelEditing();
                                         }
                                       }}
                                       onBlur={() =>
-                                        commitEditing(rt.roomTypeId, day.date, "available")
+                                        commitEditing(
+                                          rt.roomTypeId,
+                                          day.date,
+                                          "available",
+                                        )
                                       }
                                       className="w-14 h-8 text-center text-sm font-black rounded-lg border-2 border-emerald-600 bg-white shadow-xs focus:outline-none"
                                     />
@@ -548,25 +666,27 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
                             })}
                           </tr>
 
-                          {/* 2. RATE (Giá phòng) Row */}
+                          {/* 2. Room Rate Row */}
                           <tr className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
                             <td className="sticky left-0 z-10 bg-white p-3 font-bold text-slate-800 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                               <div className="flex items-center justify-between pl-7">
                                 <span className="text-sm font-extrabold text-emerald-950">
-                                  RATE (Giá VND)
+                                  Giá phòng
                                 </span>
                                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                  Giá
+                                  VND/đêm
                                 </span>
                               </div>
                             </td>
                             {rt.days.map((day) => {
                               const eff = getEffectiveDay(rt.roomTypeId, day);
                               const isCellPending =
-                                pendingChanges.get(`${rt.roomTypeId}_${day.date}`)?.rate !==
-                                undefined;
+                                pendingChanges.get(
+                                  `${rt.roomTypeId}_${day.date}`,
+                                )?.rate !== undefined;
                               const isEditing =
-                                editingCellKey === `${rt.roomTypeId}_${day.date}_rate`;
+                                editingCellKey ===
+                                `${rt.roomTypeId}_${day.date}_rate`;
 
                               return (
                                 <td
@@ -575,7 +695,12 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
                                     isCellPending ? "bg-amber-50/80" : ""
                                   }`}
                                   onDoubleClick={() =>
-                                    startEditing(rt.roomTypeId, day.date, "rate", eff.rate)
+                                    startEditing(
+                                      rt.roomTypeId,
+                                      day.date,
+                                      "rate",
+                                      eff.rate,
+                                    )
                                   }
                                 >
                                   {isEditing ? (
@@ -585,16 +710,26 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
                                         type="number"
                                         step="10000"
                                         value={editingValue}
-                                        onChange={(e) => setEditingValue(e.target.value)}
+                                        onChange={(e) =>
+                                          setEditingValue(e.target.value)
+                                        }
                                         onKeyDown={(e) => {
                                           if (e.key === "Enter") {
-                                            commitEditing(rt.roomTypeId, day.date, "rate");
+                                            commitEditing(
+                                              rt.roomTypeId,
+                                              day.date,
+                                              "rate",
+                                            );
                                           } else if (e.key === "Escape") {
                                             cancelEditing();
                                           }
                                         }}
                                         onBlur={() =>
-                                          commitEditing(rt.roomTypeId, day.date, "rate")
+                                          commitEditing(
+                                            rt.roomTypeId,
+                                            day.date,
+                                            "rate",
+                                          )
                                         }
                                         className="w-full h-8 px-1 text-center text-xs font-black rounded-lg border-2 border-emerald-600 bg-white shadow-xs focus:outline-none"
                                       />
@@ -603,16 +738,27 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
                                     <button
                                       type="button"
                                       onClick={() =>
-                                        startEditing(rt.roomTypeId, day.date, "rate", eff.rate)
+                                        startEditing(
+                                          rt.roomTypeId,
+                                          day.date,
+                                          "rate",
+                                          eff.rate,
+                                        )
                                       }
-                                      title={`Giá: ${formatCurrencyFull(eff.rate)} - Nhấp để sửa`}
+                                      title={
+                                        eff.rate === null
+                                          ? "Chưa có giá trong DB - Nhấp để nhập"
+                                          : `Giá: ${formatCurrencyFull(eff.rate)} - Nhấp để sửa`
+                                      }
                                       className={`w-full py-1.5 px-1 rounded-xl text-center font-bold text-xs transition-all border cursor-pointer ${
                                         isCellPending
                                           ? "bg-amber-100 text-amber-950 border-amber-300 ring-2 ring-amber-400 font-extrabold"
                                           : "bg-white text-slate-800 border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/50"
                                       }`}
                                     >
-                                      {formatCurrencyCompact(eff.rate)}
+                                      {eff.rate === null
+                                        ? "Chưa có giá"
+                                        : formatCurrencyCompact(eff.rate)}
                                     </button>
                                   )}
                                 </td>
@@ -620,23 +766,24 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
                             })}
                           </tr>
 
-                          {/* 3. STOP SELL (Đóng bán nhanh) Row */}
+                          {/* 3. Stop Sell Row */}
                           <tr className="border-b-2 border-slate-200/80 hover:bg-slate-50/50 transition-colors">
                             <td className="sticky left-0 z-10 bg-white p-3 font-bold text-slate-800 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                               <div className="flex items-center justify-between pl-7">
                                 <span className="text-sm font-extrabold text-slate-800">
-                                  STOP SELL (Đóng bán)
+                                  Đóng bán
                                 </span>
                                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
-                                  Khóa
+                                  Tạm dừng
                                 </span>
                               </div>
                             </td>
                             {rt.days.map((day) => {
                               const eff = getEffectiveDay(rt.roomTypeId, day);
                               const isCellPending =
-                                pendingChanges.get(`${rt.roomTypeId}_${day.date}`)
-                                  ?.stopSell !== undefined;
+                                pendingChanges.get(
+                                  `${rt.roomTypeId}_${day.date}`,
+                                )?.stopSell !== undefined;
 
                               return (
                                 <td
@@ -647,7 +794,9 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
                                 >
                                   <button
                                     type="button"
-                                    onClick={() => toggleStopSell(rt.roomTypeId, day)}
+                                    onClick={() =>
+                                      toggleStopSell(rt.roomTypeId, day)
+                                    }
                                     title={
                                       eff.stopSell
                                         ? "Đang đóng bán - Nhấp để mở bán"
@@ -682,8 +831,11 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
             <span className="text-sm font-extrabold text-slate-100">
-              Có <strong className="text-amber-300 font-black">{totalPendingCount}</strong> thay
-              đổi chưa lưu
+              Có{" "}
+              <strong className="text-amber-300 font-black">
+                {totalPendingCount}
+              </strong>{" "}
+              thay đổi chưa lưu
             </span>
           </div>
 
@@ -728,7 +880,7 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
                   Đang lưu...
                 </>
               ) : (
-                "Lưu thay đổi (Save)"
+                "Lưu thay đổi"
               )}
             </button>
           </div>
@@ -746,6 +898,7 @@ export function InventoryGrid({ hotelId }: InventoryGridProps) {
         roomTypes={roomTypes}
         defaultDateFrom={startDate}
         defaultDateTo={endDate}
+        roleScope={roleScope}
       />
     </div>
   );

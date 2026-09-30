@@ -29,7 +29,6 @@ export function AdminShell({
       definition={definition}
       navItems={navItems}
       profileName={profileName}
-      sidebarWidth="compact240"
     >
       {children}
     </WorkspaceShell>

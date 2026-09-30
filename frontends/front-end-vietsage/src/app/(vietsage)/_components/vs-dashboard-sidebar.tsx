@@ -47,7 +47,7 @@ export function VsDashboardSidebar({
   badgeByKey,
   isCollapsed = false,
   onToggleCollapse,
-  sidebarWidth = "default",
+  sidebarWidth: _sidebarWidth = "default",
 }: Readonly<VsDashboardSidebarProps>) {
   const navigationItems = useMemo(() => items ?? [], [items]);
 
@@ -72,8 +72,7 @@ export function VsDashboardSidebar({
     })).filter((group) => group.items.length > 0);
   }, [navigationItems]);
 
-  const sidebarWidthClass =
-    sidebarWidth === "compact240" ? "w-60" : "w-72 2xl:w-80";
+  const sidebarWidthClass = "w-72 2xl:w-80";
 
   return (
     <aside
@@ -130,15 +129,6 @@ export function VsDashboardSidebar({
                 <span className="inline-block rounded-full border border-[#e8b363]/30 bg-[#e8b363]/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[#e8b363]">
                   {eyebrow}
                 </span>
-              </div>
-            ) : null}
-            {hotelName ? (
-              <div
-                className="flex items-center gap-1.5 pt-0.5 text-xs font-medium text-[#e8dcc8]/90"
-                title={hotelName}
-              >
-                <VsIcon name="hotel" className="text-sm text-[#e8b363] shrink-0" />
-                <span className="truncate">{hotelName}</span>
               </div>
             ) : null}
           </div>

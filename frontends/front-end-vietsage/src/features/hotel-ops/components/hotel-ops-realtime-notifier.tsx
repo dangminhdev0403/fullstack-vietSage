@@ -190,6 +190,62 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
         router.refresh();
       },
+      onChannelBookingCreated: (event: unknown) => {
+        const raw = event as {
+          hotelId?: string;
+          otaName?: string;
+          roomNumber?: string | null;
+          roomType?: string | null;
+          guestName?: string;
+          amount?: number | string | null;
+          reservationCode?: string;
+        } | null;
+
+        if (raw?.hotelId && raw.hotelId !== hotelId) return;
+
+        playRequestAlertSound(true);
+
+        const roomInfo = raw?.roomNumber
+          ? `Phòng #${raw.roomNumber}`
+          : raw?.roomType
+            ? `Hạng ${raw.roomType}`
+            : "Chờ phân phòng";
+        const ota = raw?.otaName || "OTA";
+        const guest = raw?.guestName || "Khách OTA";
+
+        toast.success(`Đơn đặt phòng mới từ ${ota}!`, {
+          id: `hotel-ops-channel-booking-${Date.now()}`,
+          description: `${roomInfo} • Khách: ${guest}`,
+          duration: 12_000,
+          action: {
+            label: "Xem sơ đồ phòng",
+            onClick: () => {
+              router.push(`/hotels/${hotelId}/rooms`);
+            },
+          },
+        });
+
+        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        router.refresh();
+      },
+      onChannelBookingCancelled: (event: unknown) => {
+        const raw = event as {
+          hotelId?: string;
+          otaName?: string;
+          reservationCode?: string;
+        } | null;
+
+        if (raw?.hotelId && raw.hotelId !== hotelId) return;
+
+        toast.warning("Đơn đặt phòng OTA đã HỦY", {
+          id: `hotel-ops-channel-booking-cancelled-${Date.now()}`,
+          description: `Đơn từ ${raw?.otaName || "OTA"} (${raw?.reservationCode || ""}) đã bị hủy trên sàn.`,
+          duration: 10_000,
+        });
+
+        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        router.refresh();
+      },
       onReconnect: () => {
         void invalidateHotelRequestRealtimeQueries(targetQueryClient, hotelId);
         router.refresh();

@@ -30,6 +30,7 @@ RATE_LIMIT_GLOBALS = (
 RATE_LIMITED_LOCATIONS = {
     "location /api/auth/ {": "limit_req zone=auth_rate burst=20 nodelay;",
     "location = /api/health {": "limit_req zone=api_rate burst=120 nodelay;",
+    "location = /api/v1/channel-manager/channex/webhook {": "limit_req zone=api_rate burst=120 nodelay;",
     "location ^~ /api/cccd-mobile/ {": "limit_req zone=upload_rate burst=8 nodelay;",
     "location /api/ {": "limit_req zone=api_rate burst=120 nodelay;",
 }
@@ -132,6 +133,7 @@ def main() -> int:
             "backend API route": "location /api/",
             "Socket.IO route": "location /socket.io/",
             "public API health route": "location = /api/health",
+            "Channex webhook route": "location = /api/v1/channel-manager/channex/webhook",
             "Nginx health route": "location = /nginx-health",
             "apex domains": "server_name vietsage.com www.vietsage.com",
             "stay domain": "server_name stay.vietsage.com",
@@ -169,6 +171,15 @@ def main() -> int:
     if not host_nginx:
         fail("missing host Nginx config", failures)
     else:
+        webhook_blocks = location_blocks(
+            host_nginx,
+            "location = /api/v1/channel-manager/channex/webhook {",
+        )
+        if len(webhook_blocks) != 2 or any(
+            "proxy_pass http://127.0.0.1:8080/api/v1/channel-manager/channex/webhook;" not in block
+            for block in webhook_blocks
+        ):
+            fail("both host-Nginx public hosts must route the Channex webhook to auth-service", failures)
         if host_nginx.count("location ^~ /api/cccd-mobile/ {\n        access_log off;") != 2:
             fail("both host-Nginx public hosts must disable mobile relay access logs", failures)
         for required in ("client_max_body_size 16m", "proxy_request_buffering off", "proxy_buffering off"):

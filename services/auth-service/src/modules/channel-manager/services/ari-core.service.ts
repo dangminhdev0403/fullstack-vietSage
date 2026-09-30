@@ -19,7 +19,7 @@ export interface InventoryGridDay {
   blockedRooms: number;
   availableRooms: number;
   overrideAvailable: number | null;
-  rate: number;
+  rate: number | null;
   ratePlanCode: string;
   minStayArrival: number;
   minStayThrough: number;
@@ -88,15 +88,57 @@ export class AriCoreService {
       },
     });
 
-    const roomTypeStats = new Map<string, { total: number; basePrice: number }>();
+    const roomTypeStats = new Map<string, { total: number; basePrice: number | null }>();
+    const roomTypeByRoomId = new Map<string, string>();
     for (const room of rooms) {
-      const type = (room.type && room.type.trim()) || "STANDARD";
-      const current = roomTypeStats.get(type) || { total: 0, basePrice: 1000000 };
+      const type = room.type?.trim();
+      if (!type) continue;
+      roomTypeByRoomId.set(room.id, type);
+      const current = roomTypeStats.get(type) || { total: 0, basePrice: null };
       current.total += 1;
-      if (room.price) {
+      if (room.price !== null && Number(room.price) > 0) {
         current.basePrice = Number(room.price);
       }
       roomTypeStats.set(type, current);
+    }
+
+    const reservations = await this.prisma.reservation.findMany({
+      where: {
+        hotelId,
+        OR: [{ roomId: { not: null } }, { roomTypeSnapshot: { not: null } }],
+        status: { in: ["CONFIRMED", "ARRIVAL_READY", "CHECKED_IN"] },
+        plannedCheckInAt: { lt: new Date(`${endDateStr}T17:00:00.000Z`) },
+        plannedCheckOutAt: { gt: new Date(`${startDateStr}T00:00:00.000Z`) },
+      },
+      select: {
+        roomId: true,
+        roomTypeSnapshot: true,
+        plannedCheckInAt: true,
+        plannedCheckOutAt: true,
+      },
+    });
+    const bookedByRoomTypeAndDate = new Map<string, number>();
+    const vietnamDate = (value: Date): string =>
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(value);
+    for (const reservation of reservations) {
+      const roomType =
+        (reservation.roomId ? roomTypeByRoomId.get(reservation.roomId) : undefined) ??
+        reservation.roomTypeSnapshot ??
+        undefined;
+      if (!roomType) continue;
+      const arrivalDate = vietnamDate(reservation.plannedCheckInAt);
+      const departureDate = vietnamDate(reservation.plannedCheckOutAt);
+      for (const date of dates) {
+        if (date >= arrivalDate && date < departureDate) {
+          const key = `${roomType}__${date}`;
+          bookedByRoomTypeAndDate.set(key, (bookedByRoomTypeAndDate.get(key) ?? 0) + 1);
+        }
+      }
     }
 
     // 2. Lấy dữ liệu ChannelDailyAvailability đã lưu
@@ -150,21 +192,16 @@ export class AriCoreService {
     }
 
     let targetTypes = Array.from(allRoomTypes);
-    if (targetTypes.length === 0) {
-      targetTypes = ["STANDARD"];
-    }
+
     if (roomTypeFilter) {
       targetTypes = targetTypes.filter((t) => t === roomTypeFilter);
-      if (targetTypes.length === 0) {
-        targetTypes = [roomTypeFilter];
-      }
     }
 
     // 4. Xây dựng grid cho từng hạng phòng
     const roomTypeGrids: InventoryGridRoomType[] = [];
 
     for (const roomType of targetTypes) {
-      const stats = roomTypeStats.get(roomType) || { total: 1, basePrice: 1000000 };
+      const stats = roomTypeStats.get(roomType) || { total: 0, basePrice: null };
       const days: InventoryGridDay[] = [];
 
       for (const d of dates) {
@@ -172,7 +209,7 @@ export class AriCoreService {
         const av = availabilityMap.get(avKey);
 
         const totalRooms = av ? av.totalRooms : stats.total;
-        const bookedRooms = av ? av.bookedRooms : 0;
+        const bookedRooms = bookedByRoomTypeAndDate.get(avKey) ?? 0;
         const blockedRooms = av ? av.blockedRooms : 0;
         const overrideAvailable = av ? av.overrideAvailable : null;
         const availableRooms =
@@ -316,9 +353,7 @@ export class AriCoreService {
           ...(item.minStayThrough !== undefined ? { minStayThrough: item.minStayThrough } : {}),
           ...(item.maxStay !== undefined ? { maxStay: item.maxStay } : {}),
           ...(item.stopSell !== undefined ? { stopSell: item.stopSell } : {}),
-          ...(item.closedToArrival !== undefined
-            ? { closedToArrival: item.closedToArrival }
-            : {}),
+          ...(item.closedToArrival !== undefined ? { closedToArrival: item.closedToArrival } : {}),
           ...(item.closedToDeparture !== undefined
             ? { closedToDeparture: item.closedToDeparture }
             : {}),
@@ -378,8 +413,12 @@ export class AriCoreService {
           },
         });
 
-        const effectiveRate =
-          payload.rate !== undefined ? payload.rate : existing ? Number(existing.rate) : 1000000;
+        if (payload.rate === undefined && !existing) {
+          throw new BadRequestException(
+            `Hạng phòng ${roomType} chưa có giá trong DB; vui lòng nhập giá khi cập nhật`,
+          );
+        }
+        const effectiveRate = payload.rate ?? Number(existing!.rate);
 
         await this.prisma.channelDailyRestriction.upsert({
           where: {
@@ -435,10 +474,10 @@ export class AriCoreService {
   /**
    * Utility gộp các ngày liên tiếp có cùng trạng thái thành dải ngày [startDate, endDate]
    */
-  collapseDateRanges<T extends Record<string, any>>(
+  collapseDateRanges<T extends Record<string, unknown>>(
     items: Array<T & { date: string }>,
     compareKeys?: Array<keyof T>,
-  ): Array<DateRangeCollapsed<Omit<T, "date">>> {
+  ): Array<DateRangeCollapsed<T>> {
     if (items.length === 0) {
       return [];
     }
@@ -448,20 +487,16 @@ export class AriCoreService {
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
     );
 
-    const results: Array<DateRangeCollapsed<Omit<T, "date">>> = [];
+    const results: Array<DateRangeCollapsed<T>> = [];
     let currentStart = sorted[0].date;
     let currentEnd = sorted[0].date;
     let currentData = { ...sorted[0] };
-    delete (currentData as any).date;
+    Reflect.deleteProperty(currentData, "date");
 
-    const areEqual = (objA: any, objB: any): boolean => {
-      const keys = compareKeys || (Object.keys(objA) as Array<keyof T>);
-      for (const k of keys) {
-        if (k === "date") continue;
-        if (objA[k] !== objB[k]) return false;
-      }
-      return true;
-    };
+    const areEqual = (objA: Record<string, unknown>, objB: Record<string, unknown>): boolean =>
+      (compareKeys?.map(String) ?? Object.keys(objA)).every(
+        (key) => key === "date" || objA[key] === objB[key],
+      );
 
     const isNextDay = (dateStr1: string, dateStr2: string): boolean => {
       const d1 = new Date(`${dateStr1}T00:00:00.000Z`);
@@ -473,7 +508,7 @@ export class AriCoreService {
     for (let i = 1; i < sorted.length; i++) {
       const item = sorted[i];
       const itemData = { ...item };
-      delete (itemData as any).date;
+      Reflect.deleteProperty(itemData, "date");
 
       if (isNextDay(currentEnd, item.date) && areEqual(currentData, itemData)) {
         currentEnd = item.date;
@@ -481,7 +516,7 @@ export class AriCoreService {
         results.push({
           startDate: currentStart,
           endDate: currentEnd,
-          data: currentData as Omit<T, "date">,
+          data: currentData,
         });
         currentStart = item.date;
         currentEnd = item.date;
@@ -492,7 +527,7 @@ export class AriCoreService {
     results.push({
       startDate: currentStart,
       endDate: currentEnd,
-      data: currentData as Omit<T, "date">,
+      data: currentData,
     });
 
     return results;

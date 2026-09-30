@@ -26,7 +26,6 @@ export function FinanceShell({
       definition={getWorkspaceDefinition("platform_finance")}
       navItems={navItems}
       profileName={profileName}
-      sidebarWidth="compact240"
     >
       {children}
     </WorkspaceShell>

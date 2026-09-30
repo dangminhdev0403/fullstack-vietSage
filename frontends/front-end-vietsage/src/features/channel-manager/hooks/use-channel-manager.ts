@@ -14,14 +14,15 @@ import type {
 export interface UseChannelConnectionsOptions {
   hotelId: string | null | undefined;
   enabled?: boolean;
+  roleScope?: "owner" | "admin";
 }
 
 export function useChannelConnections(options: UseChannelConnectionsOptions) {
-  const { hotelId, enabled = true } = options;
+  const { hotelId, enabled = true, roleScope = "owner" } = options;
 
   const boundResource = useMemo(
-    () => channelManagerResource.bind({ hotelId: hotelId ?? "" }),
-    [hotelId],
+    () => channelManagerResource.bind({ hotelId: hotelId ?? "", roleScope }),
+    [hotelId, roleScope],
   );
 
   const queryOptions = useMemo(
@@ -50,14 +51,21 @@ export interface UseInventoryGridOptions {
   dateFrom: string;
   dateTo: string;
   enabled?: boolean;
+  roleScope?: "owner" | "admin";
 }
 
 export function useInventoryGrid(options: UseInventoryGridOptions) {
-  const { hotelId, dateFrom, dateTo, enabled = true } = options;
+  const {
+    hotelId,
+    dateFrom,
+    dateTo,
+    enabled = true,
+    roleScope = "owner",
+  } = options;
 
   const boundResource = useMemo(
-    () => channelManagerResource.bind({ hotelId: hotelId ?? "" }),
-    [hotelId],
+    () => channelManagerResource.bind({ hotelId: hotelId ?? "", roleScope }),
+    [hotelId, roleScope],
   );
 
   const queryOptions = useMemo(
@@ -68,7 +76,8 @@ export function useInventoryGrid(options: UseInventoryGridOptions) {
   const query = useQuery({
     ...queryOptions,
     enabled: Boolean(enabled && hotelId && dateFrom && dateTo),
-    staleTime: 15_000,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   return {
@@ -81,13 +90,16 @@ export function useInventoryGrid(options: UseInventoryGridOptions) {
   };
 }
 
-export function useCreateConnection(options: { hotelId: string }) {
-  const { hotelId } = options;
+export function useCreateConnection(options: {
+  hotelId: string;
+  roleScope?: "owner" | "admin";
+}) {
+  const { hotelId, roleScope = "owner" } = options;
   const queryClient = useQueryClient();
 
   const boundResource = useMemo(
-    () => channelManagerResource.bind({ hotelId }),
-    [hotelId],
+    () => channelManagerResource.bind({ hotelId, roleScope }),
+    [hotelId, roleScope],
   );
 
   const mutationOptions = useMemo(
@@ -110,13 +122,16 @@ export function useCreateConnection(options: { hotelId: string }) {
   };
 }
 
-export function useDeleteConnection(options: { hotelId: string }) {
-  const { hotelId } = options;
+export function useDeleteConnection(options: {
+  hotelId: string;
+  roleScope?: "owner" | "admin";
+}) {
+  const { hotelId, roleScope = "owner" } = options;
   const queryClient = useQueryClient();
 
   const boundResource = useMemo(
-    () => channelManagerResource.bind({ hotelId }),
-    [hotelId],
+    () => channelManagerResource.bind({ hotelId, roleScope }),
+    [hotelId, roleScope],
   );
 
   const mutationOptions = useMemo(
@@ -138,13 +153,17 @@ export function useDeleteConnection(options: { hotelId: string }) {
   };
 }
 
-export function useSyncConnection(options?: { hotelId?: string }) {
+export function useSyncConnection(options?: {
+  hotelId?: string;
+  roleScope?: "owner" | "admin";
+}) {
   const hotelId = options?.hotelId ?? "global";
+  const roleScope = options?.roleScope ?? "owner";
   const queryClient = useQueryClient();
 
   const boundResource = useMemo(
-    () => channelManagerResource.bind({ hotelId }),
-    [hotelId],
+    () => channelManagerResource.bind({ hotelId, roleScope }),
+    [hotelId, roleScope],
   );
 
   const mutationOptions = useMemo(
@@ -168,13 +187,16 @@ export function useSyncConnection(options?: { hotelId?: string }) {
   };
 }
 
-export function useUpdateRestrictions(options: { hotelId: string }) {
-  const { hotelId } = options;
+export function useUpdateRestrictions(options: {
+  hotelId: string;
+  roleScope?: "owner" | "admin";
+}) {
+  const { hotelId, roleScope = "owner" } = options;
   const queryClient = useQueryClient();
 
   const boundResource = useMemo(
-    () => channelManagerResource.bind({ hotelId }),
-    [hotelId],
+    () => channelManagerResource.bind({ hotelId, roleScope }),
+    [hotelId, roleScope],
   );
 
   const mutationOptions = useMemo(
@@ -197,13 +219,16 @@ export function useUpdateRestrictions(options: { hotelId: string }) {
   };
 }
 
-export function useUpdateAvailability(options: { hotelId: string }) {
-  const { hotelId } = options;
+export function useUpdateAvailability(options: {
+  hotelId: string;
+  roleScope?: "owner" | "admin";
+}) {
+  const { hotelId, roleScope = "owner" } = options;
   const queryClient = useQueryClient();
 
   const boundResource = useMemo(
-    () => channelManagerResource.bind({ hotelId }),
-    [hotelId],
+    () => channelManagerResource.bind({ hotelId, roleScope }),
+    [hotelId, roleScope],
   );
 
   const mutationOptions = useMemo(
@@ -226,13 +251,16 @@ export function useUpdateAvailability(options: { hotelId: string }) {
   };
 }
 
-export function useBulkUpdateRestrictions(options: { hotelId: string }) {
-  const { hotelId } = options;
+export function useBulkUpdateRestrictions(options: {
+  hotelId: string;
+  roleScope?: "owner" | "admin";
+}) {
+  const { hotelId, roleScope = "owner" } = options;
   const queryClient = useQueryClient();
 
   const boundResource = useMemo(
-    () => channelManagerResource.bind({ hotelId }),
-    [hotelId],
+    () => channelManagerResource.bind({ hotelId, roleScope }),
+    [hotelId, roleScope],
   );
 
   const mutationOptions = useMemo(
@@ -251,5 +279,104 @@ export function useBulkUpdateRestrictions(options: { hotelId: string }) {
     bulkUpdate: (payload: BulkUpdatePayload) => mutation.mutateAsync(payload),
     isBulkUpdating: mutation.isPending,
     error: mutation.error,
+  };
+}
+
+export function useChannex(
+  hotelId: string,
+  roleScope: "owner" | "admin" = "owner",
+  options: {
+    loadMappings?: boolean;
+    loadConfig?: boolean;
+    loadSimulatedBookings?: boolean;
+    loadChannelCatalog?: boolean;
+  } = {},
+) {
+  const queryClient = useQueryClient();
+  const boundResource = useMemo(
+    () => channelManagerResource.bind({ hotelId, roleScope }),
+    [hotelId, roleScope],
+  );
+  const mappings = useQuery({
+    ...boundResource.queries.channexMappings.options(undefined as never),
+    enabled: Boolean(hotelId && (options.loadMappings ?? true)),
+  });
+  const syncContent = useMutation({
+    ...boundResource.mutations.syncChannexContent.options(),
+    onSuccess: async () => boundResource.invalidate(queryClient),
+  });
+  const pushAri = useMutation(boundResource.mutations.pushChannexAri.options());
+  const pollFeed = useMutation({
+    ...boundResource.mutations.pollChannexFeed.options(),
+    onSuccess: async () => boundResource.invalidate(queryClient),
+  });
+  const doctor = useMutation(
+    boundResource.mutations.runChannexDoctor.options(),
+  );
+  const channelSession = useMutation(
+    boundResource.mutations.createChannexChannelSession.options(),
+  );
+  const prepareChannel = useMutation(
+    boundResource.mutations.prepareChannexChannel.options(),
+  );
+  const createChannel = useMutation({
+    ...boundResource.mutations.createChannexChannel.options(),
+    onSuccess: async () => boundResource.invalidate(queryClient),
+  });
+  const activateChannel = useMutation({
+    ...boundResource.mutations.activateChannexChannel.options(),
+    onSuccess: async () => boundResource.invalidate(queryClient),
+  });
+  const channelCatalog = useQuery({
+    ...boundResource.queries.channexChannelCatalog.options(undefined as never),
+    enabled: Boolean(hotelId && (options.loadChannelCatalog ?? false)),
+  });
+  const simulateBooking = useMutation({
+    ...boundResource.mutations.simulateBooking.options(),
+    onSuccess: async () => boundResource.invalidate(queryClient),
+  });
+  const cancelBooking = useMutation({
+    ...boundResource.mutations.cancelSimulatedBooking.options(),
+    onSuccess: async () => boundResource.invalidate(queryClient),
+  });
+  const simulatedBookings = useQuery({
+    ...boundResource.queries.simulatedBookings.options(undefined as never),
+    enabled: Boolean(hotelId && (options.loadSimulatedBookings ?? true)),
+  });
+  const config = useQuery({
+    ...boundResource.queries.channexConfig.options(undefined as never),
+    enabled: Boolean(hotelId && (options.loadConfig ?? true)),
+  });
+  const configureProperty = useMutation({
+    ...boundResource.mutations.configureChannexProperty.options(),
+    onSuccess: async () => boundResource.invalidate(queryClient),
+  });
+
+  return {
+    mappings: mappings.data ?? [],
+    isLoadingMappings: mappings.isLoading,
+    refreshMappings: mappings.refetch,
+    config: config.data,
+    isLoadingConfig: config.isLoading,
+    refreshConfig: config.refetch,
+    simulatedBookings: simulatedBookings.data ?? [],
+    isLoadingSimulatedBookings: simulatedBookings.isLoading,
+    refreshSimulatedBookings: simulatedBookings.refetch,
+    configureProperty,
+    syncContent,
+    pushAri,
+    pollFeed,
+    doctor,
+    channelSession,
+    prepareChannel,
+    createChannel,
+    activateChannel,
+    channelCatalog: channelCatalog.data,
+    isLoadingChannelCatalog: channelCatalog.isLoading,
+    isErrorChannelCatalog: channelCatalog.isError,
+    channelCatalogError: channelCatalog.error,
+    refreshChannelCatalog: channelCatalog.refetch,
+    simulateBooking,
+    cancelBooking,
   };
 }

@@ -467,6 +467,7 @@ paths:
                                 enum:
                                   - guest.ai_floating_chat
                                   - frontdesk.hn2n_cccd_scanner
+                                  - hotel.channel_manager
                           required:
                             - id
                             - tenantId
@@ -3636,6 +3637,7 @@ paths:
                           enum:
                             - guest.ai_floating_chat
                             - frontdesk.hn2n_cccd_scanner
+                            - hotel.channel_manager
                           example: guest.ai_floating_chat
                         label:
                           type: string
@@ -3714,6 +3716,7 @@ paths:
                         enum:
                           - guest.ai_floating_chat
                           - frontdesk.hn2n_cccd_scanner
+                          - hotel.channel_manager
                         example: guest.ai_floating_chat
                       label:
                         type: string
@@ -9033,6 +9036,371 @@ paths:
         "200":
           description: ""
       tags: *a36
+  /api/v1/channel-manager/hotels/{hotelId}/connections:
+    get:
+      operationId: ChannelManagerController_getConnections
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: &a37
+        - channel-manager
+    post:
+      operationId: ChannelManagerController_createConnection
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/connections/{id}:
+    delete:
+      operationId: ChannelManagerController_deleteConnection
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/inventory:
+    get:
+      operationId: ChannelManagerController_getInventory
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/inventory/restrictions:
+    post:
+      operationId: ChannelManagerController_updateRestrictions
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/inventory/availability:
+    post:
+      operationId: ChannelManagerController_updateAvailability
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/inventory/bulk-update:
+    post:
+      operationId: ChannelManagerController_bulkUpdate
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/ical/{token}.ics:
+    get:
+      operationId: ChannelManagerController_getIcalFeed[0]
+      parameters:
+        - name: token
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/ical/{token}:
+    get:
+      operationId: ChannelManagerController_getIcalFeed[1]
+      parameters:
+        - name: token
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/connections/{id}/sync-now:
+    post:
+      operationId: ChannelManagerController_syncNow
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/channex/sync-content:
+    post:
+      operationId: ChannelManagerController_syncChannexContent
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/channex/push-ari:
+    post:
+      operationId: ChannelManagerController_pushChannexAri
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/channex/poll-feed:
+    post:
+      operationId: ChannelManagerController_pollChannexFeed
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/channex/webhook:
+    post:
+      operationId: ChannelManagerController_channexWebhook
+      parameters:
+        - name: X-Channex-Webhook-Secret
+          in: header
+          description: Shared secret configured when registering the Channex webhook
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/channex/recover:
+    post:
+      operationId: ChannelManagerController_recoverChannexBookings
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/channex/doctor:
+    get:
+      operationId: ChannelManagerController_runChannexDoctor
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/channex/mappings:
+    get:
+      operationId: ChannelManagerController_getChannexMappings
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/channex/channels:
+    get:
+      operationId: ChannelManagerController_getChannexChannels
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a37
+    post:
+      operationId: ChannelManagerController_createChannexChannel
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/channex/channels/prepare:
+    post:
+      operationId: ChannelManagerController_prepareChannexChannel
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/channex/channels/{channelId}/activate:
+    post:
+      operationId: ChannelManagerController_activateChannexChannel
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: channelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/channex/channel-session:
+    post:
+      operationId: ChannelManagerController_createChannexChannelSession
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/channex/simulate-booking:
+    post:
+      operationId: ChannelManagerController_simulateBooking
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/channex/simulate-booking/cancel:
+    post:
+      operationId: ChannelManagerController_cancelSimulatedBooking
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/channex/simulated-bookings:
+    get:
+      operationId: ChannelManagerController_getSimulatedBookings
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/channex/config:
+    get:
+      operationId: ChannelManagerController_getChannexConfig
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a37
+    post:
+      operationId: ChannelManagerController_configureChannexProperty
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a37
 info:
   title: VietSage Auth Service API
   description: HTTP API contract for auth, rbac, and hotel-users modules

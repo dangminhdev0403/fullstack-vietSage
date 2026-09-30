@@ -156,6 +156,7 @@ test("builds owner sidebar with operational modules and hotel settings", () => {
       "hotel.kbtt.manage",
     ],
     hotelId: "hotel-1",
+    enabledFeatures: ["hotel.channel_manager"],
   });
 
   assert.deepEqual(
@@ -203,6 +204,52 @@ test("builds owner sidebar with operational modules and hotel settings", () => {
         label: "Cài đặt khách sạn",
       },
     ],
+  );
+});
+
+test("toggles channel manager in owner and staff navigation based on hotel feature flag", () => {
+  const ownerEnabled = buildWorkspaceNavigation({
+    persona: "owner",
+    permissions: ["hotel.channels.view", "hotel.rooms.view"],
+    hotelId: "hotel-1",
+    enabledFeatures: ["hotel.channel_manager"],
+  });
+  assert.equal(
+    ownerEnabled.some((item) => item.key === "owner.hotel.channel-manager"),
+    true,
+  );
+
+  const ownerDisabled = buildWorkspaceNavigation({
+    persona: "owner",
+    permissions: ["hotel.channels.view", "hotel.rooms.view"],
+    hotelId: "hotel-1",
+    enabledFeatures: [],
+  });
+  assert.equal(
+    ownerDisabled.some((item) => item.key === "owner.hotel.channel-manager"),
+    false,
+  );
+
+  const staffEnabled = buildWorkspaceNavigation({
+    persona: "front_desk",
+    permissions: ["hotel.channels.view", "hotel.rooms.view"],
+    hotelId: "hotel-1",
+    enabledFeatures: ["hotel.channel_manager"],
+  });
+  assert.equal(
+    staffEnabled.some((item) => item.key === "staff.channel-manager"),
+    true,
+  );
+
+  const staffDisabled = buildWorkspaceNavigation({
+    persona: "front_desk",
+    permissions: ["hotel.channels.view", "hotel.rooms.view"],
+    hotelId: "hotel-1",
+    enabledFeatures: [],
+  });
+  assert.equal(
+    staffDisabled.some((item) => item.key === "staff.channel-manager"),
+    false,
   );
 });
 

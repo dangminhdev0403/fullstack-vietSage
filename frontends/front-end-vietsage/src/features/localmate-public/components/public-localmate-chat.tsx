@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { publicLocalMateResource } from "../resource";
 import type { PublicLocalMateSuggestion } from "../types";
+import {
+  type DestinationRegion,
+  POPULAR_DESTINATIONS,
+  REGION_TABS,
+  VIETNAM_PROVINCES,
+} from "../constants/locations";
 
 type Message = { id: number; sender: "guest" | "localmate"; text: string };
 
@@ -26,9 +32,21 @@ export function PublicLocalMateChat() {
   const [messages, setMessages] = useState<Message[]>([welcome]);
   const [suggestions, setSuggestions] = useState<PublicLocalMateSuggestion[]>([]);
   const [locationError, setLocationError] = useState("");
+  const [selectedRegion, setSelectedRegion] = useState<DestinationRegion>("all");
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const nextId = useRef(1);
+
+  const displayedDestinations = useMemo(() => {
+    if (selectedRegion === "all") {
+      return POPULAR_DESTINATIONS.filter((d) => d.popular);
+    }
+    return POPULAR_DESTINATIONS.filter((d) => d.region === selectedRegion);
+  }, [selectedRegion]);
+
+  const quickSuggestions = useMemo(() => {
+    return POPULAR_DESTINATIONS.filter((d) => d.popular).slice(0, 6);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -85,13 +103,14 @@ export function PublicLocalMateChat() {
     }
   };
 
-  const saveLocation = () => {
-    const value = locationInput.trim();
+  const saveLocation = (targetLocation?: string) => {
+    const value = (targetLocation ?? locationInput).trim();
     if (value.length < 2 || value.length > 120) {
-      setLocationError("Vui lòng nhập địa điểm từ 2 đến 120 ký tự.");
+      setLocationError("Vui lòng nhập hoặc chọn địa điểm từ 2 đến 120 ký tự.");
       return;
     }
     setLocation(value);
+    setLocationInput(value);
     setLocationError("");
     void send(initialDiscoveryQuery, value, value);
   };
@@ -102,11 +121,12 @@ export function PublicLocalMateChat() {
     setLocationError("");
     setInput("");
     setSuggestions([]);
+    setSelectedRegion("all");
     setMessages([
       {
         ...welcome,
         id: nextId.current++,
-        text: "Dạ Quý khách muốn em tư vấn cho khu vực nào ạ? Vui lòng nhập quận, thành phố hoặc tỉnh mới.",
+        text: "Dạ Quý khách muốn em tư vấn cho khu vực nào ạ? Vui lòng chọn bên dưới hoặc nhập quận, thành phố, tỉnh mới.",
       },
     ]);
   };
@@ -185,6 +205,60 @@ export function PublicLocalMateChat() {
                 </p>
               </div>
             ))}
+            {!location && (
+              <div className="space-y-2.5 rounded-2xl border border-[#d6c08b]/45 bg-white/95 p-3.5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-[#123d2a]">
+                    <VsIcon name="location_on" className="text-sm text-[#b8872f]" />
+                    Gợi ý tỉnh thành & điểm đến
+                  </span>
+                  <span className="text-[11px] text-[#55695e]">Chạm để chọn nhanh</span>
+                </div>
+
+                {/* Region filter tabs */}
+                <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-none" role="tablist" aria-label="Lọc theo miền">
+                  {REGION_TABS.map((tab) => {
+                    const isActive = selectedRegion === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
+                        onClick={() => setSelectedRegion(tab.id)}
+                        className={`min-h-[28px] shrink-0 rounded-full px-2.5 text-[11.5px] font-semibold transition ${
+                          isActive
+                            ? "bg-[#123d2a] text-[#f3c66b] shadow-sm"
+                            : "bg-[#f8f4ea] text-[#4a5e52] hover:bg-[#ebdcc0] hover:text-[#123d2a]"
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Suggestion pills grid */}
+                <div className="flex max-h-[175px] flex-wrap gap-1.5 overflow-y-auto pr-0.5">
+                  {displayedDestinations.map((dest) => (
+                    <button
+                      key={dest.name}
+                      type="button"
+                      onClick={() => saveLocation(dest.name)}
+                      className="group inline-flex items-center gap-1.5 rounded-full border border-[#d6c08b]/40 bg-[#fffdf8] px-3 py-1.5 text-[12.5px] font-medium text-[#1e3428] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:border-[#123d2a] hover:bg-[#123d2a] hover:text-white active:scale-95 focus-visible:outline-2 focus-visible:outline-[#b8872f]"
+                    >
+                      <span className="text-sm leading-none">{dest.icon}</span>
+                      <span>{dest.name}</span>
+                      {dest.tag && (
+                        <span className="text-[10.5px] text-[#85642a] group-hover:text-white/80">
+                          • {dest.tag}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {mutation.isPending && (
               <div className="flex items-center gap-2">
                 <span className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#123d2a]/10">
@@ -204,33 +278,68 @@ export function PublicLocalMateChat() {
           </div>
 
           {!location ? (
-            <form
-              className="shrink-0 border-t border-[#123d2a]/10 bg-white p-4"
-              onSubmit={(event) => {
-                event.preventDefault();
-                saveLocation();
-              }}
-            >
-              <label htmlFor="localmate-public-location" className="block text-sm font-semibold text-[#123d2a]">
-                📍 Quý khách đang ở đâu?
-              </label>
-              <div className="mt-2 flex gap-2">
-                <input
-                  ref={inputRef}
-                  id="localmate-public-location"
-                  value={locationInput}
-                  onChange={(event) => setLocationInput(event.target.value)}
-                  placeholder="Ví dụ: Hoàn Kiếm, Hà Nội"
-                  autoComplete="address-level1"
-                  aria-describedby={locationError ? "localmate-location-error" : undefined}
-                  className="min-h-11 min-w-0 flex-1 rounded-xl border border-[#123d2a]/20 bg-[#f8f4ea] px-3 text-base text-[#132119] outline-none transition focus:border-[#123d2a] focus:ring-2 focus:ring-[#123d2a]/15"
-                />
-                <button type="submit" className="min-h-11 rounded-xl bg-[#123d2a] px-4 text-base font-bold text-white transition hover:bg-[#184d35] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f]">
-                  Tiếp tục
-                </button>
+            <div className="shrink-0 border-t border-[#123d2a]/10 bg-white p-3.5">
+              {/* Quick suggestions bar */}
+              <div className="mb-2.5 flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+                <span className="flex shrink-0 items-center gap-1 text-[11.5px] font-semibold text-[#123d2a]/75">
+                  <VsIcon name="sparkles" className="text-xs text-[#b8872f]" />
+                  Gợi ý nhanh:
+                </span>
+                {quickSuggestions.map((dest) => (
+                  <button
+                    key={dest.name}
+                    type="button"
+                    onClick={() => saveLocation(dest.name)}
+                    className="shrink-0 rounded-full border border-[#b8872f]/30 bg-[#fff7df] px-2.5 py-1 text-xs font-semibold text-[#735c00] transition hover:border-[#123d2a] hover:bg-[#123d2a] hover:text-white active:scale-95"
+                  >
+                    {dest.name}
+                  </button>
+                ))}
               </div>
-              {locationError && <p id="localmate-location-error" className="mt-2 text-sm text-red-700">{locationError}</p>}
-            </form>
+
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  saveLocation();
+                }}
+              >
+                <label htmlFor="localmate-public-location" className="block text-sm font-semibold text-[#123d2a]">
+                  📍 Quý khách đang ở đâu?
+                </label>
+                <div className="mt-2 flex gap-2">
+                  <input
+                    ref={inputRef}
+                    id="localmate-public-location"
+                    list="localmate-provinces-list"
+                    value={locationInput}
+                    onChange={(event) => setLocationInput(event.target.value)}
+                    placeholder="Ví dụ: Hoàn Kiếm, Hà Nội hoặc chọn gợi ý..."
+                    autoComplete="off"
+                    aria-describedby={locationError ? "localmate-location-error" : undefined}
+                    className="min-h-11 min-w-0 flex-1 rounded-xl border border-[#123d2a]/20 bg-[#f8f4ea] px-3 text-base text-[#132119] outline-none transition focus:border-[#123d2a] focus:ring-2 focus:ring-[#123d2a]/15"
+                  />
+                  <datalist id="localmate-provinces-list">
+                    {VIETNAM_PROVINCES.map((prov) => (
+                      <option key={prov} value={prov} />
+                    ))}
+                    {POPULAR_DESTINATIONS.map((dest) => (
+                      <option key={dest.name} value={dest.name} />
+                    ))}
+                  </datalist>
+                  <button
+                    type="submit"
+                    className="min-h-11 shrink-0 rounded-xl bg-[#123d2a] px-4 text-base font-bold text-white transition hover:bg-[#184d35] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f]"
+                  >
+                    Tiếp tục
+                  </button>
+                </div>
+                {locationError && (
+                  <p id="localmate-location-error" className="mt-2 text-sm text-red-700">
+                    {locationError}
+                  </p>
+                )}
+              </form>
+            </div>
           ) : (
             <div className="shrink-0 border-t border-[#123d2a]/10 bg-white">
               {suggestions.length > 0 && (

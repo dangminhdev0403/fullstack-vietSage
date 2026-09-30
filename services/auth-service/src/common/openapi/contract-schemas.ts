@@ -164,7 +164,11 @@ export const authMeDataSchema = {
             type: "array",
             items: {
               type: "string",
-              enum: ["guest.ai_floating_chat", "frontdesk.hn2n_cccd_scanner"],
+              enum: [
+                "guest.ai_floating_chat",
+                "frontdesk.hn2n_cccd_scanner",
+                "hotel.channel_manager",
+              ],
             },
           },
         },
@@ -856,7 +860,11 @@ export const listHotelsDataSchema = {
 };
 
 export const hotelFeatureStatusEnum = ["ENABLED", "DISABLED"];
-export const hotelFeatureKeyEnum = ["guest.ai_floating_chat", "frontdesk.hn2n_cccd_scanner"];
+export const hotelFeatureKeyEnum = [
+  "guest.ai_floating_chat",
+  "frontdesk.hn2n_cccd_scanner",
+  "hotel.channel_manager",
+];
 
 export const hotelFeatureItemSchema = {
   type: "object",

@@ -363,6 +363,49 @@ export class RequestRealtimeEmitter {
       .emit("PARTNER_SETTLEMENT_UPDATED", payload);
   }
 
+  static emitChannelBookingCreated(input: {
+    hotelId: string;
+    bookingId: string;
+    reservationId?: string;
+    otaName: string;
+    reservationCode: string;
+    guestName: string;
+    roomNumber?: string | null;
+    roomType?: string | null;
+    checkInDate?: string | null;
+    checkOutDate?: string | null;
+    amount?: number | string | null;
+    currency?: string | null;
+  }) {
+    const eventId = randomUUID();
+    const payload = { ...input, eventId };
+
+    this.serverRef
+      ?.to(this.ownerHotelRoom(input.hotelId))
+      .emit("channel_booking.created", payload);
+    this.serverRef
+      ?.to(this.ownerHotelRoom(input.hotelId))
+      .emit("CHANNEL_BOOKING_CREATED", payload);
+  }
+
+  static emitChannelBookingCancelled(input: {
+    hotelId: string;
+    bookingId: string;
+    reservationId?: string;
+    otaName?: string;
+    reservationCode?: string;
+  }) {
+    const eventId = randomUUID();
+    const payload = { ...input, eventId };
+
+    this.serverRef
+      ?.to(this.ownerHotelRoom(input.hotelId))
+      .emit("channel_booking.cancelled", payload);
+    this.serverRef
+      ?.to(this.ownerHotelRoom(input.hotelId))
+      .emit("CHANNEL_BOOKING_CANCELLED", payload);
+  }
+
   static ownerHotelRoom(hotelId: string): string {
     return `${OWNER_ROOM_PREFIX}${hotelId}:requests`;
   }

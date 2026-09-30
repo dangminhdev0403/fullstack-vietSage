@@ -19,10 +19,11 @@ function createMockRepository(overrides: Record<string, jest.Mock> = {}) {
 }
 
 describe("HotelFeatureRegistry", () => {
-  it("defines exactly the 2 canonical feature keys", () => {
+  it("defines exactly the 3 canonical feature keys", () => {
     expect(CANONICAL_HOTEL_FEATURE_KEYS).toEqual([
       "guest.ai_floating_chat",
       "frontdesk.hn2n_cccd_scanner",
+      "hotel.channel_manager",
     ]);
   });
 
@@ -33,6 +34,7 @@ describe("HotelFeatureRegistry", () => {
   it("validates known keys and rejects arbitrary keys", () => {
     expect(isHotelFeatureKey("guest.ai_floating_chat")).toBe(true);
     expect(isHotelFeatureKey("frontdesk.hn2n_cccd_scanner")).toBe(true);
+    expect(isHotelFeatureKey("hotel.channel_manager")).toBe(true);
     expect(isHotelFeatureKey("ai_chat")).toBe(false);
     expect(isHotelFeatureKey("unknown_feature")).toBe(false);
   });
@@ -45,7 +47,7 @@ describe("HotelFeatureEntitlementsService", () => {
 
     const features = await service.getHotelFeatures("hotel-1");
 
-    expect(features).toHaveLength(2);
+    expect(features).toHaveLength(3);
     expect(features[0]).toEqual({
       key: "guest.ai_floating_chat",
       label: "Trợ lý AI nổi trên GuestOS",
@@ -56,6 +58,13 @@ describe("HotelFeatureEntitlementsService", () => {
       key: "frontdesk.hn2n_cccd_scanner",
       label: "Máy quét CCCD HN2N/HN-212 tại lễ tân",
       description: "Kết nối và vận hành máy quét CCCD HN2N/HN-212 cho luồng check-in tại lễ tân.",
+      status: HotelFeatureStatus.DISABLED,
+    });
+    expect(features[2]).toEqual({
+      key: "hotel.channel_manager",
+      label: "Kho phòng & kênh bán (Channel Manager)",
+      description:
+        "Bật/tắt tính năng quản lý tồn kho, giá bán và đồng bộ đa kênh OTA (Channex, Booking, Agoda, Airbnb...).",
       status: HotelFeatureStatus.DISABLED,
     });
   });
@@ -74,11 +83,14 @@ describe("HotelFeatureEntitlementsService", () => {
 
     const features = await service.getHotelFeatures("hotel-1");
 
-    expect(features).toHaveLength(2);
+    expect(features).toHaveLength(3);
     expect(features.find((f) => f.key === "guest.ai_floating_chat")?.status).toBe(
       HotelFeatureStatus.ENABLED,
     );
     expect(features.find((f) => f.key === "frontdesk.hn2n_cccd_scanner")?.status).toBe(
+      HotelFeatureStatus.DISABLED,
+    );
+    expect(features.find((f) => f.key === "hotel.channel_manager")?.status).toBe(
       HotelFeatureStatus.DISABLED,
     );
   });

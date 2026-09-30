@@ -5,6 +5,7 @@ import { adminService } from "@/features/admin/service/admin-service-instance";
 import {
   FRONTDESK_HN2N_CCCD_SCANNER,
   GUEST_AI_FLOATING_CHAT,
+  HOTEL_CHANNEL_MANAGER,
 } from "@/features/hotel-features/hotel-features";
 
 import {
@@ -26,6 +27,7 @@ const updateHotelFeatureBodySchema = z
 const hotelFeatureKeySchema = z.enum([
   GUEST_AI_FLOATING_CHAT,
   FRONTDESK_HN2N_CCCD_SCANNER,
+  HOTEL_CHANNEL_MANAGER,
 ]);
 
 export const dynamic = "force-dynamic";

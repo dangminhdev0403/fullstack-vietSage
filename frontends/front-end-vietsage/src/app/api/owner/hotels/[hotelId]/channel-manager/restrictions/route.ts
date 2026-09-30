@@ -1,29 +1,23 @@
-import { channelManagerMockStore } from "@/features/channel-manager/api/channel-manager-mock-store";
-import type { RestrictionUpdateItem } from "@/features/channel-manager/types/channel-manager.types";
-import { successResponse, validationErrorResponse } from "../../../../_utils";
+import {
+  channelManagerBackendPath,
+  proxyChannelManagerRequest,
+  readJsonBody,
+} from "../_backend";
+import { validationErrorResponse } from "../../../../_utils";
 
-type Params = {
-  params: Promise<{ hotelId: string }>;
-};
+type Params = { params: Promise<{ hotelId: string }> };
 
 export async function PUT(request: Request, context: Params) {
   const { hotelId } = await context.params;
-  if (!hotelId) {
-    return validationErrorResponse("hotelId is required");
-  }
+  if (!hotelId) return validationErrorResponse("hotelId is required");
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return validationErrorResponse("Invalid JSON payload");
-  }
+  const body = await readJsonBody(request);
+  if (body instanceof Response) return body;
 
-  const items = (body as { items?: RestrictionUpdateItem[] })?.items;
-  if (!Array.isArray(items)) {
-    return validationErrorResponse("items array is required");
-  }
-
-  const result = channelManagerMockStore.updateRestrictions(hotelId, items);
-  return successResponse(result, 200, "Restrictions updated successfully");
+  return proxyChannelManagerRequest({
+    operation: "update channel restrictions",
+    method: "POST",
+    path: channelManagerBackendPath(hotelId, "inventory/restrictions"),
+    body,
+  });
 }

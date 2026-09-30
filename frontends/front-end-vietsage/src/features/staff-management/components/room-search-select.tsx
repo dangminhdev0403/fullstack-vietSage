@@ -204,7 +204,7 @@ export function RoomSearchSelect({
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Tìm số phòng hoặc loại phòng (VD: 101, Deluxe...)"
+                placeholder="Tìm số phòng hoặc loại phòng..."
                 className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-7 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--primary)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
               />
               {search ? (

@@ -168,8 +168,6 @@ export function WorkspaceShell({
           headerClassName={`transition-all duration-300 ${
             isCollapsed
               ? "md:left-20 md:w-[calc(100%-5rem)]"
-              : sidebarWidth === "compact240"
-              ? "md:left-60 md:w-[calc(100%-15rem)]"
               : "md:left-72 2xl:left-80 md:w-[calc(100%-18rem)] 2xl:w-[calc(100%-20rem)]"
           }`}
         />
@@ -189,8 +187,6 @@ export function WorkspaceShell({
         className={`min-h-screen px-4 pb-16 pt-20 transition-all duration-300 print:p-0 ${
           isCollapsed
             ? "md:ml-20"
-            : sidebarWidth === "compact240"
-            ? "md:ml-60"
             : "md:ml-72 2xl:ml-80"
         } sm:px-6 lg:px-8 print:md:ml-0 ${
           printFriendly ? "owner-shell-main" : ""

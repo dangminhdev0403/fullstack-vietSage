@@ -100,7 +100,12 @@ function TopBarRightControls({
     );
   }
 
-  const formattedHotel = formatHotelDisplayName(hotelName);
+  const isDuplicateSubtitle = Boolean(
+    subtitle &&
+      rightLabel &&
+      subtitle.trim().toLowerCase() === rightLabel.trim().toLowerCase(),
+  );
+  const displaySubtitle = isDuplicateSubtitle ? null : subtitle;
 
   return (
     <div className="flex min-w-0 items-center gap-4">
@@ -109,21 +114,11 @@ function TopBarRightControls({
           <span className="truncate text-sm font-semibold text-[#17201b]">
             {rightLabel}
           </span>
-          <div className="mt-0.5 flex flex-col items-end">
-            {subtitle ? (
-              <span className="truncate text-xs font-semibold text-[#215744]">
-                {subtitle}
-              </span>
-            ) : null}
-            {formattedHotel ? (
-              <span
-                className="truncate text-[11px] font-medium text-[#5f6b63]"
-                title={formattedHotel}
-              >
-                {formattedHotel}
-              </span>
-            ) : null}
-          </div>
+          {displaySubtitle ? (
+            <span className="mt-0.5 truncate text-xs font-semibold text-[#215744]">
+              {displaySubtitle}
+            </span>
+          ) : null}
         </div>
       ) : null}
 

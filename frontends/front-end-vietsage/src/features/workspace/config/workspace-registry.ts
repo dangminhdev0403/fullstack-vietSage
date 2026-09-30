@@ -1,6 +1,6 @@
 import type { DashboardNavItem } from "../types/workspace-navigation";
 // @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
-import { FRONTDESK_HN2N_CCCD_SCANNER } from "../../hotel-features/hotel-features.ts";
+import { FRONTDESK_HN2N_CCCD_SCANNER, HOTEL_CHANNEL_MANAGER } from "../../hotel-features/hotel-features.ts";
 
 import type {
   WorkspaceDefinition,
@@ -167,6 +167,16 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     order: 20,
     section: "OPERATIONS",
     anyCapabilities: ["platform.hotels.view", "platform.hotels.manage"],
+  },
+  {
+    key: "admin.channel-manager",
+    personas: ["platform_admin"],
+    href: "/admin/channel-manager",
+    label: "Quản trị Kênh bán & OTA",
+    icon: "hub",
+    order: 22,
+    section: "OPERATIONS",
+    anyCapabilities: ["platform.hotels.manage"],
   },
   {
     key: "admin.users",
@@ -336,6 +346,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     order: 35,
     section: "OPERATIONS",
     requiresHotel: true,
+    requiresFeature: HOTEL_CHANNEL_MANAGER,
     anyCapabilities: [
       "hotel.channels.view",
       "hotel.channels.manage",
@@ -492,6 +503,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     order: 25,
     section: "OPERATIONS",
     requiresHotel: true,
+    requiresFeature: HOTEL_CHANNEL_MANAGER,
     anyCapabilities: [
       "hotel.channels.view",
       "hotel.channels.manage",
