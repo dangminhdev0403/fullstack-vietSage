@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { useWorkspaceProfile } from "@/features/workspace/components/workspace-profile-context";
@@ -12,7 +12,6 @@ import { AriPushCard } from "../components/ari-push-card";
 import { InventoryGrid } from "../components/inventory-grid";
 import { OtaBookingsTab } from "../components/ota-bookings-tab";
 import { ChannexHubTab } from "../components/channex-hub-tab";
-import { OtaBookingSimulator } from "../components/ota-booking-simulator";
 import { useChannex } from "../hooks/use-channel-manager";
 
 interface ChannelManagerPageProps {
@@ -21,7 +20,7 @@ interface ChannelManagerPageProps {
   roleScope?: "owner" | "admin";
 }
 
-type TabType = "ARI" | "BOOKINGS" | "CHANNELS" | "SIMULATOR";
+type TabType = "ARI" | "BOOKINGS" | "CHANNELS";
 
 interface TabDefinition {
   id: TabType;
@@ -47,8 +46,26 @@ function ChannelManagerContent({
     : true;
 
   const storageKey = `vietsage_cm_tab_${hotelId}`;
-  const [activeTab, setActiveTab] = useState<TabType>("ARI");
-  const [isHydrated, setIsHydrated] = useState(false);
+  const urlTab = searchParams.get("tab")?.toUpperCase();
+  const validUrlTab: TabType | null =
+    urlTab === "ARI" || urlTab === "BOOKINGS" || urlTab === "CHANNELS" ? urlTab : null;
+
+  const [userSelectedTab, setUserSelectedTab] = useState<TabType>(() => {
+    if (validUrlTab) return validUrlTab;
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved === "ARI" || saved === "BOOKINGS" || saved === "CHANNELS") {
+          return saved;
+        }
+      } catch {
+        // Ignore storage errors
+      }
+    }
+    return "ARI";
+  });
+
+  const activeTab = validUrlTab ?? userSelectedTab;
 
   // Load bookings count for badge
   const { simulatedBookings } = useChannex(hotelId, roleScope, {
@@ -61,31 +78,17 @@ function ChannelManagerContent({
     ).length;
   }, [simulatedBookings]);
 
-  // Handle URL param ?tab= and localStorage
-  useEffect(() => {
-    try {
-      const urlTab = searchParams.get("tab")?.toUpperCase() as TabType | null;
-      if (urlTab && ["ARI", "BOOKINGS", "CHANNELS"].includes(urlTab)) {
-        setActiveTab(urlTab);
-      } else {
-        const saved = localStorage.getItem(storageKey) as TabType | null;
-        if (saved && ["ARI", "BOOKINGS", "CHANNELS"].includes(saved)) {
-          setActiveTab(saved);
-        }
-      }
-    } catch {
-      // Ignore storage errors
-    } finally {
-      setIsHydrated(true);
-    }
-  }, [searchParams, storageKey]);
-
   const handleTabChange = (tab: TabType) => {
-    setActiveTab(tab);
+    setUserSelectedTab(tab);
     try {
       localStorage.setItem(storageKey, tab);
     } catch {
       // Ignore storage errors
+    }
+    if (searchParams.get("tab")) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", tab);
+      router.replace(`?${params.toString()}`, { scroll: false });
     }
   };
 
@@ -248,18 +251,6 @@ function ChannelManagerContent({
 
         {activeTab === "CHANNELS" && (
           <ChannexHubTab hotelId={hotelId} roleScope={roleScope} />
-        )}
-
-        {activeTab === "SIMULATOR" && (
-          <OtaBookingSimulator
-            hotelId={hotelId}
-            hotelName={currentDisplayName}
-            roleScope={roleScope}
-            onSwitchTab={(t: "SETUP" | "ARI" | "SIMULATOR" | "CHANNELS" | "ICAL") => {
-              if (t === "ARI") handleTabChange("ARI");
-              else if (t === "CHANNELS") handleTabChange("CHANNELS");
-            }}
-          />
         )}
       </div>
     </div>

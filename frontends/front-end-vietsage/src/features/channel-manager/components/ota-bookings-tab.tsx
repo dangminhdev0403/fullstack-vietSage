@@ -13,7 +13,6 @@ import type { SimulatedBookingItem } from "../types/channel-manager.types";
 interface OtaBookingsTabProps {
   hotelId: string;
   roleScope?: "owner" | "admin";
-  onSwitchToSimulator?: () => void;
   onSwitchToAri?: () => void;
 }
 
@@ -448,6 +447,20 @@ export function OtaBookingsTab({
                 <span className="h-2 w-2 rounded-full bg-rose-400" />
                 <span>Đã hủy ({stats.cancelled})</span>
               </button>
+              {stats.checkedIn > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("CHECKED_IN")}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 transition cursor-pointer ${
+                    statusFilter === "CHECKED_IN"
+                      ? "bg-white text-blue-800 shadow-2xs font-bold"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <span className="h-2 w-2 rounded-full bg-blue-500" />
+                  <span>Đã nhận phòng ({stats.checkedIn})</span>
+                </button>
+              )}
             </div>
 
             {/* Channel Dropdown */}
@@ -768,6 +781,8 @@ export function OtaBookingsTab({
                   <p className="font-bold mt-1 text-sm">
                     {(selectedBooking.status || "").toUpperCase() === "CANCELLED" ? (
                       <span className="text-rose-600">Đã giải phóng về kho trống</span>
+                    ) : (selectedBooking.status || "").toUpperCase() === "CHECKED_IN" ? (
+                      <span className="text-blue-600">Đã nhận phòng (đang lưu trú)</span>
                     ) : (
                       <span className="text-emerald-600">Đang giữ chỗ</span>
                     )}

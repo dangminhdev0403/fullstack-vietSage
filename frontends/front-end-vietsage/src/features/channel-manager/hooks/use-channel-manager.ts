@@ -7,44 +7,8 @@ import { channelManagerResource } from "../api/channel-manager.resource";
 import type {
   AvailabilityUpdateItem,
   BulkUpdatePayload,
-  CreateConnectionPayload,
   RestrictionUpdateItem,
 } from "../types/channel-manager.types";
-
-export interface UseChannelConnectionsOptions {
-  hotelId: string | null | undefined;
-  enabled?: boolean;
-  roleScope?: "owner" | "admin";
-}
-
-export function useChannelConnections(options: UseChannelConnectionsOptions) {
-  const { hotelId, enabled = true, roleScope = "owner" } = options;
-
-  const boundResource = useMemo(
-    () => channelManagerResource.bind({ hotelId: hotelId ?? "", roleScope }),
-    [hotelId, roleScope],
-  );
-
-  const queryOptions = useMemo(
-    () => boundResource.queries.connections.options(undefined as never),
-    [boundResource],
-  );
-
-  const query = useQuery({
-    ...queryOptions,
-    enabled: Boolean(enabled && hotelId),
-    staleTime: 15_000,
-  });
-
-  return {
-    connections: query.data ?? [],
-    isLoading: query.isLoading,
-    isFetching: query.isFetching,
-    isError: query.isError,
-    error: query.error,
-    refetch: query.refetch,
-  };
-}
 
 export interface UseInventoryGridOptions {
   hotelId: string | null | undefined;
@@ -87,103 +51,6 @@ export function useInventoryGrid(options: UseInventoryGridOptions) {
     isError: query.isError,
     error: query.error,
     refetch: query.refetch,
-  };
-}
-
-export function useCreateConnection(options: {
-  hotelId: string;
-  roleScope?: "owner" | "admin";
-}) {
-  const { hotelId, roleScope = "owner" } = options;
-  const queryClient = useQueryClient();
-
-  const boundResource = useMemo(
-    () => channelManagerResource.bind({ hotelId, roleScope }),
-    [hotelId, roleScope],
-  );
-
-  const mutationOptions = useMemo(
-    () => boundResource.mutations.createConnection.options(),
-    [boundResource],
-  );
-
-  const mutation = useMutation({
-    ...mutationOptions,
-    onSuccess: async () => {
-      await boundResource.invalidate(queryClient);
-    },
-  });
-
-  return {
-    createConnection: (payload: CreateConnectionPayload) =>
-      mutation.mutateAsync(payload),
-    isCreating: mutation.isPending,
-    error: mutation.error,
-  };
-}
-
-export function useDeleteConnection(options: {
-  hotelId: string;
-  roleScope?: "owner" | "admin";
-}) {
-  const { hotelId, roleScope = "owner" } = options;
-  const queryClient = useQueryClient();
-
-  const boundResource = useMemo(
-    () => channelManagerResource.bind({ hotelId, roleScope }),
-    [hotelId, roleScope],
-  );
-
-  const mutationOptions = useMemo(
-    () => boundResource.mutations.deleteConnection.options(),
-    [boundResource],
-  );
-
-  const mutation = useMutation({
-    ...mutationOptions,
-    onSuccess: async () => {
-      await boundResource.invalidate(queryClient);
-    },
-  });
-
-  return {
-    deleteConnection: (id: string) => mutation.mutateAsync({ id }),
-    isDeleting: mutation.isPending,
-    error: mutation.error,
-  };
-}
-
-export function useSyncConnection(options?: {
-  hotelId?: string;
-  roleScope?: "owner" | "admin";
-}) {
-  const hotelId = options?.hotelId ?? "global";
-  const roleScope = options?.roleScope ?? "owner";
-  const queryClient = useQueryClient();
-
-  const boundResource = useMemo(
-    () => channelManagerResource.bind({ hotelId, roleScope }),
-    [hotelId, roleScope],
-  );
-
-  const mutationOptions = useMemo(
-    () => boundResource.mutations.syncNow.options(),
-    [boundResource],
-  );
-
-  const mutation = useMutation({
-    ...mutationOptions,
-    onSuccess: async () => {
-      await boundResource.invalidate(queryClient);
-    },
-  });
-
-  return {
-    syncConnection: (connectionId: string) =>
-      mutation.mutateAsync({ connectionId }),
-    isSyncing: mutation.isPending,
-    syncingConnectionId: mutation.variables?.connectionId,
-    error: mutation.error,
   };
 }
 
@@ -331,10 +198,6 @@ export function useChannex(
     ...boundResource.queries.channexChannelCatalog.options(undefined as never),
     enabled: Boolean(hotelId && (options.loadChannelCatalog ?? false)),
   });
-  const simulateBooking = useMutation({
-    ...boundResource.mutations.simulateBooking.options(),
-    onSuccess: async () => boundResource.invalidate(queryClient),
-  });
   const cancelBooking = useMutation({
     ...boundResource.mutations.cancelSimulatedBooking.options(),
     onSuccess: async () => boundResource.invalidate(queryClient),
@@ -376,7 +239,6 @@ export function useChannex(
     isErrorChannelCatalog: channelCatalog.isError,
     channelCatalogError: channelCatalog.error,
     refreshChannelCatalog: channelCatalog.refetch,
-    simulateBooking,
     cancelBooking,
   };
 }
