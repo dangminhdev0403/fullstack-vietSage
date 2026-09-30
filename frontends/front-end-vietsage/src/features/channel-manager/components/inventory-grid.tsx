@@ -11,6 +11,7 @@ import {
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import type { DayInventory } from "../types/channel-manager.types";
 import { BulkUpdateModal } from "./bulk-update-modal";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 
 interface InventoryGridProps {
   hotelId: string;
@@ -48,30 +49,32 @@ function formatDayOfWeek(dateStr: string): {
   };
 }
 
-function formatCurrencyCompact(amount: number): string {
-  if (amount >= 1_000_000) {
-    const mil = amount / 1_000_000;
-    return `${mil.toLocaleString("vi-VN", { maximumFractionDigits: 2 })}M`;
-  }
-  if (amount >= 1_000) {
-    const k = amount / 1_000;
-    return `${k.toLocaleString("vi-VN", { maximumFractionDigits: 0 })}K`;
-  }
-  return `${amount.toLocaleString("vi-VN")}₫`;
-}
-
 function formatCurrencyFull(amount: number): string {
   return new Intl.NumberFormat("vi-VN").format(amount) + " ₫";
 }
 
+function formatNumberWithDots(val: number | string): string {
+  const digits = String(val).replace(/\D/g, "");
+  if (!digits) return "";
+  return new Intl.NumberFormat("vi-VN").format(Number(digits));
+}
+
+function parseFormattedNumber(val: string): number {
+  const cleaned = String(val).replace(/\D/g, "");
+  return cleaned === "" ? 0 : Number(cleaned);
+}
+
 export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridProps) {
-  // Calendar Window: 14 days
   const [startDate, setStartDate] = useState<string>(() =>
     formatDate(new Date()),
   );
-  const endDate = useMemo(() => addDays(startDate, 13), [startDate]);
+  const [visibleDays, setVisibleDays] = useState<7 | 14>(7);
+  const endDate = useMemo(
+    () => addDays(startDate, visibleDays - 1),
+    [startDate, visibleDays],
+  );
 
-  const { gridData, isLoading, isFetching, isError, error, refetch } =
+  const { gridData, isLoading, isFetching, isError, refetch } =
     useInventoryGrid({
       hotelId,
       dateFrom: startDate,
@@ -108,6 +111,8 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
 
   // Active cell being saved: `${roomTypeId}_${date}_${field}`
   const [savingCellKey, setSavingCellKey] = useState<string | null>(null);
+  const isSavingChanges =
+    savingCellKey !== null || isUpdatingRestrictions || isUpdatingAvailability;
 
   // Bulk update modal state
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
@@ -161,7 +166,11 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
   ) => {
     const key = `${rtId}_${date}_${field}`;
     setEditingCellKey(key);
-    setEditingValue(initialVal === null ? "" : String(initialVal));
+    if (field === "rate") {
+      setEditingValue(initialVal === null ? "" : formatNumberWithDots(initialVal));
+    } else {
+      setEditingValue(initialVal === null ? "" : String(initialVal));
+    }
   };
 
   // Inline edit commit (auto-save directly to PMS database)
@@ -178,7 +187,11 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
       return;
     }
 
-    const numVal = Number(editingValue);
+    const numVal =
+      field === "rate"
+        ? parseFormattedNumber(editingValue)
+        : Number(editingValue);
+
     if (isNaN(numVal) || numVal < 0) {
       setEditingCellKey(null);
       return;
@@ -226,7 +239,7 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
           },
         ]);
         toast.success(
-          `Đã lưu giá ${roomType.roomTypeCode} (${date}): ${formatCurrencyCompact(numVal)}`,
+          `Đã lưu giá ${roomType.roomTypeCode} (${date}): ${formatCurrencyFull(numVal)}`,
           { id: `rate-${rtId}-${date}`, duration: 2000 },
         );
       }
@@ -247,6 +260,7 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
 
   // Toggle Stop Sell (auto-save directly)
   const toggleStopSell = async (rtId: string, day: DayInventory) => {
+    if (isSavingChanges || isFetching) return;
     const roomType = roomTypes.find((item) => item.roomTypeId === rtId);
     if (!roomType) return;
 
@@ -281,7 +295,7 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
           : `Đã mở bán ${roomType.roomTypeCode} (${day.date})`,
         { id: `stopsell-${rtId}-${day.date}`, duration: 2000 },
       );
-      void refetch();
+      await refetch();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Không thể cập nhật đóng/mở bán";
       toast.error(msg, { id: `stopsell-err-${rtId}-${day.date}` });
@@ -292,8 +306,8 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
 
   const daysHeader = useMemo(() => {
     const list = [];
-    for (let i = 0; i < 14; i++) {
-      const dStr = addDays(startDate, i);
+    for (let dayOffset = 0; dayOffset < visibleDays; dayOffset++) {
+      const dStr = addDays(startDate, dayOffset);
       list.push({
         dateStr: dStr,
         ...formatDayOfWeek(dStr),
@@ -301,520 +315,484 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
       });
     }
     return list;
-  }, [startDate]);
+  }, [startDate, visibleDays]);
 
   return (
-    <div className="space-y-4">
-      {/* Top Toolbar */}
-      <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-        {/* Date Navigation */}
-        <div className="flex items-center flex-wrap gap-2 sm:gap-3">
-          <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200">
-            <button
-              type="button"
-              onClick={handlePrevWeek}
-              title="7 ngày trước"
-              className="px-3 py-1.5 rounded-xl text-sm font-bold text-slate-700 hover:bg-white hover:shadow-xs transition-all flex items-center gap-1 cursor-pointer"
-            >
-              <span>◀</span>
-              <span className="hidden sm:inline">Tuần trước</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleGoToday}
-              className="px-3.5 py-1.5 rounded-xl text-sm font-extrabold text-emerald-900 bg-white shadow-xs border border-emerald-200/50 hover:bg-emerald-50 transition-all cursor-pointer"
-            >
-              Hôm nay
-            </button>
-            <button
-              type="button"
-              onClick={handleNextWeek}
-              title="7 ngày tới"
-              className="px-3 py-1.5 rounded-xl text-sm font-bold text-slate-700 hover:bg-white hover:shadow-xs transition-all flex items-center gap-1 cursor-pointer"
-            >
-              <span className="hidden sm:inline">Tuần tới</span>
-              <span>▶</span>
-            </button>
+    <div className="min-w-0 space-y-4 [&_button]:focus-visible:outline-2 [&_button]:focus-visible:outline-offset-2 [&_button]:focus-visible:outline-emerald-700 [&_button]:disabled:cursor-not-allowed [&_button]:disabled:opacity-50">
+      {/* Control Header Card */}
+      <div className="space-y-4 rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs">
+        {/* Row 1: Title, Realtime Save State, and Bulk Action */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-xl font-bold tracking-tight text-slate-900">
+                Lịch phòng & Giá bán
+              </h2>
+              {isSavingChanges ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200 animate-pulse">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Đang lưu thay đổi...
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-0.5 text-sm text-slate-500">
+              Khoảng thời gian: <strong className="font-semibold text-slate-800">{startDate.split("-").reverse().join("/")}</strong> đến <strong className="font-semibold text-slate-800">{endDate.split("-").reverse().join("/")}</strong>
+            </p>
           </div>
-
-          {/* Date Picker Input */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-slate-600 hidden lg:inline">
-              Từ ngày:
-            </span>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => {
-                if (e.target.value) setStartDate(e.target.value);
-              }}
-              className="h-10 px-3 rounded-2xl border border-slate-200 bg-slate-50 text-slate-800 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
-            />
-            <span className="text-xs font-semibold text-slate-500 hidden xl:inline">
-              ({startDate} → {endDate})
-            </span>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center flex-wrap gap-2.5">
-          <div className="hidden lg:flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50/90 px-3 py-2 rounded-xl border border-emerald-200 shadow-2xs">
-            <span className="font-extrabold flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              Tự động lưu PMS
-            </span>
-            <span className="text-slate-300">|</span>
-            <span className="text-slate-600">Đổi là lưu ngay</span>
-          </div>
-
-          {isFetching && !isLoading && (
-            <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100 animate-pulse">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-              Đang đồng bộ...
-            </span>
-          )}
-
-          <button
-            type="button"
-            onClick={() => void refetch()}
-            disabled={isFetching}
-            title="Làm mới ma trận giá & phòng trống"
-            className="h-10 sm:h-11 px-3.5 sm:px-4 rounded-2xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 text-sm font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-          >
-            <span className={isFetching ? "animate-spin" : ""}>🔄</span>
-            <span className="hidden sm:inline">Làm mới</span>
-          </button>
-
 
           <button
             type="button"
             onClick={() => setIsBulkModalOpen(true)}
-            className="h-10 sm:h-11 px-5 rounded-2xl bg-gradient-to-r from-emerald-800 to-[#1a352d] text-white text-sm sm:text-base font-extrabold shadow-md shadow-emerald-950/15 hover:shadow-lg hover:from-emerald-900 hover:to-emerald-950 transition-all flex items-center gap-2 cursor-pointer"
+            disabled={isSavingChanges || isLoading || isError || roomTypes.length === 0}
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-emerald-800 px-4 text-sm font-bold text-white hover:bg-emerald-900 transition shadow-xs cursor-pointer disabled:opacity-50"
           >
-            <span>⚡</span>
+            <VsIcon name="tune" className="text-base" />
             <span>Cập nhật hàng loạt</span>
           </button>
         </div>
-      </div>
 
-      {/* Main Grid Card */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden relative">
-        {isLoading ? (
-          <div className="p-16 flex flex-col items-center justify-center space-y-4">
-            <div className="w-10 h-10 border-4 border-emerald-700 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-base font-bold text-slate-700">
-              Đang tải ma trận kho phòng & bảng giá 14 ngày...
-            </p>
+        {/* Row 2: Date Navigation, Pickers & View Mode */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Quick Week Controls */}
+            <div className="inline-flex items-center rounded-xl border border-slate-200 bg-slate-50/80 p-0.5 shadow-2xs">
+              <button
+                type="button"
+                onClick={handlePrevWeek}
+                aria-label="7 ngày trước"
+                title="7 ngày trước"
+                disabled={isSavingChanges}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-white hover:text-slate-900 transition cursor-pointer disabled:opacity-50"
+              >
+                <VsIcon name="chevron_left" className="text-lg" />
+              </button>
+              <button
+                type="button"
+                onClick={handleGoToday}
+                disabled={isSavingChanges}
+                className="h-9 px-3 text-xs font-bold text-slate-700 hover:bg-white hover:text-slate-900 rounded-lg transition cursor-pointer disabled:opacity-50"
+              >
+                Hôm nay
+              </button>
+              <button
+                type="button"
+                onClick={handleNextWeek}
+                aria-label="7 ngày tới"
+                title="7 ngày tới"
+                disabled={isSavingChanges}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-white hover:text-slate-900 transition cursor-pointer disabled:opacity-50"
+              >
+                <VsIcon name="chevron_right" className="text-lg" />
+              </button>
+            </div>
+
+            {/* Custom Date Input */}
+            <div className="flex items-center gap-1.5 pl-1">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Từ:</span>
+              <input
+                type="date"
+                value={startDate}
+                disabled={isSavingChanges}
+                onChange={(event) => {
+                  if (event.target.value) setStartDate(event.target.value);
+                }}
+                className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-2xs focus:outline-none focus:ring-2 focus:ring-emerald-600/30 transition cursor-pointer disabled:opacity-50"
+              />
+            </div>
           </div>
-        ) : isError ? (
-          <div className="p-12 text-center space-y-3 bg-rose-50">
-            <h3 className="text-lg font-extrabold text-rose-900">
-              Không thể tải dữ liệu phòng & giá
-            </h3>
-            <p className="text-sm font-medium text-rose-700">
-              {error instanceof Error
-                ? error.message
-                : "Yêu cầu tới backend thất bại"}
-            </p>
+
+          <div className="flex items-center gap-2">
+            {/* 7 / 14 Days Toggle */}
+            <div role="group" aria-label="Số ngày hiển thị" className="inline-flex rounded-xl border border-slate-200 bg-slate-50/80 p-0.5 shadow-2xs">
+              {([7, 14] as const).map((dayCount) => (
+                <button
+                  key={dayCount}
+                  type="button"
+                  aria-pressed={visibleDays === dayCount}
+                  disabled={isSavingChanges}
+                  onClick={() => setVisibleDays(dayCount)}
+                  className={`h-9 px-3.5 text-xs font-bold rounded-lg transition cursor-pointer ${
+                    visibleDays === dayCount
+                      ? "bg-white text-slate-900 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {dayCount} ngày
+                </button>
+              ))}
+            </div>
+
+            {/* Refresh Button */}
             <button
               type="button"
               onClick={() => void refetch()}
-              className="h-10 px-5 rounded-full bg-rose-800 text-white text-sm font-bold"
+              disabled={isFetching || isSavingChanges}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs cursor-pointer disabled:opacity-50"
+            >
+              <VsIcon
+                name="refresh"
+                className={`text-sm ${isFetching ? "animate-spin text-emerald-700" : ""}`}
+              />
+              <span>Làm mới</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Guide & Status Line */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-xs text-slate-500">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="font-semibold text-slate-700">💡 Thao tác nhanh:</span>
+          <span>Nhấp trực tiếp vào ô số phòng hoặc giá để sửa (tự động lưu).</span>
+          <span className="hidden sm:inline text-slate-300">•</span>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 font-medium text-emerald-800">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              Mở bán
+            </span>
+            <span className="inline-flex items-center gap-1 font-medium text-rose-700">
+              <span className="h-2 w-2 rounded-full bg-rose-500" />
+              Đóng bán
+            </span>
+          </div>
+        </div>
+        <p className="sm:hidden text-slate-400">Vuốt ngang bảng để xem các ngày tiếp theo.</p>
+      </div>
+
+      {/* Grid Table Container */}
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
+        {isLoading ? (
+          <div role="status" className="flex min-h-80 items-center justify-center p-6 text-sm font-semibold text-slate-600">
+            <VsIcon name="refresh" className="mr-2 animate-spin text-emerald-700 text-lg" />
+            Đang tải phòng và giá {visibleDays} ngày…
+          </div>
+        ) : isError ? (
+          <div role="alert" className="space-y-3 bg-rose-50 p-6 text-center sm:p-12">
+            <h3 className="text-lg font-bold text-rose-900">Không thể tải phòng và giá</h3>
+            <p className="text-sm text-rose-800">Vui lòng kiểm tra kết nối mạng và thử lại.</p>
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              disabled={isFetching}
+              className="min-h-10 rounded-xl bg-rose-800 px-5 text-sm font-bold text-white hover:bg-rose-900 cursor-pointer shadow-xs"
             >
               Thử lại
             </button>
           </div>
         ) : roomTypes.length === 0 ? (
-          <div className="p-12 text-center space-y-2">
-            <h3 className="text-lg font-extrabold text-slate-900">
-              DB chưa có hạng phòng để hiển thị
-            </h3>
-            <p className="text-sm font-medium text-slate-500">
-              Hãy tạo phòng thật, nhập hạng phòng và giá trong quản lý phòng.
-            </p>
+          <div className="space-y-2 p-6 text-center sm:p-12">
+            <h3 className="text-lg font-bold text-slate-900">Chưa có hạng phòng nào</h3>
+            <p className="text-sm text-slate-500">Thêm hạng phòng tại mục Quản lý phòng để bắt đầu vận hành.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full border-collapse text-left text-sm select-none">
-              {/* Header: Dates */}
+          <div
+            role="region"
+            aria-label="Lịch phòng và giá theo ngày"
+            tabIndex={0}
+            className="overflow-x-auto custom-scrollbar focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-700"
+          >
+            <table className="w-full border-collapse text-left text-sm tabular-nums">
+              <caption className="sr-only">
+                Lịch phòng trống, giá mỗi đêm và trạng thái bán trong {visibleDays} ngày.
+              </caption>
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-800">
-                  <th className="sticky left-0 z-20 bg-slate-100 min-w-[220px] max-w-[240px] p-3.5 text-sm font-extrabold text-slate-900 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
-                    <div className="flex items-center justify-between">
-                      <span>Hạng phòng & Chỉ số</span>
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600">
-                        14 ngày
-                      </span>
-                    </div>
+                <tr className="border-b border-slate-200 bg-slate-50 text-slate-700">
+                  <th
+                    scope="col"
+                    className="sticky left-0 z-20 w-44 min-w-[176px] sm:w-56 sm:min-w-[224px] border-r border-slate-300 bg-slate-100 p-3.5 font-black text-slate-900 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)]"
+                  >
+                    Hạng phòng
                   </th>
-                  {daysHeader.map((d) => (
+                  {daysHeader.map((day) => (
                     <th
-                      key={d.dateStr}
-                      className={`min-w-[84px] p-2 text-center border-r border-slate-200 transition-colors ${
-                        d.isToday
-                          ? "bg-emerald-50/90 text-emerald-950 font-black border-b-2 border-b-emerald-600"
-                          : d.isWeekend
-                            ? "bg-amber-50/60 text-amber-950 font-bold"
-                            : "text-slate-700"
+                      key={day.dateStr}
+                      scope="col"
+                      aria-current={day.isToday ? "date" : undefined}
+                      className={`min-w-[140px] border-r border-slate-200 px-3 py-2.5 text-center font-semibold last:border-r-0 ${
+                        day.isToday
+                          ? "border-b-2 border-b-emerald-700 bg-emerald-100/90 text-emerald-950"
+                          : day.isWeekend
+                            ? "border-b border-slate-300 bg-amber-100/40 text-amber-950"
+                            : "border-b border-slate-300 bg-slate-100/70 text-slate-800"
                       }`}
                     >
-                      <div className="text-xs uppercase tracking-wider font-extrabold opacity-80">
-                        {d.dow}
+                      <div className="flex items-center justify-center gap-1">
+                        {day.isToday ? (
+                          <span className="inline-block rounded bg-emerald-700 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">
+                            Hôm nay
+                          </span>
+                        ) : (
+                          <span className={`text-xs uppercase tracking-wider ${
+                            day.isWeekend ? "font-bold text-amber-900" : "font-semibold text-slate-600"
+                          }`}>
+                            {day.dow}
+                          </span>
+                        )}
                       </div>
-                      <div className="text-sm font-black mt-0.5">
-                        {d.dayNum}
+                      <div className={`mt-0.5 text-sm ${
+                        day.isToday
+                          ? "font-black text-emerald-950"
+                          : day.isWeekend
+                            ? "font-extrabold text-amber-950"
+                            : "font-black text-slate-900"
+                      }`}>
+                        {day.dayNum}
                       </div>
-                      {d.isToday && (
-                        <div className="mt-0.5 inline-block text-[9px] font-bold px-1.5 rounded-full bg-emerald-600 text-white">
-                          Hôm nay
-                        </div>
-                      )}
                     </th>
                   ))}
                 </tr>
               </thead>
+              {roomTypes.map((rt) => {
+                const isCollapsed = collapsedRoomTypes.has(rt.roomTypeId);
 
-              <tbody>
-                {roomTypes.map((rt) => {
-                  const isCollapsed = collapsedRoomTypes.has(rt.roomTypeId);
+                return (
+                  <tbody key={rt.roomTypeId}>
+                    {/* Room Type Group Header Banner */}
+                    <tr className="border-y border-slate-300 bg-slate-100 hover:bg-slate-200/70 transition-colors">
+                      <th scope="rowgroup" colSpan={visibleDays + 1} className="p-0 text-left">
+                        <div className="sticky left-0 flex w-fit max-w-[calc(100vw-4rem)] flex-wrap items-center gap-x-3 gap-y-1 px-3.5 py-2 sm:max-w-none">
+                          <button
+                            type="button"
+                            onClick={() => toggleRoomTypeCollapse(rt.roomTypeId)}
+                            aria-expanded={!isCollapsed}
+                            aria-label={(isCollapsed ? "Hiện chi tiết " : "Thu gọn ") + rt.roomTypeName}
+                            className="flex min-h-9 items-center gap-1.5 rounded-lg text-left text-sm font-extrabold text-slate-950 hover:text-emerald-800 transition cursor-pointer"
+                          >
+                            <VsIcon
+                              name={isCollapsed ? "expand_more" : "expand_less"}
+                              className="text-base text-slate-600"
+                            />
+                            <span>{rt.roomTypeName}</span>
+                          </button>
+                          <span className="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs font-bold text-slate-800 shadow-2xs">
+                            {rt.totalRooms} phòng
+                          </span>
+                          <span className="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs font-semibold text-slate-700 shadow-2xs">
+                            Giá gốc: {rt.basePrice === null ? "Chưa có" : formatCurrencyFull(rt.basePrice)}
+                          </span>
+                          {rt.roomTypeCode !== rt.roomTypeName && (
+                            <span className="font-mono text-xs font-bold text-slate-500">
+                              #{rt.roomTypeCode}
+                            </span>
+                          )}
+                        </div>
+                      </th>
+                    </tr>
 
-                  return (
-                    <ReactFragmentWrapper key={rt.roomTypeId}>
-                      {/* Room Type Header Bar */}
-                      <tr className="bg-gradient-to-r from-slate-100/90 via-slate-50 to-white border-y-2 border-slate-200/80">
-                        <td
-                          colSpan={15}
-                          className="sticky left-0 z-10 p-3 sm:px-4 text-left"
-                        >
-                          <div className="flex items-center justify-between flex-wrap gap-2">
-                            <div className="flex items-center gap-3">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  toggleRoomTypeCollapse(rt.roomTypeId)
-                                }
-                                className="w-7 h-7 rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center justify-center font-bold text-xs shadow-2xs transition-colors cursor-pointer"
-                              >
-                                {isCollapsed ? "＋" : "－"}
-                              </button>
-                              <div>
-                                <span className="text-base font-extrabold text-slate-900">
-                                  {rt.roomTypeName}
-                                </span>
-                                <span className="ml-2 px-2 py-0.5 rounded-md bg-slate-200/80 text-slate-800 font-mono text-xs font-bold">
-                                  {rt.roomTypeCode}
-                                </span>
-                              </div>
+                    {!isCollapsed && (
+                      <>
+                        {/* 1. Available Rooms Row */}
+                        <tr className="border-b border-slate-200 bg-white hover:bg-emerald-50/20 transition-colors">
+                          <th
+                            scope="row"
+                            className="sticky left-0 z-10 border-r border-slate-300 bg-white p-3 text-sm font-bold text-slate-800 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)]"
+                          >
+                            <div className="flex items-center gap-2 pl-4">
+                              <span className="h-2 w-2 rounded-full bg-emerald-600" />
+                              <span>Phòng trống</span>
                             </div>
-                            <div className="flex items-center gap-4 text-xs font-semibold text-slate-600 pr-2">
-                              <span>
-                                Tổng quỹ:{" "}
-                                <strong className="text-slate-900 font-extrabold text-sm">
-                                  {rt.totalRooms}
-                                </strong>{" "}
-                                phòng
-                              </span>
-                              <span className="hidden sm:inline">•</span>
-                              <span className="hidden sm:inline">
-                                Giá gốc:{" "}
-                                <strong className="text-emerald-800 font-extrabold text-sm">
-                                  {rt.basePrice === null
-                                    ? "Chưa có giá"
-                                    : formatCurrencyFull(rt.basePrice)}
-                                </strong>
-                              </span>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
+                          </th>
+                          {rt.days.map((day) => {
+                            const cellKey = rt.roomTypeId + "_" + day.date + "_available";
+                            const isEditing = editingCellKey === cellKey;
+                            const isSaving = savingCellKey === cellKey;
+                            const value = day.available;
 
-                      {/* Content rows (if not collapsed) */}
-                      {!isCollapsed && (
-                        <>
-                          {/* 1. Room Availability Row */}
-                          <tr className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                            <td className="sticky left-0 z-10 bg-white p-3 font-bold text-slate-800 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
-                              <div className="flex items-center justify-between pl-7">
-                                <span className="text-sm font-extrabold text-slate-800">
-                                  Phòng trống
-                                </span>
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
-                                  Kho phòng
-                                </span>
-                              </div>
-                            </td>
-                            {rt.days.map((day) => {
-                              const isSoldOut = day.available === 0;
-                              const isEditing =
-                                editingCellKey ===
-                                `${rt.roomTypeId}_${day.date}_available`;
-                              const isSaving =
-                                savingCellKey ===
-                                `${rt.roomTypeId}_${day.date}_available`;
-
-                              return (
-                                <td
-                                  key={day.date}
-                                  className={`p-2 text-center border-r border-slate-200 align-middle transition-colors ${
-                                    isSaving ? "bg-emerald-50/70 animate-pulse" : ""
-                                  }`}
-                                  onDoubleClick={() =>
-                                    startEditing(
-                                      rt.roomTypeId,
-                                      day.date,
-                                      "available",
-                                      day.available,
-                                    )
-                                  }
-                                >
-                                  {isEditing ? (
-                                    <input
-                                      ref={inputRef}
-                                      type="number"
-                                      min="0"
-                                      max={rt.totalRooms}
-                                      value={editingValue}
-                                      onChange={(e) =>
-                                        setEditingValue(e.target.value)
+                            return (
+                              <td key={day.date} className="border-r border-slate-200 px-2 py-1.5 text-center last:border-r-0">
+                                {isEditing ? (
+                                  <input
+                                    ref={inputRef}
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={editingValue}
+                                    onChange={(event) =>
+                                      setEditingValue(event.target.value.replace(/\D/g, ""))
+                                    }
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter") {
+                                        void commitEditing(rt.roomTypeId, day.date, "available", value);
+                                      } else if (event.key === "Escape") {
+                                        cancelEditing();
                                       }
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter") {
-                                          void commitEditing(
-                                            rt.roomTypeId,
-                                            day.date,
-                                            "available",
-                                            day.available,
-                                          );
-                                        } else if (e.key === "Escape") {
-                                          cancelEditing();
-                                        }
-                                      }}
-                                      onBlur={() =>
-                                        void commitEditing(
-                                          rt.roomTypeId,
-                                          day.date,
-                                          "available",
-                                          day.available,
-                                        )
-                                      }
-                                      className="w-14 h-8 text-center text-sm font-black rounded-lg border-2 border-emerald-600 bg-white shadow-xs focus:outline-none"
-                                    />
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      disabled={isSaving}
-                                      onClick={() =>
-                                        startEditing(
-                                          rt.roomTypeId,
-                                          day.date,
-                                          "available",
-                                          day.available,
-                                        )
-                                      }
-                                      title="Nhấn để sửa tồn kho (tự động lưu)"
-                                      className={`w-full py-1 px-1.5 rounded-xl text-center font-extrabold text-sm transition-all border cursor-pointer ${
-                                        isSoldOut
-                                          ? "bg-rose-100 text-rose-800 border-rose-200 font-black"
-                                          : "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
-                                      }`}
-                                    >
-                                      {isSaving ? (
-                                        <span className="text-xs font-bold text-emerald-700">
-                                          Lưu...
-                                        </span>
-                                      ) : (
-                                        <>
-                                          {day.available}
-                                          <span className="text-[10px] font-normal text-slate-500 ml-0.5">
-                                            /{rt.totalRooms}
-                                          </span>
-                                        </>
-                                      )}
-                                    </button>
-                                  )}
-                                </td>
-                              );
-                            })}
-                          </tr>
-
-                          {/* 2. Room Rate Row */}
-                          <tr className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                            <td className="sticky left-0 z-10 bg-white p-3 font-bold text-slate-800 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
-                              <div className="flex items-center justify-between pl-7">
-                                <span className="text-sm font-extrabold text-emerald-950">
-                                  Giá phòng
-                                </span>
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                  VND/đêm
-                                </span>
-                              </div>
-                            </td>
-                            {rt.days.map((day) => {
-                              const isEditing =
-                                editingCellKey ===
-                                `${rt.roomTypeId}_${day.date}_rate`;
-                              const isSaving =
-                                savingCellKey ===
-                                `${rt.roomTypeId}_${day.date}_rate`;
-
-                              return (
-                                <td
-                                  key={day.date}
-                                  className={`p-1.5 text-center border-r border-slate-200 align-middle transition-colors ${
-                                    isSaving ? "bg-emerald-50/70 animate-pulse" : ""
-                                  }`}
-                                  onDoubleClick={() =>
-                                    startEditing(
-                                      rt.roomTypeId,
-                                      day.date,
-                                      "rate",
-                                      day.rate,
-                                    )
-                                  }
-                                >
-                                  {isEditing ? (
-                                    <div className="relative inline-block w-full">
-                                      <input
-                                        ref={inputRef}
-                                        type="number"
-                                        step="10000"
-                                        value={editingValue}
-                                        onChange={(e) =>
-                                          setEditingValue(e.target.value)
-                                        }
-                                        onKeyDown={(e) => {
-                                          if (e.key === "Enter") {
-                                            void commitEditing(
-                                              rt.roomTypeId,
-                                              day.date,
-                                              "rate",
-                                              day.rate,
-                                            );
-                                          } else if (e.key === "Escape") {
-                                            cancelEditing();
-                                          }
-                                        }}
-                                        onBlur={() =>
-                                          void commitEditing(
-                                            rt.roomTypeId,
-                                            day.date,
-                                            "rate",
-                                            day.rate,
-                                          )
-                                        }
-                                        className="w-full h-8 px-1 text-center text-xs font-black rounded-lg border-2 border-emerald-600 bg-white shadow-xs focus:outline-none"
-                                      />
-                                    </div>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      disabled={isSaving}
-                                      onClick={() =>
-                                        startEditing(
-                                          rt.roomTypeId,
-                                          day.date,
-                                          "rate",
-                                          day.rate,
-                                        )
-                                      }
-                                      title={
-                                        day.rate === null
-                                          ? "Chưa có giá trong DB - Nhấp để nhập (tự động lưu)"
-                                          : `Giá: ${formatCurrencyFull(day.rate)} - Nhấp để sửa (tự động lưu)`
-                                      }
-                                      className="w-full py-1.5 px-1 rounded-xl text-center font-bold text-xs transition-all border cursor-pointer bg-white text-slate-800 border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/50"
-                                    >
-                                      {isSaving ? (
-                                        <span className="text-xs font-bold text-emerald-700">
-                                          Lưu...
-                                        </span>
-                                      ) : day.rate === null ? (
-                                        "Chưa có giá"
-                                      ) : (
-                                        formatCurrencyCompact(day.rate)
-                                      )}
-                                    </button>
-                                  )}
-                                </td>
-                              );
-                            })}
-                          </tr>
-
-                          {/* 3. Stop Sell Row */}
-                          <tr className="border-b-2 border-slate-200/80 hover:bg-slate-50/50 transition-colors">
-                            <td className="sticky left-0 z-10 bg-white p-3 font-bold text-slate-800 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
-                              <div className="flex items-center justify-between pl-7">
-                                <span className="text-sm font-extrabold text-slate-800">
-                                  Đóng bán
-                                </span>
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
-                                  Tạm dừng
-                                </span>
-                              </div>
-                            </td>
-                            {rt.days.map((day) => {
-                              const isSaving =
-                                savingCellKey ===
-                                `${rt.roomTypeId}_${day.date}_stopsell`;
-
-                              return (
-                                <td
-                                  key={day.date}
-                                  className={`p-1.5 text-center border-r border-slate-200 align-middle transition-colors ${
-                                    isSaving ? "bg-emerald-50/70 animate-pulse" : ""
-                                  }`}
-                                >
+                                    }}
+                                    onBlur={() => void commitEditing(rt.roomTypeId, day.date, "available", value)}
+                                    className="h-10 w-full min-w-0 rounded-xl border-2 border-emerald-600 bg-white text-center text-sm font-black text-slate-950 shadow-sm outline-none focus:ring-2 focus:ring-emerald-300"
+                                  />
+                                ) : (
                                   <button
                                     type="button"
-                                    disabled={isSaving}
-                                    onClick={() =>
-                                      void toggleStopSell(rt.roomTypeId, day)
-                                    }
-                                    title={
-                                      day.stopSell
-                                        ? "Đang đóng bán - Nhấp để mở bán (tự động lưu)"
-                                        : "Đang mở bán - Nhấp để đóng bán (tự động lưu)"
-                                    }
-                                    className={`w-full py-1 px-1 rounded-xl text-xs font-black transition-all border cursor-pointer ${
-                                      day.stopSell
-                                        ? "bg-rose-600 text-white border-rose-700 shadow-2xs"
-                                        : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200 hover:text-slate-800"
+                                    disabled={isSavingChanges || isFetching}
+                                    onClick={() => startEditing(rt.roomTypeId, day.date, "available", value)}
+                                    title="Nhấp để sửa số phòng trống (tự động lưu)"
+                                    className={`group relative min-h-10 w-full whitespace-nowrap rounded-xl px-2 py-1.5 text-sm font-bold transition-all border cursor-pointer ${
+                                      isSaving
+                                        ? "bg-emerald-50 text-emerald-800 animate-pulse border-emerald-300"
+                                        : value === 0
+                                          ? "bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100 hover:border-rose-400 hover:shadow-xs hover:scale-[1.02] active:scale-[0.98]"
+                                          : "bg-white text-slate-900 border-slate-200/90 hover:bg-emerald-50/70 hover:border-emerald-500 hover:text-emerald-950 hover:shadow-xs hover:scale-[1.02] active:scale-[0.98]"
                                     }`}
                                   >
-                                    {isSaving ? "..." : day.stopSell ? "⛔ Đóng" : "Mở"}
+                                    {isSaving ? (
+                                      <span className="text-xs font-semibold">Đang lưu...</span>
+                                    ) : value === 0 ? (
+                                      <span className="inline-flex items-center gap-1 font-black text-xs text-rose-700">
+                                        <span>⛔</span> Hết phòng (0)
+                                      </span>
+                                    ) : (
+                                      <span className="flex items-center justify-center gap-1">
+                                        <span className="text-slate-950 font-black text-base">{value}</span>
+                                        <span className="text-xs font-semibold text-slate-500">/ {rt.totalRooms}</span>
+                                      </span>
+                                    )}
                                   </button>
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        </>
-                      )}
-                    </ReactFragmentWrapper>
-                  );
-                })}
-              </tbody>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+
+                        {/* 2. Rates Row */}
+                        <tr className="border-b border-slate-200 bg-slate-50/60 hover:bg-blue-50/20 transition-colors">
+                          <th
+                            scope="row"
+                            className="sticky left-0 z-10 border-r border-slate-300 bg-slate-50 p-3 text-sm font-bold text-slate-800 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)]"
+                          >
+                            <div className="flex items-center gap-2 pl-4">
+                              <span className="h-2 w-2 rounded-full bg-blue-600" />
+                              <span>Giá / đêm</span>
+                            </div>
+                          </th>
+                          {rt.days.map((day) => {
+                            const cellKey = rt.roomTypeId + "_" + day.date + "_rate";
+                            const isEditing = editingCellKey === cellKey;
+                            const isSaving = savingCellKey === cellKey;
+                            const value = day.rate;
+
+                            return (
+                              <td key={day.date} className="border-r border-slate-200 px-2 py-1.5 text-center last:border-r-0">
+                                {isEditing ? (
+                                  <input
+                                    ref={inputRef}
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={editingValue}
+                                    placeholder="0"
+                                    onChange={(event) =>
+                                      setEditingValue(formatNumberWithDots(event.target.value))
+                                    }
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter") {
+                                        void commitEditing(rt.roomTypeId, day.date, "rate", value);
+                                      } else if (event.key === "Escape") {
+                                        cancelEditing();
+                                      }
+                                    }}
+                                    onBlur={() => void commitEditing(rt.roomTypeId, day.date, "rate", value)}
+                                    className="h-10 w-full min-w-0 rounded-xl border-2 border-indigo-600 bg-white text-center text-sm font-black text-indigo-950 shadow-sm outline-none focus:ring-2 focus:ring-indigo-300"
+                                  />
+                                ) : (
+                                  <button
+                                    type="button"
+                                    disabled={isSavingChanges || isFetching}
+                                    onClick={() => startEditing(rt.roomTypeId, day.date, "rate", value)}
+                                    title="Nhấp để sửa giá bán (tự động lưu)"
+                                    className={`group relative min-h-10 w-full whitespace-nowrap rounded-xl px-2 py-1.5 text-sm font-bold transition-all border cursor-pointer ${
+                                      isSaving
+                                        ? "bg-emerald-50 text-emerald-800 animate-pulse border-emerald-300"
+                                        : value === null
+                                          ? "bg-slate-50/60 text-slate-400 border-dashed border-slate-300 hover:bg-indigo-50 hover:border-indigo-400 hover:text-indigo-900 hover:shadow-xs hover:scale-[1.02] active:scale-[0.98]"
+                                          : "bg-white text-indigo-950 border-slate-200/90 hover:bg-indigo-50/80 hover:border-indigo-500 hover:text-indigo-950 hover:shadow-xs hover:scale-[1.02] active:scale-[0.98]"
+                                    }`}
+                                  >
+                                    {isSaving ? (
+                                      <span className="text-xs font-semibold">Đang lưu...</span>
+                                    ) : value === null ? (
+                                      <span className="text-xs italic font-semibold">Chưa đặt giá</span>
+                                    ) : (
+                                      <span className="font-black text-indigo-950 tracking-tight text-sm">
+                                        {formatCurrencyFull(value)}
+                                      </span>
+                                    )}
+                                  </button>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+
+                        {/* 3. Stop Sell Status Row */}
+                        <tr className="border-b-2 border-slate-300 bg-white hover:bg-slate-50/50 transition-colors">
+                          <th
+                            scope="row"
+                            className="sticky left-0 z-10 border-r border-slate-300 bg-white p-3 text-sm font-bold text-slate-800 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)]"
+                          >
+                            <div className="flex items-center gap-2 pl-4">
+                              <span className="h-2 w-2 rounded-full bg-amber-600" />
+                              <span>Trạng thái bán</span>
+                            </div>
+                          </th>
+                          {rt.days.map((day) => {
+                            const isSaving = savingCellKey === rt.roomTypeId + "_" + day.date + "_stopsell";
+
+                            return (
+                              <td
+                                key={day.date}
+                                className={`border-r border-slate-200 px-2 py-2 text-center last:border-r-0 ${
+                                  day.stopSell ? "bg-rose-50/50" : ""
+                                }`}
+                              >
+                                <div className={`mb-1.5 whitespace-nowrap text-xs font-bold inline-flex items-center gap-1 ${
+                                  day.stopSell ? "text-rose-700" : "text-emerald-700"
+                                }`}>
+                                  <span className={`h-1.5 w-1.5 rounded-full ${day.stopSell ? "bg-rose-600" : "bg-emerald-600"}`} />
+                                  <span>{day.stopSell ? "Đang đóng bán" : "Đang mở bán"}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  disabled={isSavingChanges || isFetching}
+                                  aria-busy={isSaving}
+                                  aria-label={(day.stopSell ? "Mở bán " : "Đóng bán ") + rt.roomTypeName + ", ngày " + formatDayOfWeek(day.date).dayNum}
+                                  onClick={() => void toggleStopSell(rt.roomTypeId, day)}
+                                  title={day.stopSell ? "Đang đóng bán - Nhấp để mở bán" : "Đang mở bán - Nhấp để đóng bán"}
+                                  className={`inline-flex min-h-8 w-full items-center justify-center rounded-lg px-2 text-xs font-bold transition-all shadow-2xs cursor-pointer border hover:scale-[1.02] active:scale-[0.98] ${
+                                    isSaving
+                                      ? "bg-slate-100 text-slate-500 border-slate-200 animate-pulse"
+                                      : day.stopSell
+                                        ? "border-emerald-600 bg-emerald-800 text-white hover:bg-emerald-900 shadow-xs"
+                                        : "border-slate-300 bg-white text-slate-800 hover:border-rose-400 hover:bg-rose-50 hover:text-rose-900"
+                                  }`}
+                                >
+                                  {isSaving ? "Đang lưu…" : day.stopSell ? "Mở bán" : "Đóng bán"}
+                                </button>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      </>
+                    )}
+                  </tbody>
+                );
+              })}
             </table>
           </div>
         )}
       </div>
 
-      {/* Bulk Update Modal */}
-      <BulkUpdateModal
-        isOpen={isBulkModalOpen}
-        onClose={() => {
-          setIsBulkModalOpen(false);
-          void refetch();
-        }}
-        hotelId={hotelId}
-        roomTypes={roomTypes}
-        defaultDateFrom={startDate}
-        defaultDateTo={endDate}
-        roleScope={roleScope}
-      />
+      {isBulkModalOpen && (
+        <BulkUpdateModal
+          isOpen={isBulkModalOpen}
+          onClose={() => {
+            setIsBulkModalOpen(false);
+            void refetch();
+          }}
+          hotelId={hotelId}
+          roomTypes={roomTypes}
+          defaultDateFrom={startDate}
+          defaultDateTo={endDate}
+          roleScope={roleScope}
+        />
+      )}
     </div>
   );
-}
-
-function ReactFragmentWrapper({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
 }

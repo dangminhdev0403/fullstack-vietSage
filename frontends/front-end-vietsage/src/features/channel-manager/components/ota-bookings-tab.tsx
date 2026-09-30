@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
@@ -19,61 +19,84 @@ interface OtaBookingsTabProps {
 
 type StatusFilter = "ALL" | "CONFIRMED" | "CANCELLED" | "CHECKED_IN";
 
-const getChannelMeta = (otaName: string) => {
+interface ChannelMeta {
+  name: string;
+  tag: string;
+  bgColor: string;
+  textColor: string;
+  borderColor: string;
+  pillClass: string;
+}
+
+const getChannelMeta = (otaName: string): ChannelMeta => {
   const norm = (otaName || "").toLowerCase().replace(/[\s\._-]/g, "");
   if (norm.includes("booking")) {
     return {
       name: "Booking.com",
-      icon: "🅱️",
-      badge: "bg-blue-100 text-blue-800 border-blue-200",
-      accent: "#003580",
+      tag: "B.",
+      bgColor: "bg-[#003580]",
+      textColor: "text-white",
+      borderColor: "border-[#00224f]",
+      pillClass: "bg-blue-50 text-blue-900 border-blue-200/80",
     };
   }
   if (norm.includes("trip") || norm.includes("ctrip")) {
     return {
       name: "Trip.com",
-      icon: "🌏",
-      badge: "bg-indigo-100 text-indigo-800 border-indigo-200",
-      accent: "#2681ff",
+      tag: "Trip",
+      bgColor: "bg-[#2681ff]",
+      textColor: "text-white",
+      borderColor: "border-blue-400",
+      pillClass: "bg-indigo-50 text-indigo-900 border-indigo-200/80",
     };
   }
   if (norm.includes("agoda")) {
     return {
       name: "Agoda",
-      icon: "🔷",
-      badge: "bg-cyan-100 text-cyan-800 border-cyan-200",
-      accent: "#00a599",
+      tag: "agoda",
+      bgColor: "bg-[#00a599]",
+      textColor: "text-white",
+      borderColor: "border-teal-400",
+      pillClass: "bg-teal-50 text-teal-900 border-teal-200/80",
     };
   }
   if (norm.includes("airbnb")) {
     return {
       name: "Airbnb",
-      icon: "🏠",
-      badge: "bg-rose-100 text-rose-800 border-rose-200",
-      accent: "#ff385c",
+      tag: "air",
+      bgColor: "bg-[#ff385c]",
+      textColor: "text-white",
+      borderColor: "border-rose-400",
+      pillClass: "bg-rose-50 text-rose-900 border-rose-200/80",
     };
   }
   if (norm.includes("expedia")) {
     return {
       name: "Expedia",
-      icon: "✈️",
-      badge: "bg-amber-100 text-amber-800 border-amber-200",
-      accent: "#00355f",
+      tag: "Exp",
+      bgColor: "bg-[#00355f]",
+      textColor: "text-amber-300",
+      borderColor: "border-amber-400",
+      pillClass: "bg-amber-50 text-amber-900 border-amber-200/80",
     };
   }
   if (norm.includes("traveloka")) {
     return {
       name: "Traveloka",
-      icon: "🐦",
-      badge: "bg-sky-100 text-sky-800 border-sky-200",
-      accent: "#1ba0e2",
+      tag: "Tvlk",
+      bgColor: "bg-[#1ba0e2]",
+      textColor: "text-white",
+      borderColor: "border-sky-400",
+      pillClass: "bg-sky-50 text-sky-900 border-sky-200/80",
     };
   }
   return {
     name: otaName || "OTA",
-    icon: "🌐",
-    badge: "bg-gray-100 text-gray-800 border-gray-200",
-    accent: "#4b5563",
+    tag: "OTA",
+    bgColor: "bg-slate-700",
+    textColor: "text-white",
+    borderColor: "border-slate-500",
+    pillClass: "bg-slate-100 text-slate-800 border-slate-300",
   };
 };
 
@@ -113,7 +136,6 @@ function calculateNights(checkIn: string | null, checkOut: string | null): numbe
 export function OtaBookingsTab({
   hotelId,
   roleScope = "owner",
-  onSwitchToAri,
 }: OtaBookingsTabProps) {
   const queryClient = useQueryClient();
   const {
@@ -131,6 +153,19 @@ export function OtaBookingsTab({
   const [channelFilter, setChannelFilter] = useState<string>("ALL");
   const [selectedBooking, setSelectedBooking] = useState<SimulatedBookingItem | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Close modal on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSelectedBooking(null);
+      }
+    };
+    if (selectedBooking) {
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [selectedBooking]);
 
   // Realtime WebSocket synchronization
   const realtimeHandlers = useMemo(
@@ -184,18 +219,15 @@ export function OtaBookingsTab({
   // Filtered bookings
   const filteredBookings = useMemo(() => {
     return simulatedBookings.filter((b) => {
-      // Status filter
       if (statusFilter !== "ALL") {
         const normStatus = (b.status || "").toUpperCase();
         if (statusFilter === "CONFIRMED" && normStatus !== "CONFIRMED") return false;
         if (statusFilter === "CANCELLED" && normStatus !== "CANCELLED") return false;
         if (statusFilter === "CHECKED_IN" && normStatus !== "CHECKED_IN") return false;
       }
-      // Channel filter
       if (channelFilter !== "ALL") {
         if (b.otaName !== channelFilter) return false;
       }
-      // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase();
         const matchesCode = (b.reservationCode || "").toLowerCase().includes(q);
@@ -246,9 +278,9 @@ export function OtaBookingsTab({
   return (
     <div className="space-y-6">
       {/* Top Header & Actions */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-[#e5ddcd] bg-white p-6 shadow-sm">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-[#e5ddcd] bg-white p-6 shadow-xs">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 border border-emerald-200">
+          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 border border-emerald-200/80">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>Đồng bộ 2 chiều Realtime</span>
           </div>
@@ -256,7 +288,7 @@ export function OtaBookingsTab({
             Đơn đặt phòng OTA & Lịch sử nhận phòng
           </h2>
           <p className="mt-1 text-sm text-[#5a6760]">
-            Danh sách tất cả các đơn đặt phòng tự động tiếp nhận từ Booking.com, Trip.com, Agoda và hệ thống phân phối OTA.
+            Danh sách tất cả các đơn đặt phòng tự động tiếp nhận từ Booking.com, Trip.com, Agoda và các kênh phân phối.
           </p>
         </div>
 
@@ -265,7 +297,7 @@ export function OtaBookingsTab({
             type="button"
             onClick={() => void refreshSimulatedBookings()}
             disabled={isLoadingSimulatedBookings}
-            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 text-xs font-bold text-gray-700 shadow-2xs hover:bg-gray-50 transition active:scale-95 disabled:opacity-50"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             <VsIcon
               name="refresh"
@@ -278,56 +310,56 @@ export function OtaBookingsTab({
             type="button"
             onClick={handleManualDrain}
             disabled={pollFeed.isPending}
-            className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#003580] px-4 text-xs font-bold text-white shadow-sm hover:bg-[#002860] transition active:scale-95 disabled:opacity-50"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#003580] px-4.5 text-sm font-bold text-white shadow-xs hover:bg-[#002860] transition active:scale-95 disabled:opacity-50 cursor-pointer"
             title="Kéo các thông báo đơn đặt phòng mới nhất từ hàng đợi Channex Feed"
           >
             <VsIcon
               name="cloud_download"
               className={`text-base ${pollFeed.isPending ? "animate-bounce" : ""}`}
             />
-            <span>{pollFeed.isPending ? "Đang kéo Feed..." : "📥 Kéo Feed Channex"}</span>
+            <span>{pollFeed.isPending ? "Đang kéo Feed..." : "Kéo Feed Channex"}</span>
           </button>
         </div>
       </div>
 
       {/* Metric Summary Cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/80 to-white p-5 shadow-2xs">
+        <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/70 via-white to-white p-5 shadow-2xs">
           <div className="flex items-center justify-between text-blue-700">
-            <span className="text-xs font-bold uppercase tracking-wider">Tổng đơn OTA</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-blue-800">Tổng đơn OTA</span>
             <span className="text-xl">📦</span>
           </div>
           <p className="mt-3 text-3xl font-extrabold text-blue-950">
             {stats.total}
           </p>
-          <p className="mt-1 text-xs text-blue-600">Đơn đã tiếp nhận từ các sàn</p>
+          <p className="mt-1 text-xs text-blue-600 font-medium">Đơn đã tiếp nhận từ các sàn</p>
         </div>
 
-        <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/80 to-white p-5 shadow-2xs">
+        <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/70 via-white to-white p-5 shadow-2xs">
           <div className="flex items-center justify-between text-emerald-700">
-            <span className="text-xs font-bold uppercase tracking-wider">Đang giữ phòng</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">Đang giữ phòng</span>
             <span className="text-xl">🟢</span>
           </div>
           <p className="mt-3 text-3xl font-extrabold text-emerald-950">
             {stats.confirmed}
           </p>
-          <p className="mt-1 text-xs text-emerald-600">Đơn hợp lệ đang trừ kho phòng</p>
+          <p className="mt-1 text-xs text-emerald-600 font-medium">Đơn hợp lệ đang trừ kho phòng</p>
         </div>
 
-        <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-50/80 to-white p-5 shadow-2xs">
+        <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-50/70 via-white to-white p-5 shadow-2xs">
           <div className="flex items-center justify-between text-rose-700">
-            <span className="text-xs font-bold uppercase tracking-wider">Đơn đã hủy</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-rose-800">Đơn đã hủy</span>
             <span className="text-xl">⚪</span>
           </div>
           <p className="mt-3 text-3xl font-extrabold text-rose-950">
             {stats.cancelled}
           </p>
-          <p className="mt-1 text-xs text-rose-600">Đã tự động hoàn trả ô phòng</p>
+          <p className="mt-1 text-xs text-rose-600 font-medium">Đã tự động hoàn trả kho phòng</p>
         </div>
 
-        <div className="rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50/80 to-white p-5 shadow-2xs">
+        <div className="rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50/70 via-white to-white p-5 shadow-2xs">
           <div className="flex items-center justify-between text-amber-700">
-            <span className="text-xs font-bold uppercase tracking-wider">Doanh thu dự kiến</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-800">Doanh thu dự kiến</span>
             <span className="text-xl">💰</span>
           </div>
           <div className="mt-3">
@@ -345,31 +377,32 @@ export function OtaBookingsTab({
               <p className="text-2xl font-extrabold text-amber-950">0 ₫</p>
             )}
           </div>
-          <p className="mt-1 text-xs text-amber-600">Từ các đơn đang có hiệu lực</p>
+          <p className="mt-1 text-xs text-amber-600 font-medium">Từ các đơn đang có hiệu lực</p>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="rounded-2xl border border-[#e5ddcd] bg-white p-4 shadow-sm space-y-3">
+      <div className="rounded-2xl border border-[#e5ddcd] bg-white p-4 shadow-xs space-y-3">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           {/* Search Input */}
-          <div className="relative flex-1 max-w-md">
+          <div className="relative flex-1 max-w-lg">
             <VsIcon
               name="search"
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-lg text-gray-400"
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-lg text-slate-400"
             />
             <input
               type="text"
               placeholder="Tìm theo mã đơn, mã OTA, tên khách, số phòng..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50/70 pl-10 pr-9 text-xs text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition"
+              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 pl-11 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400 hover:text-slate-600 cursor-pointer"
+                title="Xóa tìm kiếm"
               >
                 ✕
               </button>
@@ -377,16 +410,16 @@ export function OtaBookingsTab({
           </div>
 
           {/* Status & Channel Filters */}
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Status Pills */}
-            <div className="inline-flex rounded-xl bg-gray-100 p-1 text-xs font-semibold">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Status Segmented Tabs */}
+            <div className="inline-flex rounded-xl bg-slate-100 p-1 text-sm font-semibold">
               <button
                 type="button"
                 onClick={() => setStatusFilter("ALL")}
-                className={`rounded-lg px-3 py-1.5 transition ${
+                className={`rounded-lg px-3.5 py-1.5 transition cursor-pointer ${
                   statusFilter === "ALL"
-                    ? "bg-white text-gray-900 shadow-2xs font-bold"
-                    : "text-gray-600 hover:text-gray-900"
+                    ? "bg-white text-slate-900 shadow-2xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
               >
                 Tất cả ({simulatedBookings.length})
@@ -394,24 +427,26 @@ export function OtaBookingsTab({
               <button
                 type="button"
                 onClick={() => setStatusFilter("CONFIRMED")}
-                className={`rounded-lg px-3 py-1.5 transition ${
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 transition cursor-pointer ${
                   statusFilter === "CONFIRMED"
                     ? "bg-white text-emerald-800 shadow-2xs font-bold"
-                    : "text-gray-600 hover:text-gray-900"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                🟢 Giữ phòng ({stats.confirmed})
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                <span>Giữ phòng ({stats.confirmed})</span>
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter("CANCELLED")}
-                className={`rounded-lg px-3 py-1.5 transition ${
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 transition cursor-pointer ${
                   statusFilter === "CANCELLED"
                     ? "bg-white text-rose-800 shadow-2xs font-bold"
-                    : "text-gray-600 hover:text-gray-900"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                ⚪ Đã hủy ({stats.cancelled})
+                <span className="h-2 w-2 rounded-full bg-rose-400" />
+                <span>Đã hủy ({stats.cancelled})</span>
               </button>
             </div>
 
@@ -420,7 +455,7 @@ export function OtaBookingsTab({
               <select
                 value={channelFilter}
                 onChange={(e) => setChannelFilter(e.target.value)}
-                className="h-9 rounded-xl border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
               >
                 <option value="ALL">Mọi kênh OTA</option>
                 {availableChannels.map((c) => (
@@ -435,19 +470,19 @@ export function OtaBookingsTab({
       </div>
 
       {/* Main Table */}
-      <div className="overflow-hidden rounded-2xl border border-[#e5ddcd] bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-[#e5ddcd] bg-white shadow-xs">
         {isLoadingSimulatedBookings ? (
-          <div className="py-16 text-center text-xs text-gray-500">
-            <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-            <p className="mt-3 font-semibold text-gray-700">Đang tải danh sách đơn đặt phòng OTA...</p>
+          <div className="py-20 text-center text-sm text-slate-500">
+            <span className="inline-block h-7 w-7 animate-spin rounded-full border-3 border-blue-600 border-t-transparent" />
+            <p className="mt-3 font-semibold text-slate-700">Đang tải danh sách đơn đặt phòng OTA...</p>
           </div>
         ) : filteredBookings.length === 0 ? (
-          <div className="py-16 text-center">
-            <span className="text-4xl text-gray-300">📭</span>
-            <p className="mt-3 text-base font-bold text-gray-800">
+          <div className="py-20 text-center">
+            <span className="text-4xl text-slate-300">📭</span>
+            <p className="mt-3 text-base font-bold text-slate-800">
               Không tìm thấy đơn đặt phòng nào
             </p>
-            <p className="mt-1 text-xs text-gray-500 max-w-sm mx-auto">
+            <p className="mt-1 text-sm text-slate-500 max-w-sm mx-auto">
               {searchQuery || statusFilter !== "ALL" || channelFilter !== "ALL"
                 ? "Thử bỏ bộ lọc hoặc từ khóa tìm kiếm để xem tất cả đơn."
                 : "Chưa có đơn đặt phòng nào từ OTA được tiếp nhận vào khách sạn này."}
@@ -455,19 +490,21 @@ export function OtaBookingsTab({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-gray-200 bg-gray-50/80 text-[11px] font-bold uppercase tracking-wider text-gray-600">
+            <table className="w-full text-left">
+              <thead className="border-b border-slate-200 bg-slate-50/80 text-xs font-bold uppercase tracking-wider text-slate-500">
                 <tr>
-                  <th className="py-3.5 px-4">Kênh & Mã đơn</th>
-                  <th className="py-3.5 px-4">Khách hàng</th>
-                  <th className="py-3.5 px-4">Hạng phòng & Phòng gán</th>
-                  <th className="py-3.5 px-4">Lịch lưu trú</th>
-                  <th className="py-3.5 px-4">Tổng tiền</th>
-                  <th className="py-3.5 px-4 text-center">Trạng thái</th>
-                  <th className="py-3.5 px-4 text-right">Thao tác</th>
+                  <th className="py-4 px-5">Kênh & Mã đơn</th>
+                  <th className="py-4 px-5">Khách hàng</th>
+                  <th className="py-4 px-5">Hạng phòng & Phòng gán</th>
+                  <th className="py-4 px-5">Lịch lưu trú</th>
+                  <th className="py-4 px-5">Tổng tiền</th>
+                  <th className="py-4 px-5 text-center">Trạng thái</th>
+                  <th className="py-4 px-3 text-right w-10">
+                    <span className="sr-only">Xem chi tiết</span>
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-100">
                 {filteredBookings.map((b) => {
                   const isCancelled = (b.status || "").toUpperCase() === "CANCELLED";
                   const isCheckedIn = (b.status || "").toUpperCase() === "CHECKED_IN";
@@ -477,80 +514,105 @@ export function OtaBookingsTab({
                   return (
                     <tr
                       key={b.bookingId}
-                      className={`transition hover:bg-gray-50/70 ${
-                        isCancelled ? "bg-gray-50/40 opacity-70" : ""
+                      onClick={() => setSelectedBooking(b)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setSelectedBooking(b);
+                        }
+                      }}
+                      className={`group cursor-pointer transition-colors duration-150 ${
+                        isCancelled
+                          ? "bg-slate-50/50 hover:bg-slate-100/70 text-slate-500"
+                          : "hover:bg-amber-50/25"
                       }`}
+                      title="Nhấp vào đơn để xem thông tin chi tiết"
                     >
-                      {/* Column 1: Channel & Codes */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-xl" title={channel.name}>
-                            {channel.icon}
-                          </span>
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <span
-                                className={`inline-block rounded-md border px-1.5 py-0.5 text-[10px] font-extrabold ${channel.badge}`}
-                              >
+                      {/* Column 1: Kênh & Mã đơn */}
+                      <td className="py-4 px-5 align-middle">
+                        <div className="flex items-center gap-3">
+                          {/* Channel Badge / Logo */}
+                          <div
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-black text-xs shadow-2xs ${channel.bgColor} ${channel.textColor}`}
+                            title={channel.name}
+                          >
+                            {channel.tag}
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
                                 {channel.name}
                               </span>
                               {b.otaReservationCode && (
-                                <span className="font-mono text-[11px] font-bold text-gray-900">
+                                <span className="font-mono text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
                                   #{b.otaReservationCode}
                                 </span>
                               )}
                             </div>
-                            <div className="mt-1 flex items-center gap-1 text-[11px] text-gray-500 font-mono">
-                              <span>Mã PMS: {b.reservationCode}</span>
+                            <div className="mt-0.5 flex items-center gap-1.5 text-xs font-mono text-slate-500">
+                              <span>PMS: {b.reservationCode}</span>
                               <button
                                 type="button"
-                                onClick={() => handleCopy(b.reservationCode, b.bookingId)}
-                                className="text-gray-400 hover:text-blue-600 transition"
-                                title="Sao chép mã đơn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCopy(b.reservationCode, b.bookingId);
+                                }}
+                                className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600 transition cursor-pointer"
+                                title="Sao chép mã PMS"
                               >
-                                {copiedKey === b.bookingId ? "✓" : "📋"}
+                                {copiedKey === b.bookingId ? (
+                                  <span className="text-emerald-600 font-bold text-xs">✓</span>
+                                ) : (
+                                  <VsIcon name="content_copy" className="text-xs" />
+                                )}
                               </button>
                             </div>
                           </div>
                         </div>
                       </td>
 
-                      {/* Column 2: Guest Details */}
-                      <td className="py-3.5 px-4">
-                        <div className="font-bold text-gray-900 text-sm">{b.guestName}</div>
+                      {/* Column 2: Khách hàng */}
+                      <td className="py-4 px-5 align-middle">
+                        <div className="text-[15px] font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                          {b.guestName}
+                        </div>
                         {b.guestPhone ? (
-                          <div className="mt-0.5 text-xs text-gray-500 font-mono">
-                            📞 {b.guestPhone}
+                          <div className="mt-0.5 flex items-center gap-1 text-xs font-mono text-slate-500">
+                            <VsIcon name="call" className="text-xs text-slate-400" />
+                            <span>{b.guestPhone}</span>
                           </div>
                         ) : (
-                          <div className="mt-0.5 text-[11px] text-gray-400 italic">
+                          <div className="mt-0.5 text-xs text-slate-400 italic">
                             Chưa có SĐT
                           </div>
                         )}
                       </td>
 
-                      {/* Column 3: Room Type & Room Number */}
-                      <td className="py-3.5 px-4">
-                        <div className="font-semibold text-gray-800">
+                      {/* Column 3: Hạng phòng & Phòng gán */}
+                      <td className="py-4 px-5 align-middle">
+                        <div className="text-sm font-semibold text-slate-900">
                           {b.roomType || "Chưa xác định"}
                         </div>
                         <div className="mt-1">
                           {b.roomNumber ? (
                             <span
-                              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold border ${
+                              className={`inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-xs font-semibold ${
                                 isCancelled
-                                  ? "bg-gray-100 text-gray-500 border-gray-200 line-through"
-                                  : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                  ? "bg-slate-100 text-slate-500 border border-slate-200"
+                                  : "bg-emerald-50 text-emerald-800 border border-emerald-200"
                               }`}
                             >
-                              <span>{isCancelled ? "🔓" : "🔒"}</span>
+                              <span>{isCancelled ? "🔓" : "🔑"}</span>
                               <span>Phòng {b.roomNumber}</span>
-                              <span className="text-[10px] font-normal">
-                                {isCancelled ? "(Đã trả trống)" : "(Đang giữ)"}
+                              <span className="font-normal text-[11px] text-slate-500">
+                                {isCancelled ? "(Đã hoàn kho)" : "(Đang giữ)"}
                               </span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 border border-amber-200">
+                            <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800 border border-amber-200">
                               <span>⏳</span>
                               <span>Chờ lễ tân gán phòng</span>
                             </span>
@@ -558,58 +620,56 @@ export function OtaBookingsTab({
                         </div>
                       </td>
 
-                      {/* Column 4: Stay Dates */}
-                      <td className="py-3.5 px-4">
-                        <div className="font-semibold text-gray-900">
-                          {formatDate(b.checkInDate)} ➔ {formatDate(b.checkOutDate)}
+                      {/* Column 4: Lịch lưu trú */}
+                      <td className="py-4 px-5 align-middle">
+                        <div className="text-sm font-semibold text-slate-900">
+                          {formatDate(b.checkInDate)} → {formatDate(b.checkOutDate)}
                         </div>
-                        <div className="mt-0.5 text-[11px] text-gray-500">
-                          {nights} đêm
+                        <div className="mt-1">
+                          <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                            {nights} đêm
+                          </span>
                         </div>
                       </td>
 
-                      {/* Column 5: Amount */}
-                      <td className="py-3.5 px-4">
-                        <div className="font-extrabold text-sm text-gray-900">
+                      {/* Column 5: Tổng tiền */}
+                      <td className="py-4 px-5 align-middle">
+                        <div className="text-base font-extrabold text-slate-900 tracking-tight">
                           {formatMoneyWithCurrency(b.amount, b.currency)}
                         </div>
                         {b.currency && (
-                          <div className="text-[10px] font-bold uppercase text-gray-400">
+                          <div className="text-[11px] font-bold uppercase text-slate-400 mt-0.5">
                             {b.currency}
                           </div>
                         )}
                       </td>
 
-                      {/* Column 6: Status Badge */}
-                      <td className="py-3.5 px-4 text-center">
+                      {/* Column 6: Trạng thái */}
+                      <td className="py-4 px-5 text-center align-middle">
                         {isCancelled ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 border border-rose-200 px-2.5 py-1 text-xs font-bold text-rose-700">
-                            <span>●</span>
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 border border-rose-200 px-3 py-1 text-xs font-bold text-rose-700">
+                            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
                             <span>Đã hủy</span>
                           </span>
                         ) : isCheckedIn ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-1 text-xs font-bold text-blue-700">
-                            <span>●</span>
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-bold text-blue-700">
+                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
                             <span>Đã nhận phòng</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-bold text-emerald-700">
-                            <span>●</span>
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-bold text-emerald-700">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                             <span>Đang giữ phòng</span>
                           </span>
                         )}
                       </td>
 
-                      {/* Column 7: Actions */}
-                      <td className="py-3.5 px-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedBooking(b)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs font-bold text-gray-700 hover:bg-gray-100 hover:border-gray-300 transition shadow-2xs"
-                        >
-                          <VsIcon name="visibility" className="text-sm" />
-                          <span>Chi tiết</span>
-                        </button>
+                      {/* Column 7: Affordance Indicator (Replaces separate action column) */}
+                      <td className="py-4 px-3 text-right align-middle">
+                        <VsIcon
+                          name="chevron_right"
+                          className="text-slate-300 text-lg group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all inline-block"
+                        />
                       </td>
                     </tr>
                   );
@@ -622,16 +682,27 @@ export function OtaBookingsTab({
 
       {/* Booking Detail Modal */}
       {selectedBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">{getChannelMeta(selectedBooking.otaName).icon}</span>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
+          onClick={() => setSelectedBooking(null)}
+        >
+          <div
+            className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl font-black text-sm shadow-xs ${getChannelMeta(selectedBooking.otaName).bgColor} ${getChannelMeta(selectedBooking.otaName).textColor}`}
+                >
+                  {getChannelMeta(selectedBooking.otaName).tag}
+                </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">
+                  <h3 className="text-lg font-bold text-slate-900">
                     Chi tiết đơn đặt phòng OTA
                   </h3>
-                  <p className="text-xs text-gray-500 font-mono">
+                  <p className="text-xs text-slate-500 font-mono mt-0.5">
                     {selectedBooking.otaName} • #{selectedBooking.otaReservationCode || selectedBooking.reservationCode}
                   </p>
                 </div>
@@ -639,125 +710,117 @@ export function OtaBookingsTab({
               <button
                 type="button"
                 onClick={() => setSelectedBooking(null)}
-                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition"
+                className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
+                title="Đóng"
               >
                 ✕
               </button>
             </div>
 
-            <div className="mt-4 space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3.5">
+            {/* Modal Content */}
+            <div className="mt-5 space-y-4">
+              {/* Quick Details Grid */}
+              <div className="grid grid-cols-2 gap-3.5 rounded-xl bg-slate-50/80 border border-slate-100 p-4">
                 <div>
-                  <span className="text-gray-500">Khách hàng:</span>
-                  <p className="font-bold text-gray-900 text-sm mt-0.5">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Khách hàng</span>
+                  <p className="font-bold text-slate-900 text-base mt-1">
                     {selectedBooking.guestName}
                   </p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Số điện thoại:</span>
-                  <p className="font-bold text-gray-900 text-sm mt-0.5 font-mono">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Số điện thoại</span>
+                  <p className="font-bold text-slate-900 text-base mt-1 font-mono">
                     {selectedBooking.guestPhone || "Không có"}
                   </p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Hạng phòng:</span>
-                  <p className="font-bold text-gray-900 mt-0.5">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Hạng phòng</span>
+                  <p className="font-semibold text-slate-900 text-sm mt-1">
                     {selectedBooking.roomType || "Chưa xác định"}
                   </p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Phòng thực tế xếp:</span>
-                  <p className="font-bold text-gray-900 mt-0.5">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Phòng xếp thực tế</span>
+                  <p className="font-bold text-slate-900 text-sm mt-1">
                     {selectedBooking.roomNumber ? `Phòng ${selectedBooking.roomNumber}` : "Chờ xếp phòng"}
                   </p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Ngày Check-in:</span>
-                  <p className="font-bold text-gray-900 mt-0.5">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Ngày Check-in</span>
+                  <p className="font-semibold text-slate-900 text-sm mt-1">
                     {formatDate(selectedBooking.checkInDate)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Ngày Check-out:</span>
-                  <p className="font-bold text-gray-900 mt-0.5">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Ngày Check-out</span>
+                  <p className="font-semibold text-slate-900 text-sm mt-1">
                     {formatDate(selectedBooking.checkOutDate)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Tổng thanh toán:</span>
-                  <p className="font-extrabold text-blue-700 text-sm mt-0.5">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Tổng thanh toán</span>
+                  <p className="font-extrabold text-blue-700 text-lg mt-1">
                     {formatMoneyWithCurrency(selectedBooking.amount, selectedBooking.currency)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Trạng thái kho:</span>
-                  <p className="font-bold mt-0.5">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Trạng thái phòng</span>
+                  <p className="font-bold mt-1 text-sm">
                     {(selectedBooking.status || "").toUpperCase() === "CANCELLED" ? (
                       <span className="text-rose-600">Đã giải phóng về kho trống</span>
                     ) : (
-                      <span className="text-emerald-600">Đang giữ phòng</span>
+                      <span className="text-emerald-600">Đang giữ chỗ</span>
                     )}
                   </p>
                 </div>
               </div>
 
-              {/* Technical / Mapping IDs */}
-              <div className="rounded-xl border border-gray-150 p-3 space-y-1.5 font-mono text-[11px]">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Channex Booking ID:</span>
-                  <span className="text-gray-700 font-semibold">{selectedBooking.bookingId}</span>
+              {/* Technical / Reference IDs */}
+              <div className="rounded-xl border border-slate-200/80 p-3.5 space-y-2 font-mono text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Channex Booking ID:</span>
+                  <span className="text-slate-700 font-semibold">{selectedBooking.bookingId}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">VietSage Reservation ID:</span>
-                  <span className="text-gray-700 font-semibold">{selectedBooking.reservationId}</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">VietSage PMS Code:</span>
+                  <span className="text-slate-700 font-semibold">{selectedBooking.reservationCode}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Thời điểm nhận đơn:</span>
-                  <span className="text-gray-700">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Thời điểm nhận đơn:</span>
+                  <span className="text-slate-700">
                     {new Date(selectedBooking.createdAt).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}
                   </span>
                 </div>
               </div>
 
-              {/* Explain inventory status */}
+              {/* Inventory Status Explanation */}
               {(selectedBooking.status || "").toUpperCase() === "CANCELLED" ? (
-                <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-3 text-rose-800">
-                  <p className="font-bold flex items-center gap-1.5">
-                    <span>💡</span> Đơn này đã bị hủy từ kênh OTA
+                <div className="rounded-xl border border-rose-200 bg-rose-50/70 p-3.5 text-rose-800">
+                  <p className="font-bold text-sm flex items-center gap-1.5">
+                    <span>💡</span> Đơn đặt phòng này đã bị hủy từ kênh OTA
                   </p>
-                  <p className="mt-1 text-[11px] leading-relaxed text-rose-700">
-                    Hệ thống VietSage đã tự động hoàn trả phòng <strong>{selectedBooking.roomNumber || selectedBooking.roomType}</strong> lại vào kho phòng trống (lưới ARI) ngày {formatDate(selectedBooking.checkInDate)}.
+                  <p className="mt-1 text-xs leading-relaxed text-rose-700">
+                    Hệ thống VietSage đã tự động hoàn trả phòng <strong>{selectedBooking.roomNumber || selectedBooking.roomType}</strong> lại vào quỹ phòng trống ngày {formatDate(selectedBooking.checkInDate)}.
                   </p>
                 </div>
               ) : (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-emerald-800">
-                  <p className="font-bold flex items-center gap-1.5">
-                    <span>✅</span> Đơn đang có hiệu lực
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-emerald-800">
+                  <p className="font-bold text-sm flex items-center gap-1.5">
+                    <span>✅</span> Đơn đặt phòng đang có hiệu lực
                   </p>
-                  <p className="mt-1 text-[11px] leading-relaxed text-emerald-700">
+                  <p className="mt-1 text-xs leading-relaxed text-emerald-700">
                     Phòng <strong>{selectedBooking.roomNumber || selectedBooking.roomType}</strong> đang được khóa giữ chỗ cho khách {selectedBooking.guestName} từ {formatDate(selectedBooking.checkInDate)} đến {formatDate(selectedBooking.checkOutDate)}.
                   </p>
                 </div>
               )}
             </div>
 
-            <div className="mt-6 flex justify-end gap-2 border-t border-gray-100 pt-3">
-              {onSwitchToAri && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedBooking(null);
-                    onSwitchToAri();
-                  }}
-                  className="rounded-xl border border-gray-300 px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 transition"
-                >
-                  Xem lưới phòng (ARI)
-                </button>
-              )}
+            {/* Modal Actions */}
+            <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
               <button
                 type="button"
                 onClick={() => setSelectedBooking(null)}
-                className="rounded-xl bg-gray-900 px-5 py-2 text-xs font-bold text-white hover:bg-black transition"
+                className="rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-bold text-white hover:bg-black transition cursor-pointer"
               >
                 Đóng
               </button>

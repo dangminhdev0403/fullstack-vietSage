@@ -147,7 +147,7 @@ export function BulkUpdateModal({
     ) {
       await showErrorAlert(
         "Chưa nhập thay đổi",
-        "Vui lòng nhập ít nhất một giá trị cần cập nhật (Giá phòng, Số đêm tối thiểu hoặc Đóng bán).",
+        "Vui lòng thay đổi giá phòng, số đêm tối thiểu hoặc trạng thái bán.",
       );
       return;
     }
@@ -437,47 +437,52 @@ export function BulkUpdateModal({
               />
             </div>
 
-            {/* Stop Sell Options */}
-            <div>
-              <span className="block text-sm font-semibold text-slate-700 mb-2">
-                Trạng thái đóng/mở bán
-              </span>
-              <div className="grid grid-cols-3 gap-2">
+            <fieldset disabled={isBulkUpdating}>
+              <legend className="mb-2 text-base font-semibold text-slate-700">
+                Trạng thái bán
+              </legend>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 [&_button]:focus-visible:outline-2 [&_button]:focus-visible:outline-offset-2 [&_button]:focus-visible:outline-emerald-700 [&_button]:disabled:opacity-50">
                 <button
                   type="button"
+                  aria-pressed={stopSellAction === "keep"}
                   onClick={() => setStopSellAction("keep")}
-                  className={`py-2.5 px-3 rounded-2xl border text-sm font-bold transition-all ${
+                  className={"min-h-11 rounded-lg border px-3 py-2 text-base font-semibold " + (
                     stopSellAction === "keep"
-                      ? "bg-slate-800 border-slate-900 text-white"
-                      : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                  }`}
+                      ? "border-slate-800 bg-slate-800 text-white"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  )}
                 >
                   Giữ nguyên
                 </button>
                 <button
                   type="button"
+                  aria-pressed={stopSellAction === "open"}
                   onClick={() => setStopSellAction("open")}
-                  className={`py-2.5 px-3 rounded-2xl border text-sm font-bold transition-all ${
+                  className={"min-h-11 rounded-lg border px-3 py-2 text-base font-semibold " + (
                     stopSellAction === "open"
-                      ? "bg-emerald-600 border-emerald-700 text-white"
-                      : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                  }`}
+                      ? "border-emerald-800 bg-emerald-800 text-white"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  )}
                 >
-                  🟢 Mở bán
+                  Mở bán
                 </button>
                 <button
                   type="button"
+                  aria-pressed={stopSellAction === "close"}
                   onClick={() => setStopSellAction("close")}
-                  className={`py-2.5 px-3 rounded-2xl border text-sm font-bold transition-all ${
+                  className={"min-h-11 rounded-lg border px-3 py-2 text-base font-semibold " + (
                     stopSellAction === "close"
-                      ? "bg-rose-600 border-rose-700 text-white"
-                      : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                  }`}
+                      ? "border-rose-800 bg-rose-800 text-white"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  )}
                 >
-                  ⛔ Đóng bán
+                  Đóng bán
                 </button>
               </div>
-            </div>
+              <p className="mt-2 text-sm text-slate-600">
+                Chỉ áp dụng cho hạng phòng và ngày đã chọn khi bấm Áp dụng cập nhật.
+              </p>
+            </fieldset>
           </div>
 
           {/* Footer Actions */}
