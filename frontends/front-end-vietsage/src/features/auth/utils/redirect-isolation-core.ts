@@ -87,15 +87,20 @@ export function resolvePostLoginRedirectUrl({
     // Keep default fallback
   }
 
-  let origin: string;
-  if (forwardedOrigin) {
-    // Keep redirects on the public app host that owns the host-only Auth.js cookie.
-    // A different configured marketing origin would drop the refresh token during navigation.
-    origin = forwardedOrigin;
-  } else if (configured && !configured.isLocal) {
-    origin = configured.origin;
-  } else {
-    origin = fallbackOrigin;
+  const trusted = configured && !configured.isLocal ? new URL(configured.origin) : null;
+  const requestHost = new URL(fallbackOrigin).hostname;
+  const vietsageHosts = new Set(["vietsage.com", "www.vietsage.com", "stay.vietsage.com"]);
+  let origin = trusted?.origin ?? (isLocalHost(requestHost) ? fallbackOrigin : "http://127.0.0.1:3000");
+  if (vietsageHosts.has(requestHost)) {
+    // The public request host owns the Auth.js cookie; never downgrade or switch hosts.
+    origin = `https://${requestHost}`;
+  } else if (forwardedOrigin) {
+    const forwarded = new URL(forwardedOrigin);
+    if (vietsageHosts.has(forwarded.hostname) && (!trusted || vietsageHosts.has(trusted.hostname))) {
+      origin = `https://${forwarded.hostname}`;
+    } else if (trusted && forwarded.host === trusted.host) {
+      origin = trusted.origin;
+    }
   }
 
   if (origin.includes("0.0.0.0")) {

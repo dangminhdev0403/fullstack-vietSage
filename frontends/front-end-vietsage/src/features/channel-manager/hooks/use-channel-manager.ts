@@ -7,6 +7,7 @@ import { channelManagerResource } from "../api/channel-manager.resource";
 import type {
   AvailabilityUpdateItem,
   BulkUpdatePayload,
+  ChannexChannelUpdateInput,
   RestrictionUpdateItem,
 } from "../types/channel-manager.types";
 
@@ -215,6 +216,23 @@ export function useChannex(
     onSuccess: async () => boundResource.invalidate(queryClient),
   });
 
+  const deactivateChannel = useMutation({
+    ...boundResource.mutations.deactivateChannexChannel.options(),
+    onSuccess: async () => boundResource.invalidate(queryClient),
+  });
+  const updateChannel = useMutation({
+    ...boundResource.mutations.updateChannexChannel.options(),
+    onSuccess: async () => boundResource.invalidate(queryClient),
+  });
+  const syncChannel = useMutation({
+    ...boundResource.mutations.syncChannexChannel.options(),
+    onSuccess: async () => boundResource.invalidate(queryClient),
+  });
+  const deleteChannel = useMutation({
+    ...boundResource.mutations.deleteChannexChannel.options(),
+    onSuccess: async () => boundResource.invalidate(queryClient),
+  });
+
   return {
     mappings: mappings.data ?? [],
     isLoadingMappings: mappings.isLoading,
@@ -234,6 +252,10 @@ export function useChannex(
     prepareChannel,
     createChannel,
     activateChannel,
+    deactivateChannel,
+    updateChannel,
+    syncChannel,
+    deleteChannel,
     channelCatalog: channelCatalog.data,
     isLoadingChannelCatalog: channelCatalog.isLoading,
     isErrorChannelCatalog: channelCatalog.isError,
@@ -242,3 +264,78 @@ export function useChannex(
     cancelBooking,
   };
 }
+
+export function useChannexChannelDetail(
+  hotelId: string,
+  channelId: string | null,
+  roleScope: "owner" | "admin" = "owner",
+) {
+  const queryClient = useQueryClient();
+  const boundResource = useMemo(
+    () => channelManagerResource.bind({ hotelId, roleScope }),
+    [hotelId, roleScope],
+  );
+
+  const query = useQuery({
+    ...boundResource.queries.channexChannelDetail.options(channelId ?? ""),
+    enabled: Boolean(hotelId && channelId),
+  });
+
+  const update = useMutation({
+    ...boundResource.mutations.updateChannexChannel.options(),
+    onSuccess: async () => {
+      await boundResource.invalidate(queryClient);
+      await query.refetch();
+    },
+  });
+
+  const activate = useMutation({
+    ...boundResource.mutations.activateChannexChannel.options(),
+    onSuccess: async () => {
+      await boundResource.invalidate(queryClient);
+      await query.refetch();
+    },
+  });
+
+  const deactivate = useMutation({
+    ...boundResource.mutations.deactivateChannexChannel.options(),
+    onSuccess: async () => {
+      await boundResource.invalidate(queryClient);
+      await query.refetch();
+    },
+  });
+
+  const sync = useMutation({
+    ...boundResource.mutations.syncChannexChannel.options(),
+    onSuccess: async () => {
+      await boundResource.invalidate(queryClient);
+    },
+  });
+
+  const remove = useMutation({
+    ...boundResource.mutations.deleteChannexChannel.options(),
+    onSuccess: async () => {
+      await boundResource.invalidate(queryClient);
+    },
+  });
+
+  return {
+    channel: query.data,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error,
+    refetch: query.refetch,
+    updateChannel: (payload: ChannexChannelUpdateInput) =>
+      update.mutateAsync({ channelId: channelId!, payload }),
+    isUpdating: update.isPending,
+    activateChannel: () => activate.mutateAsync({ channelId: channelId! }),
+    isActivating: activate.isPending,
+    deactivateChannel: () => deactivate.mutateAsync({ channelId: channelId! }),
+    isDeactivating: deactivate.isPending,
+    syncChannel: () => sync.mutateAsync({ channelId: channelId! }),
+    isSyncing: sync.isPending,
+    deleteChannel: () => remove.mutateAsync({ channelId: channelId! }),
+    isDeleting: remove.isPending,
+  };
+}
+

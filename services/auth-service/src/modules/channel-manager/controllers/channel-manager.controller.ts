@@ -7,6 +7,7 @@ import {
   Logger,
   Param,
   Post,
+  Put,
   Query,
   Req,
   Res,
@@ -32,6 +33,7 @@ import {
   channexRecoverSchema,
   channexSimulateBookingSchema,
   channexSyncContentSchema,
+  channexUpdateChannelSchema,
   channexWebhookSchema,
   connectionIdParamSchema,
   createChannelConnectionSchema,
@@ -387,6 +389,83 @@ export class ChannelManagerController {
     const channelId = parseWithZod(channexChannelIdSchema, channelIdParam);
     await this.assertAccess(req, hotelId);
     return this.channexChannelSessionService.activateNativeChannel(hotelId, channelId);
+  }
+
+  @ApiDescript("Tạm dừng đồng bộ kênh OTA")
+  @RequirePermission("hotel.rooms.manage")
+  @SuccessMessage("Tạm dừng kênh OTA thành công")
+  @Post("hotels/:hotelId/channex/channels/:channelId/deactivate")
+  async deactivateChannexChannel(
+    @Req() req: RequestWithRequiredUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("channelId") channelIdParam: string,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const channelId = parseWithZod(channexChannelIdSchema, channelIdParam);
+    await this.assertAccess(req, hotelId);
+    return this.channexChannelSessionService.deactivateNativeChannel(hotelId, channelId);
+  }
+
+  @ApiDescript("Lấy chi tiết kênh OTA, thông số adapter và bảng ánh xạ phòng/giá hiện tại")
+  @RequirePermission("hotel.rooms.view")
+  @SuccessMessage("Lấy chi tiết kênh OTA thành công")
+  @Get("hotels/:hotelId/channex/channels/:channelId")
+  async getChannexChannel(
+    @Req() req: RequestWithRequiredUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("channelId") channelIdParam: string,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const channelId = parseWithZod(channexChannelIdSchema, channelIdParam);
+    await this.assertAccess(req, hotelId);
+    return this.channexChannelSessionService.getChannelDetails(hotelId, channelId);
+  }
+
+  @ApiDescript("Cập nhật thông tin kênh OTA hoặc ánh xạ gói giá")
+  @RequirePermission("hotel.rooms.manage")
+  @SuccessMessage("Cập nhật kênh OTA thành công")
+  @Put("hotels/:hotelId/channex/channels/:channelId")
+  async updateChannexChannel(
+    @Req() req: RequestWithRequiredUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("channelId") channelIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const channelId = parseWithZod(channexChannelIdSchema, channelIdParam);
+    await this.assertAccess(req, hotelId);
+    const payload = parseWithZod(channexUpdateChannelSchema, body);
+    return this.channexChannelSessionService.updateNativeChannel(hotelId, channelId, payload);
+  }
+
+  @ApiDescript("Đồng bộ toàn phần (Full Sync) dữ liệu cho kênh OTA")
+  @RequirePermission("hotel.rooms.manage")
+  @SuccessMessage("Yêu cầu đồng bộ toàn phần thành công")
+  @Post("hotels/:hotelId/channex/channels/:channelId/sync")
+  async syncChannexChannel(
+    @Req() req: RequestWithRequiredUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("channelId") channelIdParam: string,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const channelId = parseWithZod(channexChannelIdSchema, channelIdParam);
+    await this.assertAccess(req, hotelId);
+    return this.channexChannelSessionService.syncNativeChannel(hotelId, channelId);
+  }
+
+  @ApiDescript("Ngắt kết nối và xóa kênh OTA")
+  @RequirePermission("hotel.rooms.manage")
+  @SuccessMessage("Xóa kênh OTA thành công")
+  @Delete("hotels/:hotelId/channex/channels/:channelId")
+  async deleteChannexChannel(
+    @Req() req: RequestWithRequiredUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("channelId") channelIdParam: string,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const channelId = parseWithZod(channexChannelIdSchema, channelIdParam);
+    await this.assertAccess(req, hotelId);
+    return this.channexChannelSessionService.deleteNativeChannel(hotelId, channelId);
   }
 
   @ApiDescript("Tạo phiên one-time để quản lý adapter đặc biệt bằng Channex Channel IFrame")

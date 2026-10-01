@@ -456,6 +456,188 @@ export class ChannexChannelSessionService {
     return { channelId, isActive: true };
   }
 
+  async getChannelDetails(hotelId: string, channelId: string) {
+    const property = await this.requireProperty(hotelId);
+    const channels = await this.client.getChannels(property.channexId);
+    const channelItem = (channels.data ?? []).find((channel) => {
+      const attributes = channelConnectionAttributes(channel);
+      return (channel.id ?? attributes.id) === channelId;
+    });
+    if (!channelItem) {
+      throw new BadRequestException("Channel không thuộc Property hiện tại");
+    }
+
+    const [channelResponse, ratePlansResponse] = await Promise.all([
+      this.client.getChannel(channelId),
+      this.client.getRatePlanOptions(property.channexId),
+    ]);
+
+    const channelData = channelResponse.data?.attributes ?? channelResponse.data ?? {};
+    const channelCode = channelData.channel ?? channelConnectionAttributes(channelItem).channel;
+
+    const [adapterResponse, mappingResponse] = await Promise.all([
+      this.client.getChannelAdapter(channelCode),
+      this.client.getChannelMappingDetailsByChannelId(channelId).catch(() => ({ data: null })),
+    ]);
+
+    const adapter = channelAdapterAttributes(adapterResponse.data);
+
+    return {
+      id: channelId,
+      code: channelCode,
+      title: channelData.title ?? channelConnectionAttributes(channelItem).title,
+      currency: channelData.currency ?? null,
+      isActive: Boolean(channelData.is_active ?? channelConnectionAttributes(channelItem).is_active),
+      nativeSupported: supportsNativeWizard(adapter),
+      adapter: this.toAdapterDescriptor(adapter),
+      localRatePlans: (ratePlansResponse.data ?? []).map((item) => ({
+        id: item.id ?? item.attributes?.id,
+        title: item.attributes?.title ?? item.title ?? item.id,
+        roomTypeId:
+          item.relationships?.room_type?.data?.id ??
+          item.attributes?.room_type_id ??
+          item.room_type_id ??
+          null,
+        occupancy: item.attributes?.occupancy ?? null,
+      })),
+      ratePlans: channelData.rate_plans ?? [],
+      mappingDetails: mappingResponse.data ?? {},
+    };
+  }
+
+  async updateNativeChannel(
+    hotelId: string,
+    channelId: string,
+    input: {
+      title?: string;
+      ratePlans?: Array<{ rate_plan_id: string; settings: ChannelSettings }>;
+    },
+  ) {
+    const property = await this.requireProperty(hotelId);
+    const channels = await this.client.getChannels(property.channexId);
+    const belongsToProperty = (channels.data ?? []).some((channel) => {
+      const attributes = channelConnectionAttributes(channel);
+      return (channel.id ?? attributes.id) === channelId;
+    });
+    if (!belongsToProperty) throw new BadRequestException("Channel không thuộc Property hiện tại");
+
+    const updatePayload: Record<string, unknown> = {};
+    if (input.title) updatePayload.title = input.title;
+    if (input.ratePlans) updatePayload.rate_plans = input.ratePlans;
+
+    const result = await this.client.updateChannel(channelId, updatePayload);
+
+    await this.recordSyncLog({
+      hotelId,
+      syncType: "CHANNEX_CHANNEL_UPDATE",
+      status: "SUCCESS",
+      eventsCount: input.ratePlans?.length ?? 0,
+      details: JSON.stringify({
+        channelId,
+        title: input.title,
+        updatedRatePlansCount: input.ratePlans?.length ?? 0,
+        note: "Cập nhật cấu hình kênh hoặc ánh xạ giá thành công",
+      }),
+    });
+
+    return { channelId, success: true, result: result.data };
+  }
+
+  async deactivateNativeChannel(hotelId: string, channelId: string) {
+    const property = await this.requireProperty(hotelId);
+    const channels = await this.client.getChannels(property.channexId);
+    const belongsToProperty = (channels.data ?? []).some((channel) => {
+      const attributes = channelConnectionAttributes(channel);
+      return (channel.id ?? attributes.id) === channelId;
+    });
+    if (!belongsToProperty) throw new BadRequestException("Channel không thuộc Property hiện tại");
+
+    await this.client.deactivateChannel(channelId);
+
+    this.logger.log(
+      `[Channex Kênh] Tạm dừng kênh OTA ${channelId} cho khách sạn ${hotelId}`,
+    );
+
+    await this.recordSyncLog({
+      hotelId,
+      syncType: "CHANNEX_CHANNEL_DEACTIVATE",
+      status: "SUCCESS",
+      eventsCount: 1,
+      details: JSON.stringify({
+        channelId,
+        deactivatedAt: new Date().toISOString(),
+        note: "Đã tạm dừng đồng bộ với kênh OTA",
+      }),
+    });
+
+    return { channelId, isActive: false };
+  }
+
+  async syncNativeChannel(hotelId: string, channelId: string) {
+    const property = await this.requireProperty(hotelId);
+    const channels = await this.client.getChannels(property.channexId);
+    const belongsToProperty = (channels.data ?? []).some((channel) => {
+      const attributes = channelConnectionAttributes(channel);
+      return (channel.id ?? attributes.id) === channelId;
+    });
+    if (!belongsToProperty) throw new BadRequestException("Channel không thuộc Property hiện tại");
+
+    await this.client.fullSyncChannel(channelId);
+
+    await this.recordSyncLog({
+      hotelId,
+      syncType: "CHANNEX_CHANNEL_FULL_SYNC",
+      status: "SUCCESS",
+      eventsCount: 1,
+      details: JSON.stringify({
+        channelId,
+        syncedAt: new Date().toISOString(),
+        note: "Đã yêu cầu đồng bộ toàn phần cho kênh OTA",
+      }),
+    });
+
+    return { channelId, synced: true };
+  }
+
+  async deleteNativeChannel(hotelId: string, channelId: string) {
+    const property = await this.requireProperty(hotelId);
+    const channels = await this.client.getChannels(property.channexId);
+    const channelItem = (channels.data ?? []).find((channel) => {
+      const attributes = channelConnectionAttributes(channel);
+      return (channel.id ?? attributes.id) === channelId;
+    });
+    if (!channelItem) throw new BadRequestException("Channel không thuộc Property hiện tại");
+
+    const isActive = Boolean(channelConnectionAttributes(channelItem).is_active);
+    if (isActive) {
+      try {
+        await this.client.deactivateChannel(channelId);
+      } catch (err: any) {
+        this.logger.warn(`[Channex Kênh] Deactivate trước khi xóa kênh ${channelId} có cảnh báo: ${err.message}`);
+      }
+    }
+
+    await this.client.deleteChannel(channelId);
+
+    this.logger.log(
+      `[Channex Kênh] Đã xóa kết nối kênh OTA ${channelId} cho khách sạn ${hotelId}`,
+    );
+
+    await this.recordSyncLog({
+      hotelId,
+      syncType: "CHANNEX_CHANNEL_DELETE",
+      status: "SUCCESS",
+      eventsCount: 1,
+      details: JSON.stringify({
+        channelId,
+        deletedAt: new Date().toISOString(),
+        note: "Đã xóa kết nối kênh OTA",
+      }),
+    });
+
+    return { channelId, deleted: true };
+  }
+
   private async recordSyncLog(data: any): Promise<void> {
     try {
       if (this.prisma.channelSyncLog?.create) {

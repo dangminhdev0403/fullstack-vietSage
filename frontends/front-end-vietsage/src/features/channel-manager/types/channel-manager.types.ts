@@ -284,3 +284,35 @@ export interface CancelSimulatedBookingResult {
   otaReservationCode?: string;
   message: string;
 }
+
+export interface ChannexChannelDetailRatePlan {
+  rate_plan_id: string;
+  settings?: Record<string, ChannexSettingValue>;
+}
+
+export interface ChannexChannelDetail {
+  id: string;
+  code: string;
+  title: string;
+  currency: string | null;
+  isActive: boolean;
+  nativeSupported: boolean;
+  adapter: ChannexChannelProvider;
+  localRatePlans: Array<{
+    id: string;
+    title: string;
+    roomTypeId: string | null;
+    occupancy: number | null;
+  }>;
+  ratePlans: ChannexChannelDetailRatePlan[];
+  mappingDetails: Record<string, unknown>;
+}
+
+export interface ChannexChannelUpdateInput {
+  title?: string;
+  ratePlans?: Array<{
+    rate_plan_id: string;
+    settings: Record<string, ChannexSettingValue>;
+  }>;
+}
+

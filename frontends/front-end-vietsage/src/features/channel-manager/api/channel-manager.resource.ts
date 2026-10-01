@@ -13,9 +13,11 @@ import type {
   ChannexChannelCatalog,
   ChannexChannelCreateInput,
   ChannexChannelCreateResult,
+  ChannexChannelDetail,
   ChannexChannelPrepareInput,
   ChannexChannelPrepareResult,
   ChannexChannelSession,
+  ChannexChannelUpdateInput,
   ChannexDoctorReport,
   ChannexMappingItem,
   ChannelConnection,
@@ -129,6 +131,21 @@ export const channelManagerResource = createResource<ChannelManagerScope>()({
         channelManagerRepository.getSimulatedBookings(
           scope.hotelId,
           scope.roleScope ?? "admin",
+        ),
+    }),
+    channexChannelDetail: defineQuery({
+      inputKey: (channelId: string) => [channelId],
+      queryFn: ({
+        scope,
+        input: channelId,
+      }: ResourceQueryContext<
+        ChannelManagerScope,
+        string
+      >): Promise<ChannexChannelDetail> =>
+        channelManagerRepository.getChannexChannel(
+          scope.hotelId,
+          channelId,
+          scope.roleScope,
         ),
     }),
   },
@@ -331,7 +348,72 @@ export const channelManagerResource = createResource<ChannelManagerScope>()({
           variables.channelId,
           scope.roleScope,
         ),
-      invalidates: [{ type: "query", operation: "channexChannelCatalog" }],
+      invalidates: [
+        { type: "query", operation: "channexChannelCatalog" },
+        { type: "query", operation: "channexChannelDetail" },
+      ],
+    }),
+    deactivateChannexChannel: defineMutation({
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<ChannelManagerScope, { channelId: string }>) =>
+        channelManagerRepository.deactivateChannexChannel(
+          scope.hotelId,
+          variables.channelId,
+          scope.roleScope,
+        ),
+      invalidates: [
+        { type: "query", operation: "channexChannelCatalog" },
+        { type: "query", operation: "channexChannelDetail" },
+      ],
+    }),
+    updateChannexChannel: defineMutation({
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<
+        ChannelManagerScope,
+        { channelId: string; payload: ChannexChannelUpdateInput }
+      >) =>
+        channelManagerRepository.updateChannexChannel(
+          scope.hotelId,
+          variables.channelId,
+          variables.payload,
+          scope.roleScope,
+        ),
+      invalidates: [
+        { type: "query", operation: "channexChannelCatalog" },
+        { type: "query", operation: "channexChannelDetail" },
+        { type: "query", operation: "channexMappings" },
+      ],
+    }),
+    syncChannexChannel: defineMutation({
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<ChannelManagerScope, { channelId: string }>) =>
+        channelManagerRepository.syncChannexChannel(
+          scope.hotelId,
+          variables.channelId,
+          scope.roleScope,
+        ),
+      invalidates: [{ type: "query", operation: "inventoryGrid" }],
+    }),
+    deleteChannexChannel: defineMutation({
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<ChannelManagerScope, { channelId: string }>) =>
+        channelManagerRepository.deleteChannexChannel(
+          scope.hotelId,
+          variables.channelId,
+          scope.roleScope,
+        ),
+      invalidates: [
+        { type: "query", operation: "channexChannelCatalog" },
+        { type: "query", operation: "channexMappings" },
+      ],
     }),
     simulateBooking: defineMutation({
       mutationFn: ({

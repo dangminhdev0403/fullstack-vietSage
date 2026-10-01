@@ -239,6 +239,24 @@ export const channexCreateChannelSchema = z
 
 export const channexChannelIdSchema = z.string().uuid();
 
+export const channexUpdateChannelSchema = z
+  .object({
+    title: z.string().trim().min(1).max(200).optional(),
+    ratePlans: z
+      .array(
+        z
+          .object({
+            rate_plan_id: z.string().uuid(),
+            settings: channexSettingsSchema,
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(100)
+      .optional(),
+  })
+  .strict();
+
 export const channexChannelSessionSchema = z
   .object({ channelId: channexChannelIdSchema.optional() })
   .strict();

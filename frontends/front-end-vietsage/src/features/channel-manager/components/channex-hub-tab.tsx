@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { showErrorAlert, showSuccessAlert } from "@/libs/swal";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { useChannex } from "../hooks/use-channel-manager";
 import type {
   ChannexDoctorReport,
 } from "../types/channel-manager.types";
+import { ChannexChannelDetailModal } from "./channex-channel-detail-modal";
 import { ChannexChannelWizard } from "./channex-channel-wizard";
 
 export function ChannexHubTab({
@@ -40,7 +41,13 @@ export function ChannexHubTab({
     null,
   );
   const [channelIframeUrl, setChannelIframeUrl] = useState<string | null>(null);
+  const [loadingProviderCode, setLoadingProviderCode] = useState<string | null>(
+    null,
+  );
   const [selectedProviderCode, setSelectedProviderCode] = useState<
+    string | null
+  >(null);
+  const [selectedManageChannelId, setSelectedManageChannelId] = useState<
     string | null
   >(null);
   const [mappingFilter, setMappingFilter] = useState("ALL");
@@ -121,14 +128,42 @@ export function ChannexHubTab({
     (provider) => provider.code === selectedProviderCode,
   );
 
-  const handleOpenChannels = async (channelId?: string) => {
+  const handleOpenChannels = async (
+    channelId?: string,
+    providerCode?: string,
+  ) => {
     try {
+      if (providerCode) setLoadingProviderCode(providerCode);
       const session = await channelSession.mutateAsync({ channelId });
       setChannelIframeUrl(session.iframeUrl);
     } catch (error: unknown) {
       await showErrorAlert("Không thể mở quản lý kênh OTA", error);
+    } finally {
+      setLoadingProviderCode(null);
     }
   };
+
+  const handleCloseIframe = useCallback(() => {
+    setChannelIframeUrl(null);
+    void refreshChannelCatalog();
+    void refreshMappings();
+  }, [refreshChannelCatalog, refreshMappings]);
+
+  useEffect(() => {
+    if (!channelIframeUrl) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        handleCloseIframe();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [channelIframeUrl, handleCloseIframe]);
 
   const handleDoctor = async () => {
     try {
@@ -357,10 +392,39 @@ export function ChannexHubTab({
                     {/* Trạng thái kết nối */}
                     <div>
                       {isConnected ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                          <span>Đã kết nối ({providerConnections.length} kênh)</span>
-                        </span>
+                        <div className="space-y-1.5">
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            <span>Đã kết nối ({providerConnections.length} kênh)</span>
+                          </span>
+                          {providerConnections.length > 1 && (
+                            <div className="flex flex-wrap gap-1 pt-1">
+                              {providerConnections.map((conn) => (
+                                <button
+                                  key={conn.id}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedManageChannelId(conn.id);
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded bg-slate-100 hover:bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-700 cursor-pointer transition"
+                                  title={`Quản lý chi tiết: ${conn.title || conn.id}`}
+                                >
+                                  <span
+                                    className={`h-1.5 w-1.5 rounded-full ${
+                                      conn.isActive
+                                        ? "bg-emerald-500"
+                                        : "bg-slate-400"
+                                    }`}
+                                  />
+                                  <span className="max-w-[120px] truncate">
+                                    {conn.title || "Kênh"}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       ) : (
                         <span className="inline-flex items-center rounded-full border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-2.5 py-0.5 text-xs font-medium text-[var(--on-surface-variant)]">
                           Chưa kết nối
@@ -397,13 +461,20 @@ export function ChannexHubTab({
                   <div className="mt-4 pt-3 border-t border-[var(--outline-variant)]">
                     <button
                       type="button"
-                      onClick={() =>
-                        isConnected
-                          ? void handleOpenChannels(providerConnections[0]?.id)
-                          : provider.nativeSupported
-                            ? setSelectedProviderCode(provider.code)
-                            : void handleOpenChannels()
-                      }
+                      onClick={() => {
+                        if (isConnected) {
+                          const channelId = providerConnections[0]?.id;
+                          if (channelId) {
+                            setSelectedManageChannelId(channelId);
+                          } else {
+                            void handleOpenChannels(undefined, provider.code);
+                          }
+                        } else if (provider.nativeSupported) {
+                          setSelectedProviderCode(provider.code);
+                        } else {
+                          void handleOpenChannels(undefined, provider.code);
+                        }
+                      }}
                       disabled={!propertyMapping || channelSession.isPending}
                       className={`min-h-10 w-full rounded-lg px-3 text-sm font-semibold transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center gap-1.5 ${
                         isConnected
@@ -413,7 +484,15 @@ export function ChannexHubTab({
                             : "border border-[var(--outline-variant)] bg-white text-[var(--on-surface)] hover:bg-[var(--surface-container-low)]"
                       }`}
                     >
-                      {isConnected ? (
+                      {loadingProviderCode === provider.code ? (
+                        <>
+                          <VsIcon
+                            name="refresh"
+                            className="animate-spin text-base"
+                          />
+                          <span>Đang kết nối...</span>
+                        </>
+                      ) : isConnected ? (
                         <span>Quản lý kết nối</span>
                       ) : provider.nativeSupported ? (
                         <span>Thiết lập kết nối</span>
@@ -435,7 +514,9 @@ export function ChannexHubTab({
           key={selectedProvider.code}
           provider={selectedProvider}
           onClose={() => setSelectedProviderCode(null)}
-          onFallback={handleOpenChannels}
+          onFallback={() =>
+            handleOpenChannels(undefined, selectedProvider.code)
+          }
           prepare={async (input) => {
             try {
               return await prepareChannel.mutateAsync(input);
@@ -457,33 +538,79 @@ export function ChannexHubTab({
         />
       )}
 
-      {/* Channex Special Adapter Iframe Modal */}
+      {/* Native Channel Detail & Rate Mapping Modal */}
+      {selectedManageChannelId && (
+        <ChannexChannelDetailModal
+          hotelId={hotelId}
+          channelId={selectedManageChannelId}
+          roleScope={roleScope}
+          onClose={() => setSelectedManageChannelId(null)}
+          onOpenChannexIframe={(id) => {
+            setSelectedManageChannelId(null);
+            void handleOpenChannels(id);
+          }}
+          onCatalogRefresh={() => {
+            void refreshChannelCatalog();
+            void refreshMappings();
+          }}
+        />
+      )}
+
+      {/* Channex Special Adapter Iframe Modal Dialog */}
       {channelIframeUrl && (
-        <section className="overflow-hidden rounded-2xl border border-[var(--outline-variant)] bg-white shadow-sm">
-          <div className="flex flex-col gap-3 border-b border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-[var(--on-surface)]">
-                Thiết lập adapter đặc biệt trên Channex
-              </h2>
-              <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
-                Phiên Channex dùng một lần. Đóng rồi mở lại để tạo phiên mới.
-              </p>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="channex-iframe-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-sm"
+          onClick={handleCloseIframe}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl border border-[var(--outline-variant)] max-w-6xl w-full h-[90vh] max-h-[960px] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col gap-3 border-b border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-6 py-4 sm:flex-row sm:items-center sm:justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] font-bold">
+                  <VsIcon name="public" className="text-xl" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2
+                      id="channex-iframe-modal-title"
+                      className="text-lg sm:text-xl font-bold text-[var(--on-surface)]"
+                    >
+                      Thiết lập kết nối trên Channex Hub
+                    </h2>
+                    <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200">
+                      Phiên bảo mật
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs sm:text-sm text-[var(--on-surface-variant)]">
+                    Sau khi liên kết kênh trên Channex, bấm{" "}
+                    <strong>Đóng cửa sổ</strong> để cập nhật trạng thái kết nối.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseIframe}
+                className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--outline-variant)] bg-white px-4 text-sm font-bold text-[var(--on-surface)] hover:bg-[var(--surface-container-high)] shadow-2xs transition cursor-pointer self-end sm:self-center"
+              >
+                <VsIcon name="close" className="text-base" />
+                <span>Đóng cửa sổ</span>
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setChannelIframeUrl(null)}
-              className="min-h-11 rounded-xl border border-[var(--outline-variant)] bg-white px-5 text-base font-bold text-[var(--on-surface)] hover:bg-[var(--surface-container-low)] cursor-pointer"
-            >
-              Đóng
-            </button>
+            <div className="relative flex-1 w-full bg-slate-50 min-h-0">
+              <iframe
+                src={channelIframeUrl}
+                title="Channex Channel Manager"
+                className="h-full w-full bg-white border-0"
+                referrerPolicy="no-referrer"
+              />
+            </div>
           </div>
-          <iframe
-            src={channelIframeUrl}
-            title="Channex Channel Manager"
-            className="h-[760px] w-full bg-white"
-            referrerPolicy="no-referrer"
-          />
-        </section>
+        </div>
       )}
 
       {/* Admin Operational Diagnostics & Mappings */}

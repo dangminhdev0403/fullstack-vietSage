@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import type { Hotel } from "@/features/admin/types/admin-contract";
 import { AriPushCard } from "@/features/channel-manager/components/ari-push-card";
 import { ChannexHubTab } from "@/features/channel-manager/components/channex-hub-tab";
@@ -90,35 +89,12 @@ export function AdminChannelManagerClient({
     [initialHotels, selectedHotelId],
   );
 
-  // Realtime WebSocket synchronization for the currently active hotel
+  // Realtime WebSocket synchronization for the currently active hotel (silent data refresh only - alerts belong to frontdesk & tenant)
   const realtimeHandlers = useMemo(
     () => ({
       onChannelBookingCreated: (event: unknown) => {
-        const raw = event as {
-          hotelId?: string;
-          bookingId?: string;
-          otaName?: string;
-          roomNumber?: string | null;
-          roomType?: string | null;
-          guestName?: string;
-          reservationCode?: string;
-        } | null;
-
+        const raw = event as { hotelId?: string } | null;
         if (raw?.hotelId && raw.hotelId !== selectedHotelId) return;
-
-        const bookingKey = raw?.bookingId || raw?.reservationCode || "latest";
-
-        toast.success(`Đơn đặt phòng mới từ ${raw?.otaName || "OTA"}!`, {
-          id: `admin-cm-booking-${bookingKey}`,
-          description: `${
-            raw?.roomNumber
-              ? `Phòng ${raw.roomNumber}`
-              : raw?.roomType
-                ? `Hạng ${raw.roomType}`
-                : "Chờ xếp"
-          } • Khách: ${raw?.guestName || "Khách OTA"} • Đã chiếm ô phòng PMS`,
-          duration: 9000,
-        });
 
         void invalidateHotelRealtimeQueries(queryClient, selectedHotelId);
         void queryClient.invalidateQueries({
@@ -130,23 +106,8 @@ export function AdminChannelManagerClient({
         });
       },
       onChannelBookingCancelled: (event: unknown) => {
-        const raw = event as {
-          hotelId?: string;
-          bookingId?: string;
-          otaName?: string;
-          reservationCode?: string;
-        } | null;
-
+        const raw = event as { hotelId?: string } | null;
         if (raw?.hotelId && raw.hotelId !== selectedHotelId) return;
-
-        const bookingKey = raw?.bookingId || raw?.reservationCode || "latest";
-        const codeDisplay = raw?.reservationCode ? `#${raw.reservationCode} ` : "";
-
-        toast.warning("Đơn đặt phòng OTA đã HỦY", {
-          id: `admin-cm-cancel-${bookingKey}`,
-          description: `Đơn ${codeDisplay}(${raw?.otaName || "OTA"}) đã bị hủy trên sàn. Đã giải phóng ô phòng trống trong PMS.`,
-          duration: 9000,
-        });
 
         void invalidateHotelRealtimeQueries(queryClient, selectedHotelId);
         void queryClient.invalidateQueries({

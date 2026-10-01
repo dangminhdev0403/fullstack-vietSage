@@ -696,6 +696,47 @@ export class ChannexApiClient {
     });
   }
 
+  async deactivateChannel(channelId: string, apiKey?: string): Promise<ChannexResponse<any>> {
+    return this.request<any>(`/channels/${channelId}/deactivate`, {
+      method: "POST",
+      body: {},
+      apiKey,
+    });
+  }
+
+  async getChannel(channelId: string, apiKey?: string): Promise<ChannexResponse<any>> {
+    return this.request<any>(`/channels/${channelId}`, { apiKey });
+  }
+
+  async updateChannel(
+    channelId: string,
+    channel: Record<string, unknown>,
+    apiKey?: string,
+  ): Promise<ChannexResponse<any>> {
+    return this.request<any>(`/channels/${channelId}`, {
+      method: "PUT",
+      body: { channel },
+      apiKey,
+    });
+  }
+
+  async deleteChannel(channelId: string, apiKey?: string): Promise<ChannexResponse<any>> {
+    return this.request<any>(`/channels/${channelId}`, {
+      method: "DELETE",
+      apiKey,
+    });
+  }
+
+  async getChannelMappingDetailsByChannelId(
+    channelId: string,
+    apiKey?: string,
+  ): Promise<ChannexResponse<any>> {
+    return this.request<any>(`/channels/${channelId}/mapping_details`, {
+      method: "GET",
+      apiKey,
+    });
+  }
+
   async getGroups(apiKey?: string): Promise<ChannexResponse<any[]>> {
     return this.request<any[]>("/groups", { apiKey });
   }
@@ -706,9 +747,10 @@ export class ChannexApiClient {
 
   async registerWebhook(input: {
     callbackUrl: string;
-    propertyId: string;
+    propertyId?: string | null;
     headers: Record<string, string>;
     eventMask?: string;
+    isGlobal?: boolean;
   }): Promise<ChannexResponse<any>> {
     return this.request<any>("/webhooks", {
       method: "POST",
@@ -716,12 +758,20 @@ export class ChannexApiClient {
         webhook: {
           callback_url: input.callbackUrl,
           event_mask: input.eventMask ?? "booking_new;booking_modification;booking_cancellation",
-          property_id: input.propertyId,
+          property_id: input.propertyId ?? null,
+          is_global: input.isGlobal ?? (input.propertyId ? false : true),
           headers: input.headers,
           is_active: true,
           send_data: true,
         },
       },
+    });
+  }
+
+  async deleteWebhook(webhookId: string, apiKey?: string): Promise<ChannexResponse<any>> {
+    return this.request<any>(`/webhooks/${encodeURIComponent(webhookId)}`, {
+      method: "DELETE",
+      apiKey,
     });
   }
 }

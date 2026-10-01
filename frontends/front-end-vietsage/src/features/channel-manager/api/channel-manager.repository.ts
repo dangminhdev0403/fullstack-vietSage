@@ -11,9 +11,11 @@ import type {
   ChannexChannelCatalog,
   ChannexChannelCreateInput,
   ChannexChannelCreateResult,
+  ChannexChannelDetail,
   ChannexChannelPrepareInput,
   ChannexChannelPrepareResult,
   ChannexChannelSession,
+  ChannexChannelUpdateInput,
   ChannexDoctorReport,
   ChannexMappingItem,
   ChannelConnection,
@@ -379,6 +381,79 @@ export const channelManagerRepository = {
     }>(
       `${basePath(hotelId, scope)}/channex/channels/${encodeURIComponent(channelId)}/activate`,
       { method: "POST", body: {} },
+    );
+    return response.data;
+  },
+
+  async deactivateChannexChannel(
+    hotelId: string,
+    channelId: string,
+    scope: ChannelManagerRoleScope = "owner",
+  ): Promise<{ channelId: string; isActive: boolean }> {
+    const response = await requestInternalApiEnvelope<{
+      channelId: string;
+      isActive: boolean;
+    }>(
+      `${basePath(hotelId, scope)}/channex/channels/${encodeURIComponent(channelId)}/deactivate`,
+      { method: "POST", body: {} },
+    );
+    return response.data;
+  },
+
+  async getChannexChannel(
+    hotelId: string,
+    channelId: string,
+    scope: ChannelManagerRoleScope = "owner",
+  ): Promise<ChannexChannelDetail> {
+    const response = await requestInternalApiEnvelope<ChannexChannelDetail>(
+      `${basePath(hotelId, scope)}/channex/channels/${encodeURIComponent(channelId)}`,
+      { method: "GET" },
+    );
+    return response.data;
+  },
+
+  async updateChannexChannel(
+    hotelId: string,
+    channelId: string,
+    payload: ChannexChannelUpdateInput,
+    scope: ChannelManagerRoleScope = "owner",
+  ): Promise<{ channelId: string; success: boolean }> {
+    const response = await requestInternalApiEnvelope<{
+      channelId: string;
+      success: boolean;
+    }>(
+      `${basePath(hotelId, scope)}/channex/channels/${encodeURIComponent(channelId)}`,
+      { method: "PUT", body: payload },
+    );
+    return response.data;
+  },
+
+  async syncChannexChannel(
+    hotelId: string,
+    channelId: string,
+    scope: ChannelManagerRoleScope = "owner",
+  ): Promise<{ channelId: string; synced: boolean }> {
+    const response = await requestInternalApiEnvelope<{
+      channelId: string;
+      synced: boolean;
+    }>(
+      `${basePath(hotelId, scope)}/channex/channels/${encodeURIComponent(channelId)}/sync`,
+      { method: "POST", body: {} },
+    );
+    return response.data;
+  },
+
+  async deleteChannexChannel(
+    hotelId: string,
+    channelId: string,
+    scope: ChannelManagerRoleScope = "owner",
+  ): Promise<{ channelId: string; deleted: boolean }> {
+    const response = await requestInternalApiEnvelope<{
+      channelId: string;
+      deleted: boolean;
+    }>(
+      `${basePath(hotelId, scope)}/channex/channels/${encodeURIComponent(channelId)}`,
+      { method: "DELETE" },
     );
     return response.data;
   },

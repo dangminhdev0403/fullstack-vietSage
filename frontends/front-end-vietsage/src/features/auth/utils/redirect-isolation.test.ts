@@ -151,6 +151,74 @@ test("No activeRoleCode → guest default path", () => {
 
 // ── Public redirect origin behind reverse proxies ─────────────────
 
+test("production redirect keeps HTTPS when forwarded protocol is missing or HTTP", () => {
+  for (const forwardedProto of [null, "http"]) {
+    assert.equal(
+      resolvePostLoginRedirectUrl({
+        path: "/dangnhap?callbackUrl=%2Fadmin",
+        requestUrl: "http://0.0.0.0:3000/admin",
+        configuredUrl: "https://vietsage.com",
+        forwardedHost: "vietsage.com",
+        forwardedProto,
+      }),
+      "https://vietsage.com/dangnhap?callbackUrl=%2Fadmin",
+    );
+  }
+});
+
+test("VietSage public host remains HTTPS even with local container config", () => {
+  assert.equal(
+    resolvePostLoginRedirectUrl({
+      path: "/dangnhap",
+      requestUrl: "http://0.0.0.0:3000/admin",
+      configuredUrl: "http://localhost:3000",
+      forwardedHost: "vietsage.com",
+      forwardedProto: "http",
+    }),
+    "https://vietsage.com/dangnhap",
+  );
+});
+
+test("forged request URL cannot supply an unconfigured external redirect host", () => {
+  assert.equal(
+    resolvePostLoginRedirectUrl({
+      path: "/dangnhap",
+      requestUrl: "http://audit.invalid/admin",
+      configuredUrl: "http://localhost:3000",
+      forwardedHost: "audit.invalid",
+      forwardedProto: "http",
+    }),
+    "http://127.0.0.1:3000/dangnhap",
+  );
+});
+
+test("configured production origin rejects unrelated forwarded hosts behind the proxy", () => {
+  assert.equal(
+    resolvePostLoginRedirectUrl({
+      path: "/dangnhap?callbackUrl=%2Fadmin",
+      requestUrl: "http://0.0.0.0:3000/admin",
+      configuredUrl: "https://vietsage.com",
+      forwardedHost: "audit.invalid",
+      forwardedProto: "https",
+    }),
+    "https://vietsage.com/dangnhap?callbackUrl=%2Fadmin",
+  );
+});
+
+test("untrusted forwarded host cannot redirect away from the request host", () => {
+  const redirectUrl = createRequestRedirectUrl("/dangnhap?callbackUrl=%2Fadmin", {
+    url: "https://vietsage.com/admin",
+    headers: {
+      get: (key: string) => new Map([
+        ["host", "vietsage.com"],
+        ["x-forwarded-host", "audit.invalid"],
+        ["x-forwarded-proto", "https"],
+      ]).get(key) ?? null,
+    },
+  });
+  assert.equal(redirectUrl.toString(), "https://vietsage.com/dangnhap?callbackUrl=%2Fadmin");
+});
+
 test("forwarded app origin wins over a different configured production origin", () => {
   assert.equal(
     resolvePostLoginRedirectUrl({
@@ -203,16 +271,29 @@ test("invalid forwarded host falls back without creating a protocol-relative red
   );
 });
 
-test("forwarded host wins over local/0.0.0.0 configured URL when running in container", () => {
+test("explicitly configured IP origin remains available for development", () => {
+  assert.equal(
+    resolvePostLoginRedirectUrl({
+      path: "/staff",
+      requestUrl: "http://0.0.0.0:3000/staff",
+      configuredUrl: "http://72.62.69.172",
+      forwardedHost: "72.62.69.172",
+      forwardedProto: "http",
+    }),
+    "http://72.62.69.172/staff",
+  );
+});
+
+test("unconfigured forwarded IP does not create an external redirect", () => {
   assert.equal(
     resolvePostLoginRedirectUrl({
       path: "/staff",
       requestUrl: "http://0.0.0.0:3000/staff",
       configuredUrl: "http://localhost:3000",
-      forwardedHost: "72.62.69.172",
+      forwardedHost: "203.0.113.10",
       forwardedProto: "http",
     }),
-    "http://72.62.69.172/staff",
+    "http://127.0.0.1:3000/staff",
   );
 });
 
@@ -234,7 +315,7 @@ test("createRequestRedirectUrl resolves host header when request URL has 0.0.0.0
   assert.equal(redirectUrl.toString(), "https://stay.vietsage.com/login?reauth=1&callbackUrl=%2Fstaff");
 });
 
-test("forwarded host works even if x-forwarded-proto is missing", () => {
+test("unconfigured forwarded IP cannot redirect away from container origin", () => {
   const req = {
     url: "http://0.0.0.0:3000/staff",
     headers: new Map([["host", "72.62.69.172"]]),
@@ -246,7 +327,35 @@ test("forwarded host works even if x-forwarded-proto is missing", () => {
     },
   });
 
-  assert.equal(redirectUrl.toString(), "http://72.62.69.172/login?reauth=1&callbackUrl=%2Fstaff");
+  assert.equal(redirectUrl.toString(), "http://127.0.0.1:3000/login?reauth=1&callbackUrl=%2Fstaff");
+});
+
+test("public request origin stays HTTPS if forwarded headers are hostile or absent", () => {
+  for (const forwardedHost of ["audit.invalid", null]) {
+    assert.equal(
+      resolvePostLoginRedirectUrl({
+        path: "/dangnhap?callbackUrl=%2Fadmin",
+        requestUrl: "http://vietsage.com/admin",
+        configuredUrl: "http://localhost:3000",
+        forwardedHost,
+        forwardedProto: null,
+      }),
+      "https://vietsage.com/dangnhap?callbackUrl=%2Fadmin",
+    );
+  }
+});
+
+test("public request host cannot switch to a sibling app through forwarded headers", () => {
+  assert.equal(
+    resolvePostLoginRedirectUrl({
+      path: "/dangnhap?callbackUrl=%2Fadmin",
+      requestUrl: "https://vietsage.com/admin",
+      configuredUrl: null,
+      forwardedHost: "stay.vietsage.com",
+      forwardedProto: "https",
+    }),
+    "https://vietsage.com/dangnhap?callbackUrl=%2Fadmin",
+  );
 });
 
 test("never returns 0.0.0.0 in redirect origin under any circumstance", () => {

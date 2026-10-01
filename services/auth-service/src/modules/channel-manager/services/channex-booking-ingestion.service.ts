@@ -299,7 +299,6 @@ export class ChannexBookingIngestionService {
           { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
         );
 
-        if (acknowledge) await this.channexClient.ackBookingRevision(revisionId, apiKey);
         if (outcome.action === "CREATED") {
           try {
             RequestRealtimeEmitter.emitChannelBookingCreated({
@@ -317,6 +316,7 @@ export class ChannexBookingIngestionService {
             this.logger.warn(`[Channex Ingestion] Realtime booking emit thất bại: ${emitErr}`);
           }
         }
+        if (acknowledge) await this.channexClient.ackBookingRevision(revisionId, apiKey);
         if (outcome.action === "DEDUPLICATED") {
           this.logger.log(
             `[Channex Ingestion] Booking ${attrs.booking_id} đã tồn tại trong PMS. Ack và bỏ qua trùng lặp.`,
@@ -383,7 +383,6 @@ export class ChannexBookingIngestionService {
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
-      if (acknowledge) await this.channexClient.ackBookingRevision(revisionId, apiKey);
       if (outcome.action === "CANCELLED") {
         try {
           RequestRealtimeEmitter.emitChannelBookingCancelled({
@@ -397,6 +396,7 @@ export class ChannexBookingIngestionService {
           this.logger.warn(`[Channex Ingestion] Realtime cancel emit thất bại: ${emitErr}`);
         }
       }
+      if (acknowledge) await this.channexClient.ackBookingRevision(revisionId, apiKey);
       return outcome;
     }
 

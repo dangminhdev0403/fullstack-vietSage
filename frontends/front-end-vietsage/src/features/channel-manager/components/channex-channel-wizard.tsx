@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import {
   showConfirmDialog,
   showErrorAlert,
@@ -115,6 +116,21 @@ export function ChannexChannelWizard({
     (field) => !isFieldHidden(field, settings),
   );
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [onClose]);
+
   const handlePrepare = async (event: React.FormEvent) => {
     event.preventDefault();
     try {
@@ -126,6 +142,7 @@ export function ChannexChannelWizard({
         settings: submittedSettings,
       });
       if (!result.supported) {
+        onClose();
         await onFallback();
         return;
       }
@@ -231,35 +248,50 @@ export function ChannexChannelWizard({
   };
 
   return (
-    <section
+    <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="channex-wizard-title"
-      className="rounded-2xl border border-[var(--outline-variant)] bg-white shadow-lg"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-sm"
+      onClick={onClose}
     >
-      <header className="flex flex-col gap-4 border-b border-[var(--outline-variant)] p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-bold uppercase tracking-wider text-[var(--secondary)]">
-            Thiết lập native
-          </p>
-          <h2
-            id="channex-wizard-title"
-            className="mt-1 text-2xl font-bold text-[var(--on-surface)]"
+      <div
+        className="bg-white rounded-3xl shadow-2xl border border-[var(--outline-variant)] max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="flex flex-col gap-3 border-b border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-5 sm:flex-row sm:items-center sm:justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] font-bold">
+              <VsIcon name="settings" className="text-xl" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2
+                  id="channex-wizard-title"
+                  className="text-xl font-bold text-[var(--on-surface)]"
+                >
+                  Thiết lập {provider.title}
+                </h2>
+                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200">
+                  Native
+                </span>
+              </div>
+              <p className="mt-0.5 text-sm text-[var(--on-surface-variant)]">
+                Kiểm tra thông tin, ánh xạ rate, tạo inactive, rồi mới kích hoạt.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex min-h-10 items-center gap-1.5 self-end rounded-xl border border-[var(--outline-variant)] bg-white px-4 text-sm font-bold text-[var(--on-surface)] hover:bg-[var(--surface-container-high)] shadow-2xs transition cursor-pointer sm:self-center"
           >
-            {provider.title}
-          </h2>
-          <p className="mt-1 text-base text-[var(--on-surface-variant)]">
-            Kiểm tra thông tin, ánh xạ rate, tạo inactive, rồi mới kích hoạt.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="min-h-11 rounded-xl border border-[var(--outline-variant)] px-5 text-base font-bold"
-        >
-          Đóng
-        </button>
-      </header>
+            <VsIcon name="close" className="text-base" />
+            <span>Đóng</span>
+          </button>
+        </header>
+
+        <div className="flex-1 overflow-y-auto">
 
       {!prepared ? (
         <form onSubmit={handlePrepare} className="space-y-5 p-5 sm:p-6">
@@ -465,8 +497,11 @@ export function ChannexChannelWizard({
               Channex cho adapter này.
               <button
                 type="button"
-                onClick={() => void onFallback()}
-                className="ml-3 min-h-11 rounded-xl bg-amber-900 px-4 font-bold text-white"
+                onClick={async () => {
+                  onClose();
+                  await onFallback();
+                }}
+                className="ml-3 min-h-11 rounded-xl bg-amber-900 px-4 font-bold text-white cursor-pointer"
               >
                 Mở Channex
               </button>
@@ -488,7 +523,7 @@ export function ChannexChannelWizard({
                   type="button"
                   onClick={handleActivate}
                   disabled={isActivating}
-                  className="mt-4 min-h-11 rounded-xl bg-emerald-800 px-6 text-base font-bold text-white disabled:opacity-50"
+                  className="mt-4 min-h-11 rounded-xl bg-emerald-800 px-6 text-base font-bold text-white disabled:opacity-50 cursor-pointer"
                 >
                   {isActivating ? "Đang kích hoạt..." : "Kích hoạt kênh"}
                 </button>
@@ -499,7 +534,7 @@ export function ChannexChannelWizard({
               <button
                 type="button"
                 onClick={() => setPrepared(null)}
-                className="min-h-11 rounded-xl border border-[var(--outline-variant)] px-5 text-base font-bold"
+                className="min-h-11 rounded-xl border border-[var(--outline-variant)] px-5 text-base font-bold cursor-pointer"
               >
                 Quay lại
               </button>
@@ -507,7 +542,7 @@ export function ChannexChannelWizard({
                 type="button"
                 onClick={handleCreate}
                 disabled={isCreating || !remoteRates.length}
-                className="min-h-11 rounded-xl bg-[var(--primary)] px-6 text-base font-bold text-white disabled:opacity-50"
+                className="min-h-11 rounded-xl bg-[var(--primary)] px-6 text-base font-bold text-white disabled:opacity-50 cursor-pointer"
               >
                 {isCreating ? "Đang tạo..." : "Tạo kênh inactive"}
               </button>
@@ -515,6 +550,8 @@ export function ChannexChannelWizard({
           )}
         </div>
       )}
-    </section>
+        </div>
+      </div>
+    </div>
   );
 }

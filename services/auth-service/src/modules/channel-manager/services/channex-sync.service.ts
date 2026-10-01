@@ -404,7 +404,8 @@ export class ChannexSyncService {
     const alreadyRegistered = (existing?.data ?? []).some(
       (webhook: any) =>
         webhook?.attributes?.callback_url === callbackUrl &&
-        webhook?.relationships?.property?.data?.id === propertyId,
+        (webhook?.attributes?.is_global === true ||
+          webhook?.relationships?.property?.data?.id === propertyId),
     );
     if (alreadyRegistered) return;
 
