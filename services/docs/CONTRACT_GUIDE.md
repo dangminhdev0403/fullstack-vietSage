@@ -60,6 +60,20 @@ A service that owns tables owns:
 
 ### Channex staging contract
 
+- Hotel-scoped `RoomType` stores the publishable VND base price; `Room.price`
+  remains an operational override. Existing name-keyed Channex mappings remain
+  readable until explicit reconciliation; outbound rate paths fail closed when
+  the exact type has no catalog price. New room type + room + QR writes share
+  one transaction. Additive catalog migration precedes enabling these routes.
+- Local reconciliation: run `node scripts/reconcile-room-types.cjs` from
+  `services/auth-service` for a read-only preflight, then `--apply` only on the
+  approved loopback `vietsage_auth`. It rejects price/name/mapping conflicts,
+  links existing rooms, and rekeys local room/rate mappings without changing
+  Channex IDs or dated overrides. Repeating the dry-run must report zero changes.
+  Catalog creation rejects conflicting, missing, or mismatched legacy room prices;
+  resolve these explicitly before setting a publishable base price. Rate-writing
+  ARI validates every target rate-plan mapping before any availability/provider write.
+  Staging and production need separate migration, backup, and cutover approval.
 - The backend is the only holder of `CHANNEX_API_KEY`; frontend and BFF payloads never accept provider credentials.
 - Content sync is idempotent through durable property, room-type, and rate-plan mappings. ARI sends availability and restrictions separately, filters past dates, compresses equal date ranges, and compares sampled live readback values.
 - Incoming bookings use apply-then-ack. New multi-room bookings create one reservation segment per provider room inside one transaction; duplicate provider booking IDs are idempotent. Cancellations update all non-checked-in segments. Modifications are recorded as `RECONCILIATION_REQUIRED` instead of blindly rewriting live stays.

@@ -499,7 +499,11 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     personas: ["manager", "front_desk"],
     href: "/hotels/{hotelId}/channel-manager",
     label: "Kho Phòng & Kênh Bán",
-    icon: "sync_alt",
+    labelByPersona: {
+      front_desk: "Đơn đặt phòng OTA",
+      manager: "Kho Phòng & Kênh Bán",
+    },
+    icon: "concierge",
     order: 25,
     section: "OPERATIONS",
     requiresHotel: true,

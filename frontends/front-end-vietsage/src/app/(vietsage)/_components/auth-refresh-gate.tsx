@@ -90,8 +90,6 @@ export function AuthRefreshGate({
           pathname,
           timestamp: Date.now(),
         });
-
-        router.refresh();
       } catch (error) {
         runtimeConsole.warn("[AUTH_REFRESH_GATE_FAILED]", {
           pathname,

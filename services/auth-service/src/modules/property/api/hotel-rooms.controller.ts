@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, Res } from "@nestjs/common";
 import {
   ApiBody,
   ApiCreatedResponse,
@@ -7,7 +7,7 @@ import {
   ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
@@ -17,11 +17,13 @@ import { HotelRoomsService } from "../application/hotel-rooms.service";
 import {
   checkOutBodySchema,
   createRoomBodySchema,
+  createRoomTypeBodySchema,
   createRoomsBodySchema,
   createStayBodySchema,
   listRoomsQuerySchema,
   qrReasonBodySchema,
   updateRoomBodySchema,
+  updateRoomTypePriceBodySchema,
   updateRoomStatusBodySchema,
   updateStayBodySchema,
 } from "../domain/schemas/rooms.schema";
@@ -39,6 +41,77 @@ interface RequestWithUser extends Request {
 @Controller("hotels")
 export class HotelRoomsController {
   constructor(private readonly hotelRoomsService: HotelRoomsService) {}
+
+  @RequirePermission("hotel.rooms.view")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiOkResponse({ description: "Danh mục loại phòng" })
+  @Get(":hotelId/room-types")
+  async listRoomTypes(@Req() request: RequestWithUser, @Param("hotelId") hotelIdParam: string) {
+    return this.hotelRoomsService.listRoomTypes(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelIdParam),
+    );
+  }
+
+  @RequirePermission("hotel.rooms.manage")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["name", "basePrice"],
+      properties: {
+        name: { type: "string", minLength: 1, maxLength: 80 },
+        basePrice: { type: "number", minimum: 0, exclusiveMinimum: true },
+      },
+    },
+  })
+  @ApiOkResponse({ description: "Loại phòng đã tồn tại; giá gốc không thay đổi" })
+  @ApiCreatedResponse({ description: "Loại phòng đã tạo hoặc đã tồn tại" })
+  @Post(":hotelId/room-types")
+  async createRoomType(
+    @Req() request: RequestWithUser,
+    @Res({ passthrough: true }) response: Response,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const result = await this.hotelRoomsService.createRoomType(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelIdParam),
+      parseWithZod(createRoomTypeBodySchema, body),
+    );
+    response.status(result.created ? 201 : 200);
+    return { ...result.item, created: result.created };
+  }
+
+  @RequirePermission("hotel.rooms.manage")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "roomTypeId", type: String })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["basePrice"],
+      properties: { basePrice: { type: "number", minimum: 0, exclusiveMinimum: true } },
+    },
+  })
+  @ApiOkResponse({ description: "Giá gốc được lưu nội bộ; chưa đẩy Channex" })
+  @Patch(":hotelId/room-types/:roomTypeId/price")
+  async updateRoomTypePrice(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("roomTypeId") roomTypeId: string,
+    @Body() body: unknown,
+  ) {
+    const { basePrice } = parseWithZod(updateRoomTypePriceBodySchema, body);
+    return this.hotelRoomsService.updateRoomTypePrice(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelIdParam),
+      parseWithZod(roomIdParamSchema, roomTypeId),
+      basePrice,
+    );
+  }
 
   @SuccessMessage("Tạo phòng thành công")
   @RequirePermission("hotel.rooms.manage")

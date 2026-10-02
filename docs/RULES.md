@@ -22,78 +22,10 @@ Applies to markdown files under:
 
 README files may remain at package/folder roots only when they are entry points for that package or directory. Detailed architecture, rules, runbooks, and guides should live in the matching `docs/` folder; task plans live only in root `.hermes/plans/`.
 
-## Global Execution Rule: Delegation-Aware Approval
-
-This repository uses a two-layer approval model: direct user-facing planning remains guarded, while delegated specialist/Codex workers may execute inside an already-approved scope.
-
-### Direct user-facing sessions
-
-When the assistant is speaking directly with the user and no prior approval has been granted for the current scope, stay read-only until explicit approval.
-
-Do not edit, create, delete, move, rename, format, refactor, overwrite, install, migrate, auto-fix, update docs, update git state, or modify any file before approval.
-
-Allowed before approval only:
-
-- read
-- search
-- inspect
-- analyze
-- ask targeted clarification
-- produce implementation plan
-
-Collaborate with the user before editing:
-
-1. inspect code
-2. explain findings
-3. identify root cause
-4. list impacted files
-5. propose safest plan
-6. state risks/trade-offs
-7. wait for explicit approval
-
-For direct user-facing sessions, approval may be an exact command such as:
-
-- EXECUTE MODE
-- APPLY PLAN
-- CHO PHÉP SỬA
-- TIẾN HÀNH SỬA
-
-or an unambiguous user approval message that explicitly accepts execution for the proposed scope.
-
-### Delegated specialist / Codex worker sessions
-
-When a specialist/đệ, Kanban worker, or Codex process is launched by Hermes after the user has already approved the task, do not stop to request `PLAN MODE`, `EXECUTE MODE`, `CHO PHÉP SỬA`, or another confirmation from the user again.
-
-Treat the delegation prompt as approved execution context when it states that user/Hermes has approved the scoped task. Execute only that scoped task.
-
-The delegated worker must still:
-
-- preserve unrelated dirty worktree changes;
-- keep changes limited to the approved scope;
-- avoid destructive database, Prisma reset, Docker cleanup, deployment, credential, or git-history operations unless those are explicitly approved in the delegated prompt;
-- inspect the resulting diff;
-- run the smallest reliable validation command;
-- report files inspected, files changed, validation results, docs updated, and remaining risks/blockers.
-
-If a delegated Codex process still pauses at an approval guard, restart it with the approval context at the top of the prompt instead of waiting for an interactive approval inside the process.
-
-PLAN MODE output format for direct planning-only sessions:
-
-- Files inspected
-- Current issue
-- Root cause
-- Proposed plan
-- Files that would be changed later
-- What will not be changed
-- Risks/trade-offs
-- Verification steps
-- Rollback strategy
-- Approval required
-
 ## Source of Truth Rules
 
 - Do not duplicate the same normative rule in multiple files.
-- If rules conflict, prioritize in this order:
+- If project rules conflict, prioritize in this order:
   1. `docs/RULES.md`
   2. nearest scope-specific `RULES.md`
   3. nearest scope-specific `ARCHITECTURE.md`

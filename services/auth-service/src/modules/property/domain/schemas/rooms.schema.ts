@@ -62,6 +62,20 @@ export const roomStatusSchema = z.preprocess(
   z.nativeEnum(RoomStatus, { message: "Trạng thái phòng không hợp lệ" }),
 );
 
+export const roomTypeNameSchema = z.string().trim().min(1).max(80);
+export const basePriceSchema = z.number().finite().positive().max(9_999_999_999.99);
+export const createRoomTypeBodySchema = z
+  .object({
+    name: roomTypeNameSchema,
+    basePrice: basePriceSchema,
+  })
+  .strict();
+export const updateRoomTypePriceBodySchema = z
+  .object({
+    basePrice: basePriceSchema,
+  })
+  .strict();
+
 export const createRoomBodySchema = z
   .object({
     roomNumber: z
@@ -70,10 +84,14 @@ export const createRoomBodySchema = z
       .min(1, "Số phòng không được để trống")
       .max(40, "Số phòng tối đa 40 ký tự"),
     floor: z.string().trim().max(40, "Tên tầng tối đa 40 ký tự").optional(),
-    type: z.string().trim().max(80, "Loại phòng tối đa 80 ký tự").optional(),
+    type: roomTypeNameSchema.optional(),
+    roomTypeId: z.string().trim().min(1).optional(),
+    newRoomType: createRoomTypeBodySchema.optional(),
     price: z.coerce
       .number({ message: "Giá phòng phải là số" })
+      .finite()
       .nonnegative("Giá phòng không được là số âm")
+      .max(9_999_999_999.99)
       .optional(),
     maxActiveGuestDevices: z.coerce
       .number({ message: "Số thiết bị phải là số" })
@@ -81,7 +99,14 @@ export const createRoomBodySchema = z
       .min(1, "Tối thiểu 1 thiết bị")
       .optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (value) => [value.type, value.roomTypeId, value.newRoomType].filter(Boolean).length === 1,
+    {
+      message: "Chọn một loại phòng có sẵn hoặc nhập tên và giá loại phòng mới",
+      path: ["roomTypeId"],
+    },
+  );
 
 export const createRoomsBodySchema = z
   .object({
@@ -102,9 +127,12 @@ export const updateRoomBodySchema = z
       .optional(),
     floor: z.string().trim().max(40, "Tên tầng tối đa 40 ký tự").nullable().optional(),
     type: z.string().trim().max(80, "Loại phòng tối đa 80 ký tự").nullable().optional(),
+    roomTypeId: z.string().trim().min(1).optional(),
     price: z.coerce
       .number({ message: "Giá phòng phải là số" })
+      .finite()
       .nonnegative("Giá phòng không được là số âm")
+      .max(9_999_999_999.99)
       .nullable()
       .optional(),
     maxActiveGuestDevices: z.coerce
@@ -115,6 +143,10 @@ export const updateRoomBodySchema = z
       .optional(),
   })
   .strict()
+  .refine((value) => !(value.type !== undefined && value.roomTypeId !== undefined), {
+    message: "Chỉ chọn một cách xác định loại phòng",
+    path: ["roomTypeId"],
+  })
   .refine((value) => Object.keys(value).length > 0, {
     message: "Cần ít nhất một trường thông tin phòng để cập nhật",
   });
@@ -253,6 +285,7 @@ export const qrStatusQuerySchema = z
   .strict();
 
 export type CreateRoomBodyInput = z.infer<typeof createRoomBodySchema>;
+export type CreateRoomTypeBodyInput = z.infer<typeof createRoomTypeBodySchema>;
 export type CreateRoomsBodyInput = z.infer<typeof createRoomsBodySchema>;
 export type UpdateRoomBodyInput = z.infer<typeof updateRoomBodySchema>;
 export type UpdateRoomStatusBodyInput = z.infer<typeof updateRoomStatusBodySchema>;

@@ -26,6 +26,7 @@ import { HotelRoomsRepository } from "../infrastructure/repositories/hotel-rooms
 import type { RoomListRow } from "../infrastructure/repositories/hotel-repository.types";
 import type {
   CheckOutBodyInput,
+  CreateRoomTypeBodyInput,
   CreateRoomBodyInput,
   CreateRoomsBodyInput,
   CreateStayBodyInput,
@@ -60,6 +61,31 @@ export class HotelRoomsService {
     private readonly stayCheckInPublisher?: StayCheckInEventPublisher,
   ) {
     this.eventPublisher = eventPublisher ?? NOOP_GUEST_REQUEST_EVENT_PUBLISHER;
+  }
+  async listRoomTypes(actorUserId: string, activeRoleId: string, hotelId: string) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    return { items: await this.hotelRoomsRepository.listRoomTypes(hotelId) };
+  }
+
+  async createRoomType(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    dto: CreateRoomTypeBodyInput,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    return this.hotelRoomsRepository.createRoomType(hotelId, dto.name, dto.basePrice);
+  }
+
+  async updateRoomTypePrice(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    roomTypeId: string,
+    basePrice: number,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    return this.hotelRoomsRepository.updateRoomTypePrice(hotelId, roomTypeId, basePrice);
   }
   async createRoom(
     actorUserId: string,
@@ -96,6 +122,8 @@ export class HotelRoomsService {
       roomNumber: dto.roomNumber.trim(),
       floor: dto.floor?.trim(),
       type: dto.type?.trim(),
+      roomTypeId: dto.roomTypeId,
+      newRoomType: dto.newRoomType,
       price: dto.price,
       maxActiveGuestDevices: dto.maxActiveGuestDevices,
       publicCode,
@@ -212,10 +240,16 @@ export class HotelRoomsService {
       );
     }
 
+    const selectedType =
+      dto.roomTypeId || dto.type
+        ? await this.hotelRoomsRepository.resolveRoomType(hotelId, dto)
+        : null;
     const room = await this.hotelRoomsRepository.updateRoomInHotel(hotelId, roomId, {
       roomNumber: dto.roomNumber?.trim(),
       floor: dto.floor === null ? null : dto.floor?.trim(),
-      type: dto.type === null ? null : dto.type?.trim(),
+      ...(selectedType
+        ? { type: selectedType.name, roomType: { connect: { id: selectedType.id } } }
+        : {}),
       price: dto.price,
       maxActiveGuestDevices: dto.maxActiveGuestDevices,
       status: dto.status,
@@ -624,6 +658,7 @@ export class HotelRoomsService {
       roomNumber: row.roomNumber,
       floor: row.floor,
       type: row.type,
+      roomTypeId: row.roomTypeId,
       price: row.price,
       maxActiveGuestDevices: row.maxActiveGuestDevices ?? 3,
       activeGuestDeviceCount: row.activeGuestDeviceCount,

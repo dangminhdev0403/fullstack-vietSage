@@ -25,6 +25,15 @@ const DAYS_OF_WEEK = [
   { value: 0, label: "CN", fullName: "Chủ Nhật" },
 ];
 
+function getTodayInVietnam(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 export function BulkUpdateModal({
   isOpen,
   onClose,
@@ -39,13 +48,12 @@ export function BulkUpdateModal({
     roleScope,
   });
 
+  const todayStr = getTodayInVietnam();
   const [dateFrom, setDateFrom] = useState(
-    () => defaultDateFrom || new Date().toISOString().split("T")[0],
+    () => (defaultDateFrom && defaultDateFrom >= todayStr ? defaultDateFrom : todayStr),
   );
   const [dateTo, setDateTo] = useState(
-    () =>
-      defaultDateTo ||
-      new Date(Date.now() + 13 * 86400000).toISOString().split("T")[0],
+    () => (defaultDateTo && defaultDateTo >= todayStr ? defaultDateTo : defaultDateTo || todayStr),
   );
 
   const [selectedRoomTypes, setSelectedRoomTypes] = useState<string[]>([]);
@@ -102,6 +110,14 @@ export function BulkUpdateModal({
       await showErrorAlert(
         "Thiếu thông tin",
         "Vui lòng chọn ngày bắt đầu và kết thúc.",
+      );
+      return;
+    }
+
+    if (dateTo < todayStr) {
+      await showErrorAlert(
+        "Khoảng ngày không hợp lệ",
+        "Không thể cập nhật cho những ngày đã qua trong quá khứ.",
       );
       return;
     }
@@ -315,6 +331,7 @@ export function BulkUpdateModal({
                 <input
                   type="date"
                   value={dateFrom}
+                  min={todayStr}
                   onChange={(e) => setDateFrom(e.target.value)}
                   className="w-full h-11 px-4 rounded-2xl border border-slate-200 bg-white text-slate-900 text-base font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                   required
@@ -327,6 +344,7 @@ export function BulkUpdateModal({
                 <input
                   type="date"
                   value={dateTo}
+                  min={dateFrom || todayStr}
                   onChange={(e) => setDateTo(e.target.value)}
                   className="w-full h-11 px-4 rounded-2xl border border-slate-200 bg-white text-slate-900 text-base font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                   required

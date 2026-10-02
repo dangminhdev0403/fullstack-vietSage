@@ -4,7 +4,7 @@
 >
 > This file exists for tools that only read the repo root. All rules (including the Graphify-first navigation policy) are defined in `.agents/AGENTS.md`.
 
-See [.agents/AGENTS.md](.agents/AGENTS.md) for the full agent instructions.
+See [.agents/AGENTS.md](.agents/AGENTS.md) for the full agent instructions. Agents without global Ponytail settings also read `PONYTAIL.md` before coding.
 
 ## graphify
 
@@ -21,16 +21,3 @@ Rules:
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - Run `graphify update . --force` only after completing an entire feature/module or major refactor. For routine/minor edits (chỉnh UI nhẹ, đổi tên, text/copy, styling tweaks), do NOT run graphify update.
-
-## Universal Agent / Ponytail execution policy
-
-- **Phạm vi áp dụng (Universal Scope):** Quy chuẩn này mang tính phổ quát, áp dụng bắt buộc cho **mọi AI coding agent** làm việc trong repository (AGY, Claude Code, Codex, Cursor, Windsurf, Hermes, v.v.) có hỗ trợ cơ chế subagents hoặc điều phối đa tác vụ song song.
-- `PONYTAIL.md` is mandatory for every coding agent and corrective run. Read it before editing; Ponytail `full` remains active unless the user explicitly disables it.
-- **Thao tác chỉnh sửa thông thường (Minor Edits):** Đối với các thay đổi không quá lớn như chỉnh UI nhẹ, đổi tên, text/copy, css/spacing: **KHÔNG cần run test** và **KHÔNG run graphify**.
-- Với thay đổi logic nghiệp vụ, bất kỳ coding agent nào cũng chỉ chạy tối đa một focused check duy nhất bao phủ hành vi thay đổi. Agent không chạy full lint, full test suite, hoặc full build.
-- Host verification runs each slice's targeted gate in parallel.
-- **Concurrent Subagent Orchestration:** Chỉ phân rã tác vụ song song (Fan-Out) khi các slice hoàn toàn trực giao (Orthogonal Decoupling), độc quyền tệp (Disjoint File Ownership), và contract đã đóng băng (Contract Freeze). Cấm lạm dụng agent tràn lan (Anti-Premature Swarming) cho các tác vụ tuần tự hoặc chỉnh sửa vi mô.
-- Integration cherry-picks accepted slices without rerunning module-wide gates after every commit.
-- After all slices integrate, run affected/module lint, tests, and build once via the orchestrator final gate. Run the full merge gate once before PR/merge when required.
-- Never skip trust-boundary validation, security, accessibility, or data-loss prevention to save time.
-- Preserve unrelated dirty/untracked work. Dependency, lockfile, migration, destructive, deploy, and production changes remain approval-gated.

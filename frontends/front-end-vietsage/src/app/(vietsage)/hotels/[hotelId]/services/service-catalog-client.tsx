@@ -89,10 +89,6 @@ export function ServiceCatalogClient({
     });
   }, [categoryFilter, items, query, statusFilter]);
 
-  function refreshRoute() {
-    router.refresh();
-  }
-
   async function saveCategory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canManage || !categoryForm) {
@@ -123,7 +119,6 @@ export function ServiceCatalogClient({
         return exists ? current.map((category) => (category.id === saved.id ? saved : category)) : [saved, ...current];
       });
       setCategoryForm(null);
-      refreshRoute();
     } catch {
       setError("Không thể lưu nhóm dịch vụ. Vui lòng thử lại.");
     } finally {
@@ -161,7 +156,6 @@ export function ServiceCatalogClient({
         return exists ? current.map((item) => (item.id === saved.id ? saved : item)) : [saved, ...current];
       });
       setItemForm(null);
-      refreshRoute();
     } catch {
       setError("Không thể lưu dịch vụ. Vui lòng thử lại.");
     } finally {
@@ -201,7 +195,6 @@ export function ServiceCatalogClient({
           )
         ).data;
         setCategories((current) => current.map((item) => (item.id === saved.id ? saved : item)));
-        router.refresh();
         await Swal.fire({
           icon: "success",
           title: `Đã ${actionText} nhóm dịch vụ!`,
@@ -251,7 +244,6 @@ export function ServiceCatalogClient({
           )
         ).data;
         setItems((current) => current.map((entry) => (entry.id === saved.id ? saved : entry)));
-        router.refresh();
         await Swal.fire({
           icon: "success",
           title: `Đã ${actionText} dịch vụ!`,

@@ -230,26 +230,46 @@ test("toggles channel manager in owner and staff navigation based on hotel featu
     false,
   );
 
-  const staffEnabled = buildWorkspaceNavigation({
+  const managerEnabled = buildWorkspaceNavigation({
+    persona: "manager",
+    permissions: ["hotel.channels.view", "hotel.rooms.view"],
+    hotelId: "hotel-1",
+    enabledFeatures: ["hotel.channel_manager"],
+  });
+  assert.equal(
+    managerEnabled.some((item) => item.key === "staff.channel-manager"),
+    true,
+  );
+
+  const managerDisabled = buildWorkspaceNavigation({
+    persona: "manager",
+    permissions: ["hotel.channels.view", "hotel.rooms.view"],
+    hotelId: "hotel-1",
+    enabledFeatures: [],
+  });
+  assert.equal(
+    managerDisabled.some((item) => item.key === "staff.channel-manager"),
+    false,
+  );
+
+  // Front desk has concise "Đơn đặt phòng OTA" nav item with concierge icon
+  const frontDeskNav = buildWorkspaceNavigation({
     persona: "front_desk",
     permissions: ["hotel.channels.view", "hotel.rooms.view"],
     hotelId: "hotel-1",
     enabledFeatures: ["hotel.channel_manager"],
   });
   assert.equal(
-    staffEnabled.some((item) => item.key === "staff.channel-manager"),
+    frontDeskNav.some((item) => item.key === "staff.channel-manager"),
     true,
   );
-
-  const staffDisabled = buildWorkspaceNavigation({
-    persona: "front_desk",
-    permissions: ["hotel.channels.view", "hotel.rooms.view"],
-    hotelId: "hotel-1",
-    enabledFeatures: [],
-  });
   assert.equal(
-    staffDisabled.some((item) => item.key === "staff.channel-manager"),
-    false,
+    frontDeskNav.find((item) => item.key === "staff.channel-manager")?.label,
+    "Đơn đặt phòng OTA",
+  );
+  assert.equal(
+    frontDeskNav.find((item) => item.key === "staff.channel-manager")?.icon,
+    "concierge",
   );
 });
 

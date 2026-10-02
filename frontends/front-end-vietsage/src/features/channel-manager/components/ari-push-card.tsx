@@ -43,6 +43,16 @@ const PRESET_OPTIONS = [
   { id: "30d", label: "30 ngày tới", days: 29 },
 ] as const;
 
+function formatVnDate(dateStr?: string | null): string {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  if (parts.length === 3 && parts[0].length === 4) {
+    const [y, m, d] = parts;
+    return `${d}/${m}/${y}`;
+  }
+  return dateStr;
+}
+
 export function AriPushCard({
   hotelId,
   roleScope = "owner",
@@ -98,15 +108,12 @@ export function AriPushCard({
         Boolean(result.readbackVerified?.availabilityMatch) &&
         Boolean(result.readbackVerified?.restrictionsMatch);
 
+      const startVn = formatVnDate(result.startDate || startDate);
+      const endVn = formatVnDate(result.endDate || endDate);
       const range =
-        result.startDate && result.endDate
-          ? `${result.startDate} → ${result.endDate}`
-          : result.startDate || startDate;
+        endVn && endVn !== startVn ? `${startVn} → ${endVn}` : startVn;
 
-      const summary = `Đã gửi ${result.availabilityPushedCount ?? 0} dải phòng trống và ${result.restrictionsPushedCount ?? 0} dải giá (${range}).`;
-      const conversionNote = result.rateConversionApplied
-        ? ` Giá đã quy đổi ${result.sourceCurrency} → ${result.targetCurrency} bằng tỷ giá staging đã cấu hình.`
-        : "";
+      const summary = `Đã phân phối ${result.availabilityPushedCount ?? 0} dải phòng trống & ${result.restrictionsPushedCount ?? 0} dải giá (${range}).`;
 
       const nowStr = new Intl.DateTimeFormat("vi-VN", {
         timeZone: "Asia/Ho_Chi_Minh",
@@ -115,6 +122,7 @@ export function AriPushCard({
         second: "2-digit",
         day: "2-digit",
         month: "2-digit",
+        year: "numeric",
       }).format(new Date());
 
       setLastSync({
@@ -125,17 +133,73 @@ export function AriPushCard({
       });
 
       if (!readbackMatched) {
-        await showErrorAlert(
-          "Đã gửi nhưng đối soát chưa khớp",
-          `${summary}${conversionNote} Dữ liệu đọc lại từ Channex chưa khớp hoàn toàn. Vui lòng kiểm tra lại kết nối hoặc chạy kiểm tra trong Sandbox.`,
-        );
+        const mismatchHtml = `
+<div class="space-y-3.5 text-left text-sm leading-relaxed text-slate-700">
+  <p class="font-medium text-amber-900">
+    Dữ liệu đã được gửi sang Channex nhưng khi hệ thống đọc lại để đối soát thì chưa khớp hoàn toàn:
+  </p>
+
+  <div class="rounded-xl border border-amber-200/90 bg-amber-50/70 p-3.5 space-y-2 text-xs sm:text-sm">
+    <div class="flex items-center justify-between gap-3 border-b border-amber-200/60 pb-2">
+      <span class="text-slate-600 font-medium">Khoảng thời gian:</span>
+      <span class="font-bold text-slate-900">${range}</span>
+    </div>
+    <div class="flex items-center justify-between gap-3 border-b border-amber-200/60 pb-2">
+      <span class="text-slate-600 font-medium">Dữ liệu đã gửi:</span>
+      <span class="font-bold text-amber-950">${result.availabilityPushedCount ?? 0} phòng trống • ${result.restrictionsPushedCount ?? 0} dải giá</span>
+    </div>
+    ${
+      result.rateConversionApplied
+        ? `<div class="flex items-center justify-between gap-3 pt-0.5">
+             <span class="text-slate-600 font-medium">Quy đổi ngoại tệ:</span>
+             <span class="font-bold text-amber-800">${result.sourceCurrency} → ${result.targetCurrency}</span>
+           </div>`
+        : ""
+    }
+  </div>
+
+  <div class="flex items-start gap-2 rounded-lg bg-amber-100/80 p-2.5 text-xs text-amber-950">
+    <span class="font-bold shrink-0">Khuyến nghị:</span>
+    <span>Vui lòng kiểm tra lại kết nối hoặc chạy kiểm tra trong Sandbox để đảm bảo đồng bộ hoàn chỉnh.</span>
+  </div>
+</div>`.trim();
+
+        await showErrorAlert("Đã gửi nhưng đối soát chưa khớp", mismatchHtml);
         return;
       }
 
-      await showSuccessAlert(
-        "Đồng bộ OTA thành công",
-        `${summary}${conversionNote} Dữ liệu đọc lại từ Channex đã khớp hoàn toàn.`,
-      );
+      const successHtml = `
+<div class="space-y-3 text-left text-sm leading-relaxed text-slate-700">
+  <div class="rounded-xl border border-emerald-200/90 bg-emerald-50/70 p-3.5 space-y-2 text-xs sm:text-sm">
+    <div class="flex items-center justify-between gap-3 border-b border-emerald-200/60 pb-2">
+      <span class="text-slate-600 font-medium">Khoảng thời gian:</span>
+      <span class="font-bold text-slate-900">${range}</span>
+    </div>
+    <div class="flex items-center justify-between gap-3 border-b border-emerald-200/60 pb-2">
+      <span class="text-slate-600 font-medium">Quỹ phòng trống:</span>
+      <span class="font-bold text-emerald-800">${result.availabilityPushedCount ?? 0} dải phòng</span>
+    </div>
+    <div class="flex items-center justify-between gap-3 ${result.rateConversionApplied ? "border-b border-emerald-200/60 pb-2" : ""}">
+      <span class="text-slate-600 font-medium">Biểu giá & điều kiện:</span>
+      <span class="font-bold text-emerald-800">${result.restrictionsPushedCount ?? 0} dải giá</span>
+    </div>
+    ${
+      result.rateConversionApplied
+        ? `<div class="flex items-center justify-between gap-3 pt-0.5">
+             <span class="text-slate-600 font-medium">Quy đổi ngoại tệ:</span>
+             <span class="font-bold text-amber-800">${result.sourceCurrency} → ${result.targetCurrency} (tỷ giá staging)</span>
+           </div>`
+        : ""
+    }
+  </div>
+
+  <div class="flex items-center gap-2 rounded-lg bg-emerald-100/80 px-3 py-2 text-xs font-semibold text-emerald-950">
+    <span class="inline-block h-2 w-2 rounded-full bg-emerald-600 shrink-0"></span>
+    <span>Trạng thái: Dữ liệu đọc lại từ Channex đã xác thực khớp 100%.</span>
+  </div>
+</div>`.trim();
+
+      await showSuccessAlert("Đồng bộ OTA thành công", successHtml);
     } catch (error: unknown) {
       await showErrorAlert("Không thể đồng bộ giá và quỹ phòng", error);
     }

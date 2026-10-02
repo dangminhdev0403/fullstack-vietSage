@@ -7,14 +7,13 @@ import { AriPushCard } from "@/features/channel-manager/components/ari-push-card
 import { ChannexHubTab } from "@/features/channel-manager/components/channex-hub-tab";
 import { ChannexPropertyConfigCard } from "@/features/channel-manager/components/channex-property-config-card";
 import { InventoryGrid } from "@/features/channel-manager/components/inventory-grid";
-import { OtaBookingsTab } from "@/features/channel-manager/components/ota-bookings-tab";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 
 const STORAGE_KEY_HOTEL = "vietsage_admin_selected_cm_hotel_id";
 const STORAGE_KEY_TAB = "vietsage_admin_selected_cm_tab";
 
-type TabType = "SETUP" | "ARI" | "BOOKINGS" | "CHANNELS";
+type TabType = "SETUP" | "CHANNELS" | "ARI";
 
 interface TabDefinition {
   id: TabType;
@@ -26,9 +25,8 @@ interface TabDefinition {
 
 const TABS: TabDefinition[] = [
   { id: "SETUP", label: "Cấu hình Channex", icon: "⚙️" },
-  { id: "ARI", label: "Giá & Quỹ phòng (ARI)", icon: "📊" },
-  { id: "BOOKINGS", label: "Đơn đặt phòng OTA", icon: "🛎️" },
   { id: "CHANNELS", label: "Kênh OTA & Mapping", icon: "🌐" },
+  { id: "ARI", label: "Giá & Quỹ phòng (ARI)", icon: "📊" },
 ];
 
 export function AdminChannelManagerClient({
@@ -162,8 +160,7 @@ export function AdminChannelManagerClient({
               >
                 {initialHotels.map((hotel) => (
                   <option key={hotel.id} value={hotel.id}>
-                    {hotel.code ? `[${hotel.code}] ` : ""}
-                    {hotel.name} — {hotel.tenant?.name || "Chưa gán đơn vị"}
+                    {hotel.name} — Chủ: {hotel.tenant?.name || "Chưa gán"}
                   </option>
                 ))}
               </select>
@@ -172,7 +169,7 @@ export function AdminChannelManagerClient({
 
           <div className="flex flex-wrap items-center gap-2.5 pt-1 lg:pt-0 text-xs">
             <span className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 font-medium text-blue-800">
-              <span className="font-bold">Đơn vị:</span>
+              <span className="font-bold">Chủ sở hữu:</span>
               <span>{selectedHotel.tenant?.name || "Chưa gán"}</span>
             </span>
 
@@ -248,15 +245,6 @@ export function AdminChannelManagerClient({
               roleScope="admin"
             />
           </div>
-        )}
-
-        {activeTab === "BOOKINGS" && (
-          <OtaBookingsTab
-            key={`bookings-${selectedHotel.id}`}
-            hotelId={selectedHotel.id}
-            roleScope="admin"
-            onSwitchToAri={() => setActiveTab("ARI")}
-          />
         )}
 
         {activeTab === "CHANNELS" && (

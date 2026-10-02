@@ -1,14 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { showErrorAlert, showSuccessAlert } from "@/libs/swal";
+import { showErrorAlert } from "@/libs/swal";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { useChannex } from "../hooks/use-channel-manager";
-import type {
-  ChannexDoctorReport,
-} from "../types/channel-manager.types";
 import { ChannexChannelDetailModal } from "./channex-channel-detail-modal";
 import { ChannexChannelWizard } from "./channex-channel-wizard";
+import { ChannelLogo } from "./channel-logo";
 
 export function ChannexHubTab({
   hotelId,
@@ -19,10 +17,7 @@ export function ChannexHubTab({
 }) {
   const {
     mappings,
-    isLoadingMappings,
     refreshMappings,
-    pollFeed,
-    doctor,
     channelSession,
     prepareChannel,
     createChannel,
@@ -37,9 +32,6 @@ export function ChannexHubTab({
     loadChannelCatalog: true,
   });
 
-  const [doctorReport, setDoctorReport] = useState<ChannexDoctorReport | null>(
-    null,
-  );
   const [channelIframeUrl, setChannelIframeUrl] = useState<string | null>(null);
   const [loadingProviderCode, setLoadingProviderCode] = useState<string | null>(
     null,
@@ -50,9 +42,6 @@ export function ChannexHubTab({
   const [selectedManageChannelId, setSelectedManageChannelId] = useState<
     string | null
   >(null);
-  const [mappingFilter, setMappingFilter] = useState("ALL");
-  const [searchMapping, setSearchMapping] = useState("");
-  const [copiedMappingId, setCopiedMappingId] = useState<string | null>(null);
   const [channelSearch, setChannelSearch] = useState("");
   const [channelKind, setChannelKind] = useState<"all" | "ota" | "meta" | "cm">(
     "all",
@@ -61,18 +50,6 @@ export function ChannexHubTab({
   const propertyMapping = mappings.find(
     (mapping) => mapping.kind === "property",
   );
-
-  const filteredMappings = mappings
-    .filter(
-      (mapping) => mappingFilter === "ALL" || mapping.kind === mappingFilter,
-    )
-    .filter((mapping) => {
-      const query = searchMapping.trim().toLowerCase();
-      if (!query) return true;
-      return [mapping.kind, mapping.localId, mapping.channexId].some((value) =>
-        value.toLowerCase().includes(query),
-      );
-    });
 
   const connectedByCode = useMemo(() => {
     const map = new Map<
@@ -143,6 +120,26 @@ export function ChannexHubTab({
     }
   };
 
+  const handleProviderAction = (provider: (typeof allProviders)[number]) => {
+    if (!propertyMapping || channelSession.isPending) return;
+
+    const providerConnections = connectedByCode.get(provider.code) ?? [];
+    const isConnected = providerConnections.length > 0;
+
+    if (isConnected) {
+      const channelId = providerConnections[0]?.id;
+      if (channelId) {
+        setSelectedManageChannelId(channelId);
+      } else {
+        void handleOpenChannels(undefined, provider.code);
+      }
+    } else if (provider.nativeSupported) {
+      setSelectedProviderCode(provider.code);
+    } else {
+      void handleOpenChannels(undefined, provider.code);
+    }
+  };
+
   const handleCloseIframe = useCallback(() => {
     setChannelIframeUrl(null);
     void refreshChannelCatalog();
@@ -164,40 +161,6 @@ export function ChannexHubTab({
       document.body.style.overflow = prevOverflow;
     };
   }, [channelIframeUrl, handleCloseIframe]);
-
-  const handleDoctor = async () => {
-    try {
-      const report = await doctor.mutateAsync(undefined);
-      setDoctorReport(report);
-    } catch (error: unknown) {
-      await showErrorAlert("Không thể chạy kiểm tra Channex", error);
-    }
-  };
-
-  const handlePendingFeed = async () => {
-    try {
-      const result = await pollFeed.mutateAsync({ limit: 10 });
-      await showSuccessAlert(
-        "Đã xử lý đơn đang chờ",
-        `Đã xử lý ${result.totalProcessed} revision; tạo mới ${result.newBookingsCount}, hủy ${result.cancelledBookingsCount}, bỏ qua ${result.skippedCount}.`,
-      );
-    } catch (error: unknown) {
-      await showErrorAlert("Không thể xử lý booking feed", error);
-    }
-  };
-
-  const handleCopyMapping = async (id: string, value: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopiedMappingId(id);
-      window.setTimeout(() => setCopiedMappingId(null), 2000);
-    } catch {
-      await showErrorAlert(
-        "Không thể sao chép",
-        "Trình duyệt không cấp quyền clipboard.",
-      );
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -368,37 +331,73 @@ export function ChannexHubTab({
               return (
                 <article
                   key={provider.code}
-                  className="flex flex-col justify-between rounded-xl border border-[var(--outline-variant)] bg-white p-4 shadow-2xs hover:border-[var(--primary)] transition-colors"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleProviderAction(provider)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleProviderAction(provider);
+                    }
+                  }}
+                  className="group flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-600/50 hover:shadow-md cursor-pointer select-none"
                 >
-                  <div className="space-y-3">
-                    {/* Tên nền tảng & Loại */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <h3
-                          className="truncate text-base font-bold text-[var(--on-surface)]"
-                          title={provider.title}
-                        >
-                          {provider.title}
-                        </h3>
-                        <p className="font-mono text-xs text-[var(--on-surface-variant)] mt-0.5">
-                          {provider.code}
-                        </p>
+                  <div className="space-y-4">
+                    {/* Header Row: Logo, Title, Code & Badges */}
+                    <div className="flex items-start gap-3.5">
+                      <ChannelLogo
+                        code={provider.code}
+                        title={provider.title}
+                        size="md"
+                        className="rounded-2xl shadow-xs"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-1.5">
+                          <h3
+                            className="truncate text-base font-extrabold text-slate-900 group-hover:text-emerald-800 transition"
+                            title={provider.title}
+                          >
+                            {provider.title}
+                          </h3>
+                          <span
+                            className={`shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                              provider.kind === "ota"
+                                ? "border-sky-200 bg-sky-50 text-sky-800"
+                                : provider.kind === "meta"
+                                  ? "border-purple-200 bg-purple-50 text-purple-800"
+                                  : "border-amber-200 bg-amber-50 text-amber-900"
+                            }`}
+                          >
+                            {provider.kind === "ota" ? "OTA" : provider.kind === "meta" ? "Metasearch" : "CM"}
+                          </span>
+                        </div>
+
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          <span className="font-mono text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                            #{provider.code}
+                          </span>
+                          {provider.nativeSupported && (
+                            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">
+                              <VsIcon name="bolt" className="text-xs text-emerald-600" />
+                              Native API
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <span className="shrink-0 rounded-md border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-2 py-0.5 text-xs font-semibold uppercase text-[var(--on-surface-variant)]">
-                        {provider.kind}
-                      </span>
                     </div>
 
                     {/* Trạng thái kết nối */}
-                    <div>
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
                       {isConnected ? (
-                        <div className="space-y-1.5">
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                            <span>Đã kết nối ({providerConnections.length} kênh)</span>
-                          </span>
-                          {providerConnections.length > 1 && (
-                            <div className="flex flex-wrap gap-1 pt-1">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800">
+                              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                              <span>Đã kết nối ({providerConnections.length} kênh)</span>
+                            </span>
+                          </div>
+                          {providerConnections.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 pt-0.5">
                               {providerConnections.map((conn) => (
                                 <button
                                   key={conn.id}
@@ -407,7 +406,7 @@ export function ChannexHubTab({
                                     e.stopPropagation();
                                     setSelectedManageChannelId(conn.id);
                                   }}
-                                  className="inline-flex items-center gap-1 rounded bg-slate-100 hover:bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-700 cursor-pointer transition"
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white hover:bg-emerald-50 hover:border-emerald-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:text-emerald-900 cursor-pointer shadow-2xs transition"
                                   title={`Quản lý chi tiết: ${conn.title || conn.id}`}
                                 >
                                   <span
@@ -417,71 +416,71 @@ export function ChannexHubTab({
                                         : "bg-slate-400"
                                     }`}
                                   />
-                                  <span className="max-w-[120px] truncate">
+                                  <span className="max-w-[130px] truncate">
                                     {conn.title || "Kênh"}
                                   </span>
+                                  <VsIcon name="arrow_forward" className="text-[10px] opacity-60" />
                                 </button>
                               ))}
                             </div>
                           )}
                         </div>
                       ) : (
-                        <span className="inline-flex items-center rounded-full border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-2.5 py-0.5 text-xs font-medium text-[var(--on-surface-variant)]">
-                          Chưa kết nối
-                        </span>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="inline-flex items-center gap-1.5 font-medium text-slate-500">
+                            <span className="h-2 w-2 rounded-full bg-slate-300" />
+                            <span>Chưa liên kết</span>
+                          </span>
+                          <span className="text-[11px] font-semibold text-slate-400">
+                            Sẵn sàng kết nối
+                          </span>
+                        </div>
                       )}
                     </div>
 
                     {/* Thông số cần thiết */}
-                    <div className="border-t border-[var(--outline-variant)] pt-3">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)] block mb-1.5">
-                        Thông số cần thiết:
+                    <div className="space-y-1.5">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                        Yêu cầu xác thực:
                       </span>
                       {setupParams.length > 0 ? (
                         <div className="flex flex-wrap gap-1.5">
                           {setupParams.map((param) => (
                             <span
                               key={param.key}
-                              className="inline-flex items-center rounded-md border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-2 py-0.5 text-xs text-[var(--on-surface)]"
+                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50/80 px-2 py-0.5 text-xs font-medium text-slate-700"
                             >
-                              {param.title ?? param.key}
-                              {param.type === "password" && " 🔒"}
+                              <span>{param.title ?? param.key}</span>
+                              {param.type === "password" && (
+                                <VsIcon name="lock" className="text-[11px] text-slate-400" />
+                              )}
                             </span>
                           ))}
                         </div>
                       ) : (
-                        <p className="text-xs text-[var(--on-surface-variant)] italic">
-                          Không yêu cầu thông số (xác thực qua Channex Hub)
+                        <p className="text-xs text-slate-500 italic flex items-center gap-1.5">
+                          <VsIcon name="check_circle" className="text-sm text-emerald-600" />
+                          Ủy quyền nhanh một chạm qua Channex Hub
                         </p>
                       )}
                     </div>
                   </div>
 
                   {/* Nút thao tác */}
-                  <div className="mt-4 pt-3 border-t border-[var(--outline-variant)]">
+                  <div className="mt-5 pt-3.5 border-t border-slate-100">
                     <button
                       type="button"
-                      onClick={() => {
-                        if (isConnected) {
-                          const channelId = providerConnections[0]?.id;
-                          if (channelId) {
-                            setSelectedManageChannelId(channelId);
-                          } else {
-                            void handleOpenChannels(undefined, provider.code);
-                          }
-                        } else if (provider.nativeSupported) {
-                          setSelectedProviderCode(provider.code);
-                        } else {
-                          void handleOpenChannels(undefined, provider.code);
-                        }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleProviderAction(provider);
                       }}
                       disabled={!propertyMapping || channelSession.isPending}
-                      className={`min-h-10 w-full rounded-lg px-3 text-sm font-semibold transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center gap-1.5 ${
+                      className={`min-h-11 w-full rounded-xl px-4 text-sm font-bold transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center gap-2 shadow-2xs ${
                         isConnected
-                          ? "border border-emerald-600 bg-white text-emerald-700 hover:bg-emerald-50"
+                          ? "border-2 border-emerald-600 bg-white text-emerald-800 hover:bg-emerald-50 hover:border-emerald-700"
                           : provider.nativeSupported
-                            ? "bg-[var(--primary)] text-white hover:bg-[var(--primary)]/90 shadow-2xs"
-                            : "border border-[var(--outline-variant)] bg-white text-[var(--on-surface)] hover:bg-[var(--surface-container-low)]"
+                            ? "bg-[#25483f] text-white hover:bg-[#1a352d] shadow-sm"
+                            : "border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-900"
                       }`}
                     >
                       {loadingProviderCode === provider.code ? (
@@ -493,11 +492,20 @@ export function ChannexHubTab({
                           <span>Đang kết nối...</span>
                         </>
                       ) : isConnected ? (
-                        <span>Quản lý kết nối</span>
+                        <>
+                          <VsIcon name="tune" className="text-base" />
+                          <span>Quản lý kết nối</span>
+                        </>
                       ) : provider.nativeSupported ? (
-                        <span>Thiết lập kết nối</span>
+                        <>
+                          <VsIcon name="add_circle" className="text-base" />
+                          <span>Thiết lập kết nối</span>
+                        </>
                       ) : (
-                        <span>Kết nối qua Channex</span>
+                        <>
+                          <VsIcon name="open_in_new" className="text-base" />
+                          <span>Kết nối qua Channex</span>
+                        </>
                       )}
                     </button>
                   </div>
@@ -611,198 +619,6 @@ export function ChannexHubTab({
             </div>
           </div>
         </div>
-      )}
-
-      {/* Admin Operational Diagnostics & Mappings */}
-      {roleScope === "admin" && (
-        <details className="rounded-2xl border border-[var(--outline-variant)] bg-white p-5 shadow-sm">
-          <summary className="min-h-11 cursor-pointer text-xl font-bold text-[var(--on-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30">
-            Công cụ vận hành
-          </summary>
-          <div className="mt-5 space-y-6 border-t border-[var(--outline-variant)] pt-5">
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4">
-                <h3 className="text-lg font-bold text-[var(--on-surface)]">
-                  Kiểm tra kết nối
-                </h3>
-                <p className="mt-2 text-base text-[var(--on-surface-variant)]">
-                  Kiểm tra API, mappings, ARI mẫu và trạng thái booking feed.
-                </p>
-                <button
-                  type="button"
-                  onClick={handleDoctor}
-                  disabled={doctor.isPending}
-                  className="mt-4 min-h-11 rounded-xl border border-[var(--outline-variant)] bg-white px-5 text-base font-bold text-[var(--primary)] hover:bg-[var(--surface-container)] disabled:opacity-50 cursor-pointer"
-                >
-                  {doctor.isPending ? "Đang kiểm tra..." : "Chạy kiểm tra"}
-                </button>
-              </div>
-
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <h3 className="text-lg font-bold text-amber-950">
-                  Xử lý đơn đang chờ
-                </h3>
-                <p className="mt-2 text-base text-amber-900">
-                  Webhook và poller mỗi phút là luồng bình thường. Chỉ chạy thủ
-                  công khi cần xử lý revision đang còn trong cửa sổ feed.
-                </p>
-                <button
-                  type="button"
-                  onClick={handlePendingFeed}
-                  disabled={pollFeed.isPending}
-                  className="mt-4 min-h-11 rounded-xl bg-amber-800 px-5 text-base font-bold text-white hover:bg-amber-900 disabled:opacity-50 cursor-pointer"
-                >
-                  {pollFeed.isPending ? "Đang xử lý..." : "Xử lý đơn đang chờ"}
-                </button>
-              </div>
-            </div>
-
-            {doctorReport && (
-              <section className="rounded-xl border border-[var(--outline-variant)] p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-lg font-bold text-[var(--on-surface)]">
-                    Kết quả kiểm tra
-                  </h3>
-                  <span
-                    className={`rounded-full border px-3 py-1 text-sm font-bold ${
-                      doctorReport.healthy
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                        : "border-amber-200 bg-amber-50 text-amber-900"
-                    }`}
-                  >
-                    {doctorReport.healthy ? "Đạt" : "Cần xử lý"}
-                  </span>
-                </div>
-                <div className="mt-4 space-y-2">
-                  {doctorReport.checks.map((check) => (
-                    <div
-                      key={check.id}
-                      className="rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-3"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold">
-                          {check.status}
-                        </span>
-                        <span className="text-base font-bold text-[var(--on-surface)]">
-                          {check.name}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
-                        {check.message}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            <section className="space-y-4">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-[var(--on-surface)]">
-                    Mapping PMS ↔ Channex
-                  </h3>
-                  <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
-                    Dữ liệu kỹ thuật dùng để đối soát và hỗ trợ sự cố.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void refreshMappings()}
-                  disabled={isLoadingMappings}
-                  className="min-h-11 rounded-xl border border-[var(--outline-variant)] bg-white px-4 text-base font-bold text-[var(--on-surface)] hover:bg-[var(--surface-container-low)] disabled:opacity-50 cursor-pointer"
-                >
-                  {isLoadingMappings ? "Đang tải..." : "Làm mới"}
-                </button>
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <label className="text-sm font-semibold text-[var(--on-surface)]">
-                  Loại mapping
-                  <select
-                    value={mappingFilter}
-                    onChange={(event) => setMappingFilter(event.target.value)}
-                    className="mt-1 block min-h-11 rounded-xl border border-[var(--outline-variant)] bg-white px-3 text-base"
-                  >
-                    <option value="ALL">Tất cả</option>
-                    <option value="property">Property</option>
-                    <option value="room_type">Hạng phòng</option>
-                    <option value="rate_plan">Gói giá</option>
-                  </select>
-                </label>
-                <label className="min-w-0 flex-1 text-sm font-semibold text-[var(--on-surface)]">
-                  Tìm mapping
-                  <input
-                    type="search"
-                    value={searchMapping}
-                    onChange={(event) => setSearchMapping(event.target.value)}
-                    placeholder="Mã nội bộ hoặc UUID"
-                    className="mt-1 block min-h-11 w-full rounded-xl border border-[var(--outline-variant)] bg-white px-4 text-base"
-                  />
-                </label>
-              </div>
-
-              <div className="overflow-x-auto rounded-xl border border-[var(--outline-variant)]">
-                <table className="min-w-[760px] w-full text-left">
-                  <thead className="bg-[var(--surface-container-low)] text-sm text-[var(--on-surface-variant)]">
-                    <tr>
-                      <th className="px-4 py-3">Loại</th>
-                      <th className="px-4 py-3">Mã nội bộ</th>
-                      <th className="px-4 py-3">Channex UUID</th>
-                      <th className="px-4 py-3 text-right">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--outline-variant)] bg-white text-base">
-                    {filteredMappings.map((mapping) => (
-                      <tr key={mapping.id}>
-                        <td className="px-4 py-3 font-semibold">
-                          {mapping.kind}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-sm">
-                          {mapping.localId}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-sm">
-                          {mapping.channexId}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void handleCopyMapping(
-                                mapping.id,
-                                mapping.channexId,
-                              )
-                            }
-                            className="min-h-11 rounded-lg px-3 text-sm font-bold text-[var(--primary)] hover:bg-[var(--surface-container-low)] cursor-pointer"
-                          >
-                            {copiedMappingId === mapping.id
-                              ? "Đã chép"
-                              : "Chép UUID"}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {!filteredMappings.length && (
-                      <tr>
-                        <td
-                          colSpan={4}
-                          className="px-4 py-8 text-center text-base text-[var(--on-surface-variant)]"
-                        >
-                          Không có mapping phù hợp.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
-            <p className="text-sm text-[var(--on-surface-variant)]">
-              Kiểm thử booking inbound thật: dùng Booking CRS hoặc kênh OTA test
-              chính thức trên Channex. PMS không có API tạo booking Channex giả.
-            </p>
-          </div>
-        </details>
       )}
     </div>
   );

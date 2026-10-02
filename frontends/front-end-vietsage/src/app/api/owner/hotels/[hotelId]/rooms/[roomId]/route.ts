@@ -33,6 +33,10 @@ function sanitizeUpdateRoomPayload(payload: unknown): UpdateHotelRoomInput | nul
   if ("type" in input) {
     updatePayload.type = typeof input.type === "string" && input.type.trim() ? input.type.trim() : null;
   }
+  if ("roomTypeId" in input) {
+    if (typeof input.roomTypeId !== "string" || !input.roomTypeId.trim() || "type" in input) return null;
+    updatePayload.roomTypeId = input.roomTypeId.trim();
+  }
 
   if ("price" in input) {
     const price = typeof input.price === "number" ? input.price : Number(input.price);

@@ -23,6 +23,10 @@ describe("Channex Channel Manager Integration Suite", () => {
         findMany: jest.fn(),
         findFirst: jest.fn(),
       },
+      roomType: {
+        findMany: jest.fn(),
+        findFirst: jest.fn(),
+      },
       reservation: {
         create: jest.fn(),
         update: jest.fn(),
@@ -37,7 +41,7 @@ describe("Channex Channel Manager Integration Suite", () => {
       channexMapping: {
         findUnique: jest.fn(),
         findFirst: jest.fn(),
-        findMany: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
         create: jest.fn(),
         update: jest.fn(),
       },
@@ -97,6 +101,14 @@ describe("Channex Channel Manager Integration Suite", () => {
     };
 
     ariCoreService = new AriCoreService(mockPrisma);
+    mockPrisma.roomType.findMany.mockImplementation(async () =>
+      ((await mockPrisma.room.findMany.mock.results.at(-1)?.value) ?? []).map((room: any) => ({
+        id: `catalog-${room.type}`,
+        name: room.type,
+        normalizedKey: room.type.toLowerCase(),
+        basePrice: room.price,
+      })),
+    );
   });
 
   // ================= 1. API CLIENT TESTS ================= //
@@ -189,6 +201,22 @@ describe("Channex Channel Manager Integration Suite", () => {
           { id: "r2", type: "DELUXE", price: 1500000 },
           { id: "r3", type: "SUITE", price: 3000000 },
         ],
+        roomTypes: [
+          {
+            id: "catalog-DELUXE",
+            hotelId,
+            name: "DELUXE",
+            normalizedKey: "deluxe",
+            basePrice: 1500000,
+          },
+          {
+            id: "catalog-SUITE",
+            hotelId,
+            name: "SUITE",
+            normalizedKey: "suite",
+            basePrice: 3000000,
+          },
+        ],
       });
 
       mockPrisma.channelConnection.findFirst.mockResolvedValue(null);
@@ -249,10 +277,23 @@ describe("Channex Channel Manager Integration Suite", () => {
       mockPrisma.hotel.findUnique.mockResolvedValue({
         id: hotelId,
         name: "VietSage Boutique Hotel Updated",
-        rooms: [{ id: "r1", type: "STANDARD", price: 1000000 }],
+        rooms: [{ id: "r1", type: "STANDARD", price: 900000 }],
+        roomTypes: [
+          {
+            id: "catalog-STANDARD",
+            hotelId,
+            name: "STANDARD",
+            normalizedKey: "standard",
+            basePrice: 1000000,
+          },
+        ],
       });
 
       mockPrisma.channelConnection.findFirst.mockResolvedValue({ id: "conn_channex_1" });
+      mockPrisma.channexMapping.findMany.mockResolvedValue([
+        { kind: "room_type", localId: "catalog-STANDARD", channexId: "rt_existing" },
+        { kind: "rate_plan", localId: "catalog-STANDARD:STANDARD", channexId: "rp_existing" },
+      ]);
 
       // Đã có sẵn mapping từ trước
       mockPrisma.channexMapping.findUnique.mockImplementation(({ where }: any) => {
@@ -289,10 +330,21 @@ describe("Channex Channel Manager Integration Suite", () => {
       );
       expect(mockApiClient.updateRatePlan).toHaveBeenCalledWith(
         "rp_existing",
-        expect.any(Object),
+        expect.objectContaining({
+          options: [expect.objectContaining({ rate: 1000000 })],
+        }),
         undefined,
       );
       expect(res.roomTypesSynced[0].action).toBe("UPDATED");
+      expect(res.roomTypesSynced[0].channexRoomTypeId).toBe("rt_existing");
+      expect(res.ratePlansSynced[0].channexRatePlanId).toBe("rp_existing");
+      expect(mockPrisma.channexMapping.findUnique).toHaveBeenCalledWith({
+        where: {
+          hotelId_kind_localId: { hotelId, kind: "room_type", localId: "catalog-STANDARD" },
+        },
+      });
+      expect(mockApiClient.createRoomType).not.toHaveBeenCalled();
+      expect(mockApiClient.createRatePlan).not.toHaveBeenCalled();
     });
 
     it("không tạo Property mới khi update lỗi nhưng không phải 404", async () => {
@@ -300,6 +352,15 @@ describe("Channex Channel Manager Integration Suite", () => {
         id: "hotel_1",
         name: "Hotel Test",
         rooms: [{ id: "r1", type: "STANDARD", price: 1000000 }],
+        roomTypes: [
+          {
+            id: "catalog-STANDARD",
+            hotelId: "hotel_1",
+            name: "STANDARD",
+            normalizedKey: "standard",
+            basePrice: 1000000,
+          },
+        ],
       });
       mockPrisma.channelConnection.findFirst.mockResolvedValue({ id: "conn_1" });
       mockPrisma.channexMapping.findUnique.mockResolvedValue({
@@ -318,6 +379,7 @@ describe("Channex Channel Manager Integration Suite", () => {
         id: "hotel_1",
         name: "Hotel Test",
         rooms: [],
+        roomTypes: [],
       });
       mockPrisma.channelConnection.findFirst.mockResolvedValue({ id: "conn_1" });
       mockPrisma.channexMapping.findUnique.mockResolvedValue(null);
@@ -335,6 +397,15 @@ describe("Channex Channel Manager Integration Suite", () => {
         id: "hotel_1",
         name: "Hotel Test",
         rooms: [{ id: "r1", type: "STANDARD", price: 1000000 }],
+        roomTypes: [
+          {
+            id: "catalog-STANDARD",
+            hotelId: "hotel_1",
+            name: "STANDARD",
+            normalizedKey: "standard",
+            basePrice: 1000000,
+          },
+        ],
       });
       mockPrisma.channelConnection.findFirst.mockResolvedValue({ id: "conn_1" });
       mockPrisma.channexMapping.findUnique.mockImplementation(({ where }: any) =>
@@ -366,6 +437,15 @@ describe("Channex Channel Manager Integration Suite", () => {
         id: "hotel_1",
         name: "Hotel Test",
         rooms: [{ id: "r1", type: "STANDARD", price: 1000000 }],
+        roomTypes: [
+          {
+            id: "catalog-STANDARD",
+            hotelId: "hotel_1",
+            name: "STANDARD",
+            normalizedKey: "standard",
+            basePrice: 1000000,
+          },
+        ],
       });
       mockPrisma.channelConnection.findFirst.mockResolvedValue({ id: "conn_1" });
       mockPrisma.channexMapping.findUnique.mockResolvedValue(null);
@@ -514,7 +594,40 @@ describe("Channex Channel Manager Integration Suite", () => {
       expect(grid.roomTypes[0].days.map((day) => day.bookedRooms)).toEqual([1, 1, 0]);
     });
 
-    it("không dùng rate plan của hạng phòng khác khi mapping bị thiếu", async () => {
+    it("đẩy availability-only khi mapping room type tồn tại dù chưa có rate plan", async () => {
+      const hotelId = "hotel_viet_1";
+      const today = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+      mockPrisma.channexMapping.findUnique.mockResolvedValue({ channexId: "prop_chx_1" });
+      mockPrisma.channexMapping.findMany.mockResolvedValue([
+        { kind: "room_type", localId: "catalog-DELUXE", channexId: "rt_deluxe_chx" },
+      ]);
+      mockPrisma.room.findMany.mockResolvedValue([
+        { id: "r1", type: "DELUXE", roomTypeId: "catalog-DELUXE" },
+      ]);
+      mockPrisma.roomType.findMany.mockResolvedValue([
+        { id: "catalog-DELUXE", name: "DELUXE", normalizedKey: "deluxe", basePrice: null },
+      ]);
+      mockPrisma.channelDailyAvailability.findMany.mockResolvedValue([]);
+      mockPrisma.channelDailyRestriction.findMany.mockResolvedValue([]);
+      mockApiClient.postAvailability.mockResolvedValue({ data: {} });
+      mockApiClient.getAvailability.mockResolvedValue({ data: { rt_deluxe_chx: { [today]: 1 } } });
+
+      const result = await ariSyncService.pushAri(hotelId, {
+        startDate: today,
+        endDate: today,
+        availabilityOnly: true,
+      });
+      expect(result.success).toBe(true);
+      expect(mockApiClient.postAvailability).toHaveBeenCalledTimes(1);
+      expect(mockApiClient.postRestrictions).not.toHaveBeenCalled();
+    });
+
+    it("chặn đồng bộ trước khi ghi nếu rate plan của hạng phòng bị thiếu", async () => {
       const hotelId = "hotel_viet_1";
       mockPrisma.channexMapping.findUnique.mockResolvedValue({ channexId: "prop_chx_1" });
       mockPrisma.channexMapping.findMany.mockResolvedValue([
@@ -528,13 +641,15 @@ describe("Channex Channel Manager Integration Suite", () => {
       mockApiClient.getAvailability.mockResolvedValue({ data: { rt_deluxe_chx: {} } });
       mockApiClient.getRestrictions.mockResolvedValue({ data: {} });
 
-      const result = await ariSyncService.pushAri(hotelId, {
-        startDate: "2026-10-15",
-        endDate: "2026-10-15",
-      });
+      await expect(
+        ariSyncService.pushAri(hotelId, {
+          startDate: "2026-10-15",
+          endDate: "2026-10-15",
+        }),
+      ).rejects.toThrow("mapping gói giá");
 
       expect(mockApiClient.postRestrictions).not.toHaveBeenCalled();
-      expect(result.restrictionsPushedCount).toBe(0);
+      expect(mockApiClient.postAvailability).not.toHaveBeenCalled();
     });
 
     it("đánh dấu readback mismatch khi giá hoặc tồn kho khác giá trị đã đẩy", async () => {
@@ -565,7 +680,7 @@ describe("Channex Channel Manager Integration Suite", () => {
       expect(result.readbackVerified.restrictionsMatch).toBe(false);
     });
 
-    it("tự động fallback sang giá cơ sở an toàn khi ngày chưa có giá tùy biến thay vì ném BadRequestException", async () => {
+    it("chặn giá thiếu trước khi đẩy thay vì mượn giá phòng khác", async () => {
       const hotelId = "hotel_viet_1";
       mockPrisma.channexMapping.findUnique.mockResolvedValue({ channexId: "prop_chx_1" });
       mockPrisma.channexMapping.findMany.mockResolvedValue([
@@ -592,20 +707,15 @@ describe("Channex Channel Manager Integration Suite", () => {
       });
 
       // Ngày 2026-10-15 không có bản ghi giá trong DB nhưng KHÔNG được ném BadRequestException
-      const result = await ariSyncService.pushAri(hotelId, {
-        startDate: "2026-10-15",
-        endDate: "2026-10-15",
-      });
+      await expect(
+        ariSyncService.pushAri(hotelId, {
+          startDate: "2026-10-15",
+          endDate: "2026-10-15",
+        }),
+      ).rejects.toThrow("giá gốc");
 
-      expect(result.success).toBe(true);
-      expect(mockApiClient.postRestrictions).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.objectContaining({
-            rate: 600000,
-          }),
-        ]),
-        undefined,
-      );
+      expect(mockApiClient.postAvailability).not.toHaveBeenCalled();
+      expect(mockApiClient.postRestrictions).not.toHaveBeenCalled();
     });
 
     it("quy đổi VND sang GBP minor units chỉ trên Channex staging", async () => {
@@ -733,7 +843,8 @@ describe("Channex Channel Manager Integration Suite", () => {
       mockPrisma.channexMapping.findFirst
         .mockResolvedValueOnce({ hotelId: "hotel_1", channexId: "prop_uuid_1" }) // property mapping
         .mockResolvedValueOnce(null) // deduplication check (chưa tồn tại)
-        .mockResolvedValueOnce({ localId: "DELUXE" }); // room_type mapping
+        .mockResolvedValueOnce({ localId: "catalog-DELUXE" }); // room_type mapping
+      mockPrisma.roomType.findFirst.mockResolvedValue({ id: "catalog-DELUXE", name: "DELUXE" });
 
       mockPrisma.room.findFirst.mockResolvedValue({ id: "room_101", type: "DELUXE" });
       mockPrisma.reservation.create.mockResolvedValue({
@@ -753,6 +864,7 @@ describe("Channex Channel Manager Integration Suite", () => {
           data: expect.objectContaining({
             guestDisplayName: "John Doe",
             roomId: "room_101",
+            roomTypeSnapshot: "DELUXE",
             status: "CONFIRMED",
           }),
         }),
@@ -778,6 +890,7 @@ describe("Channex Channel Manager Integration Suite", () => {
       expect(mockPrisma.room.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
+            OR: expect.arrayContaining([{ roomTypeId: "catalog-DELUXE" }]),
             reservations: {
               none: expect.objectContaining({
                 plannedCheckInAt: { lt: new Date("2026-10-18T05:00:00.000Z") },
@@ -999,16 +1112,28 @@ describe("Channex Channel Manager Integration Suite", () => {
         channexId: "prop_chx_1",
       });
       mockPrisma.channexMapping.findMany.mockResolvedValue([
-        { kind: "room_type", localId: "DELUXE", channexId: "rt_deluxe_chx" },
+        { kind: "room_type", localId: "catalog-DELUXE", channexId: "rt_deluxe_chx" },
       ]);
+      mockPrisma.roomType.findMany.mockResolvedValue([
+        {
+          id: "catalog-DELUXE",
+          hotelId: "hotel_1",
+          name: "DELUXE",
+          normalizedKey: "deluxe",
+          basePrice: 1500000,
+        },
+      ]);
+      mockPrisma.roomType.findFirst.mockResolvedValue({ id: "catalog-DELUXE", name: "DELUXE" });
       // findFirst: rate plan mapping, then property mapping lookup inside processSingleRevision
       mockPrisma.channexMapping.findFirst
         .mockResolvedValueOnce({
           kind: "rate_plan",
-          localId: "DELUXE:STANDARD",
+          localId: "catalog-DELUXE:STANDARD",
           channexId: "rp_deluxe_chx",
         })
-        .mockResolvedValueOnce({ hotelId: "hotel_1" }); // property mapping lookup inside processSingleRevision
+        .mockResolvedValueOnce({ hotelId: "hotel_1" }) // property mapping
+        .mockResolvedValueOnce(null) // booking deduplication
+        .mockResolvedValueOnce({ localId: "catalog-DELUXE" }); // room type mapping
       mockPrisma.room.findFirst.mockResolvedValue({ id: "room_101", type: "DELUXE" });
       mockPrisma.reservation.create.mockResolvedValue({
         id: "resv_sim_1",
@@ -1040,6 +1165,15 @@ describe("Channex Channel Manager Integration Suite", () => {
       expect(res.channexBookingId).toMatch(/^sim-/); // synthetic ID
       expect(res.otaReservationCode).toMatch(/^AGODA-/);
       expect(res.reservation?.roomNumber).toBe("101");
+      expect(res.roomType).toBe("DELUXE");
+      expect(mockPrisma.reservation.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ roomTypeSnapshot: "DELUXE" }) }),
+      );
+      expect(mockPrisma.channexMapping.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ localId: "catalog-DELUXE:STANDARD" }),
+        }),
+      );
       // Không gọi Channex API tạo booking nữa
       expect(mockApiClient.createBooking).not.toHaveBeenCalled();
     });
@@ -1283,9 +1417,7 @@ describe("Channex Channel Manager Integration Suite", () => {
 
     it("bắt lỗi Channex API và trả danh sách rỗng thay vì ném ngoại lệ khi Channex lỗi", async () => {
       mockApiClient.isConfigured.mockReturnValueOnce(true);
-      mockApiClient.getChannelAdapters.mockRejectedValueOnce(
-        new Error("Channex 502 Bad Gateway"),
-      );
+      mockApiClient.getChannelAdapters.mockRejectedValueOnce(new Error("Channex 502 Bad Gateway"));
       mockPrisma.channexMapping.findUnique.mockResolvedValue(null);
       const service = new ChannexChannelSessionService(mockPrisma, mockApiClient);
 

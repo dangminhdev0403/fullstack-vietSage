@@ -94,6 +94,7 @@ describe("ChannelManager Module Core Services", () => {
     beforeEach(() => {
       mockPrisma = {
         room: { findMany: jest.fn() },
+        roomType: { findMany: jest.fn().mockResolvedValue([]) },
         reservation: { findMany: jest.fn() },
         channelDailyAvailability: { findMany: jest.fn(), upsert: jest.fn() },
         channelDailyRestriction: { findMany: jest.fn(), findUnique: jest.fn(), upsert: jest.fn() },

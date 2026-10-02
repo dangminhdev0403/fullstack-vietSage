@@ -208,7 +208,6 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
         showConfirmButton: true,
         confirmButtonText: "OK",
       });
-      router.refresh();
     } catch (error) {
       await SwalVietSage.fire({
         icon: "error",

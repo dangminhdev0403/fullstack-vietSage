@@ -89,7 +89,6 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
           },
         );
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        router.refresh();
       },
       onUpdated: (request: Partial<StaffRequestListItem> & { id: string }) => {
         const status = String(request.status ?? "");
@@ -116,18 +115,15 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
           );
         }
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        router.refresh();
       },
       onAnswered: (request?: Partial<StaffRequestListItem> & { id?: string }) => {
         if (request?.id) {
           toast.dismiss(`owner-request-created-${request.id}`);
         }
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        router.refresh();
       },
       onGuestMessageCreated: (event: unknown) => {
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        router.refresh();
         const raw = event as {
           hotelId?: string;
           thread?: { roomNumber?: string };
@@ -146,7 +142,6 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
       },
       onConversationClosed: () => {
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        router.refresh();
       },
       onExternalOrderCreated: (event: unknown) => {
         const raw = event as {
@@ -178,7 +173,6 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
         });
 
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        router.refresh();
       },
       onExternalOrderStatusChanged: (event: unknown) => {
         const raw = event as { orderId?: string } | null;
@@ -186,7 +180,6 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
           toast.dismiss(`owner-ext-order-created-${raw.orderId}`);
         }
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        router.refresh();
       },
       onExternalOrderHotelAcknowledged: (event: unknown) => {
         const raw = event as { orderId?: string } | null;
@@ -194,11 +187,9 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
           toast.dismiss(`owner-ext-order-created-${raw.orderId}`);
         }
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        router.refresh();
       },
       onExternalOrderVoucherIssued: () => {
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        router.refresh();
       },
       onChannelBookingCreated: (event: unknown) => {
         const raw = event as {
@@ -238,7 +229,6 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
         });
 
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        router.refresh();
       },
       onChannelBookingCancelled: (event: unknown) => {
         const raw = event as {
@@ -260,11 +250,9 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
         });
 
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        router.refresh();
       },
       onReconnect: () => {
         void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
-        router.refresh();
       },
     }),
     [hotelId, queryClient, router],

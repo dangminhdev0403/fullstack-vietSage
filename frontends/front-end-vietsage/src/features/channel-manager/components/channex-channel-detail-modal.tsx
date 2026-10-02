@@ -17,6 +17,7 @@ import {
   flattenRemoteRates,
   resolveRateOccupancy,
 } from "./channex-channel-wizard.utils";
+import { ChannelLogo } from "./channel-logo";
 
 const COMMON_NATIVE_RATE_FIELDS = new Set([
   "room_type_code",
@@ -293,10 +294,19 @@ export function ChannexChannelDetailModal({
       >
         {/* Header */}
         <header className="flex flex-col gap-3 border-b border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-5 sm:flex-row sm:items-center sm:justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--primary)]/10 text-[var(--primary)] font-bold shadow-2xs">
-              <VsIcon name="public" className="text-2xl" />
-            </div>
+          <div className="flex items-center gap-3.5">
+            {channel ? (
+              <ChannelLogo
+                code={channel.code}
+                title={channel.title}
+                size="md"
+                className="rounded-xl shadow-xs"
+              />
+            ) : (
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--primary)]/10 text-[var(--primary)] font-bold shadow-2xs">
+                <VsIcon name="public" className="text-2xl" />
+              </div>
+            )}
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h2

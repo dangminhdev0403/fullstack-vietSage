@@ -3740,6 +3740,83 @@ paths:
                   - message
                   - data
       tags: *a7
+  /hotels/{hotelId}/room-types:
+    get:
+      operationId: HotelRoomsController_listRoomTypes
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Danh mục loại phòng
+      tags: &a8
+        - hotel-rooms
+    post:
+      operationId: HotelRoomsController_createRoomType
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - basePrice
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                basePrice:
+                  type: number
+                  minimum: 0
+                  exclusiveMinimum: true
+      responses:
+        "200":
+          description: Loại phòng đã tồn tại; giá gốc không thay đổi
+        "201":
+          description: Loại phòng đã tạo hoặc đã tồn tại
+      tags: *a8
+  /hotels/{hotelId}/room-types/{roomTypeId}/price:
+    patch:
+      operationId: HotelRoomsController_updateRoomTypePrice
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: roomTypeId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - basePrice
+              properties:
+                basePrice:
+                  type: number
+                  minimum: 0
+                  exclusiveMinimum: true
+      responses:
+        "200":
+          description: Giá gốc được lưu nội bộ; chưa đẩy Channex
+      tags: *a8
   /hotels/{hotelId}/rooms:
     post:
       operationId: HotelRoomsController_createRoom
@@ -3758,8 +3835,7 @@ paths:
       responses:
         "201":
           description: Đã tạo phòng
-      tags: &a8
-        - hotel-rooms
+      tags: *a8
     get:
       operationId: HotelRoomsController_listRooms
       parameters:
@@ -9309,6 +9385,94 @@ paths:
   /api/v1/channel-manager/hotels/{hotelId}/channex/channels/{channelId}/activate:
     post:
       operationId: ChannelManagerController_activateChannexChannel
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: channelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/channex/channels/{channelId}/deactivate:
+    post:
+      operationId: ChannelManagerController_deactivateChannexChannel
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: channelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/channex/channels/{channelId}:
+    get:
+      operationId: ChannelManagerController_getChannexChannel
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: channelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a37
+    put:
+      operationId: ChannelManagerController_updateChannexChannel
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: channelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a37
+    delete:
+      operationId: ChannelManagerController_deleteChannexChannel
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: channelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/channex/channels/{channelId}/sync:
+    post:
+      operationId: ChannelManagerController_syncChannexChannel
       parameters:
         - name: hotelId
           required: true

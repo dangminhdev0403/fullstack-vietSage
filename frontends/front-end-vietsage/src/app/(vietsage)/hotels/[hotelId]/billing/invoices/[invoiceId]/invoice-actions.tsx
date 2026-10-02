@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import Swal from "sweetalert2";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
@@ -14,9 +13,9 @@ type Props = {
   showPrint?: boolean;
 };
 
-export function InvoiceActions({ hotelId, invoiceId, isPaid, showPrint = true }: Props) {
-  const router = useRouter();
+export function InvoiceActions({ hotelId, invoiceId, isPaid: initialIsPaid, showPrint = true }: Props) {
   const queryClient = useQueryClient();
+  const [paid, setPaid] = useState(initialIsPaid);
   const [saving, setSaving] = useState(false);
 
   async function collectPayment() {
@@ -37,9 +36,9 @@ export function InvoiceActions({ hotelId, invoiceId, isPaid, showPrint = true }:
         `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/billing/invoices/${encodeURIComponent(invoiceId)}/manual-payment`,
         { method: "POST", body: { method: result.value } },
       );
+      setPaid(true);
       await Swal.fire({ icon: "success", title: "Checkout hoàn tất", text: "Hóa đơn đã thanh toán và phòng đang chờ dọn." });
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
-      router.refresh();
     } catch (error) {
       await Swal.fire({ icon: "error", title: "Không thể xác nhận thanh toán", text: error instanceof Error ? error.message : "Vui lòng kiểm tra lại." });
     } finally {
@@ -49,7 +48,7 @@ export function InvoiceActions({ hotelId, invoiceId, isPaid, showPrint = true }:
 
   return (
     <div className="flex flex-wrap gap-2 print:hidden">
-      {!isPaid ? <button type="button" disabled={saving} onClick={() => void collectPayment()} className="rounded-xl bg-[var(--primary)] px-4 py-3 text-sm font-bold text-white disabled:opacity-50">{saving ? "Đang xử lý..." : "Xác nhận đã thu tiền"}</button> : <span className="rounded-xl bg-emerald-100 px-4 py-3 text-sm font-bold text-emerald-800">Đã thanh toán và checkout</span>}
+      {!paid ? <button type="button" disabled={saving} onClick={() => void collectPayment()} className="rounded-xl bg-[var(--primary)] px-4 py-3 text-sm font-bold text-white disabled:opacity-50">{saving ? "Đang xử lý..." : "Xác nhận đã thu tiền"}</button> : <span className="rounded-xl bg-emerald-100 px-4 py-3 text-sm font-bold text-emerald-800">Đã thanh toán và checkout</span>}
       {showPrint ? <button type="button" onClick={() => window.print()} className="rounded-xl border border-[var(--outline-variant)] bg-white px-4 py-3 text-sm font-bold text-[var(--primary)]">In hóa đơn</button> : null}
     </div>
   );

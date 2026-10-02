@@ -45,27 +45,33 @@ function ChannelManagerContent({
     ? hasHotelFeature(currentHotel.enabledFeatures, HOTEL_CHANNEL_MANAGER)
     : true;
 
+  const isStaffRoute = baseRoutePrefix.startsWith("/hotels");
+  const defaultTab: TabType = isStaffRoute ? "BOOKINGS" : "ARI";
+
   const storageKey = `vietsage_cm_tab_${hotelId}`;
   const urlTab = searchParams.get("tab")?.toUpperCase();
-  const validUrlTab: TabType | null =
-    urlTab === "ARI" || urlTab === "BOOKINGS" || urlTab === "CHANNELS" ? urlTab : null;
+  const validUrlTab: TabType | null = isStaffRoute
+    ? "BOOKINGS"
+    : urlTab === "ARI" || urlTab === "BOOKINGS" || urlTab === "CHANNELS"
+      ? (urlTab as TabType)
+      : null;
 
   const [userSelectedTab, setUserSelectedTab] = useState<TabType>(() => {
     if (validUrlTab) return validUrlTab;
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem(storageKey);
-        if (saved === "ARI" || saved === "BOOKINGS" || saved === "CHANNELS") {
-          return saved;
+        if (saved === "ARI" || saved === "BOOKINGS" || (saved === "CHANNELS" && !isStaffRoute)) {
+          return saved as TabType;
         }
       } catch {
         // Ignore storage errors
       }
     }
-    return "ARI";
+    return defaultTab;
   });
 
-  const activeTab = validUrlTab ?? userSelectedTab;
+  const activeTab = isStaffRoute ? "BOOKINGS" : (validUrlTab ?? userSelectedTab);
 
   // Load bookings count for badge
   const { simulatedBookings } = useChannex(hotelId, roleScope, {
@@ -85,27 +91,45 @@ function ChannelManagerContent({
     } catch {
       // Ignore storage errors
     }
-    if (searchParams.get("tab")) {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("tab", tab);
-      router.replace(`?${params.toString()}`, { scroll: false });
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", tab);
+      window.history.replaceState(null, "", url.toString());
     }
   };
 
-  const tabs: TabDefinition[] = useMemo(() => [
-    { id: "ARI", label: "Giá & Quỹ phòng (ARI Grid)", icon: "📊" },
-    {
-      id: "BOOKINGS",
-      label: "Đơn đặt phòng OTA",
-      icon: "🛎️",
-      badge:
-        simulatedBookings.length > 0
+  const tabs: TabDefinition[] = useMemo(() => {
+    const bookingsBadge =
+      simulatedBookings.length > 0
+        ? activeBookingsCount > 0
           ? `${simulatedBookings.length} đơn (${activeBookingsCount} giữ)`
-          : undefined,
-      badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-300",
-    },
-    { id: "CHANNELS", label: "Kênh OTA & Mapping", icon: "🌐" },
-  ], [simulatedBookings.length, activeBookingsCount]);
+          : `${simulatedBookings.length} đơn`
+        : undefined;
+
+    if (isStaffRoute) {
+      return [
+        {
+          id: "BOOKINGS",
+          label: "Đơn đặt phòng OTA",
+          icon: "🛎️",
+          badge: bookingsBadge,
+          badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-300",
+        },
+      ];
+    }
+
+    return [
+      {
+        id: "BOOKINGS",
+        label: "Đơn đặt phòng OTA",
+        icon: "🛎️",
+        badge: bookingsBadge,
+        badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-300",
+      },
+      { id: "ARI", label: "Giá & Quỹ phòng", icon: "📊" },
+      { id: "CHANNELS", label: "Kênh bán phòng", icon: "🌐" },
+    ];
+  }, [isStaffRoute, simulatedBookings.length, activeBookingsCount]);
 
   if (!isFeatureEnabled) {
     return (
@@ -146,67 +170,66 @@ function ChannelManagerContent({
   return (
     <div className="space-y-6 pb-24">
       {/* Header */}
-      <header className="rounded-2xl border border-[#e5ddcd] bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <header className="rounded-2xl border border-[#e5ddcd] bg-white p-5 shadow-xs">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-bold uppercase tracking-wider text-[#735c00]">
-              Channel Manager • Phân Phối OTA
-            </p>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight text-[#17201b]">
-              Kho Phòng, Giá Bán & Đơn Đặt Phòng OTA
+            <h1 className="text-2xl font-bold tracking-tight text-[#17201b]">
+              {isStaffRoute ? "Đơn đặt phòng OTA" : "Channel Manager"}
             </h1>
-            <p className="mt-2 text-base text-[#5a6760]">
-              {currentDisplayName}. Quản lý trực tiếp quỹ phòng trống (ARI Grid), theo dõi đơn đặt phòng từ Booking.com, Trip.com, Agoda và quản lý kênh bán.
+            <p className="text-sm text-[#5a6760] font-medium">
+              {currentDisplayName}
             </p>
           </div>
 
           <div className="shrink-0 flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-800">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Đồng bộ 2 chiều Active</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-800">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span>Đang kết nối OTA</span>
             </span>
           </div>
         </div>
       </header>
 
-      {/* Tabs Navigation */}
-      <nav
-        role="tablist"
-        aria-label="Channel Manager Sections"
-        className="flex gap-2 overflow-x-auto border-b border-[#e5ddcd] pb-px"
-      >
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              id={`channel-manager-tab-${tab.id.toLowerCase()}`}
-              type="button"
-              role="tab"
-              aria-selected={isActive}
-              aria-controls="channel-manager-tab-panel"
-              onClick={() => handleTabChange(tab.id)}
-              className={`min-h-11 shrink-0 flex items-center gap-2 rounded-t-xl border-b-2 px-4 py-2.5 text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-[#735c00]/30 cursor-pointer ${
-                isActive
-                  ? "border-[#735c00] bg-white text-[#735c00] shadow-2xs font-extrabold"
-                  : "border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-              }`}
-            >
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
-              {tab.badge && (
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold border ${
-                    tab.badgeColor || "bg-gray-100 text-gray-700 border-gray-300"
-                  }`}
-                >
-                  {tab.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </nav>
+      {/* Tabs Navigation (only show when multiple tabs exist) */}
+      {tabs.length > 1 && (
+        <nav
+          role="tablist"
+          aria-label="Channel Manager Sections"
+          className="flex gap-2 overflow-x-auto border-b border-[#e5ddcd] pb-px"
+        >
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                id={`channel-manager-tab-${tab.id.toLowerCase()}`}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                aria-controls="channel-manager-tab-panel"
+                onClick={() => handleTabChange(tab.id)}
+                className={`min-h-11 shrink-0 flex items-center gap-2 rounded-t-xl border-b-2 px-4 py-2.5 text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-[#735c00]/30 cursor-pointer ${
+                  isActive
+                    ? "border-[#735c00] bg-white text-[#735c00] shadow-2xs font-extrabold"
+                    : "border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                }`}
+              >
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
+                {tab.badge && (
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold border ${
+                      tab.badgeColor || "bg-gray-100 text-gray-700 border-gray-300"
+                    }`}
+                  >
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      )}
 
       {/* Tab Panels */}
       <div
@@ -245,6 +268,7 @@ function ChannelManagerContent({
           <OtaBookingsTab
             hotelId={hotelId}
             roleScope={roleScope}
+            baseRoutePrefix={baseRoutePrefix}
             onSwitchToAri={() => handleTabChange("ARI")}
           />
         )}

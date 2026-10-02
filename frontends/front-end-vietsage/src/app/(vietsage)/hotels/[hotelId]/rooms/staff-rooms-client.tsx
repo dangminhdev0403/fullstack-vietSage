@@ -22,6 +22,8 @@ import type {
   HotelOpsPage,
   HotelRoomSummary,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
+import { channelManagerResource } from "@/features/channel-manager/api/channel-manager.resource";
+import type { SimulatedBookingItem } from "@/features/channel-manager/types/channel-manager.types";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 
 type Props = {
@@ -456,6 +458,67 @@ export function StaffRoomsClient({
     return [...new Set(rawTypes)].sort((a, b) => a.localeCompare(b));
   }, [roomsPage?.types, initialRoomsPage.types]);
 
+  const boundChannelResource = useMemo(
+    () => channelManagerResource.bind({ hotelId, roleScope: "owner" }),
+    [hotelId],
+  );
+
+  const { data: otaBookings = [] } = useQuery({
+    ...boundChannelResource.queries.simulatedBookings.options(undefined as never),
+    refetchInterval: 30_000,
+    staleTime: 10_000,
+  });
+
+  const todayYmd = useMemo(() => {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+  }, []);
+
+  const { incomingOtaByRoomNumber, todayOtaArrivalCount, unassignedOtaCount } =
+    useMemo(() => {
+      const map = new Map<string, SimulatedBookingItem>();
+      let todayArrivals = 0;
+      let unassigned = 0;
+
+      for (const b of otaBookings) {
+        if (b.status === "CANCELLED") continue;
+        const isTodayArrival = Boolean(
+          b.checkInDate &&
+            b.checkOutDate &&
+            b.checkInDate <= todayYmd &&
+            b.checkOutDate >= todayYmd,
+        );
+        const notCheckedIn =
+          !b.stayStatus ||
+          b.stayStatus === "PENDING" ||
+          b.stayStatus === "CANCELLED";
+
+        if (isTodayArrival && notCheckedIn) {
+          todayArrivals++;
+        }
+
+        if (!b.roomId && !b.roomNumber && notCheckedIn) {
+          unassigned++;
+        }
+
+        if (b.status === "CONFIRMED" && notCheckedIn && isTodayArrival) {
+          if (b.roomNumber) {
+            map.set(b.roomNumber.trim().toUpperCase(), b);
+          }
+        }
+      }
+
+      return {
+        incomingOtaByRoomNumber: map,
+        todayOtaArrivalCount: todayArrivals,
+        unassignedOtaCount: unassigned,
+      };
+    }, [otaBookings, todayYmd]);
+
   const totalPages = roomsPage?.totalPages ?? 1;
   const totalItems = roomsPage?.totalItems ?? 0;
   const totalAvailable =
@@ -825,7 +888,6 @@ export function StaffRoomsClient({
         confirmButtonColor: "#17201b",
       });
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
-      router.refresh();
     } catch (error) {
       await Swal.fire({
         icon: "error",
@@ -836,12 +898,84 @@ export function StaffRoomsClient({
     }
   }
 
+  async function handleOtaFastCheckIn(booking: SimulatedBookingItem, room: HotelRoomSummary) {
+    if (!booking.reservationId) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Chưa liên kết Đặt phòng",
+        text: "Đơn này chưa có mã reservationId trên hệ thống.",
+        confirmButtonColor: "#00003c",
+      });
+      return;
+    }
+
+    const confirm = await Swal.fire({
+      icon: "question",
+      title: "Nhận phòng cho khách OTA?",
+      html: `
+        <div style="text-align:left; font-size:13px; line-height:1.6;">
+          <p><strong>Khách hàng:</strong> ${booking.guestName}</p>
+          <p><strong>Kênh OTA:</strong> <span style="color:#0284c7; font-weight:700;">${booking.otaName}</span></p>
+          <p><strong>Phòng:</strong> <strong>${getRoomNumber(room)}</strong> (${room.type || "Tiêu chuẩn"})</p>
+          <p><strong>Lưu trú:</strong> ${booking.checkInDate} ➔ ${booking.checkOutDate}</p>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: "Nhận phòng",
+      cancelButtonText: "Hủy",
+      confirmButtonColor: "#0284c7",
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    try {
+      const res = await requestInternalApiEnvelope<{
+        accessCode: string;
+        stayId: string;
+        guestUrl?: string;
+      }>(
+        `${apiBase}/reservations/${encodeURIComponent(booking.reservationId)}/check-in`,
+        { method: "POST" },
+      );
+
+      await Swal.fire({
+        icon: "success",
+        title: "Nhận phòng thành công",
+        html: `
+          <div style="text-align:left; font-size:13px; line-height:1.6;">
+            <p>Đã nhận phòng <strong>${getRoomNumber(room)}</strong> cho khách <strong>${booking.guestName}</strong>.</p>
+            ${res.data?.accessCode ? `<p style="margin-top:8px">Mã GuestOS: <strong style="font-size:15px; color:#0284c7;">${res.data.accessCode}</strong></p>` : ""}
+          </div>
+        `,
+        confirmButtonText: "OK",
+        showConfirmButton: true,
+        confirmButtonColor: "#0284c7",
+      });
+
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
+      void boundChannelResource.invalidate(queryClient);
+      void refetch();
+    } catch (err) {
+      await Swal.fire({
+        icon: "error",
+        title: "Không thể nhận phòng OTA",
+        text: err instanceof Error ? err.message : "Đã có lỗi xảy ra khi nhận phòng.",
+        confirmButtonColor: "#00003c",
+      });
+    }
+  }
+
   function handleCardClick(room: HotelRoomSummary) {
     const roomStatus = getRoomStatus(room);
     if (roomStatus === "overdue") {
       void handleOverdueRoomClick(room);
     } else if (roomStatus === "available") {
-      openWalkIn(room);
+      const ota = incomingOtaByRoomNumber.get(getRoomNumber(room).toUpperCase());
+      if (ota && canManageStays) {
+        void handleOtaFastCheckIn(ota, room);
+      } else {
+        openWalkIn(room);
+      }
     } else if (roomStatus === "occupied") {
       setRoomQrPreview({
         room,
@@ -921,7 +1055,6 @@ export function StaffRoomsClient({
         confirmButtonColor: "#00003c",
       });
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
-      router.refresh();
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Vui lòng thử lại.");
       await Swal.fire({
@@ -1005,11 +1138,21 @@ export function StaffRoomsClient({
             <button
               type="button"
               onClick={() => router.push(`/hotels/${encodeURIComponent(hotelId)}/channel-manager?tab=BOOKINGS`)}
-              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-4 text-sm font-bold text-[var(--primary)] hover:bg-[var(--surface-container)] whitespace-nowrap shadow-2xs transition"
+              className="relative inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-4 text-sm font-bold text-[var(--primary)] hover:bg-[var(--surface-container)] whitespace-nowrap shadow-2xs transition cursor-pointer"
               title="Xem danh sách đơn đặt phòng từ Booking.com, Trip.com, Agoda"
             >
               <VsIcon name="book_online" className="text-base" />
               <span>Đơn đặt phòng OTA</span>
+              {todayOtaArrivalCount > 0 ? (
+                <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold bg-sky-700 text-white rounded-full shadow-2xs">
+                  {todayOtaArrivalCount} đến
+                </span>
+              ) : null}
+              {unassignedOtaCount > 0 ? (
+                <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold bg-amber-600 text-white rounded-full shadow-2xs">
+                  {unassignedOtaCount} chưa xếp
+                </span>
+              ) : null}
             </button>
           </div>
           <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 2xl:ml-auto">
@@ -1042,6 +1185,7 @@ export function StaffRoomsClient({
               {rooms.map((room) => {
                 const roomStatus = getRoomStatus(room);
                 const progress = activeStayProgress(room);
+                const incomingOta = incomingOtaByRoomNumber.get(getRoomNumber(room).toUpperCase());
                 const isVip = /suite|vip|premium|penthouse/i.test(
                   room.type ?? "",
                 );
@@ -1142,10 +1286,22 @@ export function StaffRoomsClient({
                             <span>Đang chờ dọn dẹp...</span>
                           </>
                         ) : roomStatus === "available" ? (
-                          <>
-                            <VsIcon name="check_circle" className="text-base text-emerald-600 shrink-0" />
-                            <span>Sẵn sàng đón khách</span>
-                          </>
+                          incomingOta ? (
+                            <div className="flex flex-col gap-0.5">
+                              <div className="flex items-center gap-1.5 text-sky-800 font-extrabold text-sm">
+                                <VsIcon name="book_online" className="text-base text-sky-600 shrink-0" />
+                                <span className="truncate">{incomingOta.guestName}</span>
+                              </div>
+                              <span className="text-[11px] font-semibold text-sky-700">
+                                🛎️ {incomingOta.otaName} · Đến hôm nay
+                              </span>
+                            </div>
+                          ) : (
+                            <>
+                              <VsIcon name="check_circle" className="text-base text-emerald-600 shrink-0" />
+                              <span>Sẵn sàng đón khách</span>
+                            </>
+                          )
                         ) : roomStatus === "blocked" ? (
                           <>
                             <VsIcon name="lock" className="text-base text-slate-700 shrink-0" />
@@ -1314,6 +1470,19 @@ export function StaffRoomsClient({
                               ) : null}
                             </div>
                           </div>
+
+                          {incomingOta && roomStatus === "available" && canManageStays ? (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void handleOtaFastCheckIn(incomingOta, room);
+                              }}
+                              className="mb-2 flex w-full items-center justify-center rounded-xl bg-sky-700 py-2 px-3 text-xs font-bold text-white shadow-2xs hover:bg-sky-800 transition active:scale-[0.98] cursor-pointer"
+                            >
+                              <span>Nhận phòng {incomingOta.otaName}</span>
+                            </button>
+                          ) : null}
 
                           {/* Single Update Trigger Button */}
                           <button

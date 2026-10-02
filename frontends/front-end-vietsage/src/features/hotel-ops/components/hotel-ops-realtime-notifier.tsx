@@ -58,9 +58,8 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
           },
         );
 
-        // Invalidate TanStack Query caches and refresh server components
+        // Invalidate TanStack Query caches seamlessly without full page reload
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
-        router.refresh();
       },
       onUpdated: (request: Partial<StaffRequestListItem> & { id: string }) => {
         const status = String(request.status ?? "");
@@ -89,18 +88,15 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
           playRequestAlertSound(false);
         }
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
-        router.refresh();
       },
       onAnswered: (request?: Partial<StaffRequestListItem> & { id?: string }) => {
         if (request?.id) {
           toast.dismiss(`hotel-ops-request-created-${request.id}`);
         }
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
-        router.refresh();
       },
       onGuestMessageCreated: (event: unknown) => {
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
-        router.refresh();
 
         const raw = event as {
           hotelId?: string;
@@ -134,7 +130,6 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
       },
       onConversationClosed: () => {
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
-        router.refresh();
       },
       onExternalOrderCreated: (event: unknown) => {
         playRequestAlertSound(false);
@@ -168,7 +163,6 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         });
 
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
-        router.refresh();
       },
       onExternalOrderStatusChanged: (event: unknown) => {
         const raw = event as { orderId?: string } | null;
@@ -176,7 +170,6 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
           toast.dismiss(`hotel-ops-ext-order-created-${raw.orderId}`);
         }
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
-        router.refresh();
       },
       onExternalOrderHotelAcknowledged: (event: unknown) => {
         const raw = event as { orderId?: string } | null;
@@ -184,11 +177,9 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
           toast.dismiss(`hotel-ops-ext-order-created-${raw.orderId}`);
         }
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
-        router.refresh();
       },
       onExternalOrderVoucherIssued: () => {
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
-        router.refresh();
       },
       onChannelBookingCreated: (event: unknown) => {
         const raw = event as {
@@ -228,7 +219,6 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         });
 
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
-        router.refresh();
       },
       onChannelBookingCancelled: (event: unknown) => {
         const raw = event as {
@@ -250,11 +240,9 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         });
 
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
-        router.refresh();
       },
       onReconnect: () => {
         void invalidateHotelRequestRealtimeQueries(targetQueryClient, hotelId);
-        router.refresh();
       },
     }),
     [hotelId, router, targetQueryClient],

@@ -77,6 +77,11 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
       status: "AVAILABLE",
       guestStays: [],
     }),
+    resolveRoomType: jest
+      .fn()
+      .mockImplementation((_hotelId, input) =>
+        Promise.resolve({ id: input.roomTypeId ?? "catalog-suite", name: input.type ?? "Suite" }),
+      ),
     rotateQr: jest.fn().mockImplementation((input) => ({
       id: "qr-1",
       hotelId: input.hotelId,

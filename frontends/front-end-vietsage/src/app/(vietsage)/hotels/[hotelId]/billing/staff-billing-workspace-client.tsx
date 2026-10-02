@@ -489,7 +489,6 @@ export function StaffBillingWorkspaceClient({
     const interval = setInterval(() => {
       if (!document.hidden) {
         void refreshActiveFolio();
-        router.refresh();
       }
     }, 10000);
 
@@ -497,7 +496,7 @@ export function StaffBillingWorkspaceClient({
       cancelled = true;
       clearInterval(interval);
     };
-  }, [apiBase, selectedFolioId, refreshActiveFolio, router]);
+  }, [apiBase, selectedFolioId, refreshActiveFolio]);
 
   async function issueInvoiceAndCollect() {
     if (!selectedFolioId || !canManage) return;
@@ -617,7 +616,6 @@ export function StaffBillingWorkspaceClient({
         });
       }
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
-      router.refresh();
     } catch (error) {
       await Swal.fire({
         icon: "error",
@@ -1055,7 +1053,6 @@ export function StaffBillingWorkspaceClient({
                                 queryClient,
                                 hotelId,
                               );
-                              router.refresh();
                               void Swal.fire({
                                 icon: "success",
                                 title: "Đã hủy khoản mục thành công",

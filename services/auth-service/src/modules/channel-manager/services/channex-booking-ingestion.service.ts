@@ -211,11 +211,38 @@ export class ChannexBookingIngestionService {
                     },
                   })
                 : null;
+              const mappedCatalogType = roomTypeMapping
+                ? await tx.roomType.findFirst({
+                    where: {
+                      hotelId,
+                      OR: [
+                        { id: roomTypeMapping.localId },
+                        {
+                          normalizedKey: roomTypeMapping.localId
+                            .normalize("NFKC")
+                            .trim()
+                            .replace(/\s+/g, " ")
+                            .toLowerCase(),
+                        },
+                      ],
+                    },
+                    select: { id: true, name: true },
+                  })
+                : null;
+              const mappedTypeName =
+                mappedCatalogType?.name ??
+                (roomTypeMapping &&
+                typeof (roomTypeMapping.metadata as { title?: unknown } | null)?.title === "string"
+                  ? (roomTypeMapping.metadata as { title: string }).title
+                  : (roomTypeMapping?.localId ?? null));
               const candidateRoom = roomTypeMapping
                 ? await tx.room.findFirst({
                     where: {
                       hotelId,
-                      type: roomTypeMapping.localId,
+                      OR: [
+                        ...(mappedCatalogType ? [{ roomTypeId: mappedCatalogType.id }] : []),
+                        ...(mappedTypeName ? [{ type: mappedTypeName }] : []),
+                      ],
                       status: RoomStatus.AVAILABLE,
                       ...(usedRoomIds.length ? { id: { notIn: usedRoomIds } } : {}),
                       reservations: {
@@ -247,7 +274,7 @@ export class ChannexBookingIngestionService {
                 data: {
                   hotelId,
                   roomId: candidateRoom?.id ?? null,
-                  roomTypeSnapshot: roomTypeMapping?.localId ?? null,
+                  roomTypeSnapshot: mappedTypeName,
                   reservationCode: `${baseReservationCode.slice(0, 80 - suffix.length)}${suffix}`,
                   guestDisplayName: guestName,
                   guestPhone: attrs.customer?.phone || null,
@@ -574,8 +601,13 @@ export class ChannexBookingIngestionService {
       );
     }
 
+    const catalogTypes = await this.prisma.roomType.findMany({ where: { hotelId } });
+    const typeName = (localId: string) =>
+      catalogTypes.find((item) => item.id === localId)?.name ?? localId;
     const targetRoomTypeMapping = input.roomType
-      ? roomTypeMappings.find((m) => m.localId.toLowerCase() === input.roomType?.toLowerCase())
+      ? roomTypeMappings.find(
+          (m) => typeName(m.localId).toLowerCase() === input.roomType?.toLowerCase(),
+        )
       : roomTypeMappings[0];
 
     if (!targetRoomTypeMapping) {
@@ -589,7 +621,7 @@ export class ChannexBookingIngestionService {
       where: {
         hotelId,
         kind: "rate_plan",
-        localId: { startsWith: targetRoomTypeMapping.localId },
+        localId: `${targetRoomTypeMapping.localId}:STANDARD`,
       },
     });
 
@@ -601,8 +633,23 @@ export class ChannexBookingIngestionService {
       input.checkoutDate || new Date(now.getTime() + 3 * 86400000).toISOString().split("T")[0];
 
     // Lấy giá từ phòng thực tế hoặc mặc định
-    const sampleRoom = hotel.rooms.find((r) => r.type === targetRoomTypeMapping.localId);
-    const amountVal = input.amount || (sampleRoom?.price ? Number(sampleRoom.price) * 2 : 2000000);
+    const selectedCatalog = catalogTypes.find(
+      (item) =>
+        item.id === targetRoomTypeMapping.localId ||
+        item.normalizedKey ===
+          typeName(targetRoomTypeMapping.localId)
+            .normalize("NFKC")
+            .trim()
+            .replace(/\s+/g, " ")
+            .toLowerCase(),
+    );
+    const amountVal =
+      input.amount ?? (selectedCatalog?.basePrice ? Number(selectedCatalog.basePrice) * 2 : null);
+    if (amountVal === null || !Number.isFinite(amountVal) || amountVal <= 0) {
+      throw new BadRequestException(
+        "Hạng phòng chưa có giá gốc. Cập nhật danh mục trước khi mô phỏng booking",
+      );
+    }
     const randomSuffix = Math.floor(100000 + Math.random() * 900000);
     const otaCode = `${input.otaName.toUpperCase()}-${randomSuffix}`;
     const syntheticBookingId = `sim-${Date.now()}-${randomSuffix}`;
@@ -674,7 +721,7 @@ export class ChannexBookingIngestionService {
       channexBookingId: syntheticBookingId,
       otaName: input.otaName,
       otaReservationCode: otaCode,
-      roomType: targetRoomTypeMapping.localId,
+      roomType: typeName(targetRoomTypeMapping.localId),
       checkinDate: checkin,
       checkoutDate: checkout,
       amount: amountVal,
@@ -804,19 +851,22 @@ export class ChannexBookingIngestionService {
   }
 
   /**
-   * Super Admin: Lấy danh sách các đơn đặt phòng thử nghiệm gần đây
+   * Lấy danh sách các đơn đặt phòng OTA gần đây (dành cho Lễ tân và Quản trị)
    */
   async getRecentSimulatedBookings(hotelId: string) {
     const mappings = await this.prisma.channexMapping.findMany({
       where: { hotelId, kind: "booking" },
       orderBy: { createdAt: "desc" },
-      take: 20,
+      take: 100,
     });
 
     const reservationIds = mappings.map((m) => m.localId);
     const reservations = await this.prisma.reservation.findMany({
       where: { id: { in: reservationIds }, hotelId },
-      include: { room: { select: { roomNumber: true, type: true } } },
+      include: {
+        room: { select: { id: true, roomNumber: true, type: true } },
+        stay: { select: { id: true, status: true, checkedInAt: true, checkedOutAt: true } },
+      },
     });
     const reservationMap = new Map(reservations.map((r) => [r.id, r]));
 
@@ -831,9 +881,12 @@ export class ChannexBookingIngestionService {
         otaReservationCode: meta.otaReservationCode || null,
         guestName: res?.guestDisplayName || "Khách OTA",
         guestPhone: res?.guestPhone || null,
+        roomId: res?.roomId || res?.room?.id || null,
         roomType: res?.roomTypeSnapshot || res?.room?.type || null,
         roomNumber: res?.room?.roomNumber || null,
         status: res?.status || "CONFIRMED",
+        stayId: res?.stay?.id || null,
+        stayStatus: res?.stay?.status || null,
         checkInDate: res?.plannedCheckInAt?.toISOString().split("T")[0] || null,
         checkOutDate: res?.plannedCheckOutAt?.toISOString().split("T")[0] || null,
         amount: meta.amount ? Number(meta.amount) : null,

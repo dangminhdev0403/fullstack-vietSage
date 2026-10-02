@@ -685,9 +685,6 @@ export function RequestQueueClient({
     queryClient
       .invalidateQueries({ queryKey: ["owner-requests", hotelId] })
       .catch(() => {});
-    startTransition(() => {
-      router.refresh();
-    });
   }
 
   const statusMutation = useMutation(

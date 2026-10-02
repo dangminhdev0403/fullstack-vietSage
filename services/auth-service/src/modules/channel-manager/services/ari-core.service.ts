@@ -79,14 +79,16 @@ export class AriCoreService {
     const endDate = new Date(`${endDateStr}T23:59:59.999Z`);
 
     // 1. Lấy danh sách các phòng thực tế của khách sạn để xác định số phòng & giá mặc định
-    const rooms = await this.prisma.room.findMany({
-      where: { hotelId },
-      select: {
-        id: true,
-        type: true,
-        price: true,
-      },
-    });
+    const [rooms, catalog] = await Promise.all([
+      this.prisma.room.findMany({
+        where: { hotelId },
+        select: { id: true, type: true, roomTypeId: true },
+      }),
+      this.prisma.roomType.findMany({
+        where: { hotelId },
+        select: { id: true, name: true, normalizedKey: true, basePrice: true },
+      }),
+    ]);
 
     const roomTypeStats = new Map<string, { total: number; basePrice: number | null }>();
     const roomTypeByRoomId = new Map<string, string>();
@@ -96,9 +98,16 @@ export class AriCoreService {
       roomTypeByRoomId.set(room.id, type);
       const current = roomTypeStats.get(type) || { total: 0, basePrice: null };
       current.total += 1;
-      if (room.price !== null && Number(room.price) > 0) {
-        current.basePrice = Number(room.price);
-      }
+      const match =
+        catalog.find((item) => item.id === room.roomTypeId) ??
+        catalog.find(
+          (item) =>
+            item.normalizedKey === type.normalize("NFKC").replace(/\s+/g, " ").toLowerCase(),
+        );
+      current.basePrice =
+        match?.basePrice !== null && match?.basePrice !== undefined && Number(match.basePrice) > 0
+          ? Number(match.basePrice)
+          : null;
       roomTypeStats.set(type, current);
     }
 

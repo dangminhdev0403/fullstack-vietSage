@@ -75,15 +75,15 @@ export class ChannelManagerController {
     return hotelId;
   }
 
-  private triggerBackgroundChannexPush(hotelId: string) {
-    setImmediate(async () => {
-      try {
-        await this.channexAriSyncService.pushAri(hotelId);
-      } catch (err: any) {
-        this.logger.debug?.(
-          `[AutoChannexPush] Hotel ${hotelId} push skipped or failed: ${err.message}`,
-        );
-      }
+  private triggerBackgroundChannexPush(hotelId: string, availabilityOnly = false) {
+    setImmediate(() => {
+      void this.channexAriSyncService
+        .pushAri(hotelId, { availabilityOnly })
+        .catch((err: unknown) => {
+          this.logger.debug?.(
+            `[AutoChannexPush] Hotel ${hotelId} push skipped or failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+          );
+        });
     });
   }
 
@@ -175,7 +175,7 @@ export class ChannelManagerController {
     await this.assertAccess(req, hotelId);
     const payload = parseWithZod(updateAvailabilitySchema, body);
     const result = await this.ariCoreService.updateAvailability(hotelId, payload.items);
-    this.triggerBackgroundChannexPush(hotelId);
+    this.triggerBackgroundChannexPush(hotelId, true);
     return result;
   }
 

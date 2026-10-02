@@ -362,7 +362,6 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, c
         timer: 1400,
         showConfirmButton: false,
       });
-      router.refresh();
     } catch (error) {
       if (error instanceof Error && error.message === "UNAUTHORIZED") {
         return;

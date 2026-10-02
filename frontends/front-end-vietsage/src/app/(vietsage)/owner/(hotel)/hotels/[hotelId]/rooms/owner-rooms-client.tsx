@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Swal from "sweetalert2";
 import { SwalVietSage } from "@/libs/swal";
 import { z } from "zod";
@@ -21,10 +21,9 @@ import {
 } from "@/components/ui/data-table";
 import { HttpError } from "@/core/http/http-error";
 import { VsIcon } from "../../../../../_components/vs-icon";
-import type {
-  HotelRoomSummary,
-} from "@/features/hotel-ops/types/hotel-ops-contract";
+import type { HotelRoomSummary } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { ownerRoomsResource } from "@/features/hotel-ops/resources/owner-rooms-resource";
+import { ownerRoomTypesResource } from "@/features/hotel-ops/resources/owner-room-types-resource";
 import {
   BRANDED_QR_MARK_OPACITY,
   BRANDED_QR_MARK_SRC,
@@ -60,6 +59,7 @@ type RoomFormState = {
   roomNumber: string;
   floor: string;
   type: string;
+  roomTypeId: string;
   price: string;
   maxActiveGuestDevices: string;
 };
@@ -71,6 +71,7 @@ function createInitialRoomForm(): RoomFormState {
     roomNumber: "",
     floor: "",
     type: "",
+    roomTypeId: "",
     price: "",
     maxActiveGuestDevices: "",
   };
@@ -82,12 +83,12 @@ const roomFormSchema = z.object({
   roomNumber: z.string().trim().min(1, "Vui lòng nhập số phòng."),
   floor: z.string(),
   type: z.string(),
+  roomTypeId: z.string(),
   price: z
     .string()
     .trim()
-    .min(1, "Vui lòng nhập giá phòng.")
-    .regex(/^\d+$/, "Giá phòng chỉ bao gồm chữ số.")
-    .refine((value) => Number(value) > 0, "Giá phòng phải lớn hơn 0."),
+    .regex(/^\d*$/, "Giá phòng chỉ bao gồm chữ số.")
+    .refine((value) => value === "" || Number(value) > 0, "Giá phòng phải lớn hơn 0."),
   maxActiveGuestDevices: z
     .string()
     .trim()
@@ -290,6 +291,7 @@ function roomToForm(room: HotelRoomSummary): RoomFormState {
     roomNumber: room.roomNumber ?? "",
     floor: room.floor ?? "",
     type: room.type ?? "",
+    roomTypeId: room.roomTypeId ?? "",
     price: getRoomPrice(room) === null ? "" : String(getRoomPrice(room)),
     maxActiveGuestDevices:
       room.maxActiveGuestDevices === null ||
@@ -348,7 +350,7 @@ function compareRooms(
 }
 
 function roomInputClass(hasError: boolean): string {
-  return `min-h-12 w-full rounded-xl border bg-white px-4 text-sm outline-none transition ${
+  return `min-h-12 w-full rounded-xl border bg-white px-4 text-base outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 ${
     hasError
       ? "border-[var(--error)] shadow-[0_0_0_1px_var(--error)] focus:border-[var(--error)]"
       : "border-[var(--outline-variant)] focus:border-[var(--primary)]"
@@ -359,7 +361,7 @@ function RoomFieldError({ message }: { message?: string }) {
   if (!message) return null;
 
   return (
-    <span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--error)]">
+    <span role="alert" className="flex items-center gap-1.5 text-base font-semibold text-[var(--error)]">
       <VsIcon name="error" className="text-[15px]" />
       {message}
     </span>
@@ -443,6 +445,13 @@ export function OwnerRoomsClient({
     refetchInterval: 10_000,
     refetchIntervalInBackground: false,
   });
+  const roomTypesScope = ownerRoomTypesResource.bind({ hotelId });
+  const { data: roomTypeData, refetch: refetchRoomTypes, isLoading: roomTypesLoading, isError: roomTypesError } =
+    useQuery(roomTypesScope.queries.list.options(undefined));
+  const repairPrice = useMutation(roomTypesScope.mutations.updatePrice.options());
+  const createCatalogType = useMutation(roomTypesScope.mutations.create.options());
+  const catalog = roomTypeData?.items ?? [];
+  const selectedRoomType = catalog.find((item) => item.id === roomForm?.roomTypeId);
 
   // Realtime updates for channel bookings and hotel events
   useOwnerRequestRealtime(
@@ -451,19 +460,20 @@ export function OwnerRoomsClient({
       () => ({
         onChannelBookingCreated: () => {
           void refetchRooms();
-          router.refresh();
         },
         onChannelBookingCancelled: () => {
           void refetchRooms();
-          router.refresh();
         },
       }),
-      [refetchRooms, router],
+      [refetchRooms],
     ),
     { enabled: Boolean(hotelId), showConnectionToasts: false },
   );
 
-  const rooms = roomsPage?.items ?? (isDefaultQuery ? initialRooms : []);
+  const rooms = useMemo(
+    () => roomsPage?.items ?? (isDefaultQuery ? initialRooms : []),
+    [roomsPage?.items, isDefaultQuery, initialRooms],
+  );
 
   const existingFloors = useMemo(() => {
     const map = new Map<string, string>();
@@ -485,7 +495,7 @@ export function OwnerRoomsClient({
     return Array.from(map.values()).sort((a, b) =>
       a.localeCompare(b, "vi", { numeric: true, sensitivity: "base" }),
     );
-  }, [roomsPage?.floors, initialFloors, rooms]);
+  }, [roomsPage, initialFloors, rooms]);
 
   const existingRoomTypes = useMemo(() => {
     const map = new Map<string, string>();
@@ -511,7 +521,7 @@ export function OwnerRoomsClient({
       }
     });
     return Array.from(map.values()).sort((a, b) => a.localeCompare(b));
-  }, [roomsPage?.types, initialTypes, rooms]);
+  }, [roomsPage, initialTypes, rooms]);
 
   const filteredRooms = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -598,12 +608,11 @@ export function OwnerRoomsClient({
         className: "text-[var(--secondary)]",
       },
     ];
-  }, [rooms]);
+  }, [rooms, existingFloors.length, roomsPage?.total]);
 
   async function refreshRooms() {
     await invalidateHotelRealtimeQueries(queryClient, hotelId);
     await refetchRooms();
-    router.refresh();
   }
 
   function updateQuery(value: string) {
@@ -657,33 +666,38 @@ export function OwnerRoomsClient({
     if (!roomForm) return;
 
     const validationErrors = getRoomFormErrors(roomForm);
+    if (!roomForm.id && !roomForm.roomTypeId && !roomForm.type.trim()) {
+      validationErrors.type = "Chọn loại phòng hoặc nhập tên loại phòng mới.";
+    }
+    if (!roomForm.id && !roomForm.roomTypeId && catalog.some((item) =>
+      item.name.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase() ===
+      roomForm.type.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase())) {
+      validationErrors.type = "Loại phòng đã tồn tại. Chọn trong danh mục để dùng giá gốc đã lưu.";
+    }
+    if (!roomForm.id && !roomForm.roomTypeId && !roomForm.price) {
+      validationErrors.price = "Vui lòng nhập giá hợp lệ.";
+    }
     if (Object.values(validationErrors).some(Boolean)) {
       setRoomFormErrors(validationErrors);
       return;
     }
 
-    const price = Number(roomForm.price);
+    const price = roomForm.price ? Number(roomForm.price) : undefined;
     const isEditing = Boolean(roomForm.id);
-    const confirmed = await Swal.fire({
-      icon: "question",
-      title: isEditing ? "Lưu thay đổi phòng?" : "Tạo phòng mới?",
-      showCancelButton: true,
-      reverseButtons: false,
-      confirmButtonText: "Đồng ý",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#00003c",
-      cancelButtonColor: "#767684",
-    });
-    if (!confirmed.isConfirmed) return;
 
     setIsSaving(true);
     try {
       showLoading(isEditing ? "Đang lưu phòng" : "Đang tạo phòng");
+      const originalRoom = rooms.find((room) => room.id === roomForm.id);
       const body = {
         roomNumber: roomForm.roomNumber.trim(),
         floor: roomForm.floor.trim() || undefined,
-        type: roomForm.type.trim() || undefined,
-        price,
+        ...(isEditing
+          ? { ...(roomForm.roomTypeId && roomForm.roomTypeId !== originalRoom?.roomTypeId ? { roomTypeId: roomForm.roomTypeId } : {}) }
+          : roomForm.roomTypeId
+            ? { roomTypeId: roomForm.roomTypeId }
+            : { newRoomType: { name: roomForm.type.trim(), basePrice: price! } }),
+        ...(price !== undefined && isEditing ? { price } : {}),
         ...(roomForm.maxActiveGuestDevices.trim()
           ? { maxActiveGuestDevices: Number(roomForm.maxActiveGuestDevices) }
           : isEditing
@@ -700,9 +714,10 @@ export function OwnerRoomsClient({
       });
       closeRoomForm();
       await refreshRooms();
+      await refetchRoomTypes();
       await toast.fire({
         icon: "success",
-        title: isEditing ? "Đã cập nhật phòng" : "Đã tạo phòng",
+        title: isEditing ? "Đã lưu phòng tại VietSage" : "Đã tạo phòng tại VietSage",
       });
     } catch (error) {
       await Swal.fire({
@@ -1061,7 +1076,7 @@ export function OwnerRoomsClient({
         confirmButtonText: "OK",
       });
 
-      router.refresh();
+      await refreshRooms();
     } catch (error) {
       await SwalVietSage.fire({
         icon: "error",
@@ -1808,26 +1823,75 @@ export function OwnerRoomsClient({
                 <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
                   Loại phòng
                 </span>
-                <input
-                  value={roomForm.type}
-                  onChange={(event) =>
-                    updateRoomFormField("type", event.target.value)
-                  }
-                  list="hotel-room-types-datalist"
-                  placeholder="Nhập loại phòng (VD: Bungalow, Nhà sàn...)"
-                  aria-invalid={Boolean(roomFormErrors.type)}
-                  className={roomInputClass(Boolean(roomFormErrors.type))}
-                />
-                <datalist id="hotel-room-types-datalist">
-                  {existingRoomTypes.map((type) => (
-                    <option key={type} value={type} />
-                  ))}
-                </datalist>
+                {roomForm.id ? (
+                  <select
+                    value={roomForm.roomTypeId || ""}
+                    onChange={(event) => {
+                      updateRoomFormField("roomTypeId", event.target.value);
+                      updateRoomFormField("type", "");
+                    }}
+                    className={roomInputClass(Boolean(roomFormErrors.type))}
+                  >
+                    {!roomForm.roomTypeId && <option value="">{roomForm.type || "Chọn loại phòng"}</option>}
+                    {catalog.filter((item) => !item.id.startsWith("legacy:")).map((item) =>
+                      <option key={item.id} value={item.id}>{item.name}</option>)}
+                  </select>
+                ) : (
+                  <select
+                    value={roomForm.roomTypeId}
+                    onChange={(event) => {
+                      updateRoomFormField("roomTypeId", event.target.value);
+                      updateRoomFormField("type", "");
+                      updateRoomFormField("price", "");
+                    }}
+                    aria-invalid={Boolean(roomFormErrors.type)}
+                    className={roomInputClass(Boolean(roomFormErrors.type))}
+                  >
+                    <option value="">Tạo loại phòng mới</option>
+                    {catalog.map((item) => <option key={item.id} value={item.id}>{item.name}{item.readiness === "MISSING_PRICE" ? " (cần giá gốc)" : ""}</option>)}
+                  </select>
+                )}
+                {roomTypesLoading && <span role="status">Đang tải loại phòng...</span>}
+                {roomTypesError && <span role="alert">Không tải được danh mục. Thử tải lại trang.</span>}
                 <RoomFieldError message={roomFormErrors.type} />
               </label>
+              {!roomForm.id && !roomForm.roomTypeId && (
+                <label className="space-y-2">
+                  <span className="text-sm font-semibold text-[var(--on-surface-variant)]">Tên loại phòng mới</span>
+                  <input value={roomForm.type} onChange={(event) => updateRoomFormField("type", event.target.value)}
+                    aria-invalid={Boolean(roomFormErrors.type)} className={roomInputClass(Boolean(roomFormErrors.type))} />
+                </label>
+              )}
+              {!roomForm.id && selectedRoomType?.readiness === "READY" && (
+                <p className="self-center text-base text-[var(--on-surface-variant)]">
+                  Giá gốc hạng phòng: {formatVnd(selectedRoomType.basePrice)}. Giá phòng mới lấy theo giá gốc; chưa đẩy Channex.
+                </p>
+              )}
+              {!roomForm.id && selectedRoomType?.readiness === "MISSING_PRICE" && (
+                <div className="space-y-2 self-center text-base">
+                  <p>Hạng {selectedRoomType.name} chưa có giá gốc. Nhập giá bên dưới, lưu giá gốc trước khi tạo phòng.</p>
+                  <button type="button" disabled={repairPrice.isPending || createCatalogType.isPending || !roomForm.price || !Number.isFinite(Number(roomForm.price)) || Number(roomForm.price) <= 0}
+                    onClick={async () => {
+                      try {
+                        const saved = selectedRoomType.id.startsWith("legacy:")
+                          ? await createCatalogType.mutateAsync({ name: selectedRoomType.name, basePrice: Number(roomForm.price) })
+                          : await repairPrice.mutateAsync({ roomTypeId: selectedRoomType.id, basePrice: Number(roomForm.price) });
+                        updateRoomFormField("roomTypeId", saved.id);
+                        updateRoomFormField("price", "");
+                        await refetchRoomTypes();
+                        await toast.fire({ icon: "success", title: "Đã lưu giá gốc tại VietSage. Chưa đẩy Channex." });
+                      } catch (error) {
+                        await SwalVietSage.fire({ icon: "error", title: "Không thể lưu giá gốc", text: getBusinessErrorMessage(error, "Vui lòng thử lại."), confirmButtonText: "OK" });
+                      }
+                    }}
+                    className="min-h-11 rounded-xl border border-[var(--outline-variant)] px-4 focus-visible:outline-2">Lưu giá gốc hạng phòng</button>
+                  {selectedRoomType.id.startsWith("legacy:") && <p role="alert">Nếu giá phòng cũ thiếu hoặc không đồng nhất, cần đối soát giá trước khi lưu giá gốc.</p>}
+                </div>
+              )}
+              {(roomForm.id || !roomForm.roomTypeId || selectedRoomType?.readiness === "MISSING_PRICE") && (
               <label className="space-y-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
-                  Giá phòng
+                  {roomForm.id ? "Giá riêng của phòng" : "Giá gốc loại phòng mới"}
                 </span>
                 <input
                   type="text"
@@ -1853,6 +1917,7 @@ export function OwnerRoomsClient({
                 />
                 <RoomFieldError message={roomFormErrors.price} />
               </label>
+              )}
               <label className="space-y-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
                   Thiết bị tối đa
@@ -1892,7 +1957,7 @@ export function OwnerRoomsClient({
                 Hủy
               </button>
               <button
-                disabled={isSaving}
+                disabled={isSaving || roomTypesLoading || roomTypesError || (!roomForm.id && selectedRoomType?.readiness === "MISSING_PRICE")}
                 className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-5 text-sm font-bold text-[var(--on-primary)] transition hover:bg-[color:rgba(0,0,60,0.88)] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 <VsIcon name={roomForm.id ? "edit" : "add_circle"} />

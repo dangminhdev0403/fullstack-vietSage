@@ -9,6 +9,23 @@
 
 ## Unreleased
 
+- **Hotel room-type catalog (unreleased)**: Private `GET /hotels/{hotelId}/room-types`
+  returns `{items:[{id,name,basePrice,readiness,roomCount}]}` including unresolved legacy names.
+  `POST /hotels/{hotelId}/room-types` accepts `{name,basePrice}` (201 new, 200 existing,
+  existing price unchanged). `PATCH /hotels/{hotelId}/room-types/{roomTypeId}/price`
+  accepts `{basePrice}` and returns `channexSync:"NOT_PUSHED"`; neither endpoint pushes Channex.
+  All routes require `hotel.rooms.view` for reads or `hotel.rooms.manage` for writes.
+  `POST /hotels/{hotelId}/rooms` accepts exactly one of `roomTypeId`, `newRoomType:{name,basePrice}`,
+  or legacy `type`; optional `price` remains a per-room override. Bulk create uses the same
+  item contract; room updates accept `roomTypeId` or a resolvable legacy `type`, not both.
+  The room response adds nullable `roomTypeId`. Invalid price/type input returns 400;
+  inaccessible hotels return 403, foreign/missing catalog IDs 404, conflicts 409.
+  The additive migration and guarded backfill/rekey ran on local `vietsage_auth`: 80 rooms
+  reference 13 hotel-scoped types; six room/rate mappings now use catalog IDs without
+  changing their Channex IDs. Other environments require their own preflight and approval.
+  Content Sync and rate-writing ARI refuse unresolved catalog prices before provider writes;
+  availability-only background pushes do not require a price.
+
 - **Channex staging channel manager**:
   - Added hotel-scoped Content Sync, ARI Push, booking-feed poll, outage recovery, Doctor, mapping, and one-time Channel IFrame session endpoints under `/api/v1/channel-manager/hotels/{hotelId}/channex/*`.
   - Added exact public `POST /api/v1/channel-manager/channex/webhook`; requests require `X-Channex-Webhook-Secret` and a strict booking-event payload.

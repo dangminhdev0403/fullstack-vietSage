@@ -71,6 +71,7 @@ export type HotelServiceItem = {
 
 export type HotelRoomSummary = {
   id: string;
+  roomTypeId?: string | null;
   hotelId?: string;
   roomNumber?: string | null;
   floor?: string | null;
@@ -92,6 +93,14 @@ export type HotelRoomSummary = {
   activeStay?: HotelStaySummary | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+};
+
+export type HotelRoomType = {
+  id: string;
+  name: string;
+  basePrice: number | null;
+  readiness: "READY" | "MISSING_PRICE";
+  roomCount: number;
 };
 
 export type HotelStaySummary = {
@@ -339,7 +348,9 @@ export type ListHotelRoomsQuery = {
 export type CreateHotelRoomInput = {
   roomNumber: string;
   floor?: string;
-  type?: string;
+    type?: string;
+    roomTypeId?: string;
+    newRoomType?: { name: string; basePrice: number };
   price?: number;
   maxActiveGuestDevices?: number;
 };
@@ -347,7 +358,8 @@ export type CreateHotelRoomInput = {
 export type UpdateHotelRoomInput = {
   roomNumber?: string;
   floor?: string | null;
-  type?: string | null;
+    type?: string | null;
+    roomTypeId?: string;
   price?: number | null;
   maxActiveGuestDevices?: number | null;
   status?: string | null;

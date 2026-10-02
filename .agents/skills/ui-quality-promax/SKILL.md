@@ -5,9 +5,7 @@ description: Strict UI/UX quality, visual-stability, responsive, typography, int
 
 # UI Quality Pro-Max — VietSage
 
-UI quality is not decoration. A page is acceptable only when it is visually coherent, usable, responsive, accessible at a practical baseline, stable at runtime, and verified in a real browser after the final source change.
-
-Tests, lint, typecheck, build success, DOM existence, or a clean console never substitute for rendered-browser quality.
+UI quality is not decoration. Review the requested surface with the evidence available. Static validation supports code correctness; rendered-browser quality requires a separately requested browser pass. Never claim visual/runtime verification from lint, typecheck, build, or source inspection.
 
 ## 1. When this skill is mandatory
 
@@ -49,7 +47,7 @@ They are advisory heuristics, not authorities. Do not blindly merge unrelated ae
 
 UI work is still coding work. Follow the repository's mandatory navigation pipeline:
 
-`Graphify query/impact -> minimal file set -> scoped Repomix -> exact source -> edit -> validate -> browser inspect`
+`Graphify query/impact -> minimal file set -> scoped Repomix -> exact source -> edit -> validate` (append browser inspection only when requested).
 
 Before changing shared primitives, tokens, shell components, navigation components, form primitives, table primitives, or feedback components, use Graphify impact/affected analysis to inspect all direct callers.
 
@@ -57,23 +55,17 @@ Never use UI review as justification for broad repository scanning.
 
 ## 4. UI verification rule
 
-Do NOT automatically invoke or require Chrome DevTools MCP. UI verification relies on code inspection, design contract adherence, automated component/unit tests, type checking, and user-provided screenshots.
-
-When user screenshots are provided, inspect them visually and address the identified flaws directly.
+Do not launch or require a browser for ordinary UI edits/reviews. Validate with relevant static/component checks and inspect user-provided screenshots when available. When the user explicitly requests browser testing or a browser-based visual audit, run the real browser journey and report what was actually observed. A static-only result is not a rendered-browser PASS.
 
 ## 5. Required working loop
 
-For audit-only work:
+For ordinary UI edits: `inspect -> classify -> root cause -> smallest coherent edit -> focused validation -> report`.
 
-`discover -> render -> interact -> inspect -> capture -> classify -> report`
+For a requested rendered-browser audit: `discover -> render -> interact -> inspect -> capture -> classify -> report`. For a requested browser-verified fix, capture before/after evidence and re-inspect after the final edit. Without browser authorization, finish the scoped code work and report browser verification as not run.
 
-For fix work:
+## 6. Visual inspection checklist (browser pass only)
 
-`discover -> baseline screenshots -> visually inspect -> classify -> root cause -> smallest coherent edit -> automated validation -> reopen browser -> interact -> AFTER screenshots -> compare BEFORE/AFTER -> Network/Console check -> repeat until stable -> final acceptance`
-
-The agent must not stop after source edits. The last meaningful source change must always be followed by rendered-browser reinspection.
-
-## 6. Strict visual inspection checklist
+For ordinary code work, inspect source and any user-provided screenshots; do not treat the following rendered-browser checks as a reason to launch a browser. When a browser pass is requested, use this checklist.
 
 ### 6.1 Typography
 
@@ -139,11 +131,9 @@ Reject:
 
 Reuse the installed/current icon infrastructure. Do not add icon dependencies without explicit approval.
 
-## 7. Responsive quality is mandatory
+## 7. Responsive quality
 
-Do not test only desktop + mobile.
-
-Use a representative viewport matrix including at least:
+When browser verification is explicitly requested, use a representative viewport matrix including:
 
 - 320px
 - 360px
@@ -245,7 +235,7 @@ Perform practical accessibility inspection:
 - image alt behavior;
 - reduced-motion behavior where motion exists.
 
-Use keyboard-only navigation for primary flows and inspect the browser accessibility tree where practical.
+For a requested browser pass, use keyboard-only navigation for primary flows and inspect the browser accessibility tree where practical.
 
 ## 11. Zoom and content stress
 
@@ -315,7 +305,7 @@ Any such change requires explicit approval.
 
 ## 15. Visual acceptance and scorecard
 
-A full UI task may PASS only when:
+For an explicitly requested full rendered-browser UI audit, PASS requires:
 
 - no P0 remains;
 - no P1 remains;
@@ -366,19 +356,8 @@ Never award 9/10 to a UI with obvious overflow, broken icons, inconsistent typog
 
 ## 16. Final report evidence
 
-For every meaningful fix batch, capture BEFORE and AFTER screenshots at equivalent state/viewport where practical and state what changed visually.
+For a requested browser-verified fix, capture BEFORE and AFTER screenshots at equivalent state/viewport where practical. For ordinary edits, use supplied images if any and state that browser visual comparison was not run.
 
-Final report must include:
-
-- routes/surfaces inspected;
-- viewport matrix inspected;
-- defects fixed and remaining P0/P1/P2/P3;
-- exact files changed;
-- automated validation commands/results;
-- Component states, responsive behavior, accessibility, and visual stability verification;
-- representative screenshot evidence (when provided);
-- scorecard;
-- what was verified vs not verified;
-- whether the target is stable for integration or still needs work.
+Final report must include affected surfaces, changed files, validation run, and remaining defects. Include a viewport matrix, screenshot evidence, and scorecard only when the task actually requested and performed rendered-browser verification; distinguish code checks from observed runtime behavior.
 
 Ensure the UI meets VietSage Design DNA standards before concluding.

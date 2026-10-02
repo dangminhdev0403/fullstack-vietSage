@@ -19,13 +19,30 @@ export const SwalVietSage = Swal.mixin({
   reverseButtons: false,
 });
 
-export function showSuccessAlert(title: string, text: string) {
+export function showSuccessAlert(title: string, messageOrHtml: string) {
+  const isHtml = /^\s*<[a-z][\s\S]*>/i.test(messageOrHtml);
   return SwalVietSage.fire({
     title,
-    text,
+    ...(isHtml ? { html: messageOrHtml } : { text: messageOrHtml }),
     icon: "success",
     showConfirmButton: true,
     confirmButtonText: "OK",
+    ...(isHtml
+      ? {
+          customClass: {
+            popup:
+              "rounded-[2rem] bg-white p-5 sm:p-7 shadow-2xl border border-gray-100 w-[92vw] sm:w-[88vw] max-w-lg max-h-[88vh] flex flex-col my-auto overflow-hidden",
+            title:
+              "text-xl sm:text-2xl md:text-3xl font-extrabold text-[#18211d] text-center mb-2 tracking-tight shrink-0",
+            htmlContainer:
+              "text-sm sm:text-base font-medium text-gray-700 !text-left mb-3 leading-relaxed max-h-[58vh] overflow-y-auto pr-1 focus:outline-none custom-scrollbar w-full !m-0 !mt-2",
+            confirmButton:
+              "inline-flex h-11 sm:h-12 items-center justify-center gap-2 rounded-full bg-[#25483f] px-7 text-sm sm:text-base font-extrabold text-white shadow-lg shadow-[#25483f]/25 transition-all hover:bg-[#1a352d] cursor-pointer mx-1.5 min-w-[120px]",
+            actions:
+              "flex items-center justify-center gap-3 pt-3 shrink-0 border-t border-slate-100 w-full mt-2",
+          },
+        }
+      : {}),
   });
 }
 

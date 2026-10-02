@@ -39,7 +39,7 @@ If a command is skipped, explicitly report it and explain why.
 
 ## Phase 4 - Route QA Checklist
 
-Validate all impacted routes in browser at mobile and desktop sizes:
+Browser QA runs only when explicitly requested. Otherwise validate touched routes with available code/component checks and report browser QA as not run. When a browser pass is requested, inspect impacted routes at mobile and desktop sizes:
 
 - Guest
   - `/guest/welcome`
@@ -75,7 +75,7 @@ A sync task is complete only when all items below exist:
 
 1. Files changed in frontend codebase.
 2. Validation command result (`lint`, and `build` when relevant).
-3. Route QA result summary.
+3. Route QA result summary (browser-verified only when explicitly requested; otherwise state not run).
 4. Status document updated:
    - `frontends/front-end-vietsage/docs/PROJECT_STATUS.md`
 5. If contracts changed, corresponding root docs updated.

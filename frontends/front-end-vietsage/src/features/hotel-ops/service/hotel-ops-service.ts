@@ -13,6 +13,7 @@ import type {
   HotelArrival,
   HotelOpsPage,
   HotelRoomSummary,
+  HotelRoomType,
   HotelRequestEvent,
   HotelReservationCheckInResult,
   HotelReservationInput,
@@ -162,6 +163,27 @@ export class HotelOpsService {
       accessToken,
     });
     return unwrapApiEnvelope<HotelReservationCheckInResult>(payload).data;
+  }
+
+  async listRoomTypes(hotelId: string, accessToken?: string): Promise<{ items: HotelRoomType[] }> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET", path: hotelPath(hotelId, "/room-types"), accessToken,
+    });
+    return unwrapApiEnvelope<{ items: HotelRoomType[] }>(payload).data;
+  }
+
+  async createRoomType(hotelId: string, body: { name: string; basePrice: number }, accessToken?: string): Promise<HotelRoomType & { created: boolean }> {
+    const payload = await this.httpClient.request<unknown, typeof body>({
+      method: "POST", path: hotelPath(hotelId, "/room-types"), body, accessToken,
+    });
+    return unwrapApiEnvelope<HotelRoomType & { created: boolean }>(payload).data;
+  }
+
+  async updateRoomTypePrice(hotelId: string, roomTypeId: string, body: { basePrice: number }, accessToken?: string): Promise<HotelRoomType> {
+    const payload = await this.httpClient.request<unknown, typeof body>({
+      method: "PATCH", path: hotelPath(hotelId, `/room-types/${encodeURIComponent(roomTypeId)}/price`), body, accessToken,
+    });
+    return unwrapApiEnvelope<HotelRoomType>(payload).data;
   }
 
   async createRoom(

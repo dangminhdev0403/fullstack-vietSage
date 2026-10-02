@@ -109,7 +109,7 @@ export class ChannexDoctorService {
     // Check 3: Room Type Mappings
     const rooms = await this.prisma.room.findMany({
       where: { hotelId },
-      select: { type: true, price: true },
+      select: { type: true },
     });
     const localTypes = Array.from(
       new Set(
@@ -119,52 +119,46 @@ export class ChannexDoctorService {
     const rtMappings = await this.prisma.channexMapping.findMany({
       where: { hotelId, kind: "room_type" },
     });
+    const catalog = await this.prisma.roomType.findMany({
+      where: { hotelId },
+      select: { id: true, name: true, normalizedKey: true, basePrice: true },
+    });
 
     const mappedTypes = new Set(rtMappings.map((m) => m.localId));
-    const missingTypes = localTypes.filter((t) => !mappedTypes.has(t));
-    const pricedTypes = new Set(
-      rooms
-        .filter((room) => room.type?.trim() && room.price !== null && Number(room.price) > 0)
-        .map((room) => room.type!.trim()),
+    const matchingType = (name: string) =>
+      catalog.find(
+        (item) =>
+          item.normalizedKey === name.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase(),
+      );
+    const missingTypes = localTypes.filter(
+      (t) =>
+        !mappedTypes.has(matchingType(t)?.id ?? "") &&
+        !Array.from(mappedTypes).some(
+          (key) =>
+            key.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase() ===
+            t.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase(),
+        ),
     );
-    const missingPriceTypes = localTypes.filter((type) => !pricedTypes.has(type));
+    const missingPriceTypes = localTypes.filter((type) => {
+      const price = matchingType(type)?.basePrice;
+      return price === null || price === undefined || Number(price) <= 0;
+    });
 
     if (missingPriceTypes.length > 0) {
-      // Kiểm tra xem các hạng phòng này đã được thiết lập giá trên Bảng giá ARI Grid chưa
-      const restrictions = await this.prisma.channelDailyRestriction.findMany({
-        where: {
-          hotelId,
-          roomType: { in: missingPriceTypes },
-          rate: { gt: 0 },
-        },
-        select: { roomType: true },
-        distinct: ["roomType"],
+      isHealthy = false;
+      checks.push({
+        id: "room_type_prices",
+        name: "Giá gốc hạng phòng",
+        status: "FAIL",
+        message: `Hạng phòng ${missingPriceTypes.join(", ")} chưa có giá gốc trong danh mục. Cập nhật giá trước khi đồng bộ Channex.`,
+        details: { missingPriceTypes },
       });
-      const coveredInGrid = new Set(restrictions.map((r) => r.roomType));
-      const unpricedTypes = missingPriceTypes.filter((type) => !coveredInGrid.has(type));
-
-      if (unpricedTypes.length === 0) {
-        checks.push({
-          id: "room_type_prices",
-          name: "Giá hạng phòng trong DB",
-          status: "PASS",
-          message: `Toàn bộ ${localTypes.length} hạng phòng đã có giá (kết hợp danh mục phòng & Bảng giá ARI Grid).`,
-        });
-      } else {
-        checks.push({
-          id: "room_type_prices",
-          name: "Giá hạng phòng trong DB",
-          status: "WARN",
-          message: `Hạng phòng ${unpricedTypes.join(", ")} chưa cài giá cố định (đang tự động dùng giá sàn an toàn 500.000 ₫ hoặc bạn có thể chỉnh trên ARI Grid).`,
-          details: { missingPriceTypes: unpricedTypes },
-        });
-      }
     } else {
       checks.push({
         id: "room_type_prices",
         name: "Giá hạng phòng trong DB",
         status: "PASS",
-        message: `Toàn bộ ${localTypes.length} hạng phòng có giá thật trong DB.`,
+        message: `Toàn bộ ${localTypes.length} hạng phòng có giá gốc trong danh mục.`,
       });
     }
 

@@ -82,6 +82,13 @@ Backend API
 
 ## Channex channel manager
 
+- Owner room creation uses the private hotel-scoped room-type catalog through
+  `/api/owner/hotels/{hotelId}/room-types`. Selecting a READY type defaults new room
+  prices from its saved VND base; creating a type requires an explicit positive base
+  price. Per-room price edits and dated ARI overrides do not change catalog prices.
+  Owner room saves confirm local persistence only. Catalog price changes return
+  `channexSync: "NOT_PUSHED"` and require a separate authorized Channex sync.
+
 - `/channel-manager` consumes same-origin role-scoped BFF routes through the channel-manager repository/resource/hooks. Browser payloads never contain `CHANNEX_API_KEY` or the webhook secret.
 - Platform admins run idempotent Content Sync. Admin/owner users edit and save PMS ARI before explicitly pushing it to Channex. Readback is displayed as matched only when sampled availability and rate/restriction values equal the values sent.
 - VietSage stores room prices in VND. A GBP Booking.com staging property uses the explicit `CHANNEX_STAGING_VND_TO_GBP_RATE` calibration, converted to Channex minor units; this calibration is rejected outside `staging.channex.io`. Existing Channex properties keep their live currency during Content Sync.

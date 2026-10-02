@@ -276,7 +276,6 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
         showConfirmButton: true,
         confirmButtonText: "OK",
       });
-      router.refresh();
     } catch (error) {
       if (error instanceof Error && error.message === "UNAUTHORIZED") {
         return;

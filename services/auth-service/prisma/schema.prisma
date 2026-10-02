@@ -646,6 +646,7 @@ model Hotel {
   updatedAt                     DateTime                      @updatedAt
   tenant                        Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   rooms                         Room[]
+  roomTypes                     RoomType[]
   roomQRCodes                   RoomQRCode[]
   guestStays                    GuestStay[]
   reservations                  Reservation[]
@@ -1027,9 +1028,24 @@ model BiometricWorkstation {
   @@index([hotelId, revokedAt, expiresAt, lastSeenAt])
 }
 
+model RoomType {
+  id            String   @id @default(cuid())
+  hotelId       String
+  name          String   @db.VarChar(80)
+  normalizedKey String   @db.VarChar(80)
+  basePrice     Decimal? @db.Decimal(12, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  hotel         Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  rooms         Room[]
+
+  @@unique([hotelId, normalizedKey])
+}
+
 model Room {
   id                    String                    @id @default(cuid())
   hotelId               String
+  roomTypeId            String?
   code                  String                    @unique @db.VarChar(80)
   roomNumber            String                    @db.VarChar(40)
   floor                 String?                   @db.VarChar(40)
@@ -1040,6 +1056,7 @@ model Room {
   createdAt             DateTime                  @default(now())
   updatedAt             DateTime                  @updatedAt
   hotel                 Hotel                     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  roomType              RoomType?                 @relation(fields: [roomTypeId], references: [id], onDelete: Restrict)
   qrCodes               RoomQRCode[]
   guestStays            GuestStay[]
   reservations          Reservation[]
@@ -1055,6 +1072,7 @@ model Room {
 
   @@unique([hotelId, roomNumber])
   @@index([hotelId, status])
+  @@index([hotelId, roomTypeId])
 }
 
 model RoomQRCode {

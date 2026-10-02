@@ -27,7 +27,6 @@ export interface SyncContentResult {
     roomTypesInChannex: number;
     ratePlansInChannex: number;
   };
-  fallbackRoomTypes?: string[];
 }
 
 @Injectable()
@@ -51,7 +50,8 @@ export class ChannexSyncService {
     const hotel = await this.prisma.hotel.findUnique({
       where: { id: hotelId },
       include: {
-        rooms: true,
+        rooms: { include: { roomType: true } },
+        roomTypes: true,
       },
     });
 
@@ -66,26 +66,120 @@ export class ChannexSyncService {
         throw new BadRequestException(`Phòng ${room.roomNumber} chưa có hạng phòng trong DB`);
       }
     }
-
-    // 1. TÌM HOẶC TẠO CHANNEL CONNECTION CHO CHANNEX
-    let channelConnection = await this.prisma.channelConnection.findFirst({
-      where: {
-        hotelId,
-        channelCode: "CHANNEX",
-      },
-    });
-
-    if (!channelConnection) {
-      channelConnection = await this.prisma.channelConnection.create({
-        data: {
-          hotelId,
-          channelCode: "CHANNEX",
-          title: `Channex - ${hotel.name}`,
-          status: "ACTIVE",
-          outboundToken: `channex_${hotelId}_${Date.now()}`,
-          priceMultiplier: 1.0,
-        },
+    const roomTypeMap = new Map<
+      string,
+      { id: string; count: number; defaultPrice: number; name: string }
+    >();
+    const seenNames = new Map<string, string>();
+    for (const room of hotel.rooms) {
+      const type =
+        room.roomType ??
+        hotel.roomTypes.find(
+          (candidate) =>
+            candidate.normalizedKey ===
+            room.type!.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase(),
+        );
+      if (type && type.hotelId !== hotelId) {
+        throw new BadRequestException(
+          `Phòng ${room.roomNumber} liên kết loại phòng từ khách sạn khác. Đối soát trước khi đồng bộ`,
+        );
+      }
+      if (
+        type &&
+        room.roomTypeId &&
+        room.type?.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase() !==
+          type.normalizedKey
+      ) {
+        throw new BadRequestException(
+          `Phòng ${room.roomNumber} có tên và ID loại phòng không khớp. Đối soát trước khi đồng bộ`,
+        );
+      }
+      if (
+        !type ||
+        type.basePrice === null ||
+        !Number.isFinite(Number(type.basePrice)) ||
+        Number(type.basePrice) <= 0
+      ) {
+        throw new BadRequestException(
+          `Hạng phòng "${room.type}" chưa có giá gốc rõ ràng. Cập nhật danh mục loại phòng trước khi đồng bộ Channex`,
+        );
+      }
+      if (seenNames.has(type.id) && seenNames.get(type.id) !== room.type!.trim()) {
+        throw new BadRequestException(
+          `Hạng phòng "${type.name}" có nhiều cách viết trong phòng cũ. Chuẩn hóa sau khi đối soát trước khi đồng bộ`,
+        );
+      }
+      seenNames.set(type.id, room.type!.trim());
+      const current = roomTypeMap.get(type.id);
+      roomTypeMap.set(type.id, {
+        id: type.id,
+        name: type.name,
+        count: (current?.count ?? 0) + 1,
+        defaultPrice: Number(type.basePrice),
       });
+    }
+    const legacyMappings = await this.prisma.channexMapping.findMany({
+      where: { hotelId, kind: { in: ["room_type", "rate_plan"] } },
+    });
+    const mappingKeys = new Map<string, string>();
+    const ratePlanKeys = new Map<string, string>();
+    for (const stats of roomTypeMap.values()) {
+      const oldMappings = legacyMappings.filter(
+        (m) =>
+          m.kind === "room_type" &&
+          m.localId.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase() ===
+            stats.name.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase(),
+      );
+      const oldKey = oldMappings[0]?.localId;
+      if (oldMappings.length > 1)
+        throw new BadRequestException(
+          `Mapping Channex của "${stats.name}" bị trùng tên. Đối soát trước khi đồng bộ`,
+        );
+      mappingKeys.set(stats.id, oldKey ?? stats.id);
+      const existingRatePlans = legacyMappings.filter(
+        (m) =>
+          m.kind === "rate_plan" &&
+          m.localId.endsWith(":STANDARD") &&
+          (m.localId === `${stats.id}:STANDARD` ||
+            m.localId.slice(0, -9).normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase() ===
+              stats.name.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase()),
+      );
+      if (
+        existingRatePlans.length > 1 &&
+        new Set(existingRatePlans.map((item) => item.localId)).size > 1
+      ) {
+        throw new BadRequestException(
+          `Mapping gói giá của "${stats.name}" bị trùng khóa. Đối soát trước khi đồng bộ`,
+        );
+      }
+      if (
+        existingRatePlans.length > 1 &&
+        new Set(existingRatePlans.map((item) => item.channexId)).size > 1
+      ) {
+        throw new BadRequestException(
+          `Mapping gói giá của "${stats.name}" bị xung đột. Đối soát trước khi đồng bộ`,
+        );
+      }
+      if (!oldKey && existingRatePlans.some((item) => item.localId !== `${stats.id}:STANDARD`)) {
+        throw new BadRequestException(
+          `Mapping hạng phòng của "${stats.name}" bị thiếu nhưng gói giá cũ còn tồn tại. Đối soát trước khi đồng bộ`,
+        );
+      }
+      ratePlanKeys.set(stats.id, existingRatePlans[0]?.localId ?? `${oldKey ?? stats.id}:STANDARD`);
+      for (const kind of ["room_type", "rate_plan"] as const) {
+        const suffix = kind === "rate_plan" ? ":STANDARD" : "";
+        const old = legacyMappings.find(
+          (m) => m.kind === kind && m.localId === `${oldKey ?? stats.name}${suffix}`,
+        );
+        const next = legacyMappings.find(
+          (m) => m.kind === kind && m.localId === `${stats.id}${suffix}`,
+        );
+        if (old && next && old.channexId !== next.channexId) {
+          throw new BadRequestException(
+            `Mapping Channex của "${stats.name}" bị xung đột. Đối soát trước khi đồng bộ`,
+          );
+        }
+      }
     }
 
     // 2. BƯỚC 1: ĐỒNG BỘ PROPERTY (KHÁCH SẠN)
@@ -113,6 +207,27 @@ export class ChannexSyncService {
       } catch (err) {
         if (!(err instanceof NotFoundException)) throw err;
       }
+    }
+
+    // Validate currency before creating local mappings or changing the provider.
+    const rateConversionMultiplier = resolveChannexRateMultiplier(
+      this.channexClient.getBaseUrl(),
+      effectiveCurrency,
+    );
+    let channelConnection = await this.prisma.channelConnection.findFirst({
+      where: { hotelId, channelCode: "CHANNEX" },
+    });
+    if (!channelConnection) {
+      channelConnection = await this.prisma.channelConnection.create({
+        data: {
+          hotelId,
+          channelCode: "CHANNEX",
+          title: `Channex - ${hotel.name}`,
+          status: "ACTIVE",
+          outboundToken: `channex_${hotelId}_${Date.now()}`,
+          priceMultiplier: 1.0,
+        },
+      });
     }
 
     const propertyPayload: ChannexPropertyPayload = {
@@ -163,57 +278,20 @@ export class ChannexSyncService {
       this.logger.log(`[ChannexSync] Tạo mới Property thành công: ${channexPropertyId}`);
     }
 
-    // Xác định đơn vị tiền tệ và giá sàn an toàn dự phòng
-    const rateConversionMultiplier = resolveChannexRateMultiplier(
-      this.channexClient.getBaseUrl(),
-      effectiveCurrency,
-    );
-    const fallbackBasePrice = 500_000;
-
-    const fallbackRoomTypes: string[] = [];
-
-    // 3. BƯỚC 2: TẬP HỢP CÁC HẠNG PHÒNG TỪ PMS (ROOM TYPES)
-    const roomTypeMap = new Map<
-      string,
-      { count: number; defaultPrice: number; isFallbackPrice: boolean }
-    >();
-    for (const room of hotel.rooms) {
-      const type = room.type!.trim();
-      const current = roomTypeMap.get(type) || {
-        count: 0,
-        defaultPrice: 0,
-        isFallbackPrice: true,
-      };
-      current.count += 1;
-      if (room.price !== null && Number(room.price) > 0) {
-        current.defaultPrice = Number(room.price);
-        current.isFallbackPrice = false;
-      }
-      roomTypeMap.set(type, current);
-    }
-
-    for (const [roomType, stats] of roomTypeMap) {
-      if (stats.isFallbackPrice) {
-        stats.defaultPrice = fallbackBasePrice;
-        fallbackRoomTypes.push(roomType);
-        this.logger.warn(
-          `[ChannexSync] Hạng phòng "${roomType}" chưa có giá trong DB PMS. Tự động áp dụng giá sàn an toàn: ${fallbackBasePrice} ${effectiveCurrency}.`,
-        );
-      }
-    }
-
     const roomTypesSynced: SyncContentResult["roomTypesSynced"] = [];
     const ratePlansSynced: SyncContentResult["ratePlansSynced"] = [];
 
     // 4. BƯỚC 3: ĐỒNG BỘ TỪNG ROOM TYPE & RATE PLAN
-    for (const [roomType, stats] of roomTypeMap.entries()) {
+    for (const stats of roomTypeMap.values()) {
+      const roomType = stats.name;
+      const roomTypeKey = mappingKeys.get(stats.id)!;
       // Room Type Sync
       const rtMapping = await this.prisma.channexMapping.findUnique({
         where: {
           hotelId_kind_localId: {
             hotelId,
             kind: "room_type",
-            localId: roomType,
+            localId: roomTypeKey,
           },
         },
       });
@@ -258,7 +336,7 @@ export class ChannexSyncService {
             hotelId,
             channelConnectionId: channelConnection.id,
             kind: "room_type",
-            localId: roomType,
+            localId: roomTypeKey,
             channexId: channexRtId,
             metadata: { title: rtTitle, countOfRooms: stats.count },
           },
@@ -273,7 +351,7 @@ export class ChannexSyncService {
       });
 
       // Rate Plan Sync (Tuân thủ triết lý Channex Skill: 1 Standard Rate Plan / Room Type ban đầu)
-      const ratePlanCode = `${roomType}:STANDARD`;
+      const ratePlanCode = ratePlanKeys.get(stats.id)!;
       const rpMapping = await this.prisma.channexMapping.findUnique({
         where: {
           hotelId_kind_localId: {
@@ -372,7 +450,6 @@ export class ChannexSyncService {
         roomTypesInChannex: (readbackRoomTypes.data || []).length,
         ratePlansInChannex: (readbackRatePlans.data || []).length,
       },
-      fallbackRoomTypes: fallbackRoomTypes.length > 0 ? fallbackRoomTypes : undefined,
     };
   }
 

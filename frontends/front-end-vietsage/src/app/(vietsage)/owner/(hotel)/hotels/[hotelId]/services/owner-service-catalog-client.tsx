@@ -1064,7 +1064,6 @@ export function OwnerServiceCatalogClient({
         timer: 1300,
         showConfirmButton: false,
       });
-      router.refresh();
     } catch (error) {
       await Swal.fire({
         icon: "error",
@@ -1153,7 +1152,6 @@ export function OwnerServiceCatalogClient({
                 `Đã nhập dịch vụ từ Google Sheets thành công (${resCreates} tạo mới, ${resUpdates} cập nhật, ${resDisables} vô hiệu hóa).`,
               );
               refreshServiceCatalog();
-              router.refresh();
               setIsImporting(false);
             },
             onError: (err) => {
@@ -1275,7 +1273,6 @@ export function OwnerServiceCatalogClient({
         timer: 1300,
         showConfirmButton: false,
       });
-      router.refresh();
     } catch (error) {
       await Swal.fire({
         icon: "error",

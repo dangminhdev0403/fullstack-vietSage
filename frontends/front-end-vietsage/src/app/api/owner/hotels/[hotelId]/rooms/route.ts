@@ -21,9 +21,16 @@ function sanitizeCreateRoomPayload(payload: unknown): CreateHotelRoomInput | nul
 
   const input = payload as Record<string, unknown>;
   const roomNumber = typeof input.roomNumber === "string" ? input.roomNumber.trim() : "";
-  const price = typeof input.price === "number" ? input.price : Number(input.price);
+  const price = input.price === undefined ? undefined : Number(input.price);
+  const roomTypeId = typeof input.roomTypeId === "string" ? input.roomTypeId.trim() : "";
+  const newRoomType = input.newRoomType && typeof input.newRoomType === "object" && !Array.isArray(input.newRoomType)
+    ? input.newRoomType as Record<string, unknown> : null;
+  const type = typeof input.type === "string" ? input.type.trim() : "";
 
-  if (!roomNumber || !Number.isFinite(price) || price <= 0) {
+  if (!roomNumber || (price !== undefined && (!Number.isFinite(price) || price < 0)) ||
+      [Boolean(roomTypeId), Boolean(newRoomType), Boolean(type)].filter(Boolean).length !== 1 ||
+      (newRoomType && (typeof newRoomType.name !== "string" || !newRoomType.name.trim() ||
+        !Number.isFinite(Number(newRoomType.basePrice)) || Number(newRoomType.basePrice) <= 0))) {
     return null;
   }
 
@@ -38,8 +45,10 @@ function sanitizeCreateRoomPayload(payload: unknown): CreateHotelRoomInput | nul
   return {
     roomNumber,
     ...(typeof input.floor === "string" && input.floor.trim() ? { floor: input.floor.trim() } : {}),
-    ...(typeof input.type === "string" && input.type.trim() ? { type: input.type.trim() } : {}),
-    price,
+    ...(type ? { type } : {}),
+    ...(roomTypeId ? { roomTypeId } : {}),
+    ...(newRoomType ? { newRoomType: { name: String(newRoomType.name).trim(), basePrice: Number(newRoomType.basePrice) } } : {}),
+    ...(price !== undefined ? { price } : {}),
     ...(maxActiveGuestDevices !== undefined ? { maxActiveGuestDevices } : {}),
   };
 }
@@ -102,7 +111,7 @@ export async function POST(request: Request, context: Params) {
 
   const createRoomPayload = sanitizeCreateRoomPayload(payload);
   if (!createRoomPayload) {
-    return validationErrorResponse("Số phòng và giá phòng là bắt buộc");
+    return validationErrorResponse("Nhập số phòng, chọn loại phòng hoặc tạo loại phòng mới với giá gốc");
   }
 
   try {

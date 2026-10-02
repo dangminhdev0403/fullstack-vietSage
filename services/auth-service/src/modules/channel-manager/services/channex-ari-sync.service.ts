@@ -61,6 +61,7 @@ export class ChannexAriSyncService {
       endDate?: string;
       roomType?: string;
       ratePlanCode?: string;
+      availabilityOnly?: boolean;
       apiKey?: string;
     } = {},
   ): Promise<AriPushResult> {
@@ -139,16 +140,18 @@ export class ChannexAriSyncService {
       );
     }
     const channexPropertyId = propertyMapping.channexId;
-    const remoteProperty = await this.channexClient.getProperty(channexPropertyId, options.apiKey);
-    const targetCurrency =
-      remoteProperty.data?.attributes?.currency ?? remoteProperty.data?.currency;
+    const remoteProperty = options.availabilityOnly
+      ? null
+      : await this.channexClient.getProperty(channexPropertyId, options.apiKey);
+    const targetCurrency = options.availabilityOnly
+      ? "NOT_APPLICABLE"
+      : (remoteProperty?.data?.attributes?.currency ?? remoteProperty?.data?.currency);
     if (!targetCurrency) {
       throw new BadRequestException("Property Channex chưa xác định tiền tệ");
     }
-    const rateConversionMultiplier = resolveChannexRateMultiplier(
-      this.channexClient.getBaseUrl(),
-      targetCurrency,
-    );
+    const rateConversionMultiplier = options.availabilityOnly
+      ? 1
+      : resolveChannexRateMultiplier(this.channexClient.getBaseUrl(), targetCurrency);
 
     // 2. Lấy toàn bộ room_type mappings và rate_plan mappings
     const allMappings = await this.prisma.channexMapping.findMany({
@@ -166,7 +169,10 @@ export class ChannexAriSyncService {
       }
     }
 
-    if (roomTypeMappingMap.size === 0 || ratePlanMappingMap.size === 0) {
+    if (
+      roomTypeMappingMap.size === 0 ||
+      (!options.availabilityOnly && ratePlanMappingMap.size === 0)
+    ) {
       throw new BadRequestException(
         "Chưa có Room Type hoặc Rate Plan mapping cho Channex. Vui lòng chạy Content Sync trước.",
       );
@@ -183,25 +189,111 @@ export class ChannexAriSyncService {
     const availabilityValues: ChannexAvailabilityValue[] = [];
     const restrictionValues: ChannexRestrictionValue[] = [];
 
-    // 3.1. Tìm giá sàn cơ sở của khách sạn để fallback an toàn nếu ngày nào đó chưa có giá
-    const sampleRoomWithPrice = await this.prisma.room.findFirst({
-      where: {
-        hotelId,
-        price: { gt: 0 },
-      },
-      select: { price: true },
+    const catalog = await this.prisma.roomType.findMany({
+      where: { hotelId },
+      select: { id: true, name: true, normalizedKey: true, basePrice: true },
     });
-    const safeFloorRate = sampleRoomWithPrice?.price
-      ? Math.round(Number(sampleRoomWithPrice.price))
-      : 500_000;
+    const seenGridTypes = new Set<string>();
+    for (const rt of grid.roomTypes) {
+      const key = rt.roomType.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
+      if (seenGridTypes.has(key)) {
+        throw new BadRequestException(
+          `Hạng phòng "${rt.roomType}" có nhiều cách viết trong kho phòng. Đối soát trước khi đẩy ARI`,
+        );
+      }
+      seenGridTypes.add(key);
+      const type = catalog.find((item) => item.normalizedKey === key);
+      if (type) {
+        const mappingIds = new Set(
+          Array.from(roomTypeMappingMap.entries())
+            .filter(
+              ([mappingKey]) =>
+                mappingKey === type.id ||
+                mappingKey.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase() === key,
+            )
+            .map(([, remoteId]) => remoteId),
+        );
+        if (mappingIds.size > 1) {
+          throw new BadRequestException(
+            `Mapping Channex hạng phòng "${rt.roomType}" bị xung đột. Đối soát trước khi đẩy ARI`,
+          );
+        }
+      }
+      if (options.availabilityOnly) continue;
+      if (
+        !type ||
+        type.basePrice === null ||
+        Number(type.basePrice) <= 0 ||
+        rt.days.some(
+          (day) =>
+            day.date >= today && (day.rate === null || !Number.isFinite(day.rate) || day.rate <= 0),
+        )
+      ) {
+        throw new BadRequestException(
+          `Hạng phòng "${rt.roomType}" chưa có giá gốc hợp lệ. Cập nhật danh mục loại phòng trước khi đẩy ARI`,
+        );
+      }
+      const legacyRates = Array.from(ratePlanMappingMap.entries()).filter(
+        ([key]) =>
+          key.endsWith(":STANDARD") &&
+          key.slice(0, -9).normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase() ===
+            type.normalizedKey,
+      );
+      const catalogRate = ratePlanMappingMap.get(`${type.id}:STANDARD`);
+      if (
+        legacyRates.length > 1 ||
+        (legacyRates.length && catalogRate && legacyRates[0][1] !== catalogRate)
+      ) {
+        throw new BadRequestException(
+          `Mapping gói giá Channex "${rt.roomType}" bị xung đột. Đối soát trước khi đẩy ARI`,
+        );
+      }
+    }
+
+    // Resolve every mapping before sending availability; a later missing rate plan must not leave a partial push.
+    const mappingsByType = new Map<string, { roomTypeId: string; ratePlanId?: string }>();
+    for (const rt of grid.roomTypes) {
+      const normalizedKey = rt.roomType.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
+      const catalogType = catalog.find((item) => item.normalizedKey === normalizedKey);
+      const legacyKey = Array.from(roomTypeMappingMap.keys()).find(
+        (key) => key.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase() === normalizedKey,
+      );
+      const mappingKey = legacyKey ?? catalogType?.id ?? rt.roomType;
+      const roomTypeId = roomTypeMappingMap.get(mappingKey);
+      if (!roomTypeId) {
+        throw new BadRequestException(
+          `Hạng phòng ${rt.roomType} chưa có mapping Channex. Đồng bộ nội dung trước`,
+        );
+      }
+      let ratePlanId: string | undefined;
+      if (!options.availabilityOnly) {
+        const code = options.ratePlanCode || "STANDARD";
+        ratePlanId =
+          ratePlanMappingMap.get(`${mappingKey}:${code}`) ||
+          ratePlanMappingMap.get(`${mappingKey}:STANDARD`) ||
+          ratePlanMappingMap.get(`${catalogType?.id}:STANDARD`) ||
+          ratePlanMappingMap.get(
+            Array.from(ratePlanMappingMap.keys()).find(
+              (key) =>
+                key.endsWith(":STANDARD") &&
+                key.slice(0, -9).normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase() ===
+                  normalizedKey,
+            ) ?? "",
+          );
+        if (!ratePlanId) {
+          throw new BadRequestException(
+            `Hạng phòng ${rt.roomType} chưa có mapping gói giá Channex. Đồng bộ nội dung trước`,
+          );
+        }
+      }
+      mappingsByType.set(rt.roomType, { roomTypeId, ratePlanId });
+    }
 
     // 4. Xử lý từng hạng phòng: nén khoảng ngày liên tiếp (Run-length encoding)
     for (const rt of grid.roomTypes) {
-      const channexRoomTypeId = roomTypeMappingMap.get(rt.roomType);
-      if (!channexRoomTypeId) {
-        this.logger.warn(`Bỏ qua hạng phòng ${rt.roomType} vì chưa có Channex mapping`);
-        continue;
-      }
+      const mapping = mappingsByType.get(rt.roomType);
+      if (!mapping) continue;
+      const channexRoomTypeId = mapping.roomTypeId;
 
       // 4.1. Availability: Lọc bỏ ngày quá khứ, sau đó nén dải ngày
       const rawAvlDays = rt.days
@@ -231,31 +323,16 @@ export class ChannexAriSyncService {
         }
       }
 
+      if (options.availabilityOnly) continue;
       // 4.2. Restrictions: Lọc bỏ ngày quá khứ, sau đó nén dải ngày
-      const targetRatePlanCode = options.ratePlanCode || "STANDARD";
-      const fullRatePlanKey = `${rt.roomType}:${targetRatePlanCode}`;
-      const channexRatePlanId =
-        ratePlanMappingMap.get(fullRatePlanKey) ||
-        ratePlanMappingMap.get(`${rt.roomType}:STANDARD`);
-
-      if (!channexRatePlanId) {
-        this.logger.warn(`Không tìm thấy Rate Plan Channex cho ${fullRatePlanKey}`);
-        continue;
-      }
+      const channexRatePlanId = mapping.ratePlanId!;
 
       const rawRestrictionDays = rt.days
         .filter((d) => d.date >= today)
         .map((d) => {
-          let resolvedRate = d.rate;
-          if (resolvedRate === null || resolvedRate <= 0) {
-            resolvedRate = safeFloorRate;
-            this.logger.warn(
-              `[ChannexAriSync] Hạng phòng ${rt.roomType} ngày ${d.date} chưa có giá tùy biến, tự động bù giá cơ sở an toàn: ${resolvedRate} VND`,
-            );
-          }
           return {
             date: d.date,
-            rate: Math.round(resolvedRate * rateConversionMultiplier),
+            rate: Math.round(d.rate! * rateConversionMultiplier),
             min_stay_arrival: d.minStayArrival,
             stop_sell: d.stopSell,
             closed_to_arrival: d.closedToArrival,
@@ -333,28 +410,30 @@ export class ChannexAriSyncService {
         (value) => readbackAvl.data?.[value.room_type_id]?.[sampleDate] === value.availability,
       );
 
-      const readbackRest = await this.channexClient.getRestrictions(
-        channexPropertyId,
-        sampleDate,
-        sampleDate,
-        "rate,min_stay_arrival,stop_sell",
-        options.apiKey,
-      );
-      const expectedRestrictions = restrictionValues.filter((value) =>
-        this.rangeContains(value, sampleDate),
-      );
-      restMatch = expectedRestrictions.every((value) => {
-        const actual = readbackRest.data?.[value.rate_plan_id]?.[sampleDate];
-        return (
-          actual !== undefined &&
-          (value.rate === undefined ||
-            Math.round(Number(actual.rate) * channexMinorUnitScale(targetCurrency)) ===
-              value.rate) &&
-          (value.min_stay_arrival === undefined ||
-            Number(actual.min_stay_arrival) === value.min_stay_arrival) &&
-          (value.stop_sell === undefined || actual.stop_sell === value.stop_sell)
+      if (restrictionValues.length) {
+        const readbackRest = await this.channexClient.getRestrictions(
+          channexPropertyId,
+          sampleDate,
+          sampleDate,
+          "rate,min_stay_arrival,stop_sell",
+          options.apiKey,
         );
-      });
+        const expectedRestrictions = restrictionValues.filter((value) =>
+          this.rangeContains(value, sampleDate),
+        );
+        restMatch = expectedRestrictions.every((value) => {
+          const actual = readbackRest.data?.[value.rate_plan_id]?.[sampleDate];
+          return (
+            actual !== undefined &&
+            (value.rate === undefined ||
+              Math.round(Number(actual.rate) * channexMinorUnitScale(targetCurrency)) ===
+                value.rate) &&
+            (value.min_stay_arrival === undefined ||
+              Number(actual.min_stay_arrival) === value.min_stay_arrival) &&
+            (value.stop_sell === undefined || actual.stop_sell === value.stop_sell)
+          );
+        });
+      }
     } catch (readErr: any) {
       avlMatch = false;
       restMatch = false;

@@ -18,6 +18,15 @@ interface InventoryGridProps {
   roleScope?: "owner" | "admin";
 }
 
+function getTodayInVietnam(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 function formatDate(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -65,9 +74,8 @@ function parseFormattedNumber(val: string): number {
 }
 
 export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridProps) {
-  const [startDate, setStartDate] = useState<string>(() =>
-    formatDate(new Date()),
-  );
+  const todayStr = useMemo(() => getTodayInVietnam(), []);
+  const [startDate, setStartDate] = useState<string>(todayStr);
   const [visibleDays, setVisibleDays] = useState<7 | 14>(7);
   const endDate = useMemo(
     () => addDays(startDate, visibleDays - 1),
@@ -140,7 +148,7 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
   };
 
   const handleGoToday = () => {
-    setStartDate(formatDate(new Date()));
+    setStartDate(todayStr);
   };
 
   const toggleRoomTypeCollapse = (rtId: string) => {
@@ -164,6 +172,13 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
     field: "rate" | "available",
     initialVal: number | null,
   ) => {
+    if (date < todayStr) {
+      toast.error("Không thể chỉnh sửa dữ liệu của những ngày đã qua.", {
+        id: "past-date-blocked",
+      });
+      return;
+    }
+
     const key = `${rtId}_${date}_${field}`;
     setEditingCellKey(key);
     if (field === "rate") {
@@ -181,6 +196,10 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
     currentVal: number | null,
   ) => {
     if (!editingCellKey) return;
+    if (date < todayStr) {
+      setEditingCellKey(null);
+      return;
+    }
 
     if (field === "rate" && editingValue.trim() === "") {
       setEditingCellKey(null);
@@ -261,6 +280,13 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
   // Toggle Stop Sell (auto-save directly)
   const toggleStopSell = async (rtId: string, day: DayInventory) => {
     if (isSavingChanges || isFetching) return;
+    if (day.date < todayStr) {
+      toast.error("Không thể thay đổi trạng thái bán của những ngày đã qua.", {
+        id: "past-date-blocked",
+      });
+      return;
+    }
+
     const roomType = roomTypes.find((item) => item.roomTypeId === rtId);
     if (!roomType) return;
 
@@ -304,18 +330,95 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
     }
   };
 
+  // Quick batch toggle Stop Sell for all visible dates of a room type
+  const handleQuickBatchStopSell = async (
+    rtId: string,
+    shouldStopSell: boolean,
+  ) => {
+    if (isSavingChanges || isFetching) return;
+
+    const roomType = roomTypes.find((item) => item.roomTypeId === rtId);
+    if (!roomType) return;
+
+    // Filter only visible future/today dates
+    const eligibleDays = roomType.days.filter((d) => d.date >= todayStr);
+    if (eligibleDays.length === 0) {
+      toast.info("Không có ngày nào hợp lệ để cập nhật.", {
+        id: `quick-empty-${rtId}`,
+      });
+      return;
+    }
+
+    // Days that actually need changing
+    const targets = eligibleDays.filter((d) => d.stopSell !== shouldStopSell);
+    if (targets.length === 0) {
+      toast.info(
+        shouldStopSell
+          ? `Tất cả các ngày hiển thị của "${roomType.roomTypeName}" đều đã đóng bán.`
+          : `Tất cả các ngày hiển thị của "${roomType.roomTypeName}" đều đang mở bán.`,
+        { id: `quick-noop-${rtId}` },
+      );
+      return;
+    }
+
+    // Check if opening sell but base rate is missing
+    if (!shouldStopSell) {
+      const missingRate = targets.some(
+        (d) => (d.rate ?? roomType.basePrice) === null,
+      );
+      if (missingRate) {
+        toast.error(
+          `Hạng phòng "${roomType.roomTypeName}" chưa có giá gốc, không thể mở bán.`,
+          {
+            id: `quick-err-${rtId}`,
+          },
+        );
+        return;
+      }
+    }
+
+    const cellKey = `${rtId}_batch_stopsell`;
+    setSavingCellKey(cellKey);
+
+    const items = targets.map((d) => ({
+      roomTypeId: rtId,
+      date: d.date,
+      rate: d.rate ?? roomType.basePrice ?? 0,
+      stopSell: shouldStopSell,
+      minStay: d.minStay,
+    }));
+
+    try {
+      await updateRestrictions(items);
+      toast.success(
+        shouldStopSell
+          ? `Đã đóng bán ${items.length} ngày cho "${roomType.roomTypeName}"`
+          : `Đã mở bán ${items.length} ngày cho "${roomType.roomTypeName}"`,
+        { id: `quick-success-${rtId}`, duration: 2500 },
+      );
+      await refetch();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Không thể cập nhật nhanh";
+      toast.error(msg, { id: `quick-err-${rtId}` });
+    } finally {
+      setSavingCellKey(null);
+    }
+  };
+
   const daysHeader = useMemo(() => {
     const list = [];
     for (let dayOffset = 0; dayOffset < visibleDays; dayOffset++) {
       const dStr = addDays(startDate, dayOffset);
+      const isPast = dStr < todayStr;
       list.push({
         dateStr: dStr,
         ...formatDayOfWeek(dStr),
-        isToday: dStr === formatDate(new Date()),
+        isToday: dStr === todayStr,
+        isPast,
       });
     }
     return list;
-  }, [startDate, visibleDays]);
+  }, [startDate, visibleDays, todayStr]);
 
   return (
     <div className="min-w-0 space-y-4 [&_button]:focus-visible:outline-2 [&_button]:focus-visible:outline-offset-2 [&_button]:focus-visible:outline-emerald-700 [&_button]:disabled:cursor-not-allowed [&_button]:disabled:opacity-50">
@@ -454,6 +557,10 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
               <span className="h-2 w-2 rounded-full bg-rose-500" />
               Đóng bán
             </span>
+            <span className="inline-flex items-center gap-1 font-medium text-slate-500">
+              <VsIcon name="lock" className="text-xs text-slate-400" />
+              Đã qua (khóa)
+            </span>
           </div>
         </div>
         <p className="sm:hidden text-slate-400">Vuốt ngang bảng để xem các ngày tiếp theo.</p>
@@ -511,15 +618,22 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
                       className={`min-w-[140px] border-r border-slate-200 px-3 py-2.5 text-center font-semibold last:border-r-0 ${
                         day.isToday
                           ? "border-b-2 border-b-emerald-700 bg-emerald-100/90 text-emerald-950"
-                          : day.isWeekend
-                            ? "border-b border-slate-300 bg-amber-100/40 text-amber-950"
-                            : "border-b border-slate-300 bg-slate-100/70 text-slate-800"
+                          : day.isPast
+                            ? "border-b border-slate-200 bg-slate-100/80 text-slate-400"
+                            : day.isWeekend
+                              ? "border-b border-slate-300 bg-amber-100/40 text-amber-950"
+                              : "border-b border-slate-300 bg-slate-100/70 text-slate-800"
                       }`}
                     >
                       <div className="flex items-center justify-center gap-1">
                         {day.isToday ? (
                           <span className="inline-block rounded bg-emerald-700 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">
                             Hôm nay
+                          </span>
+                        ) : day.isPast ? (
+                          <span className="inline-flex items-center gap-0.5 rounded bg-slate-200/90 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                            <VsIcon name="lock" className="text-[11px]" />
+                            Đã qua
                           </span>
                         ) : (
                           <span className={`text-xs uppercase tracking-wider ${
@@ -532,9 +646,11 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
                       <div className={`mt-0.5 text-sm ${
                         day.isToday
                           ? "font-black text-emerald-950"
-                          : day.isWeekend
-                            ? "font-extrabold text-amber-950"
-                            : "font-black text-slate-900"
+                          : day.isPast
+                            ? "font-bold text-slate-400 line-through decoration-slate-300"
+                            : day.isWeekend
+                              ? "font-extrabold text-amber-950"
+                              : "font-black text-slate-900"
                       }`}>
                         {day.dayNum}
                       </div>
@@ -575,6 +691,36 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
                               #{rt.roomTypeCode}
                             </span>
                           )}
+
+                          {/* Quick row actions in room header banner */}
+                          <div className="inline-flex items-center gap-1.5 pl-2 sm:ml-2">
+                            <button
+                              type="button"
+                              disabled={isSavingChanges || isFetching}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void handleQuickBatchStopSell(rt.roomTypeId, true);
+                              }}
+                              title={`Đóng bán toàn bộ ${visibleDays} ngày của ${rt.roomTypeName}`}
+                              className="inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-rose-200 bg-white px-2 py-0.5 text-[11px] font-bold text-rose-700 hover:bg-rose-50 hover:border-rose-300 active:scale-95 transition shadow-2xs cursor-pointer disabled:opacity-50"
+                            >
+                              <VsIcon name="block" className="text-xs" />
+                              <span>{savingCellKey === `${rt.roomTypeId}_batch_stopsell` ? "Đang xử lý..." : "Đóng nhanh"}</span>
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isSavingChanges || isFetching}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void handleQuickBatchStopSell(rt.roomTypeId, false);
+                              }}
+                              title={`Mở bán toàn bộ ${visibleDays} ngày của ${rt.roomTypeName}`}
+                              className="inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-emerald-200 bg-white px-2 py-0.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 active:scale-95 transition shadow-2xs cursor-pointer disabled:opacity-50"
+                            >
+                              <VsIcon name="check_circle" className="text-xs" />
+                              <span>{savingCellKey === `${rt.roomTypeId}_batch_stopsell` ? "Đang xử lý..." : "Mở nhanh"}</span>
+                            </button>
+                          </div>
                         </div>
                       </th>
                     </tr>
@@ -593,10 +739,26 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
                             </div>
                           </th>
                           {rt.days.map((day) => {
+                            const isPast = day.date < todayStr;
                             const cellKey = rt.roomTypeId + "_" + day.date + "_available";
                             const isEditing = editingCellKey === cellKey;
                             const isSaving = savingCellKey === cellKey;
                             const value = day.available;
+
+                            if (isPast) {
+                              return (
+                                <td key={day.date} className="border-r border-slate-200 px-2 py-1.5 text-center bg-slate-50/70 last:border-r-0">
+                                  <div
+                                    title="Ngày đã qua — Đã khóa, không cho chỉnh sửa"
+                                    className="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-100/70 px-2 py-1.5 text-sm font-semibold text-slate-400 cursor-not-allowed select-none"
+                                  >
+                                    <VsIcon name="lock" className="text-xs text-slate-400" />
+                                    <span>{value}</span>
+                                    <span className="text-xs text-slate-400">/ {rt.totalRooms}</span>
+                                  </div>
+                                </td>
+                              );
+                            }
 
                             return (
                               <td key={day.date} className="border-r border-slate-200 px-2 py-1.5 text-center last:border-r-0">
@@ -664,10 +826,25 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
                             </div>
                           </th>
                           {rt.days.map((day) => {
+                            const isPast = day.date < todayStr;
                             const cellKey = rt.roomTypeId + "_" + day.date + "_rate";
                             const isEditing = editingCellKey === cellKey;
                             const isSaving = savingCellKey === cellKey;
                             const value = day.rate;
+
+                            if (isPast) {
+                              return (
+                                <td key={day.date} className="border-r border-slate-200 px-2 py-1.5 text-center bg-slate-50/70 last:border-r-0">
+                                  <div
+                                    title="Ngày đã qua — Đã khóa, không cho chỉnh sửa"
+                                    className="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-100/70 px-2 py-1.5 text-sm font-semibold text-slate-400 cursor-not-allowed select-none"
+                                  >
+                                    <VsIcon name="lock" className="text-xs text-slate-400" />
+                                    <span>{value === null ? "—" : formatCurrencyFull(value)}</span>
+                                  </div>
+                                </td>
+                              );
+                            }
 
                             return (
                               <td key={day.date} className="border-r border-slate-200 px-2 py-1.5 text-center last:border-r-0">
@@ -725,15 +902,61 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
                         <tr className="border-b-2 border-slate-300 bg-white hover:bg-slate-50/50 transition-colors">
                           <th
                             scope="row"
-                            className="sticky left-0 z-10 border-r border-slate-300 bg-white p-3 text-sm font-bold text-slate-800 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)]"
+                            className="sticky left-0 z-10 border-r border-slate-300 bg-white p-2.5 sm:p-3 text-sm font-bold text-slate-800 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)]"
                           >
-                            <div className="flex items-center gap-2 pl-4">
-                              <span className="h-2 w-2 rounded-full bg-amber-600" />
-                              <span>Trạng thái bán</span>
+                            <div className="flex flex-col gap-1.5 pl-2 sm:pl-4">
+                              <div className="flex items-center gap-2">
+                                <span className="h-2 w-2 rounded-full bg-amber-600" />
+                                <span>Trạng thái bán</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 pt-0.5">
+                                <button
+                                  type="button"
+                                  disabled={isSavingChanges || isFetching}
+                                  onClick={() => void handleQuickBatchStopSell(rt.roomTypeId, true)}
+                                  title={`Đóng bán toàn bộ các ngày hiển thị của ${rt.roomTypeName}`}
+                                  className="inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-700 hover:bg-rose-100 hover:border-rose-300 active:scale-95 transition shadow-2xs cursor-pointer disabled:opacity-50"
+                                >
+                                  <VsIcon name="block" className="text-xs" />
+                                  <span>{savingCellKey === `${rt.roomTypeId}_batch_stopsell` ? "Đang xử lý..." : "Đóng nhanh"}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isSavingChanges || isFetching}
+                                  onClick={() => void handleQuickBatchStopSell(rt.roomTypeId, false)}
+                                  title={`Mở bán toàn bộ các ngày hiển thị của ${rt.roomTypeName}`}
+                                  className="inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 active:scale-95 transition shadow-2xs cursor-pointer disabled:opacity-50"
+                                >
+                                  <VsIcon name="check_circle" className="text-xs" />
+                                  <span>{savingCellKey === `${rt.roomTypeId}_batch_stopsell` ? "Đang xử lý..." : "Mở nhanh"}</span>
+                                </button>
+                              </div>
                             </div>
                           </th>
                           {rt.days.map((day) => {
+                            const isPast = day.date < todayStr;
                             const isSaving = savingCellKey === rt.roomTypeId + "_" + day.date + "_stopsell";
+
+                            if (isPast) {
+                              return (
+                                <td
+                                  key={day.date}
+                                  className="border-r border-slate-200 px-2 py-2 text-center bg-slate-50/70 last:border-r-0"
+                                >
+                                  <div className="mb-1.5 whitespace-nowrap text-xs font-semibold text-slate-400 inline-flex items-center gap-1">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                                    <span>{day.stopSell ? "Đã đóng" : "Mở"}</span>
+                                  </div>
+                                  <div
+                                    title="Ngày đã qua — Đã khóa, không cho chỉnh sửa"
+                                    className="inline-flex min-h-8 w-full items-center justify-center gap-1 rounded-lg border border-slate-200 bg-slate-100/80 px-2 text-xs font-semibold text-slate-400 cursor-not-allowed select-none"
+                                  >
+                                    <VsIcon name="lock" className="text-xs text-slate-400" />
+                                    <span>Khóa</span>
+                                  </div>
+                                </td>
+                              );
+                            }
 
                             return (
                               <td

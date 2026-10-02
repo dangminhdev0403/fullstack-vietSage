@@ -259,9 +259,12 @@ export interface SimulatedBookingItem {
   otaReservationCode: string | null;
   guestName: string;
   guestPhone: string | null;
+  roomId?: string | null;
   roomType: string | null;
   roomNumber: string | null;
   status: string;
+  stayId?: string | null;
+  stayStatus?: string | null;
   checkInDate: string | null;
   checkOutDate: string | null;
   amount: number | null;

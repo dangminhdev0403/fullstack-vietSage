@@ -1,22 +1,34 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import Swal from "sweetalert2";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { showErrorAlert, showSuccessAlert } from "@/libs/swal";
 import { useChannex } from "../hooks/use-channel-manager";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import type { SimulatedBookingItem } from "../types/channel-manager.types";
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import type { HotelOpsPage, HotelRoomSummary } from "@/features/hotel-ops/types/hotel-ops-contract";
 
 interface OtaBookingsTabProps {
   hotelId: string;
   roleScope?: "owner" | "admin";
   onSwitchToAri?: () => void;
+  baseRoutePrefix?: string;
 }
 
-type StatusFilter = "ALL" | "CONFIRMED" | "CANCELLED" | "CHECKED_IN";
+type StatusFilter =
+  | "ALL"
+  | "TODAY_ARRIVALS"
+  | "TODAY_DEPARTURES"
+  | "UNASSIGNED"
+  | "CONFIRMED"
+  | "CHECKED_IN"
+  | "CANCELLED";
 
 interface ChannelMeta {
   name: string;
@@ -135,7 +147,9 @@ function calculateNights(checkIn: string | null, checkOut: string | null): numbe
 export function OtaBookingsTab({
   hotelId,
   roleScope = "owner",
+  baseRoutePrefix = "/hotels",
 }: OtaBookingsTabProps) {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const {
     simulatedBookings,
@@ -152,19 +166,185 @@ export function OtaBookingsTab({
   const [channelFilter, setChannelFilter] = useState<string>("ALL");
   const [selectedBooking, setSelectedBooking] = useState<SimulatedBookingItem | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [assigningBooking, setAssigningBooking] = useState<SimulatedBookingItem | null>(null);
+  const [selectedRoomIdToAssign, setSelectedRoomIdToAssign] = useState<string>("");
+
+  const todayYmd = useMemo(() => {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+  }, []);
+
+  // Query available rooms for quick assignment
+  const { data: availableRooms = [], refetch: refetchAvailableRooms } = useQuery({
+    queryKey: ["hotel-available-rooms-quick-assign", hotelId],
+    queryFn: async () => {
+      const res = await requestInternalApiEnvelope<HotelOpsPage<HotelRoomSummary>>(
+        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/rooms?status=AVAILABLE&limit=100`,
+        { method: "GET" },
+      );
+      return res.data?.items ?? [];
+    },
+    enabled: Boolean(hotelId && assigningBooking),
+    staleTime: 5000,
+  });
+
+  // Fast 1-Click Check-In Handler
+  const handleFastCheckIn = async (b: SimulatedBookingItem, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!b.reservationId) return;
+
+    if (!b.roomNumber && !b.roomId) {
+      setAssigningBooking(b);
+      setSelectedRoomIdToAssign("");
+      void refetchAvailableRooms();
+      return;
+    }
+
+    const confirmation = await Swal.fire({
+      icon: "question",
+      title: "Nhận phòng cho khách OTA?",
+      html: `
+        <div style="text-align:left;font-size:14px;color:#334155;line-height:1.6">
+          <p>Khách hàng: <strong>${b.guestName}</strong></p>
+          <p>Kênh: <strong>${b.otaName}</strong></p>
+          <p>Phòng: <strong style="color:#059669;font-size:16px">Phòng ${b.roomNumber}</strong> (${b.roomType || "Tiêu chuẩn"})</p>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: "Nhận phòng",
+      cancelButtonText: "Hủy",
+      confirmButtonColor: "#059669",
+    });
+
+    if (!confirmation.isConfirmed) return;
+
+    setIsProcessing(true);
+    try {
+      const res = await requestInternalApiEnvelope<{
+        accessCode: string | null;
+        reservation: { id: string; status: string };
+        stay: { id: string; status: string };
+      }>(
+        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(b.reservationId)}/check-in`,
+        { method: "POST" },
+      );
+
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
+      await refreshSimulatedBookings();
+      if (selectedBooking?.bookingId === b.bookingId) {
+        setSelectedBooking((prev) => (prev ? { ...prev, status: "CHECKED_IN" } : null));
+      }
+
+      await Swal.fire({
+        icon: "success",
+        title: "Nhận phòng thành công",
+        html: `
+          <div style="text-align:left;font-size:14px;color:#334155;line-height:1.6">
+            <p>Khách <strong>${b.guestName}</strong> đã nhận <strong>Phòng ${b.roomNumber}</strong>.</p>
+            ${res.data?.accessCode ? `<p style="margin-top:8px">Mã GuestOS: <span style="font-family:monospace;font-size:15px;font-weight:700;color:#2563eb;background:#eff6ff;padding:2px 8px;border-radius:6px;border:1px solid #bfdbfe">${res.data.accessCode}</span></p>` : ""}
+          </div>
+        `,
+        confirmButtonText: "OK",
+        confirmButtonColor: "#00003c",
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Không thể thực hiện check-in.";
+      await showErrorAlert("Lỗi nhận phòng", msg);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Assign Room & Check-In in 1 go
+  const handleAssignAndCheckIn = async () => {
+    if (!assigningBooking || !selectedRoomIdToAssign) {
+      toast.error("Vui lòng chọn phòng để xếp cho khách");
+      return;
+    }
+
+    const chosenRoom = availableRooms.find((r) => r.id === selectedRoomIdToAssign);
+    const roomNumber = chosenRoom?.roomNumber || chosenRoom?.id || "mới";
+
+    setIsProcessing(true);
+    try {
+      await requestInternalApiEnvelope(
+        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(assigningBooking.reservationId)}/room`,
+        {
+          method: "PUT",
+          body: { roomId: selectedRoomIdToAssign },
+        },
+      );
+
+      const res = await requestInternalApiEnvelope<{
+        accessCode: string | null;
+      }>(
+        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(assigningBooking.reservationId)}/check-in`,
+        { method: "POST" },
+      );
+
+      const targetBooking = assigningBooking;
+      setAssigningBooking(null);
+      setSelectedRoomIdToAssign("");
+
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
+      await refreshSimulatedBookings();
+
+      await Swal.fire({
+        icon: "success",
+        title: "Xếp phòng thành công",
+        html: `
+          <div style="text-align:left;font-size:14px;color:#334155;line-height:1.6">
+            <p>Đã xếp <strong>Phòng ${roomNumber}</strong> cho khách <strong>${targetBooking.guestName}</strong>.</p>
+            ${res.data?.accessCode ? `<p style="margin-top:8px">Mã GuestOS: <span style="font-family:monospace;font-size:15px;font-weight:700;color:#2563eb;background:#eff6ff;padding:2px 8px;border-radius:6px;border:1px solid #bfdbfe">${res.data.accessCode}</span></p>` : ""}
+          </div>
+        `,
+        confirmButtonText: "OK",
+        confirmButtonColor: "#00003c",
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Không thể gán phòng và check-in.";
+      await showErrorAlert("Lỗi gán phòng", msg);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Check-Out navigation
+  const handleCheckOut = (b: SimulatedBookingItem, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const billingPrefix = baseRoutePrefix?.startsWith("/hotels") ? "/hotels" : "/owner/hotels";
+    const params = new URLSearchParams();
+    if (b.roomNumber) params.set("roomNumber", b.roomNumber);
+    if (b.stayId) params.set("stayId", b.stayId);
+    if (b.roomId) params.set("roomId", b.roomId);
+    router.push(`${billingPrefix}/${encodeURIComponent(hotelId)}/billing?${params.toString()}`);
+  };
+
+  // Registration shortcut
+  const handleOpenRegistration = (b: SimulatedBookingItem, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const roomsPrefix = baseRoutePrefix?.startsWith("/hotels") ? "/hotels" : "/owner/hotels";
+    router.push(`${roomsPrefix}/${encodeURIComponent(hotelId)}/rooms?flow=check-in`);
+  };
 
   // Close modal on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setSelectedBooking(null);
+        setAssigningBooking(null);
       }
     };
-    if (selectedBooking) {
+    if (selectedBooking || assigningBooking) {
       window.addEventListener("keydown", handleKeyDown);
       return () => window.removeEventListener("keydown", handleKeyDown);
     }
-  }, [selectedBooking]);
+  }, [selectedBooking, assigningBooking]);
 
   // Realtime WebSocket synchronization (data refetch only - toasts handled by page/layout notifier)
   const realtimeHandlers = useMemo(
@@ -213,15 +393,62 @@ export function OtaBookingsTab({
     return Array.from(set);
   }, [simulatedBookings]);
 
+  // Operational Counters
+  const todayArrivalsCount = useMemo(() => {
+    return simulatedBookings.filter((b) => {
+      const st = (b.status || "").toUpperCase();
+      return (
+        st === "CONFIRMED" &&
+        b.checkInDate &&
+        b.checkInDate <= todayYmd
+      );
+    }).length;
+  }, [simulatedBookings, todayYmd]);
+
+  const todayDeparturesCount = useMemo(() => {
+    return simulatedBookings.filter((b) => {
+      const st = (b.status || "").toUpperCase();
+      return (
+        (st === "CHECKED_IN" || b.stayStatus === "ACTIVE") &&
+        b.checkOutDate &&
+        b.checkOutDate <= todayYmd
+      );
+    }).length;
+  }, [simulatedBookings, todayYmd]);
+
+  const unassignedCount = useMemo(() => {
+    return simulatedBookings.filter((b) => {
+      const st = (b.status || "").toUpperCase();
+      return st === "CONFIRMED" && !b.roomNumber;
+    }).length;
+  }, [simulatedBookings]);
+
   // Filtered bookings
   const filteredBookings = useMemo(() => {
     return simulatedBookings.filter((b) => {
-      if (statusFilter !== "ALL") {
-        const normStatus = (b.status || "").toUpperCase();
-        if (statusFilter === "CONFIRMED" && normStatus !== "CONFIRMED") return false;
-        if (statusFilter === "CANCELLED" && normStatus !== "CANCELLED") return false;
-        if (statusFilter === "CHECKED_IN" && normStatus !== "CHECKED_IN") return false;
+      const normStatus = (b.status || "").toUpperCase();
+      if (statusFilter === "TODAY_ARRIVALS") {
+        if (normStatus !== "CONFIRMED" || !b.checkInDate || b.checkInDate > todayYmd) {
+          return false;
+        }
+      } else if (statusFilter === "TODAY_DEPARTURES") {
+        if (
+          (normStatus !== "CHECKED_IN" && b.stayStatus !== "ACTIVE") ||
+          !b.checkOutDate ||
+          b.checkOutDate > todayYmd
+        ) {
+          return false;
+        }
+      } else if (statusFilter === "UNASSIGNED") {
+        if (normStatus !== "CONFIRMED" || Boolean(b.roomNumber)) return false;
+      } else if (statusFilter === "CONFIRMED") {
+        if (normStatus !== "CONFIRMED") return false;
+      } else if (statusFilter === "CHECKED_IN") {
+        if (normStatus !== "CHECKED_IN" && b.stayStatus !== "ACTIVE") return false;
+      } else if (statusFilter === "CANCELLED") {
+        if (normStatus !== "CANCELLED") return false;
       }
+
       if (channelFilter !== "ALL") {
         if (b.otaName !== channelFilter) return false;
       }
@@ -239,7 +466,7 @@ export function OtaBookingsTab({
       }
       return true;
     });
-  }, [simulatedBookings, statusFilter, channelFilter, searchQuery]);
+  }, [simulatedBookings, statusFilter, channelFilter, searchQuery, todayYmd]);
 
   // Metric stats
   const stats = useMemo(() => {
@@ -273,28 +500,21 @@ export function OtaBookingsTab({
   }, [simulatedBookings]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Top Header & Actions */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-[#e5ddcd] bg-white p-6 shadow-xs">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 border border-emerald-200/80">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Đồng bộ 2 chiều Realtime</span>
-          </div>
-          <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#17201b]">
-            Đơn đặt phòng OTA & Lịch sử nhận phòng
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {!baseRoutePrefix.startsWith("/hotels") && (
+          <h2 className="text-xl font-bold tracking-tight text-[#17201b]">
+            Đơn đặt phòng OTA
           </h2>
-          <p className="mt-1 text-sm text-[#5a6760]">
-            Danh sách tất cả các đơn đặt phòng tự động tiếp nhận từ Booking.com, Trip.com, Agoda và các kênh phân phối.
-          </p>
-        </div>
+        )}
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 ml-auto">
           <button
             type="button"
             onClick={() => void refreshSimulatedBookings()}
             disabled={isLoadingSimulatedBookings}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition active:scale-95 disabled:opacity-50 cursor-pointer"
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             <VsIcon
               name="refresh"
@@ -307,59 +527,55 @@ export function OtaBookingsTab({
             type="button"
             onClick={handleManualDrain}
             disabled={pollFeed.isPending}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#003580] px-4.5 text-sm font-bold text-white shadow-xs hover:bg-[#002860] transition active:scale-95 disabled:opacity-50 cursor-pointer"
-            title="Kéo các thông báo đơn đặt phòng mới nhất từ hàng đợi Channex Feed"
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#003580] px-4 text-sm font-bold text-white shadow-xs hover:bg-[#002860] transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             <VsIcon
               name="cloud_download"
               className={`text-base ${pollFeed.isPending ? "animate-bounce" : ""}`}
             />
-            <span>{pollFeed.isPending ? "Đang kéo Feed..." : "Kéo Feed Channex"}</span>
+            <span>{pollFeed.isPending ? "Đang đồng bộ..." : "Đồng bộ Channex"}</span>
           </button>
         </div>
       </div>
 
       {/* Metric Summary Cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/70 via-white to-white p-5 shadow-2xs">
-          <div className="flex items-center justify-between text-blue-700">
-            <span className="text-xs font-bold uppercase tracking-wider text-blue-800">Tổng đơn OTA</span>
-            <span className="text-xl">📦</span>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-600">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Tổng đơn</span>
+            <span className="text-base">📦</span>
           </div>
-          <p className="mt-3 text-3xl font-extrabold text-blue-950">
+          <p className="mt-2 text-2xl font-extrabold text-slate-900">
             {stats.total}
           </p>
-          <p className="mt-1 text-xs text-blue-600 font-medium">Đơn đã tiếp nhận từ các sàn</p>
         </div>
 
-        <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/70 via-white to-white p-5 shadow-2xs">
+        <div className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-2xs">
           <div className="flex items-center justify-between text-emerald-700">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">Đang giữ phòng</span>
-            <span className="text-xl">🟢</span>
+            <span className="text-base">🟢</span>
           </div>
-          <p className="mt-3 text-3xl font-extrabold text-emerald-950">
+          <p className="mt-2 text-2xl font-extrabold text-emerald-950">
             {stats.confirmed}
           </p>
-          <p className="mt-1 text-xs text-emerald-600 font-medium">Đơn hợp lệ đang trừ kho phòng</p>
         </div>
 
-        <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-50/70 via-white to-white p-5 shadow-2xs">
+        <div className="rounded-2xl border border-rose-100 bg-white p-4 shadow-2xs">
           <div className="flex items-center justify-between text-rose-700">
-            <span className="text-xs font-bold uppercase tracking-wider text-rose-800">Đơn đã hủy</span>
-            <span className="text-xl">⚪</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-rose-800">Đã hủy</span>
+            <span className="text-base">⚪</span>
           </div>
-          <p className="mt-3 text-3xl font-extrabold text-rose-950">
+          <p className="mt-2 text-2xl font-extrabold text-rose-950">
             {stats.cancelled}
           </p>
-          <p className="mt-1 text-xs text-rose-600 font-medium">Đã tự động hoàn trả kho phòng</p>
         </div>
 
-        <div className="rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50/70 via-white to-white p-5 shadow-2xs">
+        <div className="rounded-2xl border border-amber-100 bg-white p-4 shadow-2xs">
           <div className="flex items-center justify-between text-amber-700">
             <span className="text-xs font-bold uppercase tracking-wider text-amber-800">Doanh thu dự kiến</span>
-            <span className="text-xl">💰</span>
+            <span className="text-base">💰</span>
           </div>
-          <div className="mt-3">
+          <div className="mt-2">
             {stats.revenueGbp > 0 && (
               <p className="text-2xl font-extrabold text-amber-950">
                 {new Intl.NumberFormat("en-US", { style: "currency", currency: "GBP" }).format(stats.revenueGbp)}
@@ -374,7 +590,6 @@ export function OtaBookingsTab({
               <p className="text-2xl font-extrabold text-amber-950">0 ₫</p>
             )}
           </div>
-          <p className="mt-1 text-xs text-amber-600 font-medium">Từ các đơn đang có hiệu lực</p>
         </div>
       </div>
 
@@ -406,14 +621,14 @@ export function OtaBookingsTab({
             )}
           </div>
 
-          {/* Status & Channel Filters */}
+          {/* Status & Operational Filters */}
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Status Segmented Tabs */}
-            <div className="inline-flex rounded-xl bg-slate-100 p-1 text-sm font-semibold">
+            <div className="inline-flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1 text-sm font-semibold">
               <button
                 type="button"
                 onClick={() => setStatusFilter("ALL")}
-                className={`rounded-lg px-3.5 py-1.5 transition cursor-pointer ${
+                className={`rounded-lg px-3 py-1.5 transition cursor-pointer ${
                   statusFilter === "ALL"
                     ? "bg-white text-slate-900 shadow-2xs font-bold"
                     : "text-slate-600 hover:text-slate-900"
@@ -421,10 +636,58 @@ export function OtaBookingsTab({
               >
                 Tất cả ({simulatedBookings.length})
               </button>
+
+              <button
+                type="button"
+                onClick={() => setStatusFilter("TODAY_ARRIVALS")}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer ${
+                  statusFilter === "TODAY_ARRIVALS"
+                    ? "bg-emerald-700 text-white shadow-2xs font-bold"
+                    : "text-emerald-800 hover:bg-emerald-50 font-bold"
+                }`}
+              >
+                <span>🛎️ Đến hôm nay</span>
+                <span className={`rounded-full px-1.5 py-0.2 text-xs ${statusFilter === "TODAY_ARRIVALS" ? "bg-white text-emerald-800 font-black" : "bg-emerald-100 text-emerald-800 font-bold"}`}>
+                  {todayArrivalsCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStatusFilter("TODAY_DEPARTURES")}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer ${
+                  statusFilter === "TODAY_DEPARTURES"
+                    ? "bg-blue-700 text-white shadow-2xs font-bold"
+                    : "text-blue-800 hover:bg-blue-50 font-bold"
+                }`}
+              >
+                <span>🚪 Trả hôm nay</span>
+                <span className={`rounded-full px-1.5 py-0.2 text-xs ${statusFilter === "TODAY_DEPARTURES" ? "bg-white text-blue-800 font-black" : "bg-blue-100 text-blue-800 font-bold"}`}>
+                  {todayDeparturesCount}
+                </span>
+              </button>
+
+              {unassignedCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("UNASSIGNED")}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer ${
+                    statusFilter === "UNASSIGNED"
+                      ? "bg-amber-600 text-white shadow-2xs font-bold"
+                      : "text-amber-800 hover:bg-amber-50 font-bold"
+                  }`}
+                >
+                  <span>⏳ Cần xếp phòng</span>
+                  <span className={`rounded-full px-1.5 py-0.2 text-xs ${statusFilter === "UNASSIGNED" ? "bg-white text-amber-800 font-black" : "bg-amber-100 text-amber-800 font-bold"}`}>
+                    {unassignedCount}
+                  </span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => setStatusFilter("CONFIRMED")}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 transition cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer ${
                   statusFilter === "CONFIRMED"
                     ? "bg-white text-emerald-800 shadow-2xs font-bold"
                     : "text-slate-600 hover:text-slate-900"
@@ -433,10 +696,11 @@ export function OtaBookingsTab({
                 <span className="h-2 w-2 rounded-full bg-emerald-500" />
                 <span>Giữ phòng ({stats.confirmed})</span>
               </button>
+
               <button
                 type="button"
                 onClick={() => setStatusFilter("CANCELLED")}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 transition cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer ${
                   statusFilter === "CANCELLED"
                     ? "bg-white text-rose-800 shadow-2xs font-bold"
                     : "text-slate-600 hover:text-slate-900"
@@ -445,11 +709,12 @@ export function OtaBookingsTab({
                 <span className="h-2 w-2 rounded-full bg-rose-400" />
                 <span>Đã hủy ({stats.cancelled})</span>
               </button>
+
               {stats.checkedIn > 0 && (
                 <button
                   type="button"
                   onClick={() => setStatusFilter("CHECKED_IN")}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 transition cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer ${
                     statusFilter === "CHECKED_IN"
                       ? "bg-white text-blue-800 shadow-2xs font-bold"
                       : "text-slate-600 hover:text-slate-900"
@@ -510,9 +775,7 @@ export function OtaBookingsTab({
                   <th className="py-4 px-5">Lịch lưu trú</th>
                   <th className="py-4 px-5">Tổng tiền</th>
                   <th className="py-4 px-5 text-center">Trạng thái</th>
-                  <th className="py-4 px-3 text-right w-10">
-                    <span className="sr-only">Xem chi tiết</span>
-                  </th>
+                  <th className="py-4 px-4 text-right">Tác vụ nhanh</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -675,12 +938,51 @@ export function OtaBookingsTab({
                         )}
                       </td>
 
-                      {/* Column 7: Affordance Indicator (Replaces separate action column) */}
-                      <td className="py-4 px-3 text-right align-middle">
-                        <VsIcon
-                          name="chevron_right"
-                          className="text-slate-300 text-lg group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all inline-block"
-                        />
+                      {/* Column 7: Fast Action Buttons */}
+                      <td className="py-4 px-4 text-right align-middle whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                          {!isCancelled && !isCheckedIn && b.roomNumber && (
+                            <button
+                              type="button"
+                              disabled={isProcessing}
+                              onClick={(e) => void handleFastCheckIn(b, e)}
+                              className="inline-flex items-center rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 active:scale-95 transition cursor-pointer"
+                            >
+                              Nhận phòng
+                            </button>
+                          )}
+                          {!isCancelled && !isCheckedIn && !b.roomNumber && (
+                            <button
+                              type="button"
+                              disabled={isProcessing}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAssigningBooking(b);
+                                setSelectedRoomIdToAssign("");
+                                void refetchAvailableRooms();
+                              }}
+                              className="inline-flex items-center rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-amber-700 active:scale-95 transition cursor-pointer"
+                            >
+                              Xếp phòng
+                            </button>
+                          )}
+                          {isCheckedIn && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleCheckOut(b, e)}
+                              className="inline-flex items-center rounded-lg bg-rose-700 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-rose-800 active:scale-95 transition cursor-pointer"
+                            >
+                              Trả phòng
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedBooking(b)}
+                            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
+                          >
+                            <VsIcon name="chevron_right" className="text-lg inline-block" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -806,36 +1108,186 @@ export function OtaBookingsTab({
                 </div>
               </div>
 
-              {/* Inventory Status Explanation */}
-              {(selectedBooking.status || "").toUpperCase() === "CANCELLED" ? (
-                <div className="rounded-xl border border-rose-200 bg-rose-50/70 p-3.5 text-rose-800">
-                  <p className="font-bold text-sm flex items-center gap-1.5">
-                    <span>💡</span> Đơn đặt phòng này đã bị hủy từ kênh OTA
-                  </p>
-                  <p className="mt-1 text-xs leading-relaxed text-rose-700">
-                    Hệ thống VietSage đã tự động hoàn trả phòng <strong>{selectedBooking.roomNumber || selectedBooking.roomType}</strong> lại vào quỹ phòng trống ngày {formatDate(selectedBooking.checkInDate)}.
-                  </p>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-emerald-800">
-                  <p className="font-bold text-sm flex items-center gap-1.5">
-                    <span>✅</span> Đơn đặt phòng đang có hiệu lực
-                  </p>
-                  <p className="mt-1 text-xs leading-relaxed text-emerald-700">
-                    Phòng <strong>{selectedBooking.roomNumber || selectedBooking.roomType}</strong> đang được khóa giữ chỗ cho khách {selectedBooking.guestName} từ {formatDate(selectedBooking.checkInDate)} đến {formatDate(selectedBooking.checkOutDate)}.
-                  </p>
-                </div>
-              )}
             </div>
 
             {/* Modal Actions */}
-            <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-2.5 border-t border-slate-100 pt-4">
+              <div className="flex flex-wrap items-center gap-2">
+                {(selectedBooking.status || "").toUpperCase() === "CONFIRMED" && selectedBooking.roomNumber && (
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={() => void handleFastCheckIn(selectedBooking)}
+                    className="inline-flex items-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white shadow-xs hover:bg-emerald-800 active:scale-95 transition cursor-pointer"
+                  >
+                    Nhận phòng
+                  </button>
+                )}
+
+                {(selectedBooking.status || "").toUpperCase() === "CONFIRMED" && !selectedBooking.roomNumber && (
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={() => {
+                      setAssigningBooking(selectedBooking);
+                      setSelectedRoomIdToAssign("");
+                      void refetchAvailableRooms();
+                    }}
+                    className="inline-flex items-center rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs hover:bg-amber-700 active:scale-95 transition cursor-pointer"
+                  >
+                    Xếp phòng
+                  </button>
+                )}
+
+                {(selectedBooking.status || "").toUpperCase() === "CONFIRMED" && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenRegistration(selectedBooking)}
+                    className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+                  >
+                    Đăng ký CCCD
+                  </button>
+                )}
+
+                {(selectedBooking.status || "").toUpperCase() === "CHECKED_IN" && (
+                  <button
+                    type="button"
+                    onClick={() => handleCheckOut(selectedBooking)}
+                    className="inline-flex items-center rounded-xl bg-rose-700 px-4 py-2.5 text-sm font-bold text-white shadow-xs hover:bg-rose-800 active:scale-95 transition cursor-pointer"
+                  >
+                    Trả phòng
+                  </button>
+                )}
+              </div>
+
               <button
                 type="button"
                 onClick={() => setSelectedBooking(null)}
-                className="rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-bold text-white hover:bg-black transition cursor-pointer"
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
               >
                 Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Room Assignment Modal */}
+      {assigningBooking && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          onClick={() => setAssigningBooking(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-800 text-xl font-bold">
+                  🔑
+                </span>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">
+                    Xếp phòng cho khách
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {assigningBooking.otaName} • {assigningBooking.guestName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAssigningBooking(null)}
+                className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4">
+              <div className="rounded-xl bg-slate-50 p-4 border border-slate-100 text-sm space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Hạng phòng khách đặt:</span>
+                  <span className="font-bold text-slate-900">{assigningBooking.roomType || "Tiêu chuẩn"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Lưu trú:</span>
+                  <span className="font-semibold text-slate-800">
+                    {formatDate(assigningBooking.checkInDate)} → {formatDate(assigningBooking.checkOutDate)}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
+                  Chọn phòng trống:
+                </label>
+                {availableRooms.length === 0 ? (
+                  <div className="rounded-xl bg-rose-50 border border-rose-200 p-4 text-center text-sm text-rose-700">
+                    Không có phòng trống khả dụng.
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {availableRooms.map((r) => {
+                      const isMatchingType =
+                        r.type &&
+                        assigningBooking.roomType &&
+                        r.type.toLowerCase().trim() === assigningBooking.roomType.toLowerCase().trim();
+                      const isSelected = selectedRoomIdToAssign === r.id;
+                      return (
+                        <div
+                          key={r.id}
+                          onClick={() => setSelectedRoomIdToAssign(r.id)}
+                          className={`flex items-center justify-between rounded-xl border p-3.5 cursor-pointer transition ${
+                            isSelected
+                              ? "border-blue-600 bg-blue-50/70 ring-2 ring-blue-500/20"
+                              : "border-slate-200 bg-white hover:bg-slate-50"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-base font-extrabold text-slate-900">
+                              Phòng {r.roomNumber || r.id}
+                            </span>
+                            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600 font-medium">
+                              {r.type ?? "Tiêu chuẩn"}
+                            </span>
+                            {r.floor && (
+                              <span className="text-xs text-slate-400">Tầng {r.floor}</span>
+                            )}
+                          </div>
+                          {isMatchingType && (
+                            <span className="rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-0.5 text-[11px] font-bold">
+                              Đúng hạng đặt
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2.5 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={() => setAssigningBooking(null)}
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={!selectedRoomIdToAssign || isProcessing}
+                onClick={() => void handleAssignAndCheckIn()}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-bold text-white shadow-xs hover:bg-emerald-800 active:scale-95 disabled:opacity-50 transition cursor-pointer"
+              >
+                {isProcessing ? (
+                  <span>Đang xử lý...</span>
+                ) : (
+                  <span>Xếp phòng & Nhận phòng</span>
+                )}
               </button>
             </div>
           </div>
