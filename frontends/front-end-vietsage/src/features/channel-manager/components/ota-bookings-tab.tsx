@@ -156,9 +156,15 @@ export function OtaBookingsTab({
     isLoadingSimulatedBookings,
     refreshSimulatedBookings,
     pollFeed,
+    pendingModifications,
+    isLoadingPendingModifications,
+    pendingModificationsError,
+    refreshPendingModifications,
+    resolveModification,
   } = useChannex(hotelId, roleScope, {
     loadSimulatedBookings: true,
     loadMappings: true,
+    loadPendingModifications: true,
   });
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -384,6 +390,32 @@ export function OtaBookingsTab({
     }
   };
 
+  const handleResolveModification = async (logId: string) => {
+    const confirmation = await Swal.fire({
+      icon: "warning",
+      title: "Xác nhận đã đối soát?",
+      text: "Chỉ xác nhận sau khi ngày lưu trú và phòng trên PMS đã được kiểm tra, cập nhật thủ công.",
+      showCancelButton: true,
+      confirmButtonText: "Đã đối soát",
+      cancelButtonText: "Hủy",
+      confirmButtonColor: "#b45309",
+    });
+    if (!confirmation.isConfirmed) return;
+    try {
+      await resolveModification.mutateAsync({ logId });
+      await refreshPendingModifications();
+      await showSuccessAlert(
+        "Đã xác nhận đối soát",
+        "Channex sẽ ACK revision ở lần đồng bộ tiếp theo.",
+      );
+    } catch (err: unknown) {
+      await showErrorAlert(
+        "Không thể xác nhận đối soát",
+        err instanceof Error ? err.message : "Vui lòng thử lại.",
+      );
+    }
+  };
+
   // Distinct channels in bookings
   const availableChannels = useMemo(() => {
     const set = new Set<string>();
@@ -537,6 +569,56 @@ export function OtaBookingsTab({
           </button>
         </div>
       </div>
+
+      {(isLoadingPendingModifications || pendingModificationsError || pendingModifications.length > 0) && (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="font-bold text-amber-950">Booking sửa đổi chờ đối soát</h3>
+              <p className="text-sm text-amber-800">
+                Channex chưa được ACK cho đến khi nhân viên xác nhận đã cập nhật PMS.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void refreshPendingModifications()}
+              disabled={isLoadingPendingModifications}
+              className="min-h-10 rounded-xl border border-amber-300 bg-white px-3 text-sm font-semibold text-amber-900 disabled:opacity-50"
+            >
+              Làm mới
+            </button>
+          </div>
+          {pendingModificationsError && (
+            <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-800">
+              Không thể tải hàng đợi đối soát. Không xác nhận booking cho đến khi lỗi được xử lý.
+            </p>
+          )}
+          <div className="mt-3 space-y-2">
+            {pendingModifications.map((item) => (
+              <div
+                key={item.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-white p-3"
+              >
+                <div className="text-sm text-slate-700">
+                  <p className="font-semibold text-slate-950">Booking {item.bookingId}</p>
+                  <p>
+                    Ngày đề xuất: {formatDate(item.proposedArrival)} –{" "}
+                    {formatDate(item.proposedDeparture)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleResolveModification(item.id)}
+                  disabled={resolveModification.isPending}
+                  className="min-h-10 rounded-xl bg-amber-700 px-4 text-sm font-bold text-white disabled:opacity-50"
+                >
+                  Đã đối soát
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Metric Summary Cards */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

@@ -18,6 +18,7 @@ import type {
   ChannexChannelUpdateInput,
   ChannexDoctorReport,
   ChannexMappingItem,
+  ChannexPendingModification,
   ChannelConnection,
   CreateConnectionPayload,
   InventoryGridResponse,
@@ -296,6 +297,30 @@ export const channelManagerRepository = {
       method: "POST",
       body: { limit: limit || 10 },
     });
+    return response.data;
+  },
+
+  async getPendingChannexModifications(
+    hotelId: string,
+    scope: ChannelManagerRoleScope = "owner",
+  ): Promise<ChannexPendingModification[]> {
+    const response = await requestInternalApiEnvelope<
+      ChannexPendingModification[]
+    >(`${basePath(hotelId, scope)}/channex/pending-modifications`, {
+      method: "GET",
+    });
+    return response.data;
+  },
+
+  async resolveChannexModification(
+    hotelId: string,
+    logId: string,
+    scope: ChannelManagerRoleScope = "owner",
+  ): Promise<{ success: boolean }> {
+    const response = await requestInternalApiEnvelope<{ success: boolean }>(
+      `${basePath(hotelId, scope)}/channex/pending-modifications/${encodeURIComponent(logId)}/resolve`,
+      { method: "POST" },
+    );
     return response.data;
   },
 
