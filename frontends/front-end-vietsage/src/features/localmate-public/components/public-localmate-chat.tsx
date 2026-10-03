@@ -18,7 +18,7 @@ type Message = { id: number; sender: "guest" | "localmate"; text: string };
 const welcome: Message = {
   id: 0,
   sender: "localmate",
-  text: "Dạ em là LocalMate AI. Quý khách đang ở đâu ạ? Vui lòng cho em biết quận, thành phố hoặc tỉnh để em dò đúng nguồn tri thức địa phương.",
+  text: "Dạ em là LocalMate AI — trợ lý du lịch bản địa của VietSage. Quý khách đang dừng chân hoặc dự định khám phá khu vực nào ạ?",
 };
 
 const initialDiscoveryQuery = "Gợi ý các địa danh và trải nghiệm nổi bật gần đây";
@@ -34,6 +34,7 @@ export function PublicLocalMateChat() {
   const [locationError, setLocationError] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<DestinationRegion>("all");
   const inputRef = useRef<HTMLInputElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const nextId = useRef(1);
 
@@ -44,26 +45,53 @@ export function PublicLocalMateChat() {
     return POPULAR_DESTINATIONS.filter((d) => d.region === selectedRegion);
   }, [selectedRegion]);
 
-  const quickSuggestions = useMemo(() => {
-    return POPULAR_DESTINATIONS.filter((d) => d.popular).slice(0, 6);
-  }, []);
+  useEffect(() => {
+    if (!isOpen) return;
+    const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+    if (isMobile) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
-    const timer = window.setTimeout(() => inputRef.current?.focus(), 80);
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setIsOpen(false);
     };
     window.addEventListener("keydown", onKeyDown);
+
+    // Only auto-focus on non-touch devices to avoid opening the on-screen keyboard on mobile
+    const isTouch = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+    if (!isTouch && location) {
+      const timer = window.setTimeout(() => inputRef.current?.focus(), 80);
+      return () => {
+        window.clearTimeout(timer);
+        window.removeEventListener("keydown", onKeyDown);
+      };
+    }
+
     return () => {
-      window.clearTimeout(timer);
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [isOpen, location]);
 
   useEffect(() => {
-    if (isOpen) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [isOpen, messages, mutation.isPending]);
+    if (!isOpen) return;
+
+    // In initial greeting state, ensure user sees the top message and options
+    if (!location && messages.length <= 1) {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = 0;
+      }
+      return;
+    }
+
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [isOpen, messages, mutation.isPending, location]);
 
   const send = async (suggested?: string, locationOverride?: string, guestText?: string) => {
     const message = (suggested ?? input).trim();
@@ -132,7 +160,7 @@ export function PublicLocalMateChat() {
   };
 
   return (
-    <div className="fixed bottom-5 right-4 z-50 sm:bottom-7 sm:right-7">
+    <div className="fixed bottom-4 right-3 z-50 sm:bottom-7 sm:right-7">
       {isOpen ? (
         <>
           <button
@@ -145,32 +173,32 @@ export function PublicLocalMateChat() {
             role="dialog"
             aria-modal="true"
             aria-label="LocalMate AI tư vấn du lịch bản địa"
-            className="flex h-[min(620px,calc(100dvh-40px))] w-[calc(100vw-32px)] max-w-[400px] flex-col overflow-hidden rounded-3xl border border-[#d6c08b]/55 bg-[#fffdf8] shadow-[0_24px_70px_rgba(18,61,42,0.24)]"
+            className="flex h-[min(620px,calc(100dvh-24px))] w-[calc(100vw-24px)] max-w-[400px] flex-col overflow-hidden rounded-2xl border border-[#d6c08b]/55 bg-[#fffdf8] shadow-[0_24px_70px_rgba(18,61,42,0.24)] sm:rounded-3xl"
           >
-          <header className="relative flex shrink-0 items-center justify-between bg-gradient-to-r from-[#123d2a] to-[#245942] px-5 py-4 text-white">
-            <div className="flex items-center gap-3">
-              <div className="relative flex h-11 w-11 items-center justify-center rounded-full bg-[#f3c66b]/15 ring-1 ring-[#f3c66b]/65">
-                <VsIcon name="sparkles" className="text-2xl text-[#f3c66b]" />
+          <header className="relative flex shrink-0 items-center justify-between bg-gradient-to-r from-[#123d2a] to-[#245942] px-4 py-3 text-white sm:px-5 sm:py-4">
+            <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f3c66b]/15 ring-1 ring-[#f3c66b]/65 sm:h-11 sm:w-11">
+                <VsIcon name="sparkles" className="text-xl text-[#f3c66b] sm:text-2xl" />
                 <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#10b981] opacity-75 motion-reduce:animate-none" />
                   <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#10b981] ring-1 ring-[#123d2a]" />
                 </span>
               </div>
               <div className="min-w-0">
-                <h2 className="text-base font-bold leading-tight">LocalMate AI</h2>
-                <p className="flex items-center gap-1.5 truncate text-[12.5px] text-white/80">
+                <h2 className="truncate text-sm font-bold leading-tight sm:text-base">LocalMate AI</h2>
+                <p className="flex items-center gap-1.5 truncate text-[11.5px] text-white/80 sm:text-[12.5px]">
                   <span className="font-medium text-[#a7f3d0]">Trực tuyến</span>
                   <span className="text-white/40">•</span>
-                  <span>{location || "Tri thức du lịch bản địa"}</span>
+                  <span className="truncate">{location || "Tri thức du lịch bản địa"}</span>
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1">
               {location && (
                 <button
                   type="button"
                   onClick={changeLocation}
-                  className="min-h-11 rounded-full px-3 text-sm font-semibold text-[#f3c66b] transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f3c66b]"
+                  className="min-h-10 rounded-full px-2.5 text-xs font-semibold text-[#f3c66b] transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f3c66b] sm:min-h-11 sm:px-3 sm:text-sm"
                 >
                   Đổi vị trí
                 </button>
@@ -179,14 +207,18 @@ export function PublicLocalMateChat() {
                 type="button"
                 onClick={() => setIsOpen(false)}
                 aria-label="Đóng LocalMate AI"
-                className="flex h-11 w-11 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f3c66b]"
+                className="flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f3c66b] sm:h-11 sm:w-11"
               >
                 <VsIcon name="close" className="text-xl" />
               </button>
             </div>
           </header>
 
-          <div className="min-h-0 flex-1 space-y-3.5 overflow-y-auto bg-gradient-to-b from-[#f8f4ea] to-[#f2ecdf]/60 p-4" aria-live="polite">
+          <div
+            ref={messagesContainerRef}
+            className="min-h-0 flex-1 space-y-3.5 overflow-y-auto overscroll-contain bg-gradient-to-b from-[#f8f4ea] to-[#f2ecdf]/60 p-3.5 sm:p-4"
+            aria-live="polite"
+          >
             {messages.map((message) => (
               <div key={message.id} className={`flex ${message.sender === "guest" ? "justify-end" : "justify-start"}`}>
                 {message.sender === "localmate" && (
@@ -195,7 +227,7 @@ export function PublicLocalMateChat() {
                   </span>
                 )}
                 <p
-                  className={`max-w-[82%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-[14.5px] leading-relaxed shadow-sm ${
+                  className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-[14px] leading-relaxed shadow-sm sm:text-[14.5px] ${
                     message.sender === "guest"
                       ? "rounded-tr-sm bg-gradient-to-br from-[#123d2a] to-[#1e5038] text-white"
                       : "rounded-tl-sm border border-[#123d2a]/10 bg-white text-[#24342b]"
@@ -206,17 +238,17 @@ export function PublicLocalMateChat() {
               </div>
             ))}
             {!location && (
-              <div className="space-y-2.5 rounded-2xl border border-[#d6c08b]/45 bg-white/95 p-3.5 shadow-sm">
-                <div className="flex items-center justify-between">
+              <div className="space-y-3 rounded-2xl border border-[#d6c08b]/45 bg-white/95 p-3.5 shadow-sm">
+                <div className="flex items-center justify-between border-b border-[#d6c08b]/20 pb-2">
                   <span className="flex items-center gap-1.5 text-xs font-bold text-[#123d2a]">
                     <VsIcon name="location_on" className="text-sm text-[#b8872f]" />
-                    Gợi ý tỉnh thành & điểm đến
+                    Gợi ý điểm đến phổ biến
                   </span>
-                  <span className="text-[11px] text-[#55695e]">Chạm để chọn nhanh</span>
+                  <span className="text-[11px] font-medium text-[#627064]">Chạm để chọn nhanh</span>
                 </div>
 
                 {/* Region filter tabs */}
-                <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-none" role="tablist" aria-label="Lọc theo miền">
+                <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none" role="tablist" aria-label="Lọc theo miền">
                   {REGION_TABS.map((tab) => {
                     const isActive = selectedRegion === tab.id;
                     return (
@@ -226,7 +258,7 @@ export function PublicLocalMateChat() {
                         role="tab"
                         aria-selected={isActive}
                         onClick={() => setSelectedRegion(tab.id)}
-                        className={`min-h-[28px] shrink-0 rounded-full px-2.5 text-[11.5px] font-semibold transition ${
+                        className={`min-h-[30px] shrink-0 rounded-full px-2.5 text-[11.5px] font-semibold transition active:scale-95 ${
                           isActive
                             ? "bg-[#123d2a] text-[#f3c66b] shadow-sm"
                             : "bg-[#f8f4ea] text-[#4a5e52] hover:bg-[#ebdcc0] hover:text-[#123d2a]"
@@ -239,18 +271,18 @@ export function PublicLocalMateChat() {
                 </div>
 
                 {/* Suggestion pills grid */}
-                <div className="flex max-h-[175px] flex-wrap gap-1.5 overflow-y-auto pr-0.5">
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
                   {displayedDestinations.map((dest) => (
                     <button
                       key={dest.name}
                       type="button"
                       onClick={() => saveLocation(dest.name)}
-                      className="group inline-flex items-center gap-1.5 rounded-full border border-[#d6c08b]/40 bg-[#fffdf8] px-3 py-1.5 text-[12.5px] font-medium text-[#1e3428] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:border-[#123d2a] hover:bg-[#123d2a] hover:text-white active:scale-95 focus-visible:outline-2 focus-visible:outline-[#b8872f]"
+                      className="group inline-flex max-w-full items-center gap-1.5 rounded-full border border-[#d6c08b]/40 bg-[#fffdf8] px-2.5 py-1.5 text-[12px] font-medium text-[#1e3428] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:border-[#123d2a] hover:bg-[#123d2a] hover:text-white active:scale-95 focus-visible:outline-2 focus-visible:outline-[#b8872f] sm:px-3 sm:text-[12.5px]"
                     >
-                      <span className="text-sm leading-none">{dest.icon}</span>
-                      <span>{dest.name}</span>
+                      <span className="shrink-0 text-sm leading-none">{dest.icon}</span>
+                      <span className="truncate">{dest.name}</span>
                       {dest.tag && (
-                        <span className="text-[10.5px] text-[#85642a] group-hover:text-white/80">
+                        <span className="shrink-0 text-[10px] text-[#85642a] group-hover:text-white/80 sm:text-[10.5px]">
                           • {dest.tag}
                         </span>
                       )}
@@ -278,45 +310,28 @@ export function PublicLocalMateChat() {
           </div>
 
           {!location ? (
-            <div className="shrink-0 border-t border-[#123d2a]/10 bg-white p-3.5">
-              {/* Quick suggestions bar */}
-              <div className="mb-2.5 flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
-                <span className="flex shrink-0 items-center gap-1 text-[11.5px] font-semibold text-[#123d2a]/75">
-                  <VsIcon name="sparkles" className="text-xs text-[#b8872f]" />
-                  Gợi ý nhanh:
-                </span>
-                {quickSuggestions.map((dest) => (
-                  <button
-                    key={dest.name}
-                    type="button"
-                    onClick={() => saveLocation(dest.name)}
-                    className="shrink-0 rounded-full border border-[#b8872f]/30 bg-[#fff7df] px-2.5 py-1 text-xs font-semibold text-[#735c00] transition hover:border-[#123d2a] hover:bg-[#123d2a] hover:text-white active:scale-95"
-                  >
-                    {dest.name}
-                  </button>
-                ))}
-              </div>
-
+            <div className="shrink-0 border-t border-[#123d2a]/10 bg-white p-3 shadow-[0_-4px_16px_rgba(18,61,42,0.04)] sm:p-3.5">
               <form
                 onSubmit={(event) => {
                   event.preventDefault();
                   saveLocation();
                 }}
               >
-                <label htmlFor="localmate-public-location" className="block text-sm font-semibold text-[#123d2a]">
-                  📍 Quý khách đang ở đâu?
+                <label htmlFor="localmate-public-location" className="flex items-center gap-1 text-xs font-semibold text-[#123d2a]">
+                  <VsIcon name="location_on" className="text-sm text-[#b8872f]" />
+                  Hoặc nhập địa phương khác của Quý khách:
                 </label>
-                <div className="mt-2 flex gap-2">
+                <div className="mt-1.5 flex gap-2">
                   <input
                     ref={inputRef}
                     id="localmate-public-location"
                     list="localmate-provinces-list"
                     value={locationInput}
                     onChange={(event) => setLocationInput(event.target.value)}
-                    placeholder="Ví dụ: Hoàn Kiếm, Hà Nội hoặc chọn gợi ý..."
+                    placeholder="Ví dụ: Hoàn Kiếm, Quận 1, Quy Nhơn..."
                     autoComplete="off"
                     aria-describedby={locationError ? "localmate-location-error" : undefined}
-                    className="min-h-11 min-w-0 flex-1 rounded-xl border border-[#123d2a]/20 bg-[#f8f4ea] px-3 text-base text-[#132119] outline-none transition focus:border-[#123d2a] focus:ring-2 focus:ring-[#123d2a]/15"
+                    className="min-h-11 min-w-0 flex-1 rounded-xl border border-[#123d2a]/20 bg-[#f8f4ea] px-3 text-base text-[#132119] outline-none transition placeholder:text-[#8a9890] focus:border-[#123d2a] focus:ring-2 focus:ring-[#123d2a]/15 sm:text-sm"
                   />
                   <datalist id="localmate-provinces-list">
                     {VIETNAM_PROVINCES.map((prov) => (
@@ -328,13 +343,14 @@ export function PublicLocalMateChat() {
                   </datalist>
                   <button
                     type="submit"
-                    className="min-h-11 shrink-0 rounded-xl bg-[#123d2a] px-4 text-base font-bold text-white transition hover:bg-[#184d35] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f]"
+                    className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl bg-[#123d2a] px-3.5 text-sm font-bold text-white transition hover:bg-[#184d35] active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f] sm:px-4"
                   >
-                    Tiếp tục
+                    <span>Tiếp tục</span>
+                    <VsIcon name="arrow_forward" className="text-sm" />
                   </button>
                 </div>
                 {locationError && (
-                  <p id="localmate-location-error" className="mt-2 text-sm text-red-700">
+                  <p id="localmate-location-error" className="mt-1.5 text-xs font-medium text-red-700">
                     {locationError}
                   </p>
                 )}
@@ -343,13 +359,13 @@ export function PublicLocalMateChat() {
           ) : (
             <div className="shrink-0 border-t border-[#123d2a]/10 bg-white">
               {suggestions.length > 0 && (
-                <div className="flex gap-2 overflow-x-auto px-4 pt-3">
+                <div className="flex gap-2 overflow-x-auto px-3.5 pt-3 sm:px-4">
                   {suggestions.map((suggestion) => (
                     <button
                       key={suggestion.query}
                       type="button"
                       onClick={() => void send(suggestion.query)}
-                      className="min-h-11 shrink-0 rounded-full border border-[#b8872f]/35 bg-[#fff7df] px-4 text-sm font-semibold text-[#735c00] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#123d2a]"
+                      className="min-h-10 shrink-0 rounded-full border border-[#b8872f]/35 bg-[#fff7df] px-3.5 text-xs font-semibold text-[#735c00] transition active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#123d2a] sm:min-h-11 sm:px-4 sm:text-sm"
                     >
                       {suggestion.label}
                     </button>
@@ -357,7 +373,7 @@ export function PublicLocalMateChat() {
                 </div>
               )}
               <form
-                className="flex gap-2 p-4"
+                className="flex gap-2 p-3 sm:p-4"
                 onSubmit={(event) => {
                   event.preventDefault();
                   void send();
@@ -370,13 +386,13 @@ export function PublicLocalMateChat() {
                   placeholder={`Hỏi về ${location}…`}
                   aria-label="Nhập câu hỏi cho LocalMate AI"
                   disabled={mutation.isPending}
-                  className="min-h-11 min-w-0 flex-1 rounded-xl border border-[#123d2a]/20 bg-[#f8f4ea] px-3 text-base text-[#132119] outline-none transition focus:border-[#123d2a] focus:ring-2 focus:ring-[#123d2a]/15 disabled:opacity-60"
+                  className="min-h-11 min-w-0 flex-1 rounded-xl border border-[#123d2a]/20 bg-[#f8f4ea] px-3 text-base text-[#132119] outline-none transition placeholder:text-[#8a9890] focus:border-[#123d2a] focus:ring-2 focus:ring-[#123d2a]/15 disabled:opacity-60 sm:text-sm"
                 />
                 <button
                   type="submit"
                   disabled={!input.trim() || mutation.isPending}
                   aria-label="Gửi câu hỏi"
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#123d2a] text-white transition hover:bg-[#184d35] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f] disabled:cursor-not-allowed disabled:opacity-45"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#123d2a] text-white transition hover:bg-[#184d35] active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f] disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   <VsIcon name="send" className="text-lg" />
                 </button>
