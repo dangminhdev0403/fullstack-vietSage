@@ -55,6 +55,8 @@ const BUSINESS_PERMISSION_MENU_PATHS: Record<BusinessPermissionKey, string | nul
   "hotel.kbtt.manage": "/owner/hotels/[hotelId]/kbtt",
   "hotel.kbtt.declarations.view": "/hotels/[hotelId]/kbtt",
   "hotel.kbtt.declarations.manage": "/hotels/[hotelId]/kbtt",
+  "hotel.channels.view": "/owner/hotels/[hotelId]/channel-manager",
+  "hotel.channels.manage": "/owner/hotels/[hotelId]/channel-manager",
   "guest.experience.use": null,
   "system.health.view": null,
 };

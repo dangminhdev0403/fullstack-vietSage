@@ -19,6 +19,7 @@ interface OtaBookingsTabProps {
   roleScope?: "owner" | "admin";
   onSwitchToAri?: () => void;
   baseRoutePrefix?: string;
+  showTechnicalTools?: boolean;
 }
 
 type StatusFilter =
@@ -148,6 +149,7 @@ export function OtaBookingsTab({
   hotelId,
   roleScope = "owner",
   baseRoutePrefix = "/hotels",
+  showTechnicalTools = false,
 }: OtaBookingsTabProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -163,8 +165,9 @@ export function OtaBookingsTab({
     resolveModification,
   } = useChannex(hotelId, roleScope, {
     loadSimulatedBookings: true,
-    loadMappings: true,
-    loadPendingModifications: true,
+    loadMappings: false,
+    loadConfig: false,
+    loadPendingModifications: showTechnicalTools,
   });
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -555,23 +558,28 @@ export function OtaBookingsTab({
             <span>Làm mới</span>
           </button>
 
-          <button
-            type="button"
-            onClick={handleManualDrain}
-            disabled={pollFeed.isPending}
-            className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#003580] px-4 text-sm font-bold text-white shadow-xs hover:bg-[#002860] transition active:scale-95 disabled:opacity-50 cursor-pointer"
-          >
-            <VsIcon
-              name="cloud_download"
-              className={`text-base ${pollFeed.isPending ? "animate-bounce" : ""}`}
-            />
-            <span>{pollFeed.isPending ? "Đang đồng bộ..." : "Đồng bộ Channex"}</span>
-          </button>
+          {showTechnicalTools && (
+            <button
+              type="button"
+              onClick={handleManualDrain}
+              disabled={pollFeed.isPending}
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#003580] px-4 text-sm font-bold text-white shadow-xs hover:bg-[#002860] transition active:scale-95 disabled:opacity-50 cursor-pointer"
+            >
+              <VsIcon
+                name="cloud_download"
+                className={`text-base ${pollFeed.isPending ? "animate-bounce" : ""}`}
+              />
+              <span>{pollFeed.isPending ? "Đang đồng bộ..." : "Đồng bộ Channex"}</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {(isLoadingPendingModifications || pendingModificationsError || pendingModifications.length > 0) && (
-        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+      {showTechnicalTools &&
+        (isLoadingPendingModifications ||
+          pendingModificationsError ||
+          pendingModifications.length > 0) && (
+          <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="font-bold text-amber-950">Booking sửa đổi chờ đối soát</h3>
@@ -694,8 +702,9 @@ export function OtaBookingsTab({
             {searchQuery && (
               <button
                 type="button"
+                aria-label="Xóa tìm kiếm"
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400 hover:text-slate-600 cursor-pointer"
+                className="absolute right-1 top-1/2 min-h-11 min-w-11 -translate-y-1/2 text-sm text-slate-400 hover:text-slate-600 cursor-pointer"
                 title="Xóa tìm kiếm"
               >
                 ✕
@@ -710,7 +719,7 @@ export function OtaBookingsTab({
               <button
                 type="button"
                 onClick={() => setStatusFilter("ALL")}
-                className={`rounded-lg px-3 py-1.5 transition cursor-pointer ${
+                className={`min-h-11 rounded-lg px-3 py-1.5 transition cursor-pointer ${
                   statusFilter === "ALL"
                     ? "bg-white text-slate-900 shadow-2xs font-bold"
                     : "text-slate-600 hover:text-slate-900"
@@ -722,7 +731,7 @@ export function OtaBookingsTab({
               <button
                 type="button"
                 onClick={() => setStatusFilter("TODAY_ARRIVALS")}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer ${
+                className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer ${
                   statusFilter === "TODAY_ARRIVALS"
                     ? "bg-emerald-700 text-white shadow-2xs font-bold"
                     : "text-emerald-800 hover:bg-emerald-50 font-bold"
@@ -737,7 +746,7 @@ export function OtaBookingsTab({
               <button
                 type="button"
                 onClick={() => setStatusFilter("TODAY_DEPARTURES")}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer ${
+                className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer ${
                   statusFilter === "TODAY_DEPARTURES"
                     ? "bg-blue-700 text-white shadow-2xs font-bold"
                     : "text-blue-800 hover:bg-blue-50 font-bold"
@@ -753,7 +762,7 @@ export function OtaBookingsTab({
                 <button
                   type="button"
                   onClick={() => setStatusFilter("UNASSIGNED")}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer ${
+                  className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer ${
                     statusFilter === "UNASSIGNED"
                       ? "bg-amber-600 text-white shadow-2xs font-bold"
                       : "text-amber-800 hover:bg-amber-50 font-bold"
@@ -769,7 +778,7 @@ export function OtaBookingsTab({
               <button
                 type="button"
                 onClick={() => setStatusFilter("CONFIRMED")}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer ${
+                className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer ${
                   statusFilter === "CONFIRMED"
                     ? "bg-white text-emerald-800 shadow-2xs font-bold"
                     : "text-slate-600 hover:text-slate-900"
@@ -782,7 +791,7 @@ export function OtaBookingsTab({
               <button
                 type="button"
                 onClick={() => setStatusFilter("CANCELLED")}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer ${
+                className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer ${
                   statusFilter === "CANCELLED"
                     ? "bg-white text-rose-800 shadow-2xs font-bold"
                     : "text-slate-600 hover:text-slate-900"
@@ -796,7 +805,7 @@ export function OtaBookingsTab({
                 <button
                   type="button"
                   onClick={() => setStatusFilter("CHECKED_IN")}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer ${
+                  className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer ${
                     statusFilter === "CHECKED_IN"
                       ? "bg-white text-blue-800 shadow-2xs font-bold"
                       : "text-slate-600 hover:text-slate-900"
@@ -912,11 +921,12 @@ export function OtaBookingsTab({
                               <span>PMS: {b.reservationCode}</span>
                               <button
                                 type="button"
+                                aria-label={`Sao chép mã PMS ${b.reservationCode}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleCopy(b.reservationCode, b.bookingId);
                                 }}
-                                className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600 transition cursor-pointer"
+                                className="min-h-11 min-w-11 rounded text-slate-400 hover:bg-slate-100 hover:text-blue-600 transition cursor-pointer"
                                 title="Sao chép mã PMS"
                               >
                                 {copiedKey === b.bookingId ? (
@@ -1028,7 +1038,7 @@ export function OtaBookingsTab({
                               type="button"
                               disabled={isProcessing}
                               onClick={(e) => void handleFastCheckIn(b, e)}
-                              className="inline-flex items-center rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 active:scale-95 transition cursor-pointer"
+                              className="inline-flex min-h-11 items-center rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 active:scale-95 transition cursor-pointer"
                             >
                               Nhận phòng
                             </button>
@@ -1043,7 +1053,7 @@ export function OtaBookingsTab({
                                 setSelectedRoomIdToAssign("");
                                 void refetchAvailableRooms();
                               }}
-                              className="inline-flex items-center rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-amber-700 active:scale-95 transition cursor-pointer"
+                              className="inline-flex min-h-11 items-center rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-amber-700 active:scale-95 transition cursor-pointer"
                             >
                               Xếp phòng
                             </button>
@@ -1052,15 +1062,16 @@ export function OtaBookingsTab({
                             <button
                               type="button"
                               onClick={(e) => handleCheckOut(b, e)}
-                              className="inline-flex items-center rounded-lg bg-rose-700 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-rose-800 active:scale-95 transition cursor-pointer"
+                              className="inline-flex min-h-11 items-center rounded-lg bg-rose-700 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-rose-800 active:scale-95 transition cursor-pointer"
                             >
                               Trả phòng
                             </button>
                           )}
                           <button
                             type="button"
+                            aria-label={`Xem chi tiết đơn ${b.reservationCode}`}
                             onClick={() => setSelectedBooking(b)}
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
+                            className="min-h-11 min-w-11 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
                           >
                             <VsIcon name="chevron_right" className="text-lg inline-block" />
                           </button>
@@ -1104,8 +1115,9 @@ export function OtaBookingsTab({
               </div>
               <button
                 type="button"
+                aria-label="Đóng chi tiết đơn"
                 onClick={() => setSelectedBooking(null)}
-                className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
+                className="min-h-11 min-w-11 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
                 title="Đóng"
               >
                 ✕
@@ -1280,8 +1292,9 @@ export function OtaBookingsTab({
               </div>
               <button
                 type="button"
+                aria-label="Đóng hộp thoại xếp phòng"
                 onClick={() => setAssigningBooking(null)}
-                className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 transition cursor-pointer"
+                className="min-h-11 min-w-11 rounded-xl text-slate-400 hover:bg-slate-100 transition cursor-pointer"
               >
                 ✕
               </button>

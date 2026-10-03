@@ -14,10 +14,12 @@ export function ChannexPropertyConfigCard({
   hotelId,
   hotelName,
   roleScope = "admin",
+  canManage,
 }: {
   hotelId: string;
   hotelName: string;
   roleScope?: "owner" | "admin";
+  canManage: boolean;
 }) {
   const { config, isLoadingConfig, syncContent, refreshConfig } = useChannex(
     hotelId,
@@ -38,6 +40,7 @@ export function ChannexPropertyConfigCard({
   );
 
   const handleContentSync = async () => {
+    if (!canManage) return;
     const confirmation = await showConfirmDialog({
       title: isConfigured
         ? "Đồng bộ lại nội dung Channex?"
@@ -116,17 +119,19 @@ export function ChannexPropertyConfigCard({
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={handleContentSync}
-                disabled={syncContent.isPending}
-                className="min-h-11 rounded-xl bg-[var(--primary)] px-5 text-base font-bold text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 disabled:opacity-50"
-              >
-                {syncContent.isPending
-                  ? "Đang đồng bộ..."
-                  : "Đồng bộ lại nội dung"}
-              </button>
-              {config?.channexPropertyUrl && (
+              {canManage && (
+                <button
+                  type="button"
+                  onClick={handleContentSync}
+                  disabled={syncContent.isPending}
+                  className="min-h-11 rounded-xl bg-[var(--primary)] px-5 text-base font-bold text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 disabled:opacity-50"
+                >
+                  {syncContent.isPending
+                    ? "Đang đồng bộ..."
+                    : "Đồng bộ lại nội dung"}
+                </button>
+              )}
+              {canManage && config?.channexPropertyUrl && (
                 <a
                   href={config.channexPropertyUrl}
                   target="_blank"
@@ -139,7 +144,7 @@ export function ChannexPropertyConfigCard({
             </div>
           </div>
         </div>
-      ) : (
+      ) : canManage ? (
         <div className="rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-5">
           <h3 className="text-xl font-bold text-[#17201b]">Khởi tạo tự động</h3>
           <p className="mt-2 text-base text-[#5a6760]">
@@ -171,6 +176,13 @@ export function ChannexPropertyConfigCard({
               {syncContent.isPending ? "Đang khởi tạo..." : "Khởi tạo Channex"}
             </button>
           </div>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+          <h3 className="text-xl font-bold text-slate-800">Chưa liên kết Channex</h3>
+          <p className="mt-2 text-base text-slate-600">
+            Khách sạn chưa được cấu hình liên kết với Channex Property. Cần quyền quản lý để khởi tạo hoặc đồng bộ.
+          </p>
         </div>
       )}
     </section>

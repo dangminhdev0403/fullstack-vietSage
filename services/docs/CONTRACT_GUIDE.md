@@ -81,6 +81,29 @@ A service that owns tables owns:
 - The minute poller drains the account-wide revision feed as webhook backstop. A hotel-scoped manual poll filters by that hotel's mapped Channex property. The in-process overlap guard is sufficient for the current single backend runtime; use a shared lease before running multiple replicas.
 - OTA setup uses Channex Channel IFrame with a 15-minute one-time token. Do not build or persist a parallel provider credential form in the browser.
 
+### Channel Manager RBAC contract
+
+- `hotel.channels.view` and `hotel.channels.manage` under `hotel-channels` domain define channel catalog, configuration, mapping, doctor, and synchronization authority.
+- `TENANT_OWNER` is granted both channel permissions. `SUPER_ADMIN` retains platform authority through `platform.hotels.view` and `platform.hotels.manage`.
+- `HOTEL_FRONTDESK` has no channel permissions (`hotel.channels.*`), but can read OTA bookings via `hotel.reservations.view`.
+- Synthetic booking test tools (`simulateBooking`, `cancelSimulatedBooking`) are restricted to `platform.hotels.manage`.
+- Inventory grid and availability/restriction updates remain under `hotel.rooms.view` and `hotel.rooms.manage`.
+- `HotelAccessService.assertHotelAccess` remains mandatory on all hotel-scoped channel endpoints.
+
+### Channel Manager Fleet API and Audit contract
+
+- `GET /api/v1/channel-manager/admin/overview` exposes bounded Super Admin fleet visibility under `platform.hotels.view`.
+- Zero remote Channex calls are permitted on the fleet list; all states are derived purely from local DB evidence.
+- State priority:
+  1. `UNCONFIGURED` (`PROPERTY_MISSING`) when no property mapping exists;
+  2. `SETTING_UP` (`MAPPING_INCOMPLETE`) when property mapping exists but room type or rate plan mapping is missing;
+  3. `INTERRUPTED` (`SYNC_FAILED` if latest sync failed, or `CONNECTION_INTERRUPTED` if any connection is non-active);
+  4. `ATTENTION` (`RECONCILIATION_REQUIRED`) if pending inbound booking modifications exist or sync status is warning/partial;
+  5. `ACTIVE` (primary issue code `null`) when fully mapped and healthy.
+- Summary metrics (`totalHotels`, `configuredHotels`, `activeHotels`, `needsAttention`, `unconfiguredHotels`, `pendingReconciliations`) cover the search-filtered population unconstrained by table pagination.
+- Sensitive mutations (content sync, property configuration, channel create/update/activate/deactivate/delete, full sync, feed recovery, and manual reconciliation) record append-only actor audit in `AuditLog` attributing `actorId`, `tenantId`, and `hotelId`.
+- Sensitive fields (`apiKey`, `token`, `secret`, `webhookSecret`, `iframeUrl`, `credentials`, raw error objects) are strictly redacted before audit insertion. Failed provider calls never emit successful audit entries.
+
 ## Anti-patterns
 
 - Frontend-specific assumptions defining backend contracts.

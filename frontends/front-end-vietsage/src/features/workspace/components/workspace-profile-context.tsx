@@ -11,10 +11,12 @@ type WorkspaceProfile = {
     name: string;
     enabledFeatures?: readonly string[];
   }[];
+  permissions: readonly string[];
 };
 
 const WorkspaceProfileContext = createContext<WorkspaceProfile>({
   profileName: null,
+  permissions: [],
 });
 
 export function WorkspaceProfileProvider({
@@ -23,10 +25,22 @@ export function WorkspaceProfileProvider({
   roleName,
   hotelName,
   accessibleHotels,
-}: Readonly<WorkspaceProfile & { children: ReactNode }>) {
+  permissions = [],
+}: Readonly<
+  Omit<WorkspaceProfile, "permissions"> & {
+    permissions?: readonly string[];
+    children: ReactNode;
+  }
+>) {
   return (
     <WorkspaceProfileContext.Provider
-      value={{ profileName, roleName, hotelName, accessibleHotels }}
+      value={{
+        profileName,
+        roleName,
+        hotelName,
+        accessibleHotels,
+        permissions,
+      }}
     >
       {children}
     </WorkspaceProfileContext.Provider>
