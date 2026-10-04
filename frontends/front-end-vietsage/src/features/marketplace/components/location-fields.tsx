@@ -36,12 +36,14 @@ export function LocationFields({
   hideLocateButton = false,
   isLocatingExternal = false,
   onLocateExternal,
+  hideMapPreview = false,
 }: {
   value: LocationValue;
   onChange: (value: LocationValue) => void;
   hideLocateButton?: boolean;
   isLocatingExternal?: boolean;
   onLocateExternal?: () => void;
+  hideMapPreview?: boolean;
 }) {
   const [error, setError] = useState<string>();
   const [isLocatingInternal, setIsLocatingInternal] = useState<boolean>(false);
@@ -225,32 +227,52 @@ export function LocationFields({
         </p>
       ) : null}
 
-      {/* Spacious Live Map Preview Frame */}
-      {mapEmbedUrl ? (
-        <div className="space-y-2 pt-1">
-          <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-[#17201b]">
-            <span className="flex items-center gap-1.5">
-              <span>🗺️</span> Xem trước trực tiếp trên bản đồ
-            </span>
-            <span className="font-mono text-xs font-semibold text-[#8c6d29] bg-[#f4ebd9] px-2.5 py-0.5 rounded-md border border-[#e5ddcd]">
+      {/* Live Map Preview Frame */}
+      {!hideMapPreview ? (
+        mapEmbedUrl ? (
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-[#17201b]">
+              <span className="flex items-center gap-1.5">
+                <span>🗺️</span> Xem trước trực tiếp trên bản đồ
+              </span>
+              <span className="font-mono text-xs font-semibold text-[#8c6d29] bg-[#f4ebd9] px-2.5 py-0.5 rounded-md border border-[#e5ddcd]">
+                {latNum.toFixed(6)}, {lngNum.toFixed(6)}
+              </span>
+            </div>
+            <div className="relative overflow-hidden rounded-2xl border border-[#e5ddcd] shadow-xs bg-[#f9f6f0] aspect-square w-full max-h-[450px] mx-auto">
+              <iframe
+                title="Xem trước bản đồ Google Maps"
+                src={mapEmbedUrl}
+                className="h-full w-full border-0"
+                loading="lazy"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-[#dcd3c1] bg-[#f9f6f0] p-6 text-center text-sm font-medium text-[#65726a]">
+            Nhập tọa độ Vĩ độ & Kinh độ hoặc dán link Google Maps để xem trước bản đồ trực tiếp tại đây.
+          </div>
+        )
+      ) : hasValidCoords ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#e5ddcd] bg-[#fdfbf7] px-4 py-2.5 text-xs text-[#5a6760]">
+          <span className="flex items-center gap-1.5 font-medium">
+            <span>📍</span> Tọa độ đã nhận diện:{" "}
+            <strong className="font-mono font-bold text-[#17201b]">
               {latNum.toFixed(6)}, {lngNum.toFixed(6)}
-            </span>
-          </div>
-          <div className="relative overflow-hidden rounded-2xl border border-[#e5ddcd] shadow-xs bg-[#f9f6f0] aspect-square w-full max-h-[450px] mx-auto">
-            <iframe
-              title="Xem trước bản đồ Google Maps"
-              src={mapEmbedUrl}
-              className="h-full w-full border-0"
-              loading="lazy"
-              allowFullScreen
-            />
-          </div>
+            </strong>
+          </span>
+          <a
+            href={value.googleMapsUrl || `https://www.google.com/maps?q=${latNum},${lngNum}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 font-bold text-[#8c6d29] hover:underline"
+          >
+            <span>Mở trên Google Maps</span>
+            <span aria-hidden="true">↗</span>
+          </a>
         </div>
-      ) : (
-        <div className="rounded-xl border border-dashed border-[#dcd3c1] bg-[#f9f6f0] p-6 text-center text-sm font-medium text-[#65726a]">
-          Nhập tọa độ Vĩ độ & Kinh độ hoặc dán link Google Maps để xem trước bản đồ trực tiếp tại đây.
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -239,14 +239,34 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleReset}
-            className="shrink-0 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white/10 px-4 text-xs sm:text-sm font-bold text-[#f8f1e6] backdrop-blur-sm border border-white/20 transition-all hover:bg-white/20"
-          >
-            <span>🔄</span>
-            <span>Hoàn tác thay đổi</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={handleReset}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white/10 px-4 text-xs sm:text-sm font-bold text-[#f8f1e6] backdrop-blur-sm border border-white/20 transition-all hover:bg-white/20 active:scale-[0.98]"
+            >
+              <span>🔄</span>
+              <span>Hoàn tác thay đổi</span>
+            </button>
+
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#e8b363] px-5 text-xs sm:text-sm font-bold text-[#17201b] shadow-md transition-all hover:bg-[#dfa652] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSaving ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#17201b] border-t-transparent" />
+                  <span>Đang lưu...</span>
+                </>
+              ) : (
+                <>
+                  <span>💾</span>
+                  <span>Lưu thay đổi khách sạn</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -285,7 +305,7 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
           </p>
         </div>
 
-        <LocationFields value={location} onChange={setLocation} />
+        <LocationFields value={location} onChange={setLocation} hideMapPreview />
       </div>
 
       {/* Operational Reset Card (Khởi động lại) - Only visible if remainingResets > 0 */}
