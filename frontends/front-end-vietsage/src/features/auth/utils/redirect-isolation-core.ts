@@ -114,12 +114,20 @@ export function createRequestRedirectUrl(
   path: string,
   request: { url: string; headers: { get(name: string): string | null } },
 ): URL {
+  const forwardedHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const portlessTailscaleUrl = parseOrigin(process.env.PORTLESS_TAILSCALE_URL);
+  const forwardedOrigin = resolveForwardedOrigin(forwardedHost, forwardedProto);
+  const configuredUrl =
+    portlessTailscaleUrl && forwardedOrigin === portlessTailscaleUrl.origin
+      ? portlessTailscaleUrl.origin
+      : process.env.NEXTAUTH_URL ?? process.env.AUTH_URL;
   const redirectUrlString = resolvePostLoginRedirectUrl({
     path,
     requestUrl: request.url,
-    configuredUrl: process.env.NEXTAUTH_URL ?? process.env.AUTH_URL,
-    forwardedHost: request.headers.get("x-forwarded-host") ?? request.headers.get("host"),
-    forwardedProto: request.headers.get("x-forwarded-proto"),
+    configuredUrl,
+    forwardedHost,
+    forwardedProto,
   });
 
   return new URL(redirectUrlString);

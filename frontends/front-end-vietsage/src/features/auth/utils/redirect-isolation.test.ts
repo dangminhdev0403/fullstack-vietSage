@@ -205,6 +205,36 @@ test("configured production origin rejects unrelated forwarded hosts behind the 
   );
 });
 
+test("Portless Tailscale URL keeps its exact non-default HTTPS port", () => {
+  const originalUrl = process.env.PORTLESS_TAILSCALE_URL;
+  process.env.PORTLESS_TAILSCALE_URL =
+    "https://desktop-j0ed8uv.taile58050.ts.net:8466";
+
+  try {
+    const redirectUrl = createRequestRedirectUrl("/owner/dashboard", {
+      url: "https://desktop-j0ed8uv.taile58050.ts.net/api/auth/post-login",
+      headers: {
+        get: (key: string) =>
+          new Map([
+            ["x-forwarded-host", "desktop-j0ed8uv.taile58050.ts.net:8466"],
+            ["x-forwarded-proto", "https"],
+          ]).get(key) ?? null,
+      },
+    });
+
+    assert.equal(
+      redirectUrl.toString(),
+      "https://desktop-j0ed8uv.taile58050.ts.net:8466/owner/dashboard",
+    );
+  } finally {
+    if (originalUrl === undefined) {
+      delete process.env.PORTLESS_TAILSCALE_URL;
+    } else {
+      process.env.PORTLESS_TAILSCALE_URL = originalUrl;
+    }
+  }
+});
+
 test("untrusted forwarded host cannot redirect away from the request host", () => {
   const redirectUrl = createRequestRedirectUrl("/dangnhap?callbackUrl=%2Fadmin", {
     url: "https://vietsage.com/admin",
