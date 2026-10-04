@@ -20,6 +20,7 @@ import type {
   ChannexChannelUpdateInput,
   ChannexDoctorReport,
   ChannexMappingItem,
+  ChannexPendingModification,
   ChannelConnection,
   CreateConnectionPayload,
   InventoryGridResponse,
@@ -91,6 +92,18 @@ export const channelManagerResource = createResource<ChannelManagerScope>()({
         ChannexMappingItem[]
       > =>
         channelManagerRepository.getChannexMappings(
+          scope.hotelId,
+          scope.roleScope,
+        ),
+    }),
+    pendingChannexModifications: defineQuery({
+      inputKey: () => [],
+      queryFn: ({
+        scope,
+      }: ResourceQueryContext<ChannelManagerScope, void>): Promise<
+        ChannexPendingModification[]
+      > =>
+        channelManagerRepository.getPendingChannexModifications(
           scope.hotelId,
           scope.roleScope,
         ),
@@ -281,7 +294,24 @@ export const channelManagerResource = createResource<ChannelManagerScope>()({
           variables.limit,
           scope.roleScope,
         ),
-      invalidates: [{ type: "query", operation: "channexMappings" }],
+      invalidates: [
+        { type: "query", operation: "channexMappings" },
+        { type: "query", operation: "pendingChannexModifications" },
+      ],
+    }),
+    resolveChannexModification: defineMutation({
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<ChannelManagerScope, { logId: string }>) =>
+        channelManagerRepository.resolveChannexModification(
+          scope.hotelId,
+          variables.logId,
+          scope.roleScope,
+        ),
+      invalidates: [
+        { type: "query", operation: "pendingChannexModifications" },
+      ],
     }),
     runChannexDoctor: defineMutation({
       mutationFn: ({

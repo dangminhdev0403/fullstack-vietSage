@@ -9318,6 +9318,37 @@ paths:
         "201":
           description: ""
       tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/channex/pending-modifications:
+    get:
+      operationId: ChannelManagerController_getPendingChannexModifications
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a37
+  /api/v1/channel-manager/hotels/{hotelId}/channex/pending-modifications/{logId}/resolve:
+    post:
+      operationId: ChannelManagerController_resolveChannexModification
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: logId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a37
   /api/v1/channel-manager/hotels/{hotelId}/channex/doctor:
     get:
       operationId: ChannelManagerController_runChannexDoctor

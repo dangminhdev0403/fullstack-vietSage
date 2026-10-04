@@ -52,6 +52,8 @@ export type BusinessPermissionKey =
   | "hotel.kbtt.manage"
   | "hotel.kbtt.declarations.view"
   | "hotel.kbtt.declarations.manage"
+  | "hotel.channels.view"
+  | "hotel.channels.manage"
   | "guest.experience.use"
   | "system.health.view";
 
@@ -186,6 +188,16 @@ export const BUSINESS_PERMISSIONS: readonly BusinessPermissionDefinition[] = [
     "hotel.kbtt.declarations.manage",
     "hotel-kbtt",
     "Quản lý và lập hồ sơ khai báo tạm trú",
+  ),
+  permission(
+    "hotel.channels.view",
+    "hotel-channels",
+    "Xem cấu hình và trạng thái kênh phân phối",
+  ),
+  permission(
+    "hotel.channels.manage",
+    "hotel-channels",
+    "Quản lý kết nối và đồng bộ kênh phân phối",
   ),
   permission("guest.experience.use", "guest-experience", "Sử dụng GuestOS", "MEDIUM"),
   permission("system.health.view", "system-health", "Xem trạng thái hệ thống"),

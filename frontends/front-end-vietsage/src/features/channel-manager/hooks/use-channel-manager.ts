@@ -158,6 +158,7 @@ export function useChannex(
     loadConfig?: boolean;
     loadSimulatedBookings?: boolean;
     loadChannelCatalog?: boolean;
+    loadPendingModifications?: boolean;
   } = {},
 ) {
   const queryClient = useQueryClient();
@@ -176,6 +177,16 @@ export function useChannex(
   const pushAri = useMutation(boundResource.mutations.pushChannexAri.options());
   const pollFeed = useMutation({
     ...boundResource.mutations.pollChannexFeed.options(),
+    onSuccess: async () => boundResource.invalidate(queryClient),
+  });
+  const pendingModifications = useQuery({
+    ...boundResource.queries.pendingChannexModifications.options(
+      undefined as never,
+    ),
+    enabled: Boolean(hotelId && (options.loadPendingModifications ?? false)),
+  });
+  const resolveModification = useMutation({
+    ...boundResource.mutations.resolveChannexModification.options(),
     onSuccess: async () => boundResource.invalidate(queryClient),
   });
   const doctor = useMutation(
@@ -243,10 +254,15 @@ export function useChannex(
     simulatedBookings: simulatedBookings.data ?? [],
     isLoadingSimulatedBookings: simulatedBookings.isLoading,
     refreshSimulatedBookings: simulatedBookings.refetch,
+    pendingModifications: pendingModifications.data ?? [],
+    isLoadingPendingModifications: pendingModifications.isLoading,
+    pendingModificationsError: pendingModifications.error,
+    refreshPendingModifications: pendingModifications.refetch,
     configureProperty,
     syncContent,
     pushAri,
     pollFeed,
+    resolveModification,
     doctor,
     channelSession,
     prepareChannel,
@@ -338,4 +354,3 @@ export function useChannexChannelDetail(
     isDeleting: remove.isPending,
   };
 }
-

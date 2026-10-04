@@ -561,6 +561,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hotels/{hotelId}/room-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["HotelRoomsController_listRoomTypes"];
+        put?: never;
+        post: operations["HotelRoomsController_createRoomType"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/room-types/{roomTypeId}/price": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["HotelRoomsController_updateRoomTypePrice"];
+        trace?: never;
+    };
     "/hotels/{hotelId}/rooms": {
         parameters: {
             query?: never;
@@ -3607,6 +3639,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/channel-manager/hotels/{hotelId}/channex/pending-modifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ChannelManagerController_getPendingChannexModifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channel-manager/hotels/{hotelId}/channex/pending-modifications/{logId}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ChannelManagerController_resolveChannexModification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/channel-manager/hotels/{hotelId}/channex/doctor": {
         parameters: {
             query?: never;
@@ -3681,6 +3745,54 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["ChannelManagerController_activateChannexChannel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channel-manager/hotels/{hotelId}/channex/channels/{channelId}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ChannelManagerController_deactivateChannexChannel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channel-manager/hotels/{hotelId}/channex/channels/{channelId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ChannelManagerController_getChannexChannel"];
+        put: operations["ChannelManagerController_updateChannexChannel"];
+        post?: never;
+        delete: operations["ChannelManagerController_deleteChannexChannel"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channel-manager/hotels/{hotelId}/channex/channels/{channelId}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ChannelManagerController_syncChannexChannel"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5954,6 +6066,87 @@ export interface operations {
                         };
                     };
                 };
+            };
+        };
+    };
+    HotelRoomsController_listRoomTypes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Danh mục loại phòng */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HotelRoomsController_createRoomType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    basePrice: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Loại phòng đã tồn tại; giá gốc không thay đổi */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Loại phòng đã tạo hoặc đã tồn tại */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HotelRoomsController_updateRoomTypePrice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                roomTypeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    basePrice: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Giá gốc được lưu nội bộ; chưa đẩy Channex */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -11821,6 +12014,45 @@ export interface operations {
             };
         };
     };
+    ChannelManagerController_getPendingChannexModifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ChannelManagerController_resolveChannexModification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                logId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     ChannelManagerController_runChannexDoctor: {
         parameters: {
             query?: never;
@@ -11917,6 +12149,106 @@ export interface operations {
         };
     };
     ChannelManagerController_activateChannexChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                channelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ChannelManagerController_deactivateChannexChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                channelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ChannelManagerController_getChannexChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                channelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ChannelManagerController_updateChannexChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                channelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ChannelManagerController_deleteChannexChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                channelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ChannelManagerController_syncChannexChannel: {
         parameters: {
             query?: never;
             header?: never;

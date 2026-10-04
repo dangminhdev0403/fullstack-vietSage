@@ -20,7 +20,13 @@ export class ChannexFeedScheduler {
 
     this.running = true;
     try {
-      return await this.ingestion.drainFeed({ limit: 100 });
+      const result = await this.ingestion.drainFeed({ limit: 100 });
+      if (!result.success) {
+        this.logger.warn(
+          "Channex booking feed chưa drain hoàn tất; cần kiểm tra đối soát hoặc lỗi feed",
+        );
+      }
+      return result;
     } catch (error) {
       this.logger.error(
         `Channex booking feed poll failed: ${error instanceof Error ? error.message : "unknown error"}`,

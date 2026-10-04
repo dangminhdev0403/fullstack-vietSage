@@ -34,6 +34,7 @@ export default async function OwnerLayout({ children }: { children: ReactNode })
         hotelName={currentHotel?.name}
         roleName={context.activeRole.name}
         accessibleHotels={context.accessibleHotels}
+        permissions={context.permissions}
       >
         <OwnerShell
           navItems={sidebarItems}

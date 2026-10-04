@@ -26,7 +26,11 @@ export interface SyncContentResult {
   verified: {
     roomTypesInChannex: number;
     ratePlansInChannex: number;
+    mismatches?: string[];
   };
+  status?: "SUCCESS" | "FAILED" | "PARTIAL_FAILURE";
+  stage?: "PROPERTY" | "ROOM_TYPE" | "RATE_PLAN" | "VERIFICATION" | "WEBHOOK";
+  error?: string;
 }
 
 @Injectable()
@@ -281,6 +285,38 @@ export class ChannexSyncService {
     const roomTypesSynced: SyncContentResult["roomTypesSynced"] = [];
     const ratePlansSynced: SyncContentResult["ratePlansSynced"] = [];
 
+    const hasUnmapped = Array.from(roomTypeMap.values()).some((stats) => {
+      const roomTypeKey = mappingKeys.get(stats.id)!;
+      const ratePlanCode = ratePlanKeys.get(stats.id)!;
+      const rtMapped = legacyMappings.some(
+        (m) => m.kind === "room_type" && m.localId === roomTypeKey,
+      );
+      const rpMapped = legacyMappings.some(
+        (m) => m.kind === "rate_plan" && m.localId === ratePlanCode,
+      );
+      return !rtMapped || !rpMapped;
+    });
+
+    let remoteRoomTypesList: any[] = [];
+    let remoteRatePlansList: any[] = [];
+    if (hasUnmapped) {
+      try {
+        const [remoteRtRes, remoteRpRes] = await Promise.all([
+          this.channexClient.getRoomTypes(channexPropertyId, apiKey),
+          this.channexClient.getRatePlans(channexPropertyId, apiKey),
+        ]);
+        if (!Array.isArray(remoteRtRes?.data) || !Array.isArray(remoteRpRes?.data)) {
+          throw new Error("Channex trả về danh sách không hợp lệ");
+        }
+        remoteRoomTypesList = remoteRtRes.data;
+        remoteRatePlansList = remoteRpRes.data;
+      } catch (err: any) {
+        throw new BadRequestException(
+          `Không thể tải danh sách Channex để đối soát trước khi tạo mới: ${err.message}`,
+        );
+      }
+    }
+
     // 4. BƯỚC 3: ĐỒNG BỘ TỪNG ROOM TYPE & RATE PLAN
     for (const stats of roomTypeMap.values()) {
       const roomType = stats.name;
@@ -319,28 +355,47 @@ export class ChannexSyncService {
         try {
           await this.channexClient.updateRoomType(channexRtId, rtPayload, apiKey);
           rtAction = "UPDATED";
-        } catch (err) {
-          if (!(err instanceof NotFoundException)) throw err;
-          const res = await this.channexClient.createRoomType(rtPayload, apiKey);
-          channexRtId = res.data.id;
-          await this.prisma.channexMapping.update({
-            where: { id: rtMapping.id },
-            data: { channexId: channexRtId },
-          });
+        } catch (err: any) {
+          // Existing room type Channex IDs must be retained; do not silently recreate missing mapped remote entities on 404 (requires explicit reconciliation)
+          this.logger.error(
+            `[ChannexSync] Cập nhật Room Type ${channexRtId} thất bại: ${err.message}`,
+          );
+          throw new BadRequestException(
+            `Không thể cập nhật hạng phòng "${rtTitle}" trên Channex (ID: ${channexRtId}): ${err.message}. Yêu cầu đối soát thủ công, không tự ý tạo mới.`,
+          );
         }
       } else {
+        const existingRemoteRt = remoteRoomTypesList.find((rt: any) => {
+          const title = (rt.attributes?.title ?? rt.title ?? "").trim();
+          return title.toLowerCase() === rtTitle.toLowerCase();
+        });
+        if (existingRemoteRt) {
+          throw new BadRequestException(
+            `Hạng phòng "${rtTitle}" chưa có mapping trong DB nhưng đã tồn tại trên Channex (ID: ${existingRemoteRt.id}). Trạng thái không xác định: không tự tạo trùng lặp, yêu cầu liên kết hoặc đối soát thủ công.`,
+          );
+        }
+
         const res = await this.channexClient.createRoomType(rtPayload, apiKey);
         channexRtId = res.data.id;
-        await this.prisma.channexMapping.create({
-          data: {
-            hotelId,
-            channelConnectionId: channelConnection.id,
-            kind: "room_type",
-            localId: roomTypeKey,
-            channexId: channexRtId,
-            metadata: { title: rtTitle, countOfRooms: stats.count },
-          },
-        });
+        try {
+          await this.prisma.channexMapping.create({
+            data: {
+              hotelId,
+              channelConnectionId: channelConnection.id,
+              kind: "room_type",
+              localId: roomTypeKey,
+              channexId: channexRtId,
+              metadata: { title: rtTitle, countOfRooms: stats.count },
+            },
+          });
+        } catch (dbErr: any) {
+          this.logger.error(
+            `[ChannexSync] Đã tạo Room Type trên Channex (ID: ${channexRtId}) nhưng lưu mapping thất bại: ${dbErr.message}`,
+          );
+          throw new BadRequestException(
+            `Đã tạo hạng phòng "${rtTitle}" trên Channex (ID: ${channexRtId}) nhưng lưu mapping vào CSDL thất bại: ${dbErr.message}. Trạng thái không xác định: ID Channex là ${channexRtId}, hãy kiểm tra và lưu mapping thủ công để tránh tạo trùng lặp.`,
+          );
+        }
       }
 
       roomTypesSynced.push({
@@ -386,28 +441,51 @@ export class ChannexSyncService {
         try {
           await this.channexClient.updateRatePlan(channexRpId, rpPayload, apiKey);
           rpAction = "UPDATED";
-        } catch (err) {
-          if (!(err instanceof NotFoundException)) throw err;
-          const res = await this.channexClient.createRatePlan(rpPayload, apiKey);
-          channexRpId = res.data.id;
-          await this.prisma.channexMapping.update({
-            where: { id: rpMapping.id },
-            data: { channexId: channexRpId },
-          });
+        } catch (err: any) {
+          // Existing rate plan Channex IDs must be retained; do not silently recreate missing mapped remote entities on 404 (requires explicit reconciliation)
+          this.logger.error(
+            `[ChannexSync] Cập nhật Rate Plan ${channexRpId} thất bại: ${err.message}`,
+          );
+          throw new BadRequestException(
+            `Không thể cập nhật gói giá "${rpPayload.title}" trên Channex (ID: ${channexRpId}): ${err.message}. Yêu cầu đối soát thủ công, không tự ý tạo mới.`,
+          );
         }
       } else {
+        const existingRemoteRp = remoteRatePlansList.find((rp: any) => {
+          const title = (rp.attributes?.title ?? rp.title ?? "").trim();
+          const rtId =
+            rp.attributes?.room_type_id ?? rp.room_type_id ?? rp.relationships?.room_type?.data?.id;
+          return (
+            title.toLowerCase() === rpPayload.title.toLowerCase() && (!rtId || rtId === channexRtId)
+          );
+        });
+        if (existingRemoteRp) {
+          throw new BadRequestException(
+            `Gói giá "${rpPayload.title}" chưa có mapping trong DB nhưng đã tồn tại trên Channex (ID: ${existingRemoteRp.id}). Trạng thái không xác định: không tự tạo trùng lặp, yêu cầu liên kết hoặc đối soát thủ công.`,
+          );
+        }
+
         const res = await this.channexClient.createRatePlan(rpPayload, apiKey);
         channexRpId = res.data.id;
-        await this.prisma.channexMapping.create({
-          data: {
-            hotelId,
-            channelConnectionId: channelConnection.id,
-            kind: "rate_plan",
-            localId: ratePlanCode,
-            channexId: channexRpId,
-            metadata: { title: `${roomType} - Standard Rate`, sellMode: "per_room" },
-          },
-        });
+        try {
+          await this.prisma.channexMapping.create({
+            data: {
+              hotelId,
+              channelConnectionId: channelConnection.id,
+              kind: "rate_plan",
+              localId: ratePlanCode,
+              channexId: channexRpId,
+              metadata: { title: `${roomType} - Standard Rate`, sellMode: "per_room" },
+            },
+          });
+        } catch (dbErr: any) {
+          this.logger.error(
+            `[ChannexSync] Đã tạo Rate Plan trên Channex (ID: ${channexRpId}) nhưng lưu mapping thất bại: ${dbErr.message}`,
+          );
+          throw new BadRequestException(
+            `Đã tạo gói giá "${rpPayload.title}" trên Channex (ID: ${channexRpId}) nhưng lưu mapping vào CSDL thất bại: ${dbErr.message}. Trạng thái không xác định: ID Channex là ${channexRpId}, hãy kiểm tra và lưu mapping thủ công để tránh tạo trùng lặp.`,
+          );
+        }
       }
 
       ratePlansSynced.push({
@@ -422,33 +500,197 @@ export class ChannexSyncService {
     const readbackRatePlans = await this.channexClient.getRatePlans(channexPropertyId, apiKey);
     await this.ensureBookingWebhook(channexPropertyId, apiKey);
 
+    const remoteRts = Array.isArray(readbackRoomTypes?.data) ? readbackRoomTypes.data : [];
+    const remoteRps = Array.isArray(readbackRatePlans?.data) ? readbackRatePlans.data : [];
+    const mismatches: string[] = [];
+
+    for (const expectedRt of roomTypesSynced) {
+      const found = remoteRts.find((r: any) => r.id === expectedRt.channexRoomTypeId);
+      if (!found) {
+        mismatches.push(
+          `Room type ID "${expectedRt.channexRoomTypeId}" (${expectedRt.localRoomType}) không tồn tại trong readback Channex`,
+        );
+        continue;
+      }
+      const propId =
+        found.attributes?.property_id ??
+        found.property_id ??
+        found.relationships?.property?.data?.id;
+      if (propId !== channexPropertyId) {
+        mismatches.push(
+          `Room type ID "${expectedRt.channexRoomTypeId}" thuộc property "${propId}", không khớp với "${channexPropertyId}"`,
+        );
+      }
+      const attrs = found.attributes ?? found;
+      const expectedStats = Array.from(roomTypeMap.values()).find(
+        (stats) => stats.name === expectedRt.localRoomType,
+      );
+      if (attrs.title !== expectedRt.localRoomType.trim()) {
+        mismatches.push(
+          `Room type ID "${expectedRt.channexRoomTypeId}" có tiêu đề "${attrs.title}", không khớp với "${expectedRt.localRoomType.trim()}"`,
+        );
+      }
+      if (
+        !expectedStats ||
+        Number(attrs.count_of_rooms) !== expectedStats.count ||
+        Number(attrs.occ_adults) !== 2 ||
+        Number(attrs.occ_children) !== 1 ||
+        Number(attrs.occ_infants) !== 1 ||
+        Number(attrs.default_occupancy) !== 2
+      ) {
+        mismatches.push(
+          `Room type ID "${expectedRt.channexRoomTypeId}" có số phòng hoặc sức chứa không khớp`,
+        );
+      }
+    }
+
+    for (const expectedRp of ratePlansSynced) {
+      const found = remoteRps.find((r: any) => r.id === expectedRp.channexRatePlanId);
+      if (!found) {
+        mismatches.push(
+          `Rate plan ID "${expectedRp.channexRatePlanId}" (${expectedRp.ratePlanCode}) không tồn tại trong readback Channex`,
+        );
+        continue;
+      }
+      const propId =
+        found.attributes?.property_id ??
+        found.property_id ??
+        found.relationships?.property?.data?.id;
+      if (propId !== channexPropertyId) {
+        mismatches.push(
+          `Rate plan ID "${expectedRp.channexRatePlanId}" thuộc property "${propId}", không khớp với "${channexPropertyId}"`,
+        );
+      }
+
+      // Check room type relationship
+      const targetRt = roomTypesSynced.find(
+        (rt) =>
+          ratePlanKeys.get(
+            Array.from(roomTypeMap.values()).find((s) => s.name === rt.localRoomType)?.id ?? "",
+          ) === expectedRp.ratePlanCode,
+      );
+      if (targetRt) {
+        const rtId =
+          found.attributes?.room_type_id ??
+          found.room_type_id ??
+          found.relationships?.room_type?.data?.id;
+        if (rtId !== targetRt.channexRoomTypeId) {
+          mismatches.push(
+            `Rate plan ID "${expectedRp.channexRatePlanId}" gắn với room type "${rtId}", không khớp với "${targetRt.channexRoomTypeId}"`,
+          );
+        }
+      }
+
+      // Check currency
+      const curr = found.attributes?.currency ?? found.currency;
+      if (typeof curr !== "string" || curr.toUpperCase() !== effectiveCurrency.toUpperCase()) {
+        mismatches.push(
+          `Rate plan ID "${expectedRp.channexRatePlanId}" có tiền tệ "${curr}", không khớp với "${effectiveCurrency}"`,
+        );
+      }
+
+      const rpAttrs = found.attributes ?? found;
+      const statsEntry = Array.from(roomTypeMap.values()).find(
+        (stats) => ratePlanKeys.get(stats.id) === expectedRp.ratePlanCode,
+      );
+      const expectedTitle = statsEntry ? `${statsEntry.name} - Standard Rate` : undefined;
+      if (
+        rpAttrs.title !== expectedTitle ||
+        rpAttrs.sell_mode !== "per_room" ||
+        rpAttrs.rate_mode !== "manual"
+      ) {
+        mismatches.push(
+          `Rate plan ID "${expectedRp.channexRatePlanId}" có tiêu đề hoặc chế độ giá không khớp`,
+        );
+      }
+
+      // Check rate amount
+      if (statsEntry) {
+        const expectedMinor = Math.round(statsEntry.defaultPrice * rateConversionMultiplier);
+        const options = found.attributes?.options ?? found.options;
+        if (!Array.isArray(options) || options.length === 0) {
+          mismatches.push(`Rate plan ID "${expectedRp.channexRatePlanId}" thiếu giá readback`);
+        } else {
+          const opt = options.find((o: any) => o.is_primary) ?? options[0];
+          if (
+            opt?.rate === undefined ||
+            opt.rate === null ||
+            Number(opt.occupancy) !== 2 ||
+            opt.is_primary !== true
+          ) {
+            mismatches.push(
+              `Rate plan ID "${expectedRp.channexRatePlanId}" thiếu giá hoặc cấu hình occupancy readback`,
+            );
+          } else {
+            let actualMinor: number;
+            if (typeof opt.rate === "string") {
+              const parsed = parseFloat(opt.rate);
+              actualMinor = opt.rate.includes(".")
+                ? Math.round(parsed * (effectiveCurrency === "GBP" ? 100 : 1))
+                : Math.round(parsed);
+            } else {
+              actualMinor = Math.round(opt.rate);
+            }
+            if (!Number.isFinite(actualMinor) || actualMinor !== expectedMinor) {
+              mismatches.push(
+                `Rate plan ID "${expectedRp.channexRatePlanId}" có giá ${actualMinor}, không khớp với giá mong đợi ${expectedMinor}`,
+              );
+            }
+          }
+        }
+      }
+    }
+
+    const isVerified = mismatches.length === 0;
+
     // Ghi log đồng bộ
     await this.prisma.channelSyncLog.create({
       data: {
         hotelId,
         channelConnectionId: channelConnection.id,
         syncType: "CHANNEX_CONTENT_SYNC",
-        status: "SUCCESS",
+        status: isVerified ? "SUCCESS" : "FAILED",
         eventsCount: roomTypesSynced.length + ratePlansSynced.length,
         details: JSON.stringify({
           channexPropertyId,
+          stage: isVerified ? "COMPLETED" : "VERIFICATION",
           roomTypesSynced: roomTypesSynced.length,
           ratePlansSynced: ratePlansSynced.length,
-          verifiedRoomTypes: (readbackRoomTypes.data || []).length,
-          verifiedRatePlans: (readbackRatePlans.data || []).length,
+          verifiedRoomTypes: remoteRts.length,
+          verifiedRatePlans: remoteRps.length,
+          ...(mismatches.length > 0 ? { mismatches } : {}),
         }),
       },
     });
 
+    if (!isVerified) {
+      return {
+        success: false,
+        status: "FAILED",
+        stage: "VERIFICATION",
+        hotelId,
+        channexPropertyId,
+        roomTypesSynced,
+        ratePlansSynced,
+        verified: {
+          roomTypesInChannex: remoteRts.length,
+          ratePlansInChannex: remoteRps.length,
+          mismatches,
+        },
+        error: `Xác thực readback Channex thất bại: ${mismatches.join("; ")}`,
+      };
+    }
+
     return {
       success: true,
+      status: "SUCCESS",
       hotelId,
       channexPropertyId,
       roomTypesSynced,
       ratePlansSynced,
       verified: {
-        roomTypesInChannex: (readbackRoomTypes.data || []).length,
-        ratePlansInChannex: (readbackRatePlans.data || []).length,
+        roomTypesInChannex: remoteRts.length,
+        ratePlansInChannex: remoteRps.length,
       },
     };
   }

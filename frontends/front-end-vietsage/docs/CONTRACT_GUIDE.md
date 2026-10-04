@@ -96,7 +96,7 @@ Backend API
 - Adapters using the common `room_rate_multioccupancy` contract and known rate fields render a native dynamic wizard from `params`/`rate_params`: test connection, load mapping details, map local rate plans, create inactive, run readiness, then require a separate confirmed activation. OAuth/listing/tree or unknown mapping fields fall back to the official Channex iframe. The one-time iframe URL stays only in component state; it is never stored in local/session storage.
 - Manual booking-feed polling, Doctor results, and raw mappings stay under admin operational tools. The backend minute poller and authenticated webhook are the normal inbound paths.
 - Real inbound certification tests use Channex Booking CRS or an official OTA test channel; the normal UI does not present PMS-local synthetic reservations as Channex-created bookings.
-- A provider modification creates a reconciliation warning; staff must review it instead of the UI claiming that dates were automatically changed.
+- A provider modification remains unacknowledged and creates a hotel-scoped reconciliation warning. Staff review the proposed dates, update PMS manually, then explicitly mark the warning resolved; the next feed pass acknowledges that revision. The UI never claims dates were automatically changed.
 
 ## Anti-patterns
 
