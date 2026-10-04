@@ -146,6 +146,49 @@ describe("T3 - Marketplace Conversation Service", () => {
       expect(dispatchSpy).toHaveBeenCalled();
     });
 
+    it("attaches a rejection handler to asynchronous Telegram dispatch", async () => {
+      const mockOrder = {
+        id: "order-1",
+        hotelId: "hotel-1",
+        stayId: "stay-1",
+        serviceTenantId: "tenant-1",
+        assignedLocalMateProfileId: "guide-1",
+        status: MarketplaceOrderStatus.ACKNOWLEDGED,
+        stay: { room: { id: "room-1" }, guestSessions: [{ id: "sess-1" }] },
+      };
+      const createdMessage = {
+        id: "msg-1",
+        orderId: "order-1",
+        senderType: "GUEST",
+        body: "Em có mặt ở sảnh rồi ạ",
+        deliveryStatus: "PENDING",
+        createdAt: new Date(),
+      };
+      const prisma = {
+        marketplaceOrder: { findUnique: jest.fn().mockResolvedValue(mockOrder) },
+      };
+      const repo = {
+        findOrCreateConversation: jest.fn().mockResolvedValue({ id: "conv-1" }),
+        appendGuestMessage: jest.fn().mockResolvedValue({
+          isDuplicate: false,
+          message: createdMessage,
+        }),
+      };
+      const dispatchResult = {
+        catch: jest.fn().mockReturnValue(undefined),
+      } as unknown as Promise<void>;
+      const service = new MarketplaceConversationService(prisma as never, repo as never);
+      service.setBridgeDispatcher({ dispatchGuestMessage: () => dispatchResult });
+
+      await service.sendGuestMessage(
+        { hotelId: "hotel-1", stayId: "stay-1", sessionId: "sess-1" },
+        "order-1",
+        { body: "Em có mặt ở sảnh rồi ạ", clientMessageId: "client-id-1" },
+      );
+
+      expect(dispatchResult.catch).toHaveBeenCalledWith(expect.any(Function));
+    });
+
     it("rejects sending message when order is PENDING (not yet accepted)", async () => {
       const mockOrder = {
         id: "order-1",

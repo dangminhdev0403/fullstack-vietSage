@@ -5,6 +5,7 @@ export type OwnerRealtimeHandlers = {
   onAnswered?: (request: unknown) => void;
   onGuestMessageCreated?: (event: unknown) => void;
   onConversationClosed?: (event: unknown) => void;
+  onMarketplaceConversationMessageCreated?: (event: unknown) => void;
   onExternalOrderCreated?: (event: unknown) => void;
   onExternalOrderStatusChanged?: (event: unknown) => void;
   onExternalOrderHotelAcknowledged?: (event: unknown) => void;

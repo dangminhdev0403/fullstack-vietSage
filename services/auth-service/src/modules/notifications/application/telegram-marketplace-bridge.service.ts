@@ -144,14 +144,18 @@ export class TelegramMarketplaceBridgeService {
     const orderId = parts.slice(2).join(":");
     if (!callbackQuery.from?.id) return;
     const callerUserId = String(callbackQuery.from.id);
+    const callerChatId = callbackQuery.message?.chat?.id;
 
-    const binding = await this.prisma.localMateTelegramBinding.findFirst({
-      where: {
-        telegramUserId: callerUserId,
-        revokedAt: null,
-        blockedAt: null,
-      },
-    });
+    const binding = callerChatId
+      ? await this.prisma.localMateTelegramBinding.findFirst({
+          where: {
+            telegramUserId: callerUserId,
+            telegramChatId: String(callerChatId),
+            revokedAt: null,
+            blockedAt: null,
+          },
+        })
+      : null;
 
     if (!binding) {
       await this.telegramNotificationService.callTelegram("answerCallbackQuery", {
@@ -404,7 +408,11 @@ export class TelegramMarketplaceBridgeService {
           },
         });
       } else {
-        const nextAttempt = new Date(Date.now() + 60 * 1000);
+        const retryDelayMs = Math.min(
+          5 * 60 * 1000,
+          60 * 1000 * 2 ** Math.max(0, Number(message.attemptCount ?? 0)),
+        );
+        const nextAttempt = new Date(Date.now() + retryDelayMs);
         await this.prisma.marketplaceConversationMessage.update({
           where: { id: message.id },
           data: {
@@ -502,7 +510,11 @@ export class TelegramMarketplaceBridgeService {
       },
     });
 
-    if (!order || order.status !== MarketplaceOrderStatus.ACKNOWLEDGED) {
+    if (
+      !order ||
+      order.assignedLocalMateProfileId !== binding.localMateProfileId ||
+      order.status !== MarketplaceOrderStatus.ACKNOWLEDGED
+    ) {
       await this.telegramNotificationService
         .callTelegram("sendMessage", {
           chat_id: callerChatId,

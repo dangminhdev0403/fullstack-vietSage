@@ -9,6 +9,7 @@ import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
 import { guestMessagesResource } from "@/features/guest-os/resources/guest-messages-resource";
 import { useGuestStore } from "@/features/guest-os/store/guest-store";
 import type { GuestRequest } from "@/features/guest-os/types/guest-os-contract";
+import { guestMarketplaceResource } from "@/features/marketplace/resources/guest-marketplace-resource";
 import { useGuestRequestRealtime } from "./use-guest-request-realtime";
 
 export const GUEST_REQUEST_REALTIME_BROWSER_EVENT = "vietsage:guest-request-realtime";
@@ -124,6 +125,19 @@ export function GuestRequestRealtimeNotifier() {
             });
           }
         }
+      },
+      onMarketplaceConversationMessageCreated: (event: unknown) => {
+        const orderId =
+          typeof event === "object" && event !== null && "orderId" in event
+            ? (event as { orderId?: unknown }).orderId
+            : undefined;
+        if (!sessionToken || typeof orderId !== "string" || !orderId) return;
+
+        void queryClient.invalidateQueries({
+          queryKey: guestMarketplaceResource
+            .bind({ sessionToken, locale })
+            .queries.conversation.options({ orderId }).queryKey,
+        });
       },
       onExternalOrderHotelAcknowledged: (event: unknown) => {
         playGuestRequestSound("updated");

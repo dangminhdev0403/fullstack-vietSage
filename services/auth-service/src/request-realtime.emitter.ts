@@ -179,16 +179,11 @@ export class RequestRealtimeEmitter {
       orderId: input.orderId,
       message: input.message,
     };
-    if (input.stayId) {
-      this.serverRef
-        ?.to(this.guestStayRoom(input.stayId))
-        .emit("marketplace_conversation.message_created", payload);
-    }
+    let recipients = this.serverRef?.to(this.guestStayRoom(input.stayId));
     if (input.sessionId) {
-      this.serverRef
-        ?.to(this.guestSessionRoom(input.sessionId))
-        .emit("marketplace_conversation.message_created", payload);
+      recipients = recipients?.to(this.guestSessionRoom(input.sessionId));
     }
+    recipients?.emit("marketplace_conversation.message_created", payload);
   }
 
   static emitExternalServiceOrderCreated(
@@ -368,9 +363,7 @@ export class RequestRealtimeEmitter {
     const eventId = randomUUID();
     const payload = { ...input, eventId };
 
-    this.serverRef
-      ?.to(this.ownerHotelRoom(input.hotelId))
-      .emit("channel_booking.created", payload);
+    this.serverRef?.to(this.ownerHotelRoom(input.hotelId)).emit("channel_booking.created", payload);
   }
 
   static emitChannelBookingCancelled(input: {

@@ -109,3 +109,25 @@ test("guest connection forwards stay-scoped message and close events", () => {
   assert.deepEqual(received, [messageEvent, closeEvent]);
   unsub();
 });
+
+test("guest connection forwards marketplace conversation events", () => {
+  const handlers = new Map<string, (value?: unknown) => void>();
+  const manager = createGuestConnectionManager({
+    enabled: true,
+    createSocket: () => ({
+      connect() {},
+      disconnect() {},
+      on(event: string, handler: (value?: unknown) => void) { handlers.set(event, handler); },
+    }),
+  });
+  const received: unknown[] = [];
+  const unsub = manager.subscribe("token-1", {
+    onMarketplaceConversationMessageCreated: (event: unknown) => received.push(event),
+  });
+  const event = { orderId: "order-1", message: { id: "message-1" } };
+
+  handlers.get("marketplace_conversation.message_created")?.(event);
+
+  assert.deepEqual(received, [event]);
+  unsub();
+});
