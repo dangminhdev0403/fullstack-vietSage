@@ -223,7 +223,7 @@ export class ChannelManagerAdminOverviewService {
       mappedRoomTypes: Number(item.mappedRoomTypes ?? 0),
       mappedRatePlans: Number(item.mappedRatePlans ?? 0),
       pendingReconciliations: Number(item.pendingReconciliations ?? 0),
-      lastSyncAt: item.lastSyncAt ? new Date(item.lastSyncAt).toISOString() : null,
+      lastSyncAt: item.lastSyncAt ? new Date(String(item.lastSyncAt)).toISOString() : null,
       lastSyncStatus: item.lastSyncStatus ?? null,
       primaryIssueCode: (item.primaryIssueCode ?? null) as AdminChannelOverviewPrimaryIssueCode,
     }));

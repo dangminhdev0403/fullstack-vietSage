@@ -25,6 +25,8 @@ describe("ChannelManagerController Channex failure responses", () => {
     {} as never,
     {} as never,
     hotelAccessService as never,
+    {} as never,
+    {} as never,
   );
 
   beforeEach(() => jest.clearAllMocks());

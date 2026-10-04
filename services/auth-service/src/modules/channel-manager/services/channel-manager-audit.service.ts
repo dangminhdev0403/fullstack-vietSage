@@ -19,7 +19,8 @@ export interface RecordHotelAuditParams {
   metadata?: Record<string, unknown>;
 }
 
-const SENSITIVE_KEY_PATTERN = /(api[_-]?key|token|secret|password|credential|iframe.*url|raw.*error|authorization)/i;
+const SENSITIVE_KEY_PATTERN =
+  /(api[_-]?key|token|secret|password|credential|iframe.*url|raw.*error|authorization)/i;
 
 @Injectable()
 export class ChannelManagerAuditService {
@@ -63,7 +64,9 @@ export class ChannelManagerAuditService {
 
     if (!hotel) {
       this.logger.error(`[Audit Failure] Hotel not found: ${params.hotelId}`);
-      throw new NotFoundException(`Không tìm thấy khách sạn ${params.hotelId} khi ghi log kiểm toán`);
+      throw new NotFoundException(
+        `Không tìm thấy khách sạn ${params.hotelId} khi ghi log kiểm toán`,
+      );
     }
 
     return this.record({

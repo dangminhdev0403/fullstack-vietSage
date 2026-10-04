@@ -483,7 +483,10 @@ export class ChannelManagerController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const channelId = parseWithZod(channexChannelIdSchema, channelIdParam);
     await this.assertAccess(req, hotelId);
-    const result = await this.channexChannelSessionService.activateNativeChannel(hotelId, channelId);
+    const result = await this.channexChannelSessionService.activateNativeChannel(
+      hotelId,
+      channelId,
+    );
     await this.auditService.recordHotelAction({
       actorId: req.user.userId,
       hotelId,
@@ -506,7 +509,10 @@ export class ChannelManagerController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const channelId = parseWithZod(channexChannelIdSchema, channelIdParam);
     await this.assertAccess(req, hotelId);
-    const result = await this.channexChannelSessionService.deactivateNativeChannel(hotelId, channelId);
+    const result = await this.channexChannelSessionService.deactivateNativeChannel(
+      hotelId,
+      channelId,
+    );
     await this.auditService.recordHotelAction({
       actorId: req.user.userId,
       hotelId,
@@ -546,7 +552,11 @@ export class ChannelManagerController {
     const channelId = parseWithZod(channexChannelIdSchema, channelIdParam);
     await this.assertAccess(req, hotelId);
     const payload = parseWithZod(channexUpdateChannelSchema, body);
-    const result = await this.channexChannelSessionService.updateNativeChannel(hotelId, channelId, payload);
+    const result = await this.channexChannelSessionService.updateNativeChannel(
+      hotelId,
+      channelId,
+      payload,
+    );
     await this.auditService.recordHotelAction({
       actorId: req.user.userId,
       hotelId,
