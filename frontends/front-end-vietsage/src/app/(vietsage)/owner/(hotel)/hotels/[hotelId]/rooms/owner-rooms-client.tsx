@@ -407,6 +407,7 @@ export function OwnerRoomsClient({
   const [selectedDetailRoom, setSelectedDetailRoom] = useState<HotelRoomSummary | null>(
     null,
   );
+  const [detailDrawerInitialMode, setDetailDrawerInitialMode] = useState<"view" | "edit">("view");
   const [isSaving, setIsSaving] = useState(false);
   const [isBulkQrBusy, setIsBulkQrBusy] = useState(false);
   const clientOrigin = useClientOrigin();
@@ -642,8 +643,48 @@ export function OwnerRoomsClient({
   }
 
   function openEditRoom(room: HotelRoomSummary) {
-    setRoomForm(roomToForm(room));
-    setRoomFormErrors({});
+    setDetailDrawerInitialMode("edit");
+    setSelectedDetailRoom(room);
+  }
+
+  async function handleSaveRoomFromDrawer(
+    roomId: string,
+    data: {
+      roomNumber: string;
+      floor?: string;
+      roomTypeId?: string;
+      price?: number;
+      maxActiveGuestDevices?: number | null;
+    },
+  ) {
+    setIsSaving(true);
+    try {
+      showLoading("Đang lưu phòng");
+      const path = `/api/owner/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(roomId)}`;
+      const updated = await requestInternalApiEnvelope<HotelRoomSummary>(path, {
+        method: "PATCH",
+        body: data,
+      });
+      await refreshRooms();
+      await refetchRoomTypes();
+      setSelectedDetailRoom((prev) =>
+        prev && prev.id === roomId ? { ...prev, ...updated } : prev,
+      );
+      await toast.fire({
+        icon: "success",
+        title: "Đã lưu phòng tại VietSage",
+      });
+    } catch (error) {
+      await SwalVietSage.fire({
+        icon: "error",
+        title: "Không thể cập nhật phòng",
+        text: getBusinessErrorMessage(error, "Vui lòng thử lại."),
+        confirmButtonText: "OK",
+      });
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function closeRoomForm() {
@@ -1743,11 +1784,14 @@ export function OwnerRoomsClient({
       <RoomDetailDrawer
         room={selectedDetailRoom}
         clientOrigin={clientOrigin}
-        onClose={() => setSelectedDetailRoom(null)}
-        onEditRoom={(r) => {
+        initialMode={detailDrawerInitialMode}
+        catalog={catalog}
+        roomTypesLoading={roomTypesLoading}
+        onClose={() => {
           setSelectedDetailRoom(null);
-          openEditRoom(r);
+          setDetailDrawerInitialMode("view");
         }}
+        onSaveRoom={handleSaveRoomFromDrawer}
         onQrAction={(r, action) => void updateRoomFromQrAction(r, action)}
         onOpenQrModal={(r) => {
           setSelectedDetailRoom(null);
@@ -1755,8 +1799,7 @@ export function OwnerRoomsClient({
         }}
       />
 
-
-      {roomForm ? (
+      {roomForm && !roomForm.id ? (
         <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/45 p-4 backdrop-blur-sm">
           <form
             noValidate

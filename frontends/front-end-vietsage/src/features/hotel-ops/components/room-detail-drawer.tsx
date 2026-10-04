@@ -7,10 +7,30 @@ import { BrandedRoomQr } from "@/features/hotel-ops/components/branded-room-qr";
 import type { HotelRoomSummary } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { filterExtraOccupants } from "@/features/hotel-ops/utils/hotel-ops-display";
 
+export type CatalogRoomType = {
+  id: string;
+  name: string;
+  basePrice?: number;
+  readiness?: string;
+};
+
 type RoomDetailDrawerProps = {
   room: HotelRoomSummary | null;
   clientOrigin: string;
+  initialMode?: "view" | "edit";
+  catalog?: CatalogRoomType[];
+  roomTypesLoading?: boolean;
   onClose: () => void;
+  onSaveRoom?: (
+    roomId: string,
+    data: {
+      roomNumber: string;
+      floor?: string;
+      roomTypeId?: string;
+      price?: number;
+      maxActiveGuestDevices?: number | null;
+    },
+  ) => Promise<void>;
   onEditRoom?: (room: HotelRoomSummary) => void;
   onToggleBlocked?: (room: HotelRoomSummary) => void;
   onQrAction?: (room: HotelRoomSummary, action: "rotate" | "activate" | "deactivate") => void;
@@ -50,6 +70,12 @@ function formatVnd(value: number | string | null | undefined): string {
   return new Intl.NumberFormat("vi-VN").format(num) + " ₫";
 }
 
+function formatPriceInput(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+  return new Intl.NumberFormat("vi-VN").format(Number(digits));
+}
+
 function formatDateTime(value: string | null | undefined): string {
   if (!value) return "--";
   try {
@@ -68,7 +94,11 @@ function formatDateTime(value: string | null | undefined): string {
 export function RoomDetailDrawer({
   room,
   clientOrigin,
+  initialMode = "view",
+  catalog,
+  roomTypesLoading = false,
   onClose,
+  onSaveRoom,
   onEditRoom,
   onToggleBlocked,
   onQrAction,
@@ -76,39 +106,83 @@ export function RoomDetailDrawer({
 }: Readonly<RoomDetailDrawerProps>) {
   const qrCodeRef = useRef<SVGSVGElement | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isEditing, setIsEditing] = useState(initialMode === "edit");
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Form edit states
+  const [formRoomNumber, setFormRoomNumber] = useState("");
+  const [formFloor, setFormFloor] = useState("");
+  const [formRoomTypeId, setFormRoomTypeId] = useState("");
+  const [formPrice, setFormPrice] = useState("");
+  const [formMaxDevices, setFormMaxDevices] = useState("");
+  const [formErrors, setFormErrors] = useState<{ roomNumber?: string; price?: string }>({});
+
+  // Sync mode when initialMode or room changes
+  useEffect(() => {
+    setIsEditing(initialMode === "edit");
+  }, [initialMode, room?.id]);
+
+  // Sync form values from room
+  useEffect(() => {
+    if (!room) return;
+    setFormRoomNumber(room.roomNumber ?? "");
+    setFormFloor(room.floor ?? "");
+    setFormRoomTypeId(room.roomTypeId ?? "");
+    const rawPrice =
+      room.price !== null && room.price !== undefined && room.price !== ""
+        ? String(room.price)
+        : "";
+    setFormPrice(rawPrice);
+    setFormMaxDevices(
+      room.maxActiveGuestDevices !== null && room.maxActiveGuestDevices !== undefined
+        ? String(room.maxActiveGuestDevices)
+        : "",
+    );
+    setFormErrors({});
+  }, [room, isEditing]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
-        onClose();
+        if (isEditing && initialMode !== "edit") {
+          setIsEditing(false);
+        } else {
+          onClose();
+        }
       }
     }
     if (room) {
       window.addEventListener("keydown", handleKeyDown);
       return () => window.removeEventListener("keydown", handleKeyDown);
     }
-  }, [room, onClose]);
+  }, [room, isEditing, initialMode, onClose]);
 
   const roomNumber = useMemo(() => room?.roomNumber?.trim() || room?.id || "--", [room]);
 
   const currentRoomStatus = useMemo(
     () => (room?.status?.trim().toUpperCase() || "AVAILABLE"),
-    [room?.status]
+    [room?.status],
   );
 
   const roomStatusMeta = useMemo(
-    () => ROOM_STATUS_MAP[currentRoomStatus] ?? { label: currentRoomStatus, bg: "bg-slate-100", text: "text-slate-800", icon: "info" },
-    [currentRoomStatus]
+    () =>
+      ROOM_STATUS_MAP[currentRoomStatus] ?? {
+        label: currentRoomStatus,
+        bg: "bg-slate-100",
+        text: "text-slate-800",
+        icon: "info",
+      },
+    [currentRoomStatus],
   );
 
   const rawQrStatus = useMemo(
     () => (room?.qr?.status ?? room?.qrStatus ?? "INACTIVE").trim().toUpperCase(),
-    [room?.qr?.status, room?.qrStatus]
+    [room?.qr?.status, room?.qrStatus],
   );
 
   const publicQrCode = useMemo(
     () => (rawQrStatus === "ACTIVE" ? (room?.qr?.publicCode?.trim() || null) : null),
-    [rawQrStatus, room?.qr?.publicCode]
+    [rawQrStatus, room?.qr?.publicCode],
   );
 
   const guestQrUrl = useMemo(() => {
@@ -118,8 +192,13 @@ export function RoomDetailDrawer({
   }, [clientOrigin, publicQrCode]);
 
   const qrStatusMeta = useMemo(
-    () => QR_STATUS_MAP[rawQrStatus] ?? { label: rawQrStatus, bg: "bg-slate-100", text: "text-slate-800" },
-    [rawQrStatus]
+    () =>
+      QR_STATUS_MAP[rawQrStatus] ?? {
+        label: rawQrStatus,
+        bg: "bg-slate-100",
+        text: "text-slate-800",
+      },
+    [rawQrStatus],
   );
 
   const activeStay = room?.activeStay;
@@ -140,6 +219,41 @@ export function RoomDetailDrawer({
     }
   }
 
+  async function handleSaveForm(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    if (!room || !onSaveRoom) return;
+
+    const trimmedNumber = formRoomNumber.trim();
+    if (!trimmedNumber) {
+      setFormErrors({ roomNumber: "Vui lòng nhập số phòng." });
+      return;
+    }
+
+    const priceNum = formPrice.trim() ? Number(formPrice.replace(/\D/g, "")) : undefined;
+    if (priceNum !== undefined && (!Number.isFinite(priceNum) || priceNum <= 0)) {
+      setFormErrors({ price: "Giá phòng phải lớn hơn 0." });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await onSaveRoom(room.id, {
+        roomNumber: trimmedNumber,
+        floor: formFloor.trim() || undefined,
+        ...(formRoomTypeId ? { roomTypeId: formRoomTypeId } : {}),
+        price: priceNum,
+        maxActiveGuestDevices: formMaxDevices.trim()
+          ? Number(formMaxDevices.replace(/\D/g, ""))
+          : null,
+      });
+      setIsEditing(false);
+    } catch {
+      // Error handled by parent toast/swal
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   if (!room) return null;
 
   const isBlocked = currentRoomStatus === "BLOCKED";
@@ -154,233 +268,462 @@ export function RoomDetailDrawer({
         aria-hidden="true"
       />
 
-      {/* Centered Modal Container - Balanced, compact, fits viewport without unnecessary height */}
+      {/* Centered Modal Container - Spacious max-w-5xl, elegant VietSage design */}
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="room-drawer-title"
-        className="relative z-10 flex w-full max-w-3xl flex-col rounded-3xl bg-[#fdfbf7] shadow-[0_24px_70px_rgba(0,0,0,0.35)] border border-[#1f3d35]/20 overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200"
+        className="relative z-10 flex w-full max-w-4xl lg:max-w-5xl flex-col rounded-3xl bg-[#fdfbf7] shadow-[0_28px_80px_rgba(0,0,0,0.38)] border border-[#1f3d35]/20 overflow-hidden my-auto max-h-[92vh] animate-in fade-in zoom-in-95 duration-200"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#1f3d35]/15 bg-[#17201b] px-6 py-4 text-[#f8f1e6]">
-          <div className="flex items-center gap-3 min-w-0">
-            {/* Room number badge with proper min-width so digits like #1013 never clip */}
-            <div className="flex h-10 min-w-[3.25rem] px-3 items-center justify-center rounded-xl bg-[#e8b363] text-[#17201b] shadow-sm font-extrabold text-sm tracking-tight shrink-0">
+        <div className="flex items-center justify-between border-b border-[#1f3d35]/15 bg-[#17201b] px-6 py-4.5 text-[#f8f1e6]">
+          <div className="flex items-center gap-3.5 min-w-0">
+            {/* Room number badge with warm gold styling */}
+            <div className="flex h-11 min-w-[3.75rem] px-3.5 items-center justify-center rounded-2xl bg-[#e8b363] text-[#17201b] shadow-sm font-extrabold text-base tracking-tight shrink-0">
               #{roomNumber}
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 id="room-drawer-title" className="text-lg sm:text-xl font-bold text-[#fff8e8] truncate">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h2 id="room-drawer-title" className="text-xl sm:text-2xl font-bold text-[#fff8e8] truncate">
                   Phòng #{roomNumber}
                 </h2>
-                <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider shrink-0 ${roomStatusMeta.bg} ${roomStatusMeta.text}`}>
-                  <VsIcon name={roomStatusMeta.icon} className="text-xs" />
-                  {roomStatusMeta.label}
-                </span>
+                {isEditing ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-bold uppercase tracking-wider bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                    <VsIcon name="edit" className="text-xs" />
+                    Đang chỉnh sửa
+                  </span>
+                ) : (
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-bold uppercase tracking-wider shrink-0 ${roomStatusMeta.bg} ${roomStatusMeta.text}`}
+                  >
+                    <VsIcon name={roomStatusMeta.icon} className="text-xs" />
+                    {roomStatusMeta.label}
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-[#d7cbb8] mt-0.5 flex items-center gap-2 truncate">
-                <span>Loại phòng: <strong className="text-[#fff8e8]">{room.type ?? "Tiêu chuẩn"}</strong></span>
+              <p className="text-xs sm:text-sm text-[#d7cbb8] mt-0.5 flex items-center gap-2 truncate">
+                <span>
+                  Loại phòng: <strong className="text-[#fff8e8] font-semibold">{room.type ?? "Tiêu chuẩn"}</strong>
+                </span>
                 <span className="text-[#d7cbb8]/40">•</span>
-                <span>Vị trí: <strong className="text-[#fff8e8]">{room.floor ? `Tầng ${room.floor}` : "Chưa xác định"}</strong></span>
+                <span>
+                  Vị trí:{" "}
+                  <strong className="text-[#fff8e8] font-semibold">
+                    {room.floor ? `Tầng ${room.floor}` : "Chưa xác định"}
+                  </strong>
+                </span>
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#f8f1e6]/15 bg-white/5 text-[#d7cbb8] hover:bg-white/15 hover:text-[#fff8e8] transition focus:outline-none focus:ring-2 focus:ring-[#e8b363]"
-            title="Đóng (Esc)"
-            aria-label="Đóng chi tiết phòng"
-          >
-            <VsIcon name="close" className="text-lg" />
-          </button>
+          <div className="flex items-center gap-2">
+            {!isEditing && onSaveRoom ? (
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-[#e8b363]/40 bg-[#e8b363]/15 px-3.5 py-2 text-xs font-bold text-[#e8b363] hover:bg-[#e8b363]/25 transition"
+                title="Chỉnh sửa thông tin phòng"
+              >
+                <VsIcon name="edit" className="text-sm" />
+                <span>Chỉnh sửa</span>
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#f8f1e6]/15 bg-white/5 text-[#d7cbb8] hover:bg-white/15 hover:text-[#fff8e8] transition focus:outline-none focus:ring-2 focus:ring-[#e8b363]"
+              title="Đóng (Esc)"
+              aria-label="Đóng chi tiết phòng"
+            >
+              <VsIcon name="close" className="text-xl" />
+            </button>
+          </div>
         </div>
 
-        {/* Content Body - Clean, balanced 2 columns without redundant data */}
-        <div className="p-4 sm:p-5 text-[#17201b]">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-            {/* Left Column: Room Specs, Guest Status & Quick Actions */}
-            <div className="lg:col-span-7 flex flex-col justify-between space-y-3">
-              {/* Room Specs Details - Only non-redundant essential metrics */}
-              <div className="rounded-2xl border border-[#1f3d35]/10 bg-white p-3.5 shadow-xs">
-                <div className="flex items-center justify-between border-b border-[#1f3d35]/10 pb-1.5 mb-2.5">
-                  <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8a6a13] flex items-center gap-1.5">
-                    <VsIcon name="info" className="text-xs text-[#8a6a13]" />
-                    THÔNG TIN CƠ BẢN PHÒNG
-                  </h3>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="rounded-xl bg-slate-50 p-2 border border-slate-100">
-                    <span className="text-[10px] font-semibold text-slate-500 block">Giá niêm yết</span>
-                    <p className="font-extrabold text-xs text-emerald-700 mt-0.5 tabular-nums truncate">
-                      {formatVnd(room.price)}
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 p-2 border border-slate-100">
-                    <span className="text-[10px] font-semibold text-slate-500 block">Thiết bị tối đa</span>
-                    <p className="font-bold text-xs text-slate-900 mt-0.5 truncate">
-                      {room.activeGuestDeviceCount ?? 0} / {room.maxActiveGuestDevices ?? 3} TB
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 p-2 border border-slate-100">
-                    <span className="text-[10px] font-semibold text-slate-500 block">Trạng thái QR</span>
-                    <p className="font-bold text-xs text-emerald-800 mt-0.5 truncate flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
-                      {qrStatusMeta.label}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Guest / Occupancy Section */}
-              {activeStay ? (
-                <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-3.5 shadow-xs space-y-2">
-                  <div className="flex items-center justify-between border-b border-blue-200/60 pb-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <VsIcon name="person" className="text-sm text-blue-700" />
-                      <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-blue-800">
-                        Khách đang lưu trú
-                      </span>
+        {/* Content Body */}
+        <div className="p-5 sm:p-7 text-[#17201b] overflow-y-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            {/* Left Column: Room Specs, Guest Status OR Inline Edit Form */}
+            <div className="lg:col-span-7 flex flex-col justify-between space-y-4">
+              {isEditing ? (
+                /* INLINE EDIT FORM - No second modal, seamless editing in place */
+                <form
+                  onSubmit={handleSaveForm}
+                  className="rounded-2xl border border-[#1f3d35]/15 bg-white p-5 sm:p-6 shadow-xs space-y-4.5"
+                >
+                  <div className="flex items-center justify-between border-b border-[#1f3d35]/10 pb-3">
+                    <div>
+                      <h3 className="text-xs sm:text-sm font-bold uppercase tracking-[0.16em] text-[#8a6a13] flex items-center gap-2">
+                        <VsIcon name="edit_square" className="text-base text-[#8a6a13]" />
+                        CHỈNH SỬA THÔNG TIN PHÒNG
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Cập nhật trực tiếp số phòng, hạng phòng, vị trí tầng, giá và giới hạn thiết bị.
+                      </p>
                     </div>
-                    <span className="rounded-full bg-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-900">
-                      {1 + extraOccupants.length} khách
+                    <span className="rounded-full bg-amber-100 text-amber-900 border border-amber-200 px-3 py-1 text-xs font-bold shrink-0">
+                      Chế độ sửa
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <div>
-                      <strong className="text-sm font-extrabold text-blue-950">
-                        {activeStay.guestDisplayName || "Chưa có tên"}
-                      </strong>
-                      <span className="ml-1.5 text-[11px] font-semibold text-blue-700">
-                        (Chủ phòng)
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Số phòng */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+                        Số phòng <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formRoomNumber}
+                        onChange={(e) => {
+                          setFormRoomNumber(e.target.value);
+                          setFormErrors((prev) => ({ ...prev, roomNumber: undefined }));
+                        }}
+                        placeholder="Ví dụ: 501"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1f3d35] focus:outline-none focus:ring-2 focus:ring-[#e8b363]/50 transition"
+                      />
+                      {formErrors.roomNumber ? (
+                        <span className="text-xs font-semibold text-rose-600 block">{formErrors.roomNumber}</span>
+                      ) : null}
+                    </div>
+
+                    {/* Vị trí tầng */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+                        Vị trí tầng
+                      </label>
+                      <input
+                        type="text"
+                        value={formFloor}
+                        onChange={(e) => setFormFloor(e.target.value)}
+                        placeholder="Ví dụ: 5"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1f3d35] focus:outline-none focus:ring-2 focus:ring-[#e8b363]/50 transition"
+                      />
+                    </div>
+
+                    {/* Hạng / Loại phòng */}
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+                        Loại / Hạng phòng
+                      </label>
+                      <select
+                        value={formRoomTypeId}
+                        onChange={(e) => {
+                          const nextId = e.target.value;
+                          setFormRoomTypeId(nextId);
+                          const matched = catalog?.find((item) => item.id === nextId);
+                          if (matched?.basePrice && !formPrice) {
+                            setFormPrice(String(matched.basePrice));
+                          }
+                        }}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-[#1f3d35] focus:outline-none focus:ring-2 focus:ring-[#e8b363]/50 transition"
+                      >
+                        <option value="">
+                          -- {room.type ? `Hiện tại: ${room.type}` : "Chọn loại phòng trong danh mục"} --
+                        </option>
+                        {catalog
+                          ?.filter((item) => !item.id.startsWith("legacy:"))
+                          .map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {item.name}{" "}
+                              {item.basePrice
+                                ? `• ${new Intl.NumberFormat("vi-VN").format(item.basePrice)} ₫`
+                                : ""}
+                            </option>
+                          ))}
+                      </select>
+                      {roomTypesLoading ? (
+                        <span className="text-[11px] text-slate-400 block">Đang tải danh mục loại phòng...</span>
+                      ) : null}
+                    </div>
+
+                    {/* Giá riêng của phòng */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+                        Giá riêng của phòng (₫)
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={formatPriceInput(formPrice)}
+                        onChange={(e) => {
+                          setFormPrice(e.target.value.replace(/\D/g, ""));
+                          setFormErrors((prev) => ({ ...prev, price: undefined }));
+                        }}
+                        placeholder="Ví dụ: 400.000"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-[#1f3d35] focus:outline-none focus:ring-2 focus:ring-[#e8b363]/50 transition"
+                      />
+                      <span className="text-[11px] text-slate-500 block">
+                        Để trống nếu áp dụng giá gốc của loại phòng.
+                      </span>
+                      {formErrors.price ? (
+                        <span className="text-xs font-semibold text-rose-600 block">{formErrors.price}</span>
+                      ) : null}
+                    </div>
+
+                    {/* Thiết bị tối đa */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+                        Thiết bị tối đa
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={formMaxDevices}
+                        onChange={(e) => setFormMaxDevices(e.target.value.replace(/\D/g, ""))}
+                        placeholder="Mặc định: 3"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1f3d35] focus:outline-none focus:ring-2 focus:ring-[#e8b363]/50 transition"
+                      />
+                      <span className="text-[11px] text-slate-500 block">
+                        Số thiết bị khách đăng nhập đồng thời qua GuestOS.
                       </span>
                     </div>
-                    {activeStay.guestPhone ? (
-                      <span className="rounded-lg bg-blue-100 px-2 py-0.5 text-[11px] font-bold text-blue-800">
-                        📞 {activeStay.guestPhone}
-                      </span>
-                    ) : null}
                   </div>
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-blue-900/90 pt-1 border-t border-blue-200/50">
-                    <p><span className="font-semibold text-blue-950">CCCD:</span> {activeStay.guestIdentityNumber || "--"}</p>
-                    <p><span className="font-semibold text-blue-950">Mã đặt:</span> {activeStay.reservationCode || "--"}</p>
-                    <p><span className="font-semibold text-blue-950">Check-in:</span> {formatDateTime(activeStay.checkedInAt ?? activeStay.plannedCheckInAt)}</p>
-                    <p><span className="font-semibold text-blue-950">Check-out:</span> {formatDateTime(activeStay.plannedCheckOutAt)}</p>
+
+                  {/* Form Action Bar */}
+                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditing(false);
+                        setFormErrors({});
+                      }}
+                      disabled={isSaving}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+                    >
+                      Hủy bỏ
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSaving}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#17201b] hover:bg-[#25483f] px-5 py-2.5 text-xs sm:text-sm font-bold text-[#fff8e8] transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <VsIcon
+                        name={isSaving ? "hourglass_empty" : "check"}
+                        className={`text-base text-[#e8b363] ${isSaving ? "animate-spin" : ""}`}
+                      />
+                      <span>{isSaving ? "Đang lưu..." : "Lưu cập nhật"}</span>
+                    </button>
                   </div>
-                  {extraOccupants.length > 0 ? (
-                    <div className="flex items-center gap-1.5 text-[11px] text-blue-900 pt-1 border-t border-blue-200/50">
-                      <span className="font-semibold text-blue-950 shrink-0">Đi cùng:</span>
-                      <span className="truncate font-medium text-slate-700">
-                        {extraOccupants.map((occ, i) => occ.fullName || `Khách #${i + 1}`).join(", ")}
-                      </span>
-                    </div>
-                  ) : null}
-                </div>
+                </form>
               ) : (
-                <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/50 p-3 flex items-center gap-2.5 text-xs text-emerald-950">
-                  <VsIcon name="check_circle" className="text-lg text-emerald-600 shrink-0" />
-                  <div>
-                    <strong className="block font-bold">Phòng trống · Sẵn sàng đón khách mới</strong>
-                    <span className="text-slate-600 text-[11px]">Chưa có lượt lưu trú hoạt động. Khách có thể quét mã QR để nhận phòng.</span>
+                /* VIEW MODE - Spacious & Clear */
+                <>
+                  {/* Room Specs Details */}
+                  <div className="rounded-2xl border border-[#1f3d35]/10 bg-white p-4 sm:p-5 shadow-xs">
+                    <div className="flex items-center justify-between border-b border-[#1f3d35]/10 pb-2.5 mb-3.5">
+                      <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#8a6a13] flex items-center gap-2">
+                        <VsIcon name="info" className="text-sm text-[#8a6a13]" />
+                        THÔNG TIN CƠ BẢN PHÒNG
+                      </h3>
+                      <span className="text-xs font-semibold text-slate-500">
+                        {room.type ?? "Tiêu chuẩn"} • {room.floor ? `Tầng ${room.floor}` : "Chưa phân tầng"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="rounded-xl bg-slate-50/80 p-3 border border-slate-100">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                          Giá niêm yết
+                        </span>
+                        <p className="font-extrabold text-base sm:text-lg text-emerald-800 mt-1 tabular-nums truncate">
+                          {formatVnd(room.price)}
+                        </p>
+                        <span className="text-[11px] text-slate-400 mt-0.5 block">Theo đêm nghỉ</span>
+                      </div>
+                      <div className="rounded-xl bg-slate-50/80 p-3 border border-slate-100">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                          Thiết bị tối đa
+                        </span>
+                        <p className="font-extrabold text-base sm:text-lg text-slate-900 mt-1 truncate">
+                          {room.activeGuestDeviceCount ?? 0} / {room.maxActiveGuestDevices ?? 3} TB
+                        </p>
+                        <span className="text-[11px] text-slate-400 mt-0.5 block">Đăng nhập GuestOS</span>
+                      </div>
+                      <div className="rounded-xl bg-slate-50/80 p-3 border border-slate-100">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                          Trạng thái QR
+                        </span>
+                        <p className="font-bold text-sm sm:text-base text-emerald-800 mt-1 truncate flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
+                          {qrStatusMeta.label}
+                        </p>
+                        <span className="text-[11px] text-slate-400 mt-0.5 block">Mã quét đón khách</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
+
+                  {/* Guest / Occupancy Section */}
+                  {activeStay ? (
+                    <div className="rounded-2xl border border-blue-200 bg-blue-50/80 p-4 sm:p-5 shadow-xs space-y-2.5">
+                      <div className="flex items-center justify-between border-b border-blue-200/60 pb-2">
+                        <div className="flex items-center gap-2">
+                          <VsIcon name="person" className="text-base text-blue-700" />
+                          <span className="text-xs font-bold uppercase tracking-[0.14em] text-blue-900">
+                            Khách đang lưu trú
+                          </span>
+                        </div>
+                        <span className="rounded-full bg-blue-200 px-2.5 py-0.5 text-xs font-bold text-blue-950">
+                          {1 + extraOccupants.length} khách
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <div>
+                          <strong className="text-base font-extrabold text-blue-950">
+                            {activeStay.guestDisplayName || "Chưa có tên"}
+                          </strong>
+                          <span className="ml-2 text-xs font-semibold text-blue-700">(Chủ phòng)</span>
+                        </div>
+                        {activeStay.guestPhone ? (
+                          <span className="rounded-lg bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-900 flex items-center gap-1">
+                            📞 {activeStay.guestPhone}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-blue-950 pt-2 border-t border-blue-200/50">
+                        <p>
+                          <span className="font-semibold text-blue-800">CCCD:</span>{" "}
+                          {activeStay.guestIdentityNumber || "--"}
+                        </p>
+                        <p>
+                          <span className="font-semibold text-blue-800">Mã đặt:</span>{" "}
+                          {activeStay.reservationCode || "--"}
+                        </p>
+                        <p>
+                          <span className="font-semibold text-blue-800">Check-in:</span>{" "}
+                          {formatDateTime(activeStay.checkedInAt ?? activeStay.plannedCheckInAt)}
+                        </p>
+                        <p>
+                          <span className="font-semibold text-blue-800">Check-out:</span>{" "}
+                          {formatDateTime(activeStay.plannedCheckOutAt)}
+                        </p>
+                      </div>
+                      {extraOccupants.length > 0 ? (
+                        <div className="flex items-center gap-2 text-xs text-blue-950 pt-2 border-t border-blue-200/50">
+                          <span className="font-semibold text-blue-800 shrink-0">Đi cùng:</span>
+                          <span className="truncate font-medium text-slate-800">
+                            {extraOccupants.map((occ, i) => occ.fullName || `Khách #${i + 1}`).join(", ")}
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 sm:p-5 flex items-center gap-3 text-sm text-emerald-950 shadow-xs">
+                      <VsIcon name="check_circle" className="text-2xl text-emerald-600 shrink-0" />
+                      <div>
+                        <strong className="block text-base font-bold text-emerald-950">
+                          Phòng trống · Sẵn sàng đón khách mới
+                        </strong>
+                        <span className="text-slate-600 text-xs sm:text-sm mt-0.5 block">
+                          Chưa có lượt lưu trú hoạt động. Khách có thể quét mã QR thông minh bên phải để làm thủ tục nhận phòng.
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Quick Action Toolbar */}
+                  <div className="rounded-2xl border border-[#1f3d35]/10 bg-white p-4 shadow-xs">
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#8a6a13] mb-2.5">
+                      THAO TÁC NHANH
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (onSaveRoom) {
+                            setIsEditing(true);
+                          } else if (onEditRoom) {
+                            onEditRoom(room);
+                          }
+                        }}
+                        className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/80 px-4 py-2 text-xs sm:text-sm font-bold text-blue-900 transition hover:bg-blue-100 shadow-2xs"
+                        title="Chỉnh sửa phòng"
+                      >
+                        <VsIcon name="edit" className="text-base text-blue-700" />
+                        <span>Chỉnh sửa phòng</span>
+                      </button>
+
+                      {onToggleBlocked && !isOccupied ? (
+                        <button
+                          type="button"
+                          onClick={() => onToggleBlocked(room)}
+                          className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs sm:text-sm font-bold transition shadow-2xs ${
+                            isBlocked
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                              : "border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100"
+                          }`}
+                        >
+                          <VsIcon name={isBlocked ? "task_alt" : "block"} className="text-base" />
+                          <span>{isBlocked ? "Mở khóa phòng" : "Khóa phòng"}</span>
+                        </button>
+                      ) : null}
+
+                      {rawQrStatus === "ACTIVE" && onQrAction ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => onQrAction(room, "rotate")}
+                            className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs sm:text-sm font-bold text-blue-800 transition hover:bg-blue-100 shadow-2xs"
+                            title="Đổi / xoay mã QR"
+                          >
+                            <VsIcon name="history" className="text-base text-blue-600" />
+                            <span>Đổi / xoay mã QR</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onQrAction(room, "deactivate")}
+                            className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs sm:text-sm font-bold text-amber-800 transition hover:bg-amber-100 shadow-2xs"
+                            title="Tạm tắt QR"
+                          >
+                            <VsIcon name="visibility_off" className="text-base text-amber-600" />
+                            <span>Tạm tắt QR</span>
+                          </button>
+                        </>
+                      ) : onQrAction ? (
+                        <button
+                          type="button"
+                          onClick={() => onQrAction(room, "activate")}
+                          className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs sm:text-sm font-bold text-emerald-800 transition hover:bg-emerald-100 shadow-2xs"
+                          title="Kích hoạt QR"
+                        >
+                          <VsIcon name="verified" className="text-base text-emerald-600" />
+                          <span>Kích hoạt mã QR</span>
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                </>
               )}
-
-              {/* Quick Action Toolbar */}
-              <div className="rounded-2xl border border-[#1f3d35]/10 bg-white p-3 shadow-xs">
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#8a6a13] mb-1.5">
-                  THAO TÁC NHANH
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {onEditRoom ? (
-                    <button
-                      type="button"
-                      onClick={() => onEditRoom(room)}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-800 transition hover:bg-slate-100 shadow-2xs"
-                    >
-                      <VsIcon name="edit" className="text-sm text-blue-600" />
-                      Chỉnh sửa phòng
-                    </button>
-                  ) : null}
-
-                  {onToggleBlocked && !isOccupied ? (
-                    <button
-                      type="button"
-                      onClick={() => onToggleBlocked(room)}
-                      className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition shadow-2xs ${
-                        isBlocked
-                          ? "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
-                          : "border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100"
-                      }`}
-                    >
-                      <VsIcon name={isBlocked ? "task_alt" : "block"} className="text-sm" />
-                      {isBlocked ? "Mở khóa phòng" : "Khóa phòng"}
-                    </button>
-                  ) : null}
-
-                  {rawQrStatus === "ACTIVE" && onQrAction ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => onQrAction(room, "rotate")}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-800 transition hover:bg-blue-100 shadow-2xs"
-                      >
-                        <VsIcon name="history" className="text-sm text-blue-600" />
-                        Đổi / xoay mã QR
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onQrAction(room, "deactivate")}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800 transition hover:bg-amber-100 shadow-2xs"
-                      >
-                        <VsIcon name="visibility_off" className="text-sm text-amber-600" />
-                        Tạm tắt QR
-                      </button>
-                    </>
-                  ) : onQrAction ? (
-                    <button
-                      type="button"
-                      onClick={() => onQrAction(room, "activate")}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 transition hover:bg-emerald-100 shadow-2xs"
-                    >
-                      <VsIcon name="verified" className="text-sm text-emerald-600" />
-                      Kích hoạt mã QR
-                    </button>
-                  ) : null}
-                </div>
-              </div>
             </div>
 
-            {/* Right Column: QR Code & Operations - Balanced & Compact */}
-            <div className="lg:col-span-5 flex flex-col justify-between rounded-2xl border border-[#1f3d35]/10 bg-white p-4 shadow-xs text-center space-y-3">
-              <div className="flex items-center justify-between border-b border-[#1f3d35]/10 pb-1.5">
-                <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8a6a13] flex items-center gap-1.5">
-                  <VsIcon name="qr_code_scanner" className="text-xs text-[#8a6a13]" />
+            {/* Right Column: QR Code & Operations - Spacious & High Quality */}
+            <div className="lg:col-span-5 flex flex-col justify-between rounded-2xl border border-[#1f3d35]/10 bg-white p-5 shadow-xs text-center space-y-4">
+              <div className="flex items-center justify-between border-b border-[#1f3d35]/10 pb-2">
+                <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#8a6a13] flex items-center gap-1.5">
+                  <VsIcon name="qr_code_scanner" className="text-sm text-[#8a6a13]" />
                   MÃ QR THÔNG MINH
                 </h3>
-                <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
                   GuestOS
                 </span>
               </div>
 
               {guestQrUrl ? (
-                <div className="flex flex-col items-center space-y-2.5 w-full">
-                  {/* QR Preview Box with clean compact sizing */}
-                  <div className="relative aspect-square w-full max-w-[170px] rounded-2xl border border-slate-200 p-2 bg-white shadow-xs flex items-center justify-center">
+                <div className="flex flex-col items-center space-y-3 w-full">
+                  {/* QR Preview Box with clean, spacious sizing */}
+                  <div className="relative aspect-square w-full max-w-[210px] rounded-2xl border border-slate-200 p-3 bg-white shadow-xs flex items-center justify-center mx-auto">
                     <BrandedRoomQr
                       ref={qrCodeRef}
                       value={guestQrUrl}
-                      size={155}
+                      size={185}
                       className="h-full w-full"
                       title={`QR GuestOS phòng ${roomNumber}`}
                     />
                   </div>
 
                   {/* Public Link Box with Copy Button */}
-                  <div className="w-full flex items-center gap-1 rounded-xl bg-slate-50 border border-slate-200 p-1">
+                  <div className="w-full flex items-center gap-1.5 rounded-xl bg-slate-50 border border-slate-200 p-1.5">
                     <span
-                      className="flex-1 truncate font-mono text-[10px] text-slate-600 px-1 text-left select-all"
+                      className="flex-1 truncate font-mono text-xs text-slate-600 px-2 text-left select-all"
                       title={guestQrUrl}
                     >
                       {guestQrUrl}
@@ -388,10 +731,10 @@ export function RoomDetailDrawer({
                     <button
                       type="button"
                       onClick={() => void handleCopyLink()}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-white px-2 py-0.5 text-[10px] font-bold text-slate-700 border border-slate-200 hover:bg-slate-100 transition shadow-2xs"
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-slate-700 border border-slate-200 hover:bg-slate-100 transition shadow-2xs"
                       title="Sao chép liên kết khách lưu trú"
                     >
-                      <VsIcon name={copied ? "check" : "content_copy"} className="text-xs text-emerald-700" />
+                      <VsIcon name={copied ? "check" : "content_copy"} className="text-sm text-emerald-700" />
                       <span>{copied ? "Đã chép" : "Chép link"}</span>
                     </button>
                   </div>
@@ -401,29 +744,33 @@ export function RoomDetailDrawer({
                     <button
                       type="button"
                       onClick={() => onOpenQrModal(room)}
-                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#17201b] px-3.5 py-2 text-xs font-bold text-[#fff8e8] hover:bg-[#25483f] transition shadow-md focus:outline-none focus:ring-2 focus:ring-[#e8b363]"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#17201b] px-4 py-2.5 text-xs sm:text-sm font-bold text-[#fff8e8] hover:bg-[#25483f] transition shadow-md focus:outline-none focus:ring-2 focus:ring-[#e8b363]"
                     >
-                      <VsIcon name="qr_code" className="text-sm text-[#e8b363]" />
+                      <VsIcon name="qr_code" className="text-base text-[#e8b363]" />
                       <span>Xem / Tải mã QR full size</span>
                     </button>
                   ) : null}
+
+                  <p className="text-[11px] text-slate-500 leading-relaxed max-w-xs mx-auto">
+                    Quét mã để truy cập giao diện GuestOS nhận phòng, dịch vụ và trao đổi trực tiếp với lễ tân.
+                  </p>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-6 text-center space-y-2.5 w-full">
-                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-100 text-slate-400 mx-auto">
-                    <VsIcon name="qr_code_scanner" className="text-2xl" />
+                <div className="flex flex-col items-center justify-center py-8 text-center space-y-3 w-full">
+                  <div className="grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-400 mx-auto">
+                    <VsIcon name="qr_code_scanner" className="text-3xl" />
                   </div>
-                  <p className="text-xs text-slate-600 font-medium max-w-xs">
+                  <p className="text-xs sm:text-sm text-slate-600 font-medium max-w-xs">
                     Phòng này hiện chưa kích hoạt mã QR công khai.
                   </p>
                   {onQrAction ? (
                     <button
                       type="button"
                       onClick={() => onQrAction(room, "activate")}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition shadow-md"
+                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-emerald-800 transition shadow-md"
                     >
-                      <VsIcon name="verified" className="text-xs" />
-                      Tạo mã QR ngay
+                      <VsIcon name="verified" className="text-sm" />
+                      <span>Tạo mã QR ngay</span>
                     </button>
                   ) : null}
                 </div>
@@ -433,18 +780,33 @@ export function RoomDetailDrawer({
         </div>
 
         {/* Modal Footer */}
-        <div className="border-t border-[#1f3d35]/15 bg-white px-5 py-3 flex justify-between items-center">
-          <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-            <VsIcon name="apartment" className="text-xs text-[#8a6a13]" />
+        <div className="border-t border-[#1f3d35]/15 bg-white px-6 py-3.5 flex justify-between items-center">
+          <span className="text-xs text-slate-500 font-medium flex items-center gap-2">
+            <VsIcon name="apartment" className="text-sm text-[#8a6a13]" />
             VietSage Hospitality SaaS · Quản trị phòng
           </span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-slate-200 bg-slate-100 px-5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 transition focus:outline-none focus:ring-2 focus:ring-[#e8b363]"
-          >
-            Đóng (Esc)
-          </button>
+          <div className="flex items-center gap-2">
+            {isEditing ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditing(false);
+                  setFormErrors({});
+                }}
+                disabled={isSaving}
+                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+              >
+                Hủy
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-slate-200 bg-slate-100 px-5 py-2 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-200 transition focus:outline-none focus:ring-2 focus:ring-[#e8b363]"
+            >
+              Đóng (Esc)
+            </button>
+          </div>
         </div>
       </div>
     </div>
