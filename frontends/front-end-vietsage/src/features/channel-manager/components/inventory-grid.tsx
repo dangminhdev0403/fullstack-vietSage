@@ -16,6 +16,7 @@ import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 interface InventoryGridProps {
   hotelId: string;
   roleScope?: "owner" | "admin";
+  canManage: boolean;
 }
 
 function getTodayInVietnam(): string {
@@ -73,7 +74,11 @@ function parseFormattedNumber(val: string): number {
   return cleaned === "" ? 0 : Number(cleaned);
 }
 
-export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridProps) {
+export function InventoryGrid({
+  hotelId,
+  roleScope = "owner",
+  canManage,
+}: InventoryGridProps) {
   const todayStr = useMemo(() => getTodayInVietnam(), []);
   const [startDate, setStartDate] = useState<string>(todayStr);
   const [visibleDays, setVisibleDays] = useState<7 | 14>(7);
@@ -172,6 +177,7 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
     field: "rate" | "available",
     initialVal: number | null,
   ) => {
+    if (!canManage) return;
     if (date < todayStr) {
       toast.error("Không thể chỉnh sửa dữ liệu của những ngày đã qua.", {
         id: "past-date-blocked",
@@ -195,7 +201,7 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
     field: "rate" | "available",
     currentVal: number | null,
   ) => {
-    if (!editingCellKey) return;
+    if (!canManage || !editingCellKey) return;
     if (date < todayStr) {
       setEditingCellKey(null);
       return;
@@ -279,7 +285,7 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
 
   // Toggle Stop Sell (auto-save directly)
   const toggleStopSell = async (rtId: string, day: DayInventory) => {
-    if (isSavingChanges || isFetching) return;
+    if (!canManage || isSavingChanges || isFetching) return;
     if (day.date < todayStr) {
       toast.error("Không thể thay đổi trạng thái bán của những ngày đã qua.", {
         id: "past-date-blocked",
@@ -335,7 +341,7 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
     rtId: string,
     shouldStopSell: boolean,
   ) => {
-    if (isSavingChanges || isFetching) return;
+    if (!canManage || isSavingChanges || isFetching) return;
 
     const roomType = roomTypes.find((item) => item.roomTypeId === rtId);
     if (!roomType) return;
@@ -443,15 +449,17 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsBulkModalOpen(true)}
-            disabled={isSavingChanges || isLoading || isError || roomTypes.length === 0}
-            className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-emerald-800 px-4 text-sm font-bold text-white hover:bg-emerald-900 transition shadow-xs cursor-pointer disabled:opacity-50"
-          >
-            <VsIcon name="tune" className="text-base" />
-            <span>Cập nhật hàng loạt</span>
-          </button>
+          {canManage && (
+            <button
+              type="button"
+              onClick={() => setIsBulkModalOpen(true)}
+              disabled={isSavingChanges || isLoading || isError || roomTypes.length === 0}
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-emerald-800 px-4 text-sm font-bold text-white hover:bg-emerald-900 transition shadow-xs cursor-pointer disabled:opacity-50"
+            >
+              <VsIcon name="tune" className="text-base" />
+              <span>Cập nhật hàng loạt</span>
+            </button>
+          )}
         </div>
 
         {/* Row 2: Date Navigation, Pickers & View Mode */}
@@ -545,9 +553,19 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
       {/* Guide & Status Line */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-xs text-slate-500">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="font-semibold text-slate-700">💡 Thao tác nhanh:</span>
-          <span>Nhấp trực tiếp vào ô số phòng hoặc giá để sửa (tự động lưu).</span>
-          <span className="hidden sm:inline text-slate-300">•</span>
+          {canManage ? (
+            <>
+              <span className="font-semibold text-slate-700">💡 Thao tác nhanh:</span>
+              <span>Nhấp trực tiếp vào ô số phòng hoặc giá để sửa (tự động lưu).</span>
+              <span className="hidden sm:inline text-slate-300">•</span>
+            </>
+          ) : (
+            <>
+              <span className="font-semibold text-slate-700">Chế độ xem:</span>
+              <span>Lịch tồn phòng và giá bán OTA.</span>
+              <span className="hidden sm:inline text-slate-300">•</span>
+            </>
+          )}
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 font-medium text-emerald-800">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
@@ -693,34 +711,36 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
                           )}
 
                           {/* Quick row actions in room header banner */}
-                          <div className="inline-flex items-center gap-1.5 pl-2 sm:ml-2">
-                            <button
-                              type="button"
-                              disabled={isSavingChanges || isFetching}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void handleQuickBatchStopSell(rt.roomTypeId, true);
-                              }}
-                              title={`Đóng bán toàn bộ ${visibleDays} ngày của ${rt.roomTypeName}`}
-                              className="inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-rose-200 bg-white px-2 py-0.5 text-[11px] font-bold text-rose-700 hover:bg-rose-50 hover:border-rose-300 active:scale-95 transition shadow-2xs cursor-pointer disabled:opacity-50"
-                            >
-                              <VsIcon name="block" className="text-xs" />
-                              <span>{savingCellKey === `${rt.roomTypeId}_batch_stopsell` ? "Đang xử lý..." : "Đóng nhanh"}</span>
-                            </button>
-                            <button
-                              type="button"
-                              disabled={isSavingChanges || isFetching}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void handleQuickBatchStopSell(rt.roomTypeId, false);
-                              }}
-                              title={`Mở bán toàn bộ ${visibleDays} ngày của ${rt.roomTypeName}`}
-                              className="inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-emerald-200 bg-white px-2 py-0.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 active:scale-95 transition shadow-2xs cursor-pointer disabled:opacity-50"
-                            >
-                              <VsIcon name="check_circle" className="text-xs" />
-                              <span>{savingCellKey === `${rt.roomTypeId}_batch_stopsell` ? "Đang xử lý..." : "Mở nhanh"}</span>
-                            </button>
-                          </div>
+                          {canManage && (
+                            <div className="inline-flex items-center gap-1.5 pl-2 sm:ml-2">
+                              <button
+                                type="button"
+                                disabled={isSavingChanges || isFetching}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void handleQuickBatchStopSell(rt.roomTypeId, true);
+                                }}
+                                title={`Đóng bán toàn bộ ${visibleDays} ngày của ${rt.roomTypeName}`}
+                                className="inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-rose-200 bg-white px-2 py-0.5 text-[11px] font-bold text-rose-700 hover:bg-rose-50 hover:border-rose-300 active:scale-95 transition shadow-2xs cursor-pointer disabled:opacity-50"
+                              >
+                                <VsIcon name="block" className="text-xs" />
+                                <span>{savingCellKey === `${rt.roomTypeId}_batch_stopsell` ? "Đang xử lý..." : "Đóng nhanh"}</span>
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isSavingChanges || isFetching}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void handleQuickBatchStopSell(rt.roomTypeId, false);
+                                }}
+                                title={`Mở bán toàn bộ ${visibleDays} ngày của ${rt.roomTypeName}`}
+                                className="inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-emerald-200 bg-white px-2 py-0.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 active:scale-95 transition shadow-2xs cursor-pointer disabled:opacity-50"
+                              >
+                                <VsIcon name="check_circle" className="text-xs" />
+                                <span>{savingCellKey === `${rt.roomTypeId}_batch_stopsell` ? "Đang xử lý..." : "Mở nhanh"}</span>
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </th>
                     </tr>
@@ -755,6 +775,31 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
                                     <VsIcon name="lock" className="text-xs text-slate-400" />
                                     <span>{value}</span>
                                     <span className="text-xs text-slate-400">/ {rt.totalRooms}</span>
+                                  </div>
+                                </td>
+                              );
+                            }
+
+                            if (!canManage) {
+                              return (
+                                <td key={day.date} className="border-r border-slate-200 px-2 py-1.5 text-center last:border-r-0">
+                                  <div
+                                    className={`flex min-h-10 w-full items-center justify-center rounded-xl px-2 py-1.5 text-sm font-bold border select-none ${
+                                      value === 0
+                                        ? "bg-rose-50/80 text-rose-800 border-rose-200"
+                                        : "bg-slate-50/70 text-slate-900 border-slate-200/80"
+                                    }`}
+                                  >
+                                    {value === 0 ? (
+                                      <span className="inline-flex items-center gap-1 font-black text-xs text-rose-700">
+                                        <span>⛔</span> Hết phòng (0)
+                                      </span>
+                                    ) : (
+                                      <span className="flex items-center justify-center gap-1">
+                                        <span className="text-slate-950 font-black text-base">{value}</span>
+                                        <span className="text-xs font-semibold text-slate-500">/ {rt.totalRooms}</span>
+                                      </span>
+                                    )}
                                   </div>
                                 </td>
                               );
@@ -846,6 +891,24 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
                               );
                             }
 
+                            if (!canManage) {
+                              return (
+                                <td key={day.date} className="border-r border-slate-200 px-2 py-1.5 text-center last:border-r-0">
+                                  <div
+                                    className="flex min-h-10 w-full items-center justify-center rounded-xl border border-slate-200/80 bg-slate-50/70 px-2 py-1.5 text-sm font-bold select-none"
+                                  >
+                                    {value === null ? (
+                                      <span className="text-xs italic font-semibold text-slate-400">Chưa đặt giá</span>
+                                    ) : (
+                                      <span className="font-black text-indigo-950 tracking-tight text-sm">
+                                        {formatCurrencyFull(value)}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              );
+                            }
+
                             return (
                               <td key={day.date} className="border-r border-slate-200 px-2 py-1.5 text-center last:border-r-0">
                                 {isEditing ? (
@@ -909,28 +972,30 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
                                 <span className="h-2 w-2 rounded-full bg-amber-600" />
                                 <span>Trạng thái bán</span>
                               </div>
-                              <div className="flex items-center gap-1.5 pt-0.5">
-                                <button
-                                  type="button"
-                                  disabled={isSavingChanges || isFetching}
-                                  onClick={() => void handleQuickBatchStopSell(rt.roomTypeId, true)}
-                                  title={`Đóng bán toàn bộ các ngày hiển thị của ${rt.roomTypeName}`}
-                                  className="inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-700 hover:bg-rose-100 hover:border-rose-300 active:scale-95 transition shadow-2xs cursor-pointer disabled:opacity-50"
-                                >
-                                  <VsIcon name="block" className="text-xs" />
-                                  <span>{savingCellKey === `${rt.roomTypeId}_batch_stopsell` ? "Đang xử lý..." : "Đóng nhanh"}</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={isSavingChanges || isFetching}
-                                  onClick={() => void handleQuickBatchStopSell(rt.roomTypeId, false)}
-                                  title={`Mở bán toàn bộ các ngày hiển thị của ${rt.roomTypeName}`}
-                                  className="inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 active:scale-95 transition shadow-2xs cursor-pointer disabled:opacity-50"
-                                >
-                                  <VsIcon name="check_circle" className="text-xs" />
-                                  <span>{savingCellKey === `${rt.roomTypeId}_batch_stopsell` ? "Đang xử lý..." : "Mở nhanh"}</span>
-                                </button>
-                              </div>
+                              {canManage && (
+                                <div className="flex items-center gap-1.5 pt-0.5">
+                                  <button
+                                    type="button"
+                                    disabled={isSavingChanges || isFetching}
+                                    onClick={() => void handleQuickBatchStopSell(rt.roomTypeId, true)}
+                                    title={`Đóng bán toàn bộ các ngày hiển thị của ${rt.roomTypeName}`}
+                                    className="inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-700 hover:bg-rose-100 hover:border-rose-300 active:scale-95 transition shadow-2xs cursor-pointer disabled:opacity-50"
+                                  >
+                                    <VsIcon name="block" className="text-xs" />
+                                    <span>{savingCellKey === `${rt.roomTypeId}_batch_stopsell` ? "Đang xử lý..." : "Đóng nhanh"}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={isSavingChanges || isFetching}
+                                    onClick={() => void handleQuickBatchStopSell(rt.roomTypeId, false)}
+                                    title={`Mở bán toàn bộ các ngày hiển thị của ${rt.roomTypeName}`}
+                                    className="inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 active:scale-95 transition shadow-2xs cursor-pointer disabled:opacity-50"
+                                  >
+                                    <VsIcon name="check_circle" className="text-xs" />
+                                    <span>{savingCellKey === `${rt.roomTypeId}_batch_stopsell` ? "Đang xử lý..." : "Mở nhanh"}</span>
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </th>
                           {rt.days.map((day) => {
@@ -953,6 +1018,26 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
                                   >
                                     <VsIcon name="lock" className="text-xs text-slate-400" />
                                     <span>Khóa</span>
+                                  </div>
+                                </td>
+                              );
+                            }
+
+                            if (!canManage) {
+                              return (
+                                <td
+                                  key={day.date}
+                                  className={`border-r border-slate-200 px-2 py-2 text-center last:border-r-0 ${
+                                    day.stopSell ? "bg-rose-50/50" : ""
+                                  }`}
+                                >
+                                  <div className={`whitespace-nowrap text-xs font-bold inline-flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg border select-none ${
+                                    day.stopSell
+                                      ? "border-rose-200 bg-rose-50 text-rose-800"
+                                      : "border-emerald-200 bg-emerald-50 text-emerald-800"
+                                  }`}>
+                                    <span className={`h-2 w-2 rounded-full ${day.stopSell ? "bg-rose-600" : "bg-emerald-600"}`} />
+                                    <span>{day.stopSell ? "Đang đóng bán" : "Đang mở bán"}</span>
                                   </div>
                                 </td>
                               );
@@ -1002,7 +1087,7 @@ export function InventoryGrid({ hotelId, roleScope = "owner" }: InventoryGridPro
         )}
       </div>
 
-      {isBulkModalOpen && (
+      {canManage && isBulkModalOpen && (
         <BulkUpdateModal
           isOpen={isBulkModalOpen}
           onClose={() => {

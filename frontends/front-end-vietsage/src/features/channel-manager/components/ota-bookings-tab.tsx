@@ -19,6 +19,7 @@ interface OtaBookingsTabProps {
   roleScope?: "owner" | "admin";
   onSwitchToAri?: () => void;
   baseRoutePrefix?: string;
+  showTechnicalTools?: boolean;
 }
 
 type StatusFilter =
@@ -148,6 +149,7 @@ export function OtaBookingsTab({
   hotelId,
   roleScope = "owner",
   baseRoutePrefix = "/hotels",
+  showTechnicalTools = false,
 }: OtaBookingsTabProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -164,7 +166,7 @@ export function OtaBookingsTab({
   } = useChannex(hotelId, roleScope, {
     loadSimulatedBookings: true,
     loadMappings: true,
-    loadPendingModifications: true,
+    loadPendingModifications: showTechnicalTools,
   });
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -555,23 +557,28 @@ export function OtaBookingsTab({
             <span>Làm mới</span>
           </button>
 
-          <button
-            type="button"
-            onClick={handleManualDrain}
-            disabled={pollFeed.isPending}
-            className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#003580] px-4 text-sm font-bold text-white shadow-xs hover:bg-[#002860] transition active:scale-95 disabled:opacity-50 cursor-pointer"
-          >
-            <VsIcon
-              name="cloud_download"
-              className={`text-base ${pollFeed.isPending ? "animate-bounce" : ""}`}
-            />
-            <span>{pollFeed.isPending ? "Đang đồng bộ..." : "Đồng bộ Channex"}</span>
-          </button>
+          {showTechnicalTools && (
+            <button
+              type="button"
+              onClick={handleManualDrain}
+              disabled={pollFeed.isPending}
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#003580] px-4 text-sm font-bold text-white shadow-xs hover:bg-[#002860] transition active:scale-95 disabled:opacity-50 cursor-pointer"
+            >
+              <VsIcon
+                name="cloud_download"
+                className={`text-base ${pollFeed.isPending ? "animate-bounce" : ""}`}
+              />
+              <span>{pollFeed.isPending ? "Đang đồng bộ..." : "Đồng bộ Channex"}</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {(isLoadingPendingModifications || pendingModificationsError || pendingModifications.length > 0) && (
-        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+      {showTechnicalTools &&
+        (isLoadingPendingModifications ||
+          pendingModificationsError ||
+          pendingModifications.length > 0) && (
+          <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="font-bold text-amber-950">Booking sửa đổi chờ đối soát</h3>

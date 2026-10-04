@@ -509,6 +509,8 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     requiresHotel: true,
     requiresFeature: HOTEL_CHANNEL_MANAGER,
     anyCapabilities: [
+      "hotel.reservations.view",
+      "hotel.reservations.manage",
       "hotel.channels.view",
       "hotel.channels.manage",
       "hotel.rooms.view",

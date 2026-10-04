@@ -22,6 +22,7 @@ import { SuccessMessage } from "../../../shared/decorators/success-message.decor
 import type { RequestWithRequiredUser } from "../../../shared/security/request-with-authenticated-user";
 import { HotelAccessService } from "../../property/property-public";
 import {
+  adminChannelOverviewQuerySchema,
   bulkUpdateRestrictionsSchema,
   channexCancelBookingSchema,
   channexChannelIdSchema,
@@ -45,6 +46,8 @@ import {
   updateRestrictionsSchema,
 } from "../domain/schemas/channel-manager.schema";
 import { AriCoreService } from "../services/ari-core.service";
+import { ChannelManagerAdminOverviewService } from "../services/channel-manager-admin-overview.service";
+import { ChannelManagerAuditService } from "../services/channel-manager-audit.service";
 import { ChannelManagerService } from "../services/channel-manager.service";
 import { ChannexAriSyncService } from "../services/channex-ari-sync.service";
 import { ChannexBookingIngestionService } from "../services/channex-booking-ingestion.service";
@@ -67,6 +70,8 @@ export class ChannelManagerController {
     private readonly channexDoctorService: ChannexDoctorService,
     private readonly channexChannelSessionService: ChannexChannelSessionService,
     private readonly hotelAccessService: HotelAccessService,
+    private readonly adminOverviewService: ChannelManagerAdminOverviewService,
+    private readonly auditService: ChannelManagerAuditService,
   ) {}
 
   private readonly logger = new Logger(ChannelManagerController.name);
@@ -88,8 +93,17 @@ export class ChannelManagerController {
     });
   }
 
+  @ApiDescript("Super Admin: Báo cáo tổng quan hạm đội kênh phân phối (Fleet Overview)")
+  @RequirePermission("platform.hotels.view")
+  @SuccessMessage("Lấy báo cáo tổng quan hạm đội kênh thành công")
+  @Get("admin/overview")
+  async getAdminOverview(@Query() query: unknown) {
+    const q = parseWithZod(adminChannelOverviewQuerySchema, query);
+    return this.adminOverviewService.getOverview(q);
+  }
+
   @ApiDescript("Danh sách các kết nối kênh phân phối phòng của khách sạn")
-  @RequirePermission("hotel.rooms.view")
+  @RequirePermission(["hotel.channels.view", "platform.hotels.view"])
   @SuccessMessage("Lấy danh sách kết nối kênh thành công")
   @Get("hotels/:hotelId/connections")
   async getConnections(
@@ -102,7 +116,7 @@ export class ChannelManagerController {
   }
 
   @ApiDescript("Tạo kết nối kênh phân phối phòng mới (Airbnb, Booking.com, Agoda, Direct Booking)")
-  @RequirePermission("hotel.rooms.manage")
+  @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Tạo kết nối kênh thành công")
   @Post("hotels/:hotelId/connections")
   async createConnection(
@@ -117,7 +131,7 @@ export class ChannelManagerController {
   }
 
   @ApiDescript("Xóa kết nối kênh phân phối phòng")
-  @RequirePermission("hotel.rooms.manage")
+  @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Xóa kết nối kênh thành công")
   @Delete("hotels/:hotelId/connections/:id")
   async deleteConnection(
@@ -208,7 +222,7 @@ export class ChannelManagerController {
   }
 
   @ApiDescript("Kích hoạt đồng bộ iCal hai chiều ngay lập tức cho 1 kết nối")
-  @RequirePermission("hotel.rooms.manage")
+  @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Kích hoạt đồng bộ iCal thành công")
   @Post("hotels/:hotelId/connections/:id/sync-now")
   async syncNow(
@@ -228,7 +242,7 @@ export class ChannelManagerController {
   @ApiDescript(
     "Đồng bộ thông tin cơ sở, hạng phòng và gói giá sang Channex (Idempotent Content Sync)",
   )
-  @RequirePermission("hotel.rooms.manage")
+  @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Đồng bộ dữ liệu sang Channex thành công")
   @Post("hotels/:hotelId/channex/sync-content")
   async syncChannexContent(
@@ -241,13 +255,23 @@ export class ChannelManagerController {
     const payload = parseWithZod(channexSyncContentSchema, body);
     const result = await this.channexSyncService.syncContent(hotelId, payload);
     if (!result.success) throw new BadRequestException(result.error ?? "Đối soát Channex thất bại");
+    await this.auditService.recordHotelAction({
+      actorId: req.user.userId,
+      hotelId,
+      action: "CHANNEX_CONTENT_SYNC",
+      metadata: {
+        channexPropertyId: result.channexPropertyId,
+        roomTypesSyncedCount: result.roomTypesSynced?.length ?? 0,
+        ratePlansSyncedCount: result.ratePlansSynced?.length ?? 0,
+      },
+    });
     return result;
   }
 
   @ApiDescript(
     "Đẩy kho phòng trống và giá/hạn chế sang Channex (ARI Delta Push with Range Compression)",
   )
-  @RequirePermission("hotel.rooms.manage")
+  @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Đẩy ARI sang Channex thành công")
   @Post("hotels/:hotelId/channex/push-ari")
   async pushChannexAri(
@@ -267,7 +291,7 @@ export class ChannelManagerController {
   }
 
   @ApiDescript("Quét và xử lý booking mới từ Channex Revisions Feed (Apply-then-Ack Inbound Feed)")
-  @RequirePermission("hotel.rooms.manage")
+  @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Xử lý booking feed từ Channex thành công")
   @Post("hotels/:hotelId/channex/poll-feed")
   async pollChannexFeed(
@@ -284,6 +308,12 @@ export class ChannelManagerController {
     });
     if (!result.success)
       throw new BadRequestException("Booking feed còn lỗi hoặc booking sửa đổi đang chờ đối soát");
+    await this.auditService.recordHotelAction({
+      actorId: req.user.userId,
+      hotelId,
+      action: "CHANNEX_FEED_DRAIN",
+      metadata: { limit: payload.limit },
+    });
     return result;
   }
 
@@ -304,7 +334,7 @@ export class ChannelManagerController {
   }
 
   @ApiDescript("Khôi phục đặt phòng sau sự cố (Manual Time-scoped Outage Recovery)")
-  @RequirePermission("hotel.rooms.manage")
+  @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Khôi phục đặt phòng sự cố thành công")
   @Post("hotels/:hotelId/channex/recover")
   async recoverChannexBookings(
@@ -320,11 +350,17 @@ export class ChannelManagerController {
       throw new BadRequestException(
         "Khôi phục Channex chưa hoàn tất; chia nhỏ khoảng thời gian và thử lại",
       );
+    await this.auditService.recordHotelAction({
+      actorId: req.user.userId,
+      hotelId,
+      action: "CHANNEX_FEED_RECOVER",
+      metadata: { since: payload.since },
+    });
     return result;
   }
 
   @ApiDescript("Danh sách booking Channex sửa đổi đang chờ đối soát")
-  @RequirePermission("hotel.rooms.view")
+  @RequirePermission(["hotel.channels.view", "platform.hotels.view"])
   @Get("hotels/:hotelId/channex/pending-modifications")
   async getPendingChannexModifications(
     @Req() req: RequestWithRequiredUser,
@@ -336,7 +372,7 @@ export class ChannelManagerController {
   }
 
   @ApiDescript("Xác nhận booking Channex đã được đối soát thủ công")
-  @RequirePermission("hotel.rooms.manage")
+  @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @Post("hotels/:hotelId/channex/pending-modifications/:logId/resolve")
   async resolveChannexModification(
     @Req() req: RequestWithRequiredUser,
@@ -346,11 +382,18 @@ export class ChannelManagerController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const logId = parseWithZod(connectionIdParamSchema, logIdParam);
     await this.assertAccess(req, hotelId);
-    return this.channexBookingIngestionService.resolveModification(hotelId, logId);
+    const result = await this.channexBookingIngestionService.resolveModification(hotelId, logId);
+    await this.auditService.recordHotelAction({
+      actorId: req.user.userId,
+      hotelId,
+      action: "CHANNEX_RECONCILIATION_RESOLVE",
+      metadata: { logId },
+    });
+    return result;
   }
 
   @ApiDescript("Chẩn đoán toàn diện sức khỏe kết nối Channex (Doctor Check)")
-  @RequirePermission("hotel.rooms.view")
+  @RequirePermission(["hotel.channels.view", "platform.hotels.view"])
   @SuccessMessage("Chạy chẩn đoán Channex thành công")
   @Get("hotels/:hotelId/channex/doctor")
   async runChannexDoctor(
@@ -363,7 +406,7 @@ export class ChannelManagerController {
   }
 
   @ApiDescript("Lấy danh sách các ID mapping giữa PMS và Channex")
-  @RequirePermission("hotel.rooms.view")
+  @RequirePermission(["hotel.channels.view", "platform.hotels.view"])
   @SuccessMessage("Lấy danh sách mapping thành công")
   @Get("hotels/:hotelId/channex/mappings")
   async getChannexMappings(
@@ -376,7 +419,7 @@ export class ChannelManagerController {
   }
 
   @ApiDescript("Lấy toàn bộ catalog nền tảng và các kênh OTA đã kết nối trên Channex")
-  @RequirePermission("hotel.rooms.view")
+  @RequirePermission(["hotel.channels.view", "platform.hotels.view"])
   @SuccessMessage("Lấy catalog kênh Channex thành công")
   @Get("hotels/:hotelId/channex/channels")
   async getChannexChannels(
@@ -389,7 +432,7 @@ export class ChannelManagerController {
   }
 
   @ApiDescript("Kiểm tra cấu hình và lấy dữ liệu mapping cho native OTA wizard")
-  @RequirePermission("hotel.rooms.manage")
+  @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Chuẩn bị cấu hình kênh OTA thành công")
   @Post("hotels/:hotelId/channex/channels/prepare")
   async prepareChannexChannel(
@@ -404,7 +447,7 @@ export class ChannelManagerController {
   }
 
   @ApiDescript("Tạo kênh OTA ở trạng thái inactive và kiểm tra readiness")
-  @RequirePermission("hotel.rooms.manage")
+  @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Tạo kênh OTA thành công")
   @Post("hotels/:hotelId/channex/channels")
   async createChannexChannel(
@@ -415,11 +458,21 @@ export class ChannelManagerController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     await this.assertAccess(req, hotelId);
     const payload = parseWithZod(channexCreateChannelSchema, body);
-    return this.channexChannelSessionService.createNativeChannel(hotelId, payload);
+    const result = await this.channexChannelSessionService.createNativeChannel(hotelId, payload);
+    const createdChannelId = (result as any)?.channel?.id ?? (result as any)?.id ?? null;
+    await this.auditService.recordHotelAction({
+      actorId: req.user.userId,
+      hotelId,
+      action: "CHANNEX_CHANNEL_CREATE",
+      entityType: "ChannexChannel",
+      entityId: createdChannelId,
+      metadata: { channel: payload.channel, title: payload.title },
+    });
+    return result;
   }
 
   @ApiDescript("Kích hoạt kênh OTA đã vượt readiness check")
-  @RequirePermission("hotel.rooms.manage")
+  @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Kích hoạt kênh OTA thành công")
   @Post("hotels/:hotelId/channex/channels/:channelId/activate")
   async activateChannexChannel(
@@ -430,11 +483,22 @@ export class ChannelManagerController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const channelId = parseWithZod(channexChannelIdSchema, channelIdParam);
     await this.assertAccess(req, hotelId);
-    return this.channexChannelSessionService.activateNativeChannel(hotelId, channelId);
+    const result = await this.channexChannelSessionService.activateNativeChannel(
+      hotelId,
+      channelId,
+    );
+    await this.auditService.recordHotelAction({
+      actorId: req.user.userId,
+      hotelId,
+      action: "CHANNEX_CHANNEL_ACTIVATE",
+      entityType: "ChannexChannel",
+      entityId: channelId,
+    });
+    return result;
   }
 
   @ApiDescript("Tạm dừng đồng bộ kênh OTA")
-  @RequirePermission("hotel.rooms.manage")
+  @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Tạm dừng kênh OTA thành công")
   @Post("hotels/:hotelId/channex/channels/:channelId/deactivate")
   async deactivateChannexChannel(
@@ -445,11 +509,22 @@ export class ChannelManagerController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const channelId = parseWithZod(channexChannelIdSchema, channelIdParam);
     await this.assertAccess(req, hotelId);
-    return this.channexChannelSessionService.deactivateNativeChannel(hotelId, channelId);
+    const result = await this.channexChannelSessionService.deactivateNativeChannel(
+      hotelId,
+      channelId,
+    );
+    await this.auditService.recordHotelAction({
+      actorId: req.user.userId,
+      hotelId,
+      action: "CHANNEX_CHANNEL_DEACTIVATE",
+      entityType: "ChannexChannel",
+      entityId: channelId,
+    });
+    return result;
   }
 
   @ApiDescript("Lấy chi tiết kênh OTA, thông số adapter và bảng ánh xạ phòng/giá hiện tại")
-  @RequirePermission("hotel.rooms.view")
+  @RequirePermission(["hotel.channels.view", "platform.hotels.view"])
   @SuccessMessage("Lấy chi tiết kênh OTA thành công")
   @Get("hotels/:hotelId/channex/channels/:channelId")
   async getChannexChannel(
@@ -464,7 +539,7 @@ export class ChannelManagerController {
   }
 
   @ApiDescript("Cập nhật thông tin kênh OTA hoặc ánh xạ gói giá")
-  @RequirePermission("hotel.rooms.manage")
+  @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Cập nhật kênh OTA thành công")
   @Put("hotels/:hotelId/channex/channels/:channelId")
   async updateChannexChannel(
@@ -477,11 +552,24 @@ export class ChannelManagerController {
     const channelId = parseWithZod(channexChannelIdSchema, channelIdParam);
     await this.assertAccess(req, hotelId);
     const payload = parseWithZod(channexUpdateChannelSchema, body);
-    return this.channexChannelSessionService.updateNativeChannel(hotelId, channelId, payload);
+    const result = await this.channexChannelSessionService.updateNativeChannel(
+      hotelId,
+      channelId,
+      payload,
+    );
+    await this.auditService.recordHotelAction({
+      actorId: req.user.userId,
+      hotelId,
+      action: "CHANNEX_CHANNEL_UPDATE",
+      entityType: "ChannexChannel",
+      entityId: channelId,
+      metadata: { title: payload.title },
+    });
+    return result;
   }
 
   @ApiDescript("Đồng bộ toàn phần (Full Sync) dữ liệu cho kênh OTA")
-  @RequirePermission("hotel.rooms.manage")
+  @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Yêu cầu đồng bộ toàn phần thành công")
   @Post("hotels/:hotelId/channex/channels/:channelId/sync")
   async syncChannexChannel(
@@ -492,11 +580,19 @@ export class ChannelManagerController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const channelId = parseWithZod(channexChannelIdSchema, channelIdParam);
     await this.assertAccess(req, hotelId);
-    return this.channexChannelSessionService.syncNativeChannel(hotelId, channelId);
+    const result = await this.channexChannelSessionService.syncNativeChannel(hotelId, channelId);
+    await this.auditService.recordHotelAction({
+      actorId: req.user.userId,
+      hotelId,
+      action: "CHANNEX_CHANNEL_FULL_SYNC",
+      entityType: "ChannexChannel",
+      entityId: channelId,
+    });
+    return result;
   }
 
   @ApiDescript("Ngắt kết nối và xóa kênh OTA")
-  @RequirePermission("hotel.rooms.manage")
+  @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Xóa kênh OTA thành công")
   @Delete("hotels/:hotelId/channex/channels/:channelId")
   async deleteChannexChannel(
@@ -507,11 +603,19 @@ export class ChannelManagerController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const channelId = parseWithZod(channexChannelIdSchema, channelIdParam);
     await this.assertAccess(req, hotelId);
-    return this.channexChannelSessionService.deleteNativeChannel(hotelId, channelId);
+    const result = await this.channexChannelSessionService.deleteNativeChannel(hotelId, channelId);
+    await this.auditService.recordHotelAction({
+      actorId: req.user.userId,
+      hotelId,
+      action: "CHANNEX_CHANNEL_DELETE",
+      entityType: "ChannexChannel",
+      entityId: channelId,
+    });
+    return result;
   }
 
   @ApiDescript("Tạo phiên one-time để quản lý adapter đặc biệt bằng Channex Channel IFrame")
-  @RequirePermission("hotel.rooms.manage")
+  @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Tạo phiên quản lý kênh Channex thành công")
   @Post("hotels/:hotelId/channex/channel-session")
   async createChannexChannelSession(
@@ -528,7 +632,7 @@ export class ChannelManagerController {
   @ApiDescript(
     "Super Admin: Bắn đơn đặt phòng thử nghiệm (Simulate OTA Booking) lên Channex và tự động hút về PMS",
   )
-  @RequirePermission("hotel.rooms.manage")
+  @RequirePermission(["platform.hotels.manage"])
   @SuccessMessage("Bắn đơn đặt phòng thử nghiệm thành công")
   @Post("hotels/:hotelId/channex/simulate-booking")
   async simulateBooking(
@@ -545,7 +649,7 @@ export class ChannelManagerController {
   @ApiDescript(
     "Super Admin: Hủy đơn đặt phòng thử nghiệm (Simulate OTA Booking Cancellation) và giải phóng phòng trong PMS",
   )
-  @RequirePermission("hotel.rooms.manage")
+  @RequirePermission(["platform.hotels.manage"])
   @SuccessMessage("Hủy đơn đặt phòng thử nghiệm thành công")
   @Post("hotels/:hotelId/channex/simulate-booking/cancel")
   async cancelSimulatedBooking(
@@ -560,7 +664,7 @@ export class ChannelManagerController {
   }
 
   @ApiDescript("Super Admin: Lấy danh sách các đơn đặt phòng thử nghiệm gần đây")
-  @RequirePermission("hotel.rooms.view")
+  @RequirePermission(["hotel.reservations.view", "platform.hotels.view"])
   @SuccessMessage("Lấy danh sách đơn đặt phòng thử nghiệm thành công")
   @Get("hotels/:hotelId/channex/simulated-bookings")
   async getSimulatedBookings(
@@ -573,7 +677,7 @@ export class ChannelManagerController {
   }
 
   @ApiDescript("Lấy cấu hình Channex Property của khách sạn và danh sách properties từ Channex")
-  @RequirePermission("hotel.rooms.view")
+  @RequirePermission(["hotel.channels.view", "platform.hotels.view"])
   @SuccessMessage("Lấy cấu hình Channex Property thành công")
   @Get("hotels/:hotelId/channex/config")
   async getChannexConfig(
@@ -586,7 +690,7 @@ export class ChannelManagerController {
   }
 
   @ApiDescript("Cấu hình liên kết Channex Property ID cho khách sạn")
-  @RequirePermission("hotel.rooms.manage")
+  @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Lưu cấu hình Channex Property thành công")
   @Post("hotels/:hotelId/channex/config")
   async configureChannexProperty(
@@ -597,6 +701,13 @@ export class ChannelManagerController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     await this.assertAccess(req, hotelId);
     const dto = parseWithZod(channexConfigurePropertySchema, body);
-    return this.channexSyncService.configureProperty(hotelId, dto.channexPropertyId);
+    const result = await this.channexSyncService.configureProperty(hotelId, dto.channexPropertyId);
+    await this.auditService.recordHotelAction({
+      actorId: req.user.userId,
+      hotelId,
+      action: "CHANNEX_PROPERTY_CONFIGURE",
+      metadata: { channexPropertyId: dto.channexPropertyId },
+    });
+    return result;
   }
 }

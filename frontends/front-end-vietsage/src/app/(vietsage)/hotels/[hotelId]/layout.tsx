@@ -67,6 +67,7 @@ export default async function HotelOpsLayout({
       hotelName={currentHotel?.name}
       roleName={context.activeRole.name}
       accessibleHotels={context.accessibleHotels}
+      permissions={context.permissions}
     >
       <HotelOpsRealtimeNotifier hotelId={hotelId} />
       <WorkspaceShell

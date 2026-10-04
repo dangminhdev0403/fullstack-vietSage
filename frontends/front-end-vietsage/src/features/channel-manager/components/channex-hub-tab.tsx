@@ -11,9 +11,11 @@ import { ChannelLogo } from "./channel-logo";
 export function ChannexHubTab({
   hotelId,
   roleScope = "owner",
+  canManage,
 }: {
   hotelId: string;
   roleScope?: "owner" | "admin";
+  canManage: boolean;
 }) {
   const {
     mappings,
@@ -109,6 +111,7 @@ export function ChannexHubTab({
     channelId?: string,
     providerCode?: string,
   ) => {
+    if (!canManage) return;
     try {
       if (providerCode) setLoadingProviderCode(providerCode);
       const session = await channelSession.mutateAsync({ channelId });
@@ -130,13 +133,15 @@ export function ChannexHubTab({
       const channelId = providerConnections[0]?.id;
       if (channelId) {
         setSelectedManageChannelId(channelId);
+      } else if (canManage) {
+        void handleOpenChannels(undefined, provider.code);
+      }
+    } else if (canManage) {
+      if (provider.nativeSupported) {
+        setSelectedProviderCode(provider.code);
       } else {
         void handleOpenChannels(undefined, provider.code);
       }
-    } else if (provider.nativeSupported) {
-      setSelectedProviderCode(provider.code);
-    } else {
-      void handleOpenChannels(undefined, provider.code);
     }
   };
 
@@ -328,19 +333,27 @@ export function ChannexHubTab({
                 (p) => p.type !== "hidden",
               );
 
+              const isCardInteractive = isConnected || canManage;
+
               return (
                 <article
                   key={provider.code}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleProviderAction(provider)}
+                  role={isCardInteractive ? "button" : "article"}
+                  tabIndex={isCardInteractive ? 0 : -1}
+                  onClick={() => {
+                    if (isCardInteractive) handleProviderAction(provider);
+                  }}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
+                    if (isCardInteractive && (e.key === "Enter" || e.key === " ")) {
                       e.preventDefault();
                       handleProviderAction(provider);
                     }
                   }}
-                  className="group flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-600/50 hover:shadow-md cursor-pointer select-none"
+                  className={`group flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs transition-all duration-200 select-none ${
+                    isCardInteractive
+                      ? "hover:-translate-y-0.5 hover:border-emerald-600/50 hover:shadow-md cursor-pointer"
+                      : "cursor-default"
+                  }`}
                 >
                   <div className="space-y-4">
                     {/* Header Row: Logo, Title, Code & Badges */}
@@ -407,7 +420,7 @@ export function ChannexHubTab({
                                     setSelectedManageChannelId(conn.id);
                                   }}
                                   className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white hover:bg-emerald-50 hover:border-emerald-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:text-emerald-900 cursor-pointer shadow-2xs transition"
-                                  title={`Quản lý chi tiết: ${conn.title || conn.id}`}
+                                  title={`${canManage ? "Quản lý" : "Xem"} chi tiết: ${conn.title || conn.id}`}
                                 >
                                   <span
                                     className={`h-1.5 w-1.5 rounded-full ${
@@ -467,48 +480,59 @@ export function ChannexHubTab({
                   </div>
 
                   {/* Nút thao tác */}
-                  <div className="mt-5 pt-3.5 border-t border-slate-100">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleProviderAction(provider);
-                      }}
-                      disabled={!propertyMapping || channelSession.isPending}
-                      className={`min-h-11 w-full rounded-xl px-4 text-sm font-bold transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center gap-2 shadow-2xs ${
-                        isConnected
-                          ? "border-2 border-emerald-600 bg-white text-emerald-800 hover:bg-emerald-50 hover:border-emerald-700"
-                          : provider.nativeSupported
-                            ? "bg-[#25483f] text-white hover:bg-[#1a352d] shadow-sm"
-                            : "border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-900"
-                      }`}
-                    >
-                      {loadingProviderCode === provider.code ? (
-                        <>
-                          <VsIcon
-                            name="refresh"
-                            className="animate-spin text-base"
-                          />
-                          <span>Đang kết nối...</span>
-                        </>
-                      ) : isConnected ? (
-                        <>
-                          <VsIcon name="tune" className="text-base" />
-                          <span>Quản lý kết nối</span>
-                        </>
-                      ) : provider.nativeSupported ? (
-                        <>
-                          <VsIcon name="add_circle" className="text-base" />
-                          <span>Thiết lập kết nối</span>
-                        </>
-                      ) : (
-                        <>
-                          <VsIcon name="open_in_new" className="text-base" />
-                          <span>Kết nối qua Channex</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
+                  {(canManage || isConnected) && (
+                    <div className="mt-5 pt-3.5 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleProviderAction(provider);
+                        }}
+                        disabled={!propertyMapping || channelSession.isPending}
+                        className={`min-h-11 w-full rounded-xl px-4 text-sm font-bold transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center gap-2 shadow-2xs ${
+                          isConnected
+                            ? canManage
+                              ? "border-2 border-emerald-600 bg-white text-emerald-800 hover:bg-emerald-50 hover:border-emerald-700"
+                              : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                            : provider.nativeSupported
+                              ? "bg-[#25483f] text-white hover:bg-[#1a352d] shadow-sm"
+                              : "border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-900"
+                        }`}
+                      >
+                        {loadingProviderCode === provider.code ? (
+                          <>
+                            <VsIcon
+                              name="refresh"
+                              className="animate-spin text-base"
+                            />
+                            <span>Đang kết nối...</span>
+                          </>
+                        ) : isConnected ? (
+                          canManage ? (
+                            <>
+                              <VsIcon name="tune" className="text-base" />
+                              <span>Quản lý kết nối</span>
+                            </>
+                          ) : (
+                            <>
+                              <VsIcon name="visibility" className="text-base" />
+                              <span>Xem chi tiết</span>
+                            </>
+                          )
+                        ) : provider.nativeSupported ? (
+                          <>
+                            <VsIcon name="add_circle" className="text-base" />
+                            <span>Thiết lập kết nối</span>
+                          </>
+                        ) : (
+                          <>
+                            <VsIcon name="open_in_new" className="text-base" />
+                            <span>Kết nối qua Channex</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </article>
               );
             })}
@@ -517,7 +541,7 @@ export function ChannexHubTab({
       </section>
 
       {/* Direct Channel Setup Wizard Modal */}
-      {selectedProvider && (
+      {canManage && selectedProvider && (
         <ChannexChannelWizard
           key={selectedProvider.code}
           provider={selectedProvider}
@@ -552,11 +576,16 @@ export function ChannexHubTab({
           hotelId={hotelId}
           channelId={selectedManageChannelId}
           roleScope={roleScope}
+          canManage={canManage}
           onClose={() => setSelectedManageChannelId(null)}
-          onOpenChannexIframe={(id) => {
-            setSelectedManageChannelId(null);
-            void handleOpenChannels(id);
-          }}
+          onOpenChannexIframe={
+            canManage
+              ? (id) => {
+                  setSelectedManageChannelId(null);
+                  void handleOpenChannels(id);
+                }
+              : undefined
+          }
           onCatalogRefresh={() => {
             void refreshChannelCatalog();
             void refreshMappings();
@@ -565,7 +594,7 @@ export function ChannexHubTab({
       )}
 
       {/* Channex Special Adapter Iframe Modal Dialog */}
-      {channelIframeUrl && (
+      {canManage && channelIframeUrl && (
         <div
           role="dialog"
           aria-modal="true"
