@@ -1116,14 +1116,14 @@ export function AdminBillingClient({
                 <table className="w-full text-left text-sm">
                   <thead className="bg-slate-50/80 border-b border-slate-200/80 text-xs font-bold uppercase tracking-wider text-slate-600 dark:bg-slate-800/60 dark:border-slate-800 dark:text-slate-400">
                     <tr>
-                      <th className="px-5 py-4">Khách sạn đối tác</th>
-                      <th className="px-5 py-4">Kỳ cước</th>
-                      <th className="px-5 py-4">Trạng thái</th>
-                      <th className="px-5 py-4 text-right">Tổng tiền</th>
-                      <th className="px-5 py-4 text-right">Đã thu</th>
-                      <th className="px-5 py-4 text-right">Còn nợ</th>
-                      <th className="px-5 py-4">Hạn nợ</th>
-                      <th className="px-5 py-4 text-right">Thao tác</th>
+                      <th className="px-3.5 py-3.5 whitespace-nowrap">Khách sạn đối tác</th>
+                      <th className="px-3.5 py-3.5 whitespace-nowrap">Kỳ cước</th>
+                      <th className="px-3.5 py-3.5 whitespace-nowrap">Trạng thái</th>
+                      <th className="px-3.5 py-3.5 text-right whitespace-nowrap">Tổng tiền</th>
+                      <th className="px-3.5 py-3.5 text-right whitespace-nowrap">Đã thu</th>
+                      <th className="px-3.5 py-3.5 text-right whitespace-nowrap">Còn nợ</th>
+                      <th className="px-3.5 py-3.5 whitespace-nowrap">Hạn nợ</th>
+                      <th className="px-3.5 py-3.5 text-right whitespace-nowrap">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1139,20 +1139,20 @@ export function AdminBillingClient({
                           key={p.id}
                           className="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
                         >
-                          <td className="px-5 py-4 font-semibold text-slate-900 dark:text-white">
+                          <td className="px-3.5 py-3 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
                             <div className="flex flex-col">
-                              <span className="text-base font-bold text-slate-900 dark:text-white">
+                              <span className="text-sm font-bold text-slate-900 dark:text-white">
                                 {hotelName}
                               </span>
                               {hotelCode && (
-                                <span className="mt-0.5 inline-block w-fit rounded bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                                <span className="mt-0.5 inline-block w-fit rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
                                   {hotelCode}
                                 </span>
                               )}
                             </div>
                           </td>
 
-                          <td className="px-5 py-4 font-mono text-sm text-slate-800 dark:text-slate-200">
+                          <td className="px-3.5 py-3 font-mono text-sm text-slate-800 dark:text-slate-200 whitespace-nowrap">
                             <div>
                               {new Date(p.periodStart).toLocaleDateString("vi-VN")} →{" "}
                               {new Date(p.periodEnd).toLocaleDateString("vi-VN")}
@@ -1162,10 +1162,10 @@ export function AdminBillingClient({
                             </span>
                           </td>
 
-                          <td className="px-5 py-4">
-                            <div className="flex flex-wrap items-center gap-1.5">
+                          <td className="px-3.5 py-3 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5 flex-nowrap">
                               <span
-                                className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold whitespace-nowrap ${
                                   p.paymentState === "PAID"
                                     ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                                     : p.paymentState === "PARTIALLY_PAID"
@@ -1180,26 +1180,26 @@ export function AdminBillingClient({
                                     : "Chưa thanh toán"}
                               </span>
                               {p.isOverdue && (
-                                <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-extrabold text-red-800 dark:bg-red-950 dark:text-red-300">
+                                <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-extrabold text-red-800 dark:bg-red-950 dark:text-red-300 whitespace-nowrap">
                                   Quá hạn
                                 </span>
                               )}
                             </div>
                           </td>
 
-                          <td className="px-5 py-4 text-right font-mono font-bold text-slate-900 dark:text-white">
+                          <td className="px-3.5 py-3 text-right font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
                             {Number(p.total ?? 0).toLocaleString("vi-VN")} đ
                           </td>
 
-                          <td className="px-5 py-4 text-right font-mono font-medium text-emerald-700 dark:text-emerald-400">
+                          <td className="px-3.5 py-3 text-right font-mono font-medium text-emerald-700 dark:text-emerald-400 whitespace-nowrap">
                             {Number(settled).toLocaleString("vi-VN")} đ
                           </td>
 
-                          <td className="px-5 py-4 text-right font-mono font-extrabold text-amber-600 dark:text-amber-400">
+                          <td className="px-3.5 py-3 text-right font-mono font-extrabold text-amber-600 dark:text-amber-400 whitespace-nowrap">
                             {Number(outstanding).toLocaleString("vi-VN")} đ
                           </td>
 
-                          <td className="px-5 py-4 text-xs text-slate-500">
+                          <td className="px-3.5 py-3 text-xs text-slate-500 whitespace-nowrap">
                             {p.dueAt ? (
                               <span className={p.isOverdue ? "text-red-600 font-bold" : ""}>
                                 {new Date(p.dueAt).toLocaleDateString("vi-VN")}
@@ -1209,16 +1209,16 @@ export function AdminBillingClient({
                             )}
                           </td>
 
-                          <td className="px-5 py-4 text-right">
-                            <div className="flex items-center justify-end gap-2">
+                          <td className="px-3.5 py-3 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1.5 flex-nowrap">
                               {!isFullyPaid && (
                                 <button
                                   type="button"
                                   onClick={() => openSettlementModal(p)}
-                                  className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 min-h-10 px-3 py-1.5 text-sm font-bold text-white shadow-sm hover:bg-emerald-500 transition-all active:scale-98"
+                                  className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-emerald-600 px-2.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-500 transition-all active:scale-98 whitespace-nowrap"
                                 >
-                                  <VsIcon name="payments" className="text-base" />
-                                  <span>Thanh toán</span>
+                                  <VsIcon name="payments" className="text-sm" />
+                                  <span className="whitespace-nowrap">Thanh toán</span>
                                 </button>
                               )}
 
@@ -1228,12 +1228,12 @@ export function AdminBillingClient({
                                   onClick={() => handleIssueDebtNotice(p.id)}
                                   disabled={issuingNoticeId === p.id}
                                   title="Ghi nhận đã nhắc nợ cho khách sạn"
-                                  className="inline-flex items-center gap-1 rounded-xl border border-amber-300 bg-amber-50 min-h-10 px-3 py-1.5 text-sm font-bold text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300 transition-all"
+                                  className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300 transition-all whitespace-nowrap disabled:opacity-50"
                                 >
-                                  <VsIcon name="notifications" className="text-base" />
-                                  <span>{issuingNoticeId === p.id ? "Đang ghi..." : "Ghi nhận đã nhắc nợ"}</span>
+                                  <VsIcon name="notifications" className="text-sm" />
+                                  <span className="whitespace-nowrap">{issuingNoticeId === p.id ? "Đang ghi..." : "Ghi nhận đã nhắc nợ"}</span>
                                   {(p.debtNoticeCount ?? 0) > 0 && (
-                                    <span className="ml-1 rounded-full bg-amber-700 px-1.5 py-0.2 text-xs font-bold text-white dark:bg-amber-400 dark:text-amber-950">
+                                    <span className="ml-0.5 rounded-full bg-amber-700 px-1.5 py-0.2 text-[10px] font-bold text-white dark:bg-amber-400 dark:text-amber-950 whitespace-nowrap">
                                       {p.debtNoticeCount}
                                     </span>
                                   )}
@@ -1244,10 +1244,10 @@ export function AdminBillingClient({
                                 type="button"
                                 onClick={() => setStatementPeriodId(p.id)}
                                 title="Xem phiếu báo công nợ và đối soát chi tiết"
-                                className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white min-h-10 px-3 py-1.5 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 transition-all"
+                                className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 transition-all whitespace-nowrap"
                               >
-                                <VsIcon name="receipt" className="text-base" />
-                                <span>Phiếu nợ</span>
+                                <VsIcon name="receipt" className="text-sm" />
+                                <span className="whitespace-nowrap">Phiếu nợ</span>
                               </button>
                             </div>
                           </td>
@@ -1342,10 +1342,10 @@ export function AdminBillingClient({
                 <table className="w-full text-left text-sm">
                   <thead className="bg-slate-50 text-xs font-bold uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-400">
                     <tr>
-                      <th className="px-4 py-3">Khách sạn</th>
-                      <th className="px-4 py-3">Biểu phí SaaS</th>
-                      <th className="px-4 py-3">Trạng thái kỳ này</th>
-                      <th className="px-4 py-3 text-right">Thao tác</th>
+                      <th className="px-4 py-3 whitespace-nowrap">Khách sạn</th>
+                      <th className="px-4 py-3 whitespace-nowrap">Biểu phí SaaS</th>
+                      <th className="px-4 py-3 whitespace-nowrap">Trạng thái kỳ này</th>
+                      <th className="px-4 py-3 text-right whitespace-nowrap">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1459,12 +1459,12 @@ export function AdminBillingClient({
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200/80 text-xs font-bold uppercase tracking-wider text-slate-600 dark:bg-slate-800 dark:border-slate-800 dark:text-slate-400">
                   <tr>
-                    <th className="px-5 py-4">Khách sạn</th>
-                    <th className="px-5 py-4">Biểu phí SaaS</th>
-                    <th className="px-5 py-4">Ngày bắt đầu</th>
-                    <th className="px-5 py-4">Trạng thái</th>
-                    <th className="px-5 py-4 text-center">Số kỳ đã chốt</th>
-                    <th className="px-5 py-4 text-right">Thao tác</th>
+                    <th className="px-5 py-4 whitespace-nowrap">Khách sạn</th>
+                    <th className="px-5 py-4 whitespace-nowrap">Biểu phí SaaS</th>
+                    <th className="px-5 py-4 whitespace-nowrap">Ngày bắt đầu</th>
+                    <th className="px-5 py-4 whitespace-nowrap">Trạng thái</th>
+                    <th className="px-5 py-4 text-center whitespace-nowrap">Số kỳ đã chốt</th>
+                    <th className="px-5 py-4 text-right whitespace-nowrap">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
