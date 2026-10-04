@@ -3,6 +3,15 @@ export type ChannelType =
 
 export type SyncStatus = "IDLE" | "SYNCING" | "SUCCESS" | "ERROR" | "PAUSED";
 
+export interface ChannexPendingModification {
+  id: string;
+  bookingId: string;
+  revisionId: string;
+  reservationIds?: string[];
+  proposedArrival?: string;
+  proposedDeparture?: string;
+}
+
 export interface ChannelConnection {
   id: string;
   hotelId: string;

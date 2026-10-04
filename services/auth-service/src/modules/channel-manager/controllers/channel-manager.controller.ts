@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Headers,
+  BadRequestException,
   Logger,
   Param,
   Post,
@@ -238,7 +239,9 @@ export class ChannelManagerController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     await this.assertAccess(req, hotelId);
     const payload = parseWithZod(channexSyncContentSchema, body);
-    return this.channexSyncService.syncContent(hotelId, payload);
+    const result = await this.channexSyncService.syncContent(hotelId, payload);
+    if (!result.success) throw new BadRequestException(result.error ?? "Đối soát Channex thất bại");
+    return result;
   }
 
   @ApiDescript(
@@ -255,7 +258,12 @@ export class ChannelManagerController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     await this.assertAccess(req, hotelId);
     const payload = parseWithZod(channexPushAriSchema, body);
-    return this.channexAriSyncService.pushAri(hotelId, payload);
+    const result = await this.channexAriSyncService.pushAri(hotelId, payload);
+    if (!result.success)
+      throw new BadRequestException(
+        "Đẩy ARI chưa được Channex xác nhận toàn bộ; kiểm tra log và đối soát lại",
+      );
+    return result;
   }
 
   @ApiDescript("Quét và xử lý booking mới từ Channex Revisions Feed (Apply-then-Ack Inbound Feed)")
@@ -270,10 +278,13 @@ export class ChannelManagerController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     await this.assertAccess(req, hotelId);
     const payload = parseWithZod(channexPollFeedSchema, body);
-    return this.channexBookingIngestionService.drainFeed({
+    const result = await this.channexBookingIngestionService.drainFeed({
       hotelId,
       limit: payload.limit,
     });
+    if (!result.success)
+      throw new BadRequestException("Booking feed còn lỗi hoặc booking sửa đổi đang chờ đối soát");
+    return result;
   }
 
   @ApiDescript("Webhook tiếp nhận thông báo đặt phòng thời gian thực từ Channex")
@@ -304,7 +315,38 @@ export class ChannelManagerController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     await this.assertAccess(req, hotelId);
     const payload = parseWithZod(channexRecoverSchema, body);
-    return this.channexBookingIngestionService.recoverOutage(hotelId, payload.since);
+    const result = await this.channexBookingIngestionService.recoverOutage(hotelId, payload.since);
+    if (!result.success)
+      throw new BadRequestException(
+        "Khôi phục Channex chưa hoàn tất; chia nhỏ khoảng thời gian và thử lại",
+      );
+    return result;
+  }
+
+  @ApiDescript("Danh sách booking Channex sửa đổi đang chờ đối soát")
+  @RequirePermission("hotel.rooms.view")
+  @Get("hotels/:hotelId/channex/pending-modifications")
+  async getPendingChannexModifications(
+    @Req() req: RequestWithRequiredUser,
+    @Param("hotelId") hotelIdParam: string,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    await this.assertAccess(req, hotelId);
+    return this.channexBookingIngestionService.getPendingModifications(hotelId);
+  }
+
+  @ApiDescript("Xác nhận booking Channex đã được đối soát thủ công")
+  @RequirePermission("hotel.rooms.manage")
+  @Post("hotels/:hotelId/channex/pending-modifications/:logId/resolve")
+  async resolveChannexModification(
+    @Req() req: RequestWithRequiredUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("logId") logIdParam: string,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const logId = parseWithZod(connectionIdParamSchema, logIdParam);
+    await this.assertAccess(req, hotelId);
+    return this.channexBookingIngestionService.resolveModification(hotelId, logId);
   }
 
   @ApiDescript("Chẩn đoán toàn diện sức khỏe kết nối Channex (Doctor Check)")

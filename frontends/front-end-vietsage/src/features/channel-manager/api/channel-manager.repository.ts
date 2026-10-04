@@ -299,6 +299,29 @@ export const channelManagerRepository = {
     return response.data;
   },
 
+  async getPendingChannexModifications(
+    hotelId: string,
+    scope: ChannelManagerRoleScope = "owner",
+  ): Promise<Array<{ id: string; bookingId: string; revisionId: string; reservationIds?: string[]; proposedArrival?: string; proposedDeparture?: string }>> {
+    const response = await requestInternalApiEnvelope<Array<{ id: string; bookingId: string; revisionId: string; reservationIds?: string[]; proposedArrival?: string; proposedDeparture?: string }>>(
+      `${basePath(hotelId, scope)}/channex/pending-modifications`,
+      { method: "GET" },
+    );
+    return response.data;
+  },
+
+  async resolveChannexModification(
+    hotelId: string,
+    logId: string,
+    scope: ChannelManagerRoleScope = "owner",
+  ): Promise<{ success: boolean }> {
+    const response = await requestInternalApiEnvelope<{ success: boolean }>(
+      `${basePath(hotelId, scope)}/channex/pending-modifications/${encodeURIComponent(logId)}/resolve`,
+      { method: "POST" },
+    );
+    return response.data;
+  },
+
   async runChannexDoctor(
     hotelId: string,
     scope: ChannelManagerRoleScope = "owner",

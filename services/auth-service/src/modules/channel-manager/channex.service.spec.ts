@@ -239,12 +239,22 @@ describe("Channex Channel Manager Integration Suite", () => {
         .mockResolvedValueOnce({ data: { id: "rp_uuid_deluxe" } })
         .mockResolvedValueOnce({ data: { id: "rp_uuid_suite" } });
 
-      mockApiClient.getRoomTypes.mockResolvedValue({
-        data: [{ id: "rt_uuid_deluxe" }, { id: "rt_uuid_suite" }],
-      });
-      mockApiClient.getRatePlans.mockResolvedValue({
-        data: [{ id: "rp_uuid_deluxe" }, { id: "rp_uuid_suite" }],
-      });
+      mockApiClient.getRoomTypes
+        .mockResolvedValueOnce({ data: [] })
+        .mockImplementation(async () => ({
+          data: mockApiClient.createRoomType.mock.calls.map(([roomType]: any[], i: number) => ({
+            id: ["rt_uuid_deluxe", "rt_uuid_suite"][i],
+            attributes: { property_id: "prop_uuid_123", title: roomType.title },
+          })),
+        }));
+      mockApiClient.getRatePlans
+        .mockResolvedValueOnce({ data: [] })
+        .mockImplementation(async () => ({
+          data: mockApiClient.createRatePlan.mock.calls.map(([ratePlan]: any[], i: number) => ({
+            id: ["rp_uuid_deluxe", "rp_uuid_suite"][i],
+            attributes: ratePlan,
+          })),
+        }));
 
       const res = await syncService.syncContent(hotelId);
 
@@ -312,8 +322,27 @@ describe("Channex Channel Manager Integration Suite", () => {
       mockApiClient.updateProperty.mockResolvedValue({ data: { id: "prop_existing" } });
       mockApiClient.updateRoomType.mockResolvedValue({ data: { id: "rt_existing" } });
       mockApiClient.updateRatePlan.mockResolvedValue({ data: { id: "rp_existing" } });
-      mockApiClient.getRoomTypes.mockResolvedValue({ data: [{ id: "rt_existing" }] });
-      mockApiClient.getRatePlans.mockResolvedValue({ data: [{ id: "rp_existing" }] });
+      mockApiClient.getRoomTypes.mockResolvedValue({
+        data: [
+          {
+            id: "rt_existing",
+            attributes: { property_id: "prop_existing", title: "STANDARD" },
+          },
+        ],
+      });
+      mockApiClient.getRatePlans.mockResolvedValue({
+        data: [
+          {
+            id: "rp_existing",
+            attributes: {
+              property_id: "prop_existing",
+              room_type_id: "rt_existing",
+              currency: "VND",
+              options: [{ occupancy: 2, is_primary: true, rate: 1000000 }],
+            },
+          },
+        ],
+      });
 
       const res = await syncService.syncContent(hotelId);
 
@@ -529,14 +558,27 @@ describe("Channex Channel Manager Integration Suite", () => {
 
       mockApiClient.postAvailability.mockResolvedValue({ data: { message: "Success" } });
       mockApiClient.postRestrictions.mockResolvedValue({ data: { message: "Success" } });
-      mockApiClient.getAvailability.mockResolvedValue({ data: { rt_deluxe_chx: { [d1Str]: 2 } } });
-      mockApiClient.getRestrictions.mockResolvedValue({
+      mockApiClient.getAvailability.mockImplementation(async () => ({
         data: {
-          rp_deluxe_chx: {
-            [d1Str]: { rate: "1500000.00", min_stay_arrival: 1, stop_sell: false },
-          },
+          rt_deluxe_chx: Object.fromEntries([d1Str, d2Str, d3Str].map((date) => [date, 2])),
         },
-      });
+      }));
+      mockApiClient.getRestrictions.mockImplementation(async () => ({
+        data: {
+          rp_deluxe_chx: Object.fromEntries(
+            [d1Str, d2Str, d3Str].map((date) => [
+              date,
+              {
+                rate: "1500000.00",
+                min_stay_arrival: 1,
+                stop_sell: false,
+                closed_to_arrival: false,
+                closed_to_departure: false,
+              },
+            ]),
+          ),
+        },
+      }));
 
       const res = await ariSyncService.pushAri(hotelId, {
         startDate: d1Str,
@@ -794,7 +836,8 @@ describe("Channex Channel Manager Integration Suite", () => {
         // Không truyền endDate
       });
 
-      expect(result.success).toBe(true);
+      // Readback giả lập rỗng không được coi là đã xác minh thành công.
+      expect(result.success).toBe(false);
       expect(result.startDate).toBe("2026-10-15");
       expect(result.endDate).toBe("2026-10-20");
     });
@@ -960,7 +1003,7 @@ describe("Channex Channel Manager Integration Suite", () => {
       );
     });
 
-    it("không tự ghi đè booking modified; tạo cảnh báo đối soát rồi ack", async () => {
+    it("không tự ghi đè booking modified; giữ revision chưa ack tới khi đối soát", async () => {
       const revisionItem = {
         id: "rev_uuid_modified",
         type: "booking_revision",
@@ -985,7 +1028,7 @@ describe("Channex Channel Manager Integration Suite", () => {
       expect(mockPrisma.channelSyncLog.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ status: "WARNING" }) }),
       );
-      expect(mockApiClient.ackBookingRevision).toHaveBeenCalledWith("rev_uuid_modified", undefined);
+      expect(mockApiClient.ackBookingRevision).not.toHaveBeenCalled();
     });
 
     it("chống trùng lặp (Deduplication): nếu booking đã có trong PMS thì bỏ qua và ack", async () => {

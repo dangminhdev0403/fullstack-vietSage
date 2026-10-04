@@ -58,6 +58,7 @@ export class ChannexBookingIngestionService {
     const details: FeedDrainResult["details"] = [];
 
     let hasMore = true;
+    let blockedByReconciliation = false;
     let iteration = 0;
     const MAX_ITERATIONS = 20; // Phòng ngừa vòng lặp vô hạn
 
@@ -76,7 +77,10 @@ export class ChannexBookingIngestionService {
           const outcome = await this.processSingleRevision(rev, options.apiKey);
           totalProcessed++;
 
-          if (outcome.action === "CREATED") newCount++;
+          if (outcome.action === "RECONCILIATION_REQUIRED") {
+            modCount++;
+            blockedByReconciliation = true;
+          } else if (outcome.action === "CREATED") newCount++;
           else if (outcome.action === "CANCELLED") cancelCount++;
           else if (outcome.action === "MODIFIED") modCount++;
           else if (outcome.action === "SKIPPED" || outcome.action === "DEDUPLICATED")
@@ -107,13 +111,13 @@ export class ChannexBookingIngestionService {
 
       // Kiểm tra nếu feed còn nhiều hơn trang vừa lấy thì tiếp tục loop
       const metaTotal = feedRes.meta?.total ?? 0;
-      if (metaTotal <= revisions.length) {
+      if (blockedByReconciliation || metaTotal <= revisions.length) {
         hasMore = false;
       }
     }
 
     return {
-      success: errorsCount === 0,
+      success: errorsCount === 0 && !blockedByReconciliation && !hasMore,
       totalProcessed,
       newBookingsCount: newCount,
       cancelledBookingsCount: cancelCount,
@@ -433,22 +437,34 @@ export class ChannexBookingIngestionService {
           const bookingMapping = await tx.channexMapping.findFirst({
             where: { hotelId, kind: "booking", channexId: attrs.booking_id },
           });
-          await tx.channelSyncLog.create({
-            data: {
+          const existing = await tx.channelSyncLog.findFirst({
+            where: {
               hotelId,
               syncType: "CHANNEX_INBOUND_BOOKING_MODIFIED",
-              status: "WARNING",
-              eventsCount: 1,
-              details: JSON.stringify({
-                bookingId: attrs.booking_id,
-                revisionId,
-                reservationIds: this.mappedReservationIds(bookingMapping),
-                proposedArrival: attrs.arrival_date,
-                proposedDeparture: attrs.departure_date,
-                actionRequired: "MANUAL_RECONCILIATION",
-              }),
+              details: { contains: JSON.stringify({ revisionId }).slice(1, -1) },
             },
           });
+          if (existing?.status === "RESOLVED") {
+            return { action: "MODIFIED", reservationId: bookingMapping?.localId };
+          }
+          if (!existing) {
+            await tx.channelSyncLog.create({
+              data: {
+                hotelId,
+                syncType: "CHANNEX_INBOUND_BOOKING_MODIFIED",
+                status: "WARNING",
+                eventsCount: 1,
+                details: JSON.stringify({
+                  bookingId: attrs.booking_id,
+                  revisionId,
+                  reservationIds: this.mappedReservationIds(bookingMapping),
+                  proposedArrival: attrs.arrival_date,
+                  proposedDeparture: attrs.departure_date,
+                  actionRequired: "MANUAL_RECONCILIATION",
+                }),
+              },
+            });
+          }
           return {
             action: "RECONCILIATION_REQUIRED",
             reservationId: bookingMapping?.localId,
@@ -456,7 +472,9 @@ export class ChannexBookingIngestionService {
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
-      if (acknowledge) await this.channexClient.ackBookingRevision(revisionId, apiKey);
+      if (acknowledge && outcome.action === "MODIFIED") {
+        await this.channexClient.ackBookingRevision(revisionId, apiKey);
+      }
       return outcome;
     }
 
@@ -510,7 +528,34 @@ export class ChannexBookingIngestionService {
     }
 
     const outcome = await this.processSingleRevision(revisionRes.data, apiKey);
-    return { success: true, outcome };
+    return { success: outcome.action !== "RECONCILIATION_REQUIRED", outcome };
+  }
+
+  async getPendingModifications(hotelId: string) {
+    const logs = await this.prisma.channelSyncLog.findMany({
+      where: { hotelId, syncType: "CHANNEX_INBOUND_BOOKING_MODIFIED", status: "WARNING" },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+    return logs.map(({ id, createdAt, details }) => ({
+      id,
+      createdAt,
+      ...(details ? JSON.parse(details) : {}),
+    }));
+  }
+
+  async resolveModification(hotelId: string, logId: string) {
+    const result = await this.prisma.channelSyncLog.updateMany({
+      where: {
+        id: logId,
+        hotelId,
+        syncType: "CHANNEX_INBOUND_BOOKING_MODIFIED",
+        status: "WARNING",
+      },
+      data: { status: "RESOLVED" },
+    });
+    if (result.count !== 1) throw new NotFoundException("Không tìm thấy đối soát booking đang chờ");
+    return { success: true };
   }
 
   /**
@@ -519,45 +564,79 @@ export class ChannexBookingIngestionService {
    */
   async recoverOutage(hotelId: string, sinceIsoDate: string, apiKey?: string) {
     const propertyId = await this.resolvePropertyId(hotelId);
-    const bookingsRes = await this.channexClient.getBookings(
-      {
-        "filter[property_id]": propertyId,
-        "filter[inserted_at][gte]": sinceIsoDate,
-        "pagination[limit]": "100",
-      },
-      apiKey,
-    );
-
-    const bookings = bookingsRes.data || [];
+    const seen = new Set<string>();
+    let totalChecked = 0;
     let recoveredCount = 0;
-    for (const booking of bookings) {
-      const attributes = booking.attributes ?? {};
-      if (!booking.id || !attributes.arrival_date || !attributes.departure_date) {
-        this.logger.warn("[Channex Recovery] Bỏ qua booking thiếu ID hoặc ngày lưu trú");
-        continue;
-      }
-      const outcome = await this.processSingleRevision(
+    let complete = false;
+    let invalidBookings = false;
+    // ponytail: limit one recovery to 100 pages/10k bookings; split the time window for larger outages.
+    for (let page = 1; page <= 100; page++) {
+      const bookingsRes = await this.channexClient.getBookings(
         {
-          id: `recovery:${booking.id}`,
-          type: "booking_revision",
-          attributes: {
-            ...attributes,
-            booking_id: booking.id,
-            property_id: attributes.property_id ?? propertyId,
-            status: "new",
-          },
+          "filter[property_id]": propertyId,
+          "filter[inserted_at][gte]": sinceIsoDate,
+          "pagination[limit]": "100",
+          "pagination[page]": String(page),
         },
         apiKey,
-        false,
       );
-      if (outcome.action === "CREATED") recoveredCount++;
+      const bookings = bookingsRes.data || [];
+      if (
+        !Array.isArray(bookings) ||
+        bookings.length > 100 ||
+        (bookingsRes.meta?.page !== undefined && bookingsRes.meta.page !== page) ||
+        bookings.some((booking) => !booking.id || seen.has(booking.id))
+      ) {
+        break;
+      }
+      for (const booking of bookings) {
+        seen.add(booking.id);
+        totalChecked++;
+        const attributes = booking.attributes ?? {};
+        if (attributes.property_id !== propertyId) {
+          invalidBookings = true;
+          this.logger.warn(`[Channex Recovery] Booking ${booking.id} thuộc property khác; bỏ qua`);
+          continue;
+        }
+        if (!attributes.arrival_date || !attributes.departure_date) {
+          invalidBookings = true;
+          this.logger.warn("[Channex Recovery] Bỏ qua booking thiếu ngày lưu trú");
+          continue;
+        }
+        const outcome = await this.processSingleRevision(
+          {
+            id: `recovery:${booking.id}`,
+            type: "booking_revision",
+            attributes: {
+              ...attributes,
+              booking_id: booking.id,
+              property_id: attributes.property_id ?? propertyId,
+              status: "new",
+            },
+          },
+          apiKey,
+          false,
+        );
+        if (outcome.action === "CREATED") recoveredCount++;
+      }
+      const total = bookingsRes.meta?.total;
+      if (typeof total === "number" && Number.isSafeInteger(total) && total >= 0) {
+        if (totalChecked >= total) {
+          complete = true;
+          break;
+        }
+        if (bookings.length === 0) break;
+      } else if (bookings.length < 100) {
+        complete = true;
+        break;
+      }
     }
 
     return {
-      success: true,
+      success: complete && !invalidBookings,
       hotelId,
       since: sinceIsoDate,
-      totalChecked: bookings.length,
+      totalChecked,
       recoveredCount,
     };
   }
