@@ -10,7 +10,7 @@ import {
   useEffect,
   useState,
 } from "react";
-import Swal from "sweetalert2";
+import { SwalVietSage, showErrorAlert } from "@/libs/swal";
 import { z } from "zod";
 
 import { VietSageBrand } from "@/components/brand/vietsage-brand";
@@ -282,25 +282,22 @@ export default function LoginPage() {
 
     const hasError = Object.values(nextErrors).some((value) => Boolean(value));
     if (hasError) {
-      await Swal.fire({
-        icon: "error",
-        title: "Thông tin chưa hợp lệ",
-        text: "Vui lòng kiểm tra lại email và mật khẩu.",
-        confirmButtonText: "Đã hiểu",
-        confirmButtonColor: "#3f6f64",
-      });
+      await showErrorAlert(
+        "Thông tin chưa hợp lệ",
+        "Vui lòng kiểm tra lại email và mật khẩu.",
+      );
       return;
     }
 
     setIsSubmitting(true);
-    Swal.fire({
+    void SwalVietSage.fire({
       title: "Đang đăng nhập",
-      text: "Vui lòng chờ trong giây lát.",
+      text: "Vui lòng chờ trong giây lát...",
       allowOutsideClick: false,
       allowEscapeKey: false,
       showConfirmButton: false,
       didOpen: () => {
-        Swal.showLoading();
+        SwalVietSage.showLoading();
       },
     });
 
@@ -315,19 +312,16 @@ export default function LoginPage() {
       });
 
       if (!result || result.error) {
-        Swal.close();
+        SwalVietSage.close();
         setIsSubmitting(false);
-        await Swal.fire({
-          icon: "error",
-          title: "Đăng nhập thất bại",
-          text: resolveSignInErrorMessage(result?.error ?? undefined),
-          confirmButtonText: "Thử lại",
-          confirmButtonColor: "#3f6f64",
-        });
+        await showErrorAlert(
+          "Đăng nhập thất bại",
+          resolveSignInErrorMessage(result?.error ?? undefined),
+        );
         return;
       }
 
-      Swal.update({
+      SwalVietSage.update({
         icon: "success",
         title: "Đăng nhập thành công",
         text: "Đang chuyển hướng...",
@@ -340,15 +334,12 @@ export default function LoginPage() {
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.assign(postLoginUrl);
     } catch {
-      Swal.close();
+      SwalVietSage.close();
       setIsSubmitting(false);
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể đăng nhập",
-        text: "Không thể kết nối hệ thống đăng nhập. Vui lòng thử lại.",
-        confirmButtonText: "Đã hiểu",
-        confirmButtonColor: "#3f6f64",
-      });
+      await showErrorAlert(
+        "Không thể đăng nhập",
+        "Không thể kết nối hệ thống đăng nhập. Vui lòng thử lại.",
+      );
     }
   };
 

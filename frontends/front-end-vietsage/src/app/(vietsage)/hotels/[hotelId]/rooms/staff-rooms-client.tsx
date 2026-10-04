@@ -3,7 +3,13 @@
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Swal from "sweetalert2";
+import {
+  SwalVietSage,
+  showConfirmDialog,
+  showErrorAlert,
+  showSuccessAlert,
+  showWarningAlert,
+} from "@/libs/swal";
 import {
   keepPreviousData,
   useQuery,
@@ -583,14 +589,12 @@ export function StaffRoomsClient({
   }, []);
 
   async function markRoomCleaned(room: HotelRoomSummary) {
-    const confirmation = await Swal.fire({
+    const confirmation = await showConfirmDialog({
       icon: "question",
       title: `Hoàn tất dọn phòng ${room.roomNumber ?? room.id}?`,
       text: "Xác nhận phòng đã được dọn dẹp sạch sẽ và sẵn sàng đón khách mới.",
-      showCancelButton: true,
-      confirmButtonText: "Chuyển sang TRỐNG (Sẵn sàng)",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#17201b",
+      confirmText: "Chuyển sang TRỐNG (Sẵn sàng)",
+      cancelText: "Hủy",
     });
 
     if (!confirmation.isConfirmed) return;
@@ -603,26 +607,22 @@ export function StaffRoomsClient({
           body: { status: "AVAILABLE" },
         },
       );
-      await Swal.fire({
-        icon: "success",
-        title: `Phòng ${room.roomNumber ?? room.id} đã sẵn sàng!`,
-        text: "Trạng thái phòng đã chuyển thành TRỐNG.",
-        confirmButtonColor: "#17201b",
-      });
+      await showSuccessAlert(
+        `Phòng ${room.roomNumber ?? room.id} đã sẵn sàng!`,
+        "Trạng thái phòng đã chuyển thành TRỐNG.",
+      );
       void refetch();
     } catch (error) {
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể cập nhật trạng thái phòng",
-        text: error instanceof Error ? error.message : "Vui lòng thử lại.",
-        confirmButtonColor: "#17201b",
-      });
+      await showErrorAlert(
+        "Không thể cập nhật trạng thái phòng",
+        error instanceof Error ? error.message : "Vui lòng thử lại.",
+      );
     }
   }
 
   async function toggleRoomBlocked(room: HotelRoomSummary) {
     const isBlocked = getRoomStatus(room) === "blocked";
-    const confirmation = await Swal.fire({
+    const confirmation = await showConfirmDialog({
       icon: isBlocked ? "question" : "warning",
       title: isBlocked
         ? `Mở khóa phòng ${getRoomNumber(room)}?`
@@ -630,10 +630,8 @@ export function StaffRoomsClient({
       text: isBlocked
         ? "Phòng sẽ trở lại trạng thái TRỐNG và có thể được sử dụng."
         : "Phòng sẽ không thể được đặt, gán booking hoặc check-in cho đến khi mở khóa.",
-      showCancelButton: true,
-      confirmButtonText: isBlocked ? "Mở khóa phòng" : "Khóa phòng",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: isBlocked ? "#17201b" : "#ba1a1a",
+      confirmText: isBlocked ? "Mở khóa phòng" : "Khóa phòng",
+      cancelText: "Hủy",
     });
 
     if (!confirmation.isConfirmed) return;
@@ -646,19 +644,16 @@ export function StaffRoomsClient({
           body: { status: isBlocked ? "AVAILABLE" : "BLOCKED" },
         },
       );
-      await Swal.fire({
-        icon: "success",
-        title: isBlocked ? "Đã mở khóa phòng" : "Đã khóa phòng",
-        confirmButtonColor: "#17201b",
-      });
+      await showSuccessAlert(
+        isBlocked ? "Đã mở khóa phòng" : "Đã khóa phòng",
+        isBlocked ? "Phòng đã trở lại trạng thái khả dụng." : "Phòng đã được khóa an toàn.",
+      );
       void refetch();
     } catch (error) {
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể cập nhật trạng thái phòng",
-        text: error instanceof Error ? error.message : "Vui lòng thử lại.",
-        confirmButtonColor: "#17201b",
-      });
+      await showErrorAlert(
+        "Không thể cập nhật trạng thái phòng",
+        error instanceof Error ? error.message : "Vui lòng thử lại.",
+      );
     }
   }
 
@@ -673,14 +668,12 @@ export function StaffRoomsClient({
       BLOCKED: "ĐÃ KHÓA",
     };
     const roomNum = getRoomNumber(room);
-    const confirmation = await Swal.fire({
+    const confirmation = await showConfirmDialog({
       icon: "question",
       title: `Chuyển phòng ${roomNum} sang ${labels[targetStatus]}?`,
       text: `Xác nhận cập nhật trạng thái phòng ${roomNum}.`,
-      showCancelButton: true,
-      confirmButtonText: "Xác nhận chuyển",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#17201b",
+      confirmText: "Xác nhận chuyển",
+      cancelText: "Hủy",
     });
 
     if (!confirmation.isConfirmed) return;
@@ -693,25 +686,22 @@ export function StaffRoomsClient({
           body: { status: targetStatus },
         },
       );
-      await Swal.fire({
-        icon: "success",
-        title: `Phòng ${roomNum} đã chuyển sang ${labels[targetStatus]}!`,
-        confirmButtonColor: "#17201b",
-      });
+      await showSuccessAlert(
+        `Phòng ${roomNum} đã chuyển sang ${labels[targetStatus]}!`,
+        "Cập nhật trạng thái thành công.",
+      );
       void refetch();
     } catch (error) {
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể cập nhật trạng thái phòng",
-        text: error instanceof Error ? error.message : "Vui lòng thử lại.",
-        confirmButtonColor: "#17201b",
-      });
+      await showErrorAlert(
+        "Không thể cập nhật trạng thái phòng",
+        error instanceof Error ? error.message : "Vui lòng thử lại.",
+      );
     }
   }
 
   async function handleBlockedRoomClick(room: HotelRoomSummary) {
     const roomNum = getRoomNumber(room);
-    await Swal.fire({
+    await SwalVietSage.fire({
       title: `Cập nhật trạng thái phòng ${roomNum}`,
       html: `
         <div style="font-size:14px;color:#475569;margin-bottom:16px">Phòng <strong>${roomNum}</strong> hiện đang ở trạng thái <span style="color:#ba1a1a;font-weight:700">ĐÃ KHÓA</span>. Chọn thao tác bên dưới:</div>
@@ -736,15 +726,15 @@ export function StaffRoomsClient({
         const btnProcessing = document.getElementById("swal-btn-processing");
 
         btnAvailable?.addEventListener("click", () => {
-          Swal.close();
+          SwalVietSage.close();
           void updateRoomStatus(room, "AVAILABLE");
         });
         btnMaintenance?.addEventListener("click", () => {
-          Swal.close();
+          SwalVietSage.close();
           void updateRoomStatus(room, "MAINTENANCE");
         });
         btnProcessing?.addEventListener("click", () => {
-          Swal.close();
+          SwalVietSage.close();
           void updateRoomStatus(room, "PROCESSING");
         });
       },
@@ -753,7 +743,7 @@ export function StaffRoomsClient({
 
   async function handleMaintenanceRoomClick(room: HotelRoomSummary) {
     const roomNum = getRoomNumber(room);
-    await Swal.fire({
+    await SwalVietSage.fire({
       title: `Cập nhật trạng thái phòng ${roomNum}`,
       html: `
         <div style="font-size:14px;color:#475569;margin-bottom:16px">Phòng <strong>${roomNum}</strong> hiện đang ở trạng thái <span style="color:#d97706;font-weight:700">BẢO TRÌ</span>. Chọn thao tác bên dưới:</div>
@@ -778,15 +768,15 @@ export function StaffRoomsClient({
         const btnProcessing = document.getElementById("swal-btn-processing");
 
         btnAvailable?.addEventListener("click", () => {
-          Swal.close();
+          SwalVietSage.close();
           void updateRoomStatus(room, "AVAILABLE");
         });
         btnBlocked?.addEventListener("click", () => {
-          Swal.close();
+          SwalVietSage.close();
           void updateRoomStatus(room, "BLOCKED");
         });
         btnProcessing?.addEventListener("click", () => {
-          Swal.close();
+          SwalVietSage.close();
           void updateRoomStatus(room, "PROCESSING");
         });
       },
@@ -799,7 +789,7 @@ export function StaffRoomsClient({
     const guestName = stay?.guestDisplayName || "Khách lưu trú";
     const plannedOutStr = formatDateTime(stay?.plannedCheckOutAt);
 
-    await Swal.fire({
+    await SwalVietSage.fire({
       title: `⚠️ Cảnh báo: Phòng ${roomNum} quá hạn trả!`,
       html: `
         <div style="font-size:14px;color:#475569;margin-bottom:16px;text-align:left">
@@ -822,7 +812,7 @@ export function StaffRoomsClient({
         const btnExtend = document.getElementById("swal-btn-extend");
 
         btnCheckout?.addEventListener("click", () => {
-          Swal.close();
+          SwalVietSage.close();
           const params = new URLSearchParams();
           if (roomNum) params.set("roomNumber", roomNum);
           if (stay?.id) params.set("stayId", stay.id);
@@ -831,7 +821,7 @@ export function StaffRoomsClient({
         });
 
         btnExtend?.addEventListener("click", () => {
-          Swal.close();
+          SwalVietSage.close();
           void handleExtendStayModal(room);
         });
       },
@@ -844,7 +834,7 @@ export function StaffRoomsClient({
     const roomNum = getRoomNumber(room);
     const defaultNewCheckOut = localDateTime(1, 12);
 
-    const { value: newCheckOut } = await Swal.fire({
+    const { value: newCheckOut } = await SwalVietSage.fire({
       title: `Gia hạn lưu trú phòng ${roomNum}`,
       html: `
         <div style="font-size:14px;color:#475569;margin-bottom:12px;text-align:left">
@@ -860,11 +850,10 @@ export function StaffRoomsClient({
       showCancelButton: true,
       confirmButtonText: "Xác nhận gia hạn",
       cancelButtonText: "Hủy",
-      confirmButtonColor: "#2563eb",
       preConfirm: () => {
         const input = document.getElementById("swal-input-checkout") as HTMLInputElement | null;
         if (!input || !input.value) {
-          Swal.showValidationMessage("Vui lòng chọn thời gian check-out mới");
+          SwalVietSage.showValidationMessage("Vui lòng chọn thời gian check-out mới");
           return false;
         }
         return input.value;
@@ -881,35 +870,29 @@ export function StaffRoomsClient({
           body: { plannedCheckOutAt: new Date(newCheckOut).toISOString() },
         },
       );
-      await Swal.fire({
-        icon: "success",
-        title: `Đã gia hạn phòng ${roomNum}!`,
-        text: `Thời gian check-out mới: ${formatDateTime(newCheckOut)}`,
-        confirmButtonColor: "#17201b",
-      });
+      await showSuccessAlert(
+        `Đã gia hạn phòng ${roomNum}!`,
+        `Thời gian check-out mới: ${formatDateTime(newCheckOut)}`,
+      );
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
     } catch (error) {
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể gia hạn phòng",
-        text: error instanceof Error ? error.message : "Vui lòng thử lại.",
-        confirmButtonColor: "#17201b",
-      });
+      await showErrorAlert(
+        "Không thể gia hạn phòng",
+        error instanceof Error ? error.message : "Vui lòng thử lại.",
+      );
     }
   }
 
   async function handleOtaFastCheckIn(booking: SimulatedBookingItem, room: HotelRoomSummary) {
     if (!booking.reservationId) {
-      await Swal.fire({
-        icon: "warning",
-        title: "Chưa liên kết Đặt phòng",
-        text: "Đơn này chưa có mã reservationId trên hệ thống.",
-        confirmButtonColor: "#00003c",
-      });
+      await showWarningAlert(
+        "Chưa liên kết Đặt phòng",
+        "Đơn này chưa có mã reservationId trên hệ thống.",
+      );
       return;
     }
 
-    const confirm = await Swal.fire({
+    const confirm = await showConfirmDialog({
       icon: "question",
       title: "Nhận phòng cho khách OTA?",
       html: `
@@ -920,10 +903,8 @@ export function StaffRoomsClient({
           <p><strong>Lưu trú:</strong> ${booking.checkInDate} ➔ ${booking.checkOutDate}</p>
         </div>
       `,
-      showCancelButton: true,
-      confirmButtonText: "Nhận phòng",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#0284c7",
+      confirmText: "Nhận phòng",
+      cancelText: "Hủy",
     });
 
     if (!confirm.isConfirmed) return;
@@ -938,30 +919,24 @@ export function StaffRoomsClient({
         { method: "POST" },
       );
 
-      await Swal.fire({
-        icon: "success",
-        title: "Nhận phòng thành công",
-        html: `
+      await showSuccessAlert(
+        "Nhận phòng thành công",
+        `
           <div style="text-align:left; font-size:13px; line-height:1.6;">
             <p>Đã nhận phòng <strong>${getRoomNumber(room)}</strong> cho khách <strong>${booking.guestName}</strong>.</p>
             ${res.data?.accessCode ? `<p style="margin-top:8px">Mã GuestOS: <strong style="font-size:15px; color:#0284c7;">${res.data.accessCode}</strong></p>` : ""}
           </div>
         `,
-        confirmButtonText: "OK",
-        showConfirmButton: true,
-        confirmButtonColor: "#0284c7",
-      });
+      );
 
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       void boundChannelResource.invalidate(queryClient);
       void refetch();
     } catch (err) {
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể nhận phòng OTA",
-        text: err instanceof Error ? err.message : "Đã có lỗi xảy ra khi nhận phòng.",
-        confirmButtonColor: "#00003c",
-      });
+      await showErrorAlert(
+        "Không thể nhận phòng OTA",
+        err instanceof Error ? err.message : "Đã có lỗi xảy ra khi nhận phòng.",
+      );
     }
   }
 
@@ -999,14 +974,12 @@ export function StaffRoomsClient({
       return;
     }
 
-    const confirmation = await Swal.fire({
+    const confirmation = await showConfirmDialog({
       icon: "question",
       title: "Xác nhận mở phòng check-in?",
       text: `Mở phòng ${getRoomNumber(selectedRoom)} cho khách "${fields.guestDisplayName.trim()}". Hệ thống sẽ kích hoạt QR và mã GuestOS ngay.`,
-      showCancelButton: true,
-      confirmButtonText: "Xác nhận mở phòng",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#00003c",
+      confirmText: "Xác nhận mở phòng",
+      cancelText: "Hủy",
     });
 
     if (!confirmation.isConfirmed) return;
@@ -1048,21 +1021,17 @@ export function StaffRoomsClient({
 
       setIsCheckInOpen(false);
       setSelectedRoom(null);
-      await Swal.fire({
-        icon: "success",
-        title: "Đã mở phòng",
-        text: `Mã GuestOS: ${result.data.accessCode}. Hồ sơ khách đang được tự động chuyển sang Khai báo tạm trú (BCA).`,
-        confirmButtonColor: "#00003c",
-      });
+      await showSuccessAlert(
+        "Đã mở phòng",
+        `Mã GuestOS: ${result.data.accessCode}. Hồ sơ khách đang được tự động chuyển sang Khai báo tạm trú (BCA).`,
+      );
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Vui lòng thử lại.");
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể mở phòng",
-        text: error instanceof Error ? error.message : "Vui lòng thử lại.",
-        confirmButtonColor: "#00003c",
-      });
+      await showErrorAlert(
+        "Không thể mở phòng",
+        error instanceof Error ? error.message : "Vui lòng thử lại.",
+      );
     } finally {
       setSaving(false);
     }

@@ -9,8 +9,12 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Swal from "sweetalert2";
-import { SwalVietSage } from "@/libs/swal";
+import {
+  SwalVietSage,
+  showConfirmDialog,
+  showErrorAlert,
+  showSuccessAlert,
+} from "@/libs/swal";
 import { z } from "zod";
 
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
@@ -283,22 +287,6 @@ function formatVnd(value: string | number | null | undefined): string {
       amount,
     ) + " ₫"
   );
-}
-
-function roomToForm(room: HotelRoomSummary): RoomFormState {
-  return {
-    id: room.id,
-    roomNumber: room.roomNumber ?? "",
-    floor: room.floor ?? "",
-    type: room.type ?? "",
-    roomTypeId: room.roomTypeId ?? "",
-    price: getRoomPrice(room) === null ? "" : String(getRoomPrice(room)),
-    maxActiveGuestDevices:
-      room.maxActiveGuestDevices === null ||
-      room.maxActiveGuestDevices === undefined
-        ? ""
-        : String(room.maxActiveGuestDevices),
-  };
 }
 
 function getRoomFormErrors(form: RoomFormState): RoomFormErrors {
@@ -668,7 +656,7 @@ export function OwnerRoomsClient({
       await refreshRooms();
       await refetchRoomTypes();
       setSelectedDetailRoom((prev) =>
-        prev && prev.id === roomId ? { ...prev, ...updated } : prev,
+        prev && prev.id === roomId ? { ...prev, ...updated.data } : prev,
       );
       await toast.fire({
         icon: "success",

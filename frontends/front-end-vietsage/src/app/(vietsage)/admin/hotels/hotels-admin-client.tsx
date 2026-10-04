@@ -1,8 +1,12 @@
 "use client";
 
 import { type FormEvent, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import Swal from "sweetalert2";
+import {
+  showConfirmDialog,
+  showErrorAlert,
+  showSuccessAlert,
+  showWarningAlert,
+} from "@/libs/swal";
 import { z } from "zod";
 
 import { HttpError } from "@/core/http/http-error";
@@ -175,26 +179,21 @@ async function requestJson<TData>(path: string, options: { method: "GET" | "POST
 }
 
 async function confirmHotelSave(mode: FormMode, hotelName: string, tenantName: string): Promise<boolean> {
-  const result = await Swal.fire({
+  const result = await showConfirmDialog({
     icon: "question",
     title: mode === "create" ? "Tạo khách sạn?" : "Lưu thay đổi khách sạn?",
     text:
       mode === "create"
         ? `Tạo khách sạn ${hotelName} cho ${tenantName}.`
         : `Cập nhật thông tin khách sạn ${hotelName}.`,
-    showCancelButton: true,
-    reverseButtons: false,
-    confirmButtonText: mode === "create" ? "Đồng ý tạo" : "Đồng ý lưu",
-    cancelButtonText: "Hủy",
-    confirmButtonColor: "#00003c",
-    cancelButtonColor: "#767684",
+    confirmText: mode === "create" ? "Đồng ý tạo" : "Đồng ý lưu",
+    cancelText: "Hủy",
   });
 
   return result.isConfirmed;
 }
 
 export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, canManageFeatures = false }: HotelsAdminClientProps) {
-  const router = useRouter();
   const [hotels, setHotels] = useState(initialHotels);
   const [query, setQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -253,12 +252,10 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, c
         return;
       }
 
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể tải khách sạn",
-        text: error instanceof Error ? error.message : "Vui lòng thử lại.",
-        confirmButtonColor: "#00003c",
-      });
+      await showErrorAlert(
+        "Không thể tải khách sạn",
+        error instanceof Error ? error.message : "Vui lòng thử lại.",
+      );
     } finally {
       setLoadingHotelId(null);
     }
@@ -278,34 +275,28 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, c
   async function submitHotel(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!hasTenantOptions) {
-      await Swal.fire({
-        icon: "warning",
-        title: "Chưa có tổ chức",
-        text: "Cần có ít nhất một tổ chức hợp lệ trước khi tạo khách sạn.",
-        confirmButtonColor: "#00003c",
-      });
+      await showWarningAlert(
+        "Chưa có tổ chức",
+        "Cần có ít nhất một tổ chức hợp lệ trước khi tạo khách sạn.",
+      );
       return;
     }
 
     const validation = formMode === "create" ? createHotelFormSchema.safeParse(form) : updateHotelFormSchema.safeParse(form);
     if (!validation.success) {
-      await Swal.fire({
-        icon: "warning",
-        title: "Kiểm tra thông tin",
-        text: validation.error.issues[0]?.message ?? "Thông tin khách sạn chưa hợp lệ.",
-        confirmButtonColor: "#00003c",
-      });
+      await showWarningAlert(
+        "Kiểm tra thông tin",
+        validation.error.issues[0]?.message ?? "Thông tin khách sạn chưa hợp lệ.",
+      );
       return;
     }
 
     const tenantExists = tenantOptions.some((tenant) => tenant.id === form.tenantId);
     if (formMode === "create" && !tenantExists) {
-      await Swal.fire({
-        icon: "warning",
-        title: "Tổ chức không hợp lệ",
-        text: "Vui lòng chọn tổ chức trong danh sách hiện có.",
-        confirmButtonColor: "#00003c",
-      });
+      await showWarningAlert(
+        "Tổ chức không hợp lệ",
+        "Vui lòng chọn tổ chức trong danh sách hiện có.",
+      );
       return;
     }
 
@@ -356,22 +347,18 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, c
       setFormMode("create");
       setEditingHotel(null);
       setForm(emptyHotelForm);
-      await Swal.fire({
-        icon: "success",
-        title: formMode === "create" ? "Đã tạo khách sạn" : "Đã cập nhật khách sạn",
-        timer: 1400,
-        showConfirmButton: false,
-      });
+      await showSuccessAlert(
+        formMode === "create" ? "Đã tạo khách sạn" : "Đã cập nhật khách sạn",
+        formMode === "create" ? "Khách sạn mới đã được tạo thành công." : "Thông tin khách sạn đã được cập nhật.",
+      );
     } catch (error) {
       if (error instanceof Error && error.message === "UNAUTHORIZED") {
         return;
       }
-      await Swal.fire({
-        icon: "error",
-        title: formMode === "create" ? "Không thể tạo khách sạn" : "Không thể cập nhật khách sạn",
-        text: error instanceof Error ? error.message : "Vui lòng thử lại.",
-        confirmButtonColor: "#00003c",
-      });
+      await showErrorAlert(
+        formMode === "create" ? "Không thể tạo khách sạn" : "Không thể cập nhật khách sạn",
+        error instanceof Error ? error.message : "Vui lòng thử lại.",
+      );
     } finally {
       setIsSaving(false);
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { BrandedRoomQr } from "@/features/hotel-ops/components/branded-room-qr";
@@ -10,7 +10,7 @@ import { filterExtraOccupants } from "@/features/hotel-ops/utils/hotel-ops-displ
 export type CatalogRoomType = {
   id: string;
   name: string;
-  basePrice?: number;
+  basePrice?: number | null;
   readiness?: string;
 };
 
@@ -91,7 +91,19 @@ function formatDateTime(value: string | null | undefined): string {
   }
 }
 
-export function RoomDetailDrawer({
+export function RoomDetailDrawer(props: Readonly<RoomDetailDrawerProps>) {
+  if (!props.room) return null;
+
+  return (
+    <RoomDetailDialog
+      key={`${props.room.id}:${props.initialMode ?? "view"}`}
+      {...props}
+      room={props.room}
+    />
+  );
+}
+
+function RoomDetailDialog({
   room,
   clientOrigin,
   initialMode = "view",
@@ -103,43 +115,27 @@ export function RoomDetailDrawer({
   onToggleBlocked,
   onQrAction,
   onOpenQrModal,
-}: Readonly<RoomDetailDrawerProps>) {
+}: Readonly<Omit<RoomDetailDrawerProps, "room"> & { room: HotelRoomSummary }>) {
   const qrCodeRef = useRef<SVGSVGElement | null>(null);
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(initialMode === "edit");
   const [isSaving, setIsSaving] = useState(false);
 
   // Form edit states
-  const [formRoomNumber, setFormRoomNumber] = useState("");
-  const [formFloor, setFormFloor] = useState("");
-  const [formRoomTypeId, setFormRoomTypeId] = useState("");
-  const [formPrice, setFormPrice] = useState("");
-  const [formMaxDevices, setFormMaxDevices] = useState("");
+  const [formRoomNumber, setFormRoomNumber] = useState(room.roomNumber ?? "");
+  const [formFloor, setFormFloor] = useState(room.floor ?? "");
+  const [formRoomTypeId, setFormRoomTypeId] = useState(room.roomTypeId ?? "");
+  const [formPrice, setFormPrice] = useState(
+    room.price !== null && room.price !== undefined && room.price !== ""
+      ? String(room.price)
+      : "",
+  );
+  const [formMaxDevices, setFormMaxDevices] = useState(
+    room.maxActiveGuestDevices !== null && room.maxActiveGuestDevices !== undefined
+      ? String(room.maxActiveGuestDevices)
+      : "",
+  );
   const [formErrors, setFormErrors] = useState<{ roomNumber?: string; price?: string }>({});
-
-  // Sync mode when initialMode or room changes
-  useEffect(() => {
-    setIsEditing(initialMode === "edit");
-  }, [initialMode, room?.id]);
-
-  // Sync form values from room
-  useEffect(() => {
-    if (!room) return;
-    setFormRoomNumber(room.roomNumber ?? "");
-    setFormFloor(room.floor ?? "");
-    setFormRoomTypeId(room.roomTypeId ?? "");
-    const rawPrice =
-      room.price !== null && room.price !== undefined && room.price !== ""
-        ? String(room.price)
-        : "";
-    setFormPrice(rawPrice);
-    setFormMaxDevices(
-      room.maxActiveGuestDevices !== null && room.maxActiveGuestDevices !== undefined
-        ? String(room.maxActiveGuestDevices)
-        : "",
-    );
-    setFormErrors({});
-  }, [room, isEditing]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -157,56 +153,51 @@ export function RoomDetailDrawer({
     }
   }, [room, isEditing, initialMode, onClose]);
 
-  const roomNumber = useMemo(() => room?.roomNumber?.trim() || room?.id || "--", [room]);
-
-  const currentRoomStatus = useMemo(
-    () => (room?.status?.trim().toUpperCase() || "AVAILABLE"),
-    [room?.status],
-  );
-
-  const roomStatusMeta = useMemo(
-    () =>
-      ROOM_STATUS_MAP[currentRoomStatus] ?? {
-        label: currentRoomStatus,
-        bg: "bg-slate-100",
-        text: "text-slate-800",
-        icon: "info",
-      },
-    [currentRoomStatus],
-  );
-
-  const rawQrStatus = useMemo(
-    () => (room?.qr?.status ?? room?.qrStatus ?? "INACTIVE").trim().toUpperCase(),
-    [room?.qr?.status, room?.qrStatus],
-  );
-
-  const publicQrCode = useMemo(
-    () => (rawQrStatus === "ACTIVE" ? (room?.qr?.publicCode?.trim() || null) : null),
-    [rawQrStatus, room?.qr?.publicCode],
-  );
-
-  const guestQrUrl = useMemo(() => {
-    if (!publicQrCode) return null;
-    const baseOrigin = clientOrigin || (typeof window !== "undefined" ? window.location.origin : "");
-    return `${baseOrigin.replace(/\/$/, "")}/g/${encodeURIComponent(publicQrCode)}`;
-  }, [clientOrigin, publicQrCode]);
-
-  const qrStatusMeta = useMemo(
-    () =>
-      QR_STATUS_MAP[rawQrStatus] ?? {
-        label: rawQrStatus,
-        bg: "bg-slate-100",
-        text: "text-slate-800",
-      },
-    [rawQrStatus],
-  );
+  const roomNumber = room.roomNumber?.trim() || room.id || "--";
+  const currentRoomStatus = room.status?.trim().toUpperCase() || "AVAILABLE";
+  const roomStatusMeta = ROOM_STATUS_MAP[currentRoomStatus] ?? {
+    label: currentRoomStatus,
+    bg: "bg-slate-100",
+    text: "text-slate-800",
+    icon: "info",
+  };
+  const rawQrStatus = (room.qr?.status ?? room.qrStatus ?? "INACTIVE").trim().toUpperCase();
+  const publicQrCode =
+    rawQrStatus === "ACTIVE" ? (room.qr?.publicCode?.trim() || null) : null;
+  const baseOrigin =
+    clientOrigin || (typeof window !== "undefined" ? window.location.origin : "");
+  const guestQrUrl = publicQrCode
+    ? `${baseOrigin.replace(/\/$/, "")}/g/${encodeURIComponent(publicQrCode)}`
+    : null;
+  const qrStatusMeta = QR_STATUS_MAP[rawQrStatus] ?? {
+    label: rawQrStatus,
+    bg: "bg-slate-100",
+    text: "text-slate-800",
+  };
 
   const activeStay = room?.activeStay;
 
-  const extraOccupants = useMemo(() => {
-    if (!activeStay) return [];
-    return filterExtraOccupants(activeStay.occupants, activeStay);
-  }, [activeStay]);
+  const extraOccupants = activeStay
+    ? filterExtraOccupants(activeStay.occupants, activeStay)
+    : [];
+
+  function startEditing() {
+    setFormRoomNumber(room.roomNumber ?? "");
+    setFormFloor(room.floor ?? "");
+    setFormRoomTypeId(room.roomTypeId ?? "");
+    setFormPrice(
+      room.price !== null && room.price !== undefined && room.price !== ""
+        ? String(room.price)
+        : "",
+    );
+    setFormMaxDevices(
+      room.maxActiveGuestDevices !== null && room.maxActiveGuestDevices !== undefined
+        ? String(room.maxActiveGuestDevices)
+        : "",
+    );
+    setFormErrors({});
+    setIsEditing(true);
+  }
 
   async function handleCopyLink() {
     if (!guestQrUrl) return;
@@ -253,8 +244,6 @@ export function RoomDetailDrawer({
       setIsSaving(false);
     }
   }
-
-  if (!room) return null;
 
   const isBlocked = currentRoomStatus === "BLOCKED";
   const isOccupied = currentRoomStatus === "OCCUPIED";
@@ -319,7 +308,7 @@ export function RoomDetailDrawer({
             {!isEditing && onSaveRoom ? (
               <button
                 type="button"
-                onClick={() => setIsEditing(true)}
+                onClick={startEditing}
                 className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-[#e8b363]/40 bg-[#e8b363]/15 px-3.5 py-2 text-xs font-bold text-[#e8b363] hover:bg-[#e8b363]/25 transition"
                 title="Chỉnh sửa thông tin phòng"
               >

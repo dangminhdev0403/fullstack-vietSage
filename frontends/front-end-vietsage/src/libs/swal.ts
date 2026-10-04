@@ -530,3 +530,14 @@ export function showConfirmDialog(options: {
     cancelButtonText: options.cancelText ?? "Hủy bỏ",
   });
 }
+
+export function showWarningAlert(title: string, messageOrHtml: string) {
+  const isHtml = /^\s*<[a-z][\s\S]*>/i.test(messageOrHtml);
+  return SwalVietSage.fire({
+    title,
+    ...(isHtml ? { html: messageOrHtml } : { text: messageOrHtml }),
+    icon: "warning",
+    showConfirmButton: true,
+    confirmButtonText: "OK",
+  });
+}

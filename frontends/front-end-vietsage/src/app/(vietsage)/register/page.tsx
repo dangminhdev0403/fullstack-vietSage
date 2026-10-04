@@ -1,9 +1,13 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
 import { type ChangeEvent, type FocusEvent, type FormEvent, type ReactNode, useEffect, useState } from "react";
-import Swal from "sweetalert2";
+import {
+  SwalVietSage,
+  showErrorAlert,
+  showSuccessAlert,
+} from "@/libs/swal";
 import { z } from "zod";
 
 import { VietSageBrand } from "@/components/brand/vietsage-brand";
@@ -274,37 +278,32 @@ export default function RegisterPage() {
 
     const hasErrors = Object.values(nextErrors).some((value) => Boolean(value));
     if (hasErrors) {
-      await Swal.fire({
-        icon: "error",
-        title: "Thông tin chưa hợp lệ",
-        text: "Vui lòng kiểm tra lại thông tin đăng ký.",
-        confirmButtonText: "Đã hiểu",
-        confirmButtonColor: "#3f6f64",
-      });
+      await showErrorAlert(
+        "Thông tin chưa hợp lệ",
+        "Vui lòng kiểm tra lại thông tin đăng ký.",
+      );
       return;
     }
 
     setIsSubmitting(true);
-    Swal.fire({
+    void SwalVietSage.fire({
       title: "Đang tạo tài khoản",
-      text: "Vui lòng chờ trong giây lát.",
+      text: "Vui lòng chờ trong giây lát...",
       allowOutsideClick: false,
       allowEscapeKey: false,
       showConfirmButton: false,
       didOpen: () => {
-        Swal.showLoading();
+        SwalVietSage.showLoading();
       },
     });
 
     try {
       await new Promise((resolve) => window.setTimeout(resolve, 350));
-      await Swal.fire({
-        icon: "success",
-        title: "Thông tin hợp lệ",
-        text: "Biểu mẫu đã sẵn sàng để gửi tới hệ thống tạo tài khoản.",
-        confirmButtonText: "Đã hiểu",
-        confirmButtonColor: "#3f6f64",
-      });
+      SwalVietSage.close();
+      await showSuccessAlert(
+        "Thông tin hợp lệ",
+        "Biểu mẫu đã sẵn sàng để gửi tới hệ thống tạo tài khoản.",
+      );
     } finally {
       setIsSubmitting(false);
     }

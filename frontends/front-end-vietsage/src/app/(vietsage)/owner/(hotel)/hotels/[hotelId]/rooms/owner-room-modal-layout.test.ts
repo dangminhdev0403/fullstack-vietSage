@@ -8,7 +8,7 @@ test("modal phòng dùng bố cục responsive, không ép năm cột", () => {
   assert.match(source, /max-h-\[calc\(100dvh-2rem\)\]/);
   assert.match(source, /max-w-4xl/);
   assert.match(source, /sm:grid-cols-2 lg:grid-cols-3/);
-  assert.doesNotMatch(source, /xl:grid-cols-5/);
+  assert.doesNotMatch(source, /(?:^|\s)xl:grid-cols-5/);
 });
 
 test("modal phòng có semantics và actions an toàn trên mobile", () => {

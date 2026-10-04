@@ -11,7 +11,6 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Swal from "sweetalert2";
 import { toast } from "sonner";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 
@@ -51,7 +50,11 @@ import {
   isTerminalOrderStatus,
 } from "@/features/marketplace/utils/marketplace-unit";
 import { printMarketplaceVoucherTicket } from "@/features/marketplace/utils/print-voucher";
-import { SwalVietSage } from "@/libs/swal";
+import {
+  SwalVietSage,
+  showErrorAlert,
+  showSuccessAlert,
+} from "@/libs/swal";
 
 type RequestQueueLabels = {
   allStatuses: string;
@@ -244,8 +247,6 @@ function getExternalOrderStatusLabel(status: string): {
       };
   }
 }
-
-const swalButtonColor = "#00003c";
 
 function formatDayFilterValue(value: string | undefined): string {
   if (!value) return "";
@@ -704,21 +705,14 @@ export function RequestQueueClient({
     requestQueue.mutations.assignment.options({
       onSuccess: ({ data: updated }) => {
         syncUpdatedRequest(updated);
-        void Swal.fire({
-          icon: "success",
-          title: "Đã cập nhật phân công",
-          timer: 1300,
-          showConfirmButton: false,
-        });
+        void showSuccessAlert(
+          "Đã cập nhật phân công",
+          "Phân công đã được cập nhật thành công.",
+        );
       },
       onError: (error) => {
         const message = getHttpErrorMessage(error, mergedLabels.operationError);
-        void Swal.fire({
-          icon: "error",
-          title: "Không thể cập nhật phân công",
-          text: message,
-          confirmButtonColor: swalButtonColor,
-        });
+        void showErrorAlert("Không thể cập nhật phân công", message);
       },
     }),
   );
@@ -795,8 +789,6 @@ export function RequestQueueClient({
       showCancelButton: true,
       confirmButtonText: "Xác nhận",
       cancelButtonText: "Hủy",
-      confirmButtonColor: swalButtonColor,
-      cancelButtonColor: "#64748b",
       reverseButtons: false,
     });
 
@@ -982,8 +974,6 @@ export function RequestQueueClient({
       showCancelButton: true,
       confirmButtonText: "✓ Tiếp nhận đơn",
       cancelButtonText: "Quay lại",
-      confirmButtonColor: "#059669",
-      cancelButtonColor: "#64748b",
       reverseButtons: false,
     });
 
@@ -1031,8 +1021,10 @@ export function RequestQueueClient({
       showCancelButton: true,
       confirmButtonText: "× Hủy đơn hàng",
       cancelButtonText: "Quay lại",
-      confirmButtonColor: "#dc2626",
-      cancelButtonColor: "#64748b",
+      customClass: {
+        confirmButton:
+          "inline-flex h-11 sm:h-12 items-center justify-center gap-2 rounded-full bg-rose-600 px-7 text-sm sm:text-base font-extrabold text-white shadow-lg shadow-rose-600/25 transition-all hover:bg-rose-700 cursor-pointer mx-1.5 min-w-[120px]",
+      },
       reverseButtons: false,
     });
 
@@ -1182,7 +1174,6 @@ export function RequestQueueClient({
           ${order.voucher?.voucherNumber ? `<p style="margin:2px 0 0;padding:8px 10px;background:#eef2ff;border-radius:8px;font-weight:bold;color:#312e81;border:1px solid #c7d2fe;font-size:12px">🎟️ Mã phiếu dịch vụ (Voucher): <span style="font-family:monospace;letter-spacing:0.05em">${order.voucher.voucherNumber}</span></p>` : ""}
         </div>
       `,
-      confirmButtonColor: "#00003c",
       confirmButtonText: "Đóng",
     });
   }
