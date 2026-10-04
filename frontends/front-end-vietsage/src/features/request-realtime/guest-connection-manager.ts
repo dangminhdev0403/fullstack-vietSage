@@ -88,6 +88,10 @@ export function createGuestConnectionManager(deps: {
     current.on("guest_request.answered", fanout("onAnswered"));
     current.on("guest_message.created", fanoutRaw("onGuestMessageCreated"));
     current.on("conversation.closed", fanoutRaw("onConversationClosed"));
+    current.on(
+      "marketplace_conversation.message_created",
+      fanoutRaw("onMarketplaceConversationMessageCreated"),
+    );
     current.on("external_service_order.created", fanoutRaw("onExternalOrderCreated"));
     current.on("external_service_order.status_changed", fanoutRaw("onExternalOrderStatusChanged"));
     current.on("external_service_order.hotel_acknowledged", fanoutRaw("onExternalOrderHotelAcknowledged"));

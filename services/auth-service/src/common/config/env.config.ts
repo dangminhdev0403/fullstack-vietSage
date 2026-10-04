@@ -68,6 +68,10 @@ const ConfigSchema = z.object({
     .optional(),
   LOCALMATE_KNOWLEDGE_API_KEY: z.string().optional(),
   CHANNEX_STAGING_VND_TO_GBP_RATE: z.string().optional(),
+  STRIPE_CHECKOUT_ENABLED: z.string().optional(),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_CHECKOUT_RETURN_BASE_URL: z.string().optional(),
 });
 
 export type EnvConfig = z.infer<typeof ConfigSchema>;
@@ -135,6 +139,13 @@ export interface LocalMateConfig {
   knowledgeApiKey: string | null;
 }
 
+export interface StripeConfig {
+  checkoutEnabled: boolean;
+  secretKey: string | null;
+  webhookSecret: string | null;
+  checkoutReturnBaseUrl: string | null;
+}
+
 export interface AppConfig {
   nodeEnv: string;
   port: number;
@@ -149,6 +160,7 @@ export interface AppConfig {
   trustedProxies: string[];
   requestRealtime: RequestRealtimeConfig;
   localMate: LocalMateConfig;
+  stripe: StripeConfig;
   rateLimits: {
     login: RateLimitConfig;
     refresh: RateLimitConfig;
@@ -408,6 +420,56 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     );
   }
 
+  const stripeCheckoutEnabled = parseBooleanEnv(
+    validated.STRIPE_CHECKOUT_ENABLED,
+    false,
+    "STRIPE_CHECKOUT_ENABLED",
+  );
+  const stripeSecretKey = normalizeOptionalEnvText(validated.STRIPE_SECRET_KEY);
+  const stripeWebhookSecret = normalizeOptionalEnvText(validated.STRIPE_WEBHOOK_SECRET);
+  const stripeCheckoutReturnBaseUrl = normalizeOptionalEnvText(
+    validated.STRIPE_CHECKOUT_RETURN_BASE_URL,
+  );
+
+  if (stripeCheckoutEnabled) {
+    if (!stripeSecretKey) {
+      throw new Error(
+        "Invalid STRIPE_SECRET_KEY environment variable. Required when STRIPE_CHECKOUT_ENABLED is true.",
+      );
+    }
+    if (!stripeWebhookSecret) {
+      throw new Error(
+        "Invalid STRIPE_WEBHOOK_SECRET environment variable. Required when STRIPE_CHECKOUT_ENABLED is true.",
+      );
+    }
+    if (!stripeCheckoutReturnBaseUrl) {
+      throw new Error(
+        "Invalid STRIPE_CHECKOUT_RETURN_BASE_URL environment variable. Required when STRIPE_CHECKOUT_ENABLED is true.",
+      );
+    }
+  }
+
+  if (stripeCheckoutReturnBaseUrl) {
+    try {
+      const parsedUrl = new URL(stripeCheckoutReturnBaseUrl);
+      if (validated.NODE_ENV === "production" && parsedUrl.protocol !== "https:") {
+        throw new Error("STRIPE_CHECKOUT_RETURN_BASE_URL must use HTTPS in production");
+      }
+    } catch (e: any) {
+      if (e.message?.includes("HTTPS in production")) throw e;
+      throw new Error("STRIPE_CHECKOUT_RETURN_BASE_URL must be a valid URL");
+    }
+  }
+
+  if (
+    validated.NODE_ENV === "production" &&
+    stripeCheckoutEnabled &&
+    (stripeSecretKey?.toLowerCase().includes("placeholder") ||
+      stripeWebhookSecret?.toLowerCase().includes("placeholder"))
+  ) {
+    throw new Error("Stripe secrets cannot be placeholder values in production");
+  }
+
   return {
     nodeEnv: validated.NODE_ENV,
     port: parsePort(validated.PORT),
@@ -461,6 +523,12 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     },
     localMate: {
       knowledgeApiKey: localMateKnowledgeApiKey,
+    },
+    stripe: {
+      checkoutEnabled: stripeCheckoutEnabled,
+      secretKey: stripeSecretKey,
+      webhookSecret: stripeWebhookSecret,
+      checkoutReturnBaseUrl: stripeCheckoutReturnBaseUrl,
     },
     rateLimits: {
       login: {

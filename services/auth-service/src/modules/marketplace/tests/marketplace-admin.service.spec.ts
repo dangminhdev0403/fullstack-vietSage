@@ -3,6 +3,7 @@ import { TenantType } from "@prisma/client";
 import { MarketplaceAdminService } from "../application/marketplace-admin.service";
 import {
   marketplaceCategoryBodySchema,
+  marketplacePricingConfigSchema,
   serviceTenantBodySchema,
 } from "../domain/marketplace-admin.schema";
 
@@ -13,6 +14,31 @@ const body = {
 };
 
 describe("Marketplace admin", () => {
+  it("returns default pricing config including localMatePlatformFeeRate", async () => {
+    const upsert = jest.fn().mockResolvedValue({
+      id: "default",
+      deliveryServiceFeeRate: "10.00",
+      localMatePlatformFeeRate: "15.00",
+    });
+    const service = new MarketplaceAdminService(
+      { marketplacePricingConfig: { upsert } } as never,
+      {} as never,
+    );
+
+    const result = await service.getPricingConfig();
+
+    expect(upsert).toHaveBeenCalledWith({
+      where: { id: "default" },
+      create: { id: "default" },
+      update: {},
+    });
+    expect(result).toEqual({
+      id: "default",
+      deliveryServiceFeeRate: "10.00",
+      localMatePlatformFeeRate: "15.00",
+    });
+  });
+
   it("persists the platform delivery fee percentage", async () => {
     const upsert = jest.fn().mockResolvedValue({ deliveryServiceFeeRate: "12.50" });
     const service = new MarketplaceAdminService(
@@ -27,6 +53,78 @@ describe("Marketplace admin", () => {
       create: { id: "default", deliveryServiceFeeRate: 12.5, updatedBy: "admin-1" },
       update: { deliveryServiceFeeRate: 12.5, updatedBy: "admin-1" },
     });
+  });
+
+  it("persists localMatePlatformFeeRate at zero preserving delivery fee", async () => {
+    const upsert = jest.fn().mockResolvedValue({
+      id: "default",
+      deliveryServiceFeeRate: "10.00",
+      localMatePlatformFeeRate: "0.00",
+      updatedBy: "admin-1",
+    });
+    const service = new MarketplaceAdminService(
+      { marketplacePricingConfig: { upsert } } as never,
+      {} as never,
+    );
+
+    await service.updatePricingConfig("admin-1", { localMatePlatformFeeRate: 0 });
+
+    expect(upsert).toHaveBeenCalledWith({
+      where: { id: "default" },
+      create: { id: "default", localMatePlatformFeeRate: 0, updatedBy: "admin-1" },
+      update: { localMatePlatformFeeRate: 0, updatedBy: "admin-1" },
+    });
+  });
+
+  it("persists localMatePlatformFeeRate at 15", async () => {
+    const upsert = jest.fn().mockResolvedValue({
+      id: "default",
+      deliveryServiceFeeRate: "10.00",
+      localMatePlatformFeeRate: "15.00",
+      updatedBy: "admin-1",
+    });
+    const service = new MarketplaceAdminService(
+      { marketplacePricingConfig: { upsert } } as never,
+      {} as never,
+    );
+
+    await service.updatePricingConfig("admin-1", { localMatePlatformFeeRate: 15 });
+
+    expect(upsert).toHaveBeenCalledWith({
+      where: { id: "default" },
+      create: { id: "default", localMatePlatformFeeRate: 15, updatedBy: "admin-1" },
+      update: { localMatePlatformFeeRate: 15, updatedBy: "admin-1" },
+    });
+  });
+
+  it("validates pricing config schema: accepts 0..100 inclusive and rejects values below 0 or above 100", () => {
+    expect(marketplacePricingConfigSchema.parse({ deliveryServiceFeeRate: 0 })).toEqual({
+      deliveryServiceFeeRate: 0,
+    });
+    expect(marketplacePricingConfigSchema.parse({ localMatePlatformFeeRate: 0 })).toEqual({
+      localMatePlatformFeeRate: 0,
+    });
+    expect(marketplacePricingConfigSchema.parse({ localMatePlatformFeeRate: 15 })).toEqual({
+      localMatePlatformFeeRate: 15,
+    });
+    expect(marketplacePricingConfigSchema.parse({ localMatePlatformFeeRate: 100 })).toEqual({
+      localMatePlatformFeeRate: 100,
+    });
+    expect(
+      marketplacePricingConfigSchema.parse({
+        deliveryServiceFeeRate: 10,
+        localMatePlatformFeeRate: 20,
+      }),
+    ).toEqual({
+      deliveryServiceFeeRate: 10,
+      localMatePlatformFeeRate: 20,
+    });
+
+    expect(() => marketplacePricingConfigSchema.parse({ localMatePlatformFeeRate: -0.01 })).toThrow();
+    expect(() => marketplacePricingConfigSchema.parse({ localMatePlatformFeeRate: 100.01 })).toThrow();
+    expect(() => marketplacePricingConfigSchema.parse({ deliveryServiceFeeRate: -1 })).toThrow();
+    expect(() => marketplacePricingConfigSchema.parse({ deliveryServiceFeeRate: 101 })).toThrow();
+    expect(() => marketplacePricingConfigSchema.parse({})).toThrow();
   });
 
   it("stores a delivery fee override on the edited service partner", async () => {

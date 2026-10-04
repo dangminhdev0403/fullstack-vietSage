@@ -8,17 +8,20 @@ import { HotelNotificationRoutesService } from "./application/hotel-notification
 import { TelegramNotificationService } from "./application/telegram-notification.service";
 import { TelegramMarketplaceBridgeService } from "./application/telegram-marketplace-bridge.service";
 import { TelegramMarketplaceRetryService } from "./application/telegram-marketplace-retry.service";
+import { LocalmatePaidOrderNotificationService } from "./application/localmate-paid-order-notification.service";
 import { MarketplaceOrderService } from "../marketplace/application/marketplace-order.service";
 import { MarketplaceConversationService } from "../marketplace/application/marketplace-conversation.service";
+import { LocalMatePaymentsModule } from "../localmate-payments/localmate-payments.module";
 
 @Module({
-  imports: [PrismaModule, GuestRequestEventsModule, PropertyModule],
+  imports: [PrismaModule, GuestRequestEventsModule, PropertyModule, LocalMatePaymentsModule],
   controllers: [TelegramWebhookController, HotelNotificationRoutesController],
   providers: [
     TelegramNotificationService,
     HotelNotificationRoutesService,
     TelegramMarketplaceBridgeService,
     TelegramMarketplaceRetryService,
+    LocalmatePaidOrderNotificationService,
   ],
   exports: [TelegramNotificationService, TelegramMarketplaceBridgeService],
 })
@@ -27,7 +30,9 @@ export class NotificationsModule implements OnModuleInit {
 
   onModuleInit() {
     MarketplaceOrderService.setNotificationDispatcher({
-      dispatchOrderNotification: (order) => this.bridgeService.sendOrderNotificationToGuide(order),
+      dispatchOrderNotification: async (order) => {
+        await this.bridgeService.sendOrderNotificationToGuide(order);
+      },
     });
 
     MarketplaceConversationService.setBridgeDispatcher({

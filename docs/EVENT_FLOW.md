@@ -233,9 +233,14 @@ Guest selects LocalMate from AI action card
   -> POST /guest/marketplace/orders with requestedStartAt, partySize, idempotencyKey
   -> Transaction validates LocalMate QUALIFIED status, hotel province match, service active link
   -> Atomically reserve capacity (decrement capacityAvailable)
+  -> Commit MarketplaceOrder plus immutable payment snapshot (tour total, fee rate, VietSage fee, guide remainder)
+  -> POST /guest/marketplace/orders/:orderId/payment-session creates/returns an idempotent Stripe Checkout Session
+  -> GuestOS renders a QR and direct link for the hosted Checkout URL
+  -> Verified POST /webhooks/stripe marks the payment PAID and durably queues guide notification
+     (success/cancel browser redirects never establish payment truth)
   -> Commit MarketplaceOrder with status PENDING, assignedLocalMateProfileId
   -> RequestRealtimeEmitter emits external_service_order.created to guest session and hotel staff
-  -> TelegramMarketplaceBridgeService sends order card notification to LocalMate private Telegram chat
+  -> Paid-order notification worker sends the order card to the LocalMate private Telegram chat
      (includes protect_content: true and Inline Keyboard [Accept mo:a:orderId] / [Reject mo:r:orderId])
 
 LocalMate responds in Telegram:

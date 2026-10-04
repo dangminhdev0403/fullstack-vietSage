@@ -30,6 +30,7 @@ export type MarketplaceCategorySheetPreview = {
 
 export type MarketplacePricingConfig = {
   deliveryServiceFeeRate: string | number;
+  localMatePlatformFeeRate?: string | number;
 };
 
 export type MarketplaceAdminData = {
@@ -44,6 +45,6 @@ export type MarketplaceAdminAction =
   | { action: "updateCategory"; id: string; input: { nameVi?: string; isActive?: boolean; translations?: Record<string, string> } }
   | { action: "deleteCategory"; id: string }
   | { action: "updateTenant"; id: string; input: { displayName?: string; categoryId?: string; status?: string; googleSheetsUrl?: string | null; deliveryServiceFeeRate?: number | null; owner?: { email?: string; fullName?: string; password?: string } } }
-  | { action: "updatePricingConfig"; input: { deliveryServiceFeeRate: number } }
+  | { action: "updatePricingConfig"; input: { deliveryServiceFeeRate?: number; localMatePlatformFeeRate?: number } }
   | { action: "previewImport"; spreadsheetUrl: string }
   | { action: "commitImport"; spreadsheetUrl: string; expectedHash: string };

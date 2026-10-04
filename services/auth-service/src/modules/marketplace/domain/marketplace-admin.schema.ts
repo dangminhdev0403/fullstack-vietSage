@@ -53,9 +53,19 @@ export const hotelServiceLinkBodySchema = z.object({
   commissionRate: z.number().min(0).max(100).optional(),
 });
 export const hotelLinksQuerySchema = z.object({ hotelId: id });
-export const marketplacePricingConfigSchema = z.object({
-  deliveryServiceFeeRate: z.number().min(0).max(100),
-});
+export const marketplacePricingConfigSchema = z
+  .object({
+    deliveryServiceFeeRate: z.number().min(0).max(100).optional(),
+    localMatePlatformFeeRate: z.number().min(0).max(100).optional(),
+  })
+  .refine(
+    (v) =>
+      v.deliveryServiceFeeRate !== undefined ||
+      v.localMatePlatformFeeRate !== undefined,
+    {
+      message: "At least one pricing fee rate must be provided",
+    },
+  );
 
 export const serviceTenantUpdateSchema = z
   .object({

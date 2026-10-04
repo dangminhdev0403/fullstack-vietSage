@@ -25,7 +25,7 @@ function getLocalIp(): string {
 
 async function bootstrap() {
   // Suppress NestJS built-in logger; Winston handles all output via LoggingModule
-  const app = await NestFactory.create(AppModule, { logger: false });
+  const app = await NestFactory.create(AppModule, { rawBody: true, logger: false });
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
 
   const logger = app.get(AppLogger);

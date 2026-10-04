@@ -6,6 +6,8 @@ import type {
   ConfirmMarketplaceCartInput,
   ConfirmMarketplaceCartResult,
   CreateMarketplaceOrderInput,
+  LocalMateOrderPayment,
+  LocalMatePaymentSessionResult,
   MarketplaceCart,
   MarketplaceCategory,
   MarketplaceOrder,
@@ -44,6 +46,13 @@ export const guestMarketplaceRepository = {
     request<MarketplaceOrder[]>(token, "/api/guest/marketplace/orders", undefined, locale),
   orderDetail: (token: string, orderId: string, locale?: string) =>
     request<MarketplaceOrder>(token, `/api/guest/marketplace/orders/${encodeURIComponent(orderId)}`, undefined, locale),
+  paymentSession: (token: string, orderId: string, locale?: string) =>
+    request<LocalMatePaymentSessionResult | { payment: LocalMateOrderPayment }>(
+      token,
+      `/api/guest/marketplace/orders/${encodeURIComponent(orderId)}/payment-session`,
+      { method: "POST" },
+      locale,
+    ),
   cancelOrder: (token: string, orderId: string, locale?: string) =>
     request<MarketplaceOrder>(token, `/api/guest/marketplace/orders/${encodeURIComponent(orderId)}/cancel`, { method: "PATCH" }, locale),
   conversation: (token: string, orderId: string, locale?: string) =>

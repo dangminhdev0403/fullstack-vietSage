@@ -15,13 +15,20 @@ import { MarketplaceCategoryImportAdapter } from "./infrastructure/imports/marke
 import { MarketplaceCategorySheetService } from "./application/marketplace-category-sheet.service";
 import { MarketplaceServiceItemImportAdapter } from "./infrastructure/imports/marketplace-service-item-import.adapter";
 import { ServiceItemImportService } from "./application/service-item-import.service";
+import { LocalMatePaymentsModule } from "../localmate-payments/localmate-payments.module";
 
 import { GuestMarketplaceConversationController } from "./api/guest-marketplace-conversation.controller";
 import { MarketplaceConversationService } from "./application/marketplace-conversation.service";
 import { MarketplaceConversationRepository } from "./infrastructure/marketplace-conversation.repository";
 
 @Module({
-  imports: [PropertyModule, GuestOperationsModule, RequestRealtimeModule, ImportModule],
+  imports: [
+    PropertyModule,
+    GuestOperationsModule,
+    RequestRealtimeModule,
+    ImportModule,
+    LocalMatePaymentsModule,
+  ],
   controllers: [
     MarketplaceAdminController,
     ServicePortalController,

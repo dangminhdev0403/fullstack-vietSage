@@ -50,6 +50,11 @@ export const guestMarketplaceResource = createResource<{ sessionToken: string; l
         guestMarketplaceRepository.order(scope.sessionToken, variables, scope.locale),
       invalidates: [{ type: "query", operation: "orders" }],
     }),
+    paymentSession: defineMutation({
+      mutationFn: ({ scope, variables }: { scope: { sessionToken: string; locale?: string }; variables: { orderId: string } }) =>
+        guestMarketplaceRepository.paymentSession(scope.sessionToken, variables.orderId, scope.locale),
+      invalidates: [{ type: "query", operation: "orderDetail" }, { type: "query", operation: "orders" }],
+    }),
     cancelOrder: defineMutation({
       mutationFn: ({ scope, variables }: { scope: { sessionToken: string; locale?: string }; variables: { orderId: string } }) =>
         guestMarketplaceRepository.cancelOrder(scope.sessionToken, variables.orderId, scope.locale),

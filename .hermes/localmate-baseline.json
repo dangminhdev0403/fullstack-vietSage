@@ -1,0 +1,39 @@
+{
+  "head": "947cf8d9d323e9ae2e52a8094e0d0f38a1a39bc2",
+  "status": [
+    " M deploy/n8n/workflows/vietsage-localmate-concierge.json",
+    " M deploy/n8n/workflows/vietsage-localmate-public-concierge.json",
+    " M frontends/front-end-vietsage/src/features/request-realtime/guest-connection-manager.test.ts",
+    " M frontends/front-end-vietsage/src/features/request-realtime/guest-connection-manager.ts",
+    " M frontends/front-end-vietsage/src/features/request-realtime/guest-message-realtime-bridge.test.mjs",
+    " M frontends/front-end-vietsage/src/features/request-realtime/guest-request-realtime-notifier.tsx",
+    " M frontends/front-end-vietsage/src/features/request-realtime/owner-connection-manager.ts",
+    " M frontends/front-end-vietsage/src/features/request-realtime/use-guest-request-realtime.ts",
+    " M services/auth-service/src/modules/marketplace/application/marketplace-conversation.service.ts",
+    " M services/auth-service/src/modules/marketplace/tests/marketplace-conversation.service.spec.ts",
+    " M services/auth-service/src/modules/notifications/application/telegram-marketplace-bridge.service.ts",
+    " M services/auth-service/src/modules/notifications/application/telegram-marketplace-retry.service.ts",
+    " M services/auth-service/src/modules/notifications/tests/telegram-marketplace-bridge.service.spec.ts",
+    " M services/auth-service/src/modules/notifications/tests/telegram-marketplace-retry.service.spec.ts",
+    " M services/auth-service/src/request-realtime.emitter.ts",
+    "?? services/auth-service/src/modules/request-realtime/tests/request-realtime.emitter.spec.ts"
+  ],
+  "sha256": {
+    "deploy/n8n/workflows/vietsage-localmate-concierge.json": "e693a900913fb2b181f1c49bab6909b23eb5f67bd7168bc95fce2d7ece5493cc",
+    "deploy/n8n/workflows/vietsage-localmate-public-concierge.json": "8c732d83680f4dc6b12dc72f89910a19abe5552e8b23725e6cc6c614a0326597",
+    "frontends/front-end-vietsage/src/features/request-realtime/guest-connection-manager.test.ts": "82af8b6107fb1c750d9cfb804214b0b93d44aabdd2bd0bc1d25bb04811d2c9a2",
+    "frontends/front-end-vietsage/src/features/request-realtime/guest-connection-manager.ts": "238e2380419343cddeae21055cfd656fa8cd605d86e2efc5355a17a6b1f3ec29",
+    "frontends/front-end-vietsage/src/features/request-realtime/guest-message-realtime-bridge.test.mjs": "037e2f5bf5615809e8ac07e6da72d3ac1eff8202b814a4d86175f0036dbbc947",
+    "frontends/front-end-vietsage/src/features/request-realtime/guest-request-realtime-notifier.tsx": "1cb84170f6c7883d671f30eaa8ebd4ebca83a39406e1d54bc4c6ec9aac50f2b0",
+    "frontends/front-end-vietsage/src/features/request-realtime/owner-connection-manager.ts": "cf377909b911c58b01a16c9ad02d9d227a77a2226405823e6adb9e4058fe348b",
+    "frontends/front-end-vietsage/src/features/request-realtime/use-guest-request-realtime.ts": "d0cfeb02c755a61236e3b5834bade14dc0018113a45df0218a88594f59c67c77",
+    "services/auth-service/src/modules/marketplace/application/marketplace-conversation.service.ts": "1d74f271ee50925682b88a1734e7c10c314295a28ea3f4d3897a426b9d8b5e35",
+    "services/auth-service/src/modules/marketplace/tests/marketplace-conversation.service.spec.ts": "9ced44a3f10eff13f0cd407e6af7724326c184966b76765e78b9a5523e94c0cf",
+    "services/auth-service/src/modules/notifications/application/telegram-marketplace-bridge.service.ts": "5838607352dd93661cb6c150f2e1266be225589cb39ba495b46b5fb6c6d0bf5f",
+    "services/auth-service/src/modules/notifications/application/telegram-marketplace-retry.service.ts": "16764f76943467ef30e9a01008405523a6cdfccc068797edd10168e836aca214",
+    "services/auth-service/src/modules/notifications/tests/telegram-marketplace-bridge.service.spec.ts": "204d0b802e82d5fb1b2c6f1d1a8254a9ed3d523d4fc9b7ca45312450d858e4bc",
+    "services/auth-service/src/modules/notifications/tests/telegram-marketplace-retry.service.spec.ts": "ced95cce100cfa6902b4fe042039a4a73419c4ff39f10109abcea463e9217604",
+    "services/auth-service/src/request-realtime.emitter.ts": "833c3004781be69fc5dded672dcdadbe0df243537210109a7ae510f5be4d5d89",
+    "services/auth-service/src/modules/request-realtime/tests/request-realtime.emitter.spec.ts": "452c7a4860f2c517d27d471ab8f686d9708a9cd04fb2003612e679db6d78c1c6"
+  }
+}

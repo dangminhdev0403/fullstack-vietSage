@@ -201,6 +201,14 @@ export class GuestMarketplaceController {
     );
   }
 
+  @Post("orders/:orderId/payment-session")
+  paymentSession(@Req() req: RequestWithGuestSession, @Param("orderId") id: string) {
+    return this.orders.createGuestPaymentSession(
+      req.guestSession.stayId,
+      parseWithZod(marketplaceOrderIdSchema, id),
+    );
+  }
+
   @Patch("orders/:orderId/cancel")
   cancelOrder(
     @Req() req: RequestWithGuestSession,

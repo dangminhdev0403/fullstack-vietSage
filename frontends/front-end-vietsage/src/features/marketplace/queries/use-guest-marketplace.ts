@@ -13,6 +13,7 @@ export function useGuestMarketplace(sessionToken: string, categoryId?: string) {
     orders: useQuery({ ...resource.queries.orders.options(undefined as never), enabled }),
     cart: useQuery({ ...resource.queries.cart.options(undefined as never), enabled }),
     order: useMutation(resource.mutations.order.options()),
+    paymentSession: useMutation(resource.mutations.paymentSession.options()),
     checkoutCart: useMutation(resource.mutations.checkoutCart.options()),
     confirmCart: useMutation(resource.mutations.confirmCart.options()),
     addCartItem: useMutation(resource.mutations.addCartItem.options()),
@@ -35,14 +36,28 @@ export function useGuestMarketplaceService(sessionToken: string, serviceId?: str
   });
 }
 
-export function useGuestMarketplaceOrder(sessionToken: string, orderId?: string) {
+export function useGuestMarketplaceOrder(
+  sessionToken: string,
+  orderId?: string,
+  options?: {
+    enabled?: boolean;
+    refetchInterval?: number | false | ((query: any) => number | false);
+  },
+) {
   const { locale } = useGuestI18n();
   const resource = guestMarketplaceResource.bind({ sessionToken, locale });
-  const enabled = Boolean(sessionToken && orderId);
+  const enabled = Boolean(sessionToken && orderId && (options?.enabled ?? true));
   return useQuery({
     ...resource.queries.orderDetail.options({ orderId: orderId ?? "" }),
     enabled,
+    ...(options?.refetchInterval !== undefined ? { refetchInterval: options.refetchInterval } : {}),
   });
+}
+
+export function useGuestMarketplacePaymentSession(sessionToken: string) {
+  const { locale } = useGuestI18n();
+  const resource = guestMarketplaceResource.bind({ sessionToken, locale });
+  return useMutation(resource.mutations.paymentSession.options());
 }
 
 export function useGuestMarketplaceCart(
