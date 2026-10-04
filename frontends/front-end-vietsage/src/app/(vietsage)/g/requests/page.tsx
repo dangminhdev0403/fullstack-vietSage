@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import Swal from "sweetalert2";
+import { showConfirmDialog } from "@/libs/swal";
 
 import { VsBottomNav } from "../../_components/vs-bottom-nav";
 import { VsIcon } from "../../_components/vs-icon";
@@ -141,7 +141,15 @@ export default function GuestRequestsPage() {
   function selectRequest(requestId: string) { setSelectedRequestId(requestId); window.requestAnimationFrame(() => currentRequestRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })); }
   async function cancelGuestRequest(requestToCancel: GuestRequest) {
     if (!sessionToken || !requestToCancel.canCancel) return;
-    const confirmation = await Swal.fire({ title: t("requests.cancel"), html: t("requests.cancelConfirm", { title: `<strong>${escapeHtml(getRequestTitle(requestToCancel, t))}</strong>` }), icon: "warning", showCancelButton: true, confirmButtonText: t("requests.cancel"), cancelButtonText: t("common.back"), confirmButtonColor: "#ba1a1a", cancelButtonColor: "#767684" });
+    const confirmation = await showConfirmDialog({
+      title: t("requests.cancel"),
+      html: t("requests.cancelConfirm", {
+        title: `<strong>${escapeHtml(getRequestTitle(requestToCancel, t))}</strong>`,
+      }),
+      icon: "warning",
+      confirmText: t("requests.cancel"),
+      cancelText: t("common.back"),
+    });
     if (!confirmation.isConfirmed) return;
     setIsCancellingRequest(true); setRequestsError(null);
     try {

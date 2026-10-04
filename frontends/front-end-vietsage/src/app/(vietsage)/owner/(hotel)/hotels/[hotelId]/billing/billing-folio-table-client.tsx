@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import Swal from "sweetalert2";
+import { showConfirmDialog } from "@/libs/swal";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import type { BillingPage, FolioListItem } from "@/features/billing/types/billing-contract";
@@ -92,15 +92,12 @@ export function BillingFolioTableClient({
   }
 
   async function exportOrder(folio: FolioListItem) {
-    const confirmation = await Swal.fire({
+    const confirmation = await showConfirmDialog({
       icon: "question",
       title: "Xuất order?",
       text: `Xuất order cho folio ${folio.folioNumber ?? folio.id}.`,
-      showCancelButton: true,
-      confirmButtonText: "Đồng ý xuất",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#0f766e",
-      cancelButtonColor: "#64748b",
+      confirmText: "Đồng ý xuất",
+      cancelText: "Hủy",
     });
 
     if (!confirmation.isConfirmed) return;

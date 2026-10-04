@@ -8,7 +8,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import Swal from "sweetalert2";
+import { showConfirmDialog, showErrorAlert, SwalVietSage } from "@/libs/swal";
 import { filterExtraOccupants } from "@/features/hotel-ops/utils/hotel-ops-display";
 import { kbttResource } from "@/features/kbtt/resources/kbtt-resource";
 import { FRONTDESK_HN2N_CCCD_SCANNER, hasHotelFeature } from "@/features/hotel-features/hotel-features";
@@ -362,15 +362,12 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
       hasNonEmptyOccupant,
     );
     if (dirty) {
-      const confirmed = await Swal.fire({
+      const confirmed = await showConfirmDialog({
         icon: "warning",
         title: "Xác nhận hủy check-in?",
         text: "Hủy check-in và bỏ thông tin đang nhập?",
-        showCancelButton: true,
-        confirmButtonText: "Đồng ý hủy",
-        cancelButtonText: "Hủy",
-        confirmButtonColor: "#dc2626",
-        cancelButtonColor: "#64748b",
+        confirmText: "Đồng ý hủy",
+        cancelText: "Hủy",
       });
       if (!confirmed.isConfirmed) return;
     }
@@ -1133,20 +1130,18 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                 (occupant) => !occupant.nationality,
               );
               if (!guestNationality || missingNationality >= 0) {
-                void Swal.fire({
-                  icon: "error",
-                  title: "Chưa xác định quốc tịch",
-                  text: !guestNationality
+                void showErrorAlert(
+                  "Chưa xác định quốc tịch",
+                  !guestNationality
                     ? "Vui lòng chọn quốc tịch BCA cho khách 1."
                     : `Vui lòng chọn quốc tịch BCA cho khách ${missingNationality + 2}.`,
-                  confirmButtonText: "Đã hiểu",
-                });
+                );
                 return;
               }
 
               // Active check: If guest has identityNumber (CCCD/Passport), verify valid date of birth
               if (fields.guestIdentityNumber?.trim() && !normalizedPrimaryDob) {
-                void Swal.fire({
+                void SwalVietSage.fire({
                   icon: "warning",
                   title: "Chưa có ngày sinh",
                   text: "Khách 1 có số CCCD/Hộ chiếu nhưng chưa có ngày sinh hợp lệ (ngày/tháng/năm) để khai báo BCA.",
@@ -1158,7 +1153,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                 (occ) => occ.identityNumber?.trim() && !occ.dateOfBirth,
               );
               if (missingDobOccupant >= 0) {
-                void Swal.fire({
+                void SwalVietSage.fire({
                   icon: "warning",
                   title: "Chưa có ngày sinh",
                   text: `Khách ${missingDobOccupant + 2} (${normalizedOccupants[missingDobOccupant].fullName || "Đi cùng"}) có CCCD/Hộ chiếu nhưng chưa có ngày sinh hợp lệ (ngày/tháng/năm).`,

@@ -11,7 +11,7 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import Swal from "sweetalert2";
+import { SwalVietSage } from "@/libs/swal";
 
 import { VsBottomNav } from "../../_components/vs-bottom-nav";
 import { VsIcon } from "../../_components/vs-icon";
@@ -374,7 +374,7 @@ function GuestServicesContent() {
       note: requestNote,
       urgent: requestPriority === "URGENT",
     });
-    const confirmation = await Swal.fire({
+    const confirmation = await SwalVietSage.fire({
       title:
         requestPriority === "URGENT"
           ? t("requests.urgent")
@@ -384,29 +384,21 @@ function GuestServicesContent() {
       showCancelButton: true,
       confirmButtonText: t("services.send"),
       cancelButtonText: t("common.chooseAgain"),
-      confirmButtonColor: requestPriority === "URGENT" ? "#ba1a1a" : "#25483f",
-      reverseButtons: false,
-      customClass: {
-        popup: "vs-service-confirm-popup",
-        title: "vs-service-confirm-title",
-        htmlContainer: "vs-service-confirm-html",
-        actions: "vs-service-confirm-actions",
-      },
     });
     if (!confirmation.isConfirmed) return;
     setIsRequestSubmitting(true);
     setRequestError(null);
-    void Swal.fire({
+    void SwalVietSage.fire({
       title: t("common.wait"),
       text: t("services.submitText"),
       allowOutsideClick: false,
       allowEscapeKey: false,
       showConfirmButton: false,
-      didOpen: () => Swal.showLoading(),
+      didOpen: () => SwalVietSage.showLoading(),
     });
     try {
       await guestOsService.createRequest(sessionToken, payload, locale);
-      Swal.close();
+      SwalVietSage.close();
       toast.success(
         payload.priority === "URGENT"
           ? t("services.urgentSent")
@@ -425,7 +417,7 @@ function GuestServicesContent() {
       setRequestError(userMsg);
       toast.error(t("services.serviceDiscontinued"));
     } finally {
-      Swal.close();
+      SwalVietSage.close();
       setIsRequestSubmitting(false);
     }
   }

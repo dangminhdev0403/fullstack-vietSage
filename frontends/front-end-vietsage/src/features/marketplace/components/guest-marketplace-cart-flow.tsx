@@ -2,7 +2,7 @@
 
 import { useState, useId } from "react";
 import { toast } from "sonner";
-import Swal from "sweetalert2";
+import { showConfirmDialog, SwalVietSage } from "@/libs/swal";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { VsServiceImagePreview } from "@/components/ui/vs-service-image-preview";
 import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
@@ -89,16 +89,12 @@ export function GuestMarketplaceCartFlow({
   const hasUnavailableItems = itemsWithValidation.some((item) => item.isUnavailable);
 
   const handleClearCart = async () => {
-    const confirmation = await Swal.fire({
+    const confirmation = await showConfirmDialog({
       title: t("marketplace.clearCart"),
       text: t("marketplace.clearCartConfirm"),
       icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: t("marketplace.remove"),
-      cancelButtonText: t("common.cancel"),
-      confirmButtonColor: "#ba1a1a",
-      cancelButtonColor: "#767684",
-      reverseButtons: false,
+      confirmText: t("marketplace.remove"),
+      cancelText: t("common.cancel"),
     });
     if (confirmation.isConfirmed) {
       clearCart();
@@ -121,25 +117,23 @@ export function GuestMarketplaceCartFlow({
 
   const handleConfirmOrder = async () => {
     if (isSubmitting || cartItems.length === 0) return;
-    const confirmation = await Swal.fire({
+    const confirmation = await showConfirmDialog({
       title: t("marketplace.orderReview"),
       text: t("marketplace.confirmOrder"),
       icon: "question",
-      showCancelButton: true,
-      confirmButtonText: t("marketplace.confirmOrder"),
-      cancelButtonText: t("common.cancel"),
-      confirmButtonColor: "#25483f",
+      confirmText: t("marketplace.confirmOrder"),
+      cancelText: t("common.cancel"),
     });
     if (!confirmation.isConfirmed) return;
     setIsSubmitting(true);
 
-    void Swal.fire({
+    void SwalVietSage.fire({
       title: t("common.wait"),
       text: t("marketplace.confirmSubmitting"),
       allowOutsideClick: false,
       allowEscapeKey: false,
       showConfirmButton: false,
-      didOpen: () => Swal.showLoading(),
+      didOpen: () => SwalVietSage.showLoading(),
     });
 
     const payload: CheckoutMarketplaceCartInput = {
@@ -155,7 +149,7 @@ export function GuestMarketplaceCartFlow({
 
     checkoutMutation.mutate(payload, {
       onSuccess: (result: CheckoutMarketplaceCartResult) => {
-        Swal.close();
+        SwalVietSage.close();
         setIsSubmitting(false);
         clearCart();
         void orders.refetch();
@@ -178,7 +172,7 @@ export function GuestMarketplaceCartFlow({
         }
       },
       onError: () => {
-        Swal.close();
+        SwalVietSage.close();
         setIsSubmitting(false);
         toast.error(t("marketplace.orderCreateError"));
       },

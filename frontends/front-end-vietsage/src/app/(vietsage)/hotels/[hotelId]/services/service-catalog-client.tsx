@@ -2,7 +2,7 @@
 
 import { type FormEvent, useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Swal from "sweetalert2";
+import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
 
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
@@ -173,15 +173,12 @@ export function ServiceCatalogClient({
       const actionText = isDeactivating ? "vô hiệu hóa" : "kích hoạt";
       const actionTitle = isDeactivating ? "Vô hiệu hóa nhóm dịch vụ?" : "Kích hoạt nhóm dịch vụ?";
 
-      const result = await Swal.fire({
+      const result = await showConfirmDialog({
         title: actionTitle,
         html: `Bạn có chắc chắn muốn <strong>${actionText}</strong> nhóm dịch vụ <strong>"${category.name}"</strong> không?`,
         icon: "warning",
-        showCancelButton: true,
-        confirmButtonText: isDeactivating ? "Vô hiệu hóa" : "Kích hoạt",
-        cancelButtonText: "Hủy",
-        confirmButtonColor: isDeactivating ? "#ba1a1a" : "#1b6d3a",
-        cancelButtonColor: "#767684",
+        confirmText: isDeactivating ? "Vô hiệu hóa" : "Kích hoạt",
+        cancelText: "Hủy",
       });
 
       if (!result.isConfirmed) return;
@@ -195,18 +192,12 @@ export function ServiceCatalogClient({
           )
         ).data;
         setCategories((current) => current.map((item) => (item.id === saved.id ? saved : item)));
-        await Swal.fire({
-          icon: "success",
-          title: `Đã ${actionText} nhóm dịch vụ!`,
-          timer: 1500,
-          showConfirmButton: false,
-        });
-      } catch {
-        await Swal.fire({
-          icon: "error",
-          title: "Không thể cập nhật trạng thái",
-          text: "Vui lòng thử lại sau.",
-        });
+        await showSuccessAlert(
+          `Đã ${actionText} nhóm dịch vụ!`,
+          `Nhóm dịch vụ "${category.name}" đã được ${actionText}.`,
+        );
+      } catch (error) {
+        await showErrorAlert("Không thể cập nhật trạng thái", error);
       }
     },
     [canManage, hotelId, router],
@@ -222,15 +213,12 @@ export function ServiceCatalogClient({
       const actionText = isDeactivating ? "vô hiệu hóa" : "kích hoạt";
       const actionTitle = isDeactivating ? "Vô hiệu hóa dịch vụ?" : "Kích hoạt dịch vụ?";
 
-      const result = await Swal.fire({
+      const result = await showConfirmDialog({
         title: actionTitle,
         html: `Bạn có chắc chắn muốn <strong>${actionText}</strong> dịch vụ <strong>"${item.name}"</strong> không?`,
         icon: "warning",
-        showCancelButton: true,
-        confirmButtonText: isDeactivating ? "Vô hiệu hóa" : "Kích hoạt",
-        cancelButtonText: "Hủy",
-        confirmButtonColor: isDeactivating ? "#ba1a1a" : "#1b6d3a",
-        cancelButtonColor: "#767684",
+        confirmText: isDeactivating ? "Vô hiệu hóa" : "Kích hoạt",
+        cancelText: "Hủy",
       });
 
       if (!result.isConfirmed) return;
@@ -244,18 +232,12 @@ export function ServiceCatalogClient({
           )
         ).data;
         setItems((current) => current.map((entry) => (entry.id === saved.id ? saved : entry)));
-        await Swal.fire({
-          icon: "success",
-          title: `Đã ${actionText} dịch vụ!`,
-          timer: 1500,
-          showConfirmButton: false,
-        });
-      } catch {
-        await Swal.fire({
-          icon: "error",
-          title: "Không thể cập nhật trạng thái",
-          text: "Vui lòng thử lại sau.",
-        });
+        await showSuccessAlert(
+          `Đã ${actionText} dịch vụ!`,
+          `Dịch vụ "${item.name}" đã được ${actionText}.`,
+        );
+      } catch (error) {
+        await showErrorAlert("Không thể cập nhật trạng thái", error);
       }
     },
     [canManage, hotelId, router],

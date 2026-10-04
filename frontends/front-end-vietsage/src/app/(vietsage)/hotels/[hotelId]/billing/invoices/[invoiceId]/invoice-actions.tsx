@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import Swal from "sweetalert2";
+import { SwalVietSage, showErrorAlert, showSuccessAlert } from "@/libs/swal";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 
@@ -19,7 +19,7 @@ export function InvoiceActions({ hotelId, invoiceId, isPaid: initialIsPaid, show
   const [saving, setSaving] = useState(false);
 
   async function collectPayment() {
-    const result = await Swal.fire({
+    const result = await SwalVietSage.fire({
       title: "Xác nhận đã thu tiền",
       text: "Thao tác này sẽ đóng folio, check-out khách, tắt QR và chuyển phòng sang chờ dọn.",
       input: "select",
@@ -37,10 +37,10 @@ export function InvoiceActions({ hotelId, invoiceId, isPaid: initialIsPaid, show
         { method: "POST", body: { method: result.value } },
       );
       setPaid(true);
-      await Swal.fire({ icon: "success", title: "Checkout hoàn tất", text: "Hóa đơn đã thanh toán và phòng đang chờ dọn." });
+      await showSuccessAlert("Checkout hoàn tất", "Hóa đơn đã thanh toán và phòng đang chờ dọn.");
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
     } catch (error) {
-      await Swal.fire({ icon: "error", title: "Không thể xác nhận thanh toán", text: error instanceof Error ? error.message : "Vui lòng kiểm tra lại." });
+      await showErrorAlert("Không thể xác nhận thanh toán", error);
     } finally {
       setSaving(false);
     }

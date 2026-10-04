@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import Swal from "sweetalert2";
+import { showConfirmDialog, showErrorAlert, showSuccessAlert, SwalVietSage } from "@/libs/swal";
 
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import type {
@@ -478,12 +478,7 @@ export function StaffBillingWorkspaceClient({
       .catch((error) => {
         if (cancelled) return;
         setLoadedFolioId(selectedFolioId);
-        void Swal.fire({
-          icon: "error",
-          title: "Không thể tải chi tiết folio",
-          text: error instanceof Error ? error.message : "Vui lòng thử lại.",
-          confirmButtonColor: "#17201b",
-        });
+        void showErrorAlert("Không thể tải chi tiết folio", error);
       });
 
     const interval = setInterval(() => {
@@ -512,14 +507,12 @@ export function StaffBillingWorkspaceClient({
       return;
     }
     setCheckoutError("");
-    const confirmation = await Swal.fire({
+    const confirmation = await showConfirmDialog({
       icon: "question",
       title: "Phát hành hóa đơn và thu tiền?",
       text: "Sau khi xác nhận thanh toán, stay sẽ đóng và phòng chuyển sang chờ dọn.",
-      showCancelButton: true,
-      confirmButtonText: "Tiếp tục",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#17201b",
+      confirmText: "Tiếp tục",
+      cancelText: "Hủy",
     });
     if (!confirmation.isConfirmed) return;
 
@@ -594,12 +587,7 @@ export function StaffBillingWorkspaceClient({
             body: { method: "CASH", note: "Thu tại quầy lễ tân" },
           },
         );
-        await Swal.fire({
-          icon: "success",
-          title: "Thành công",
-          text: "Đã thu tiền và đóng phòng",
-          confirmButtonColor: "#17201b",
-        });
+        await showSuccessAlert("Thành công", "Đã thu tiền và đóng phòng.");
       } else {
         await requestInternalApiEnvelope(
           `${apiBase}/invoices/${encodeURIComponent(invoice.id)}/manual-payment`,
@@ -608,21 +596,11 @@ export function StaffBillingWorkspaceClient({
             body: { method: "MANUAL", note: "Đóng checkout không còn số dư" },
           },
         );
-        await Swal.fire({
-          icon: "success",
-          title: "Thành công",
-          text: "Đã đóng phòng không còn số dư",
-          confirmButtonColor: "#17201b",
-        });
+        await showSuccessAlert("Thành công", "Đã đóng phòng không còn số dư.");
       }
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
     } catch (error) {
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể hoàn tất checkout",
-        text: error instanceof Error ? error.message : "Vui lòng thử lại.",
-        confirmButtonColor: "#17201b",
-      });
+      await showErrorAlert("Không thể hoàn tất checkout", error);
     } finally {
       setSaving(false);
     }
@@ -1014,7 +992,7 @@ export function StaffBillingWorkspaceClient({
                           type="button"
                           title="Hủy khoản mục này"
                           onClick={async () => {
-                            const res = await Swal.fire({
+                            const res = await SwalVietSage.fire({
                               icon: "warning",
                               title: "Hủy khoản thu này?",
                               text: `Xác nhận hủy mục "${item.nameSnapshot}" trên folio.`,
@@ -1023,7 +1001,6 @@ export function StaffBillingWorkspaceClient({
                               showCancelButton: true,
                               confirmButtonText: "Hủy khoản thu",
                               cancelButtonText: "Quay lại",
-                              confirmButtonColor: "#dc2626",
                             });
                             if (!res.isConfirmed) return;
                             try {
@@ -1053,24 +1030,12 @@ export function StaffBillingWorkspaceClient({
                                 queryClient,
                                 hotelId,
                               );
-                              void Swal.fire({
-                                icon: "success",
-                                title: "Đã hủy khoản mục thành công",
-                                toast: true,
-                                position: "top-end",
-                                timer: 2000,
-                                showConfirmButton: false,
-                              });
+                              await showSuccessAlert(
+                                "Thành công",
+                                "Đã hủy khoản mục thành công.",
+                              );
                             } catch (err) {
-                              void Swal.fire({
-                                icon: "error",
-                                title: "Không thể hủy khoản mục",
-                                text:
-                                  err instanceof Error
-                                    ? err.message
-                                    : "Vui lòng thử lại",
-                                confirmButtonColor: "#17201b",
-                              });
+                              void showErrorAlert("Không thể hủy khoản mục", err);
                             }
                           }}
                           className="inline-flex items-center justify-center h-7 px-2 text-[11px] font-bold rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition"
@@ -1592,24 +1557,20 @@ export function StaffBillingWorkspaceClient({
               onClick={async () => {
                 const invoiceId = getFolioInvoiceId(selectedFolio);
                 if (!invoiceId) {
-                  void Swal.fire({
+                  void SwalVietSage.fire({
                     icon: "warning",
                     title: "Chưa có mã hóa đơn",
                     text: `Folio ${selectedFolio?.folioNumber ?? selectedFolio?.id} đã đóng nhưng chưa có thông tin hóa đơn.`,
                     confirmButtonText: "Đã hiểu",
-                    confirmButtonColor: "#8c5e00",
                   });
                   return;
                 }
-                const result = await Swal.fire({
+                const result = await showConfirmDialog({
                   icon: "question",
                   title: "Xuất hóa đơn?",
                   text: "Hệ thống sẽ chuyển sang trang chi tiết để in và xuất hóa đơn.",
-                  showCancelButton: true,
-                  confirmButtonText: "Đồng ý",
-                  cancelButtonText: "Hủy",
-                  confirmButtonColor: "#8c5e00",
-                  cancelButtonColor: "#64748b",
+                  confirmText: "Đồng ý",
+                  cancelText: "Hủy",
                 });
                 if (result.isConfirmed) {
                   router.push(

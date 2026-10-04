@@ -1,6 +1,6 @@
 "use client";
 
-import Swal from "sweetalert2";
+import { showConfirmDialog, showErrorAlert } from "@/libs/swal";
 
 type InvoicePrintButtonProps = {
   label?: string;
@@ -121,28 +121,19 @@ function downloadWordInvoice() {
 
 export function InvoicePrintButton({ label = "Xuất Word" }: InvoicePrintButtonProps) {
   async function confirmAndExportWord() {
-    const result = await Swal.fire({
+    const result = await showConfirmDialog({
       icon: "question",
       title: "Xuất hóa đơn sang Word?",
       text: "Hệ thống sẽ tải file .doc từ nội dung hóa đơn đang hiển thị.",
-      showCancelButton: true,
-      confirmButtonText: "Xuất Word",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#0f766e",
-      cancelButtonColor: "#64748b",
+      confirmText: "Xuất Word",
+      cancelText: "Hủy",
     });
 
     if (result.isConfirmed) {
       try {
         downloadWordInvoice();
       } catch (error) {
-        await Swal.fire({
-          icon: "error",
-          title: "Không thể xuất hóa đơn",
-          text: error instanceof Error ? error.message : "Vui lòng thử lại.",
-          confirmButtonText: "Đã hiểu",
-          confirmButtonColor: "#0f766e",
-        });
+        await showErrorAlert("Không thể xuất hóa đơn", error);
       }
     }
   }

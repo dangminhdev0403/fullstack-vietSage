@@ -107,7 +107,7 @@ const qrStatusMeta: Record<string, { label: string; className: string }> = {
   EXPIRED: { label: "Hết hạn", className: "bg-amber-100 text-amber-800" },
 };
 
-const toast = Swal.mixin({
+const toast = SwalVietSage.mixin({
   toast: true,
   position: "top-end",
   showConfirmButton: false,
@@ -369,13 +369,13 @@ function RoomFieldError({ message }: { message?: string }) {
 }
 
 function showLoading(title: string) {
-  void Swal.fire({
+  void SwalVietSage.fire({
     title,
     text: "Vui lòng chờ trong giây lát.",
     allowOutsideClick: false,
     allowEscapeKey: false,
     showConfirmButton: false,
-    didOpen: () => Swal.showLoading(),
+    didOpen: () => SwalVietSage.showLoading(),
   });
 }
 
@@ -761,12 +761,10 @@ export function OwnerRoomsClient({
         title: isEditing ? "Đã lưu phòng tại VietSage" : "Đã tạo phòng tại VietSage",
       });
     } catch (error) {
-      await Swal.fire({
-        icon: "error",
-        title: isEditing ? "Không thể cập nhật phòng" : "Không thể tạo phòng",
-        text: getBusinessErrorMessage(error, "Vui lòng thử lại."),
-        confirmButtonColor: "#00003c",
-      });
+      await showErrorAlert(
+        isEditing ? "Không thể cập nhật phòng" : "Không thể tạo phòng",
+        getBusinessErrorMessage(error, "Vui lòng thử lại."),
+      );
     } finally {
       setIsSaving(false);
     }
@@ -782,15 +780,11 @@ export function OwnerRoomsClient({
         : action === "activate"
           ? "Kích hoạt QR?"
           : "Tạm tắt QR?";
-    const confirmed = await Swal.fire({
+    const confirmed = await showConfirmDialog({
       icon: "question",
       title: actionTitle,
-      showCancelButton: true,
-      reverseButtons: false,
-      confirmButtonText: "Đồng ý",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#00003c",
-      cancelButtonColor: "#767684",
+      confirmText: "Đồng ý",
+      cancelText: "Hủy",
     });
     if (!confirmed.isConfirmed) return;
 
@@ -809,12 +803,10 @@ export function OwnerRoomsClient({
       await refreshRooms();
       await toast.fire({ icon: "success", title: "Đã cập nhật QR" });
     } catch (error) {
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể cập nhật QR",
-        text: getBusinessErrorMessage(error, "Vui lòng thử lại."),
-        confirmButtonColor: "#00003c",
-      });
+      await showErrorAlert(
+        "Không thể cập nhật QR",
+        getBusinessErrorMessage(error, "Vui lòng thử lại."),
+      );
     }
   }
 
@@ -824,11 +816,10 @@ export function OwnerRoomsClient({
 
   function downloadSelectedQrRoom(): void {
     if (!selectedQrRoom || !getQrValue(selectedQrRoom) || !qrCodeRef.current) {
-      void Swal.fire({
+      void SwalVietSage.fire({
         icon: "error",
         title: "Chưa có mã QR public",
         text: "Vui lòng kích hoạt hoặc đổi mã QR trước.",
-        confirmButtonColor: "#00003c",
       });
       return;
     }
@@ -850,10 +841,9 @@ export function OwnerRoomsClient({
       const context = canvas.getContext("2d");
       if (!context) {
         URL.revokeObjectURL(svgUrl);
-        void Swal.fire({
+        void SwalVietSage.fire({
           icon: "error",
           title: "Không thể tải mã QR",
-          confirmButtonColor: "#00003c",
         });
         return;
       }
@@ -900,11 +890,10 @@ export function OwnerRoomsClient({
       };
       brandImage.onerror = () => {
         URL.revokeObjectURL(svgUrl);
-        void Swal.fire({
+        void SwalVietSage.fire({
           icon: "error",
           title: "Không thể tải nhận diện VietSage",
           text: "Vui lòng thử tải lại mã QR.",
-          confirmButtonColor: "#00003c",
         });
       };
       brandImage.src = BRANDED_QR_MARK_SRC;
@@ -912,10 +901,9 @@ export function OwnerRoomsClient({
 
     qrImage.onerror = () => {
       URL.revokeObjectURL(svgUrl);
-      void Swal.fire({
+      void SwalVietSage.fire({
         icon: "error",
         title: "Không thể tải mã QR",
-        confirmButtonColor: "#00003c",
       });
     };
 
@@ -926,25 +914,20 @@ export function OwnerRoomsClient({
     const qrRooms = getRoomsWithQr();
 
     if (!qrRooms.length) {
-      await Swal.fire({
+      await SwalVietSage.fire({
         icon: "warning",
         title: "Chưa có mã QR",
         text: "Không có phòng nào có QR để xuất.",
-        confirmButtonColor: "#00003c",
       });
       return;
     }
 
-    const confirmed = await Swal.fire({
+    const confirmed = await showConfirmDialog({
       icon: "question",
       title: `Xuất ${qrRooms.length} mã QR?`,
       text: "Hệ thống sẽ chuyển sang trang in/lưu PDF gồm toàn bộ QR hiện có.",
-      showCancelButton: true,
-      reverseButtons: false,
-      confirmButtonText: "Xuất QR",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#00003c",
-      cancelButtonColor: "#767684",
+      confirmText: "Xuất QR",
+      cancelText: "Hủy",
     });
 
     if (!confirmed.isConfirmed) {
@@ -956,25 +939,20 @@ export function OwnerRoomsClient({
   async function rotateAllQrCodes() {
     const qrRooms = getRoomsWithQr();
     if (!qrRooms.length) {
-      await Swal.fire({
+      await SwalVietSage.fire({
         icon: "warning",
         title: "Chưa có mã QR",
         text: "Không có phòng nào có QR để đổi mã.",
-        confirmButtonColor: "#00003c",
       });
       return;
     }
 
-    const confirmed = await Swal.fire({
+    const confirmed = await showConfirmDialog({
       icon: "warning",
       title: `Đổi toàn bộ ${qrRooms.length} mã QR?`,
       text: "Mã QR cũ sẽ không còn dùng được. Hãy xuất/in lại QR mới sau khi đổi.",
-      showCancelButton: true,
-      reverseButtons: false,
-      confirmButtonText: "Đổi toàn bộ",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#ba1a1a",
-      cancelButtonColor: "#767684",
+      confirmText: "Đổi toàn bộ",
+      cancelText: "Hủy",
     });
     if (!confirmed.isConfirmed) return;
 
@@ -988,19 +966,12 @@ export function OwnerRoomsClient({
         );
       }
       await refreshRooms();
-      await Swal.fire({
-        icon: "success",
-        title: "Đã đổi toàn bộ QR",
-        text: "Vui lòng xuất/in lại bộ QR mới.",
-        confirmButtonColor: "#00003c",
-      });
+      await showSuccessAlert("Đã đổi toàn bộ QR", "Vui lòng xuất/in lại bộ QR mới.");
     } catch (error) {
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể đổi toàn bộ QR",
-        text: getBusinessErrorMessage(error, "Vui lòng thử lại."),
-        confirmButtonColor: "#00003c",
-      });
+      await showErrorAlert(
+        "Không thể đổi toàn bộ QR",
+        getBusinessErrorMessage(error, "Vui lòng thử lại."),
+      );
     } finally {
       setIsBulkQrBusy(false);
     }
@@ -1009,25 +980,20 @@ export function OwnerRoomsClient({
   async function activateAllQrCodes() {
     const targetRooms = rooms.filter(canActivateQr);
     if (!targetRooms.length) {
-      await Swal.fire({
+      await SwalVietSage.fire({
         icon: "info",
         title: "QR đã hoạt động",
         text: "Không còn phòng nào cần kích hoạt QR.",
-        confirmButtonColor: "#00003c",
       });
       return;
     }
 
-    const confirmed = await Swal.fire({
+    const confirmed = await showConfirmDialog({
       icon: "question",
       title: `Kích hoạt ${targetRooms.length} mã QR?`,
       text: "Phòng chưa có QR sẽ được tạo mã mới, phòng có QR tạm tắt sẽ được bật lại.",
-      showCancelButton: true,
-      reverseButtons: false,
-      confirmButtonText: "Kích hoạt tất cả",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#173d34",
-      cancelButtonColor: "#767684",
+      confirmText: "Kích hoạt tất cả",
+      cancelText: "Hủy",
     });
     if (!confirmed.isConfirmed) return;
 
@@ -1041,19 +1007,15 @@ export function OwnerRoomsClient({
         );
       }
       await refreshRooms();
-      await Swal.fire({
-        icon: "success",
-        title: "Đã kích hoạt QR",
-        text: "Bạn có thể xuất/in bộ QR mới từ trang này.",
-        confirmButtonColor: "#00003c",
-      });
+      await showSuccessAlert(
+        "Đã kích hoạt QR",
+        "Bạn có thể xuất/in bộ QR mới từ trang này.",
+      );
     } catch (error) {
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể kích hoạt toàn bộ QR",
-        text: getBusinessErrorMessage(error, "Vui lòng thử lại."),
-        confirmButtonColor: "#00003c",
-      });
+      await showErrorAlert(
+        "Không thể kích hoạt toàn bộ QR",
+        getBusinessErrorMessage(error, "Vui lòng thử lại."),
+      );
     } finally {
       setIsBulkQrBusy(false);
     }

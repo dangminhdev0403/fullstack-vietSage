@@ -2,7 +2,6 @@
 
 import { type FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Swal from "sweetalert2";
 
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { HttpError } from "@/core/http/http-error";
@@ -24,7 +23,7 @@ import {
   serviceStatusLabelMap,
   serviceStatusTone,
 } from "@/features/hotel-ops/utils/hotel-ops-display";
-import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
+import { showConfirmDialog, showErrorAlert, showSuccessAlert, SwalVietSage } from "@/libs/swal";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 
 type Props = {
@@ -468,13 +467,13 @@ function getBusinessErrorMessage(error: unknown, fallback: string): string {
 }
 
 function showLoading(title: string) {
-  void Swal.fire({
+  void SwalVietSage.fire({
     title,
     text: "Vui lòng chờ trong giây lát.",
     allowOutsideClick: false,
     allowEscapeKey: false,
     showConfirmButton: false,
-    didOpen: () => Swal.showLoading(),
+    didOpen: () => SwalVietSage.showLoading(),
   });
 }
 
@@ -927,16 +926,12 @@ export function OwnerServiceCatalogClient({
     if (!categoryForm || categoryForm.priceUpdateMode === "OVERRIDE_ALL_ITEMS")
       return;
 
-    const confirmed = await Swal.fire({
+    const confirmed = await showConfirmDialog({
       icon: "warning",
       title: "Ghi đè giá dịch vụ con?",
       text: "Thao tác này sẽ thay thế toàn bộ giá riêng hiện có của các dịch vụ trong nhóm.",
-      showCancelButton: true,
-      reverseButtons: false,
-      confirmButtonText: "Đồng ý",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#00003c",
-      cancelButtonColor: "#767684",
+      confirmText: "Đồng ý",
+      cancelText: "Hủy",
     });
 
     if (confirmed.isConfirmed) {
@@ -954,11 +949,10 @@ export function OwnerServiceCatalogClient({
     const defaultPrice = Number(categoryForm.defaultPrice);
     const sortOrder = Number(categoryForm.sortOrder);
     if (!categoryForm.name.trim()) {
-      await Swal.fire({
+      await SwalVietSage.fire({
         icon: "warning",
         title: "Thiếu tên nhóm",
         text: "Vui lòng nhập tên nhóm dịch vụ.",
-        confirmButtonColor: "#00003c",
       });
       return;
     }
@@ -968,21 +962,19 @@ export function OwnerServiceCatalogClient({
       !Number.isFinite(defaultPrice) ||
       defaultPrice < 0
     ) {
-      await Swal.fire({
+      await SwalVietSage.fire({
         icon: "warning",
         title: "Giá mặc định không hợp lệ",
         text: "Vui lòng nhập giá mặc định dạng số.",
-        confirmButtonColor: "#00003c",
       });
       return;
     }
 
     if (!categoryForm.currency.trim()) {
-      await Swal.fire({
+      await SwalVietSage.fire({
         icon: "warning",
         title: "Thiếu tiền tệ",
         text: "Vui lòng nhập tiền tệ.",
-        confirmButtonColor: "#00003c",
       });
       return;
     }
@@ -992,24 +984,19 @@ export function OwnerServiceCatalogClient({
       !Number.isFinite(sortOrder) ||
       sortOrder < 0
     ) {
-      await Swal.fire({
+      await SwalVietSage.fire({
         icon: "warning",
         title: "Thứ tự hiển thị không hợp lệ",
         text: "Vui lòng nhập thứ tự hiển thị từ 0 trở lên.",
-        confirmButtonColor: "#00003c",
       });
       return;
     }
 
-    const confirmed = await Swal.fire({
+    const confirmed = await showConfirmDialog({
       icon: "question",
       title: categoryForm.id ? "Lưu nhóm dịch vụ?" : "Tạo nhóm dịch vụ?",
-      showCancelButton: true,
-      reverseButtons: false,
-      confirmButtonText: "Đồng ý",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#00003c",
-      cancelButtonColor: "#767684",
+      confirmText: "Đồng ý",
+      cancelText: "Hủy",
     });
     if (!confirmed.isConfirmed) return;
 
@@ -1058,19 +1045,15 @@ export function OwnerServiceCatalogClient({
         ),
       );
       setCategoryForm(null);
-      await Swal.fire({
-        icon: "success",
-        title: "Đã lưu nhóm dịch vụ",
-        timer: 1300,
-        showConfirmButton: false,
-      });
+      await showSuccessAlert(
+        "Đã lưu nhóm dịch vụ",
+        `Nhóm dịch vụ "${saved.name}" đã được lưu thành công.`,
+      );
     } catch (error) {
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể lưu nhóm dịch vụ",
-        text: getBusinessErrorMessage(error, "Vui lòng thử lại."),
-        confirmButtonColor: "#00003c",
-      });
+      await showErrorAlert(
+        "Không thể lưu nhóm dịch vụ",
+        getBusinessErrorMessage(error, "Vui lòng thử lại."),
+      );
     } finally {
       setIsSaving(false);
     }
@@ -1172,21 +1155,19 @@ export function OwnerServiceCatalogClient({
     if (!itemForm) return;
 
     if (!itemForm.name.trim()) {
-      await Swal.fire({
+      await SwalVietSage.fire({
         icon: "warning",
         title: "Thiếu tên dịch vụ",
         text: "Vui lòng nhập tên dịch vụ.",
-        confirmButtonColor: "#00003c",
       });
       return;
     }
 
     if (!itemForm.categoryId) {
-      await Swal.fire({
+      await SwalVietSage.fire({
         icon: "warning",
         title: "Thiếu nhóm dịch vụ",
         text: "Vui lòng chọn nhóm dịch vụ trước khi lưu.",
-        confirmButtonColor: "#00003c",
       });
       return;
     }
@@ -1195,11 +1176,10 @@ export function OwnerServiceCatalogClient({
       itemForm.priceOverride.trim() &&
       !/^\d+$/.test(itemForm.priceOverride)
     ) {
-      await Swal.fire({
+      await SwalVietSage.fire({
         icon: "warning",
         title: "Giá riêng không hợp lệ",
         text: "Vui lòng nhập giá riêng dạng số.",
-        confirmButtonColor: "#00003c",
       });
       return;
     }
@@ -1213,24 +1193,19 @@ export function OwnerServiceCatalogClient({
       itemForm.maxQuantity.trim() &&
       (!maxQuantity || maxQuantity < minQuantity)
     ) {
-      await Swal.fire({
+      await SwalVietSage.fire({
         icon: "error",
         title: "Số lượng chưa hợp lệ",
         text: "Số lượng tối đa phải lớn hơn hoặc bằng số lượng tối thiểu.",
-        confirmButtonColor: "#00003c",
       });
       return;
     }
 
-    const confirmed = await Swal.fire({
+    const confirmed = await showConfirmDialog({
       icon: "question",
       title: itemForm.id ? "Lưu dịch vụ?" : "Tạo dịch vụ?",
-      showCancelButton: true,
-      reverseButtons: false,
-      confirmButtonText: "Đồng ý",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#00003c",
-      cancelButtonColor: "#767684",
+      confirmText: "Đồng ý",
+      cancelText: "Hủy",
     });
     if (!confirmed.isConfirmed) return;
 
@@ -1267,19 +1242,15 @@ export function OwnerServiceCatalogClient({
           : [saved, ...current],
       );
       setItemForm(null);
-      await Swal.fire({
-        icon: "success",
-        title: "Đã lưu dịch vụ",
-        timer: 1300,
-        showConfirmButton: false,
-      });
+      await showSuccessAlert(
+        "Đã lưu dịch vụ",
+        `Dịch vụ "${saved.name}" đã được lưu thành công.`,
+      );
     } catch (error) {
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể lưu dịch vụ",
-        text: getBusinessErrorMessage(error, "Vui lòng thử lại."),
-        confirmButtonColor: "#00003c",
-      });
+      await showErrorAlert(
+        "Không thể lưu dịch vụ",
+        getBusinessErrorMessage(error, "Vui lòng thử lại."),
+      );
     } finally {
       setIsSaving(false);
     }

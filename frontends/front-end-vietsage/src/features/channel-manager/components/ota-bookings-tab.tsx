@@ -4,9 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import Swal from "sweetalert2";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
-import { showErrorAlert, showSuccessAlert } from "@/libs/swal";
+import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
 import { useChannex } from "../hooks/use-channel-manager";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
@@ -205,20 +204,18 @@ export function OtaBookingsTab({
       return;
     }
 
-    const confirmation = await Swal.fire({
+    const confirmation = await showConfirmDialog({
       icon: "question",
       title: "Nhận phòng cho khách OTA?",
       html: `
-        <div style="text-align:left;font-size:14px;color:#334155;line-height:1.6">
+        <div class="text-left text-sm text-slate-700 leading-relaxed">
           <p>Khách hàng: <strong>${b.guestName}</strong></p>
           <p>Kênh: <strong>${b.otaName}</strong></p>
-          <p>Phòng: <strong style="color:#059669;font-size:16px">Phòng ${b.roomNumber}</strong> (${b.roomType || "Tiêu chuẩn"})</p>
+          <p>Phòng: <strong class="text-emerald-700 text-base font-bold">Phòng ${b.roomNumber}</strong> (${b.roomType || "Tiêu chuẩn"})</p>
         </div>
       `,
-      showCancelButton: true,
-      confirmButtonText: "Nhận phòng",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#059669",
+      confirmText: "Nhận phòng",
+      cancelText: "Hủy",
     });
 
     if (!confirmation.isConfirmed) return;
@@ -240,18 +237,15 @@ export function OtaBookingsTab({
         setSelectedBooking((prev) => (prev ? { ...prev, status: "CHECKED_IN" } : null));
       }
 
-      await Swal.fire({
-        icon: "success",
-        title: "Nhận phòng thành công",
-        html: `
-          <div style="text-align:left;font-size:14px;color:#334155;line-height:1.6">
+      await showSuccessAlert(
+        "Nhận phòng thành công",
+        `
+          <div class="text-left text-sm text-slate-700 leading-relaxed">
             <p>Khách <strong>${b.guestName}</strong> đã nhận <strong>Phòng ${b.roomNumber}</strong>.</p>
-            ${res.data?.accessCode ? `<p style="margin-top:8px">Mã GuestOS: <span style="font-family:monospace;font-size:15px;font-weight:700;color:#2563eb;background:#eff6ff;padding:2px 8px;border-radius:6px;border:1px solid #bfdbfe">${res.data.accessCode}</span></p>` : ""}
+            ${res.data?.accessCode ? `<p class="mt-2">Mã GuestOS: <span class="font-mono text-base font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">${res.data.accessCode}</span></p>` : ""}
           </div>
         `,
-        confirmButtonText: "OK",
-        confirmButtonColor: "#00003c",
-      });
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Không thể thực hiện check-in.";
       await showErrorAlert("Lỗi nhận phòng", msg);
@@ -294,18 +288,15 @@ export function OtaBookingsTab({
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       await refreshSimulatedBookings();
 
-      await Swal.fire({
-        icon: "success",
-        title: "Xếp phòng thành công",
-        html: `
-          <div style="text-align:left;font-size:14px;color:#334155;line-height:1.6">
+      await showSuccessAlert(
+        "Xếp phòng thành công",
+        `
+          <div class="text-left text-sm text-slate-700 leading-relaxed">
             <p>Đã xếp <strong>Phòng ${roomNumber}</strong> cho khách <strong>${targetBooking.guestName}</strong>.</p>
-            ${res.data?.accessCode ? `<p style="margin-top:8px">Mã GuestOS: <span style="font-family:monospace;font-size:15px;font-weight:700;color:#2563eb;background:#eff6ff;padding:2px 8px;border-radius:6px;border:1px solid #bfdbfe">${res.data.accessCode}</span></p>` : ""}
+            ${res.data?.accessCode ? `<p class="mt-2">Mã GuestOS: <span class="font-mono text-base font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">${res.data.accessCode}</span></p>` : ""}
           </div>
         `,
-        confirmButtonText: "OK",
-        confirmButtonColor: "#00003c",
-      });
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Không thể gán phòng và check-in.";
       await showErrorAlert("Lỗi gán phòng", msg);
