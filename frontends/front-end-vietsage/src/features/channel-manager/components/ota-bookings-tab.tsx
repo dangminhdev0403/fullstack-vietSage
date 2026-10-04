@@ -385,14 +385,12 @@ export function OtaBookingsTab({
   };
 
   const handleResolveModification = async (logId: string) => {
-    const confirmation = await Swal.fire({
+    const confirmation = await showConfirmDialog({
       icon: "warning",
       title: "Xác nhận đã đối soát?",
       text: "Chỉ xác nhận sau khi ngày lưu trú và phòng trên PMS đã được kiểm tra, cập nhật thủ công.",
-      showCancelButton: true,
-      confirmButtonText: "Đã đối soát",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#b45309",
+      confirmText: "Đã đối soát",
+      cancelText: "Hủy",
     });
     if (!confirmation.isConfirmed) return;
     try {
