@@ -1,0 +1,11 @@
+{
+  "run": "run_056ee5fa5ad8",
+  "coordinator": "term_b5dca3fc-4a4e-4582-a32d-6eadc1075b39",
+  "tasks": {
+    "A": "task_45a7f5821c6d",
+    "C": "task_f1a676264d16",
+    "D": "task_822f47b12283",
+    "E": "task_6f6713c0cd84",
+    "B": "task_99cce9d92c79"
+  }
+}

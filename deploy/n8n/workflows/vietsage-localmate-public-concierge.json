@@ -140,7 +140,7 @@
         "operation": "response",
         "modelId": {
           "__rl": true,
-          "value": "cx/gpt-5.5",
+          "value": "ddgw/gpt-5.6-luna",
           "mode": "id"
         },
         "responses": {
@@ -185,8 +185,8 @@
       ],
       "credentials": {
         "openAiApi": {
-          "id": "vietsageLocalMateModelV2",
-          "name": "VietSage LocalMate Model V2"
+          "id": "vietsageLocalMateOmniRouteV1",
+          "name": "VietSage LocalMate OmniRoute V1"
         }
       },
       "onError": "continueErrorOutput",
@@ -208,7 +208,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first()?.json || {};\nlet normalized = {};\ntry { normalized = $('02 · Chuẩn hóa vị trí & câu hỏi').first()?.json || {}; } catch {}\nif (normalized.skipApi === true) return [{ json: normalized }];\nconst lang = normalized.lang || 'vi';\nconst replies = {\n  vi: 'Dạ nguồn tri thức địa phương đang gián đoạn. Quý khách vui lòng thử lại sau ít phút ạ.',\n  en: 'Local knowledge is briefly unavailable. Please try again shortly.',\n  zh: '本地资料暂时不可用，请稍后重试。',\n  ko: '지역 정보가 잠시 제공되지 않습니다. 잠시 후 다시 시도해 주세요.',\n  ru: 'Местные данные временно недоступны. Повторите попытку позже.',\n  hi: 'स्थानीय जानकारी अभी उपलब्ध नहीं है। कृपया थोड़ी देर बाद प्रयास करें।',\n};\nreturn [{ json: { status: 503, httpStatus: 503, reply: replies[lang] || replies.vi, suggestions: [], action: null, knowledgeVersion: 'unavailable', cached: false } }];"
+        "jsCode": "const input = $input.first()?.json || {};\nlet referenced = {};\ntry { referenced = $('02 · Chuẩn hóa vị trí & câu hỏi').first()?.json || {}; } catch {}\nconst normalized = { ...referenced, ...input };\nif (normalized.skipApi === true) return [{ json: normalized }];\nconst lang = normalized.lang || 'vi';\nconst replies = {\n  vi: 'Dạ nguồn tri thức địa phương đang gián đoạn. Quý khách vui lòng thử lại sau ít phút ạ.',\n  en: 'Local knowledge is briefly unavailable. Please try again shortly.',\n  zh: '本地资料暂时不可用，请稍后重试。',\n  ko: '지역 정보가 잠시 제공되지 않습니다. 잠시 후 다시 시도해 주세요.',\n  ru: 'Местные данные временно недоступны. Повторите попытку позже.',\n  hi: 'स्थानीय जानकारी अभी उपलब्ध नहीं है। कृपया थोड़ी देर बाद प्रयास करें।',\n};\nreturn [{ json: { status: 503, httpStatus: 503, reply: replies[lang] || replies.vi, suggestions: [], action: null, knowledgeVersion: 'unavailable', cached: false } }];"
       },
       "id": "ac4d9cf5-8b02-4d1c-adc0-fc1b5c0a10f6",
       "name": "Fallback · Hỏi vị trí hoặc báo lỗi",

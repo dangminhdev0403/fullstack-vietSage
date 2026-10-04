@@ -107,6 +107,27 @@ describe("TelegramMarketplaceBridgeService", () => {
   });
 
   describe("handleCallbackQuery", () => {
+    it("authorizes callback against both Telegram user and source chat", async () => {
+      mockPrisma.localMateTelegramBinding.findFirst.mockResolvedValue(null);
+
+      await service.handleCallbackQuery({
+        id: "cb_chat_scope",
+        data: "mo:a:ord_1",
+        from: { id: 1001 },
+        message: { message_id: 888, chat: { id: 777, type: "private" } },
+      });
+
+      expect(mockPrisma.localMateTelegramBinding.findFirst).toHaveBeenCalledWith({
+        where: {
+          telegramUserId: "1001",
+          telegramChatId: "777",
+          revokedAt: null,
+          blockedAt: null,
+        },
+      });
+      expect(mockPrisma.marketplaceOrder.findUnique).not.toHaveBeenCalled();
+    });
+
     it("rejects unauthorized user attempting to accept order", async () => {
       mockPrisma.localMateTelegramBinding.findFirst.mockResolvedValue(null);
 
@@ -314,6 +335,31 @@ describe("TelegramMarketplaceBridgeService", () => {
         }),
       );
     });
+
+    it("doubles transient retry delay after each failed attempt", async () => {
+      jest.useFakeTimers().setSystemTime(new Date("2026-10-03T00:00:00.000Z"));
+      mockPrisma.localMateTelegramBinding.findFirst.mockResolvedValue({
+        id: "bind_1",
+        telegramChatId: "tg_chat_1",
+      });
+      mockTelegram.callTelegram.mockRejectedValue(new Error("ETIMEDOUT: Connection timed out"));
+
+      await service.sendGuestMessageToGuide({
+        message: { id: "msg_3", body: "Test", attemptCount: 1 },
+        order: { assignedLocalMateProfileId: "guide_1", orderNumber: "MP100" },
+        conversation: { id: "conv_1" },
+      });
+
+      expect(mockPrisma.marketplaceConversationMessage.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "msg_3" },
+          data: expect.objectContaining({
+            nextAttemptAt: new Date("2026-10-03T00:02:00.000Z"),
+          }),
+        }),
+      );
+      jest.useRealTimers();
+    });
   });
 
   describe("handleInboundMessage", () => {
@@ -330,6 +376,7 @@ describe("TelegramMarketplaceBridgeService", () => {
       });
       mockPrisma.marketplaceOrder.findUnique.mockResolvedValue({
         id: "ord_1",
+        assignedLocalMateProfileId: "guide_1",
         status: MarketplaceOrderStatus.ACKNOWLEDGED,
         hotelId: "h1",
         stayId: "s1",
@@ -372,6 +419,47 @@ describe("TelegramMarketplaceBridgeService", () => {
       );
     });
 
+    it("rejects a Telegram reply when the mapped order belongs to another LocalMate", async () => {
+      mockPrisma.localMateTelegramBinding.findFirst.mockResolvedValue({
+        id: "bind_1",
+        localMateProfileId: "guide_1",
+        telegramUserId: "1001",
+        telegramChatId: "chat_1",
+      });
+      mockPrisma.marketplaceConversationMessage.findFirst.mockResolvedValue({ orderId: "ord_2" });
+      mockPrisma.marketplaceOrder.findUnique.mockResolvedValue({
+        id: "ord_2",
+        assignedLocalMateProfileId: "guide_2",
+        status: MarketplaceOrderStatus.ACKNOWLEDGED,
+        hotelId: "h1",
+        stayId: "s1",
+        stay: { guestSessions: [{ id: "sess_1" }] },
+      });
+      mockPrisma.marketplaceConversationMessage.findUnique.mockResolvedValue(null);
+      mockPrisma.marketplaceConversation.findUnique.mockResolvedValue({ id: "conv_2" });
+      mockPrisma.marketplaceConversationMessage.create.mockResolvedValue({
+        id: "msg_wrong_guide",
+        orderId: "ord_2",
+        senderType: MarketplaceOrderActorType.SERVICE_STAFF,
+        body: "Tin nhắn sai người nhận",
+        deliveryStatus: MarketplaceMessageDeliveryStatus.RECEIVED,
+        createdAt: new Date(),
+      });
+
+      await service.handleInboundMessage({
+        message_id: 556,
+        from: { id: 1001 },
+        chat: { id: 1001, type: "private" },
+        text: "Tin nhắn sai người nhận",
+        reply_to_message: { message_id: 12346, chat: { id: 1001, type: "private" } },
+      });
+
+      expect(mockPrisma.marketplaceConversationMessage.create).not.toHaveBeenCalled();
+      expect(
+        RequestRealtimeEmitter.emitMarketplaceConversationMessageCreated,
+      ).not.toHaveBeenCalled();
+    });
+
     it("prompts for Reply and persists nothing when guide has multiple active orders (ambiguous no-reply)", async () => {
       mockPrisma.localMateTelegramBinding.findFirst.mockResolvedValue({
         id: "bind_1",
@@ -412,6 +500,7 @@ describe("TelegramMarketplaceBridgeService", () => {
       });
       mockPrisma.marketplaceOrder.findUnique.mockResolvedValue({
         id: "ord_1",
+        assignedLocalMateProfileId: "guide_1",
         status: MarketplaceOrderStatus.ACKNOWLEDGED,
       });
       mockPrisma.marketplaceConversationMessage.findUnique.mockResolvedValue({
