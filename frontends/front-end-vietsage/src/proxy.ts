@@ -171,9 +171,9 @@ export const proxy = auth((request) => {
       : NextResponse.json({ error: "Invalid request origin" }, { status: 403 });
   }
 
-  const isProtectedRoute = protectedPrefixes.some((prefix) =>
-    matchesPrefix(pathname, prefix),
-  );
+  const isProtectedRoute =
+    !isPublicLocalMateRoute(pathname) &&
+    protectedPrefixes.some((prefix) => matchesPrefix(pathname, prefix));
   const isAuthRoute = authRoutes.has(pathname);
 
   if (!isProtectedRoute && !isAuthRoute) {

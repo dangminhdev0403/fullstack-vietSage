@@ -206,10 +206,7 @@ test("Stripe return page stays neutral until webhook or reconciliation confirms 
 test("Stripe return page is public without opening other LocalMate routes", () => {
   assert.equal(isPublicLocalMateRoute("/localmate/payment-return"), true);
   assert.equal(isPublicLocalMateRoute("/localmate/guides"), false);
-  assert.match(
-    proxySource,
-    /const isProtectedRoute = !isPublicLocalMateRoute\(pathname\) &&/,
-  );
+  assert.match(proxySource, /!isPublicLocalMateRoute\(pathname\) &&/);
 });
 
 test("Complete VI, EN, RU locale dictionaries with Vietnamese em-Quý khách voice", () => {
