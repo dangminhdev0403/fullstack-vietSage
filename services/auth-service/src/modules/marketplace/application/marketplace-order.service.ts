@@ -844,6 +844,14 @@ export class MarketplaceOrderService {
     }
     if (!this.payments) throw new ConflictException("Thanh toán LocalMate chưa sẵn sàng");
 
+    const telegramBinding = await this.prisma.localMateTelegramBinding.findUnique({
+      where: { localMateProfileId: order.assignedLocalMateProfileId },
+      select: { revokedAt: true, blockedAt: true },
+    });
+    if (!telegramBinding || telegramBinding.revokedAt || telegramBinding.blockedAt) {
+      throw new ConflictException("Hướng dẫn viên chưa kết nối Telegram");
+    }
+
     await this.payments.createOrGetCheckoutSession({ orderId, stayId });
     return { payment: await this.payments.getPaymentSummary(orderId) };
   }

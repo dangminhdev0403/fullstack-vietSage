@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 // @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
-import { decideGuestSessionValidationError, isCurrentGuestSessionValidation, isProtectedGuestRoute } from "./guest-session-bootstrap-policy.ts";
+import { decideGuestSessionValidationError, isCurrentGuestSessionValidation, isProtectedGuestRoute, shouldRedirectMissingGuestSession } from "./guest-session-bootstrap-policy.ts";
 
 test("protects only the four exact GuestOS session routes", () => {
   for (const pathname of ["/g/home", "/g/language", "/g/services", "/g/requests"]) {
@@ -11,6 +11,12 @@ test("protects only the four exact GuestOS session routes", () => {
   for (const pathname of ["/g/QR-123", "/g", "/g/services/extra", "/g/home/"]) {
     assert.equal(isProtectedGuestRoute(pathname), false);
   }
+});
+
+test("keeps the handoff page visible only when a public booking is pending", () => {
+  assert.equal(shouldRedirectMissingGuestSession("/g/home", false), true);
+  assert.equal(shouldRedirectMissingGuestSession("/g/home", true), false);
+  assert.equal(shouldRedirectMissingGuestSession("/g/services", true), true);
 });
 
 test("logs out only for invalid or closed session statuses", () => {

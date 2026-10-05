@@ -217,6 +217,61 @@ describe("Marketplace orders", () => {
     );
   });
 
+  it("blocks LocalMate checkout when the guide has no active Telegram binding", async () => {
+    const createOrGetCheckoutSession = jest.fn();
+    const prisma = {
+      marketplaceOrder: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "order-localmate",
+          assignedLocalMateProfileId: "guide-1",
+        }),
+      },
+      localMateTelegramBinding: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+    };
+    const service = new MarketplaceOrderService(
+      prisma as never,
+      {} as never,
+      { createOrGetCheckoutSession } as never,
+    );
+
+    await expect(
+      service.createGuestPaymentSession("stay-1", "order-localmate"),
+    ).rejects.toThrow("Hướng dẫn viên chưa kết nối Telegram");
+    expect(createOrGetCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it("creates LocalMate checkout when the guide Telegram binding is active", async () => {
+    const payment = { status: "OPEN" };
+    const createOrGetCheckoutSession = jest.fn().mockResolvedValue({});
+    const getPaymentSummary = jest.fn().mockResolvedValue(payment);
+    const prisma = {
+      marketplaceOrder: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "order-localmate",
+          assignedLocalMateProfileId: "guide-1",
+        }),
+      },
+      localMateTelegramBinding: {
+        findUnique: jest.fn().mockResolvedValue({ revokedAt: null, blockedAt: null }),
+      },
+    };
+    const service = new MarketplaceOrderService(
+      prisma as never,
+      {} as never,
+      { createOrGetCheckoutSession, getPaymentSummary } as never,
+    );
+
+    await expect(
+      service.createGuestPaymentSession("stay-1", "order-localmate"),
+    ).resolves.toEqual({ payment });
+    expect(createOrGetCheckoutSession).toHaveBeenCalledWith({
+      orderId: "order-localmate",
+      stayId: "stay-1",
+    });
+  });
+
   it("acknowledges hotel order and emits realtime event post-commit", async () => {
     const prisma = {
       serviceVoucher: {

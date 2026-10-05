@@ -7,7 +7,7 @@ export type PublicLocalMateReply = {
   status: number;
   reply: string;
   suggestions: PublicLocalMateSuggestion[];
-  action: null;
+  action: { type: "LOCALMATE_BOOKING"; candidateKey: string } | null;
   knowledgeVersion: string;
   cached: boolean;
 };

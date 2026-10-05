@@ -3,22 +3,8 @@ import { z } from "zod";
 
 import { CHAT_UPSTREAM_TIMEOUT_MS, getChatUpstreamError } from "@/app/api/guest/chat/chat-upstream";
 import { consumePublicChatQuota } from "./rate-limit";
-
-const payloadSchema = z.object({
-  message: z.string().trim().min(1).max(2_000),
-  location: z.string().trim().max(120).optional().default(""),
-  language: z.enum(["vi", "en", "zh", "ko", "ru", "hi"]).default("vi"),
-  history: z
-    .array(
-      z.object({
-        role: z.enum(["guest", "localmate"]),
-        text: z.string().trim().min(1).max(500),
-      }),
-    )
-    .max(8)
-    .optional()
-    .default([]),
-});
+import { parsePublicChatAction } from "./public-chat-action";
+import { payloadSchema } from "./payload-schema";
 
 const upstreamSchema = z.object({
   status: z.coerce.number().optional(),
@@ -30,6 +16,7 @@ const upstreamSchema = z.object({
     .default([]),
   knowledgeVersion: z.string().optional().default("unknown"),
   cached: z.boolean().optional().default(false),
+  action: z.unknown().optional(),
 });
 
 function clientKey(request: Request) {
@@ -92,7 +79,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ status: 502, message: "CHAT_UPSTREAM_INVALID_RESPONSE" }, { status: 502 });
     }
 
-    return NextResponse.json({ status: 200, ...data.data, action: null });
+    return NextResponse.json({
+      status: 200,
+      ...data.data,
+      action: parsePublicChatAction(data.data.action),
+    });
   } catch (error) {
     const upstreamError = getChatUpstreamError(error);
     return NextResponse.json(

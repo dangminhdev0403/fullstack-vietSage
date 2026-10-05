@@ -46,6 +46,7 @@ system_prompt = ai["parameters"]["responses"]["values"][0]["content"]
 assert all(term in system_prompt for term in ("STATED_LOCATION", "KNOWLEDGE", "Quý khách", "Không tạo hành động đặt dịch vụ"))
 assert all(term in system_prompt for term in ("RECENT_CONVERSATION_UNTRUSTED", "LATEST_QUESTION", "một câu làm rõ", "ĐỊA DANH TRƯỚC"))
 assert all(term in system_prompt for term in ("GUIDE_INTENT là NO", "không ghép địa danh với hướng dẫn viên", "GUIDE_INTENT là YES"))
+assert "chuyển sang GuestOS" in system_prompt
 
 context_code = nodes["05 · Đóng gói tri thức địa phương"]["parameters"]["jsCode"]
 assert "hasKnowledge: false" in context_code
@@ -53,6 +54,7 @@ assert "RECENT_CONVERSATION_UNTRUSTED" in context_code
 assert "GUIDE_INTENT:" in context_code
 assert "guideIntent ?" in context_code
 assert "const guides = guideIntent" in context_code
+assert "bookingCandidate" in context_code
 knowledge_branch = "05b · Có tri thức phù hợp?"
 assert workflow["connections"]["03 · Cần tra cứu tri thức?"]["main"][1][0]["node"] == "08 · Trả JSON về Public BFF"
 assert workflow["connections"]["05 · Đóng gói tri thức địa phương"]["main"][0][0]["node"] == knowledge_branch
@@ -60,7 +62,7 @@ assert workflow["connections"][knowledge_branch]["main"][0][0]["node"] == "06 ·
 assert workflow["connections"][knowledge_branch]["main"][1][0]["node"] == "08 · Trả JSON về Public BFF"
 
 response = nodes["08 · Trả JSON về Public BFF"]
-assert "action: null" in response["parameters"]["responseBody"]
+assert "action: $json.action || null" in response["parameters"]["responseBody"]
 assert response["parameters"]["options"]["responseCode"].startswith("={{")
 assert workflow["settings"]["saveDataSuccessExecution"] == "none"
 assert workflow["active"] is False
@@ -94,14 +96,14 @@ process.stdout.write(JSON.stringify(output[0].json));
                 "suitableGuides": [{"fullName": "Nguyễn Văn Minh"}],
             }
         ],
-        "guides": [{"fullName": "Nguyễn Văn Minh", "operatingRegions": ["Hà Nội"]}],
+        "guides": [{"candidateKey": "cand_LM-HN-001", "fullName": "Nguyễn Văn Minh", "operatingRegions": ["Hà Nội"]}],
         "metadata": {"locationScope": {"province": "Hà Nội"}},
         "knowledgeVersion": "sha256:test",
         "cached": False,
     }
 
-    def context_result(message: str) -> dict:
-        normalized = {"message": message, "location": "Hà Nội", "history": [], "lang": "vi"}
+    def context_result(message: str, history: list[dict] | None = None) -> dict:
+        normalized = {"message": message, "location": "Hà Nội", "history": history or [], "lang": "vi"}
         result = subprocess.run(
             ["node", str(harness), str(context_source), json.dumps(normalized, ensure_ascii=False), json.dumps(payload, ensure_ascii=False)],
             check=True,
@@ -123,6 +125,25 @@ process.stdout.write(JSON.stringify(output[0].json));
     assert guide_request["guideIntent"] is True
     assert "GUIDE_INTENT: YES" in guide_request["userPrompt"]
     assert "Nguyễn Văn Minh" in guide_request["userPrompt"]
+    assert guide_request["bookingCandidate"] is None
+
+    confirmed_booking = context_result("Tôi chọn Nguyễn Văn Minh, chốt tour này")
+    assert confirmed_booking["bookingCandidate"] == {
+        "type": "LOCALMATE_BOOKING",
+        "candidateKey": "cand_LM-HN-001",
+    }
+
+    rejected_booking = context_result("Tôi chưa chốt Nguyễn Văn Minh, đang cân nhắc")
+    assert rejected_booking["bookingCandidate"] is None
+
+    confirmed_follow_up = context_result(
+        "Chốt tour này",
+        [{"role": "localmate", "text": "Hướng dẫn viên phù hợp là Nguyễn Văn Minh."}],
+    )
+    assert confirmed_follow_up["bookingCandidate"] == {
+        "type": "LOCALMATE_BOOKING",
+        "candidateKey": "cand_LM-HN-001",
+    }
 
     response_code = nodes["07 · Chuẩn hóa phản hồi công khai"]["parameters"]["jsCode"]
     response_source = Path(directory) / "response.js"
@@ -151,8 +172,13 @@ process.stdout.write(JSON.stringify(output[0].json));
         ],
     }
 
-    def response_result(guide_intent: bool) -> dict:
-        prepared = {"guideIntent": guide_intent, "knowledgeVersion": "sha256:test", "cached": False}
+    def response_result(guide_intent: bool, booking_candidate: dict | None = None) -> dict:
+        prepared = {
+            "guideIntent": guide_intent,
+            "bookingCandidate": booking_candidate,
+            "knowledgeVersion": "sha256:test",
+            "cached": False,
+        }
         result = subprocess.run(
             ["node", str(response_harness), str(response_source), json.dumps(model, ensure_ascii=False), json.dumps(prepared)],
             check=True,
@@ -171,6 +197,16 @@ process.stdout.write(JSON.stringify(output[0].json));
     guide_response = response_result(True)
     assert "Nguyễn Văn Minh" in guide_response["reply"]
     assert len(guide_response["suggestions"]) == 2
+    assert guide_response["action"] is None
+
+    booking_response = response_result(
+        True,
+        {"type": "LOCALMATE_BOOKING", "candidateKey": "cand_LM-HN-001"},
+    )
+    assert booking_response["action"] == {
+        "type": "LOCALMATE_BOOKING",
+        "candidateKey": "cand_LM-HN-001",
+    }
 
     for node in workflow["nodes"]:
         code = node.get("parameters", {}).get("jsCode")

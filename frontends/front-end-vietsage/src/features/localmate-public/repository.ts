@@ -13,6 +13,6 @@ export const publicLocalMateRepository = {
       path: "/api/localmate/public-chat",
       body: input,
       isPublic: true,
-      timeoutMs: 45_000,
+      timeoutMs: 60_000,
     }),
 };

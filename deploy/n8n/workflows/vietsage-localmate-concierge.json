@@ -182,7 +182,7 @@
         "operation": "response",
         "modelId": {
           "__rl": true,
-          "value": "ddgw/gpt-5.6-luna",
+          "value": "cx/gpt-5.5",
           "mode": "id"
         },
         "responses": {
@@ -227,8 +227,8 @@
       ],
       "credentials": {
         "openAiApi": {
-          "id": "vietsageLocalMateOmniRouteV1",
-          "name": "VietSage LocalMate OmniRoute V1"
+          "id": "vietsageLocalMateModelV2",
+          "name": "VietSage LocalMate Model V2"
         }
       },
       "onError": "continueErrorOutput",

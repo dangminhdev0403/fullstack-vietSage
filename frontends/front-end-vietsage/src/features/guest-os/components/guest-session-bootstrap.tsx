@@ -10,7 +10,9 @@ import {
   decideGuestSessionValidationError,
   isCurrentGuestSessionValidation,
   isProtectedGuestRoute,
+  shouldRedirectMissingGuestSession,
 } from "@/features/guest-os/utils/guest-session-bootstrap-policy";
+import { readPublicBookingHandoff } from "@/features/localmate-public/public-booking-handoff";
 import { clearStoredGuestSession, migrateLegacyGuestSession } from "@/features/guest-os/utils/guest-session-storage";
 import { defaultGuestLocale, normalizeGuestLocale } from "@/features/guest-os/i18n/config";
 
@@ -32,7 +34,8 @@ export function GuestSessionBootstrap({ children }: { children: ReactNode }) {
   const validate = useCallback(() => {
     const token = useGuestStore.getState().sessionToken;
     if (!token) {
-      if (protectedRoute) router.replace("/");
+      const hasHandoff = pathname === "/g/home" && Boolean(readPublicBookingHandoff(window.localStorage));
+      if (protectedRoute && shouldRedirectMissingGuestSession(pathname, hasHandoff)) router.replace("/");
       return Promise.resolve();
     }
     if (inFlightRef.current?.token === token) return inFlightRef.current.request;
@@ -62,7 +65,7 @@ export function GuestSessionBootstrap({ children }: { children: ReactNode }) {
       });
     inFlightRef.current = { token, request };
     return request;
-  }, [clearSession, language, protectedRoute, refreshSessionSnapshot, router]);
+  }, [clearSession, language, pathname, protectedRoute, refreshSessionSnapshot, router]);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -106,6 +109,12 @@ export function GuestSessionBootstrap({ children }: { children: ReactNode }) {
   }, []);
 
   if (!protectedRoute) return children;
+  const hasHandoff =
+    isHydrated &&
+    sessionToken === null &&
+    pathname === "/g/home" &&
+    Boolean(readPublicBookingHandoff(window.localStorage));
+  if (hasHandoff) return children;
   if (!isHydrated || sessionToken === null || validatedToken !== sessionToken) {
     return <div className="min-h-screen bg-[var(--background)]" aria-busy="true" />;
   }

@@ -13,7 +13,7 @@ const updateTenant = z.object({ action: z.literal("updateTenant"), id: z.string(
 const previewImport = z.object({ action: z.literal("previewImport"), spreadsheetUrl: z.string().trim().url() });
 const commitImport = z.object({ action: z.literal("commitImport"), spreadsheetUrl: z.string().trim().url(), expectedHash: z.string().regex(/^[a-f0-9]{64}$/) });
 const deleteCategory = z.object({ action: z.literal("deleteCategory"), id: z.string().min(1) });
-const updatePricingConfig = z.object({ action: z.literal("updatePricingConfig"), input: z.object({ deliveryServiceFeeRate: z.number().min(0).max(100) }) });
+const updatePricingConfig = z.object({ action: z.literal("updatePricingConfig"), input: z.object({ deliveryServiceFeeRate: z.number().min(0).max(100).optional(), localMatePlatformFeeRate: z.number().min(0).max(100).optional() }).refine((input) => input.deliveryServiceFeeRate !== undefined || input.localMatePlatformFeeRate !== undefined) });
 const actionSchema = z.discriminatedUnion("action", [category, tenant, updateCategory, deleteCategory, updateTenant, updatePricingConfig, previewImport, commitImport]);
 
 export async function GET() {

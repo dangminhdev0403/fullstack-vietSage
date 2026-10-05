@@ -196,10 +196,6 @@ export function LocalMateGuidesView({
   // Statistics
   const qualifiedCount = guides.filter((g) => g.status === "QUALIFIED").length;
   const pendingCount = guides.filter((g) => g.status === "PENDING").length;
-  const avgRating =
-    guides.length > 0
-      ? (guides.reduce((acc, g) => acc + g.rating, 0) / guides.length).toFixed(2)
-      : "5.00";
 
   // Pagination calculation
   const totalItems = filteredGuides.length;
@@ -726,12 +722,6 @@ export function LocalMateGuidesView({
                     <span className="text-[#52635A]">Email tài khoản:</span>
                     <span className="font-mono text-xs font-bold text-[#142823]">{myGuide.user?.email || myGuide.email || "—"}</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[#52635A]">Đánh giá khách hàng:</span>
-                    <span className="font-bold text-[#C79A32]">
-                      ★ {myGuide.rating.toFixed(2)} <span className="text-xs text-[#52635A]">({myGuide.totalReviews} lượt đánh giá)</span>
-                    </span>
-                  </div>
                 </div>
 
                 <button
@@ -875,7 +865,7 @@ export function LocalMateGuidesView({
           </div>
 
           {/* Executive Metric Cards for Manager */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {/* Card 1: Tổng LocalMate */}
             <div className="rounded-2xl border border-[#25483F]/12 bg-white p-5 shadow-[0_4px_20px_rgba(20,40,35,0.04)] transition-all hover:shadow-[0_8px_30px_rgba(20,40,35,0.08)]">
               <div className="flex items-center justify-between text-[#5A6861]">
@@ -915,20 +905,6 @@ export function LocalMateGuidesView({
               <div className="mt-3 flex items-baseline gap-2">
                 <span className="text-3xl font-black text-[#C79A32] tracking-tight">{pendingCount}</span>
                 <span className="text-xs font-semibold text-[#C79A32]">cần xác thực</span>
-              </div>
-            </div>
-
-            {/* Card 4: Đánh giá trung bình */}
-            <div className="rounded-2xl border border-[#B18B26]/25 bg-gradient-to-br from-[#FFFDF8] to-[#FFF9EC] p-5 shadow-[0_4px_20px_rgba(177,139,38,0.08)]">
-              <div className="flex items-center justify-between text-[#8A6A13]">
-                <span className="text-xs font-bold uppercase tracking-wider">Đánh giá trung bình</span>
-                <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#B18B26]/15 text-[#B18B26]">
-                  <VsIcon name="star" className="text-lg fill-current" />
-                </span>
-              </div>
-              <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-3xl font-black text-[#8A6A13] tracking-tight">★ {avgRating}</span>
-                <span className="text-xs font-semibold text-[#8A6A13]/80">chất lượng phục vụ</span>
               </div>
             </div>
           </div>
@@ -1081,7 +1057,6 @@ export function LocalMateGuidesView({
                   <th className="px-6 py-4 min-w-[320px]">LocalMate</th>
                   <th className="px-6 py-4 min-w-[200px]">Khu vực</th>
                   <th className="px-6 py-4 min-w-[180px]">Ngôn ngữ</th>
-                  <th className="px-6 py-4 min-w-[160px]">Đánh giá</th>
                   <th className="px-6 py-4 min-w-[150px]">Phí dịch vụ</th>
                   <th className="px-6 py-4 w-[100px] text-right">Thao tác</th>
                 </tr>
@@ -1243,18 +1218,6 @@ export function LocalMateGuidesView({
                               {lang}
                             </span>
                           ))}
-                        </div>
-                      </td>
-
-                      {/* Rating Column */}
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-sm text-[#C79A32]">
-                            ★ {guide.rating.toFixed(2)}
-                          </span>
-                          <span className="text-xs text-[#52635A]">
-                            ({guide.totalReviews} đánh giá)
-                          </span>
                         </div>
                       </td>
 

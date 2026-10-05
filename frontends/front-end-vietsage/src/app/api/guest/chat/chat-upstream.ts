@@ -1,4 +1,4 @@
-export const CHAT_UPSTREAM_TIMEOUT_MS = 45_000;
+export const CHAT_UPSTREAM_TIMEOUT_MS = 60_000;
 
 export function isAbortError(error: unknown): boolean {
   return (

@@ -4,6 +4,13 @@ export function isProtectedGuestRoute(pathname: string): boolean {
   return PROTECTED_GUEST_ROUTES.has(pathname);
 }
 
+export function shouldRedirectMissingGuestSession(
+  pathname: string,
+  hasPublicBookingHandoff: boolean,
+): boolean {
+  return pathname !== "/g/home" || !hasPublicBookingHandoff;
+}
+
 export function decideGuestSessionValidationError(status: number): "logout" | "retry" {
   return status === 401 || status === 403 || status === 410 ? "logout" : "retry";
 }

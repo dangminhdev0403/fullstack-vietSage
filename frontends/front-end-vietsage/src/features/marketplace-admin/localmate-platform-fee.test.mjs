@@ -5,6 +5,21 @@ import test from "node:test";
 const clientSource = readFileSync(new URL("./client.ts", import.meta.url), "utf8");
 const typesSource = readFileSync(new URL("./types.ts", import.meta.url), "utf8");
 const uiSource = readFileSync(new URL("./marketplace-admin-client.tsx", import.meta.url), "utf8");
+const bffSource = readFileSync(
+  new URL("../../app/api/admin/marketplace/route.ts", import.meta.url),
+  "utf8",
+);
+
+test("admin BFF accepts partial LocalMate pricing updates", () => {
+  assert.match(
+    bffSource,
+    /localMatePlatformFeeRate:\s*z\.number\(\)\.min\(0\)\.max\(100\)\.optional\(\)/,
+  );
+  assert.match(
+    bffSource,
+    /deliveryServiceFeeRate:\s*z\.number\(\)\.min\(0\)\.max\(100\)\.optional\(\)/,
+  );
+});
 
 test("types include localMatePlatformFeeRate and updated action input", () => {
   assert.match(typesSource, /localMatePlatformFeeRate\?:/);
