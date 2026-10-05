@@ -4,11 +4,13 @@ import {
   MarketplaceMessageDeliveryStatus,
   MarketplaceOrderActorType,
   MarketplaceOrderStatus,
+  MarketplaceOrderPaymentStatus,
   Prisma,
 } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 import { TelegramNotificationService } from "./telegram-notification.service";
+import { LocalMatePaymentsService } from "../../localmate-payments/application/localmate-payments.service";
 import type {
   TelegramCallbackQuery,
   TelegramMessage,
@@ -18,6 +20,14 @@ export function escapeTelegramHtml(text: string): string {
   return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+export interface SendOrderNotificationResult {
+  success: boolean;
+  messageId?: number;
+  error?: string;
+  isTerminal?: boolean;
+  errorCode?: string;
+}
+
 @Injectable()
 export class TelegramMarketplaceBridgeService {
   private readonly logger = new Logger(TelegramMarketplaceBridgeService.name);
@@ -25,9 +35,10 @@ export class TelegramMarketplaceBridgeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly telegramNotificationService: TelegramNotificationService,
+    private readonly localMatePaymentsService: LocalMatePaymentsService,
   ) {}
 
-  async sendOrderNotificationToGuide(orderInput: any): Promise<void> {
+  async sendOrderNotificationToGuide(orderInput: any): Promise<SendOrderNotificationResult> {
     try {
       const order =
         orderInput?.assignedLocalMateProfileId && orderInput?.stay
@@ -41,11 +52,35 @@ export class TelegramMarketplaceBridgeService {
                     room: { select: { roomNumber: true } },
                   },
                 },
+                payment: true,
               },
             });
 
       if (!order || !order.assignedLocalMateProfileId) {
-        return;
+        return {
+          success: false,
+          error: "No assigned LocalMate",
+          isTerminal: true,
+          errorCode: "NO_ASSIGNED_LOCALMATE",
+        };
+      }
+
+      // Pre-payment gating: if payment record exists, verify it is eligible (PAID or NOT_REQUIRED)
+      if (order.payment) {
+        const isEligiblePayment =
+          order.payment.status === MarketplaceOrderPaymentStatus.PAID ||
+          order.payment.status === MarketplaceOrderPaymentStatus.NOT_REQUIRED;
+        if (!isEligiblePayment) {
+          this.logger.warn(
+            `Order ${order.id} payment status is ${order.payment.status}, notification blocked until paid`,
+          );
+          return {
+            success: false,
+            error: "Payment not completed",
+            isTerminal: false,
+            errorCode: "PAYMENT_NOT_READY",
+          };
+        }
       }
 
       const binding = await this.prisma.localMateTelegramBinding.findFirst({
@@ -60,7 +95,12 @@ export class TelegramMarketplaceBridgeService {
         this.logger.warn(
           `LocalMate ${order.assignedLocalMateProfileId} has no active Telegram binding for order ${order.id}`,
         );
-        return;
+        return {
+          success: false,
+          error: "No active Telegram binding",
+          isTerminal: true,
+          errorCode: "NO_ACTIVE_TELEGRAM_BINDING",
+        };
       }
 
       const guestName = order.stay?.guestDisplayName ?? "Khách lưu trú";
@@ -76,19 +116,44 @@ export class TelegramMarketplaceBridgeService {
       const note = order.guestNote ? escapeTelegramHtml(order.guestNote) : "Không có";
       const price = Number(order.partnerSubtotal ?? order.totalAmount ?? 0).toLocaleString("vi-VN");
 
-      const text = [
+      const hasPayment = !!order.payment;
+      const tourTotal =
+        hasPayment && order.payment.tourTotalAmount != null
+          ? Number(order.payment.tourTotalAmount).toLocaleString("vi-VN")
+          : price;
+      const paidToVietSage =
+        hasPayment && order.payment.platformFeeAmount != null
+          ? Number(order.payment.platformFeeAmount).toLocaleString("vi-VN")
+          : null;
+      const guideCollects =
+        hasPayment && order.payment.guideRemainingAmount != null
+          ? Number(order.payment.guideRemainingAmount).toLocaleString("vi-VN")
+          : null;
+
+      const textLines = [
         "🔔 <b>YÊU CẦU ĐẶT LOCALMATE MỚI!</b>",
         "",
-        `📋 <b>Mã đơn:</b> <code>${escapeTelegramHtml(order.orderNumber)}</code>`,
-        `🧭 <b>Dịch vụ:</b> ${escapeTelegramHtml(order.serviceNameSnapshot ?? "Dịch vụ LocalMate")}`,
+        `📋 <b>Mã đơn / Order:</b> <code>#${escapeTelegramHtml(order.orderNumber)}</code>`,
+        `🧭 <b>Dịch vụ / Service:</b> ${escapeTelegramHtml(order.serviceNameSnapshot ?? "Dịch vụ LocalMate")}`,
         `👤 <b>Khách:</b> ${escapeTelegramHtml(guestName)}${escapeTelegramHtml(roomNumber)}`,
-        `⏰ <b>Thời gian hẹn:</b> ${startTime}`,
-        `👥 <b>Số lượng:</b> ${partySize}`,
+        `⏰ <b>Thời gian hẹn / Time:</b> ${startTime}`,
+        `👥 <b>Số lượng / Guests:</b> ${partySize}`,
         `📝 <b>Ghi chú:</b> ${note}`,
-        `💰 <b>Tạm tính:</b> ${price} VND`,
-        "",
-        "<i>Vui lòng chọn Nhận đơn hoặc Từ chối bên dưới:</i>",
-      ].join("\n");
+      ];
+
+      if (paidToVietSage != null && guideCollects != null) {
+        textLines.push(
+          `💰 <b>Tổng tiền tour / Tour total:</b> ${tourTotal} VND`,
+          `💳 <b>Đã thanh toán VietSage / Paid to VietSage:</b> ${paidToVietSage} VND`,
+          `💵 <b>HDV thu trực tiếp / Guide collects:</b> ${guideCollects} VND`,
+        );
+      } else {
+        textLines.push(`💰 <b>Tạm tính:</b> ${tourTotal} VND`);
+      }
+
+      textLines.push("", "<i>Vui lòng chọn Nhận đơn hoặc Từ chối bên dưới:</i>");
+
+      const text = textLines.join("\n");
 
       const inlineKeyboard = {
         inline_keyboard: [
@@ -128,8 +193,34 @@ export class TelegramMarketplaceBridgeService {
             // Non-blocking duplicate protection
           });
       }
-    } catch (error) {
+
+      return {
+        success: true,
+        messageId: res.result?.message_id,
+      };
+    } catch (error: any) {
       this.logger.error("Failed to send order notification to guide via Telegram", error);
+      const errMsg = error?.message ?? String(error);
+      const isBotBlocked =
+        errMsg.includes("bot was blocked by the user") ||
+        errMsg.includes("chat not found") ||
+        errMsg.includes("user is deactivated");
+
+      if (isBotBlocked) {
+        return {
+          success: false,
+          error: errMsg,
+          isTerminal: true,
+          errorCode: "TELEGRAM_BOT_BLOCKED",
+        };
+      }
+
+      return {
+        success: false,
+        error: errMsg,
+        isTerminal: false,
+        errorCode: "TELEGRAM_SEND_FAILED",
+      };
     }
   }
 
@@ -144,14 +235,18 @@ export class TelegramMarketplaceBridgeService {
     const orderId = parts.slice(2).join(":");
     if (!callbackQuery.from?.id) return;
     const callerUserId = String(callbackQuery.from.id);
+    const callerChatId = callbackQuery.message?.chat?.id;
 
-    const binding = await this.prisma.localMateTelegramBinding.findFirst({
-      where: {
-        telegramUserId: callerUserId,
-        revokedAt: null,
-        blockedAt: null,
-      },
-    });
+    const binding = callerChatId
+      ? await this.prisma.localMateTelegramBinding.findFirst({
+          where: {
+            telegramUserId: callerUserId,
+            telegramChatId: String(callerChatId),
+            revokedAt: null,
+            blockedAt: null,
+          },
+        })
+      : null;
 
     if (!binding) {
       await this.telegramNotificationService.callTelegram("answerCallbackQuery", {
@@ -173,6 +268,7 @@ export class TelegramMarketplaceBridgeService {
           },
         },
         service: { select: { id: true, capacityAvailable: true } },
+        payment: { select: { id: true, status: true } },
       },
     });
 
@@ -287,8 +383,33 @@ export class TelegramMarketplaceBridgeService {
             note: "LocalMate từ chối đơn qua Telegram",
           },
         });
+
+        if (order.payment?.status === MarketplaceOrderPaymentStatus.PAID) {
+          await tx.marketplaceOrderPayment.updateMany({
+            where: {
+              id: order.payment.id,
+              status: MarketplaceOrderPaymentStatus.PAID,
+            },
+            data: {
+              status: MarketplaceOrderPaymentStatus.REFUND_PENDING,
+              refundReasonCode: "GUIDE_REJECTED",
+              refundNextAttemptAt: new Date(),
+            },
+          });
+        }
         return o;
       });
+
+      if (order.payment?.status === MarketplaceOrderPaymentStatus.PAID) {
+        await this.localMatePaymentsService
+          .refundLocalMatePayment({
+            paymentId: order.payment.id,
+            reason: "GUIDE_REJECTED",
+          })
+          .catch((error) => {
+            this.logger.error("Failed to start LocalMate refund after guide rejection", error);
+          });
+      }
 
       RequestRealtimeEmitter.emitExternalServiceOrderStatusChanged({
         orderId: order.id,
@@ -404,7 +525,11 @@ export class TelegramMarketplaceBridgeService {
           },
         });
       } else {
-        const nextAttempt = new Date(Date.now() + 60 * 1000);
+        const retryDelayMs = Math.min(
+          5 * 60 * 1000,
+          60 * 1000 * 2 ** Math.max(0, Number(message.attemptCount ?? 0)),
+        );
+        const nextAttempt = new Date(Date.now() + retryDelayMs);
         await this.prisma.marketplaceConversationMessage.update({
           where: { id: message.id },
           data: {
@@ -502,7 +627,11 @@ export class TelegramMarketplaceBridgeService {
       },
     });
 
-    if (!order || order.status !== MarketplaceOrderStatus.ACKNOWLEDGED) {
+    if (
+      !order ||
+      order.assignedLocalMateProfileId !== binding.localMateProfileId ||
+      order.status !== MarketplaceOrderStatus.ACKNOWLEDGED
+    ) {
       await this.telegramNotificationService
         .callTelegram("sendMessage", {
           chat_id: callerChatId,

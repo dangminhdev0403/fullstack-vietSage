@@ -11,6 +11,7 @@ type Handlers = {
   onAnswered?: (request: Partial<GuestRequest> & { id: string }) => void;
   onGuestMessageCreated?: (event: unknown) => void;
   onConversationClosed?: (event: unknown) => void;
+  onMarketplaceConversationMessageCreated?: (event: unknown) => void;
   onExternalOrderCreated?: (event: unknown) => void;
   onExternalOrderStatusChanged?: (event: unknown) => void;
   onExternalOrderHotelAcknowledged?: (event: unknown) => void;
@@ -42,6 +43,8 @@ export function useGuestRequestRealtime(sessionToken: string | null | undefined,
       onAnswered: (value) => handlersRef.current.onAnswered?.(value as Partial<GuestRequest> & { id: string }),
       onGuestMessageCreated: (value) => handlersRef.current.onGuestMessageCreated?.(value),
       onConversationClosed: (value) => handlersRef.current.onConversationClosed?.(value),
+      onMarketplaceConversationMessageCreated: (value) =>
+        handlersRef.current.onMarketplaceConversationMessageCreated?.(value),
       onExternalOrderCreated: (value) => handlersRef.current.onExternalOrderCreated?.(value),
       onExternalOrderStatusChanged: (value) => handlersRef.current.onExternalOrderStatusChanged?.(value),
       onExternalOrderHotelAcknowledged: (value) => handlersRef.current.onExternalOrderHotelAcknowledged?.(value),

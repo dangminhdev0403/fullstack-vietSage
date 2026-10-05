@@ -187,6 +187,8 @@ export function MarketplaceAdminClient() {
   );
   const [isTenantModalOpen, setIsTenantModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
+  const [pricingFormError, setPricingFormError] = useState<string | null>(null);
   const [editingTenant, setEditingTenant] = useState<ServiceTenant | null>(
     null,
   );
@@ -960,6 +962,80 @@ export function MarketplaceAdminClient() {
     });
   }, [data.data, categorySearch]);
 
+  const handleUpdatePricingConfig = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setPricingFormError(null);
+    const form = new FormData(e.currentTarget);
+    const deliveryRaw = String(form.get("deliveryServiceFeeRate") ?? "").trim();
+    const localMateRaw = String(form.get("localMatePlatformFeeRate") ?? "").trim();
+
+    const deliveryVal = deliveryRaw !== "" ? Number(deliveryRaw) : undefined;
+    const localMateVal = localMateRaw !== "" ? Number(localMateRaw) : undefined;
+
+    if (
+      deliveryVal !== undefined &&
+      (!Number.isFinite(deliveryVal) || deliveryVal < 0 || deliveryVal > 100)
+    ) {
+      setPricingFormError("Phí dịch vụ tận nơi phải nằm trong khoảng từ 0% đến 100%.");
+      return;
+    }
+
+    if (
+      localMateVal !== undefined &&
+      (!Number.isFinite(localMateVal) || localMateVal < 0 || localMateVal > 100)
+    ) {
+      setPricingFormError("Phí nền tảng LocalMate phải nằm trong khoảng từ 0% đến 100%.");
+      return;
+    }
+
+    if (deliveryVal === undefined && localMateVal === undefined) {
+      setPricingFormError("Vui lòng nhập ít nhất một mức phí hợp lệ.");
+      return;
+    }
+
+    SwalVietSage.fire({
+      title: "Xác nhận cập nhật biểu phí",
+      text: "Bạn có chắc chắn muốn lưu thay đổi biểu phí Marketplace không? Biểu phí mới chỉ áp dụng cho các đơn hàng mới (không ảnh hưởng đơn đã tạo).",
+      icon: "question",
+      showCancelButton: true,
+      reverseButtons: false,
+      confirmButtonText: "Lưu biểu phí",
+      cancelButtonText: "Hủy bỏ",
+    }).then((result) => {
+      if (!result.isConfirmed) return;
+      const input: { deliveryServiceFeeRate?: number; localMatePlatformFeeRate?: number } = {};
+      if (deliveryVal !== undefined) input.deliveryServiceFeeRate = deliveryVal;
+      if (localMateVal !== undefined) input.localMatePlatformFeeRate = localMateVal;
+
+      mutation.mutate(
+        {
+          action: "updatePricingConfig",
+          input,
+        },
+        {
+          onSuccess: () => {
+            setIsPricingModalOpen(false);
+            setPricingFormError(null);
+            SwalVietSage.fire({
+              title: "Thành công!",
+              text: "Đã cập nhật cấu hình biểu phí Marketplace thành công.",
+              icon: "success",
+              showConfirmButton: true,
+              confirmButtonText: "OK",
+            });
+          },
+          onError: (err) => {
+            SwalVietSage.fire({
+              title: "Cập nhật thất bại",
+              text: getErrorMessage(err, "Không thể cập nhật cấu hình biểu phí."),
+              icon: "error",
+            });
+          },
+        },
+      );
+    });
+  };
+
   if (data.isPending) {
     return (
       <div className="flex min-h-90 flex-col items-center justify-center rounded-[1.6rem] border border-[#e8dfd1] bg-white/90 p-12 text-[#69726b] shadow-xs backdrop-blur-md">
@@ -1000,17 +1076,26 @@ export function MarketplaceAdminClient() {
     );
   }
 
-  const { categories, tenants } = data.data;
+  const { categories, tenants, pricingConfig } = data.data;
   const activeTenantsCount = tenants.filter(
     (t) =>
       (t.serviceProfile?.status ?? "active").toLowerCase() === "active" ||
       (t.serviceProfile?.status ?? "").toLowerCase() === "published",
   ).length;
 
+  const currentDeliveryFee =
+    pricingConfig?.deliveryServiceFeeRate != null
+      ? Number(pricingConfig.deliveryServiceFeeRate)
+      : 10;
+  const currentLocalMateFee =
+    pricingConfig?.localMatePlatformFeeRate != null
+      ? Number(pricingConfig.localMatePlatformFeeRate)
+      : 15;
+
   return (
     <div className="space-y-6">
       {/* Metric Summary Cards Bar */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           {
             label: "Tổng đối tác dịch vụ",
@@ -1026,6 +1111,11 @@ export function MarketplaceAdminClient() {
             label: "Danh mục dịch vụ",
             value: categories.length,
             icon: "storefront",
+          },
+          {
+            label: "Phí nền tảng LocalMate",
+            value: `${currentLocalMateFee}%`,
+            icon: "payments",
           },
         ].map((metric) => (
           <article
@@ -1126,6 +1216,18 @@ export function MarketplaceAdminClient() {
                 <option value="pending">Khởi tạo / Tạm ngưng</option>
               </select>
             )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setPricingFormError(null);
+                setIsPricingModalOpen(true);
+              }}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-[#dcd1bf] bg-[#fffcf7] px-5 py-3 text-sm font-bold text-[#24473d] shadow-2xs transition-all hover:border-[#24473d] hover:bg-[#f5efe4]"
+            >
+              <VsIcon name="tune" className="text-lg text-[#24473d]" />
+              Cấu hình biểu phí
+            </button>
 
             <button
               type="button"
@@ -2474,6 +2576,114 @@ export function MarketplaceAdminClient() {
                   className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#24473d] px-7 text-sm font-bold text-[#fff8e8] hover:bg-[#1a352d] disabled:opacity-50 transition-colors shadow-md shadow-[#24473d]/20"
                 >
                   {mutation.isPending ? "Đang xử lý..." : "Lưu thay đổi"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 5: Marketplace Pricing Configuration */}
+      {isPricingModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201b]/60 p-4 backdrop-blur-md animate-in fade-in duration-150">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
+            <div className="flex items-center justify-between border-b border-[#e8dfd1] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#24473d] text-[#e8b363]">
+                  <VsIcon name="payments" className="text-2xl" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-[#17201b]">
+                    Cấu hình biểu phí Marketplace
+                  </h3>
+                  <p className="text-sm font-semibold text-[#69726b]">
+                    Phí nền tảng LocalMate &amp; Phí dịch vụ tận nơi
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPricingFormError(null);
+                  setIsPricingModalOpen(false);
+                }}
+                className="rounded-full p-2 text-[#69726b] hover:bg-[#f4efe6] hover:text-[#17201b] transition-colors"
+                aria-label="Đóng cửa sổ"
+              >
+                <VsIcon name="close" className="text-2xl" />
+              </button>
+            </div>
+
+            {pricingFormError && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">
+                {pricingFormError}
+              </div>
+            )}
+
+            <form onSubmit={handleUpdatePricingConfig} className="space-y-5">
+              <div>
+                <label htmlFor="pricing-localmate-platform-fee-rate" className={labelClass}>
+                  Phí nền tảng LocalMate (%)
+                </label>
+                <input
+                  id="pricing-localmate-platform-fee-rate"
+                  name="localMatePlatformFeeRate"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  defaultValue={currentLocalMateFee}
+                  placeholder="Mặc định 15%"
+                  className={inputClass}
+                />
+                <div className="mt-2 rounded-xl border border-amber-200/80 bg-amber-50/70 p-3 text-xs text-amber-900 space-y-1">
+                  <p className="font-bold flex items-center gap-1.5">
+                    <VsIcon name="info" className="text-sm text-amber-700" />
+                    Doanh thu VietSage thu trước khi bàn giao hướng dẫn viên (guide).
+                  </p>
+                  <p className="text-amber-800">
+                    Lưu ý: Thay đổi chỉ áp dụng cho các đơn hàng mới, không ảnh hưởng đến đơn hàng đã đặt trước đó (VietSage revenue collected before guide handoff; edits affect new orders only).
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="pricing-delivery-service-fee-rate" className={labelClass}>
+                  Phí dịch vụ tận nơi mặc định (%)
+                </label>
+                <input
+                  id="pricing-delivery-service-fee-rate"
+                  name="deliveryServiceFeeRate"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  defaultValue={currentDeliveryFee}
+                  placeholder="Mặc định 10%"
+                  className={inputClass}
+                />
+                <p className="mt-1.5 text-xs text-[#69726b]">
+                  Mức phí dịch vụ tận nơi mặc định toàn hệ thống, áp dụng khi đối tác không có cấu hình thỏa thuận riêng.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-5 border-t border-[#e8dfd1]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPricingFormError(null);
+                    setIsPricingModalOpen(false);
+                  }}
+                  className="h-12 rounded-full border border-[#dcd1bf] bg-white px-6 text-sm font-bold text-[#24473d] hover:bg-[#f5efe4] transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={mutation.isPending}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#24473d] px-7 text-sm font-bold text-[#fff8e8] hover:bg-[#1a352d] disabled:opacity-50 transition-colors shadow-md shadow-[#24473d]/20"
+                >
+                  {mutation.isPending ? "Đang lưu..." : "Lưu biểu phí"}
                 </button>
               </div>
             </form>

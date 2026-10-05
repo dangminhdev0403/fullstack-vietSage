@@ -4,7 +4,9 @@ import {
   FolioItemSourceType,
   FolioItemType,
   FolioStatus,
+  MarketplaceGuideNotificationStatus,
   MarketplaceOrderActorType,
+  MarketplaceOrderPaymentStatus,
   MarketplaceOrderStatus,
   MarketplaceRecordStatus,
   MarketplaceServiceMode,
@@ -22,6 +24,7 @@ import type {
 import { ServicePortalService } from "./service-portal.service";
 import type { SupportedLocale } from "../../../common/i18n/i18n.types";
 import { calculateFeePercentage, calculateOnSiteServiceFee } from "../domain/marketplace-pricing";
+import { LocalMatePaymentsService } from "../../localmate-payments/application/localmate-payments.service";
 
 @Injectable()
 export class MarketplaceOrderService {
@@ -33,6 +36,7 @@ export class MarketplaceOrderService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly portal: ServicePortalService,
+    private readonly payments?: LocalMatePaymentsService,
   ) {}
 
   static setNotificationDispatcher(dispatcher: {
@@ -61,6 +65,7 @@ export class MarketplaceOrderService {
         items: true,
         events: { orderBy: { createdAt: "asc" } },
         voucher: true,
+        payment: true,
       },
     });
     if (existing) return existing;
@@ -69,7 +74,7 @@ export class MarketplaceOrderService {
       const created = await this.prisma.$transaction(async (tx) => {
         const pricingConfig = await tx.marketplacePricingConfig?.findUnique({
           where: { id: "default" },
-          select: { deliveryServiceFeeRate: true },
+          select: { deliveryServiceFeeRate: true, localMatePlatformFeeRate: true },
         });
         const service = await tx.marketplaceService.findFirst({
           where: {
@@ -143,12 +148,22 @@ export class MarketplaceOrderService {
         if (reserved !== 1) throw new ConflictException("Dịch vụ đã hết khả năng phục vụ");
 
         const partnerSubtotal = service.unitPrice.mul(body.quantity);
-        const hotelServiceFeeAmount = calculateOnSiteServiceFee(
-          partnerSubtotal,
-          service.mode,
-          service.serviceTenant.serviceProfile?.deliveryServiceFeeRate ??
-            pricingConfig?.deliveryServiceFeeRate,
-        );
+        const isLocalMate = Boolean(service.localMateProfileId);
+        if (isLocalMate && service.currency !== "VND") {
+          throw new ConflictException("Thanh toán LocalMate hiện chỉ hỗ trợ VND");
+        }
+        const platformFeeRate = pricingConfig?.localMatePlatformFeeRate ?? new Prisma.Decimal(15);
+        const platformFeeAmount = isLocalMate
+          ? partnerSubtotal.mul(platformFeeRate).div(100).toDecimalPlaces(0)
+          : new Prisma.Decimal(0);
+        const hotelServiceFeeAmount = isLocalMate
+          ? new Prisma.Decimal(0)
+          : calculateOnSiteServiceFee(
+              partnerSubtotal,
+              service.mode,
+              service.serviceTenant.serviceProfile?.deliveryServiceFeeRate ??
+                pricingConfig?.deliveryServiceFeeRate,
+            );
         const customerTotalAmount = partnerSubtotal.add(hotelServiceFeeAmount);
         const totalAmount = customerTotalAmount;
 
@@ -201,8 +216,25 @@ export class MarketplaceOrderService {
                 toStatus: MarketplaceOrderStatus.PENDING,
               },
             },
+            payment: isLocalMate
+              ? {
+                  create: {
+                    status: platformFeeAmount.isZero()
+                      ? MarketplaceOrderPaymentStatus.NOT_REQUIRED
+                      : MarketplaceOrderPaymentStatus.CREATING,
+                    currency: "VND",
+                    tourTotalAmount: partnerSubtotal,
+                    platformFeeRateSnapshot: platformFeeRate,
+                    platformFeeAmount,
+                    guideRemainingAmount: partnerSubtotal.sub(platformFeeAmount),
+                    guideNotificationStatus: platformFeeAmount.isZero()
+                      ? MarketplaceGuideNotificationStatus.PENDING
+                      : MarketplaceGuideNotificationStatus.BLOCKED,
+                  },
+                }
+              : undefined,
           },
-          include: { items: true, events: true },
+          include: { items: true, events: true, payment: true },
         });
 
         // Clear cart items for this service if a cart exists for this session
@@ -232,6 +264,7 @@ export class MarketplaceOrderService {
             },
           },
           serviceTenant: { select: { serviceProfile: { select: { displayName: true } } } },
+          payment: true,
         },
       });
 
@@ -279,7 +312,9 @@ export class MarketplaceOrderService {
           })),
         });
 
-        this.notifyOrderCreatedSafely(orderWithDetails);
+        if (!orderWithDetails.assignedLocalMateProfileId) {
+          this.notifyOrderCreatedSafely(orderWithDetails);
+        }
       }
 
       return created;
@@ -310,6 +345,7 @@ export class MarketplaceOrderService {
       },
       include: {
         items: true,
+        payment: true,
         stay: {
           select: {
             guestDisplayName: true,
@@ -321,6 +357,10 @@ export class MarketplaceOrderService {
     });
     if (!order) {
       throw new NotFoundException("Không tìm thấy đơn hàng");
+    }
+    if (order.status === MarketplaceOrderStatus.CANCELLED && order.assignedLocalMateProfileId) {
+      await this.settleLocalMateCancellation(order.id, order.payment?.status);
+      return { ...order, payment: await this.payments?.getPaymentSummary(order.id) };
     }
     if (order.status !== MarketplaceOrderStatus.PENDING) {
       throw new ConflictException(
@@ -344,6 +384,20 @@ export class MarketplaceOrderService {
       });
       if (updateResult.count !== 1) {
         throw new ConflictException("Đơn hàng đã thay đổi trạng thái, vui lòng tải lại");
+      }
+
+      if (
+        order.assignedLocalMateProfileId &&
+        order.payment?.status === MarketplaceOrderPaymentStatus.PAID
+      ) {
+        await tx.marketplaceOrderPayment.updateMany({
+          where: { orderId: order.id, status: MarketplaceOrderPaymentStatus.PAID },
+          data: {
+            status: MarketplaceOrderPaymentStatus.REFUND_PENDING,
+            refundReasonCode: "GUEST_CANCELLED_BEFORE_GUIDE_ACKNOWLEDGEMENT",
+            refundNextAttemptAt: new Date(),
+          },
+        });
       }
 
       if (order.capacityReservationStatus === CapacityReservationStatus.RESERVED) {
@@ -377,6 +431,7 @@ export class MarketplaceOrderService {
         include: {
           items: true,
           events: { orderBy: { createdAt: "asc" } },
+          payment: true,
         },
       });
     });
@@ -402,12 +457,37 @@ export class MarketplaceOrderService {
       this.notifyOrderCancelledSafely(cancelledOrder);
     }
 
-    return cancelledOrder;
+    if (!cancelledOrder || !order.assignedLocalMateProfileId) return cancelledOrder;
+    await this.settleLocalMateCancellation(order.id, order.payment?.status);
+    return {
+      ...cancelledOrder,
+      payment: await this.payments?.getPaymentSummary(order.id),
+    };
+  }
+
+  private async settleLocalMateCancellation(
+    orderId: string,
+    paymentStatus?: MarketplaceOrderPaymentStatus,
+  ) {
+    if (!this.payments) return;
+    if (
+      paymentStatus === MarketplaceOrderPaymentStatus.PAID ||
+      paymentStatus === MarketplaceOrderPaymentStatus.REFUND_PENDING
+    ) {
+      await this.payments.refundLocalMatePayment({
+        orderId,
+        reason: "GUEST_CANCELLED_BEFORE_GUIDE_ACKNOWLEDGEMENT",
+      });
+      return;
+    }
+    await this.payments.cancelOrExpireOpenPayment(orderId);
   }
 
   private notifyOrderCreatedSafely(order: unknown) {
     try {
-      MarketplaceOrderService.notificationDispatcher?.dispatchOrderNotification?.(order);
+      void Promise.resolve(
+        MarketplaceOrderService.notificationDispatcher?.dispatchOrderNotification?.(order),
+      ).catch(() => undefined);
     } catch {
       // Ignored: external provider failure must not roll back order creation
     }
@@ -415,7 +495,9 @@ export class MarketplaceOrderService {
 
   private notifyOrderCancelledSafely(order: unknown) {
     try {
-      MarketplaceOrderService.notificationDispatcher?.dispatchOrderCancelledNotification?.(order);
+      void Promise.resolve(
+        MarketplaceOrderService.notificationDispatcher?.dispatchOrderCancelledNotification?.(order),
+      ).catch(() => undefined);
     } catch {
       // Ignored: external provider failure must not roll back order cancellation
     }
@@ -734,10 +816,36 @@ export class MarketplaceOrderService {
         items: true,
         voucher: true,
         events: { orderBy: { createdAt: "asc" } },
+        payment: {
+          select: {
+            status: true,
+            currency: true,
+            tourTotalAmount: true,
+            platformFeeRateSnapshot: true,
+            platformFeeAmount: true,
+            guideRemainingAmount: true,
+            checkoutUrl: true,
+            expiresAt: true,
+          },
+        },
       },
     });
     if (!order) throw new NotFoundException("Không tìm thấy đơn Marketplace");
     return order;
+  }
+
+  async createGuestPaymentSession(stayId: string, orderId: string) {
+    const order = await this.prisma.marketplaceOrder.findFirst({
+      where: { id: orderId, stayId },
+      select: { id: true, assignedLocalMateProfileId: true },
+    });
+    if (!order || !order.assignedLocalMateProfileId) {
+      throw new NotFoundException("Không tìm thấy đơn LocalMate");
+    }
+    if (!this.payments) throw new ConflictException("Thanh toán LocalMate chưa sẵn sàng");
+
+    await this.payments.createOrGetCheckoutSession({ orderId, stayId });
+    return { payment: await this.payments.getPaymentSummary(orderId) };
   }
 
   async listServiceOrders(userId: string) {
@@ -1152,53 +1260,52 @@ export class MarketplaceOrderService {
         });
       }
 
-      const partnerSubtotal =
-        order.partnerSubtotal && !order.partnerSubtotal.isZero()
-          ? order.partnerSubtotal
-          : order.totalAmount;
+      let settlement: Awaited<ReturnType<typeof tx.marketplaceSettlement.upsert>> | null = null;
+      if (!order.assignedLocalMateProfileId) {
+        const partnerSubtotal =
+          order.partnerSubtotal && !order.partnerSubtotal.isZero()
+            ? order.partnerSubtotal
+            : order.totalAmount;
+        const hotelRevenue = order.hotelServiceFeeAmount ?? new Prisma.Decimal(0);
 
-      const hotelRevenue = order.hotelServiceFeeAmount ?? new Prisma.Decimal(0);
+        await tx.marketplaceRevenueEntry.upsert({
+          where: { orderId: order.id },
+          create: {
+            orderId: order.id,
+            hotelId: order.hotelId,
+            serviceTenantId: order.serviceTenantId,
+            grossAmount: hotelRevenue,
+            currency: order.currency,
+            recognizedAt: new Date(),
+          },
+          update: {
+            grossAmount: hotelRevenue,
+            currency: order.currency,
+          },
+        });
 
-      await tx.marketplaceRevenueEntry.upsert({
-        where: { orderId: order.id },
-        create: {
-          orderId: order.id,
-          hotelId: order.hotelId,
-          serviceTenantId: order.serviceTenantId,
-          grossAmount: hotelRevenue,
-          currency: order.currency,
-          recognizedAt: new Date(),
-        },
-        update: {
-          grossAmount: hotelRevenue,
-          currency: order.currency,
-        },
-      });
+        settlement = await tx.marketplaceSettlement.upsert({
+          where: { orderId: order.id },
+          create: {
+            orderId: order.id,
+            hotelId: order.hotelId,
+            serviceTenantId: order.serviceTenantId,
+            grossAmount: partnerSubtotal,
+            commissionAmount: new Prisma.Decimal(0),
+            netAmount: partnerSubtotal,
+            currency: order.currency,
+            status: "UNSETTLED",
+          },
+          update: {
+            grossAmount: partnerSubtotal,
+            commissionAmount: new Prisma.Decimal(0),
+            netAmount: partnerSubtotal,
+            currency: order.currency,
+          },
+        });
 
-      const commission = new Prisma.Decimal(0);
-      const net = partnerSubtotal;
-
-      const settlement = await tx.marketplaceSettlement.upsert({
-        where: { orderId: order.id },
-        create: {
-          orderId: order.id,
-          hotelId: order.hotelId,
-          serviceTenantId: order.serviceTenantId,
-          grossAmount: partnerSubtotal,
-          commissionAmount: commission,
-          netAmount: net,
-          currency: order.currency,
-          status: "UNSETTLED",
-        },
-        update: {
-          grossAmount: partnerSubtotal,
-          commissionAmount: commission,
-          netAmount: net,
-          currency: order.currency,
-        },
-      });
-
-      await this.postToStayFolio(tx, order);
+        await this.postToStayFolio(tx, order);
+      }
 
       await tx.marketplaceOrderEvent.create({
         data: {
@@ -1406,51 +1513,51 @@ export class MarketplaceOrderService {
           },
         });
 
-        const gross =
-          order.partnerSubtotal && !order.partnerSubtotal.isZero()
-            ? order.partnerSubtotal
-            : order.totalAmount;
+        if (!order.assignedLocalMateProfileId) {
+          const gross =
+            order.partnerSubtotal && !order.partnerSubtotal.isZero()
+              ? order.partnerSubtotal
+              : order.totalAmount;
 
-        await tx.marketplaceRevenueEntry.upsert({
-          where: { orderId: order.id },
-          create: {
-            orderId: order.id,
-            hotelId: order.hotelId,
-            serviceTenantId,
-            grossAmount: gross,
-            currency: order.currency,
-            recognizedAt: new Date(),
-          },
-          update: {
-            grossAmount: gross,
-            currency: order.currency,
-          },
-        });
+          await tx.marketplaceRevenueEntry.upsert({
+            where: { orderId: order.id },
+            create: {
+              orderId: order.id,
+              hotelId: order.hotelId,
+              serviceTenantId,
+              grossAmount: gross,
+              currency: order.currency,
+              recognizedAt: new Date(),
+            },
+            update: {
+              grossAmount: gross,
+              currency: order.currency,
+            },
+          });
 
-        const commission = new Prisma.Decimal(0);
-        const net = gross;
+          const settlement = await tx.marketplaceSettlement.upsert({
+            where: { orderId: order.id },
+            create: {
+              orderId: order.id,
+              hotelId: order.hotelId,
+              serviceTenantId,
+              grossAmount: gross,
+              commissionAmount: new Prisma.Decimal(0),
+              netAmount: gross,
+              currency: order.currency,
+              status: "UNSETTLED",
+            },
+            update: {
+              grossAmount: gross,
+              commissionAmount: new Prisma.Decimal(0),
+              netAmount: gross,
+              currency: order.currency,
+            },
+          });
 
-        const settlement = await tx.marketplaceSettlement.upsert({
-          where: { orderId: order.id },
-          create: {
-            orderId: order.id,
-            hotelId: order.hotelId,
-            serviceTenantId,
-            grossAmount: gross,
-            commissionAmount: commission,
-            netAmount: net,
-            currency: order.currency,
-            status: "UNSETTLED",
-          },
-          update: {
-            grossAmount: gross,
-            commissionAmount: commission,
-            netAmount: net,
-            currency: order.currency,
-          },
-        });
-
-        await this.postToStayFolio(tx, order);
+          await this.postToStayFolio(tx, order);
+          settlementResult = settlement;
+        }
 
         await tx.marketplaceOrderEvent.create({
           data: {
@@ -1462,8 +1569,6 @@ export class MarketplaceOrderService {
             note: "Fulfillment completed via voucher redemption",
           },
         });
-
-        settlementResult = settlement;
       }
 
       const voucher = await tx.serviceVoucher.findUniqueOrThrow({
@@ -1642,7 +1747,7 @@ export class MarketplaceOrderService {
           });
         }
       }
-      if (body.toStatus === "COMPLETED") {
+      if (body.toStatus === "COMPLETED" && !order.assignedLocalMateProfileId) {
         const partnerSubtotal =
           order.partnerSubtotal && !order.partnerSubtotal.isZero()
             ? order.partnerSubtotal

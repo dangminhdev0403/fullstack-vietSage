@@ -41,10 +41,19 @@ export class MarketplaceAdminService {
   }
 
   updatePricingConfig(actorId: string, body: MarketplacePricingConfigBody) {
+    const data: Record<string, unknown> = {
+      ...(typeof body.deliveryServiceFeeRate === "number"
+        ? { deliveryServiceFeeRate: body.deliveryServiceFeeRate }
+        : {}),
+      ...(typeof body.localMatePlatformFeeRate === "number"
+        ? { localMatePlatformFeeRate: body.localMatePlatformFeeRate }
+        : {}),
+      updatedBy: actorId,
+    };
     return this.prisma.marketplacePricingConfig.upsert({
       where: { id: "default" },
-      create: { id: "default", ...body, updatedBy: actorId },
-      update: { ...body, updatedBy: actorId },
+      create: { id: "default", ...data },
+      update: data,
     });
   }
 

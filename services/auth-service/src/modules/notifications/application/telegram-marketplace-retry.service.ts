@@ -55,13 +55,18 @@ export class TelegramMarketplaceRetryService {
           continue;
         }
 
-        // Lock message claim with backoff to prevent duplicate processing
-        await this.prisma.marketplaceConversationMessage.update({
-          where: { id: message.id },
+        const claimed = await this.prisma.marketplaceConversationMessage.updateMany({
+          where: {
+            id: message.id,
+            deliveryStatus: MarketplaceMessageDeliveryStatus.FAILED,
+            nextAttemptAt: { lte: now },
+            attemptCount: { lt: 3 },
+          },
           data: {
             nextAttemptAt: new Date(Date.now() + 120 * 1000),
           },
         });
+        if (claimed.count !== 1) continue;
 
         await this.bridgeService.sendGuestMessageToGuide({
           message,

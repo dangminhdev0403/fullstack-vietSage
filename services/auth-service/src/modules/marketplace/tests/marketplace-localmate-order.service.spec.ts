@@ -119,7 +119,7 @@ describe("T1 - Marketplace LocalMate Order Lifecycle", () => {
           }),
         }),
       );
-      expect(dispatchSpy).toHaveBeenCalled();
+      expect(dispatchSpy).not.toHaveBeenCalled();
     });
 
     it("rejects booking if assigned LocalMate is not QUALIFIED", async () => {

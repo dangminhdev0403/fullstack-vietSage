@@ -79,11 +79,39 @@ export type MarketplaceOrderFinancials = {
 
 export type MarketplaceOrderStatus = "PENDING" | "ACKNOWLEDGED" | "COMPLETED" | "CANCELLED" | "REJECTED";
 
+export type LocalMatePaymentStatus =
+  | "NOT_REQUIRED"
+  | "CREATING"
+  | "OPEN"
+  | "PAID"
+  | "EXPIRED"
+  | "CANCELLED"
+  | "FAILED"
+  | "REFUND_PENDING"
+  | "REFUNDED"
+  | "DISPUTED";
+
+export type LocalMateOrderPayment = {
+  status: LocalMatePaymentStatus;
+  tourTotalAmount: string;
+  platformFeeRateSnapshot: string;
+  platformFeeAmount: string;
+  guideRemainingAmount: string;
+  currency: "VND" | string;
+  checkoutUrl: string | null;
+  expiresAt: string | null;
+};
+
+export type LocalMatePaymentSessionResult = {
+  payment: LocalMateOrderPayment;
+};
+
 export type MarketplaceOrder = {
   id: string;
   orderNumber: string;
   status: MarketplaceOrderStatus;
   hotelCoordinationStatus?: string | null;
+  payment?: LocalMateOrderPayment | null;
   voucher?: {
     voucherNumber: string;
     verificationCode?: string;

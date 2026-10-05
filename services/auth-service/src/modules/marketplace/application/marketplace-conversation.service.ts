@@ -160,7 +160,11 @@ export class MarketplaceConversationService {
     conversation: unknown;
   }) {
     try {
-      MarketplaceConversationService.bridgeDispatcher?.dispatchGuestMessage?.(payload);
+      const dispatch =
+        MarketplaceConversationService.bridgeDispatcher?.dispatchGuestMessage?.(payload);
+      if (dispatch && typeof dispatch.catch === "function") {
+        void dispatch.catch(() => undefined);
+      }
     } catch {
       // Ignored: outbound Telegram delivery failure is handled asynchronously / retried
     }

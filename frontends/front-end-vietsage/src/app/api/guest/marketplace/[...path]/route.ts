@@ -87,6 +87,11 @@ export async function POST(request: Request, context: Context) {
       return guestSuccessResponse({ status: 201, error: null, message: "OK", data }, 201);
     }
 
+    if (pathParts[0] === "orders" && pathParts[1] && pathParts[2] === "payment-session") {
+      const data = await guestOsService.createMarketplaceOrderPaymentSession(token, pathParts[1], locale);
+      return guestSuccessResponse({ status: 200, error: null, message: "OK", data });
+    }
+
     if (pathParts[0] === "orders" && pathParts[1] && pathParts[2] === "conversation" && pathParts[3] === "messages") {
       const body = await readJsonBody(request);
       const data = await guestOsService.sendMarketplaceOrderMessage(token, pathParts[1], body, locale);

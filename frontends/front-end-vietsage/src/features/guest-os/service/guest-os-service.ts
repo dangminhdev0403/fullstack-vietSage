@@ -142,6 +142,16 @@ export class GuestOsService {
     return unwrapApiEnvelope<T>(payload).data;
   }
 
+  async createMarketplaceOrderPaymentSession<T>(sessionToken: string, orderId: string, locale?: GuestLocaleCode): Promise<T> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "POST",
+      path: this.path(`/guest/marketplace/orders/${encodeURIComponent(orderId)}/payment-session`),
+      accessToken: sessionToken,
+      headers: localeHeaders(locale),
+    });
+    return unwrapApiEnvelope<T>(payload).data;
+  }
+
   async getMarketplaceOrderConversation<T>(sessionToken: string, orderId: string, locale?: GuestLocaleCode): Promise<T> {
     const payload = await this.httpClient.request<unknown>({
       method: "GET",

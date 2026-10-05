@@ -394,6 +394,37 @@ enum MarketplaceOrderActorType {
   SYSTEM
 }
 
+enum MarketplacePaymentProvider {
+  STRIPE
+}
+
+enum MarketplaceOrderPaymentStatus {
+  CREATING
+  OPEN
+  NOT_REQUIRED
+  PAID
+  EXPIRED
+  CANCELLED
+  REFUND_PENDING
+  REFUNDED
+  FAILED
+  DISPUTED
+}
+
+enum MarketplaceGuideNotificationStatus {
+  BLOCKED
+  PENDING
+  SENDING
+  SENT
+  FAILED
+}
+
+enum MarketplacePaymentEventOutcome {
+  PROCESSED
+  IGNORED
+  REJECTED
+}
+
 enum CapacityReservationStatus {
   RESERVED
   RELEASED
@@ -2122,11 +2153,12 @@ model HotelServiceLink {
 }
 
 model MarketplacePricingConfig {
-  id                     String   @id @default("default") @db.VarChar(20)
-  deliveryServiceFeeRate Decimal  @default(10.00) @db.Decimal(5, 2)
-  updatedBy              String?  @db.VarChar(80)
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  id                       String   @id @default("default") @db.VarChar(20)
+  deliveryServiceFeeRate   Decimal  @default(10.00) @db.Decimal(5, 2)
+  localMatePlatformFeeRate Decimal  @default(15.00) @db.Decimal(5, 2)
+  updatedBy                String?  @db.VarChar(80)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 }
 
 enum MarketplaceSettlementStatus {
@@ -2235,12 +2267,64 @@ model MarketplaceOrder {
   settlement                 MarketplaceSettlement?
   voucher                    ServiceVoucher?
   conversation               MarketplaceConversation?
+  payment                    MarketplaceOrderPayment?
 
   @@unique([stayId, idempotencyKey])
   @@index([serviceTenantId, status, createdAt])
   @@index([hotelId, status, createdAt])
   @@index([stayId, createdAt])
   @@index([assignedLocalMateProfileId])
+}
+
+model MarketplaceOrderPayment {
+  id                        String                             @id @default(cuid())
+  orderId                   String                             @unique
+  provider                  MarketplacePaymentProvider         @default(STRIPE)
+  status                    MarketplaceOrderPaymentStatus
+  currency                  String                             @default("VND") @db.Char(3)
+  tourTotalAmount           Decimal                            @db.Decimal(12, 2)
+  platformFeeRateSnapshot   Decimal                            @db.Decimal(5, 2)
+  platformFeeAmount         Decimal                            @db.Decimal(12, 2)
+  guideRemainingAmount      Decimal                            @db.Decimal(12, 2)
+  providerCheckoutSessionId String?                            @unique @db.VarChar(255)
+  providerPaymentIntentId   String?                            @unique @db.VarChar(255)
+  checkoutUrl               String?                            @db.VarChar(2048)
+  expiresAt                 DateTime?
+  paidAt                    DateTime?
+  refundedAmount            Decimal                            @default(0) @db.Decimal(12, 2)
+  refundedAt                DateTime?
+  refundReasonCode          String?                            @db.VarChar(80)
+  refundAttemptCount        Int                                @default(0)
+  refundNextAttemptAt       DateTime?
+  guideNotificationStatus   MarketplaceGuideNotificationStatus @default(BLOCKED)
+  notificationAttemptCount  Int                                @default(0)
+  notificationNextAttemptAt DateTime?
+  notificationLeaseUntil    DateTime?
+  notificationSentAt        DateTime?
+  lastProviderErrorCode     String?                            @db.VarChar(80)
+  createdAt                 DateTime                           @default(now())
+  updatedAt                 DateTime                           @updatedAt
+  order                     MarketplaceOrder                   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  providerEvents            MarketplacePaymentProviderEvent[]
+
+  @@index([status, expiresAt])
+  @@index([status, refundNextAttemptAt])
+  @@index([guideNotificationStatus, notificationNextAttemptAt], map: "MarketplaceOrderPayment_guide_notification_due_idx")
+}
+
+model MarketplacePaymentProviderEvent {
+  id              String                         @id @default(cuid())
+  provider        MarketplacePaymentProvider
+  providerEventId String                         @unique @db.VarChar(255)
+  eventType       String                         @db.VarChar(120)
+  paymentId       String?
+  outcome         MarketplacePaymentEventOutcome
+  processedAt     DateTime                       @default(now())
+  createdAt       DateTime                       @default(now())
+  payment         MarketplaceOrderPayment?       @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([paymentId, createdAt])
+  @@index([provider, eventType, createdAt], map: "MarketplacePaymentProviderEvent_provider_type_created_idx")
 }
 
 model MarketplaceOrderItem {

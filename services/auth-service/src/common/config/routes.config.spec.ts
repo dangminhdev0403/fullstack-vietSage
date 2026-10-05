@@ -35,11 +35,13 @@ describe("public route configuration", () => {
     expect(publicMatcher.isPublic("/emergency/guest/admin")).toBe(false);
   });
 
-  it("allows only the provider-scoped payment webhook route without JWT", () => {
+  it("allows only inventoried provider webhook routes without JWT", () => {
     expect(publicMatcher.isPublic("/payments/webhook/MOMO")).toBe(true);
     expect(publicMatcher.isPublic("/payments/webhook/VNPAY")).toBe(true);
+    expect(publicMatcher.isPublic("/webhooks/stripe")).toBe(true);
     expect(publicMatcher.isPublic("/payments/webhook")).toBe(false);
     expect(publicMatcher.isPublic("/payments/webhook/MOMO/extra")).toBe(false);
+    expect(publicMatcher.isPublic("/webhooks/stripe/extra")).toBe(false);
     expect(publicMatcher.isPublic("/payments/other/MOMO")).toBe(false);
   });
 

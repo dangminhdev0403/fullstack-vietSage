@@ -34,8 +34,24 @@ describe("Marketplace orders", () => {
   });
 
   afterEach(() => {
+    MarketplaceOrderService.setNotificationDispatcher({});
     jest.restoreAllMocks();
   });
+  it("consumes asynchronous notification failures", async () => {
+    const dispatch = jest.fn().mockRejectedValue(new Error("Telegram unavailable"));
+    MarketplaceOrderService.setNotificationDispatcher({ dispatchOrderNotification: dispatch });
+    const service = new MarketplaceOrderService({} as never, {} as never);
+
+    (
+      service as unknown as {
+        notifyOrderCreatedSafely(order: unknown): void;
+      }
+    ).notifyOrderCreatedSafely({ id: "order-notification-failure" });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    expect(dispatch).toHaveBeenCalledWith({ id: "order-notification-failure" });
+  });
+
   it("enforces 3-state order transitions", () => {
     expect(canTransitionMarketplaceOrder("PENDING", "ACKNOWLEDGED")).toBe(true);
     expect(canTransitionMarketplaceOrder("ACKNOWLEDGED", "COMPLETED")).toBe(true);

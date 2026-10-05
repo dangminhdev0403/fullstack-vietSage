@@ -39,6 +39,10 @@ function matchesPrefix(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
+function isPublicLocalMateRoute(pathname: string): boolean {
+  return pathname === "/localmate/payment-return";
+}
+
 function isForcedReauth(request: NextRequest): boolean {
   return request.nextUrl.searchParams.get("reauth") === "1";
 }

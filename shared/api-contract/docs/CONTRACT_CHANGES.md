@@ -9,6 +9,14 @@
 
 ## Unreleased
 
+- **LocalMate platform-fee Checkout (implementation in progress)**:
+  - `MarketplacePricingConfig.localMatePlatformFeeRate` defaults to `15.00`; it is independent from `deliveryServiceFeeRate` and is snapshotted per LocalMate order.
+  - LocalMate guest orders expose `payment` with string monetary fields: `status`, `currency`, `tourTotalAmount`, `platformFeeRateSnapshot`, `platformFeeAmount`, `guideRemainingAmount`, nullable `checkoutUrl`, and nullable `expiresAt`.
+  - `POST /guest/marketplace/orders/:orderId/payment-session` creates or returns the order's idempotent Stripe Checkout Session. Guest-session ownership is mandatory.
+  - `POST /webhooks/stripe` is JWT-public but requires a valid Stripe signature over the exact raw body. Browser redirects never mark payment paid.
+  - Telegram guide notification becomes eligible only after payment is `PAID` or `NOT_REQUIRED`; the guide collects the snapshotted remaining amount directly.
+  - LocalMate completion does not create a guide settlement, post the full tour amount to a hotel folio, or recognize the platform fee as hotel Marketplace revenue.
+
 - **Hotel room-type catalog (unreleased)**: Private `GET /hotels/{hotelId}/room-types`
   returns `{items:[{id,name,basePrice,readiness,roomCount}]}` including unresolved legacy names.
   `POST /hotels/{hotelId}/room-types` accepts `{name,basePrice}` (201 new, 200 existing,
