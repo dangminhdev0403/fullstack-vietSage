@@ -10,6 +10,7 @@ describe("LocalMateService - resolveBookingCandidate", () => {
     findGuideByCode: jest.Mock;
     findHotelLocation: jest.Mock;
     findActiveServiceForGuide: jest.Mock;
+    findActiveServiceForGuidePublic: jest.Mock;
     findTelegramBinding: jest.Mock;
   };
 
@@ -18,6 +19,7 @@ describe("LocalMateService - resolveBookingCandidate", () => {
       findGuideByCode: jest.fn(),
       findHotelLocation: jest.fn(),
       findActiveServiceForGuide: jest.fn(),
+      findActiveServiceForGuidePublic: jest.fn(),
       findTelegramBinding: jest.fn(),
     };
 
@@ -124,6 +126,36 @@ describe("LocalMateService - resolveBookingCandidate", () => {
     });
 
     expect(result.telegramReady).toBe(false);
+  });
+
+  it("resolves the same candidate contract from an explicit public location", async () => {
+    repository.findGuideByCode.mockResolvedValue(mockGuide);
+    repository.findActiveServiceForGuidePublic.mockResolvedValue(mockService);
+    repository.findTelegramBinding.mockResolvedValue({ id: "bind-1" });
+
+    const result = await service.resolveBookingCandidate({
+      candidateKey: "cand_LM-LC-001",
+      location: "Sa Pa, Lào Cai",
+    });
+
+    expect(repository.findHotelLocation).not.toHaveBeenCalled();
+    expect(repository.findActiveServiceForGuidePublic).toHaveBeenCalledWith(mockGuide.id);
+    expect(result.service.id).toBe(mockService.id);
+    expect("locationContext" in result ? result.locationContext : null).toEqual({
+      source: "PUBLIC",
+      label: "Sa Pa, Lào Cai",
+    });
+  });
+
+  it("rejects public locations outside the guide operating region", async () => {
+    repository.findGuideByCode.mockResolvedValue(mockGuide);
+
+    await expect(
+      service.resolveBookingCandidate({
+        candidateKey: "cand_LM-LC-001",
+        location: "Đà Nẵng",
+      }),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it("throws NotFoundException when guide does not exist or is not qualified", async () => {

@@ -52,6 +52,9 @@ export class TelegramMarketplaceBridgeService {
                     room: { select: { roomNumber: true } },
                   },
                 },
+                publicSession: {
+                  select: { guestDisplayName: true, location: true },
+                },
                 payment: true,
               },
             });
@@ -103,10 +106,13 @@ export class TelegramMarketplaceBridgeService {
         };
       }
 
-      const guestName = order.stay?.guestDisplayName ?? "Khách lưu trú";
-      const roomNumber = order.stay?.room?.roomNumber
-        ? ` (Phòng ${order.stay.room.roomNumber})`
-        : "";
+      const guestName =
+        order.publicSession?.guestDisplayName ?? order.stay?.guestDisplayName ?? "Khách lưu trú";
+      const roomNumber = order.publicSession?.location
+        ? ` (${order.publicSession.location})`
+        : order.stay?.room?.roomNumber
+          ? ` (Phòng ${order.stay.room.roomNumber})`
+          : "";
       const startTime = order.requestedStartAt
         ? new Date(order.requestedStartAt).toLocaleString("vi-VN", {
             timeZone: "Asia/Ho_Chi_Minh",
@@ -314,22 +320,24 @@ export class TelegramMarketplaceBridgeService {
 
       await this.findOrCreateConversation(order);
 
-      RequestRealtimeEmitter.emitExternalServiceOrderStatusChanged({
-        orderId: order.id,
-        orderNumber: order.orderNumber,
-        hotelId: order.hotelId,
-        stayId: order.stayId,
-        roomId: order.stay?.room?.id ?? undefined,
-        serviceTenantId: order.serviceTenantId,
-        serviceId: order.serviceId,
-        sessionId: order.stay?.guestSessions?.[0]?.id ?? undefined,
-        serviceName: order.serviceNameSnapshot,
-        fromStatus: MarketplaceOrderStatus.PENDING,
-        toStatus: MarketplaceOrderStatus.ACKNOWLEDGED,
-        version: updatedOrder.version,
-        actorType: MarketplaceOrderActorType.SERVICE_STAFF,
-        note: "LocalMate đã nhận đơn qua Telegram",
-      });
+      if (order.hotelId && order.stayId) {
+        RequestRealtimeEmitter.emitExternalServiceOrderStatusChanged({
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          hotelId: order.hotelId,
+          stayId: order.stayId,
+          roomId: order.stay?.room?.id ?? undefined,
+          serviceTenantId: order.serviceTenantId,
+          serviceId: order.serviceId,
+          sessionId: order.stay?.guestSessions?.[0]?.id ?? undefined,
+          serviceName: order.serviceNameSnapshot,
+          fromStatus: MarketplaceOrderStatus.PENDING,
+          toStatus: MarketplaceOrderStatus.ACKNOWLEDGED,
+          version: updatedOrder.version,
+          actorType: MarketplaceOrderActorType.SERVICE_STAFF,
+          note: "LocalMate đã nhận đơn qua Telegram",
+        });
+      }
 
       await this.telegramNotificationService.callTelegram("answerCallbackQuery", {
         callback_query_id: callbackQuery.id,
@@ -411,22 +419,24 @@ export class TelegramMarketplaceBridgeService {
           });
       }
 
-      RequestRealtimeEmitter.emitExternalServiceOrderStatusChanged({
-        orderId: order.id,
-        orderNumber: order.orderNumber,
-        hotelId: order.hotelId,
-        stayId: order.stayId,
-        roomId: order.stay?.room?.id ?? undefined,
-        serviceTenantId: order.serviceTenantId,
-        serviceId: order.serviceId,
-        sessionId: order.stay?.guestSessions?.[0]?.id ?? undefined,
-        serviceName: order.serviceNameSnapshot,
-        fromStatus: MarketplaceOrderStatus.PENDING,
-        toStatus: MarketplaceOrderStatus.REJECTED,
-        version: updatedOrder.version,
-        actorType: MarketplaceOrderActorType.SERVICE_STAFF,
-        note: "LocalMate từ chối đơn qua Telegram",
-      });
+      if (order.hotelId && order.stayId) {
+        RequestRealtimeEmitter.emitExternalServiceOrderStatusChanged({
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          hotelId: order.hotelId,
+          stayId: order.stayId,
+          roomId: order.stay?.room?.id ?? undefined,
+          serviceTenantId: order.serviceTenantId,
+          serviceId: order.serviceId,
+          sessionId: order.stay?.guestSessions?.[0]?.id ?? undefined,
+          serviceName: order.serviceNameSnapshot,
+          fromStatus: MarketplaceOrderStatus.PENDING,
+          toStatus: MarketplaceOrderStatus.REJECTED,
+          version: updatedOrder.version,
+          actorType: MarketplaceOrderActorType.SERVICE_STAFF,
+          note: "LocalMate từ chối đơn qua Telegram",
+        });
+      }
 
       await this.telegramNotificationService.callTelegram("answerCallbackQuery", {
         callback_query_id: callbackQuery.id,
@@ -676,20 +686,22 @@ export class TelegramMarketplaceBridgeService {
         return msg;
       });
 
-      RequestRealtimeEmitter.emitMarketplaceConversationMessageCreated({
-        hotelId: order.hotelId,
-        stayId: order.stayId,
-        sessionId: order.stay?.guestSessions?.[0]?.id,
-        orderId: order.id,
-        message: {
-          id: savedMessage.id,
-          orderId: savedMessage.orderId,
-          senderType: savedMessage.senderType,
-          body: savedMessage.body,
-          deliveryStatus: savedMessage.deliveryStatus,
-          createdAt: savedMessage.createdAt.toISOString(),
-        },
-      });
+      if (order.hotelId && order.stayId) {
+        RequestRealtimeEmitter.emitMarketplaceConversationMessageCreated({
+          hotelId: order.hotelId,
+          stayId: order.stayId,
+          sessionId: order.stay?.guestSessions?.[0]?.id,
+          orderId: order.id,
+          message: {
+            id: savedMessage.id,
+            orderId: savedMessage.orderId,
+            senderType: savedMessage.senderType,
+            body: savedMessage.body,
+            deliveryStatus: savedMessage.deliveryStatus,
+            createdAt: savedMessage.createdAt.toISOString(),
+          },
+        });
+      }
 
       // Strict rule: NEVER echo inbound message back to Telegram
     } catch (err) {
@@ -702,8 +714,9 @@ export class TelegramMarketplaceBridgeService {
 
   private async findOrCreateConversation(order: {
     id: string;
-    hotelId: string;
-    stayId: string;
+    hotelId: string | null;
+    stayId: string | null;
+    publicSessionId: string | null;
     serviceTenantId: string;
     assignedLocalMateProfileId?: string | null;
   }) {
@@ -717,6 +730,7 @@ export class TelegramMarketplaceBridgeService {
         orderId: order.id,
         hotelId: order.hotelId,
         stayId: order.stayId,
+        publicSessionId: order.publicSessionId,
         serviceTenantId: order.serviceTenantId,
         assignedLocalMateProfileId: order.assignedLocalMateProfileId ?? null,
         status: "ACTIVE",

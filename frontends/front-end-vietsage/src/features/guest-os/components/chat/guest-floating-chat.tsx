@@ -9,10 +9,6 @@ import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
 import type { GuestLocale } from "@/features/guest-os/i18n/config";
 import { GUEST_AI_FLOATING_CHAT, hasHotelFeature } from "@/features/hotel-features/hotel-features";
 import type { GuestChatAction } from "@/features/marketplace/types/marketplace-contract";
-import {
-  clearPublicBookingHandoff,
-  readPublicBookingHandoff,
-} from "@/features/localmate-public/public-booking-handoff";
 import { LocalMateBookingCard } from "./localmate-booking-card";
 import { LocalMateOrderRequestDialog } from "@/features/marketplace/components/localmate-order-request-dialog";
 import { LocalMateOrderChat } from "@/features/marketplace/components/localmate-order-chat";
@@ -509,48 +505,6 @@ export function GuestFloatingChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const messageIdRef = useRef(100);
-  const processedPublicHandoffRef = useRef(false);
-
-  useEffect(() => {
-    if (!hydrated || !sessionToken || processedPublicHandoffRef.current) return;
-    const handoff = readPublicBookingHandoff(window.localStorage);
-    if (!handoff) return;
-
-    processedPublicHandoffRef.current = true;
-    void fetch(
-      `/api/guest/localmate/booking-candidate?candidateKey=${encodeURIComponent(handoff.candidateKey)}`,
-      { headers: { Authorization: `Bearer ${sessionToken}`, "Accept-Language": locale } },
-    )
-      .then(async (response) => {
-        if (!response.ok) {
-          if (response.status === 400 || response.status === 404) {
-            clearPublicBookingHandoff(window.localStorage);
-          }
-          return null;
-        }
-        const payload = (await response.json()) as { action?: GuestChatAction };
-        return payload.action?.type === "LOCALMATE_BOOKING" ? payload.action : null;
-      })
-      .then((action) => {
-        if (!action) return;
-        clearPublicBookingHandoff(window.localStorage);
-        setChatHistory((current) => [
-          ...current,
-          {
-            id: `handoff-${messageIdRef.current++}`,
-            sender: "concierge",
-            text: "Em đã xác thực hướng dẫn viên và dịch vụ theo khách sạn của Quý khách. Quý khách kiểm tra thông tin rồi tạo đơn để xem phí trước khi tạo QR Stripe ạ.",
-            time: getCurrentTimeString(),
-            action,
-          },
-        ]);
-        setIsOpen(true);
-        setHasUnread(false);
-      })
-      .catch(() => {
-        processedPublicHandoffRef.current = false;
-      });
-  }, [hydrated, locale, sessionToken]);
 
   // Auto-scroll to bottom when messages update or typing state changes
   useEffect(() => {

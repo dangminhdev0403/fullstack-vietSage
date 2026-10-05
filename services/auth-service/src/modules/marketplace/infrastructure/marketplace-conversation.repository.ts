@@ -13,8 +13,9 @@ export class MarketplaceConversationRepository {
   async findOrCreateConversation(
     orderId: string,
     details: {
-      hotelId: string;
-      stayId: string;
+      hotelId?: string | null;
+      stayId?: string | null;
+      publicSessionId?: string | null;
       serviceTenantId: string;
       assignedLocalMateProfileId?: string | null;
     },
@@ -42,6 +43,7 @@ export class MarketplaceConversationRepository {
         orderId,
         hotelId: details.hotelId,
         stayId: details.stayId,
+        publicSessionId: details.publicSessionId,
         serviceTenantId: details.serviceTenantId,
         assignedLocalMateProfileId: details.assignedLocalMateProfileId ?? null,
         status: "ACTIVE",

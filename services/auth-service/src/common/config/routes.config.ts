@@ -11,6 +11,7 @@ export const PUBLIC_PATTERNS = [
   // Bypass global JWT because they are protected by LocalmateKnowledgeKeyGuard
   "/localmate/knowledge",
   "/localmate/tours",
+  "/public/localmate/sessions",
   "/api/v1/channel-manager/channex/webhook",
   // Public transport only; StripeWebhookController still requires a valid provider signature.
   "/webhooks/stripe",
@@ -22,6 +23,7 @@ export const PUBLIC_REGEX: RegExp[] = [
   /^\/emergency\/guest\/calls$/,
   /^\/payments\/webhook\/[^/]+$/,
   /^\/localmate\/(?:ai\/match|guides\/[^/]+)$/,
+  /^\/public\/localmate\/(?:candidates\/[^/]+|orders(?:\/[^/]+(?:\/payment-session|\/conversation(?:\/messages)?)?)?)$/,
   /^\/api\/v1\/channel-manager\/ical\/[^/]+(?:\.ics)?$/,
 ];
 

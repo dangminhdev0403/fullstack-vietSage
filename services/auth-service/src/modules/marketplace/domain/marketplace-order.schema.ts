@@ -21,7 +21,20 @@ export const createLocalMateOrderSchema = z.object({
   idempotencyKey: z.string().trim().min(8).max(120),
 });
 
+export const createPublicLocalMateOrderSchema = z.object({
+  candidateKey: z
+    .string()
+    .trim()
+    .regex(/^cand_[A-Za-z0-9][A-Za-z0-9_-]{0,74}$/),
+  quantity: z.number().int().min(1).max(100).default(1),
+  requestedStartAt: z.string().trim().datetime().nullish(),
+  partySize: z.number().int().min(1).max(100).nullish(),
+  guestNote: z.string().trim().max(500).nullish(),
+  idempotencyKey: z.string().trim().min(8).max(120),
+});
+
 export type LocalMateOrderRequest = z.infer<typeof createLocalMateOrderSchema>;
+export type PublicLocalMateOrderRequest = z.infer<typeof createPublicLocalMateOrderSchema>;
 
 export const checkoutCartSchema = z.object({
   idempotencyKey: z.string().trim().min(8).max(120),

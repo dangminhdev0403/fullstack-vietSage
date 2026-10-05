@@ -280,5 +280,103 @@ describe("T3 - Marketplace Conversation Service", () => {
         RequestRealtimeEmitter.emitMarketplaceConversationMessageCreated,
       ).not.toHaveBeenCalled();
     });
+
+    it("allows public session to send message when payment is PAID even if order is PENDING, without hotel realtime", async () => {
+      const mockOrder = {
+        id: "order-pub-1",
+        hotelId: null,
+        stayId: null,
+        publicSessionId: "pub-session-1",
+        serviceTenantId: "tenant-1",
+        assignedLocalMateProfileId: "guide-1",
+        status: MarketplaceOrderStatus.PENDING,
+        payment: { status: "PAID" },
+        stay: null,
+      };
+
+      const createdMessage = {
+        id: "msg-pub-1",
+        orderId: "order-pub-1",
+        senderType: "GUEST",
+        body: "Chào bạn guide!",
+        clientMessageId: "pub-cid-1",
+        deliveryStatus: "PENDING",
+        createdAt: new Date(),
+      };
+
+      const prisma = {
+        marketplaceOrder: { findUnique: jest.fn().mockResolvedValue(mockOrder) },
+      };
+      const repo = {
+        findOrCreateConversation: jest.fn().mockResolvedValue({ id: "conv-pub-1" }),
+        appendGuestMessage: jest.fn().mockResolvedValue({
+          isDuplicate: false,
+          message: createdMessage,
+        }),
+      };
+
+      const dispatchSpy = jest.fn();
+      const service = new MarketplaceConversationService(prisma as never, repo as never);
+      service.setBridgeDispatcher({ dispatchGuestMessage: dispatchSpy });
+
+      const result = await service.sendGuestMessage(
+        { publicSessionId: "pub-session-1" },
+        "order-pub-1",
+        { body: "Chào bạn guide!", clientMessageId: "pub-cid-1" },
+      );
+
+      expect(result.id).toBe("msg-pub-1");
+      expect(
+        RequestRealtimeEmitter.emitMarketplaceConversationMessageCreated,
+      ).not.toHaveBeenCalled();
+      expect(dispatchSpy).toHaveBeenCalled();
+    });
+
+    it("rejects public session message if payment is not yet completed (CREATING)", async () => {
+      const mockOrder = {
+        id: "order-pub-2",
+        hotelId: null,
+        stayId: null,
+        publicSessionId: "pub-session-1",
+        serviceTenantId: "tenant-1",
+        assignedLocalMateProfileId: "guide-1",
+        status: MarketplaceOrderStatus.PENDING,
+        payment: { status: "CREATING" },
+        stay: null,
+      };
+
+      const prisma = {
+        marketplaceOrder: { findUnique: jest.fn().mockResolvedValue(mockOrder) },
+      };
+
+      const service = new MarketplaceConversationService(prisma as never, {} as never);
+      await expect(
+        service.sendGuestMessage({ publicSessionId: "pub-session-1" }, "order-pub-2", {
+          body: "Hello",
+          clientMessageId: "pub-cid-2",
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it("throws NotFoundException if publicSessionId does not match order", async () => {
+      const mockOrder = {
+        id: "order-pub-1",
+        hotelId: null,
+        stayId: null,
+        publicSessionId: "other-session",
+      };
+
+      const prisma = {
+        marketplaceOrder: { findUnique: jest.fn().mockResolvedValue(mockOrder) },
+      };
+
+      const service = new MarketplaceConversationService(prisma as never, {} as never);
+      await expect(
+        service.sendGuestMessage({ publicSessionId: "pub-session-1" }, "order-pub-1", {
+          body: "Hello",
+          clientMessageId: "pub-cid-3",
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
   });
 });

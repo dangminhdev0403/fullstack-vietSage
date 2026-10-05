@@ -34,6 +34,13 @@ export function toApiErrorMessage(payload: unknown): string {
     return "Request failed";
   }
 
+  if (isRecord(payload.data)) {
+    const detail = payload.data.detail;
+    if (typeof detail === "string" && detail.trim().length > 0) {
+      return detail;
+    }
+  }
+
   const message = payload.message;
   if (typeof message === "string" && message.trim().length > 0) {
     return message;

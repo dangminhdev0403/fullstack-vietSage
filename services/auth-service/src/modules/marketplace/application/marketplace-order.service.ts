@@ -25,6 +25,45 @@ import { ServicePortalService } from "./service-portal.service";
 import type { SupportedLocale } from "../../../common/i18n/i18n.types";
 import { calculateFeePercentage, calculateOnSiteServiceFee } from "../domain/marketplace-pricing";
 import { LocalMatePaymentsService } from "../../localmate-payments/application/localmate-payments.service";
+import {
+  isLocationInProvince,
+  resolveProvinceFromText,
+} from "../../localmate/domain/constants/geography.constant";
+
+export type MarketplaceCustomerScope =
+  | { hotelId: string; stayId: string; sessionId?: string }
+  | {
+      publicSessionId: string;
+      location: string;
+      guestDisplayName: string;
+      guestPhone: string;
+    };
+
+function isPublicScope(
+  scope: MarketplaceCustomerScope,
+): scope is Extract<MarketplaceCustomerScope, { publicSessionId: string }> {
+  return "publicSessionId" in scope;
+}
+
+function customerOwnershipWhere(scope: MarketplaceCustomerScope) {
+  return isPublicScope(scope)
+    ? { publicSessionId: scope.publicSessionId }
+    : { hotelId: scope.hotelId, stayId: scope.stayId };
+}
+
+function scopeHasStay(
+  scope: { stayId: string } | { publicSessionId: string },
+): scope is { stayId: string } {
+  return "stayId" in scope;
+}
+
+function requireHotelOrderScope<T extends { hotelId: string | null; stayId: string | null }>(
+  order: T,
+): asserts order is T & { hotelId: string; stayId: string } {
+  if (!order.hotelId || !order.stayId) {
+    throw new ConflictException("Nghiệp vụ này chỉ áp dụng cho đơn từ khách sạn");
+  }
+}
 
 @Injectable()
 export class MarketplaceOrderService {
@@ -53,13 +92,11 @@ export class MarketplaceOrderService {
     MarketplaceOrderService.notificationDispatcher = dispatcher;
   }
 
-  async createGuestOrder(
-    scope: { hotelId: string; stayId: string; sessionId?: string },
-    body: CreateMarketplaceOrder,
-  ) {
-    const existing = await this.prisma.marketplaceOrder.findUnique({
+  async createGuestOrder(scope: MarketplaceCustomerScope, body: CreateMarketplaceOrder) {
+    const existing = await this.prisma.marketplaceOrder.findFirst({
       where: {
-        stayId_idempotencyKey: { stayId: scope.stayId, idempotencyKey: body.idempotencyKey },
+        ...customerOwnershipWhere(scope),
+        idempotencyKey: body.idempotencyKey,
       },
       include: {
         items: true,
@@ -87,7 +124,9 @@ export class MarketplaceOrderService {
                 categoryId: { not: null },
                 category: { isActive: true },
               },
-              hotelServiceLinks: { some: { hotelId: scope.hotelId, status: "ACTIVE" } },
+              ...(!isPublicScope(scope)
+                ? { hotelServiceLinks: { some: { hotelId: scope.hotelId, status: "ACTIVE" } } }
+                : {}),
             },
           },
           include: { serviceTenant: { include: { serviceProfile: true } } },
@@ -102,29 +141,44 @@ export class MarketplaceOrderService {
           if (!profile || profile.status !== "QUALIFIED") {
             throw new ConflictException("Hướng dẫn viên chưa đủ điều kiện nhận yêu cầu");
           }
-          const hotel = await tx.hotel.findUnique({
-            where: { id: scope.hotelId },
-            select: { province: true, provinceCode: true },
-          });
-          const rawProvinces = [hotel?.province, hotel?.provinceCode].filter(Boolean) as string[];
+          const hotel = !isPublicScope(scope)
+            ? await tx.hotel.findUnique({
+                where: { id: scope.hotelId },
+                select: { province: true, provinceCode: true },
+              })
+            : null;
+          const publicProvince = isPublicScope(scope)
+            ? resolveProvinceFromText(scope.location)
+            : null;
           const normalize = (s: string) =>
             s
               .toLowerCase()
               .normalize("NFD")
               .replace(/[\u0300-\u036f]/g, "")
-              .replace(/_/g, " ")
+              .replace(/đ/g, "d")
+              .replace(/[_-]+/g, " ")
+              .replace(/\s+/g, " ")
               .trim();
-          const normalizedHotelProvinces = rawProvinces.map(normalize);
+          const locationLabels = isPublicScope(scope)
+            ? [scope.location]
+            : ([hotel?.province, hotel?.provinceCode].filter(Boolean) as string[]);
+          const normalizedLocations = locationLabels.map(normalize);
           const matchesProvince =
-            normalizedHotelProvinces.length === 0 ||
-            profile.operatingRegions.some((r) => {
-              const normR = normalize(r);
-              return normalizedHotelProvinces.some(
-                (hp) => normR.includes(hp) || hp.includes(normR),
+            (!isPublicScope(scope) && normalizedLocations.length === 0) ||
+            profile.operatingRegions.some((region) => {
+              if (publicProvince && isLocationInProvince(region, publicProvince.code)) return true;
+              const normalizedRegion = normalize(region);
+              return normalizedLocations.some(
+                (location) =>
+                  normalizedRegion.includes(location) || location.includes(normalizedRegion),
               );
             });
           if (!matchesProvince) {
-            throw new ConflictException("Hướng dẫn viên không hoạt động tại khu vực của khách sạn");
+            throw new ConflictException(
+              isPublicScope(scope)
+                ? "Hướng dẫn viên không hoạt động tại vị trí đã chọn"
+                : "Hướng dẫn viên không hoạt động tại khu vực của khách sạn",
+            );
           }
         }
 
@@ -171,8 +225,9 @@ export class MarketplaceOrderService {
           data: {
             orderNumber: `MP${randomUUID().replaceAll("-", "").slice(0, 20).toUpperCase()}`,
             idempotencyKey: body.idempotencyKey,
-            hotelId: scope.hotelId,
-            stayId: scope.stayId,
+            hotelId: isPublicScope(scope) ? null : scope.hotelId,
+            stayId: isPublicScope(scope) ? null : scope.stayId,
+            publicSessionId: isPublicScope(scope) ? scope.publicSessionId : null,
             serviceTenantId: service.serviceTenantId,
             serviceId: service.id,
             assignedLocalMateProfileId: service.localMateProfileId ?? null,
@@ -237,8 +292,8 @@ export class MarketplaceOrderService {
           include: { items: true, events: true, payment: true },
         });
 
-        // Clear cart items for this service if a cart exists for this session
-        if (scope.sessionId) {
+        // Clear GuestOS cart items only when the shared flow was entered from a hotel session.
+        if (!isPublicScope(scope) && scope.sessionId) {
           const cart = await tx.guestCart.findUnique({
             where: { sessionId: scope.sessionId },
           });
@@ -263,17 +318,18 @@ export class MarketplaceOrderService {
               guestSessions: { select: { id: true }, take: 1, orderBy: { createdAt: "desc" } },
             },
           },
+          publicSession: { select: { guestDisplayName: true, guestPhone: true, location: true } },
           serviceTenant: { select: { serviceProfile: { select: { displayName: true } } } },
           payment: true,
         },
       });
 
-      if (orderWithDetails) {
+      if (orderWithDetails && !isPublicScope(scope)) {
         RequestRealtimeEmitter.emitExternalServiceOrderCreated({
           orderId: orderWithDetails.id,
           orderNumber: orderWithDetails.orderNumber,
-          hotelId: orderWithDetails.hotelId,
-          stayId: orderWithDetails.stayId,
+          hotelId: scope.hotelId,
+          stayId: scope.stayId,
           sessionId: scope.sessionId ?? orderWithDetails.stay?.guestSessions?.[0]?.id,
           roomId: orderWithDetails.stay?.room?.id,
           roomNumber: orderWithDetails.stay?.room?.roomNumber,
@@ -320,9 +376,10 @@ export class MarketplaceOrderService {
       return created;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        const duplicate = await this.prisma.marketplaceOrder.findUnique({
+        const duplicate = await this.prisma.marketplaceOrder.findFirst({
           where: {
-            stayId_idempotencyKey: { stayId: scope.stayId, idempotencyKey: body.idempotencyKey },
+            ...customerOwnershipWhere(scope),
+            idempotencyKey: body.idempotencyKey,
           },
           include: { items: true, events: true },
         });
@@ -440,8 +497,8 @@ export class MarketplaceOrderService {
       RequestRealtimeEmitter.emitExternalServiceOrderStatusChanged({
         orderId: cancelledOrder.id,
         orderNumber: cancelledOrder.orderNumber,
-        hotelId: cancelledOrder.hotelId,
-        stayId: cancelledOrder.stayId,
+        hotelId: scope.hotelId,
+        stayId: scope.stayId,
         roomId: order.stay?.room?.id ?? undefined,
         serviceTenantId: cancelledOrder.serviceTenantId,
         serviceId: cancelledOrder.serviceId,
@@ -722,8 +779,8 @@ export class MarketplaceOrderService {
           RequestRealtimeEmitter.emitExternalServiceOrderCreated({
             orderId: orderWithDetails.id,
             orderNumber: orderWithDetails.orderNumber,
-            hotelId: orderWithDetails.hotelId,
-            stayId: orderWithDetails.stayId,
+            hotelId: scope.hotelId,
+            stayId: scope.stayId,
             sessionId: scope.sessionId,
             roomId: orderWithDetails.stay?.room?.id,
             roomNumber: orderWithDetails.stay?.room?.roomNumber,
@@ -810,8 +867,19 @@ export class MarketplaceOrderService {
   }
 
   async guestOrder(stayId: string, orderId: string) {
+    return this.customerOrder({ stayId }, orderId);
+  }
+
+  async publicOrder(publicSessionId: string, orderId: string) {
+    return this.customerOrder({ publicSessionId }, orderId);
+  }
+
+  private async customerOrder(
+    scope: { stayId: string } | { publicSessionId: string },
+    orderId: string,
+  ) {
     const order = await this.prisma.marketplaceOrder.findFirst({
-      where: { id: orderId, stayId },
+      where: { id: orderId, ...scope },
       include: {
         items: true,
         voucher: true,
@@ -835,8 +903,19 @@ export class MarketplaceOrderService {
   }
 
   async createGuestPaymentSession(stayId: string, orderId: string) {
+    return this.createCustomerPaymentSession({ stayId }, orderId);
+  }
+
+  async createPublicPaymentSession(publicSessionId: string, orderId: string) {
+    return this.createCustomerPaymentSession({ publicSessionId }, orderId);
+  }
+
+  private async createCustomerPaymentSession(
+    scope: { stayId: string } | { publicSessionId: string },
+    orderId: string,
+  ) {
     const order = await this.prisma.marketplaceOrder.findFirst({
-      where: { id: orderId, stayId },
+      where: { id: orderId, ...scope },
       select: { id: true, assignedLocalMateProfileId: true },
     });
     if (!order || !order.assignedLocalMateProfileId) {
@@ -852,7 +931,10 @@ export class MarketplaceOrderService {
       throw new ConflictException("Hướng dẫn viên chưa kết nối Telegram");
     }
 
-    await this.payments.createOrGetCheckoutSession({ orderId, stayId });
+    await this.payments.createOrGetCheckoutSession({
+      orderId,
+      ...(scopeHasStay(scope) ? { stayId: scope.stayId } : {}),
+    });
     return { payment: await this.payments.getPaymentSummary(orderId) };
   }
 
@@ -1001,6 +1083,7 @@ export class MarketplaceOrderService {
       });
     });
 
+    requireHotelOrderScope(result);
     RequestRealtimeEmitter.emitExternalServiceOrderStatusChanged({
       orderId: result.id,
       orderNumber: result.orderNumber,
@@ -1064,6 +1147,7 @@ export class MarketplaceOrderService {
       },
     });
     if (!order) throw new NotFoundException("Không tìm thấy đơn Marketplace");
+    requireHotelOrderScope(order);
 
     if (order.status === "COMPLETED") {
       throw new ConflictException("Đơn hàng đã hoàn thành, không thể thực hiện tiếp nhận");
@@ -1116,6 +1200,7 @@ export class MarketplaceOrderService {
       },
     });
 
+    requireHotelOrderScope(updated);
     const partnerSubtotal = updated.partnerSubtotal
       ? updated.partnerSubtotal.toString()
       : updated.totalAmount.toString();
@@ -1213,6 +1298,7 @@ export class MarketplaceOrderService {
       include: { settlement: true, items: true },
     });
     if (!existingOrder) throw new NotFoundException("Không tìm thấy đơn Marketplace");
+    requireHotelOrderScope(existingOrder);
 
     if (existingOrder.status === "CANCELLED") {
       throw new ConflictException("Đơn hàng đã bị hủy, không thể thực hiện hoàn thành");
@@ -1237,6 +1323,7 @@ export class MarketplaceOrderService {
       const order = await tx.marketplaceOrder.findUniqueOrThrow({
         where: { id: existingOrder.id },
       });
+      requireHotelOrderScope(order);
 
       if (order.status === "COMPLETED") {
         return { order };
@@ -1356,7 +1443,7 @@ export class MarketplaceOrderService {
       },
     });
 
-    if (orderWithDetails) {
+    if (orderWithDetails?.hotelId && orderWithDetails.stayId) {
       RequestRealtimeEmitter.emitExternalServiceOrderStatusChanged({
         orderId: orderWithDetails.id,
         orderNumber: orderWithDetails.orderNumber,
@@ -1506,6 +1593,7 @@ export class MarketplaceOrderService {
       const order = await tx.marketplaceOrder.findUniqueOrThrow({
         where: { id: verification.order.id },
       });
+      requireHotelOrderScope(order);
 
       let settlementResult: any = null;
 
@@ -1596,6 +1684,7 @@ export class MarketplaceOrderService {
     });
 
     if (result.settlement) {
+      requireHotelOrderScope(result.order);
       RequestRealtimeEmitter.emitPartnerSettlementCreated({
         settlement: result.settlement,
         hotelId: result.order.hotelId,
@@ -1617,7 +1706,7 @@ export class MarketplaceOrderService {
         },
       });
 
-      if (orderWithDetails) {
+      if (orderWithDetails?.hotelId && orderWithDetails.stayId) {
         RequestRealtimeEmitter.emitExternalServiceOrderStatusChanged({
           orderId: orderWithDetails.id,
           orderNumber: orderWithDetails.orderNumber,
@@ -1756,6 +1845,7 @@ export class MarketplaceOrderService {
         }
       }
       if (body.toStatus === "COMPLETED" && !order.assignedLocalMateProfileId) {
+        requireHotelOrderScope(order);
         const partnerSubtotal =
           order.partnerSubtotal && !order.partnerSubtotal.isZero()
             ? order.partnerSubtotal
@@ -1840,7 +1930,7 @@ export class MarketplaceOrderService {
       },
     });
 
-    if (orderWithDetails) {
+    if (orderWithDetails?.hotelId && orderWithDetails.stayId) {
       RequestRealtimeEmitter.emitExternalServiceOrderStatusChanged({
         orderId: orderWithDetails.id,
         orderNumber: orderWithDetails.orderNumber,

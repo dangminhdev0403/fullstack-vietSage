@@ -723,52 +723,53 @@ export class LocalMateService {
       );
     }
 
-    const hotel = await this.repository.findHotelLocation(dto.hotelId);
-    if (!hotel) {
-      throw new NotFoundException(`Không tìm thấy khách sạn với ID '${dto.hotelId}'`);
-    }
-
     const normalize = (val: string | null | undefined) =>
       (val || "")
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
         .toLowerCase()
         .replace(/[_-]+/g, " ")
         .replace(/\s+/g, " ")
         .trim();
 
-    const hotelProvinceNorm = normalize(hotel.province);
-    const hotelAreaNorm = normalize(hotel.area);
+    const hotel = dto.hotelId ? await this.repository.findHotelLocation(dto.hotelId) : null;
+    if (dto.hotelId && !hotel) {
+      throw new NotFoundException(`Không tìm thấy khách sạn với ID '${dto.hotelId}'`);
+    }
 
+    const location = dto.location?.trim();
+    const locationProvince = resolveProvinceFromText(location);
+    const locationNorm = normalize(location);
+    const provinceNorm = normalize(hotel?.province);
+    const areaNorm = normalize(hotel?.area);
     const regionMatches =
-      (!hotel.provinceCode && !hotel.province && !hotel.area) ||
+      (Boolean(hotel) && !hotel?.provinceCode && !hotel?.province && !hotel?.area) ||
       guide.operatingRegions.some((region) => {
-        if (hotel.provinceCode && isLocationInProvince(region, hotel.provinceCode)) {
-          return true;
-        }
-        const regNorm = normalize(region);
-        if (
-          hotelProvinceNorm &&
-          (hotelProvinceNorm.includes(regNorm) || regNorm.includes(hotelProvinceNorm))
-        ) {
-          return true;
-        }
-        if (hotelAreaNorm && (hotelAreaNorm.includes(regNorm) || regNorm.includes(hotelAreaNorm))) {
-          return true;
-        }
-        return false;
+        if (hotel?.provinceCode && isLocationInProvince(region, hotel.provinceCode)) return true;
+        if (locationProvince && isLocationInProvince(region, locationProvince.code)) return true;
+        const regionNorm = normalize(region);
+        return [provinceNorm, areaNorm, locationNorm].some(
+          (target) => target && (target.includes(regionNorm) || regionNorm.includes(target)),
+        );
       });
 
     if (!regionMatches) {
       throw new BadRequestException(
-        `LocalMate ${guide.fullName} không phục vụ tại khu vực của khách sạn ${hotel.name}`,
+        hotel
+          ? `LocalMate ${guide.fullName} không phục vụ tại khu vực của khách sạn ${hotel.name}`
+          : `LocalMate ${guide.fullName} không phục vụ tại khu vực ${location}`,
       );
     }
 
-    const service = await this.repository.findActiveServiceForGuide(guide.id, hotel.id);
+    const service = hotel
+      ? await this.repository.findActiveServiceForGuide(guide.id, hotel.id)
+      : await this.repository.findActiveServiceForGuidePublic(guide.id);
     if (!service) {
       throw new NotFoundException(
-        `LocalMate ${guide.fullName} hiện chưa có gói dịch vụ hợp lệ tại khách sạn này`,
+        hotel
+          ? `LocalMate ${guide.fullName} hiện chưa có gói dịch vụ hợp lệ tại khách sạn này`
+          : `LocalMate ${guide.fullName} hiện chưa có gói dịch vụ công khai hợp lệ`,
       );
     }
 
@@ -799,11 +800,15 @@ export class LocalMateService {
         minDurationHours: 4,
         maxPartySize: service.capacityAvailable ?? 6,
       },
-      hotel: {
-        id: hotel.id,
-        name: hotel.name,
-        province: hotel.province ?? hotel.area ?? "Vietnam",
-      },
+      ...(hotel
+        ? {
+            hotel: {
+              id: hotel.id,
+              name: hotel.name,
+              province: hotel.province ?? hotel.area ?? "Vietnam",
+            },
+          }
+        : { locationContext: { source: "PUBLIC" as const, label: location! } }),
       telegramReady,
       action: "LOCALMATE_BOOKING" as const,
     };

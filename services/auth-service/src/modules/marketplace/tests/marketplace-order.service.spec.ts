@@ -199,7 +199,7 @@ describe("Marketplace orders", () => {
       },
     };
     const prisma = {
-      marketplaceOrder: { findUnique: jest.fn().mockResolvedValue(null) },
+      marketplaceOrder: { findFirst: jest.fn().mockResolvedValue(null) },
       $transaction: (fn: any) => fn(tx),
     };
     const service = new MarketplaceOrderService(prisma as never, {} as never);
@@ -236,9 +236,9 @@ describe("Marketplace orders", () => {
       { createOrGetCheckoutSession } as never,
     );
 
-    await expect(
-      service.createGuestPaymentSession("stay-1", "order-localmate"),
-    ).rejects.toThrow("Hướng dẫn viên chưa kết nối Telegram");
+    await expect(service.createGuestPaymentSession("stay-1", "order-localmate")).rejects.toThrow(
+      "Hướng dẫn viên chưa kết nối Telegram",
+    );
     expect(createOrGetCheckoutSession).not.toHaveBeenCalled();
   });
 
@@ -263,9 +263,9 @@ describe("Marketplace orders", () => {
       { createOrGetCheckoutSession, getPaymentSummary } as never,
     );
 
-    await expect(
-      service.createGuestPaymentSession("stay-1", "order-localmate"),
-    ).resolves.toEqual({ payment });
+    await expect(service.createGuestPaymentSession("stay-1", "order-localmate")).resolves.toEqual({
+      payment,
+    });
     expect(createOrGetCheckoutSession).toHaveBeenCalledWith({
       orderId: "order-localmate",
       stayId: "stay-1",
@@ -286,6 +286,7 @@ describe("Marketplace orders", () => {
         findFirst: jest.fn().mockResolvedValue({
           id: "order-1",
           hotelId: "hotel-1",
+          stayId: "stay-1",
           serviceTenantId: "tenant-1",
           orderNumber: "MSO-001",
           hotelCoordinationStatus: "RECEIVED",
@@ -294,6 +295,7 @@ describe("Marketplace orders", () => {
         update: jest.fn().mockResolvedValue({
           id: "order-1",
           hotelId: "hotel-1",
+          stayId: "stay-1",
           serviceTenantId: "tenant-1",
           orderNumber: "MSO-001",
           unitPriceSnapshot: new Prisma.Decimal(100),
@@ -321,6 +323,7 @@ describe("Marketplace orders", () => {
         findFirst: jest.fn().mockResolvedValue({
           id: "order-1",
           hotelId: "hotel-1",
+          stayId: "stay-1",
           serviceTenantId: "tenant-1",
           serviceId: "service-1",
           orderNumber: "MSO-001",
@@ -334,6 +337,8 @@ describe("Marketplace orders", () => {
         }),
         update: jest.fn().mockResolvedValue({
           id: "order-1",
+          hotelId: "hotel-1",
+          stayId: "stay-1",
           hotelCoordinationStatus: "VOUCHER_ISSUED",
           unitPriceSnapshot: new Prisma.Decimal(100),
           totalAmount: new Prisma.Decimal(100),

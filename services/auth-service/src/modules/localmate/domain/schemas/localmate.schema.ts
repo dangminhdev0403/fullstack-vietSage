@@ -241,8 +241,13 @@ export const listLocalMateToursQuerySchema = z.object({
 });
 export type ListLocalMateToursQueryDto = z.infer<typeof listLocalMateToursQuerySchema>;
 
-export const resolveBookingCandidateSchema = z.object({
-  candidateKey: z.string().trim().min(1).max(80),
-  hotelId: z.string().trim().min(1).max(80),
-});
+export const resolveBookingCandidateSchema = z
+  .object({
+    candidateKey: z.string().trim().min(1).max(80),
+    hotelId: z.string().trim().min(1).max(80).optional(),
+    location: z.string().trim().min(2).max(120).optional(),
+  })
+  .refine((value) => Boolean(value.hotelId) !== Boolean(value.location), {
+    message: "Cần cung cấp đúng một nguồn vị trí: hotelId hoặc location",
+  });
 export type ResolveBookingCandidateDto = z.infer<typeof resolveBookingCandidateSchema>;

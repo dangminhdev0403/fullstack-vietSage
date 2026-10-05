@@ -20,6 +20,9 @@ import { LocalMatePaymentsModule } from "../localmate-payments/localmate-payment
 import { GuestMarketplaceConversationController } from "./api/guest-marketplace-conversation.controller";
 import { MarketplaceConversationService } from "./application/marketplace-conversation.service";
 import { MarketplaceConversationRepository } from "./infrastructure/marketplace-conversation.repository";
+import { PublicLocalMateController } from "./api/public-localmate.controller";
+import { PublicLocalMateService } from "./application/public-localmate.service";
+import { LocalMateModule } from "../localmate/localmate.module";
 
 @Module({
   imports: [
@@ -28,6 +31,7 @@ import { MarketplaceConversationRepository } from "./infrastructure/marketplace-
     RequestRealtimeModule,
     ImportModule,
     LocalMatePaymentsModule,
+    LocalMateModule,
   ],
   controllers: [
     MarketplaceAdminController,
@@ -35,6 +39,7 @@ import { MarketplaceConversationRepository } from "./infrastructure/marketplace-
     GuestMarketplaceController,
     HotelMarketplaceController,
     GuestMarketplaceConversationController,
+    PublicLocalMateController,
   ],
   providers: [
     MarketplaceAdminService,
@@ -43,6 +48,7 @@ import { MarketplaceConversationRepository } from "./infrastructure/marketplace-
     MarketplaceOrderService,
     MarketplaceConversationService,
     MarketplaceConversationRepository,
+    PublicLocalMateService,
     MarketplaceCategoryImportAdapter,
     MarketplaceCategorySheetService,
     MarketplaceServiceItemImportAdapter,

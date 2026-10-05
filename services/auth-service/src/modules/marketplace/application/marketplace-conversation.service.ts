@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import { MarketplaceOrderStatus } from "@prisma/client";
+import { MarketplaceOrderPaymentStatus, MarketplaceOrderStatus } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 import { MarketplaceConversationRepository } from "../infrastructure/marketplace-conversation.repository";
@@ -15,6 +15,34 @@ export type OutboundBridgeDispatcher = {
     conversation: unknown;
   }) => Promise<void> | void;
 };
+
+export type MarketplaceConversationCustomerScope =
+  { hotelId: string; stayId: string; sessionId?: string } | { publicSessionId: string };
+
+function ownsOrder(
+  scope: MarketplaceConversationCustomerScope,
+  order: { hotelId: string | null; stayId: string | null; publicSessionId: string | null },
+) {
+  return "publicSessionId" in scope
+    ? order.publicSessionId === scope.publicSessionId
+    : order.hotelId === scope.hotelId && order.stayId === scope.stayId;
+}
+
+function isConversationOpen(order: {
+  assignedLocalMateProfileId: string | null;
+  status: MarketplaceOrderStatus;
+  payment?: { status: MarketplaceOrderPaymentStatus } | null;
+}) {
+  if (order.payment) {
+    return (
+      (order.status === MarketplaceOrderStatus.PENDING ||
+        order.status === MarketplaceOrderStatus.ACKNOWLEDGED) &&
+      (order.payment.status === MarketplaceOrderPaymentStatus.PAID ||
+        order.payment.status === MarketplaceOrderPaymentStatus.NOT_REQUIRED)
+    );
+  }
+  return order.status === MarketplaceOrderStatus.ACKNOWLEDGED;
+}
 
 @Injectable()
 export class MarketplaceConversationService {
@@ -34,7 +62,7 @@ export class MarketplaceConversationService {
   }
 
   async getConversation(
-    scope: { hotelId: string; stayId: string },
+    scope: MarketplaceConversationCustomerScope,
     orderId: string,
     query?: ListMarketplaceConversationMessagesQuery,
   ) {
@@ -44,20 +72,26 @@ export class MarketplaceConversationService {
         id: true,
         hotelId: true,
         stayId: true,
+        publicSessionId: true,
         serviceTenantId: true,
         assignedLocalMateProfileId: true,
         status: true,
         orderNumber: true,
+        payment: { select: { status: true } },
       },
     });
 
-    if (!order || order.stayId !== scope.stayId || order.hotelId !== scope.hotelId) {
+    if (!order || !ownsOrder(scope, order)) {
       throw new NotFoundException("Không tìm thấy đơn hàng hoặc bạn không có quyền truy cập");
+    }
+    if (!isConversationOpen(order)) {
+      throw new ConflictException("Cuộc trò chuyện chỉ mở sau khi thanh toán hoặc xác nhận đơn");
     }
 
     const conversation = await this.repo.findOrCreateConversation(order.id, {
       hotelId: order.hotelId,
       stayId: order.stayId,
+      publicSessionId: order.publicSessionId,
       serviceTenantId: order.serviceTenantId,
       assignedLocalMateProfileId: order.assignedLocalMateProfileId,
     });
@@ -82,13 +116,14 @@ export class MarketplaceConversationService {
   }
 
   async sendGuestMessage(
-    scope: { hotelId: string; stayId: string; sessionId?: string },
+    scope: MarketplaceConversationCustomerScope,
     orderId: string,
     input: SendMarketplaceConversationMessageInput,
   ) {
     const order = await this.prisma.marketplaceOrder.findUnique({
       where: { id: orderId },
       include: {
+        payment: { select: { status: true } },
         stay: {
           select: {
             room: { select: { id: true } },
@@ -98,23 +133,17 @@ export class MarketplaceConversationService {
       },
     });
 
-    if (!order || order.stayId !== scope.stayId || order.hotelId !== scope.hotelId) {
+    if (!order || !ownsOrder(scope, order)) {
       throw new NotFoundException("Không tìm thấy đơn hàng");
     }
-
-    if (order.status === MarketplaceOrderStatus.PENDING) {
-      throw new ConflictException(
-        "Cuộc trò chuyện chỉ mở sau khi hướng dẫn viên xác nhận đơn hàng",
-      );
-    }
-
-    if (order.status !== MarketplaceOrderStatus.ACKNOWLEDGED) {
-      throw new ConflictException("Đơn hàng đã kết thúc, không thể gửi thêm tin nhắn");
+    if (!isConversationOpen(order)) {
+      throw new ConflictException("Đơn chưa sẵn sàng hoặc đã kết thúc, không thể gửi tin nhắn");
     }
 
     const conversation = await this.repo.findOrCreateConversation(order.id, {
       hotelId: order.hotelId,
       stayId: order.stayId,
+      publicSessionId: order.publicSessionId,
       serviceTenantId: order.serviceTenantId,
       assignedLocalMateProfileId: order.assignedLocalMateProfileId,
     });
@@ -136,19 +165,19 @@ export class MarketplaceConversationService {
     };
 
     if (!isDuplicate) {
-      RequestRealtimeEmitter.emitMarketplaceConversationMessageCreated({
-        hotelId: order.hotelId,
-        stayId: order.stayId,
-        sessionId: scope.sessionId ?? order.stay?.guestSessions?.[0]?.id,
-        orderId: order.id,
-        message: messageDto,
-      });
+      if (order.hotelId && order.stayId) {
+        RequestRealtimeEmitter.emitMarketplaceConversationMessageCreated({
+          hotelId: order.hotelId,
+          stayId: order.stayId,
+          sessionId:
+            ("sessionId" in scope ? scope.sessionId : undefined) ??
+            order.stay?.guestSessions?.[0]?.id,
+          orderId: order.id,
+          message: messageDto,
+        });
+      }
 
-      this.notifyOutboundMessageSafely({
-        message,
-        order,
-        conversation,
-      });
+      this.notifyOutboundMessageSafely({ message, order, conversation });
     }
 
     return messageDto;
@@ -166,7 +195,7 @@ export class MarketplaceConversationService {
         void dispatch.catch(() => undefined);
       }
     } catch {
-      // Ignored: outbound Telegram delivery failure is handled asynchronously / retried
+      // Provider failures are persisted and retried by the Telegram bridge.
     }
   }
 }

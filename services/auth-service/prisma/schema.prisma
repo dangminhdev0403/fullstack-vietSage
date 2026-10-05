@@ -2229,8 +2229,9 @@ model MarketplaceOrder {
   id                         String                    @id @default(cuid())
   orderNumber                String                    @unique @db.VarChar(32)
   idempotencyKey             String                    @db.VarChar(120)
-  hotelId                    String
-  stayId                     String
+  hotelId                    String?
+  stayId                     String?
+  publicSessionId            String?
   serviceTenantId            String
   serviceId                  String
   quantity                   Int
@@ -2253,8 +2254,9 @@ model MarketplaceOrder {
   cancelledAt                DateTime?
   createdAt                  DateTime                  @default(now())
   updatedAt                  DateTime                  @updatedAt
-  hotel                      Hotel                     @relation(fields: [hotelId], references: [id], onDelete: Restrict)
-  stay                       GuestStay                 @relation(fields: [stayId], references: [id], onDelete: Restrict)
+  hotel                      Hotel?                    @relation(fields: [hotelId], references: [id], onDelete: Restrict)
+  stay                       GuestStay?                @relation(fields: [stayId], references: [id], onDelete: Restrict)
+  publicSession              PublicLocalMateSession?   @relation(fields: [publicSessionId], references: [id], onDelete: Restrict)
   serviceTenant              Tenant                    @relation("ServiceTenantMarketplaceOrders", fields: [serviceTenantId], references: [id], onDelete: Restrict)
   service                    MarketplaceService        @relation(fields: [serviceId], references: [id], onDelete: Restrict)
   assignedLocalMateProfileId String?
@@ -2270,10 +2272,28 @@ model MarketplaceOrder {
   payment                    MarketplaceOrderPayment?
 
   @@unique([stayId, idempotencyKey])
+  @@unique([publicSessionId, idempotencyKey])
   @@index([serviceTenantId, status, createdAt])
   @@index([hotelId, status, createdAt])
   @@index([stayId, createdAt])
+  @@index([publicSessionId, createdAt])
   @@index([assignedLocalMateProfileId])
+}
+
+model PublicLocalMateSession {
+  id               String                    @id @default(cuid())
+  tokenHash        String                    @unique @db.VarChar(64)
+  location         String                    @db.VarChar(120)
+  guestDisplayName String?                   @db.VarChar(120)
+  guestPhone       String?                   @db.VarChar(40)
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  orders           MarketplaceOrder[]
+  conversations    MarketplaceConversation[]
+
+  @@index([expiresAt])
 }
 
 model MarketplaceOrderPayment {
@@ -2518,8 +2538,9 @@ model LocalMateTelegramPairingToken {
 model MarketplaceConversation {
   id                         String                           @id @default(cuid())
   orderId                    String                           @unique
-  hotelId                    String
-  stayId                     String
+  hotelId                    String?
+  stayId                     String?
+  publicSessionId            String?
   serviceTenantId            String
   assignedLocalMateProfileId String?
   status                     String                           @default("ACTIVE") @db.VarChar(16)
@@ -2527,10 +2548,12 @@ model MarketplaceConversation {
   createdAt                  DateTime                         @default(now())
   updatedAt                  DateTime                         @updatedAt
   order                      MarketplaceOrder                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  publicSession              PublicLocalMateSession?          @relation(fields: [publicSessionId], references: [id], onDelete: Restrict)
   messages                   MarketplaceConversationMessage[]
 
   @@index([stayId, lastMessageAt])
   @@index([hotelId, lastMessageAt])
+  @@index([publicSessionId, lastMessageAt])
   @@index([serviceTenantId, lastMessageAt])
 }
 
