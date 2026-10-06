@@ -35,10 +35,11 @@ export const publicLocalMateRepository = {
       isPublic: true,
     }),
 
-  getCandidate: (candidateKey: string) =>
+  getCandidate: (candidateKey: string, proposalKey?: string) =>
     getHttp().request<PublicBookingCandidate>({
       method: "GET",
       path: `/api/localmate/candidates/${encodeURIComponent(candidateKey)}`,
+      query: proposalKey ? { proposalKey } : undefined,
       isPublic: true,
     }),
 
@@ -61,6 +62,14 @@ export const publicLocalMateRepository = {
     getHttp().request<{ payment: PublicOrder["payment"] }>({
       method: "POST",
       path: `/api/localmate/orders/${encodeURIComponent(orderId)}/payment-session`,
+      body: {},
+      isPublic: true,
+    }),
+
+  simulatePayment: (orderId: string) =>
+    getHttp().request<PublicOrder>({
+      method: "POST",
+      path: `/api/localmate/orders/${encodeURIComponent(orderId)}/simulate-payment`,
       body: {},
       isPublic: true,
     }),

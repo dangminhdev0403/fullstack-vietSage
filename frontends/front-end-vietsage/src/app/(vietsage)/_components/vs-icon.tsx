@@ -265,6 +265,19 @@ function iconGlyph(name: string): ReactNode {
         </>
       );
 
+    case "check":
+      return <path d="M20 6 9 17l-5-5" />;
+
+    case "bookmark":
+      return <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />;
+
+    case "tune":
+      return (
+        <>
+          <path d="M4 21v-7m0-4V3m8 18v-9m0-4V3m8 18v-5m0-4V3M1 14h6m2-6h6m2 8h6" />
+        </>
+      );
+
     case "filter_alt_off":
       return (
         <>

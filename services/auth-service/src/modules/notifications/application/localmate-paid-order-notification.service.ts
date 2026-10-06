@@ -30,13 +30,22 @@ export type AllowlistedNotificationErrorCode =
 
 @Injectable()
 export class LocalmatePaidOrderNotificationService {
+  private static instanceRef: LocalmatePaidOrderNotificationService | null = null;
   private readonly logger = new Logger(LocalmatePaidOrderNotificationService.name);
   private isProcessing = false;
+
+  static triggerProcessingSafely(): void {
+    if (this.instanceRef) {
+      void this.instanceRef.processPendingNotifications().catch(() => {});
+    }
+  }
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly bridgeService: TelegramMarketplaceBridgeService,
-  ) {}
+  ) {
+    LocalmatePaidOrderNotificationService.instanceRef = this;
+  }
 
   @Cron(CronExpression.EVERY_MINUTE)
   async handleCron(): Promise<void> {

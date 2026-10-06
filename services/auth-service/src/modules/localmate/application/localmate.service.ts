@@ -504,64 +504,60 @@ export class LocalMateService {
         distanceKm,
       }));
 
-    const projectedTours =
-      projectedGuides.length === 0
-        ? []
-        : toursRaw
-            .filter(
-              (tour) =>
-                !hotel?.provinceCode ||
-                (tour.provinceCode === hotel.provinceCode && tour.tourScope !== "INTERPROVINCIAL"),
-            )
-            .map((tour) => {
-              const distanceKm = this.distanceKm(hotelCoordinates, tour.latitude, tour.longitude);
-              const fallbackScore = hotel ? this.calculateTourLocationScore(tour, hotel) : 0;
-              const titleLower = tour.title.toLowerCase();
-              const suitableGuides = projectedGuides
-                .filter((g) => {
-                  if (g.operatingRegions.some((reg) => titleLower.includes(reg.toLowerCase()))) {
-                    return true;
-                  }
-                  if (
-                    tour.provinceCode &&
-                    g.operatingRegions.some((reg) => isLocationInProvince(reg, tour.provinceCode))
-                  ) {
-                    return true;
-                  }
-                  if (tour.province && g.operatingRegions.includes(tour.province)) {
-                    return true;
-                  }
-                  return false;
-                })
-                .map((g) => g.fullName);
+    const projectedTours = toursRaw
+      .filter(
+        (tour) =>
+          !hotel?.provinceCode ||
+          (tour.provinceCode === hotel.provinceCode && tour.tourScope !== "INTERPROVINCIAL"),
+      )
+      .map((tour) => {
+        const distanceKm = this.distanceKm(hotelCoordinates, tour.latitude, tour.longitude);
+        const fallbackScore = hotel ? this.calculateTourLocationScore(tour, hotel) : 0;
+        const titleLower = tour.title.toLowerCase();
+        const suitableGuides = projectedGuides
+          .filter((guide) => {
+            if (guide.operatingRegions.some((region) => titleLower.includes(region.toLowerCase()))) {
+              return true;
+            }
+            if (
+              tour.provinceCode &&
+              guide.operatingRegions.some((region) =>
+                isLocationInProvince(region, tour.provinceCode),
+              )
+            ) {
+              return true;
+            }
+            return Boolean(tour.province && guide.operatingRegions.includes(tour.province));
+          })
+          .map((guide) => ({
+            guideCode: guide.guideCode,
+            fullName: guide.fullName,
+          }));
 
-              return {
-                tour,
-                distanceKm,
-                fallbackScore,
-                suitableGuides,
-              };
-            })
-            .filter((item) => item.suitableGuides.length > 0)
-            .filter(
-              (item) => !useHotelRadius || item.distanceKm === null || item.distanceKm <= radiusKm,
-            )
-            .sort(
-              (left, right) =>
-                this.compareDistance(left.distanceKm, right.distanceKm) ||
-                right.fallbackScore - left.fallbackScore ||
-                left.tour.tourCode.localeCompare(right.tour.tourCode),
-            )
-            .slice(0, limit)
-            .map(({ tour, distanceKm, suitableGuides }) => ({
-              tourCode: tour.tourCode,
-              title: tour.title,
-              duration: tour.duration,
-              highlights: tour.highlights,
-              content: this.sanitizeKnowledgeContent(tour.content),
-              distanceKm,
-              suitableGuides,
-            }));
+        return { tour, distanceKm, fallbackScore, suitableGuides };
+      })
+      .filter(
+        (item) => !useHotelRadius || item.distanceKm === null || item.distanceKm <= radiusKm,
+      )
+      .sort(
+        (left, right) =>
+          this.compareDistance(left.distanceKm, right.distanceKm) ||
+          right.fallbackScore - left.fallbackScore ||
+          left.tour.tourCode.localeCompare(right.tour.tourCode),
+      )
+      .slice(0, limit)
+      .map(({ tour, distanceKm, suitableGuides }) => ({
+        tourCode: tour.tourCode,
+        title: tour.title,
+        duration: tour.duration,
+        highlights: tour.highlights,
+        content: this.sanitizeKnowledgeContent(tour.content),
+        provinceCode: tour.provinceCode,
+        province: tour.province,
+        distanceKm,
+        suitableGuides,
+        bookable: suitableGuides.length > 0,
+      }));
 
     const payloadToHash = JSON.stringify({
       tours: projectedTours,

@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "portless vietsage --tailscale next dev",
+    "dev": "portless vietsage --app-port 3000 --tailscale next dev -p 3000",
     "build": "next build",
-    "start": "portless vietsage --tailscale next start",
+    "start": "portless vietsage --app-port 3000 --tailscale next start -p 3000",
     "lint": "eslint",
     "smoke:lint": "eslint src/app/(vietsage) src/app/page.tsx src/app/layout.tsx",
     "smoke:build": "next build",

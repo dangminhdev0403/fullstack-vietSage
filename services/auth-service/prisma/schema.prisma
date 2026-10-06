@@ -2262,6 +2262,7 @@ model MarketplaceOrder {
   assignedLocalMateProfileId String?
   requestedStartAt           DateTime?
   partySize                  Int?
+  tripSnapshot               Json?
   assignedLocalMateProfile   LocalMateProfile?         @relation(fields: [assignedLocalMateProfileId], references: [id], onDelete: SetNull)
   items                      MarketplaceOrderItem[]
   events                     MarketplaceOrderEvent[]

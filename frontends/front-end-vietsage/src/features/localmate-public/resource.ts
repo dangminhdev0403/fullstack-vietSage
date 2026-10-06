@@ -13,9 +13,12 @@ export const publicLocalMateResource = createResource<Record<string, never>>()({
   scopeKey: () => [],
   queries: {
     candidate: defineQuery({
-      inputKey: (input: { candidateKey: string }) => [input.candidateKey],
-      queryFn: ({ input }: { input: { candidateKey: string } }) =>
-        publicLocalMateRepository.getCandidate(input.candidateKey),
+      inputKey: (input: { candidateKey: string; proposalKey?: string }) => [
+        input.candidateKey,
+        input.proposalKey ?? null,
+      ],
+      queryFn: ({ input }: { input: { candidateKey: string; proposalKey?: string } }) =>
+        publicLocalMateRepository.getCandidate(input.candidateKey, input.proposalKey),
     }),
     order: defineQuery({
       inputKey: (input: { orderId: string }) => [input.orderId],

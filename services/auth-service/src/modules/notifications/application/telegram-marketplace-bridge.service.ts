@@ -287,6 +287,35 @@ export class TelegramMarketplaceBridgeService {
       return;
     }
 
+    if (action === "c") {
+      if (order.status !== MarketplaceOrderStatus.ACKNOWLEDGED) {
+        await this.telegramNotificationService.callTelegram("answerCallbackQuery", {
+          callback_query_id: callbackQuery.id,
+          text: `Đơn hàng không ở trạng thái đang diễn ra (${order.status}).`,
+          show_alert: true,
+        });
+        return;
+      }
+
+      await this.completeOrderAndConversation(order, callbackQuery.message?.chat?.id);
+
+      await this.telegramNotificationService.callTelegram("answerCallbackQuery", {
+        callback_query_id: callbackQuery.id,
+        text: "Bạn đã kết thúc tour thành công!",
+      });
+
+      if (callbackQuery.message?.chat?.id && callbackQuery.message?.message_id) {
+        await this.telegramNotificationService
+          .callTelegram("editMessageReplyMarkup", {
+            chat_id: callbackQuery.message.chat.id,
+            message_id: callbackQuery.message.message_id,
+            reply_markup: { inline_keyboard: [] },
+          })
+          .catch(() => {});
+      }
+      return;
+    }
+
     if (order.status !== MarketplaceOrderStatus.PENDING) {
       await this.telegramNotificationService.callTelegram("answerCallbackQuery", {
         callback_query_id: callbackQuery.id,
@@ -356,8 +385,18 @@ export class TelegramMarketplaceBridgeService {
         await this.telegramNotificationService
           .callTelegram("sendMessage", {
             chat_id: callbackQuery.message.chat.id,
-            text: `✅ <b>Đã nhận đơn ${escapeTelegramHtml(order.orderNumber)}!</b>\n\nBạn có thể trả lời khách trực tiếp bằng cách Reply tin nhắn trong đơn này.`,
+            text: `✅ <b>Đã nhận đơn ${escapeTelegramHtml(order.orderNumber)}!</b>\n\nBạn có thể trả lời khách trực tiếp bằng cách gõ tin nhắn (hoặc Reply tin nhắn của khách).\n\n💡 <i>Khi hoàn tất buổi trải nghiệm, bạn bấm nút bên dưới hoặc gõ <b>/end</b> để kết thúc cuộc trò chuyện.</i>`,
             parse_mode: "HTML",
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  {
+                    text: "🏁 Hoàn tất tour & Kết thúc trò chuyện",
+                    callback_data: `mo:c:${order.id}`,
+                  },
+                ],
+              ],
+            },
           })
           .catch(() => {});
       }
@@ -486,11 +525,8 @@ export class TelegramMarketplaceBridgeService {
     }
 
     const text = [
-      `💬 <b>Khách nhắn</b> (Đơn <code>${escapeTelegramHtml(order.orderNumber)}</code>):`,
-      "",
+      `💬 <b>Khách Đơn <code>${escapeTelegramHtml(order.orderNumber)}</code>:</b>`,
       escapeTelegramHtml(message.body),
-      "",
-      "<i>(Reply tin nhắn này để trả lời cho khách)</i>",
     ].join("\n");
 
     try {
@@ -553,9 +589,94 @@ export class TelegramMarketplaceBridgeService {
     }
   }
 
+  async completeOrderAndConversation(order: any, chatId?: number | string): Promise<void> {
+    const updatedOrder = await this.prisma.$transaction(async (tx) => {
+      const o = await tx.marketplaceOrder.update({
+        where: { id: order.id },
+        data: {
+          status: MarketplaceOrderStatus.COMPLETED,
+          completedAt: new Date(),
+          version: { increment: 1 },
+        },
+      });
+
+      await tx.marketplaceOrderEvent.create({
+        data: {
+          orderId: order.id,
+          actorType: MarketplaceOrderActorType.SERVICE_STAFF,
+          fromStatus: MarketplaceOrderStatus.ACKNOWLEDGED,
+          toStatus: MarketplaceOrderStatus.COMPLETED,
+          note: "LocalMate đã hoàn tất tour qua Telegram",
+        },
+      });
+
+      const conv = await tx.marketplaceConversation.findUnique({
+        where: { orderId: order.id },
+      });
+
+      if (conv) {
+        await tx.marketplaceConversation.update({
+          where: { id: conv.id },
+          data: { status: "CLOSED" },
+        });
+
+        await tx.marketplaceConversationMessage.create({
+          data: {
+            conversationId: conv.id,
+            orderId: order.id,
+            senderType: MarketplaceOrderActorType.SERVICE_STAFF,
+            body: "🎉 Hướng dẫn viên đã hoàn thành buổi trải nghiệm và kết thúc cuộc trò chuyện. Cảm ơn quý khách đã tin tưởng và đồng hành cùng VietSage LocalMate!",
+            deliveryStatus: MarketplaceMessageDeliveryStatus.SENT,
+          },
+        });
+      }
+
+      return o;
+    });
+
+    if (order.hotelId && order.stayId) {
+      RequestRealtimeEmitter.emitExternalServiceOrderStatusChanged({
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        hotelId: order.hotelId,
+        stayId: order.stayId,
+        roomId: order.stay?.room?.id ?? undefined,
+        serviceTenantId: order.serviceTenantId,
+        serviceId: order.serviceId,
+        sessionId: order.stay?.guestSessions?.[0]?.id ?? undefined,
+        serviceName: order.serviceNameSnapshot,
+        fromStatus: MarketplaceOrderStatus.ACKNOWLEDGED,
+        toStatus: MarketplaceOrderStatus.COMPLETED,
+        version: updatedOrder.version,
+        actorType: MarketplaceOrderActorType.SERVICE_STAFF,
+        note: "LocalMate kết thúc tour qua Telegram",
+      });
+    }
+
+    if (chatId) {
+      await this.telegramNotificationService
+        .callTelegram("sendMessage", {
+          chat_id: chatId,
+          text: `🏁 <b>Đã hoàn thành Đơn ${escapeTelegramHtml(order.orderNumber)}!</b>\n\nBuổi trải nghiệm đã hoàn tất và cuộc trò chuyện đã được đóng. Cảm ơn bạn đã đồng hành cùng khách hàng!`,
+          parse_mode: "HTML",
+        })
+        .catch(() => {});
+    }
+  }
+
   async handleInboundMessage(message: TelegramMessage): Promise<void> {
     if (message.chat.type !== "private") return;
-    if (!message.text || message.text.startsWith("/")) return;
+    if (!message.text) return;
+
+    const textTrimmed = message.text.trim();
+    const isEndCommand =
+      textTrimmed === "/end" ||
+      textTrimmed === "/done" ||
+      textTrimmed === "/ketthuc" ||
+      textTrimmed.startsWith("/end ") ||
+      textTrimmed.startsWith("/done ");
+
+    if (message.text.startsWith("/") && !isEndCommand) return;
 
     const callerUserId = String(message.from?.id);
     const callerChatId = String(message.chat.id);
@@ -569,7 +690,72 @@ export class TelegramMarketplaceBridgeService {
       },
     });
 
-    if (!binding) return;
+    if (!binding) {
+      await this.telegramNotificationService
+        .callTelegram("sendMessage", {
+          chat_id: callerChatId,
+          text: "⚠️ Tài khoản Telegram này chưa được liên kết với hồ sơ Hướng dẫn viên nào trên VietSage, hoặc đã bị ngắt kết nối.\n\nVui lòng vào mục Quản lý LocalMate trên VietSage để kết nối tài khoản.",
+        })
+        .catch(() => {});
+      return;
+    }
+
+    if (isEndCommand) {
+      let targetOrder: any = null;
+      if (message.reply_to_message?.message_id) {
+        const replied = await this.prisma.marketplaceConversationMessage.findFirst({
+          where: {
+            telegramChatId: callerChatId,
+            telegramMessageId: String(message.reply_to_message.message_id),
+          },
+        });
+        if (replied) {
+          const repliedOrder = await this.prisma.marketplaceOrder.findUnique({
+            where: { id: replied.orderId },
+          });
+          if (
+            repliedOrder &&
+            repliedOrder.assignedLocalMateProfileId === binding.localMateProfileId &&
+            repliedOrder.status === MarketplaceOrderStatus.ACKNOWLEDGED
+          ) {
+            targetOrder = repliedOrder;
+          }
+        }
+      }
+
+      if (!targetOrder) {
+        const activeOrders = await this.prisma.marketplaceOrder.findMany({
+          where: {
+            assignedLocalMateProfileId: binding.localMateProfileId,
+            status: MarketplaceOrderStatus.ACKNOWLEDGED,
+          },
+        });
+        if (activeOrders.length === 1) {
+          targetOrder = activeOrders[0];
+        } else if (activeOrders.length > 1) {
+          await this.telegramNotificationService
+            .callTelegram("sendMessage", {
+              chat_id: callerChatId,
+              text: "⚠️ Bạn có nhiều đơn đang hoạt động. Vui lòng bấm 'Reply' (Trả lời) vào tin nhắn của đơn cần kết thúc rồi gõ /end.",
+            })
+            .catch(() => {});
+          return;
+        }
+      }
+
+      if (!targetOrder) {
+        await this.telegramNotificationService
+          .callTelegram("sendMessage", {
+            chat_id: callerChatId,
+            text: "Hiện tại bạn không có đơn hàng nào đang hoạt động để kết thúc.",
+          })
+          .catch(() => {});
+        return;
+      }
+
+      await this.completeOrderAndConversation(targetOrder, callerChatId);
+      return;
+    }
 
     let targetOrderId: string | undefined;
 

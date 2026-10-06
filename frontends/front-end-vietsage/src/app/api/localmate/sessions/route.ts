@@ -12,10 +12,10 @@ const sessionSchema = z.object({
   guestPhone: z
     .string()
     .trim()
-    .min(6)
-    .max(40)
-    .regex(/^\+?[0-9][0-9 .()-]*$/)
-    .nullish(),
+    .nullish()
+    .refine((val) => !val || /^\+?[0-9][0-9 .()-]{5,39}$/.test(val), {
+      message: "Số điện thoại không hợp lệ",
+    }),
 });
 
 export async function POST(request: Request) {

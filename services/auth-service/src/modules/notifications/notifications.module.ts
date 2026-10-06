@@ -9,9 +9,12 @@ import { TelegramNotificationService } from "./application/telegram-notification
 import { TelegramMarketplaceBridgeService } from "./application/telegram-marketplace-bridge.service";
 import { TelegramMarketplaceRetryService } from "./application/telegram-marketplace-retry.service";
 import { LocalmatePaidOrderNotificationService } from "./application/localmate-paid-order-notification.service";
+import { TelegramPollingService } from "./application/telegram-polling.service";
 import { MarketplaceOrderService } from "../marketplace/application/marketplace-order.service";
 import { MarketplaceConversationService } from "../marketplace/application/marketplace-conversation.service";
 import { LocalMatePaymentsModule } from "../localmate-payments/localmate-payments.module";
+
+import { LocalMatePaymentsService } from "../localmate-payments/application/localmate-payments.service";
 
 @Module({
   imports: [PrismaModule, GuestRequestEventsModule, PropertyModule, LocalMatePaymentsModule],
@@ -22,6 +25,7 @@ import { LocalMatePaymentsModule } from "../localmate-payments/localmate-payment
     TelegramMarketplaceBridgeService,
     TelegramMarketplaceRetryService,
     LocalmatePaidOrderNotificationService,
+    TelegramPollingService,
   ],
   exports: [TelegramNotificationService, TelegramMarketplaceBridgeService],
 })
@@ -37,6 +41,12 @@ export class NotificationsModule implements OnModuleInit {
 
     MarketplaceConversationService.setBridgeDispatcher({
       dispatchGuestMessage: (payload) => this.bridgeService.sendGuestMessageToGuide(payload),
+    });
+
+    LocalMatePaymentsService.setDispatcher({
+      onPaymentCompleted: async () => {
+        LocalmatePaidOrderNotificationService.triggerProcessingSafely();
+      },
     });
   }
 }

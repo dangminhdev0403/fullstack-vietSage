@@ -125,8 +125,8 @@ export class StripeClient {
       body.append("metadata[checkoutAttemptId]", params.checkoutAttemptId);
     }
     body.append("expires_at", String(expiresAt));
-    body.append("success_url", `${returnBaseUrl}/localmate/payment-return?result=success`);
-    body.append("cancel_url", `${returnBaseUrl}/localmate/payment-return?result=cancelled`);
+    body.append("success_url", `${returnBaseUrl}/localmate/payment-return?result=success&orderId=${params.orderId}`);
+    body.append("cancel_url", `${returnBaseUrl}/localmate/payment-return?result=cancelled&orderId=${params.orderId}`);
 
     const idempotencyKey = getCheckoutSessionIdempotencyKey(
       params.paymentId,

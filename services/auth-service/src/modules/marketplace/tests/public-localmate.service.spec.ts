@@ -2,6 +2,43 @@ import { ConflictException, UnauthorizedException } from "@nestjs/common";
 import { createHash } from "node:crypto";
 import { PublicLocalMateService } from "../application/public-localmate.service";
 
+const proposal = {
+  id: "proposal-1",
+  publicSessionId: "pub-session-123",
+  tourCode: "tour-ha-noi-1d",
+  query: "Hà Nội 1 ngày",
+  knowledgeVersion: "sha256:knowledge-v1",
+  version: 1,
+  revokedAt: null,
+  expiresAt: new Date(Date.now() + 100_000),
+};
+const candidate = {
+  id: "candidate-1",
+  publicSessionId: "pub-session-123",
+  proposalId: proposal.id,
+  proposalVersion: proposal.version,
+  guideCode: "LM-HN-001",
+  version: 1,
+  revokedAt: null,
+  expiresAt: new Date(Date.now() + 100_000),
+};
+const proposalKey = `trip_${proposal.tourCode}`;
+const candidateKey = `cand_${candidate.guideCode}`;
+const knowledge = {
+  knowledgeVersion: proposal.knowledgeVersion,
+  tours: [
+    {
+      tourCode: proposal.tourCode,
+      title: "Hà Nội di sản 1 ngày",
+      duration: "1 ngày",
+      highlights: ["Hồ Gươm", "Văn Miếu"],
+      provinceCode: "HA_NOI",
+      province: "Hà Nội",
+      suitableGuides: [{ guideCode: candidate.guideCode, fullName: "Nguyễn Văn Minh" }],
+    },
+  ],
+};
+
 describe("PublicLocalMateService", () => {
   let service: PublicLocalMateService;
   let prisma: any;
@@ -16,9 +53,20 @@ describe("PublicLocalMateService", () => {
         findUnique: jest.fn(),
         update: jest.fn(),
       },
+      publicLocalMateProposal: {
+        create: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue(proposal),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      publicLocalMateCandidate: {
+        create: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue(candidate),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
     };
     prisma.$transaction = jest.fn((callback) => callback(prisma));
     localMate = {
+      getKnowledge: jest.fn().mockResolvedValue(knowledge),
       resolveBookingCandidate: jest.fn(),
     };
     orders = {
@@ -190,26 +238,26 @@ describe("PublicLocalMateService", () => {
   });
 
   describe("createOrder", () => {
-    it("resolves candidate with session location and delegates to orders.createGuestOrder", async () => {
+    it("resolves the session-bound selection and stores the canonical trip snapshot", async () => {
       const token = "b".repeat(45);
       prisma.publicLocalMateSession.findUnique.mockResolvedValue({
         id: "pub-session-123",
-        location: "Đà Nẵng",
+        location: "Hà Nội",
         guestDisplayName: "Lê Văn B",
         guestPhone: "0912345678",
         revokedAt: null,
         expiresAt: new Date(Date.now() + 100000),
       });
-
       localMate.resolveBookingCandidate.mockResolvedValue({
+        candidateKey,
         telegramReady: true,
         service: { id: "srv-456" },
       });
-
       orders.createGuestOrder.mockResolvedValue({ id: "order-999" });
 
       const result = await service.createOrder(token, {
-        candidateKey: "cand_abc123",
+        proposalKey,
+        candidateKey,
         quantity: 2,
         requestedStartAt: "2026-10-10T09:00:00.000Z",
         partySize: 2,
@@ -218,14 +266,13 @@ describe("PublicLocalMateService", () => {
       });
 
       expect(localMate.resolveBookingCandidate).toHaveBeenCalledWith({
-        candidateKey: "cand_abc123",
-        location: "Đà Nẵng",
+        candidateKey,
+        location: "Hà Nội",
       });
-
       expect(orders.createGuestOrder).toHaveBeenCalledWith(
         {
           publicSessionId: "pub-session-123",
-          location: "Đà Nẵng",
+          location: "Hà Nội",
           guestDisplayName: "Lê Văn B",
           guestPhone: "0912345678",
         },
@@ -237,6 +284,15 @@ describe("PublicLocalMateService", () => {
           guestNote: "Không cay",
           idempotencyKey: "idem-key-123456",
         },
+        {
+          knowledgeVersion: proposal.knowledgeVersion,
+          tourCode: proposal.tourCode,
+          title: "Hà Nội di sản 1 ngày",
+          duration: "1 ngày",
+          highlights: ["Hồ Gươm", "Văn Miếu"],
+          provinceCode: "HA_NOI",
+          province: "Hà Nội",
+        },
       );
       expect(result).toEqual({ id: "order-999" });
     });
@@ -245,21 +301,22 @@ describe("PublicLocalMateService", () => {
       const token = "b".repeat(45);
       prisma.publicLocalMateSession.findUnique.mockResolvedValue({
         id: "pub-session-123",
-        location: "Đà Nẵng",
+        location: "Hà Nội",
         guestDisplayName: "Lê Văn B",
         guestPhone: "0912345678",
         revokedAt: null,
         expiresAt: new Date(Date.now() + 100000),
       });
-
       localMate.resolveBookingCandidate.mockResolvedValue({
+        candidateKey,
         telegramReady: false,
         service: { id: "srv-456" },
       });
 
       await expect(
         service.createOrder(token, {
-          candidateKey: "cand_abc123",
+          proposalKey,
+          candidateKey,
           quantity: 1,
           idempotencyKey: "idem-key-123456",
         }),
@@ -270,7 +327,7 @@ describe("PublicLocalMateService", () => {
       const token = "b".repeat(45);
       prisma.publicLocalMateSession.findUnique.mockResolvedValue({
         id: "pub-session-provisional",
-        location: "Đà Nẵng",
+        location: "Hà Nội",
         guestDisplayName: null,
         guestPhone: null,
         revokedAt: null,
@@ -279,7 +336,8 @@ describe("PublicLocalMateService", () => {
 
       await expect(
         service.createOrder(token, {
-          candidateKey: "cand_abc123",
+          proposalKey,
+          candidateKey,
           quantity: 1,
           idempotencyKey: "idem-key-123456",
         }),
@@ -287,57 +345,125 @@ describe("PublicLocalMateService", () => {
     });
   });
 
+  describe("listProposals", () => {
+    it("returns session-bound proposal keys and actions without proposal DB rows", async () => {
+      const token = "b".repeat(45);
+      prisma.publicLocalMateSession.findUnique.mockResolvedValue({
+        id: "pub-session-123",
+        location: "Hà Nội",
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 100_000),
+      });
+
+      const result = await service.listProposals(token, {
+        query: "Hà Nội 1 ngày",
+        tourCodes: [proposal.tourCode],
+      });
+
+      expect(result.stage).toBe("PROPOSALS");
+      expect(result.proposals[0].proposalKey).toBe(proposalKey);
+      expect(result.actions[0].type).toBe("SELECT_PROPOSAL");
+      expect(result.actions[0].proposalKey).toBe(proposalKey);
+    });
+  });
+
+  describe("selectProposal", () => {
+    it("returns guide selection stage with guide actions", async () => {
+      const token = "b".repeat(45);
+      prisma.publicLocalMateSession.findUnique.mockResolvedValue({
+        id: "pub-session-123",
+        location: "Hà Nội",
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 100_000),
+      });
+
+      const result = await service.selectProposal(token, proposalKey);
+      expect(result.stage).toBe("GUIDE_SELECTION");
+      expect(result.proposal.proposalKey).toBe(proposalKey);
+      expect(result.actions.some((a) => a.type === "SELECT_GUIDE")).toBe(true);
+    });
+  });
+
   describe("getCandidate", () => {
+    it("rejects candidate if guide does not belong to the proposal", async () => {
+      const token = "b".repeat(45);
+      prisma.publicLocalMateSession.findUnique.mockResolvedValue({
+        id: "pub-session-123",
+        location: "Hà Nội",
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 100_000),
+      });
+
+      await expect(service.getCandidate(token, proposalKey, "cand_UNKNOWN")).rejects.toThrow(
+        ConflictException,
+      );
+      expect(localMate.resolveBookingCandidate).not.toHaveBeenCalled();
+    });
+
+    it("rejects proposal if tour is not in current location", async () => {
+      const token = "b".repeat(45);
+      prisma.publicLocalMateSession.findUnique.mockResolvedValue({
+        id: "pub-session-123",
+        location: "Hà Nội",
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 100_000),
+      });
+
+      await expect(service.getCandidate(token, "trip_unknown", candidateKey)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(localMate.resolveBookingCandidate).not.toHaveBeenCalled();
+    });
+
     it("resolves candidate using session location", async () => {
       const token = "b".repeat(45);
       prisma.publicLocalMateSession.findUnique.mockResolvedValue({
         id: "pub-session-123",
-        location: "Đà Nẵng",
+        location: "Hà Nội",
         guestDisplayName: "Lê Văn B",
         guestPhone: "0912345678",
         revokedAt: null,
         expiresAt: new Date(Date.now() + 100000),
       });
-
       localMate.resolveBookingCandidate.mockResolvedValue({
-        candidateKey: "cand_abc123",
+        candidateKey,
         telegramReady: true,
-        guide: { fullName: "HDV Đà Nẵng" },
-        service: { name: "Tour Ngũ Hành Sơn", price: 600000 },
+        guide: { fullName: "HDV Hà Nội" },
+        service: { name: "Tour Hà Nội di sản", price: 600000 },
       });
 
-      const result = await service.getCandidate(token, "cand_abc123");
+      const result = await service.getCandidate(token, proposalKey, candidateKey);
       expect(localMate.resolveBookingCandidate).toHaveBeenCalledWith({
-        candidateKey: "cand_abc123",
-        location: "Đà Nẵng",
+        candidateKey,
+        location: "Hà Nội",
       });
-      expect(result.guide.fullName).toBe("HDV Đà Nẵng");
+      expect(result.guide.fullName).toBe("HDV Hà Nội");
+      expect(result.tour.title).toBe("Hà Nội di sản 1 ngày");
     });
 
     it("resolves candidate for provisional session without guest identity", async () => {
       const token = "b".repeat(45);
       prisma.publicLocalMateSession.findUnique.mockResolvedValue({
         id: "pub-session-prov",
-        location: "Huế",
+        location: "Hà Nội",
         guestDisplayName: null,
         guestPhone: null,
         revokedAt: null,
         expiresAt: new Date(Date.now() + 100000),
       });
-
       localMate.resolveBookingCandidate.mockResolvedValue({
-        candidateKey: "cand_hue_1",
+        candidateKey,
         telegramReady: true,
-        guide: { fullName: "HDV Huế" },
-        service: { name: "Tour Đại Nội", price: 500000 },
+        guide: { fullName: "HDV Hà Nội" },
+        service: { name: "Tour Hà Nội di sản", price: 600000 },
       });
 
-      const result = await service.getCandidate(token, "cand_hue_1");
+      const result = await service.getCandidate(token, proposalKey, candidateKey);
       expect(localMate.resolveBookingCandidate).toHaveBeenCalledWith({
-        candidateKey: "cand_hue_1",
-        location: "Huế",
+        candidateKey,
+        location: "Hà Nội",
       });
-      expect(result.guide.fullName).toBe("HDV Huế");
+      expect(result.guide.fullName).toBe("HDV Hà Nội");
     });
   });
 

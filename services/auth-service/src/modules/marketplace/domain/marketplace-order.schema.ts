@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+export const publicProposalKeySchema = z
+  .string()
+  .trim()
+  .regex(/^trip_[A-Za-z0-9][A-Za-z0-9_-]{1,79}$/);
+export const publicCandidateKeySchema = z
+  .string()
+  .trim()
+  .regex(/^cand_[A-Za-z0-9][A-Za-z0-9_-]{0,74}$/);
+
 export const createMarketplaceOrderSchema = z.object({
   serviceId: z.string().trim().min(1).max(80),
   quantity: z.number().int().min(1).max(100),
@@ -22,10 +31,8 @@ export const createLocalMateOrderSchema = z.object({
 });
 
 export const createPublicLocalMateOrderSchema = z.object({
-  candidateKey: z
-    .string()
-    .trim()
-    .regex(/^cand_[A-Za-z0-9][A-Za-z0-9_-]{0,74}$/),
+  proposalKey: publicProposalKeySchema,
+  candidateKey: publicCandidateKeySchema,
   quantity: z.number().int().min(1).max(100).default(1),
   requestedStartAt: z.string().trim().datetime().nullish(),
   partySize: z.number().int().min(1).max(100).nullish(),

@@ -78,7 +78,11 @@ Backend API
 - Recent chat is untrusted conversational context only. The current Knowledge API result remains the sole factual source for every turn.
 - The public n8n flow has no hotel or guest-session context. Missing location produces a follow-up question; supplied location is forwarded as `destination`, while the backend remains canonical for destination/province resolution and knowledge filtering.
 - Empty knowledge returns deterministic clarification without spending a model call. Ambiguous grounded questions may ask one clarification with up to three suggestions.
-- Public responses expose only `reply`, up to three follow-up `suggestions`, `knowledgeVersion`, and `cached`; `action` is always `null`.
+- n8n may return bounded canonical `tourCode` references, never `proposalKey`, `candidateKey`, price, availability, or order success. The BFF exchanges those references with the backend for opaque, session-bound proposal tokens.
+- Raw public-session tokens stay only in the `httpOnly` BFF cookie. Backend storage contains SHA-256 hashes. Proposal/candidate tokens are bound to the session, location, knowledge version, and expiry; changing location invalidates both.
+- A proposal selection resolves directly through the backend and returns typed guide actions. Order creation requires both opaque `proposalKey` and `candidateKey`; the backend resolves service, guide, price, availability again and stores the canonical itinerary snapshot.
+- The BFF validates n8n and backend response shapes, uses `Cache-Control: no-store`, and fails closed. It never synthesizes proposal/order success when an upstream fails.
+- Telegram notification & bidirectional chat: When an order is paid (PAID status), the backend triggers Telegram notification to the assigned guide with inline action buttons (`mo:a:{orderId}` and `mo:r:{orderId}`). Guide acceptance transitions order to ACKNOWLEDGED. Replies from Telegram route to the customer's active web conversation box, and messages from the customer web box forward to the guide's Telegram chat. For development/testing, `simulate-payment` allows instant payment completion and triggers the guide notification loop without external payment gateways.
 
 ## Channex channel manager
 

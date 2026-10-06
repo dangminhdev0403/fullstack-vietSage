@@ -5,9 +5,11 @@ import { httpServer } from "@/core/http/http-server";
 import { unwrapApiEnvelope } from "@/core/http/api-envelope";
 import { LOCALMATE_SESSION_COOKIE } from "../_lib/session-cookie";
 import { toBffErrorResponse } from "../_lib/bff-error";
+import { candidateKeySchema, proposalKeySchema } from "../public-chat/payload-schema";
 
 const orderInputSchema = z.object({
-  candidateKey: z.string().trim().regex(/^cand_[A-Za-z0-9][A-Za-z0-9_-]{0,74}$/),
+  proposalKey: proposalKeySchema,
+  candidateKey: candidateKeySchema,
   quantity: z.number().int().min(1).max(100).default(1),
   requestedStartAt: z.string().trim().datetime().nullish(),
   partySize: z.number().int().min(1).max(100).nullish(),
@@ -37,6 +39,7 @@ export async function POST(request: Request) {
     }
 
     const backendPayload = {
+      proposalKey: parsed.data.proposalKey,
       candidateKey: parsed.data.candidateKey,
       quantity: parsed.data.quantity,
       requestedStartAt: parsed.data.requestedStartAt,

@@ -11,6 +11,8 @@ import {
 import {
   createPublicLocalMateOrderSchema,
   marketplaceOrderIdSchema,
+  publicCandidateKeySchema,
+  publicProposalKeySchema,
 } from "../domain/marketplace-order.schema";
 
 const createPublicSessionSchema = z.object({
@@ -19,16 +21,16 @@ const createPublicSessionSchema = z.object({
   guestPhone: z
     .string()
     .trim()
-    .min(6)
-    .max(40)
-    .regex(/^\+?[0-9][0-9 .()-]*$/)
-    .nullish(),
+    .nullish()
+    .refine((val) => !val || /^\+?[0-9][0-9 .()-]{5,39}$/.test(val), {
+      message: "Số điện thoại không hợp lệ",
+    }),
 });
 
-const candidateKeySchema = z
-  .string()
-  .trim()
-  .regex(/^cand_[A-Za-z0-9][A-Za-z0-9_-]{0,74}$/);
+const mintProposalsSchema = z.object({
+  query: z.string().trim().max(300).optional(),
+  tourCodes: z.array(z.string().trim().min(1).max(80)).max(5).optional(),
+});
 
 @SkipAuthorization()
 @Controller("public/localmate")
@@ -45,6 +47,24 @@ export class PublicLocalMateController {
   }
 
   @AuthRateLimit("login")
+  @Post("proposals")
+  listProposals(
+    @Headers("x-public-localmate-token") token: string | undefined,
+    @Body() body: unknown,
+  ) {
+    return this.service.listProposals(token, parseWithZod(mintProposalsSchema, body));
+  }
+
+  @AuthRateLimit("login")
+  @Post("proposals/:proposalKey/select")
+  selectProposal(
+    @Headers("x-public-localmate-token") token: string | undefined,
+    @Param("proposalKey") proposalKey: string,
+  ) {
+    return this.service.selectProposal(token, parseWithZod(publicProposalKeySchema, proposalKey));
+  }
+
+  @AuthRateLimit("login")
   @Post("orders")
   createOrder(
     @Headers("x-public-localmate-token") token: string | undefined,
@@ -57,8 +77,13 @@ export class PublicLocalMateController {
   getCandidate(
     @Headers("x-public-localmate-token") token: string | undefined,
     @Param("candidateKey") candidateKey: string,
+    @Query("proposalKey") proposalKey: string,
   ) {
-    return this.service.getCandidate(token, parseWithZod(candidateKeySchema, candidateKey));
+    return this.service.getCandidate(
+      token,
+      parseWithZod(publicProposalKeySchema, proposalKey),
+      parseWithZod(publicCandidateKeySchema, candidateKey),
+    );
   }
 
   @Get("orders/:orderId")
@@ -76,6 +101,17 @@ export class PublicLocalMateController {
     @Param("orderId") orderId: string,
   ) {
     return this.service.createPaymentSession(
+      token,
+      parseWithZod(marketplaceOrderIdSchema, orderId),
+    );
+  }
+
+  @Post("orders/:orderId/simulate-payment")
+  simulatePayment(
+    @Headers("x-public-localmate-token") token: string | undefined,
+    @Param("orderId") orderId: string,
+  ) {
+    return this.service.simulatePayment(
       token,
       parseWithZod(marketplaceOrderIdSchema, orderId),
     );

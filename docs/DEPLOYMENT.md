@@ -306,3 +306,44 @@ docker compose -f docker-compose.prod.yml up -d --no-build auth-service open-mrz
 ```
 
 For application rollback, set all three image variables to the previously verified tags and recreate `migrate`, `auth-service`, `open-mrz`, `frontend`, and `nginx`. The migration gate still runs; do not assume an older application image can reverse a newer database schema.
+
+## 10. Stripe payment gateway deployment and testing (Localhost vs VPS)
+
+The LocalMate marketplace module uses Stripe Checkout Sessions and Webhooks to collect platform confirmation fees.
+
+### Local development testing (Localhost)
+
+Because local machines lack a public HTTPS origin, Stripe cannot reach `http://localhost:8080/webhooks/stripe` directly. Use the Stripe CLI to tunnel webhook events:
+
+```bash
+# Forward events to local auth-service
+stripe listen --forward-to localhost:8080/webhooks/stripe
+```
+
+On launch, Stripe CLI outputs a session signing secret:
+```text
+> Ready! Your webhook signing secret is whsec_xxx
+```
+Configure this secret in `services/auth-service/.env` under `STRIPE_WEBHOOK_SECRET`.
+
+### VPS production / staging deployment
+
+**Do NOT run Stripe CLI on the VPS.** Because the VPS possesses a public domain with HTTPS certificates issued by Certbot/Nginx, Stripe sends webhooks directly over HTTPS.
+
+1. Navigate to Stripe Dashboard -> **Developers** -> **Webhooks** -> click **Add an endpoint**.
+2. **Endpoint URL**: `https://vietsage.com/webhooks/stripe`
+3. **Select events to listen for**:
+   - `checkout.session.completed`
+   - `checkout.session.async_payment_succeeded`
+   - `checkout.session.async_payment_failed`
+   - `checkout.session.expired`
+   - `charge.refunded`
+   - `charge.dispute.created`
+4. Click **Add endpoint**, then click **Reveal** under *Signing secret* to retrieve the permanent secret string (`whsec_...`).
+5. Configure `secrets/production/auth-service.env`:
+   ```env
+   STRIPE_CHECKOUT_ENABLED=true
+   STRIPE_SECRET_KEY=sk_live_... (or restricted rk_live_...)
+   STRIPE_WEBHOOK_SECRET=whsec_...
+   STRIPE_CHECKOUT_RETURN_BASE_URL=https://vietsage.com
+   ```

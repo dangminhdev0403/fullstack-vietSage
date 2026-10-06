@@ -7,11 +7,18 @@ import { QRCodeSVG } from "qrcode.react";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { publicLocalMateResource } from "../resource";
 import { publicLocalMateRepository } from "../repository";
-import type {
-  PublicBookingCandidate,
-  PublicConversationMessage,
-  PublicLocalMateSuggestion,
-  PublicOrder,
+import {
+  canProceedToBooking,
+  transitionStage,
+  type PublicBookingCandidate,
+  type PublicConversationMessage,
+  type PublicLocalMateAction,
+  type PublicLocalMateActionType,
+  type PublicLocalMateProposal,
+  type PublicLocalMateSelection,
+  type PublicLocalMateStage,
+  type PublicLocalMateSuggestion,
+  type PublicOrder,
 } from "../types";
 import {
   type DestinationRegion,
@@ -25,6 +32,9 @@ type Message = {
   sender: "guest" | "localmate";
   text: string;
   candidateKey?: string;
+  stage?: PublicLocalMateStage;
+  proposals?: PublicLocalMateProposal[];
+  actions?: PublicLocalMateAction[];
 };
 
 type ViewMode = "discovery" | "confirm" | "payment" | "guide-chat";
@@ -46,8 +56,9 @@ function createBookingFingerprint(
   location: string,
   guestDisplayName: string,
   guestPhone: string,
+  proposalKey?: string,
 ): string {
-  return JSON.stringify([candidateKey, location, guestDisplayName, guestPhone]);
+  return JSON.stringify([candidateKey, proposalKey ?? "", location, guestDisplayName, guestPhone]);
 }
 
 function renderInlineFormatting(text: string, isGuest: boolean) {
@@ -90,7 +101,7 @@ function renderMessageContent(text: string, isGuest: boolean) {
   const lines = text.split("\n");
 
   return (
-    <div className="space-y-1.5 break-words">
+    <div className="space-y-1.5 [overflow-wrap:anywhere] break-words">
       {lines.map((line, lineIndex) => {
         const trimmed = line.trim();
         if (!trimmed) {
@@ -154,6 +165,11 @@ export function PublicLocalMateChat() {
   const [locationError, setLocationError] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<DestinationRegion>("all");
 
+  // Proposal & Stage state
+  const [activeProposalKey, setActiveProposalKey] = useState<string | null>(null);
+  const [currentStage, setCurrentStage] = useState<PublicLocalMateStage>("DISCOVERY");
+  const [activeProposals, setActiveProposals] = useState<PublicLocalMateProposal[]>([]);
+
   // Booking & Confirmation state
   const [activeCandidateKey, setActiveCandidateKey] = useState<string | null>(null);
   const [candidateDetails, setCandidateDetails] = useState<PublicBookingCandidate | null>(null);
@@ -171,12 +187,18 @@ export function PublicLocalMateChat() {
   // Payment state
   const [currentOrder, setCurrentOrder] = useState<PublicOrder | null>(null);
   const [paymentCheckoutUrl, setPaymentCheckoutUrl] = useState<string | null>(null);
+  const [isSimulatingPayment, setIsSimulatingPayment] = useState(false);
   const isPollingPayment = viewMode === "payment" && Boolean(currentOrder?.id);
 
   // Guide Chat state
   const [conversationMessages, setConversationMessages] = useState<PublicConversationMessage[]>([]);
   const [guideInput, setGuideInput] = useState("");
   const [isSendingGuideMessage, setIsSendingGuideMessage] = useState(false);
+
+  const activeProposal = useMemo(
+    () => activeProposals.find((p) => p.proposalKey === activeProposalKey) ?? null,
+    [activeProposals, activeProposalKey],
+  );
 
   const inputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
@@ -194,6 +216,7 @@ export function PublicLocalMateChat() {
         location || "Toàn quốc",
         guestDisplayName.trim(),
         guestPhone.trim(),
+        activeProposalKey ?? undefined,
       )
     : "";
   const isCandidatePreviewCurrent =
@@ -255,13 +278,23 @@ export function PublicLocalMateChat() {
     }
   }, [conversationMessages]);
 
-  // Payment polling effect: poll every 2500ms while on payment screen
+  // Payment polling effect: poll every 2000ms while on payment screen & listen to payment events
   useEffect(() => {
     if (viewMode !== "payment" || !currentOrder?.id) return;
 
     let isMounted = true;
 
-    const pollInterval = setInterval(async () => {
+    // Cache current url and order id for payment return page
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("localmate_last_chat_url", window.location.href);
+        localStorage.setItem("localmate_last_order_id", currentOrder.id);
+      } catch {
+        // Ignored
+      }
+    }
+
+    const checkPaymentStatus = async () => {
       try {
         const updated = await publicLocalMateRepository.getOrder(currentOrder.id);
         if (!isMounted) return;
@@ -270,21 +303,54 @@ export function PublicLocalMateChat() {
 
         const status = updated.payment?.status;
         if (status === "PAID" || status === "NOT_REQUIRED") {
-          clearInterval(pollInterval);
           setViewMode("guide-chat");
         }
       } catch {
         // Ignored in poll interval
       }
-    }, 2500);
+    };
+
+    const pollInterval = setInterval(checkPaymentStatus, 2000);
+
+    // Listen to postMessage from payment-return tab/popup
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === "LOCALMATE_PAYMENT_SUCCESS") {
+        void checkPaymentStatus();
+        setViewMode("guide-chat");
+      }
+    };
+
+    // Listen to localStorage change from payment-return tab
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "localmate_payment_success") {
+        void checkPaymentStatus();
+        setViewMode("guide-chat");
+      }
+    };
+
+    // Immediate check when tab gets focus or becomes visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void checkPaymentStatus();
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("focus", handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       isMounted = false;
       clearInterval(pollInterval);
+      window.removeEventListener("message", handleMessage);
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("focus", handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [viewMode, currentOrder?.id]);
 
-  // Guide Chat polling effect: poll conversation messages every 3000ms
+  // Guide Chat polling effect: poll conversation messages every 1200ms
   useEffect(() => {
     if (viewMode !== "guide-chat" || !currentOrder?.id) return;
 
@@ -295,6 +361,10 @@ export function PublicLocalMateChat() {
         const conv = await publicLocalMateRepository.getConversation(currentOrder.id);
         if (isMounted && conv?.items) {
           setConversationMessages(conv.items);
+          if (conv.status === "CLOSED" && currentOrder.status !== "COMPLETED") {
+            const updated = await publicLocalMateRepository.getOrder(currentOrder.id);
+            if (isMounted) setCurrentOrder(updated);
+          }
         }
       } catch {
         // Ignored
@@ -302,15 +372,21 @@ export function PublicLocalMateChat() {
     };
 
     void fetchMessages();
-    const interval = setInterval(fetchMessages, 3000);
+    const interval = setInterval(fetchMessages, 1200);
 
     return () => {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [viewMode, currentOrder?.id]);
+  }, [viewMode, currentOrder?.id, currentOrder?.status]);
 
-  const send = async (explicitText?: string, explicitLocation?: string, displayTextOverride?: string) => {
+  const send = async (
+    explicitText?: string,
+    explicitLocation?: string,
+    displayTextOverride?: string,
+    explicitSelection?: { proposalKey?: string; candidateKey?: string },
+    explicitActionType?: PublicLocalMateActionType,
+  ) => {
     const rawText = (explicitText ?? input).trim();
     if (!rawText || chatMutation.isPending) return;
 
@@ -323,12 +399,17 @@ export function PublicLocalMateChat() {
 
     try {
       const sanitizedHistory = messages
-        .filter((m) => m.id !== 0)
+        .filter((m) => m.id !== 0 && Boolean(m.text && m.text.trim().length > 0))
         .slice(-6)
         .map((m) => ({
           role: m.sender,
-          text: m.text,
+          text: m.text.trim(),
         }));
+
+      const selectionPayload: PublicLocalMateSelection = {
+        proposalKey: explicitSelection?.proposalKey ?? activeProposalKey ?? undefined,
+        candidateKey: explicitSelection?.candidateKey ?? activeCandidateKey ?? undefined,
+      };
 
       const result = await chatMutation.mutateAsync({
         input: {
@@ -336,10 +417,44 @@ export function PublicLocalMateChat() {
           location: activeLocation || undefined,
           language: "vi",
           history: sanitizedHistory,
+          selection:
+            selectionPayload.proposalKey || selectionPayload.candidateKey
+              ? selectionPayload
+              : undefined,
+          actionType: explicitActionType,
         },
       });
 
-      const candidateKey = result.action?.candidateKey;
+      const candidateKey =
+        result.action?.candidateKey ??
+        (result.action?.type === "LOCALMATE_BOOKING" || result.action?.type === "SELECT_GUIDE"
+          ? (result.action as { candidateKey?: string }).candidateKey
+          : undefined);
+
+      const serverProposals: PublicLocalMateProposal[] | undefined =
+        result.proposals && result.proposals.length > 0 ? result.proposals : undefined;
+
+      if (serverProposals && serverProposals.length > 0) {
+        setActiveProposals(serverProposals);
+      }
+
+      if (result.stage) {
+        setCurrentStage(result.stage);
+      } else if (explicitActionType) {
+        setCurrentStage(transitionStage(currentStage, explicitActionType));
+      } else if (serverProposals && serverProposals.length > 0 && currentStage === "DISCOVERY") {
+        setCurrentStage("PROPOSALS");
+      }
+
+      if (result.action?.proposalKey) {
+        setActiveProposalKey(result.action.proposalKey);
+      }
+
+      const serverActions: PublicLocalMateAction[] | undefined =
+        result.actions && result.actions.length > 0 ? result.actions : undefined;
+
+      const guideAction = serverActions?.find((a) => a.type === "SELECT_GUIDE" && a.candidateKey);
+      const effectiveCandidateKey = candidateKey ?? guideAction?.candidateKey;
 
       setMessages((current) => [
         ...current,
@@ -347,15 +462,19 @@ export function PublicLocalMateChat() {
           id: nextId.current++,
           sender: "localmate",
           text: result.reply,
-          candidateKey,
+          candidateKey: effectiveCandidateKey,
+          stage: result.stage,
+          proposals: serverProposals,
+          actions: serverActions,
         },
       ]);
-      setSuggestions(result.suggestions);
+      setSuggestions(result.suggestions ?? []);
 
-      if (candidateKey) {
-        setActiveCandidateKey(candidateKey);
+      if (effectiveCandidateKey) {
+        setActiveCandidateKey(effectiveCandidateKey);
       }
-    } catch {
+    } catch (err) {
+      console.error("[LocalMateChat] send error:", err);
       setMessages((current) => [
         ...current,
         {
@@ -367,8 +486,60 @@ export function PublicLocalMateChat() {
     }
   };
 
-  const handleStartBooking = (key: string) => {
-    setActiveCandidateKey(key);
+  const handleSelectProposal = (key: string) => {
+    setActiveProposalKey(key);
+    setCurrentStage("GUIDE_SELECTION");
+    const matched = activeProposals.find((p) => p.proposalKey === key);
+    const title = matched?.title ?? "lịch trình này";
+    void send(
+      `Tôi chọn lịch trình này: ${title}`,
+      undefined,
+      `Chọn lịch trình: ${title}`,
+      { proposalKey: key },
+      "SELECT_PROPOSAL",
+    );
+  };
+
+  const handleShowAlternatives = (key: string) => {
+    setCurrentStage("DISCOVERY");
+    const matched = activeProposals.find((p) => p.proposalKey === key);
+    const loc = matched?.location || location || "khu vực";
+    void send(
+      `Tôi muốn xem các phương án lịch trình khác tại ${loc}`,
+      undefined,
+      "Xem lịch trình khác",
+      { proposalKey: key },
+      "SHOW_ALTERNATIVES",
+    );
+  };
+
+  const handleRefineProposal = (key: string) => {
+    setCurrentStage("DISCOVERY");
+    const matched = activeProposals.find((p) => p.proposalKey === key);
+    const title = matched?.title ?? "";
+    setInput(`Tôi muốn tùy chỉnh lịch trình ${title}: `);
+    inputRef.current?.focus();
+  };
+
+  const handleSelectGuide = (candKey: string, propKey?: string) => {
+    const targetPropKey = propKey || activeProposalKey;
+    if (!targetPropKey) {
+      setBookingError("Vui lòng chọn lịch trình trước khi chọn hướng dẫn viên.");
+      return;
+    }
+    setActiveCandidateKey(candKey);
+    handleStartBooking(candKey, targetPropKey);
+  };
+
+  const handleStartBooking = (candKey: string, propKey?: string) => {
+    const targetPropKey = propKey || activeProposalKey;
+    if (!candKey || !targetPropKey) {
+      setBookingError("Cần chọn cả lịch trình và hướng dẫn viên trước khi đặt tour.");
+      return;
+    }
+    setActiveCandidateKey(candKey);
+    setActiveProposalKey(targetPropKey);
+    setCurrentStage("BOOKING");
     setCandidateDetails(null);
     setBookingPreviewFingerprint("");
     setCurrentOrder(null);
@@ -376,11 +547,25 @@ export function PublicLocalMateChat() {
     setIdempotencyKey(createIdempotencyKey());
     setBookingError("");
     setViewMode("confirm");
+
+    setIsLoadingCandidate(true);
+    publicLocalMateRepository
+      .getCandidate(candKey, targetPropKey)
+      .then((candidate) => {
+        setCandidateDetails(candidate);
+      })
+      .catch(() => {})
+      .finally(() => {
+        setIsLoadingCandidate(false);
+      });
   };
 
   const handleConfirmOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeCandidateKey) return;
+    if (!activeCandidateKey || !activeProposalKey) {
+      setBookingError("Cần chọn cả lịch trình và hướng dẫn viên trước khi tiến hành đặt tour.");
+      return;
+    }
 
     const name = guestDisplayName.trim();
     const phone = guestPhone.trim();
@@ -388,8 +573,8 @@ export function PublicLocalMateChat() {
       setBookingError("Vui lòng nhập họ và tên của Quý khách (tối thiểu 2 ký tự)");
       return;
     }
-    if (!phone || !/^\+?[0-9][0-9 .()-]{5,30}$/.test(phone)) {
-      setBookingError("Vui lòng nhập số điện thoại hợp lệ để hướng dẫn viên liên hệ");
+    if (phone && !/^\+?[0-9][0-9 .()-]{5,30}$/.test(phone)) {
+      setBookingError("Số điện thoại không đúng định dạng. Quý khách có thể để trống hoặc kiểm tra lại.");
       return;
     }
 
@@ -402,6 +587,7 @@ export function PublicLocalMateChat() {
         location || "Toàn quốc",
         name,
         phone,
+        activeProposalKey,
       );
       if (!candidateDetails || bookingPreviewFingerprint !== fingerprint) {
         setIsLoadingCandidate(true);
@@ -409,13 +595,15 @@ export function PublicLocalMateChat() {
         await publicLocalMateRepository.createSession({
           location: location || "Toàn quốc",
           guestDisplayName: name,
-          guestPhone: phone,
+          guestPhone: phone || undefined,
         });
-        const candidate = await publicLocalMateRepository.getCandidate(activeCandidateKey);
+        const candidate = await publicLocalMateRepository.getCandidate(
+          activeCandidateKey,
+          activeProposalKey,
+        );
         setCandidateDetails(candidate);
         setBookingPreviewFingerprint(fingerprint);
-        setIdempotencyKey(createIdempotencyKey());
-        return;
+        setIsLoadingCandidate(false);
       }
 
       let key = idempotencyKey;
@@ -428,6 +616,7 @@ export function PublicLocalMateChat() {
         currentOrder ??
         (await publicLocalMateRepository.createOrder({
           candidateKey: activeCandidateKey,
+          proposalKey: activeProposalKey,
           quantity: partySize,
           partySize,
           requestedStartAt: requestedStartAt ? new Date(requestedStartAt).toISOString() : null,
@@ -436,6 +625,15 @@ export function PublicLocalMateChat() {
         }));
 
       if (!currentOrder) setCurrentOrder(order);
+
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("localmate_last_chat_url", window.location.href);
+          localStorage.setItem("localmate_last_order_id", order.id);
+        } catch {
+          // Ignored
+        }
+      }
 
       const paymentRes = await publicLocalMateRepository.createPaymentSession(order.id);
       const payment = paymentRes.payment;
@@ -452,6 +650,21 @@ export function PublicLocalMateChat() {
     } finally {
       setIsLoadingCandidate(false);
       setIsSubmittingOrder(false);
+    }
+  };
+
+  const handleSimulatePayment = async () => {
+    if (!currentOrder?.id || isSimulatingPayment) return;
+    setIsSimulatingPayment(true);
+    try {
+      const updated = await publicLocalMateRepository.simulatePayment(currentOrder.id);
+      setCurrentOrder(updated);
+      setViewMode("guide-chat");
+    } catch (err: unknown) {
+      const errorObj = err as { message?: string } | null | undefined;
+      setBookingError(errorObj?.message || "Không thể giả lập thanh toán.");
+    } finally {
+      setIsSimulatingPayment(false);
     }
   };
 
@@ -536,6 +749,15 @@ export function PublicLocalMateChat() {
     setInput("");
     setSuggestions([]);
     setSelectedRegion("all");
+    setActiveProposalKey(null);
+    setActiveCandidateKey(null);
+    setActiveProposals([]);
+    setCandidateDetails(null);
+    setBookingPreviewFingerprint("");
+    setCurrentOrder(null);
+    setPaymentCheckoutUrl(null);
+    setBookingError("");
+    setCurrentStage("DISCOVERY");
     setMessages([
       {
         ...welcome,
@@ -659,6 +881,25 @@ export function PublicLocalMateChat() {
             {/* VIEW 1: DISCOVERY AI CHAT */}
             {viewMode === "discovery" && (
               <>
+                {activeProposal && (
+                  <div className="shrink-0 flex items-center justify-between border-b border-[#d6c08b]/40 bg-[#fff9ed] px-3.5 py-2 text-xs">
+                    <div className="flex items-center gap-2 truncate">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#123d2a] text-[#f3c66b]">
+                        <VsIcon name="bookmark" className="text-xs" />
+                      </span>
+                      <span className="truncate text-[#123d2a] font-semibold">
+                        Lịch trình đã chọn: <b>{activeProposal.title}</b> ({activeProposal.duration})
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleShowAlternatives(activeProposal.proposalKey)}
+                      className="shrink-0 text-[11px] font-bold text-[#916e15] hover:underline ml-2"
+                    >
+                      Xem lịch trình khác
+                    </button>
+                  </div>
+                )}
                 <div
                   ref={messagesContainerRef}
                   className="min-h-0 flex-1 space-y-3.5 overflow-y-auto overscroll-contain bg-gradient-to-b from-[#f8f4ea] to-[#f2ecdf]/60 p-3.5 sm:p-4"
@@ -667,41 +908,218 @@ export function PublicLocalMateChat() {
                   {messages.map((message) => (
                     <div
                       key={message.id}
-                      className={`flex flex-col ${message.sender === "guest" ? "items-end" : "items-start"}`}
+                      className={`flex w-full flex-col ${message.sender === "guest" ? "items-end" : "items-start"}`}
                     >
-                      <div className={`flex ${message.sender === "guest" ? "justify-end" : "justify-start"}`}>
-                        {message.sender === "localmate" && (
-                          <span className="mr-2 mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#123d2a]/10">
-                            <VsIcon name="sparkles" className="text-sm text-[#2a6649]" />
-                          </span>
-                        )}
-                        <div
-                          className={`max-w-[88%] rounded-2xl px-4 py-3 text-[14px] leading-relaxed shadow-sm sm:text-[14.5px] ${
-                            message.sender === "guest"
-                              ? "rounded-tr-sm bg-gradient-to-br from-[#123d2a] to-[#1e5038] text-white"
-                              : "rounded-tl-sm border border-[#123d2a]/10 bg-white text-[#24342b]"
-                          }`}
-                        >
-                          {renderMessageContent(message.text, message.sender === "guest")}
+                      {(() => {
+                        const isProposalRecommendation =
+                          message.sender === "localmate" &&
+                          Boolean(message.proposals && message.proposals.length > 0) &&
+                          !Boolean(message.actions && message.actions.some((a) => a.type === "SELECT_GUIDE"));
+
+                        if (isProposalRecommendation || !message.text?.trim()) {
+                          return null;
+                        }
+
+                        return (
+                          <div
+                            className={`flex w-full items-start gap-2 ${
+                              message.sender === "guest" ? "justify-end" : "justify-start"
+                            }`}
+                          >
+                            {message.sender === "localmate" && (
+                              <span
+                                className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#123d2a]/10 ring-1 ring-[#123d2a]/15"
+                                aria-hidden="true"
+                              >
+                                <VsIcon name="sparkles" className="text-sm text-[#2a6649]" />
+                              </span>
+                            )}
+                            <div
+                              className={`w-fit max-w-[85%] rounded-2xl px-4 py-2.5 text-[14px] leading-relaxed shadow-sm sm:max-w-[80%] sm:py-3 sm:text-[14.5px] ${
+                                message.sender === "guest"
+                                  ? "rounded-tr-sm bg-gradient-to-br from-[#123d2a] to-[#1e5038] text-white"
+                                  : "rounded-tl-sm border border-[#123d2a]/10 bg-white text-[#24342b]"
+                              }`}
+                            >
+                              {renderMessageContent(message.text, message.sender === "guest")}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Proposal cards */}
+                      {message.proposals && message.proposals.length > 0 && (
+                        <div className="w-full max-w-full space-y-2.5 mt-1.5">
+                          <div className="flex items-center gap-2 text-xs font-bold text-[#123d2a]">
+                            <span
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#123d2a]/10 ring-1 ring-[#123d2a]/15"
+                              aria-hidden="true"
+                            >
+                              <VsIcon name="sparkles" className="text-sm text-[#2a6649]" />
+                            </span>
+                            <span className="text-sm">Phương án lịch trình gợi ý:</span>
+                          </div>
+                          {message.proposals.map((proposal) => {
+                            const isSelected = proposal.proposalKey === activeProposalKey;
+                            return (
+                              <div
+                                key={proposal.proposalKey}
+                                className={`flex flex-col gap-2 rounded-2xl p-3 shadow-sm transition ${
+                                  isSelected
+                                    ? "border-2 border-[#123d2a] bg-[#f2f8f4] ring-1 ring-[#123d2a]/20"
+                                    : "border border-[#d6c08b]/50 bg-[#fffdf8] hover:border-[#b8872f]"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#916e15]">
+                                        {proposal.location}
+                                      </span>
+                                      <span className="text-[11px] text-[#526458]">•</span>
+                                      <span className="text-[11px] font-medium text-[#526458]">
+                                        {proposal.duration}
+                                      </span>
+                                      {isSelected && (
+                                        <span className="inline-flex items-center gap-0.5 rounded-full bg-[#123d2a] px-2 py-0.5 text-[10px] font-bold text-[#f3c66b]">
+                                          <VsIcon name="check" className="text-xs" />
+                                          Lịch trình đã chọn
+                                        </span>
+                                      )}
+                                    </div>
+                                    <h4 className="mt-1 text-sm font-bold text-[#123d2a] leading-snug">
+                                      {proposal.title}
+                                    </h4>
+                                  </div>
+                                  {proposal.bookable && (
+                                    <span className="shrink-0 rounded-full bg-[#ecfdf5] px-2.5 py-0.5 text-[11px] font-bold text-[#065f46] border border-[#10b981]/30">
+                                      Sẵn sàng phục vụ
+                                    </span>
+                                  )}
+                                </div>
+
+                                {proposal.highlights && proposal.highlights.length > 0 && (
+                                  <div className="space-y-1 border-t border-[#d6c08b]/20 pt-2 text-xs text-[#3c5144]">
+                                    {proposal.highlights.map((hl, i) => (
+                                      <div key={i} className="flex items-start gap-1.5 leading-relaxed">
+                                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#b8872f]" />
+                                        <span>{hl}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                <div className="flex items-center gap-1.5 text-[11px] text-[#526458]">
+                                  <VsIcon name="group" className="text-sm text-[#123d2a]" />
+                                  <span>
+                                    {proposal.availableGuideCount > 0
+                                      ? `${proposal.availableGuideCount} hướng dẫn viên sẵn sàng phục vụ`
+                                      : "Hướng dẫn viên đang cập nhật"}
+                                  </span>
+                                </div>
+
+                                {/* Action buttons: Stack/wrap on mobile 390px, min-h-11 */}
+                                <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSelectProposal(proposal.proposalKey)}
+                                    className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl px-3.5 py-2.5 text-xs font-bold transition active:scale-95 ${
+                                      isSelected
+                                        ? "bg-[#10b981] text-white shadow-sm"
+                                        : "bg-[#123d2a] text-white hover:bg-[#184d35] shadow-sm"
+                                    }`}
+                                  >
+                                    {isSelected && <VsIcon name="check" className="text-base text-white" />}
+                                    <span>{isSelected ? "Đã chọn • Tiếp tục chọn HDV" : "Chọn lịch trình này"}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleShowAlternatives(proposal.proposalKey)}
+                                    className="flex min-h-11 items-center justify-center gap-1 rounded-xl border border-[#123d2a]/20 bg-white px-3 py-2 text-xs font-semibold text-[#123d2a] transition hover:bg-[#f8f4ea] active:scale-95"
+                                  >
+                                    <VsIcon name="swap_horiz" className="text-base text-[#b8872f]" />
+                                    <span>Xem lịch trình khác</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRefineProposal(proposal.proposalKey)}
+                                    className="flex min-h-11 items-center justify-center gap-1 rounded-xl border border-[#123d2a]/20 bg-white px-3 py-2 text-xs font-semibold text-[#123d2a] transition hover:bg-[#f8f4ea] active:scale-95"
+                                  >
+                                    <VsIcon name="tune" className="text-base text-[#b8872f]" />
+                                    <span>Tùy chỉnh lịch trình</span>
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                      </div>
+                      )}
+
+                      {/* Guide selection cards when actions are provided */}
+                      {message.actions && message.actions.some((a) => a.type === "SELECT_GUIDE") && (
+                        <div className="ml-0 sm:ml-9 mt-2.5 w-full max-w-[calc(100%-16px)] sm:max-w-[calc(100%-36px)] space-y-2">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-[#123d2a]">
+                            <VsIcon name="group" className="text-base text-[#b8872f]" />
+                            <span>Hướng dẫn viên bản địa sẵn sàng đồng hành:</span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {message.actions
+                              .filter((a) => a.type === "SELECT_GUIDE" && a.candidateKey)
+                              .map((guideAction) => (
+                                <div
+                                  key={guideAction.candidateKey}
+                                  className="flex flex-col justify-between rounded-2xl border border-[#d6c08b]/60 bg-gradient-to-br from-[#fffdf8] to-[#fff9ed] p-3.5 shadow-sm hover:border-[#123d2a] transition"
+                                >
+                                  <div className="flex items-center gap-2.5 mb-3">
+                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#123d2a]/10 text-[#123d2a]">
+                                      <VsIcon name="person" className="text-lg text-[#123d2a]" />
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                      <h5 className="font-bold text-[#123d2a] text-sm truncate">
+                                        {guideAction.guideName || guideAction.label}
+                                      </h5>
+                                      <span className="text-[11px] font-medium text-[#627064]">
+                                        LocalMate hướng dẫn viên bản địa
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleSelectGuide(
+                                        guideAction.candidateKey!,
+                                        guideAction.proposalKey || activeProposalKey || undefined,
+                                      )
+                                    }
+                                    className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-[#123d2a] px-3.5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#184d35] active:scale-95 focus-visible:outline-2 focus-visible:outline-[#b8872f]"
+                                  >
+                                    <span>Chọn Hướng dẫn viên & Đặt tour</span>
+                                    <VsIcon name="arrow_forward" className="text-sm text-[#f3c66b]" />
+                                  </button>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Interactive Booking CTA inside chat message when tour is matched */}
-                      {message.candidateKey && (
-                        <div className="ml-9 mt-2.5 max-w-[88%] rounded-2xl border border-[#b8872f]/45 bg-[#fff9ed] p-3.5 shadow-sm">
+                      {message.candidateKey && !message.actions?.some((a) => a.type === "SELECT_GUIDE") && (
+                        <div className="ml-9 mt-2.5 w-fit max-w-[calc(100%-36px)] rounded-2xl border border-[#b8872f]/45 bg-[#fff9ed] p-3.5 shadow-sm">
                           <div className="flex items-center gap-2 text-xs font-bold text-[#123d2a]">
                             <VsIcon name="hotel_class" className="text-base text-[#b8872f]" />
                             <span>Trải nghiệm phù hợp được tìm thấy!</span>
                           </div>
                           <p className="mt-1 text-xs text-[#526458] leading-relaxed">
-                            Quý khách có thể xác nhận đặt tour và mở kênh trao đổi trực tiếp với Hướng dẫn viên bản địa ngay tại đây.
+                            {activeProposalKey
+                              ? "Lịch trình đã chọn đã có hướng dẫn viên sẵn sàng. Nhấn để xem trước thông tin và đặt tour."
+                              : "Quý khách có thể xác nhận đặt tour và mở kênh trao đổi trực tiếp với Hướng dẫn viên bản địa ngay tại đây."}
                           </p>
                           <button
                             type="button"
-                            onClick={() => handleStartBooking(message.candidateKey!)}
+                            onClick={() => handleSelectGuide(message.candidateKey!)}
                             className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#123d2a] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#184d35] active:scale-95 focus-visible:outline-2 focus-visible:outline-[#b8872f]"
                           >
-                            <span>Xác nhận thông tin & Đặt tour</span>
+                            <span>Chọn Hướng dẫn viên & Đặt tour</span>
                             <VsIcon name="arrow_forward" className="text-sm" />
                           </button>
                         </div>
@@ -710,17 +1128,17 @@ export function PublicLocalMateChat() {
                   ))}
 
                   {!location && (
-                    <div className="space-y-3 rounded-2xl border border-[#d6c08b]/45 bg-white/95 p-3.5 shadow-sm">
+                    <div className="space-y-3 rounded-2xl border border-[#d6c08b]/45 bg-white/95 p-3.5 shadow-sm sm:p-4">
                       <div className="flex items-center justify-between border-b border-[#d6c08b]/20 pb-2">
-                        <span className="flex items-center gap-1.5 text-xs font-bold text-[#123d2a]">
-                          <VsIcon name="location_on" className="text-sm text-[#b8872f]" />
+                        <span className="flex items-center gap-1.5 text-xs font-bold text-[#123d2a] sm:text-sm">
+                          <VsIcon name="location_on" className="text-sm text-[#b8872f] sm:text-base" />
                           Gợi ý điểm đến phổ biến
                         </span>
-                        <span className="text-[11px] font-medium text-[#627064]">Chạm để chọn nhanh</span>
+                        <span className="text-xs font-medium text-[#627064]">Chạm để chọn nhanh</span>
                       </div>
 
                       <div
-                        className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none"
+                        className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none"
                         role="tablist"
                         aria-label="Lọc theo miền"
                       >
@@ -733,10 +1151,10 @@ export function PublicLocalMateChat() {
                               role="tab"
                               aria-selected={isActive}
                               onClick={() => setSelectedRegion(tab.id)}
-                              className={`min-h-[30px] shrink-0 rounded-full px-2.5 text-[11.5px] font-semibold transition active:scale-95 ${
+                              className={`min-h-[34px] shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition active:scale-95 sm:min-h-9 sm:px-3.5 sm:text-[13px] ${
                                 isActive
-                                  ? "bg-[#123d2a] text-[#f3c66b] shadow-sm"
-                                  : "bg-[#f8f4ea] text-[#4a5e52] hover:bg-[#ebdcc0] hover:text-[#123d2a]"
+                                  ? "bg-[#123d2a] text-[#f3c66b] shadow-sm font-bold"
+                                  : "bg-[#f8f4ea] text-[#3c5144] hover:bg-[#ebdcc0] hover:text-[#123d2a]"
                               }`}
                             >
                               {tab.label}
@@ -745,18 +1163,27 @@ export function PublicLocalMateChat() {
                         })}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                      <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
                         {displayedDestinations.map((dest) => (
                           <button
                             key={dest.name}
                             type="button"
                             onClick={() => saveLocation(dest.name)}
-                            className="group flex flex-col items-start rounded-xl border border-[#123d2a]/10 bg-[#fffdf8] p-2 text-left transition hover:border-[#b8872f] hover:bg-[#fff9ed] active:scale-95"
+                            className="group relative flex min-h-[56px] flex-col justify-between rounded-xl border border-[#123d2a]/15 bg-[#fffdf8] p-2.5 text-left shadow-[0_1px_3px_rgba(18,61,42,0.04)] transition hover:border-[#b8872f] hover:bg-[#fff9ed] hover:shadow-sm active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-[#123d2a] sm:min-h-[60px] sm:p-3"
                           >
-                            <span className="text-xs font-bold text-[#123d2a] group-hover:text-[#916e15]">
-                              {dest.name}
+                            <div className="flex w-full items-center justify-between gap-1">
+                              <span className="flex items-center gap-1.5 truncate text-[13px] font-bold text-[#123d2a] group-hover:text-[#916e15] sm:text-sm">
+                                {dest.icon && <span className="text-sm leading-none shrink-0">{dest.icon}</span>}
+                                <span className="truncate">{dest.name}</span>
+                              </span>
+                              <VsIcon
+                                name="north_east"
+                                className="text-xs text-[#b8872f] opacity-50 transition group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 shrink-0"
+                              />
+                            </div>
+                            <span className="mt-1 line-clamp-1 text-[11.5px] text-[#526458] group-hover:text-[#38483d] sm:text-xs">
+                              {dest.tag}
                             </span>
-                            <span className="text-[10px] text-[#627064] line-clamp-1">{dest.tag}</span>
                           </button>
                         ))}
                       </div>
@@ -790,7 +1217,7 @@ export function PublicLocalMateChat() {
                     >
                       <label
                         htmlFor="localmate-public-location"
-                        className="mb-1.5 flex items-center gap-1.5 text-[11.5px] font-semibold text-[#123d2a]"
+                        className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-[#123d2a] sm:text-[13px]"
                       >
                         <VsIcon name="location_on" className="text-sm text-[#b8872f]" />
                         Hoặc nhập địa phương muốn khám phá:
@@ -931,21 +1358,6 @@ export function PublicLocalMateChat() {
                         />
                       </div>
 
-                      <div>
-                        <label className="block text-xs font-bold text-[#123d2a] mb-1">
-                          Số điện thoại liên hệ <span className="text-red-600">*</span>
-                        </label>
-                        <input
-                          type="tel"
-                          required
-                          disabled={Boolean(currentOrder)}
-                          value={guestPhone}
-                          onChange={(e) => setGuestPhone(e.target.value)}
-                          placeholder="Ví dụ: 0901234567"
-                          className="min-h-11 w-full rounded-xl border border-[#123d2a]/20 bg-[#f8f4ea] px-3 text-sm text-[#132119] outline-none focus:border-[#123d2a] focus:bg-white"
-                        />
-                      </div>
-
                       <div className="grid grid-cols-2 gap-2.5">
                         <div>
                           <label className="block text-xs font-bold text-[#123d2a] mb-1">
@@ -966,7 +1378,29 @@ export function PublicLocalMateChat() {
                         </div>
                         <div>
                           <label className="block text-xs font-bold text-[#123d2a] mb-1">
-                            Thời gian hẹn
+                            Số điện thoại <span className="text-[10px] font-normal text-[#697a70]">(tùy chọn)</span>
+                          </label>
+                          <input
+                            type="tel"
+                            disabled={Boolean(currentOrder)}
+                            value={guestPhone}
+                            onChange={(e) => setGuestPhone(e.target.value)}
+                            placeholder="Ví dụ: 0901234567"
+                            className="min-h-11 w-full rounded-xl border border-[#123d2a]/20 bg-[#f8f4ea] px-3 text-sm text-[#132119] outline-none focus:border-[#123d2a] focus:bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Gợi ý tinh tế */}
+                      <div className="flex items-start gap-2 rounded-xl bg-emerald-50/80 p-2.5 text-xs text-emerald-900 border border-emerald-200/60">
+                        <VsIcon name="chat" className="text-sm shrink-0 mt-0.5 text-emerald-700" />
+                        <span>Sau khi thanh toán qua mã QR, Quý khách và Hướng dẫn viên sẽ nhắn tin trực tiếp để hẹn giờ và điểm đón thuận tiện nhất.</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="block text-xs font-bold text-[#123d2a] mb-1">
+                            Thời gian hẹn <span className="text-[10px] font-normal text-[#697a70]">(tùy chọn)</span>
                           </label>
                           <input
                             type="datetime-local"
@@ -976,22 +1410,41 @@ export function PublicLocalMateChat() {
                             className="min-h-11 w-full rounded-xl border border-[#123d2a]/20 bg-[#f8f4ea] px-2.5 text-xs text-[#132119] outline-none focus:border-[#123d2a] focus:bg-white"
                           />
                         </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-[#123d2a] mb-1">
-                          Ghi chú cho Hướng dẫn viên
-                        </label>
-                        <textarea
-                          rows={2}
-                          value={guestNote}
-                          disabled={Boolean(currentOrder)}
-                          onChange={(e) => setGuestNote(e.target.value)}
-                          placeholder="Yêu cầu đặc biệt, sở thích ẩm thực..."
-                          className="w-full rounded-xl border border-[#123d2a]/20 bg-[#f8f4ea] p-2.5 text-sm text-[#132119] outline-none focus:border-[#123d2a] focus:bg-white"
-                        />
+                        <div>
+                          <label className="block text-xs font-bold text-[#123d2a] mb-1">
+                            Ghi chú <span className="text-[10px] font-normal text-[#697a70]">(tùy chọn)</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={guestNote}
+                            disabled={Boolean(currentOrder)}
+                            onChange={(e) => setGuestNote(e.target.value)}
+                            placeholder="Sở thích, món ăn..."
+                            className="min-h-11 w-full rounded-xl border border-[#123d2a]/20 bg-[#f8f4ea] px-2.5 text-xs text-[#132119] outline-none focus:border-[#123d2a] focus:bg-white"
+                          />
+                        </div>
                       </div>
                     </div>
+
+                    {/* Selected Proposal Info */}
+                    {activeProposal && (
+                      <div className="flex items-center gap-2.5 rounded-2xl border border-[#123d2a]/15 bg-[#f4f9f6] p-3 text-xs text-[#123d2a]">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#123d2a] text-[#f3c66b]">
+                          <VsIcon name="bookmark" className="text-sm" />
+                        </span>
+                        <div className="min-w-0">
+                          <span className="text-[10.5px] font-bold uppercase tracking-wider text-[#916e15]">
+                            Lịch trình đã chọn
+                          </span>
+                          <h4 className="truncate font-bold text-[#123d2a] text-[13px]">
+                            {activeProposal.title}
+                          </h4>
+                          <span className="text-[11px] text-[#526458]">
+                            {activeProposal.location} • {activeProposal.duration}
+                          </span>
+                        </div>
+                      </div>
+                    )}
 
                     {bookingError && (
                       <p className="text-xs font-semibold text-red-700 bg-red-50 p-2.5 rounded-xl border border-red-200">
@@ -999,10 +1452,22 @@ export function PublicLocalMateChat() {
                       </p>
                     )}
 
+                    {(!activeProposalKey || !activeCandidateKey) && (
+                      <p className="text-xs font-semibold text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+                        Cần chọn cả lịch trình và hướng dẫn viên trước khi đặt tour.
+                      </p>
+                    )}
+
                     <div className="pt-2">
                       <button
                         type="submit"
-                        disabled={isSubmittingOrder}
+                        disabled={
+                          isSubmittingOrder ||
+                          !canProceedToBooking({
+                            proposalKey: activeProposalKey,
+                            candidateKey: activeCandidateKey,
+                          })
+                        }
                         className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#123d2a] px-4 py-3 text-sm font-bold text-white shadow-md transition hover:bg-[#184d35] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {isSubmittingOrder ? (
@@ -1063,9 +1528,28 @@ export function PublicLocalMateChat() {
                         rel="noopener noreferrer"
                         className="mt-3 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-[#123d2a] bg-[#f8f4ea] px-4 text-xs font-bold text-[#123d2a] transition hover:bg-[#123d2a] hover:text-white"
                       >
-                        <span>Mở liên kết thanh toán</span>
+                        <span>Mở liên kết thanh toán Stripe</span>
                         <VsIcon name="open_in_new" className="text-sm" />
                       </a>
+
+                      <button
+                        type="button"
+                        onClick={handleSimulatePayment}
+                        disabled={isSimulatingPayment}
+                        className="mt-2.5 inline-flex min-h-10 w-full max-w-[280px] items-center justify-center gap-1.5 rounded-xl border border-emerald-600 bg-emerald-50 px-4 text-xs font-bold text-emerald-800 transition hover:bg-emerald-600 hover:text-white active:scale-95 disabled:opacity-50"
+                      >
+                        {isSimulatingPayment ? (
+                          <>
+                            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-emerald-700 border-t-transparent" />
+                            <span>Đang kích hoạt HDV...</span>
+                          </>
+                        ) : (
+                          <>
+                            <VsIcon name="bolt" className="text-sm text-emerald-600 group-hover:text-white" />
+                            <span>⚡ Xác nhận thanh toán thử (Test Mode)</span>
+                          </>
+                        )}
+                      </button>
                     </div>
                   ) : (
                     <div className="py-8">
@@ -1097,9 +1581,15 @@ export function PublicLocalMateChat() {
             {viewMode === "guide-chat" && (
               <div className="flex flex-1 flex-col overflow-hidden bg-[#fffdf8]">
                 <div className="flex-1 space-y-3 overflow-y-auto p-3.5 bg-gradient-to-b from-[#f8f4ea] to-[#f2ecdf]/50">
-                  <div className="rounded-xl border border-[#10b981]/30 bg-[#ecfdf5] p-2.5 text-center text-xs font-semibold text-[#065f46]">
-                    ✓ Đã hoàn tất thanh toán. Quý khách đang kết nối trực tiếp với Hướng dẫn viên bản địa!
-                  </div>
+                  {currentOrder?.status === "COMPLETED" ? (
+                    <div className="rounded-xl border border-[#10b981]/40 bg-[#ecfdf5] p-3 text-center text-xs font-bold text-[#065f46] shadow-sm">
+                      🏁 Buổi trải nghiệm đã hoàn tất. Cảm ơn quý khách đã tin tưởng và đồng hành cùng VietSage LocalMate!
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-[#10b981]/30 bg-[#ecfdf5] p-2.5 text-center text-xs font-semibold text-[#065f46]">
+                      ✓ Đã hoàn tất thanh toán. Quý khách đang kết nối trực tiếp với Hướng dẫn viên bản địa!
+                    </div>
+                  )}
 
                   {conversationMessages.length === 0 ? (
                     <div className="py-8 text-center text-xs text-[#526458]">
@@ -1109,15 +1599,17 @@ export function PublicLocalMateChat() {
                     conversationMessages.map((msg) => (
                       <div
                         key={msg.id}
-                        className={`flex ${msg.senderType === "GUEST" ? "justify-end" : "justify-start"}`}
+                        className={`flex w-full items-start gap-2 ${
+                          msg.senderType === "GUEST" ? "justify-end" : "justify-start"
+                        }`}
                       >
                         {msg.senderType !== "GUEST" && (
-                          <span className="mr-2 mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#123d2a]/15 text-[11px] font-bold text-[#123d2a]">
+                          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#123d2a]/15 text-[11px] font-bold text-[#123d2a]">
                             HDV
                           </span>
                         )}
                         <div
-                          className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed shadow-sm ${
+                          className={`w-fit max-w-[85%] rounded-2xl px-3.5 py-2.5 text-[13.5px] leading-relaxed shadow-sm sm:text-sm ${
                             msg.senderType === "GUEST"
                               ? "rounded-tr-sm bg-[#123d2a] text-white"
                               : "rounded-tl-sm border border-[#123d2a]/10 bg-white text-[#24342b]"
@@ -1132,28 +1624,34 @@ export function PublicLocalMateChat() {
                 </div>
 
                 {/* Guide Message Input Bar */}
-                <form
-                  onSubmit={handleSendGuideMessage}
-                  className="flex gap-2 border-t border-[#123d2a]/10 bg-white p-3"
-                >
-                  <input
-                    type="text"
-                    value={guideInput}
-                    onChange={(e) => setGuideInput(e.target.value)}
-                    placeholder="Nhắn tin cho hướng dẫn viên..."
-                    disabled={isSendingGuideMessage}
-                    className="min-h-11 min-w-0 flex-1 rounded-xl border border-[#123d2a]/20 bg-[#f8f4ea] px-3.5 text-sm text-[#132119] outline-none focus:border-[#123d2a] focus:bg-white"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!guideInput.trim() || isSendingGuideMessage}
-                    aria-label="Gửi tin nhắn"
-                    className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#123d2a] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#184d35] active:scale-95 disabled:opacity-40"
+                {currentOrder?.status === "COMPLETED" ? (
+                  <div className="border-t border-[#123d2a]/10 bg-white p-3 text-center text-xs font-medium text-[#526458]">
+                    Cuộc trò chuyện của đơn hàng này đã hoàn thành và kết thúc.
+                  </div>
+                ) : (
+                  <form
+                    onSubmit={handleSendGuideMessage}
+                    className="flex gap-2 border-t border-[#123d2a]/10 bg-white p-3"
                   >
-                    <span>Gửi</span>
-                    <VsIcon name="send" className="text-base" />
-                  </button>
-                </form>
+                    <input
+                      type="text"
+                      value={guideInput}
+                      onChange={(e) => setGuideInput(e.target.value)}
+                      placeholder="Nhắn tin cho hướng dẫn viên..."
+                      disabled={isSendingGuideMessage}
+                      className="min-h-11 min-w-0 flex-1 rounded-xl border border-[#123d2a]/20 bg-[#f8f4ea] px-3.5 text-sm text-[#132119] outline-none focus:border-[#123d2a] focus:bg-white"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!guideInput.trim() || isSendingGuideMessage}
+                      aria-label="Gửi tin nhắn"
+                      className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#123d2a] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#184d35] active:scale-95 disabled:opacity-40"
+                    >
+                      <span>Gửi</span>
+                      <VsIcon name="send" className="text-base" />
+                    </button>
+                  </form>
+                )}
               </div>
             )}
           </section>

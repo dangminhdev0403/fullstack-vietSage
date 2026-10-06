@@ -32,6 +32,10 @@ export class TelegramWebhookController {
     this.pairingDelegate = delegate;
   }
 
+  static getPairingDelegate(): TelegramPairingDelegate | undefined {
+    return this.pairingDelegate;
+  }
+
   constructor(
     private readonly telegramNotificationService: TelegramNotificationService,
     @Optional()
@@ -68,17 +72,52 @@ export class TelegramWebhookController {
       }
     }
 
-    if (update.message?.text?.startsWith("/start ") && TelegramWebhookController.pairingDelegate) {
-      const token = update.message.text.slice(7).trim();
-      if (token && update.message.chat && update.message.from) {
-        await TelegramWebhookController.pairingDelegate.handleStartPairing({
-          token,
-          telegramUserId: String(update.message.from.id),
-          telegramChatId: String(update.message.chat.id),
-          chatType: update.message.chat.type || "unknown",
-        });
+    if (update.message?.text?.startsWith("/start")) {
+      const textParts = update.message.text.trim().split(/\s+/);
+      const token = textParts.length > 1 ? textParts[1].trim() : "";
+
+      if (!token) {
+        await this.telegramNotificationService
+          .callTelegram("sendMessage", {
+            chat_id: update.message.chat.id,
+            text: "👋 <b>Xin chào! Đây là VietSage LocalMate Bot.</b>\n\nĐể kết nối tài khoản Hướng dẫn viên, vui lòng vào hệ thống VietSage > <b>Quản lý LocalMate</b> > chọn <b>Kết nối Telegram</b> để lấy liên kết hoặc mã kích hoạt.",
+            parse_mode: "HTML",
+          })
+          .catch(() => {});
+      } else if (TelegramWebhookController.pairingDelegate && update.message.chat && update.message.from) {
+        try {
+          const pairResult: any = await TelegramWebhookController.pairingDelegate.handleStartPairing({
+            token,
+            telegramUserId: String(update.message.from.id),
+            telegramChatId: String(update.message.chat.id),
+            chatType: update.message.chat.type || "unknown",
+          });
+          await this.telegramNotificationService
+            .callTelegram("sendMessage", {
+              chat_id: update.message.chat.id,
+              text: `🎉 <b>Kết nối thành công!</b>\n\nChào mừng Hướng dẫn viên <b>${pairResult?.fullName || "LocalMate"}</b>. Kể từ bây giờ, các đơn đặt tour được chỉ định sẽ gửi thông báo trực tiếp về đây để bạn tiếp nhận và trò chuyện cùng khách hàng.`,
+              parse_mode: "HTML",
+            })
+            .catch(() => {});
+        } catch (err: any) {
+          const errMsg = err?.message || "Mã kết nối không hợp lệ hoặc đã hết hạn.";
+          await this.telegramNotificationService
+            .callTelegram("sendMessage", {
+              chat_id: update.message.chat.id,
+              text: `⚠️ <b>Kết nối không thành công:</b> ${errMsg}\n\nVui lòng tạo mã kết nối mới trên hệ thống VietSage.`,
+              parse_mode: "HTML",
+            })
+            .catch(() => {});
+        }
       }
-    } else if (update.message?.text && !update.message.text.startsWith("/") && this.bridgeService) {
+    } else if (
+      update.message?.text &&
+      (!update.message.text.startsWith("/") ||
+        update.message.text.startsWith("/end") ||
+        update.message.text.startsWith("/done") ||
+        update.message.text.startsWith("/ketthuc")) &&
+      this.bridgeService
+    ) {
       await this.bridgeService.handleInboundMessage(update.message);
     }
 

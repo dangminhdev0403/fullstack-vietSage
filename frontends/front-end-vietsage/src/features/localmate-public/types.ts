@@ -3,11 +3,59 @@ export type PublicLocalMateSuggestion = {
   query: string;
 };
 
+export type PublicLocalMateSelection = {
+  proposalKey?: string;
+  candidateKey?: string;
+};
+
+export type PublicLocalMateStage =
+  | "DISCOVERY"
+  | "PROPOSALS"
+  | "GUIDE_SELECTION"
+  | "BOOKING";
+
+export type PublicLocalMateProposal = {
+  proposalKey: string;
+  title: string;
+  location: string;
+  duration: string;
+  highlights: string[];
+  bookable: boolean;
+  availableGuideCount: number;
+  selected?: boolean;
+};
+
+export type PublicLocalMateActionType =
+  | "SELECT_PROPOSAL"
+  | "REFINE_PROPOSAL"
+  | "SHOW_ALTERNATIVES"
+  | "SELECT_GUIDE"
+  | "LOCALMATE_BOOKING";
+
+export type PublicLocalMateAction = {
+  type: PublicLocalMateActionType;
+  label?: string;
+  candidateKey?: string;
+  proposalKey?: string;
+  guideName?: string;
+  guideCode?: string;
+};
+
 export type PublicLocalMateReply = {
   status: number;
   reply: string;
   suggestions: PublicLocalMateSuggestion[];
-  action: { type: "LOCALMATE_BOOKING"; candidateKey: string } | null;
+  action: PublicLocalMateAction | null;
+  stage?: PublicLocalMateStage;
+  proposals?: PublicLocalMateProposal[];
+  actions?: PublicLocalMateAction[];
+  availableGuides?: Array<{
+    candidateKey: string;
+    guideName: string;
+    rating?: number;
+    specialties?: string[];
+    price?: number;
+  }>;
   knowledgeVersion: string;
   cached: boolean;
 };
@@ -22,7 +70,70 @@ export type PublicLocalMateChatInput = {
   location?: string;
   language: "vi";
   history?: PublicLocalMateHistoryEntry[];
+  selection?: PublicLocalMateSelection;
+  actionType?: PublicLocalMateActionType;
 };
+
+export function canProceedToBooking(selection: {
+  proposalKey?: string | null;
+  candidateKey?: string | null;
+}): boolean {
+  return Boolean(selection.proposalKey && selection.candidateKey);
+}
+
+export function validateBookingPrerequisites(selection: {
+  proposalKey?: string | null;
+  candidateKey?: string | null;
+}): { ok: boolean; error?: string } {
+  if (!selection.proposalKey && !selection.candidateKey) {
+    return {
+      ok: false,
+      error: "Cần chọn cả lịch trình và hướng dẫn viên trước khi đặt tour.",
+    };
+  }
+  if (!selection.proposalKey) {
+    return {
+      ok: false,
+      error: "Vui lòng chọn lịch trình trước khi tiến hành đặt tour.",
+    };
+  }
+  if (!selection.candidateKey) {
+    return {
+      ok: false,
+      error: "Vui lòng chọn hướng dẫn viên trước khi tiến hành đặt tour.",
+    };
+  }
+  return { ok: true };
+}
+
+export function transitionStage(
+  currentStage: PublicLocalMateStage,
+  action: PublicLocalMateActionType,
+): PublicLocalMateStage {
+  switch (action) {
+    case "SHOW_ALTERNATIVES":
+    case "REFINE_PROPOSAL":
+      return "DISCOVERY";
+    case "SELECT_PROPOSAL":
+      return "GUIDE_SELECTION";
+    case "SELECT_GUIDE":
+      return "BOOKING";
+    default:
+      return currentStage;
+  }
+}
+
+export function resetSelectionOnLocationChange(): {
+  proposalKey: null;
+  candidateKey: null;
+  stage: PublicLocalMateStage;
+} {
+  return {
+    proposalKey: null,
+    candidateKey: null,
+    stage: "DISCOVERY",
+  };
+}
 
 export type CreatePublicSessionInput = {
   location: string;
@@ -61,6 +172,7 @@ export type PublicBookingCandidate = {
 
 export type CreatePublicOrderInput = {
   candidateKey: string;
+  proposalKey: string;
   quantity?: number;
   requestedStartAt?: string | null;
   partySize?: number | null;

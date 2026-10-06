@@ -1,11 +1,30 @@
 {
   "version": 1,
   "skills": {
+    "google-cloud-storage-basics": {
+      "source": "google/skills",
+      "sourceType": "github",
+      "skillPath": "skills/cloud/google-cloud-storage-basics/SKILL.md",
+      "computedHash": "f33c761c39213257b99d71dea31716714cebec6fc74f775564061c6b41beb444"
+    },
+    "google-cloud-storage-bucket-architect": {
+      "source": "google/skills",
+      "sourceType": "github",
+      "skillPath": "skills/cloud/google-cloud-storage-bucket-architect/SKILL.md",
+      "computedHash": "068a19de6c98e67dcf2315668a30c047cc01c8b5780ddbe9ed74b58fcf5b55d0"
+    },
     "microservices-architecture": {
       "source": "aj-geddes/useful-ai-prompts",
       "sourceType": "github",
       "skillPath": "skills/microservices-architecture/SKILL.md",
       "computedHash": "4f309c256954a097a484c32fa8cc388e6d51ba9ed75c979a11cd1c33e2efe441"
+    },
+    "stripe-best-practices": {
+      "source": "docs.stripe.com",
+      "sourceUrl": "https://docs.stripe.com",
+      "sourceType": "well-known",
+      "computedHash": "cf989539415bb2d0ca144d3e7d6a82af56bc68bf1634974fa1154cbed17d36a6",
+      "wellKnownDigest": "sha256:3ab01bcd6577b528b3bb52b0ec50439da7438685c9aa84ac67b8287f32b0df2f"
     }
   }
 }

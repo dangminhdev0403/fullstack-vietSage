@@ -9,7 +9,11 @@ import { loadAppConfig, type AppConfig } from "../../../common/config/env.config
 import { AppLogger } from "../../../common/logging/app-logger.service";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { StripeClient } from "../infrastructure/stripe-client";
-import { MarketplaceOrderPaymentStatus, type MarketplaceOrderPayment } from "@prisma/client";
+import {
+  MarketplaceOrderPaymentStatus,
+  MarketplaceGuideNotificationStatus,
+  type MarketplaceOrderPayment,
+} from "@prisma/client";
 import type {
   CreateCheckoutSessionResult,
   LocalMatePaymentSummaryDto,
@@ -27,9 +31,26 @@ export interface RefundPaymentParams {
   reason?: string;
 }
 
+export type LocalMatePaymentDispatcher = {
+  onPaymentCompleted?: (paymentId: string) => Promise<void> | void;
+};
+
 @Injectable()
 export class LocalMatePaymentsService {
+  private static dispatcher?: LocalMatePaymentDispatcher;
   private readonly config: AppConfig;
+
+  static setDispatcher(dispatcher: LocalMatePaymentDispatcher) {
+    this.dispatcher = dispatcher;
+  }
+
+  static notifyPaymentCompletedSafely(paymentId: string) {
+    try {
+      void Promise.resolve(this.dispatcher?.onPaymentCompleted?.(paymentId)).catch(() => {});
+    } catch {
+      // Ignored
+    }
+  }
 
   constructor(
     private readonly prisma: PrismaService,
@@ -45,10 +66,79 @@ export class LocalMatePaymentsService {
     });
   }
 
-  async getPaymentSummary(orderId: string): Promise<LocalMatePaymentSummaryDto | null> {
+  async syncPaymentIfOpen(orderId: string): Promise<MarketplaceOrderPayment | null> {
     const payment = await this.getPaymentByOrderId(orderId);
+    if (
+      !payment ||
+      payment.status !== MarketplaceOrderPaymentStatus.OPEN ||
+      !payment.providerCheckoutSessionId
+    ) {
+      return payment;
+    }
+
+    try {
+      const session = await this.stripeClient.getCheckoutSession(
+        payment.providerCheckoutSessionId,
+      );
+      if (session.payment_status === "paid") {
+        const isSessionIdMatch = session.id === payment.providerCheckoutSessionId;
+        const isOrderMatch =
+          !session.client_reference_id || session.client_reference_id === payment.orderId;
+        const sessionCurrency = String(session.currency || "").toLowerCase();
+        const expectedCurrency = payment.currency.toLowerCase();
+        const isCurrencyMatch = sessionCurrency === expectedCurrency && sessionCurrency === "vnd";
+        const sessionAmount = Number(session.amount_total);
+        const expectedAmount = Math.round(Number(payment.platformFeeAmount));
+        const isAmountMatch = !Number.isNaN(sessionAmount) && sessionAmount === expectedAmount;
+
+        if (isSessionIdMatch && isOrderMatch && isCurrencyMatch && isAmountMatch) {
+          const providerPaymentIntentId =
+            typeof session.payment_intent === "string"
+              ? session.payment_intent
+              : payment.providerPaymentIntentId;
+
+          const updated = await this.prisma.marketplaceOrderPayment.update({
+            where: { id: payment.id },
+            data: {
+              status: MarketplaceOrderPaymentStatus.PAID,
+              paidAt: new Date(),
+              providerPaymentIntentId,
+              guideNotificationStatus: MarketplaceGuideNotificationStatus.PENDING,
+              lastProviderErrorCode: null,
+            },
+          });
+          LocalMatePaymentsService.notifyPaymentCompletedSafely(payment.id);
+          return updated;
+        }
+      }
+    } catch (err: unknown) {
+      this.logger.warn("Failed to check Stripe session status during sync", {
+        module: "localmate-payments",
+        service: "LocalMatePaymentsService",
+        operation: "syncPaymentIfOpen",
+        orderId,
+        paymentId: payment.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    return payment;
+  }
+
+  async getPaymentSummary(orderId: string): Promise<LocalMatePaymentSummaryDto | null> {
+    let payment = await this.getPaymentByOrderId(orderId);
     if (!payment) {
       return null;
+    }
+
+    if (
+      payment.status === MarketplaceOrderPaymentStatus.OPEN &&
+      payment.providerCheckoutSessionId
+    ) {
+      const synced = await this.syncPaymentIfOpen(orderId).catch(() => null);
+      if (synced) {
+        payment = synced;
+      }
     }
 
     return {

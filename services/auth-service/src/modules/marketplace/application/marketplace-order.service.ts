@@ -39,6 +39,16 @@ export type MarketplaceCustomerScope =
       guestPhone: string;
     };
 
+type CanonicalTripSnapshot = {
+  knowledgeVersion: string;
+  tourCode: string;
+  title: string;
+  duration: string;
+  highlights: string[];
+  provinceCode?: string | null;
+  province?: string | null;
+};
+
 function isPublicScope(
   scope: MarketplaceCustomerScope,
 ): scope is Extract<MarketplaceCustomerScope, { publicSessionId: string }> {
@@ -92,7 +102,11 @@ export class MarketplaceOrderService {
     MarketplaceOrderService.notificationDispatcher = dispatcher;
   }
 
-  async createGuestOrder(scope: MarketplaceCustomerScope, body: CreateMarketplaceOrder) {
+  async createGuestOrder(
+    scope: MarketplaceCustomerScope,
+    body: CreateMarketplaceOrder,
+    tripSnapshot?: CanonicalTripSnapshot,
+  ) {
     const existing = await this.prisma.marketplaceOrder.findFirst({
       where: {
         ...customerOwnershipWhere(scope),
@@ -121,8 +135,6 @@ export class MarketplaceOrderService {
               type: "SERVICE",
               serviceProfile: {
                 status: MarketplaceRecordStatus.ACTIVE,
-                categoryId: { not: null },
-                category: { isActive: true },
               },
               ...(!isPublicScope(scope)
                 ? { hotelServiceLinks: { some: { hotelId: scope.hotelId, status: "ACTIVE" } } }
@@ -233,6 +245,7 @@ export class MarketplaceOrderService {
             assignedLocalMateProfileId: service.localMateProfileId ?? null,
             requestedStartAt: body.requestedStartAt ? new Date(body.requestedStartAt) : null,
             partySize: body.partySize ?? null,
+            ...(tripSnapshot && { tripSnapshot }),
             quantity: body.quantity,
             unitPriceSnapshot: service.unitPrice,
             pricingUnitSnapshot: service.pricingUnit,
@@ -878,7 +891,7 @@ export class MarketplaceOrderService {
     scope: { stayId: string } | { publicSessionId: string },
     orderId: string,
   ) {
-    const order = await this.prisma.marketplaceOrder.findFirst({
+    let order = await this.prisma.marketplaceOrder.findFirst({
       where: { id: orderId, ...scope },
       include: {
         items: true,
@@ -899,6 +912,20 @@ export class MarketplaceOrderService {
       },
     });
     if (!order) throw new NotFoundException("Không tìm thấy đơn Marketplace");
+
+    if (order.payment?.status === MarketplaceOrderPaymentStatus.OPEN && this.payments) {
+      const synced = await this.payments.syncPaymentIfOpen(order.id).catch(() => null);
+      if (synced && synced.status !== order.payment.status) {
+        order = {
+          ...order,
+          payment: {
+            ...order.payment,
+            status: synced.status,
+          },
+        };
+      }
+    }
+
     return order;
   }
 

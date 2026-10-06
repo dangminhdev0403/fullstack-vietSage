@@ -30,7 +30,24 @@ Docker Compose is the production/local-container runtime path. Real secrets live
 - The Channel IFrame uses a server-created one-time token. It expires after 15 minutes before first use, is returned with `Cache-Control: no-store`, and must never be persisted in browser storage.
 - The booking feed poller runs once per minute only when `CHANNEX_API_KEY` is configured. Webhooks provide low latency; polling drains missed revisions. Manual recovery remains time-scoped after a known outage over 30 minutes.
 
+## Stripe payment gateway
+
+- `STRIPE_CHECKOUT_ENABLED`: boolean flag (`true`/`false`) controlling whether online Stripe Checkout is enabled for LocalMate marketplace bookings. When `false`, attempting to create checkout sessions returns HTTP 503.
+- `STRIPE_SECRET_KEY`: server-side restricted API key or secret key (`sk_test_...` in test/sandbox, `sk_live_...` or restricted `rk_live_...` in production). Must never be sent to the browser or committed to Git.
+- `STRIPE_WEBHOOK_SECRET`: webhook signing secret (`whsec_...`) used to verify Stripe signatures on `POST /webhooks/stripe` via HMAC-SHA256 (`Stripe-Signature` header).
+  - **Local development / Test mode**: Stripe cannot directly reach `localhost:8080`. Use Stripe CLI to forward events:
+    ```bash
+    stripe listen --forward-to localhost:8080/webhooks/stripe
+    ```
+    Stripe CLI outputs a session signing secret `whsec_...`. Use that value for `STRIPE_WEBHOOK_SECRET` in local `.env`.
+  - **VPS / Production deployment**: Do NOT run Stripe CLI on VPS. Instead, configure an HTTPS webhook endpoint on Stripe Dashboard (**Developers** -> **Webhooks** -> **Add an endpoint**):
+    - URL: `https://<api-domain>/webhooks/stripe`
+    - Events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`, `charge.dispute.created`.
+    - Retrieve the permanent `whsec_...` signing secret from the endpoint details and configure it on the VPS.
+- `STRIPE_CHECKOUT_RETURN_BASE_URL`: base URL for redirection after customer finishes or cancels payment (e.g. `http://localhost:3000` locally, or `https://vietsage.com` in production). Must use `https:` in production.
+
 ## Local environment backup flow
+
 
 Before committing environment-template changes, copy each service's real local `.env` into the repository-root `secrets/` folder:
 
@@ -148,6 +165,10 @@ CHANNEX_WEBHOOK_SECRET=
 SWAGGER_ENABLED=
 LOG_LEVEL=
 LOCALMATE_KNOWLEDGE_API_KEY=
+STRIPE_CHECKOUT_ENABLED=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_CHECKOUT_RETURN_BASE_URL=
 ```
 
 ## `frontend.env`

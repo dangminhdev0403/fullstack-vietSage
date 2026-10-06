@@ -521,8 +521,6 @@ export class LocalMateRepository {
           type: "SERVICE",
           serviceProfile: {
             status: "ACTIVE",
-            categoryId: { not: null },
-            category: { isActive: true },
           },
         },
       },

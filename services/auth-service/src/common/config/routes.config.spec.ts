@@ -39,6 +39,8 @@ describe("public route configuration", () => {
     expect(publicMatcher.isPublic("/payments/webhook/MOMO")).toBe(true);
     expect(publicMatcher.isPublic("/payments/webhook/VNPAY")).toBe(true);
     expect(publicMatcher.isPublic("/webhooks/stripe")).toBe(true);
+    expect(publicMatcher.isPublic("/integrations/telegram/webhook")).toBe(true);
+    expect(publicMatcher.isPublic("/integrations/telegram")).toBe(false);
     expect(publicMatcher.isPublic("/payments/webhook")).toBe(false);
     expect(publicMatcher.isPublic("/payments/webhook/MOMO/extra")).toBe(false);
     expect(publicMatcher.isPublic("/webhooks/stripe/extra")).toBe(false);
