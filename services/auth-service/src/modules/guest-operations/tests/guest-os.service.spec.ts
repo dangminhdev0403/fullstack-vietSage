@@ -97,7 +97,7 @@ describe("GuestOsService", () => {
           id: "hotel-1",
           name: "Hotel",
           code: "hotel",
-          timezone: "Asia/Saigon",
+          timezone: "Asia/Ho_Chi_Minh",
           brandSettings: { primaryColor: "#123456" },
         },
         room: { id: "room-1", status: RoomStatus.OCCUPIED },
@@ -118,7 +118,7 @@ describe("GuestOsService", () => {
           tenantId: "tenant-1",
           name: "Hotel",
           code: "hotel",
-          timezone: "Asia/Saigon",
+          timezone: "Asia/Ho_Chi_Minh",
           brandSettings: { primaryColor: "#123456" },
         },
         room: {
@@ -150,7 +150,7 @@ describe("GuestOsService", () => {
       expiresAt,
       hotel: {
         name: "Hotel",
-        timezone: "Asia/Saigon",
+        timezone: "Asia/Ho_Chi_Minh",
         brandSettings: { primaryColor: "#123456" },
       },
       room: {
@@ -195,7 +195,7 @@ describe("GuestOsService", () => {
           id: "hotel-1",
           name: "Hotel",
           code: "hotel",
-          timezone: "Asia/Saigon",
+          timezone: "Asia/Ho_Chi_Minh",
           brandSettings: null,
         },
         room: { id: "room-1", status: RoomStatus.OCCUPIED },
@@ -211,7 +211,7 @@ describe("GuestOsService", () => {
       createGuestSession: jest.fn().mockImplementation((input) => ({
         id: "session-1",
         expiresAt: input.expiresAt,
-        hotel: { name: "Hotel", timezone: "Asia/Saigon", brandSettings: null },
+        hotel: { name: "Hotel", timezone: "Asia/Ho_Chi_Minh", brandSettings: null },
         room: { roomNumber: "201", floor: "2", type: "DELUXE" },
         stay: {
           guestDisplayName: "Overdue Guest",
@@ -242,7 +242,7 @@ describe("GuestOsService", () => {
           id: "hotel-1",
           name: "Hotel",
           code: "hotel",
-          timezone: "Asia/Saigon",
+          timezone: "Asia/Ho_Chi_Minh",
           brandSettings: null,
         },
         room: { id: "room-1", status: RoomStatus.OCCUPIED },

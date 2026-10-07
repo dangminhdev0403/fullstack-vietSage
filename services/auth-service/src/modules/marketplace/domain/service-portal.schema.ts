@@ -54,3 +54,4 @@ export type ServiceProfileBody = z.infer<typeof serviceProfileBodySchema>;
 export type MarketplaceServiceBody = z.infer<typeof marketplaceServiceBodySchema>;
 export type MarketplaceServiceUpdate = z.infer<typeof marketplaceServiceUpdateSchema>;
 export type MarketplaceAvailability = z.infer<typeof marketplaceAvailabilitySchema>;
+export * from "./schemas/marketplace-service.schema";

@@ -11,6 +11,7 @@ import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/inval
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import type { SimulatedBookingItem } from "../types/channel-manager.types";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import type { HotelOpsPage, HotelRoomSummary } from "@/features/hotel-ops/types/hotel-ops-contract";
 
 interface OtaBookingsTabProps {
@@ -189,14 +190,11 @@ export function OtaBookingsTab({
 
   // Query available rooms for quick assignment
   const { data: availableRooms = [], refetch: refetchAvailableRooms } = useQuery({
-    queryKey: ["hotel-available-rooms-quick-assign", hotelId],
-    queryFn: async () => {
-      const res = await requestInternalApiEnvelope<HotelOpsPage<HotelRoomSummary>>(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/rooms?status=AVAILABLE&limit=100`,
-        { method: "GET" },
-      );
-      return res.data?.items ?? [];
-    },
+    ...staffRoomsResource.bind({ hotelId }).queries.list.options({
+      status: "AVAILABLE",
+      limit: 100,
+    }),
+    select: (data) => data.items ?? [],
     enabled: Boolean(hotelId && assigningBooking),
     staleTime: 5000,
   });

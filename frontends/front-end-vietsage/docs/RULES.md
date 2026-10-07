@@ -36,7 +36,7 @@
 - **Workspace Navigation & Session Fallbacks**: When adding new navigation items to `workspace-registry.ts`, `anyCapabilities` MUST include both the new domain capability (e.g. `platform.billing.view`) AND existing active session capabilities (e.g. `platform.roles.view`, `platform.hotels.view`) so currently logged-in users see the navigation item immediately without needing re-authentication.
 - **SweetAlert2 Standard**: All confirm dialogs and alert notifications MUST use `SwalVietSage` (`src/libs/swal.ts`). Confirm dialogs must render with `reverseButtons: false` (Confirm button on left, Cancel button on right). Success alerts must show the OK button (`showConfirmButton: true`, `confirmButtonText: "OK"`). Error alerts must extract human-readable error details from backend response payloads, suppressing raw status codes.
 - **Excel & Google Sheets Synchronization Standard**:
-  - **Spreadsheet URL Auto-Persistence**: Frontends MUST auto-save entered Google Sheets / Excel URLs into `localStorage` (e.g. `vietsage_marketplace_category_sheet_url`) and auto-restore input state on load to eliminate repeated copying & pasting.
+  - **Spreadsheet URL Auto-Persistence**: Frontends MUST auto-save entered Google Sheets / Excel URLs via a dedicated Zustand store with `persist` and `safeStorage` (e.g. `useMarketplaceAdminImportStore`) and auto-restore input state on load to eliminate repeated copying & pasting. Never read or write `localStorage` directly in feature components.
   - **Summary Metric Key Fallbacks**: Preview summary metric cards MUST handle backend key variations (`creates`/`create`, `updates`/`update`) with safe fallbacks (`creates ?? create ?? 0`) to prevent undefined or blank preview counts.
 
 ## UI Theme Direction & Typography Scale
@@ -88,13 +88,14 @@ Avoid:
 - Frontend dependency management is rooted at `front-end-vietsage/package.json`. Do not create nested `package.json`, nested `node_modules`, `packages/*` workspaces, or a local copy of the query-resource package.
 - Cross-project reuse is via `@dangminhdev04032005/query-resource`. Each project still writes its own repositories/resources around its own API contract.
 
-## State Management
+## State Management (Zustand Standard)
 
+- **Mandatory Existing Tech Stack Reuse**: Always reuse project-standard state patterns. Never introduce raw browser storage primitives, ad-hoc singletons, or nested React Context chains.
 - Use Zustand for global client state, shared UI state, and storage-backed client state.
 - Do not introduce ad-hoc global state through React Context, module-level mutable variables, or duplicated `useState` chains when the state must be shared across routes/components.
-- Do not read/write `localStorage` or `sessionStorage` directly from feature components for shared/persistent state; wrap persistent client state in a Zustand store using `persist` / `createJSONStorage` or a dedicated storage utility used by that store.
+- **Strict Storage Ban**: Do not read/write `localStorage` or `sessionStorage` directly from feature components, pages, or hooks. Wrap all persistent client state in a Zustand store under `src/features/<feature>/store/` using `persist` / `createJSONStorage` and `safeStorage` (with in-memory fallback for SSR and tests).
 - Keep Zustand stores minimal and client-only. Store UI/session preferences, persisted client selections, and cross-component client state there; do not mirror backend resources in Zustand.
-- TanStack Query for server state
+- TanStack Query (`@dangminhdev04032005/query-resource`) for all server state.
 
 ## Auth & Routing Rules
 

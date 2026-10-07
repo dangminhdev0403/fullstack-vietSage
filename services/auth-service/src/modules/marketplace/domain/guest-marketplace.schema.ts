@@ -28,8 +28,15 @@ export const checkoutCartSchema = z.object({
   guestNote: z.string().trim().max(500).nullish(),
 });
 
+export const cancelGuestOrderBodySchema = z
+  .object({
+    note: z.string().trim().max(500).optional(),
+  })
+  .strict();
+
 export type GuestMarketplaceQuery = z.infer<typeof guestMarketplaceQuerySchema>;
 export type AddCartItem = z.infer<typeof addCartItemSchema>;
 export type UpdateCartItem = z.infer<typeof updateCartItemSchema>;
 export type SyncCart = z.infer<typeof syncCartSchema>;
 export type CheckoutCart = z.infer<typeof checkoutCartSchema>;
+export type CancelGuestOrderBody = z.infer<typeof cancelGuestOrderBodySchema>;

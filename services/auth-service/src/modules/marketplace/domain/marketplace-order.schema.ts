@@ -55,6 +55,14 @@ export const marketplaceTransitionSchema = z.object({
   note: z.string().trim().max(500).nullish(),
 });
 
+export const cancelGuestOrderBodySchema = z
+  .object({
+    note: z.string().trim().max(500).optional(),
+  })
+  .strict();
+
+export type CancelGuestOrderBody = z.infer<typeof cancelGuestOrderBodySchema>;
+
 export const marketplaceRevenueQuerySchema = z
   .object({
     from: z.coerce.date().optional(),

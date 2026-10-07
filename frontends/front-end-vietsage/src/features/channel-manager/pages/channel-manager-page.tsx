@@ -17,6 +17,7 @@ import {
   resolveChannelManagerAccess,
   type ChannelManagerTabId,
 } from "../utils/channel-manager-access";
+import { useChannelManagerUIStore } from "../store/channel-manager-ui-store";
 
 interface ChannelManagerPageProps {
   hotelId: string;
@@ -77,23 +78,18 @@ function ChannelManagerContent({
     ? "ARI"
     : (visibleTabs[0] ?? "BOOKINGS");
 
-  const storageKey = `vietsage_cm_tab_${hotelId}`;
   const rawUrlTab = searchParams.get("tab")?.toUpperCase() as ChannelManagerTabId;
   const validUrlTab: ChannelManagerTabId | null = visibleTabs.includes(rawUrlTab)
     ? rawUrlTab
     : null;
 
+  const storedTab = useChannelManagerUIStore((state) => state.getActiveTab(hotelId));
+  const setStoredTab = useChannelManagerUIStore((state) => state.setActiveTab);
+
   const [userSelectedTab, setUserSelectedTab] = useState<ChannelManagerTabId>(() => {
     if (validUrlTab) return validUrlTab;
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem(storageKey) as ChannelManagerTabId;
-        if (saved && visibleTabs.includes(saved)) {
-          return saved;
-        }
-      } catch {
-        // Ignore storage errors
-      }
+    if (storedTab && visibleTabs.includes(storedTab)) {
+      return storedTab;
     }
     return defaultTab;
   });
@@ -118,11 +114,7 @@ function ChannelManagerContent({
   const handleTabChange = (tab: ChannelManagerTabId) => {
     if (!visibleTabs.includes(tab)) return;
     setUserSelectedTab(tab);
-    try {
-      localStorage.setItem(storageKey, tab);
-    } catch {
-      // Ignore storage errors
-    }
+    setStoredTab(hotelId, tab);
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       url.searchParams.set("tab", tab);

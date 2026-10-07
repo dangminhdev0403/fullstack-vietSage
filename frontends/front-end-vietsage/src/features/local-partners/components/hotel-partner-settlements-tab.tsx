@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SwalVietSage } from "@/libs/swal";
+import {
+  showConfirmDialog,
+  showErrorAlert,
+  showSuccessAlert,
+} from "@/libs/swal";
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import type {
   MarketplaceOrder,
   MarketplaceSettlement,
@@ -53,29 +58,21 @@ export function HotelPartnerSettlementsTab({
   useEffect(() => {
     let isCancelled = false;
 
-    fetch(
+    requestInternalApiEnvelope<SettlementItem[]>(
       `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/marketplace/settlements`,
+      { method: "GET" },
     )
-      .then(async (res) => {
-        const json = await res.json();
-        if (!res.ok)
-          throw new Error(json.message ?? "Không thể tải danh sách quyết toán");
-        return json;
-      })
-      .then((json) => {
+      .then((res) => {
         if (!isCancelled) {
-          setSettlements(json.data ?? json);
+          setSettlements(res.data ?? (res as unknown as SettlementItem[]));
         }
       })
       .catch((err) => {
         if (!isCancelled) {
-          void SwalVietSage.fire({
-            icon: "error",
-            title: "Lỗi tải dữ liệu",
-            text: err instanceof Error ? err.message : "Đã có lỗi xảy ra",
-            showConfirmButton: true,
-            confirmButtonText: "OK",
-          });
+          void showErrorAlert(
+            "Lỗi tải dữ liệu",
+            err instanceof Error ? err.message : "Đã có lỗi xảy ra",
+          );
         }
       })
       .finally(() => {
@@ -92,22 +89,24 @@ export function HotelPartnerSettlementsTab({
   useEffect(() => {
     let isCancelled = false;
 
-    fetch(`/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/marketplace/revenue`)
-      .then(async (response) => {
-        const json = await response.json();
-        if (!response.ok) throw new Error(json.message ?? "Không thể tải doanh thu phí dịch vụ ngoài");
-        return json;
-      })
-      .then((json) => {
+    requestInternalApiEnvelope<RevenueSummary>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/marketplace/revenue`,
+      { method: "GET" },
+    )
+      .then((res) => {
         if (!isCancelled) {
-          setRevenue(json.data ?? json);
+          setRevenue(res.data ?? (res as unknown as RevenueSummary));
           setRevenueError(null);
         }
       })
       .catch((err) => {
         if (!isCancelled) {
           setRevenue(null);
-          setRevenueError(err instanceof Error ? err.message : "Không thể tải doanh thu phí dịch vụ");
+          setRevenueError(
+            err instanceof Error
+              ? err.message
+              : "Không thể tải doanh thu phí dịch vụ",
+          );
         }
       })
       .finally(() => {
@@ -171,49 +170,37 @@ export function HotelPartnerSettlementsTab({
     const orderNum = item.order?.orderNumber ?? item.orderId;
     const netStr = Number(item.netAmount).toLocaleString("vi-VN");
 
-    const confirm = await SwalVietSage.fire({
+    const confirm = await showConfirmDialog({
       icon: "question",
       title: "Xác nhận quyết toán đơn hàng?",
       html: `Quyết toán cho đơn hàng <b>#${orderNum}</b> số tiền <b>${netStr} VND</b> cho đối tác dịch vụ.<br/><br/><i>Hành động này xác nhận Khách sạn đã chuyển tiền/thanh toán đầy đủ cho Đối tác.</i>`,
-      showCancelButton: true,
-      reverseButtons: false,
-      confirmButtonText: "Xác nhận quyết toán",
-      cancelButtonText: "Quay lại",
+      confirmText: "Xác nhận quyết toán",
+      cancelText: "Quay lại",
     });
 
     if (!confirm.isConfirmed) return;
 
     setSubmitting(true);
     try {
-      const res = await fetch(
+      await requestInternalApiEnvelope(
         `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/marketplace/settlements/${encodeURIComponent(item.id)}/settle`,
         {
           method: "POST",
         },
       );
-      const json = await res.json();
-      if (!res.ok)
-        throw new Error(json.message ?? "Không thể hoàn thành quyết toán");
 
-      await SwalVietSage.fire({
-        icon: "success",
-        title: "Quyết toán thành công!",
-        text: `Đã quyết toán thành công đơn hàng #${orderNum}.`,
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showSuccessAlert(
+        "Quyết toán thành công!",
+        `Đã quyết toán thành công đơn hàng #${orderNum}.`,
+      );
 
       setSelectedIds((prev) => prev.filter((id) => id !== item.id));
       refetch();
     } catch (err) {
-      await SwalVietSage.fire({
-        icon: "error",
-        title: "Thất bại",
-        text:
-          err instanceof Error ? err.message : "Quyết toán không thành công",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showErrorAlert(
+        "Thất bại",
+        err instanceof Error ? err.message : "Quyết toán không thành công",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -231,53 +218,40 @@ export function HotelPartnerSettlementsTab({
     );
     const totalBatchStr = totalBatchNet.toLocaleString("vi-VN");
 
-    const confirm = await SwalVietSage.fire({
+    const confirm = await showConfirmDialog({
       icon: "warning",
       title: `Quyết toán ${count} đơn hàng chọn?`,
       html: `Tổng tiền thanh toán cho đối tác: <b>${totalBatchStr} VND</b> (${count} giao dịch).<br/><br/>Xác nhận khách sạn đã đối soát và chi trả toàn bộ số tiền này.`,
-      showCancelButton: true,
-      reverseButtons: false,
-      confirmButtonText: `Quyết toán ${count} đơn`,
-      cancelButtonText: "Quay lại",
+      confirmText: `Quyết toán ${count} đơn`,
+      cancelText: "Quay lại",
     });
 
     if (!confirm.isConfirmed) return;
 
     setSubmitting(true);
     try {
-      const res = await fetch(
+      const res = await requestInternalApiEnvelope<{ settledCount?: number }>(
         `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/marketplace/settlements/settle-batch`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ settlementIds: selectedIds }),
+          body: { settlementIds: selectedIds },
         },
       );
-      const json = await res.json();
-      if (!res.ok)
-        throw new Error(json.message ?? "Quyết toán hàng loạt thất bại");
 
-      await SwalVietSage.fire({
-        icon: "success",
-        title: "Quyết toán hàng loạt thành công!",
-        text: `Đã xử lý quyết toán cho ${json.data?.settledCount ?? count} đơn hàng chọn.`,
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showSuccessAlert(
+        "Quyết toán hàng loạt thành công!",
+        `Đã xử lý quyết toán cho ${res.data?.settledCount ?? count} đơn hàng chọn.`,
+      );
 
       setSelectedIds([]);
       refetch();
     } catch (err) {
-      await SwalVietSage.fire({
-        icon: "error",
-        title: "Quyết toán thất bại",
-        text:
-          err instanceof Error
-            ? err.message
-            : "Không thể xử lý quyết toán hàng loạt",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showErrorAlert(
+        "Quyết toán thất bại",
+        err instanceof Error
+          ? err.message
+          : "Không thể xử lý quyết toán hàng loạt",
+      );
     } finally {
       setSubmitting(false);
     }

@@ -1,10 +1,8 @@
-import { NextResponse } from "next/server";
-import { getBackendApiBaseUrl } from "@/core/http/backend-api-config";
 import {
-  executeOwnerBackendRequest,
-  successResponse,
+  channelManagerBackendPath,
+  proxyChannelManagerRequest,
   validationErrorResponse,
-} from "../../../../../_utils";
+} from "../../_backend";
 
 type Params = {
   params: Promise<{ hotelId: string }>;
@@ -14,42 +12,9 @@ export async function GET(_request: Request, context: Params) {
   const { hotelId } = await context.params;
   if (!hotelId) return validationErrorResponse("hotelId is required");
 
-  const baseUrl = getBackendApiBaseUrl();
-
-  try {
-    const result = await executeOwnerBackendRequest(
-      "run channex doctor",
-      async (accessToken) => {
-        const backendRes = await fetch(
-          `${baseUrl}/api/v1/channel-manager/hotels/${encodeURIComponent(hotelId)}/channex/doctor`,
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              Accept: "application/json",
-            },
-          },
-        );
-
-        const data = await backendRes.json();
-        if (!backendRes.ok) {
-          throw new Error(data.message || "Kiểm tra Channex Doctor thất bại");
-        }
-        return data?.data ?? data;
-      },
-    );
-
-    if (result instanceof Response) return result;
-
-    return successResponse(result, 200, "Chạy chẩn đoán Channex thành công");
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Kiểm tra Channex Doctor thất bại";
-    return NextResponse.json(
-      { status: 500, message, data: null },
-      { status: 500 },
-    );
-  }
+  return proxyChannelManagerRequest({
+    operation: "run channex doctor",
+    method: "GET",
+    path: channelManagerBackendPath(hotelId, "channex/doctor"),
+  });
 }

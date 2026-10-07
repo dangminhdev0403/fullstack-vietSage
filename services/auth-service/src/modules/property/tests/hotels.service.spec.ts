@@ -119,7 +119,7 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
       tenant: { id: "tenant-1" },
       name: data.name ?? "Hotel",
       code: "hotel",
-      timezone: data.timezone ?? "Asia/Saigon",
+      timezone: data.timezone ?? "Asia/Ho_Chi_Minh",
       brandSettings: data.brandSettings,
       status: data.status ?? "ACTIVE",
       createdAt: new Date("2026-06-04T00:00:00.000Z"),
@@ -131,7 +131,7 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
       tenant: { id: tenantIds[0] ?? "tenant-1" },
       name: data.name ?? "Hotel",
       code: "hotel",
-      timezone: data.timezone ?? "Asia/Saigon",
+      timezone: data.timezone ?? "Asia/Ho_Chi_Minh",
       brandSettings: data.brandSettings,
       status: data.status ?? "ACTIVE",
       createdAt: new Date("2026-06-04T00:00:00.000Z"),
@@ -466,13 +466,13 @@ describe("HotelsService", () => {
 
     await service.updateHotel("actor-1", "active-role", "hotel-1", {
       name: " Riverside Hotel ",
-      timezone: "Asia/Saigon",
+      timezone: "Asia/Ho_Chi_Minh",
       brandSettings: null,
     });
 
     expect(repository.updateHotel).toHaveBeenCalledWith("hotel-1", {
       name: "Riverside Hotel",
-      timezone: "Asia/Saigon",
+      timezone: "Asia/Ho_Chi_Minh",
       brandSettings: expect.any(Object),
       status: undefined,
       googleSheetId: undefined,
@@ -1155,7 +1155,7 @@ describe("HotelsService", () => {
         tenant: { id: "tenant-2" },
         name: "Updated Hotel",
         code: "hotel",
-        timezone: "Asia/Saigon",
+        timezone: "Asia/Ho_Chi_Minh",
         brandSettings: null,
         status: "ACTIVE",
         createdAt: new Date("2026-06-04T00:00:00.000Z"),

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
@@ -11,6 +11,7 @@ import { VsTopBar } from "@/app/(vietsage)/_components/vs-top-bar";
 import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
 import { isNavItemActive } from "@/features/workspace/utils/workspace-nav-active";
 import { useHotelMessageUnread } from "@/features/hotel-ops/hooks/use-hotel-message-unread";
+import { useWorkspaceUIStore } from "../store/workspace-ui-store";
 import { useWorkspaceProfile } from "./workspace-profile-context";
 
 import type { WorkspaceDefinition } from "../config/workspace-registry";
@@ -74,31 +75,8 @@ export function WorkspaceShell({
   const rawProfileName = profileName ?? inheritedProfile.profileName;
   const resolvedProfileName = cleanProfileDisplayName(rawProfileName);
 
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
-
-  useEffect(() => {
-    try {
-      if (localStorage.getItem("vietsage_sidebar_collapsed") === "true") {
-        // Browser-only preference is restored after hydration.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setIsCollapsed(true);
-      }
-    } catch {
-      // Ignore storage errors in restricted contexts
-    }
-  }, []);
-
-  const toggleCollapse = useCallback(() => {
-    setIsCollapsed((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem("vietsage_sidebar_collapsed", String(next));
-      } catch {
-        // Ignore storage errors in restricted contexts
-      }
-      return next;
-    });
-  }, []);
+  const isCollapsed = useWorkspaceUIStore((state) => state.isSidebarCollapsed);
+  const toggleCollapse = useWorkspaceUIStore((state) => state.toggleSidebar);
 
   const hotelIdMatch = pathname?.match(/^\/(?:hotels|owner\/hotels)\/([^/]+)/);
   const currentHotelId = hotelIdMatch?.[1] ?? searchParams?.get("hotelId") ?? null;

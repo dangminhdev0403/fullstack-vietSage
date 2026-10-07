@@ -19,12 +19,24 @@ export const staffRoomsResource = createResource<{ hotelId: string }>()({
   scopeKey: ({ hotelId }) => ["hotel", hotelId],
   queries: {
     list: defineQuery({
-      inputKey: (input: StaffRoomsListInput) => [input],
-      queryFn: ({ scope, input, signal }: ResourceQueryContext<
+      inputKey: (input?: StaffRoomsListInput) => [
+        input?.q ?? "",
+        input?.status ?? "",
+        input?.type ?? "",
+        input?.floor ?? "",
+        input?.vipOnly ?? false,
+        input?.page ?? 1,
+        input?.limit ?? 50,
+      ],
+      queryFn: ({
+        scope,
+        input,
+        signal,
+      }: ResourceQueryContext<
         { hotelId: string },
-        StaffRoomsListInput
+        StaffRoomsListInput | void
       >): Promise<HotelOpsPage<HotelRoomSummary>> =>
-        staffRoomsRepository.list(scope.hotelId, input, signal),
+        staffRoomsRepository.list(scope.hotelId, input || undefined, signal),
     }),
   },
 });

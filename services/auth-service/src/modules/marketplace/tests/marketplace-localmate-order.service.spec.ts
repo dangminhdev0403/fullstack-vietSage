@@ -85,6 +85,7 @@ describe("T1 - Marketplace LocalMate Order Lifecycle", () => {
 
       const prisma = {
         marketplaceOrder: {
+          findFirst: jest.fn().mockResolvedValue(null),
           findUnique: jest.fn().mockImplementation(({ where }) => {
             if (where.stayId_idempotencyKey) return null;
             if (where.id)
@@ -142,7 +143,10 @@ describe("T1 - Marketplace LocalMate Order Lifecycle", () => {
       };
 
       const prisma = {
-        marketplaceOrder: { findUnique: jest.fn().mockResolvedValue(null) },
+        marketplaceOrder: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          findUnique: jest.fn().mockResolvedValue(null),
+        },
         $transaction: jest.fn().mockImplementation(async (cb) => cb(tx)),
       };
 
@@ -182,7 +186,10 @@ describe("T1 - Marketplace LocalMate Order Lifecycle", () => {
       };
 
       const prisma = {
-        marketplaceOrder: { findUnique: jest.fn().mockResolvedValue(null) },
+        marketplaceOrder: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          findUnique: jest.fn().mockResolvedValue(null),
+        },
         $transaction: jest.fn().mockImplementation(async (cb) => cb(tx)),
       };
 
@@ -200,7 +207,7 @@ describe("T1 - Marketplace LocalMate Order Lifecycle", () => {
       const existingOrder = { id: "order-existing", idempotencyKey: "idem-dup" };
       const prisma = {
         marketplaceOrder: {
-          findUnique: jest.fn().mockResolvedValue(existingOrder),
+          findFirst: jest.fn().mockResolvedValue(existingOrder),
         },
       };
 

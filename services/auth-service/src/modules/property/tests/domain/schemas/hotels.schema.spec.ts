@@ -59,13 +59,13 @@ describe("hotels.schema", () => {
   it("phân tích dữ liệu cập nhật khách sạn không có trường mã hoặc tenant", () => {
     const result = parseWithZod(updateHotelBodySchema, {
       name: " Riverside Hotel ",
-      timezone: "Asia/Saigon",
+      timezone: "Asia/Ho_Chi_Minh",
       brandSettings: null,
     });
 
     expect(result).toEqual({
       name: "Riverside Hotel",
-      timezone: "Asia/Saigon",
+      timezone: "Asia/Ho_Chi_Minh",
       brandSettings: null,
     });
   });

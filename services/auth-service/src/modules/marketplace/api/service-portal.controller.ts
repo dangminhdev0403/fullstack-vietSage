@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
@@ -21,8 +20,12 @@ import {
   marketplaceAvailabilitySchema,
   marketplaceServiceBodySchema,
   marketplaceServiceUpdateSchema,
+  serviceImportCommitBodySchema,
+  serviceImportPreviewBodySchema,
   servicePortalIdSchema,
   serviceProfileBodySchema,
+  verifyVoucherBodySchema,
+  redeemVoucherBodySchema,
 } from "../domain/service-portal.schema";
 import { MarketplaceOrderService } from "../application/marketplace-order.service";
 import { ServiceItemImportService } from "../application/service-item-import.service";
@@ -128,13 +131,11 @@ export class ServicePortalController {
   @RequirePermission("service.marketplace.manage")
   @Post("services/import/preview")
   previewImport(@Req() req: RequestWithRequiredUser, @Body() body: unknown) {
-    const input = body as { csv?: unknown; fileName?: unknown };
-    if (typeof input.csv !== "string" || !input.csv.trim())
-      throw new BadRequestException("CSV content is required");
+    const input = parseWithZod(serviceImportPreviewBodySchema, body);
     return this.imports.preview(
       req.user.userId,
       input.csv,
-      typeof input.fileName === "string" ? input.fileName : "service-items.csv",
+      input.fileName,
     );
   }
 
@@ -142,14 +143,12 @@ export class ServicePortalController {
   @RequirePermission("service.marketplace.manage")
   @Post("services/import/commit")
   commitImport(@Req() req: RequestWithRequiredUser, @Body() body: unknown) {
-    const input = body as { csv?: unknown; fileName?: unknown; previewToken?: unknown };
-    if (typeof input.csv !== "string" || typeof input.previewToken !== "string")
-      throw new BadRequestException("CSV content and previewToken are required");
+    const input = parseWithZod(serviceImportCommitBodySchema, body);
     return this.imports.commit(
       req.user.userId,
       input.csv,
       input.previewToken,
-      typeof input.fileName === "string" ? input.fileName : "service-items.csv",
+      input.fileName,
     );
   }
 
@@ -186,22 +185,16 @@ export class ServicePortalController {
   @RequirePermission("service.marketplace.view")
   @Post("vouchers/verify")
   verifyVoucher(@Req() req: RequestWithRequiredUser, @Body() body: unknown) {
-    const input = body as { code?: unknown };
-    if (typeof input.code !== "string" || !input.code.trim()) {
-      throw new BadRequestException("Voucher code/number is required");
-    }
-    return this.orders.verifyVoucher(req.user.userId, input.code.trim());
+    const input = parseWithZod(verifyVoucherBodySchema, body);
+    return this.orders.verifyVoucher(req.user.userId, input.code);
   }
 
   @ApiDescript("Xác nhận sử dụng Service Voucher (Redeem)")
   @RequirePermission("service.marketplace.manage")
   @Post("vouchers/redeem")
   redeemVoucher(@Req() req: RequestWithRequiredUser, @Body() body: unknown) {
-    const input = body as { code?: unknown };
-    if (typeof input.code !== "string" || !input.code.trim()) {
-      throw new BadRequestException("Voucher code/number is required");
-    }
-    return this.orders.redeemVoucher(req.user.userId, input.code.trim());
+    const input = parseWithZod(redeemVoucherBodySchema, body);
+    return this.orders.redeemVoucher(req.user.userId, input.code);
   }
 
   @ApiDescript("Xem tổng quan tài chính đối tác dịch vụ")

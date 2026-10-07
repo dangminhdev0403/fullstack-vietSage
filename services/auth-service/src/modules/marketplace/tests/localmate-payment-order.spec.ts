@@ -63,11 +63,15 @@ function localMateCreateHarness(rate = "15") {
   };
   const prisma = {
     marketplaceOrder: {
+      findFirst: jest.fn().mockImplementation(async () => null),
       findUnique: jest
         .fn()
         .mockImplementation(async () =>
           createdOrder ? { ...createdOrder, stay: null, serviceTenant: null } : null,
         ),
+    },
+    localMateTelegramBinding: {
+      findUnique: jest.fn().mockResolvedValue({ revokedAt: null, blockedAt: null }),
     },
     $transaction: jest
       .fn()

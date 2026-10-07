@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { DataTable } from "@/components/ui/data-table";
@@ -8,6 +8,7 @@ import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { OneTimePasswordDialog } from "@/features/account/security/one-time-password-dialog";
 import { SwalVietSage } from "@/libs/swal";
 import { marketplaceAdminResource } from "./resource";
+import { useMarketplaceAdminImportStore } from "./store/marketplace-admin-import-store";
 import type { MarketplaceCategorySheetPreview, ServiceTenant } from "./types";
 import type { MarketplaceCategory } from "@/features/marketplace/types/marketplace-contract";
 
@@ -204,33 +205,26 @@ export function MarketplaceAdminClient() {
     null,
   );
 
-  // Google Sheets Import state
-  const [spreadsheetUrl, setSpreadsheetUrl] = useState("");
+  // Google Sheets Import state from Zustand
+  const spreadsheetUrl = useMarketplaceAdminImportStore(
+    (s) => s.categorySheetUrl,
+  );
+  const setCategorySheetUrl = useMarketplaceAdminImportStore(
+    (s) => s.setCategorySheetUrl,
+  );
+  const getPartnerSheetUrl = useMarketplaceAdminImportStore(
+    (s) => s.getPartnerSheetUrl,
+  );
+  const setPartnerSheetUrl = useMarketplaceAdminImportStore(
+    (s) => s.setPartnerSheetUrl,
+  );
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("vietsage_marketplace_category_sheet_url");
-      if (saved) {
-        // Browser-only persisted value is restored after hydration.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setSpreadsheetUrl(saved);
-      }
-    } catch {
-      // Ignore storage errors in restricted contexts
-    }
-  }, []);
   const [sheetPreview, setSheetPreview] =
     useState<MarketplaceCategorySheetPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
   const handleSpreadsheetUrlChange = (url: string) => {
-    setSpreadsheetUrl(url);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(
-        "vietsage_marketplace_category_sheet_url",
-        url.trim(),
-      );
-    }
+    setCategorySheetUrl(url);
   };
 
 
@@ -2163,36 +2157,12 @@ export function MarketplaceAdminClient() {
                   name="spreadsheetUrl"
                   defaultValue={
                     editingTenant.serviceProfile?.googleSheetsUrl ||
-                    (typeof window !== "undefined"
-                      ? localStorage.getItem(
-                          `vietsage_partner_${editingTenant.id}_sheet_url`,
-                        ) ||
-                        localStorage.getItem(
-                          `vietsage_partner_${editingTenant.code}_sheet_url`,
-                        ) ||
-                        ""
-                      : "")
+                    getPartnerSheetUrl(editingTenant.id, editingTenant.code)
                   }
                   onChange={(e) => {
-                    if (typeof window !== "undefined") {
-                      const url = e.target.value.trim();
-                      localStorage.setItem(
-                        `vietsage_partner_${editingTenant.id}_sheet_url`,
-                        url,
-                      );
-                      localStorage.setItem(
-                        `vietsage_partner_${editingTenant.code}_sheet_url`,
-                        url,
-                      );
-                      localStorage.setItem(
-                        "vietsage_partner_service_items_sheet_url",
-                        url,
-                      );
-                      localStorage.setItem(
-                        "vietsage_marketplace_partner_sheet_url",
-                        url,
-                      );
-                    }
+                    const url = e.target.value.trim();
+                    setPartnerSheetUrl(editingTenant.id, url);
+                    setPartnerSheetUrl(editingTenant.code, url);
                   }}
                   placeholder="https://docs.google.com/spreadsheets/d/..."
                   className={inputClass}

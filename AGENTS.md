@@ -6,6 +6,15 @@
 
 See [.agents/AGENTS.md](.agents/AGENTS.md) for the full agent instructions. Agents without global Ponytail settings also read `PONYTAIL.md` before coding.
 
+## Mandatory Tech Stack Guardrails (Step-Zero Reuse)
+
+Before writing any code, agents MUST reuse the project's standard architectural primitives. DO NOT fall back to raw browser APIs:
+- **Persistent / Shared Client State**: BẮT BUỘC dùng **Zustand** (`persist` + `createJSONStorage` + `safeStorage`). Tuyệt đối CẤM gọi `localStorage` / `sessionStorage` trực tiếp trong component/hook/page.
+- **Server State / API Calls**: BẮT BUỘC dùng **`@dangminhdev04032005/query-resource`** (repository → resource → hook → component). CẤM raw `useQuery`, raw `fetch`, raw `axios` trong components.
+- **Dialogs & Feedback**: BẮT BUỘC dùng **`SwalVietSage`** (`src/libs/swal.ts`). CẤM `window.alert()`, `window.confirm()`.
+- **Backend Validation**: BẮT BUỘC dùng **`Zod`** schemas + `parseWithZod(...)`. CẤM `class-validator`, cấm ép kiểu `as { ... }`.
+- **Timezone Standard**: BẮT BUỘC dùng **`Asia/Ho_Chi_Minh`** (UTC+7). CẤM `Asia/Saigon`.
+
 ## graphify
 
 This project uses Graphify for dependency/impact navigation and Repomix for compact task-scoped source context.

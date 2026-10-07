@@ -19,6 +19,7 @@ import {
 } from "@/libs/swal";
 
 import { KbttConnectionPage } from "./kbtt-connection-page";
+import { useKbttPreferencesStore } from "../store/kbtt-preferences-store";
 import { kbttResource } from "../resources/kbtt-resource";
 import { useKbttConnection } from "../hooks/use-kbtt-connection";
 import {
@@ -231,16 +232,6 @@ const AUTO_SUBMIT_DELAY_SECONDS =
 
 const IS_AUTO_SUBMIT_ENABLED =
   process.env.NEXT_PUBLIC_KBTT_AUTO_SUBMIT_ENABLED !== "false";
-
-function initialKbttPageSize(): number {
-  if (typeof window === "undefined") return 20;
-  try {
-    const value = Number(localStorage.getItem("vietsage_kbtt_page_size"));
-    return [10, 20, 50, 100].includes(value) ? value : 20;
-  } catch {
-    return 20;
-  }
-}
 
 function formatStayDateTimeForForm(
   dateStr: string | null | undefined,
@@ -647,9 +638,9 @@ export function KbttDeclarationsPage({
     initialTab,
   );
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(initialKbttPageSize);
+  const limit = useKbttPreferencesStore((state) => state.pageSize);
+  const setPageSize = useKbttPreferencesStore((state) => state.setPageSize);
   const [showBackToTop, setShowBackToTop] = useState(false);
-
 
   useEffect(() => {
     const handleScroll = () => {
@@ -663,13 +654,13 @@ export function KbttDeclarationsPage({
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const handlePageSizeChange = useCallback((newLimit: number) => {
-    setLimit(newLimit);
-    setPage(1);
-    try {
-      localStorage.setItem("vietsage_kbtt_page_size", String(newLimit));
-    } catch {}
-  }, []);
+  const handlePageSizeChange = useCallback(
+    (newLimit: number) => {
+      setPageSize(newLimit);
+      setPage(1);
+    },
+    [setPageSize],
+  );
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");

@@ -201,3 +201,41 @@ test("order creation payload forwards both candidateKey and proposalKey", () => 
   assert.equal(orderInput.partySize, 2);
   assert.equal(orderInput.idempotencyKey, "ord_idemp_key_12345");
 });
+
+// @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
+import { useLocalMateSessionStore } from "./store/localmate-session-store.ts";
+
+test("useLocalMateSessionStore openGuideChat transitions into open guide-chat with orderId", () => {
+  const store = useLocalMateSessionStore.getState();
+  store.openGuideChat("ord-test-123");
+
+  const state = useLocalMateSessionStore.getState();
+  assert.equal(state.isOpen, true);
+  assert.equal(state.viewMode, "guide-chat");
+  assert.equal(state.activeOrderId, "ord-test-123");
+});
+
+test("useLocalMateSessionStore openPayment transitions into open payment mode with orderId", () => {
+  const store = useLocalMateSessionStore.getState();
+  store.openPayment("ord-pay-456");
+
+  const state = useLocalMateSessionStore.getState();
+  assert.equal(state.isOpen, true);
+  assert.equal(state.viewMode, "payment");
+  assert.equal(state.activeOrderId, "ord-pay-456");
+});
+
+test("useLocalMateSessionStore resetSession clears active selections and resets to discovery", () => {
+  const store = useLocalMateSessionStore.getState();
+  store.setActiveCandidateKey("cand_123");
+  store.setActiveProposalKey("prop_123");
+  store.resetSession();
+
+  const state = useLocalMateSessionStore.getState();
+  assert.equal(state.activeOrderId, null);
+  assert.equal(state.activeCandidateKey, null);
+  assert.equal(state.activeProposalKey, null);
+  assert.equal(state.viewMode, "discovery");
+  assert.equal(state.stage, "DISCOVERY");
+});
+

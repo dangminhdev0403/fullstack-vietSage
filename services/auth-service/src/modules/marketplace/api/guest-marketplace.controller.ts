@@ -21,6 +21,7 @@ import { GuestMarketplaceService } from "../application/guest-marketplace.servic
 import {
   addCartItemSchema,
   cartItemIdSchema,
+  cancelGuestOrderBodySchema,
   checkoutCartSchema,
   guestMarketplaceIdSchema,
   guestMarketplaceQuerySchema,
@@ -213,8 +214,9 @@ export class GuestMarketplaceController {
   cancelOrder(
     @Req() req: RequestWithGuestSession,
     @Param("orderId") id: string,
-    @Body() body?: { note?: string },
+    @Body() body: unknown,
   ) {
+    const input = parseWithZod(cancelGuestOrderBodySchema, body ?? {});
     return this.orders.cancelGuestOrder(
       {
         hotelId: req.guestSession.hotelId,
@@ -222,7 +224,7 @@ export class GuestMarketplaceController {
         sessionId: req.guestSession.sessionId,
       },
       parseWithZod(marketplaceOrderIdSchema, id),
-      body?.note,
+      input.note,
     );
   }
 }

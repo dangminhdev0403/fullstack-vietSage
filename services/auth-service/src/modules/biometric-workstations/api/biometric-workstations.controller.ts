@@ -14,8 +14,10 @@ import type { Request } from "express";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { HotelAccessService } from "../../property/application/hotel-access.service";
 import { BiometricWorkstationsService } from "../application/biometric-workstations.service";
+import { pairBiometricWorkstationSchema } from "../domain/schemas/biometric-workstations.schema";
 
 type RequestWithUser = Request & { user: AuthenticatedUser };
 
@@ -36,8 +38,9 @@ export class BiometricWorkstationsController {
 
   @ApiDescript("Ghép nối trạm sinh trắc học bằng mã dùng một lần")
   @Post("biometric-workstations/pair")
-  pair(@Body() body: { code?: unknown }) {
-    return this.service.pair(typeof body?.code === "string" ? body.code : "");
+  pair(@Body() body: unknown) {
+    const input = parseWithZod(pairBiometricWorkstationSchema, body);
+    return this.service.pair(input.code);
   }
 
   @ApiDescript("Xác thực credential trạm sinh trắc học")

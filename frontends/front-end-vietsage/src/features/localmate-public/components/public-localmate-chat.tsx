@@ -10,6 +10,7 @@ import { publicLocalMateRepository } from "../repository";
 import {
   canProceedToBooking,
   transitionStage,
+  type LocalMateViewMode,
   type PublicBookingCandidate,
   type PublicConversationMessage,
   type PublicLocalMateAction,
@@ -20,6 +21,7 @@ import {
   type PublicLocalMateSuggestion,
   type PublicOrder,
 } from "../types";
+import { useLocalMateSessionStore } from "../store/localmate-session-store";
 import {
   type DestinationRegion,
   POPULAR_DESTINATIONS,
@@ -36,8 +38,6 @@ type Message = {
   proposals?: PublicLocalMateProposal[];
   actions?: PublicLocalMateAction[];
 };
-
-type ViewMode = "discovery" | "confirm" | "payment" | "guide-chat";
 
 const welcome: Message = {
   id: 0,
@@ -155,8 +155,25 @@ function renderMessageContent(text: string, isGuest: boolean) {
 
 export function PublicLocalMateChat() {
   const chatMutation = useMutation(publicLocalMateResource.bind({}).mutations.chat.options());
-  const [isOpen, setIsOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("discovery");
+
+  // Persistent session state from Zustand
+  const isOpen = useLocalMateSessionStore((s) => s.isOpen);
+  const setIsOpen = useLocalMateSessionStore((s) => s.setIsOpen);
+  const viewMode = useLocalMateSessionStore((s) => s.viewMode);
+  const setViewMode = useLocalMateSessionStore((s) => s.setViewMode);
+  const currentStage = useLocalMateSessionStore((s) => s.stage);
+  const setCurrentStage = useLocalMateSessionStore((s) => s.setStage);
+  const activeProposalKey = useLocalMateSessionStore((s) => s.activeProposalKey);
+  const setActiveProposalKey = useLocalMateSessionStore((s) => s.setActiveProposalKey);
+  const activeCandidateKey = useLocalMateSessionStore((s) => s.activeCandidateKey);
+  const setActiveCandidateKey = useLocalMateSessionStore((s) => s.setActiveCandidateKey);
+  const activeOrderId = useLocalMateSessionStore((s) => s.activeOrderId);
+  const setActiveOrderId = useLocalMateSessionStore((s) => s.setActiveOrderId);
+  const openGuideChat = useLocalMateSessionStore((s) => s.openGuideChat);
+  const openPayment = useLocalMateSessionStore((s) => s.openPayment);
+  const resetSession = useLocalMateSessionStore((s) => s.resetSession);
+  const setLastChatUrl = useLocalMateSessionStore((s) => s.setLastChatUrl);
+
   const [location, setLocation] = useState("");
   const [locationInput, setLocationInput] = useState("");
   const [input, setInput] = useState("");
@@ -165,13 +182,10 @@ export function PublicLocalMateChat() {
   const [locationError, setLocationError] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<DestinationRegion>("all");
 
-  // Proposal & Stage state
-  const [activeProposalKey, setActiveProposalKey] = useState<string | null>(null);
-  const [currentStage, setCurrentStage] = useState<PublicLocalMateStage>("DISCOVERY");
+  // Proposal state
   const [activeProposals, setActiveProposals] = useState<PublicLocalMateProposal[]>([]);
 
   // Booking & Confirmation state
-  const [activeCandidateKey, setActiveCandidateKey] = useState<string | null>(null);
   const [candidateDetails, setCandidateDetails] = useState<PublicBookingCandidate | null>(null);
   const [isLoadingCandidate, setIsLoadingCandidate] = useState(false);
   const [bookingPreviewFingerprint, setBookingPreviewFingerprint] = useState("");
@@ -285,20 +299,14 @@ export function PublicLocalMateChat() {
     let isMounted = true;
 
     const restoreSessionAndOrder = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const urlView = urlParams.get("view");
-      const urlOrderId = urlParams.get("orderId");
-
-      const savedOrderId =
-        urlOrderId ||
-        localStorage.getItem("localmate_active_order_id") ||
-        localStorage.getItem("localmate_last_order_id");
+      const urlOrderId = new URLSearchParams(window.location.search).get("orderId");
+      const targetOrderId = urlOrderId || activeOrderId;
 
       let order: PublicOrder | null = null;
 
-      if (savedOrderId) {
+      if (targetOrderId) {
         try {
-          order = await publicLocalMateRepository.getOrder(savedOrderId);
+          order = await publicLocalMateRepository.getOrder(targetOrderId);
         } catch {
           order = null;
         }
@@ -319,12 +327,7 @@ export function PublicLocalMateChat() {
 
       setCurrentOrder(order);
       setIsOpen(true);
-      try {
-        localStorage.setItem("localmate_active_order_id", order.id);
-        localStorage.setItem("localmate_last_order_id", order.id);
-      } catch {
-        // Ignored
-      }
+      setActiveOrderId(order.id);
 
       const isPaid =
         order.payment?.status === "PAID" ||
@@ -332,10 +335,9 @@ export function PublicLocalMateChat() {
         order.status === "COMPLETED" ||
         order.status === "ACKNOWLEDGED";
 
-      if (isPaid || urlView === "guide-chat") {
-        setViewMode("guide-chat");
+      if (isPaid || viewMode === "guide-chat") {
+        openGuideChat(order.id);
         try {
-          localStorage.setItem("localmate_active_view_mode", "guide-chat");
           const conv = await publicLocalMateRepository.getConversation(order.id);
           if (isMounted && conv?.items) {
             setConversationMessages(conv.items);
@@ -344,9 +346,8 @@ export function PublicLocalMateChat() {
           // Ignored
         }
       } else {
-        setViewMode("payment");
+        openPayment(order.id);
         try {
-          localStorage.setItem("localmate_active_view_mode", "payment");
           if (order.payment?.checkoutUrl) {
             setPaymentCheckoutUrl(order.payment.checkoutUrl);
           } else {
@@ -374,14 +375,9 @@ export function PublicLocalMateChat() {
 
     let isMounted = true;
 
-    // Cache current url and order id for payment return page
     if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem("localmate_last_chat_url", window.location.href);
-        localStorage.setItem("localmate_last_order_id", currentOrder.id);
-      } catch {
-        // Ignored
-      }
+      setLastChatUrl(window.location.href);
+      setActiveOrderId(currentOrder.id);
     }
 
     const checkPaymentStatus = async () => {
@@ -393,7 +389,7 @@ export function PublicLocalMateChat() {
 
         const status = updated.payment?.status;
         if (status === "PAID" || status === "NOT_REQUIRED") {
-          setViewMode("guide-chat");
+          openGuideChat(currentOrder.id);
         }
       } catch {
         // Ignored in poll interval
@@ -406,15 +402,7 @@ export function PublicLocalMateChat() {
     const handleMessage = (e: MessageEvent) => {
       if (e.data?.type === "LOCALMATE_PAYMENT_SUCCESS") {
         void checkPaymentStatus();
-        setViewMode("guide-chat");
-      }
-    };
-
-    // Listen to localStorage change from payment-return tab
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === "localmate_payment_success") {
-        void checkPaymentStatus();
-        setViewMode("guide-chat");
+        openGuideChat(currentOrder.id);
       }
     };
 
@@ -426,7 +414,6 @@ export function PublicLocalMateChat() {
     };
 
     window.addEventListener("message", handleMessage);
-    window.addEventListener("storage", handleStorage);
     window.addEventListener("focus", handleVisibilityChange);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
@@ -434,11 +421,10 @@ export function PublicLocalMateChat() {
       isMounted = false;
       clearInterval(pollInterval);
       window.removeEventListener("message", handleMessage);
-      window.removeEventListener("storage", handleStorage);
       window.removeEventListener("focus", handleVisibilityChange);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [viewMode, currentOrder?.id]);
+  }, [viewMode, currentOrder?.id, openGuideChat, setActiveOrderId, setLastChatUrl]);
 
   // Guide Chat polling effect: poll conversation messages every 1200ms
   useEffect(() => {
@@ -709,31 +695,18 @@ export function PublicLocalMateChat() {
       if (!currentOrder) setCurrentOrder(order);
 
       if (typeof window !== "undefined") {
-        try {
-          localStorage.setItem("localmate_last_chat_url", window.location.href);
-          localStorage.setItem("localmate_last_order_id", order.id);
-          localStorage.setItem("localmate_active_order_id", order.id);
-          localStorage.setItem("localmate_active_view_mode", "payment");
-        } catch {
-          // Ignored
-        }
+        setLastChatUrl(window.location.href);
       }
+      setActiveOrderId(order.id);
 
       const paymentRes = await publicLocalMateRepository.createPaymentSession(order.id);
       const payment = paymentRes.payment;
 
       if (payment?.status === "PAID" || payment?.status === "NOT_REQUIRED") {
-        setViewMode("guide-chat");
-        if (typeof window !== "undefined") {
-          try {
-            localStorage.setItem("localmate_active_view_mode", "guide-chat");
-          } catch {
-            // Ignored
-          }
-        }
+        openGuideChat(order.id);
       } else {
         setPaymentCheckoutUrl(payment?.checkoutUrl ?? null);
-        setViewMode("payment");
+        openPayment(order.id);
       }
     } catch (err: unknown) {
       const errorObj = err as { message?: string } | null | undefined;
@@ -750,15 +723,7 @@ export function PublicLocalMateChat() {
     try {
       const updated = await publicLocalMateRepository.simulatePayment(currentOrder.id);
       setCurrentOrder(updated);
-      setViewMode("guide-chat");
-      if (typeof window !== "undefined") {
-        try {
-          localStorage.setItem("localmate_active_view_mode", "guide-chat");
-          localStorage.setItem("localmate_active_order_id", updated.id);
-        } catch {
-          // Ignored
-        }
-      }
+      openGuideChat(updated.id);
     } catch (err: unknown) {
       const errorObj = err as { message?: string } | null | undefined;
       setBookingError(errorObj?.message || "Không thể giả lập thanh toán.");
@@ -768,22 +733,10 @@ export function PublicLocalMateChat() {
   };
 
   const handleStartNewDiscovery = () => {
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.removeItem("localmate_active_order_id");
-        localStorage.removeItem("localmate_active_view_mode");
-        localStorage.removeItem("localmate_last_order_id");
-      } catch {
-        // Ignored
-      }
-    }
+    resetSession();
     setCurrentOrder(null);
     setCandidateDetails(null);
-    setActiveCandidateKey(null);
-    setActiveProposalKey(null);
     setConversationMessages([]);
-    setViewMode("discovery");
-    setCurrentStage("DISCOVERY");
   };
 
   const handleSendGuideMessage = async (e: React.FormEvent) => {

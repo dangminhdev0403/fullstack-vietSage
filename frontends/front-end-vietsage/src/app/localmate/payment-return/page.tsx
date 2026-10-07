@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { useLocalMateSessionStore } from "@/features/localmate-public/store/localmate-session-store";
 
 function LocalMatePaymentReturnContent() {
   const searchParams = useSearchParams();
@@ -14,45 +15,30 @@ function LocalMatePaymentReturnContent() {
   const [returnChatUrl, setReturnChatUrl] = useState("/public/localmate/chat");
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedChatUrl = localStorage.getItem("localmate_last_chat_url");
-      let baseChatUrl = savedChatUrl || "/public/localmate/chat";
-      if (orderId && !baseChatUrl.includes("orderId=")) {
-        const sep = baseChatUrl.includes("?") ? "&" : "?";
-        baseChatUrl = `${baseChatUrl}${sep}view=guide-chat&orderId=${encodeURIComponent(orderId)}`;
-      } else if (!baseChatUrl.includes("view=guide-chat")) {
-        const sep = baseChatUrl.includes("?") ? "&" : "?";
-        baseChatUrl = `${baseChatUrl}${sep}view=guide-chat`;
+    const savedChatUrl = useLocalMateSessionStore.getState().lastChatUrl;
+    const baseChatUrl = savedChatUrl || "/public/localmate/chat";
+    setReturnChatUrl(baseChatUrl);
+
+    if (result === "success") {
+      if (orderId) {
+        useLocalMateSessionStore.getState().openGuideChat(orderId);
+      } else {
+        useLocalMateSessionStore.getState().setViewMode("guide-chat");
+        useLocalMateSessionStore.getState().setIsOpen(true);
       }
-      setReturnChatUrl(baseChatUrl);
 
-      if (result === "success") {
-        if (orderId) {
-          localStorage.setItem("localmate_active_order_id", orderId);
-          localStorage.setItem("localmate_last_order_id", orderId);
-        }
-        localStorage.setItem("localmate_active_view_mode", "guide-chat");
-        localStorage.setItem(
-          "localmate_payment_success",
-          JSON.stringify({
-            timestamp: Date.now(),
-            orderId: orderId || undefined,
-          }),
-        );
-
-        // Bắn postMessage tới opener (nếu mở tab/popup mới từ trang chat)
-        if (window.opener && !window.opener.closed) {
-          try {
-            window.opener.postMessage(
-              {
-                type: "LOCALMATE_PAYMENT_SUCCESS",
-                orderId: orderId || undefined,
-              },
-              "*",
-            );
-          } catch {
-            // Ignore cross-origin error if any
-          }
+      // Bắn postMessage tới opener (nếu mở tab/popup mới từ trang chat)
+      if (typeof window !== "undefined" && window.opener && !window.opener.closed) {
+        try {
+          window.opener.postMessage(
+            {
+              type: "LOCALMATE_PAYMENT_SUCCESS",
+              orderId: orderId || undefined,
+            },
+            "*",
+          );
+        } catch {
+          // Ignore cross-origin error if any
         }
       }
     }

@@ -395,7 +395,9 @@ export function RequestQueueClient({
   const queryClient = useQueryClient();
   const mergedLabels = { ...defaultLabels, ...labels };
   const requestQueue = requestQueueResource.bind({
-    basePath: ownerApiBasePath ?? "",
+    basePath:
+      ownerApiBasePath ||
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/requests`,
   });
   const [filters, setFilters] = useState(() => toFilterState(initialFilters));
   const [isFilterExpanded, setIsFilterExpanded] = useState<boolean>(() =>
@@ -441,14 +443,13 @@ export function RequestQueueClient({
     isLoading: isDetailLoading,
     error: detailError,
   } = useQuery({
-    queryKey: ["hotel-request-detail", hotelId, activeDetailRequestId],
-    queryFn: async () => {
-      if (!activeDetailRequestId) return null;
-      const apiPath = ownerApiBasePath
-        ? `${ownerApiBasePath}/${encodeURIComponent(activeDetailRequestId)}`
-        : `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/requests/${encodeURIComponent(activeDetailRequestId)}`;
-      return requestInternalApi<HotelGuestRequest>(apiPath, { method: "GET" });
-    },
+    ...requestQueueResource
+      .bind({
+        basePath:
+          ownerApiBasePath ||
+          `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/requests`,
+      })
+      .queries.detail.options({ requestId: activeDetailRequestId ?? "" }),
     enabled: Boolean(activeDetailRequestId),
   });
 

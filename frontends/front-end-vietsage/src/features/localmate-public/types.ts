@@ -14,6 +14,12 @@ export type PublicLocalMateStage =
   | "GUIDE_SELECTION"
   | "BOOKING";
 
+export type LocalMateViewMode =
+  | "discovery"
+  | "confirm"
+  | "payment"
+  | "guide-chat";
+
 export type PublicLocalMateProposal = {
   proposalKey: string;
   title: string;

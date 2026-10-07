@@ -778,7 +778,7 @@ export const createHotelBodySchema = {
   properties: {
     tenantId: { type: "string", maxLength: 80 },
     name: { type: "string", minLength: 2, maxLength: 160 },
-    timezone: { type: "string", minLength: 1, maxLength: 80, default: "Asia/Saigon" },
+    timezone: { type: "string", minLength: 1, maxLength: 80, default: "Asia/Ho_Chi_Minh" },
     brandSettings: { type: "object", additionalProperties: true },
     googleSheetUrl: {
       type: "string",

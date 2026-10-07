@@ -5772,7 +5772,7 @@ export interface operations {
                 "application/json": {
                     tenantId?: string;
                     name: string;
-                    /** @default Asia/Saigon */
+                    /** @default Asia/Ho_Chi_Minh */
                     timezone?: string;
                     brandSettings?: {
                         [key: string]: unknown;
