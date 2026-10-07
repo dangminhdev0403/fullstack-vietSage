@@ -12,6 +12,7 @@ describe("TelegramWebhookController", () => {
     process.env.TELEGRAM_WEBHOOK_SECRET = secret;
     mockNotificationService = {
       handleCallback: jest.fn().mockResolvedValue(undefined),
+      callTelegram: jest.fn().mockResolvedValue(undefined),
     };
     mockBridgeService = {
       handleCallbackQuery: jest.fn().mockResolvedValue(undefined),
