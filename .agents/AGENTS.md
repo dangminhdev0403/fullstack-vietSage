@@ -65,7 +65,7 @@ For every coding task:
 
 2. **Build the smallest possible working set (Zero Repo Scan).**
    - Identify the target symbol(s) in `nodes[]`.
-   - Never search, grep, or walk the entire filesystem at turn 1 ("chưa cần quét repo").
+   - Never search, grep, or walk the entire filesystem at turn 1 (zero-repo-scan policy).
    - Traverse `links[]` one hop at a time to find direct dependencies (typically 3–5 files).
    - Resolve `source_file` paths to actual files only after the working set is defined.
 
@@ -149,8 +149,8 @@ A "module completed" includes examples such as:
 
 **Do NOT** run Graphify after every file edit. Reuse the existing graph throughout implementation. Only refresh the graph once when the module is considered complete, so future tasks use the latest project structure.
 
-**Miễn trừ cho chỉnh sửa thông thường (Exemption for Minor Edits):**
-Đối với các thao tác chỉnh sửa thông thường, phạm vi nhỏ (như chỉnh UI nhẹ, đổi tên biến/hàm, sửa text/copy/label, css/spacing tweaks): **KHÔNG cần run test** và **KHÔNG run graphify update** để tối ưu tốc độ và tránh lãng phí tài nguyên.
+**Exemption for Minor Edits:**
+For routine, small-scope changes (such as minor UI tweaks, renaming variables/functions, text/copy/label fixes, CSS/spacing tweaks): **DO NOT run tests** and **DO NOT run graphify update** to optimize speed and avoid wasting resources.
 
 ---
 
@@ -236,7 +236,13 @@ The UI Quality Pro-Max skill is mandatory even when the user does not name it ex
 
 When relevant local taste/design skills exist under `.agents/skills/`, they may be consulted only as supporting heuristics through UI Quality Pro-Max. Preserve VietSage's existing product identity, repository architecture, current design system, and security/business rules over taste-skill suggestions.
 
-UI Quality Pro-Max does not override the Graphify/Repomix navigation policy. Shared UI primitives, tokens, navigation shells, forms, tables, and feedback components require Graphify impact analysis before modification.
+## Strict Audit Mode
+
+For any audit/review request (`audit`, `review`, `rà soát`, `soát code`, architecture/system-design/module/repository/diff review) or explicit strict-mode trigger, follow:
+
+- `.agents/rules/strict-audit-mode.md`
+
+Audit read-only by default. Derive standards from the current repository; map actors, boundaries, contracts, state transitions, failure paths, and system invariants before checking technology fit. A violation requires repository-backed expectations, exact evidence, a concrete system effect, minimum correction, and a verification method. Every delegated reviewer MUST auto-activate strict audit from task intent; its card carries `STRICT_AUDIT_MODE: true`, exact scope/invariants/write policy, and its first substantive handoff starts `STRICT AUDIT MODE: ACTIVE.`. One host owns the shared system map and final evidence; dispatch only the fewest useful specialists across disjoint system boundaries. Do not create fix/remediation tasks unless the user explicitly requests implementation.
 
 ## Before Final Report
 
