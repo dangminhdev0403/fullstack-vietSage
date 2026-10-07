@@ -281,6 +281,70 @@ describe("T3 - Marketplace Conversation Service", () => {
       ).not.toHaveBeenCalled();
     });
 
+    it("re-dispatches a duplicate failed message without creating a second message", async () => {
+      const failedMessage = {
+        id: "msg-failed",
+        orderId: "order-1",
+        senderType: "GUEST",
+        body: "Em có mặt ở sảnh rồi ạ",
+        clientMessageId: "client-id-failed",
+        deliveryStatus: "FAILED",
+        createdAt: new Date(),
+      };
+      const prisma = {
+        marketplaceOrder: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: "order-1",
+            hotelId: "hotel-1",
+            stayId: "stay-1",
+            serviceTenantId: "tenant-1",
+            assignedLocalMateProfileId: "guide-1",
+            status: MarketplaceOrderStatus.ACKNOWLEDGED,
+            stay: { room: { id: "room-1" }, guestSessions: [] },
+          }),
+        },
+        marketplaceConversationMessage: {
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+      };
+      const repo = {
+        findOrCreateConversation: jest.fn().mockResolvedValue({ id: "conv-1" }),
+        appendGuestMessage: jest.fn().mockResolvedValue({
+          isDuplicate: true,
+          message: failedMessage,
+        }),
+      };
+      const dispatchSpy = jest.fn();
+      const service = new MarketplaceConversationService(prisma as never, repo as never);
+      service.setBridgeDispatcher({ dispatchGuestMessage: dispatchSpy });
+
+      const result = await service.sendGuestMessage(
+        { hotelId: "hotel-1", stayId: "stay-1" },
+        "order-1",
+        { body: failedMessage.body, clientMessageId: failedMessage.clientMessageId },
+      );
+
+      expect(prisma.marketplaceConversationMessage.updateMany).toHaveBeenCalledWith({
+        where: { id: failedMessage.id, deliveryStatus: "FAILED" },
+        data: {
+          deliveryStatus: "PENDING",
+          nextAttemptAt: null,
+          lastDeliveryError: null,
+        },
+      });
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: failedMessage.id,
+          clientMessageId: failedMessage.clientMessageId,
+          deliveryStatus: "PENDING",
+        }),
+      );
+      expect(dispatchSpy).toHaveBeenCalledTimes(1);
+      expect(
+        RequestRealtimeEmitter.emitMarketplaceConversationMessageCreated,
+      ).not.toHaveBeenCalled();
+    });
+
     it("allows public session to send message when payment is PAID even if order is PENDING, without hotel realtime", async () => {
       const mockOrder = {
         id: "order-pub-1",

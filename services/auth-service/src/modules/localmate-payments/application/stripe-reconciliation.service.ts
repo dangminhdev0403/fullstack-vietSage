@@ -3,8 +3,13 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import { AppLogger } from "../../../common/logging/app-logger.service";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { StripeClient } from "../infrastructure/stripe-client";
-import { MarketplaceOrderPaymentStatus, MarketplaceGuideNotificationStatus } from "@prisma/client";
+import {
+  MarketplaceGuideNotificationStatus,
+  MarketplaceOrderPaymentStatus,
+  MarketplaceOrderStatus,
+} from "@prisma/client";
 import type { ReconciliationResult } from "../domain/localmate-payment.dto";
+import { lockPaymentForUpdate, releaseExpiredOrderReservation } from "./stripe-webhook.service";
 
 @Injectable()
 export class StripeReconciliationService {
@@ -57,6 +62,7 @@ export class StripeReconciliationService {
 
         if (amountRefunded > 0) {
           const updated = await this.prisma.$transaction(async (tx) => {
+            await lockPaymentForUpdate(tx, payment.id);
             const current = await tx.marketplaceOrderPayment.findUniqueOrThrow({
               where: { id: payment.id },
             });
@@ -101,6 +107,7 @@ export class StripeReconciliationService {
 
     if (
       payment.status === MarketplaceOrderPaymentStatus.OPEN ||
+      payment.status === MarketplaceOrderPaymentStatus.EXPIRED ||
       payment.status === MarketplaceOrderPaymentStatus.CANCELLED
     ) {
       if (!payment.providerCheckoutSessionId) {
@@ -108,6 +115,7 @@ export class StripeReconciliationService {
         const isExpired = payment.expiresAt && payment.expiresAt < new Date();
         if (isExpired) {
           const updated = await this.prisma.$transaction(async (tx) => {
+            await lockPaymentForUpdate(tx, payment.id);
             const current = await tx.marketplaceOrderPayment.findUniqueOrThrow({
               where: { id: payment.id },
             });
@@ -115,10 +123,12 @@ export class StripeReconciliationService {
               current.status === MarketplaceOrderPaymentStatus.OPEN ||
               current.status === MarketplaceOrderPaymentStatus.CREATING
             ) {
-              return tx.marketplaceOrderPayment.update({
+              const updatedPayment = await tx.marketplaceOrderPayment.update({
                 where: { id: payment.id },
                 data: { status: MarketplaceOrderPaymentStatus.EXPIRED },
               });
+              await releaseExpiredOrderReservation(tx, current.orderId);
+              return updatedPayment;
             }
             return current;
           });
@@ -198,6 +208,7 @@ export class StripeReconciliationService {
 
           // Authoritative checks passed -> transition to PAID inside transaction
           const updated = await this.prisma.$transaction(async (tx) => {
+            await lockPaymentForUpdate(tx, payment.id);
             const current = await tx.marketplaceOrderPayment.findUniqueOrThrow({
               where: { id: payment.id },
             });
@@ -206,8 +217,24 @@ export class StripeReconciliationService {
               typeof session.payment_intent === "string"
                 ? session.payment_intent
                 : current.providerPaymentIntentId;
+            const currentOrder = await tx.marketplaceOrder.findUnique({
+              where: { id: current.orderId },
+              select: { status: true },
+            });
 
-            if (current.status === MarketplaceOrderPaymentStatus.CANCELLED) {
+            const canStartRefund =
+              current.status === MarketplaceOrderPaymentStatus.CREATING ||
+              current.status === MarketplaceOrderPaymentStatus.OPEN ||
+              current.status === MarketplaceOrderPaymentStatus.PAID ||
+              current.status === MarketplaceOrderPaymentStatus.EXPIRED ||
+              current.status === MarketplaceOrderPaymentStatus.FAILED ||
+              current.status === MarketplaceOrderPaymentStatus.CANCELLED;
+
+            if (
+              canStartRefund &&
+              (current.status === MarketplaceOrderPaymentStatus.CANCELLED ||
+                currentOrder?.status === MarketplaceOrderStatus.CANCELLED)
+            ) {
               return tx.marketplaceOrderPayment.update({
                 where: { id: payment.id },
                 data: {
@@ -257,6 +284,7 @@ export class StripeReconciliationService {
 
         if (isExpired) {
           const updated = await this.prisma.$transaction(async (tx) => {
+            await lockPaymentForUpdate(tx, payment.id);
             const current = await tx.marketplaceOrderPayment.findUniqueOrThrow({
               where: { id: payment.id },
             });
@@ -264,10 +292,12 @@ export class StripeReconciliationService {
               current.status === MarketplaceOrderPaymentStatus.OPEN ||
               current.status === MarketplaceOrderPaymentStatus.CREATING
             ) {
-              return tx.marketplaceOrderPayment.update({
+              const updatedPayment = await tx.marketplaceOrderPayment.update({
                 where: { id: payment.id },
                 data: { status: MarketplaceOrderPaymentStatus.EXPIRED },
               });
+              await releaseExpiredOrderReservation(tx, current.orderId);
+              return updatedPayment;
             }
             return current;
           });

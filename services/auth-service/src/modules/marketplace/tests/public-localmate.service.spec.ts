@@ -1,5 +1,6 @@
 import { ConflictException, UnauthorizedException } from "@nestjs/common";
 import { createHash } from "node:crypto";
+import { MarketplaceOrderStatus } from "@prisma/client";
 import { PublicLocalMateService } from "../application/public-localmate.service";
 
 const proposal = {
@@ -140,7 +141,7 @@ describe("PublicLocalMateService", () => {
           location: true,
           guestDisplayName: true,
           guestPhone: true,
-          orders: { select: { id: true }, take: 1 },
+          orders: { select: { id: true, status: true } },
         },
       });
       expect(prisma.publicLocalMateSession.update).toHaveBeenCalledWith({
@@ -157,18 +158,53 @@ describe("PublicLocalMateService", () => {
       expect(result.sessionId).toBe("pub-session-1");
     });
 
-    it("atomically revokes previous session and creates a fresh session if previous session has existing orders", async () => {
+    it("preserves previous session and retains capability ownership when previous session has an active non-terminal order", async () => {
       const previousToken = "p".repeat(43);
       prisma.publicLocalMateSession.findUnique.mockResolvedValue({
-        id: "pub-session-old",
+        id: "pub-session-active",
         expiresAt: new Date(Date.now() + 60_000),
         revokedAt: null,
         location: "Hà Nội",
         guestDisplayName: "Nguyễn Văn A",
         guestPhone: "0901234567",
-        orders: [{ id: "order-previous" }],
+        orders: [{ id: "order-active", status: MarketplaceOrderStatus.PENDING }],
       });
-      prisma.publicLocalMateSession.update.mockResolvedValue({ id: "pub-session-old" });
+      prisma.publicLocalMateSession.update.mockResolvedValue({ id: "pub-session-active" });
+
+      const result = await service.createSession(
+        {
+          location: "Đà Nẵng",
+          guestDisplayName: "Nguyễn Văn A Updated",
+          guestPhone: "0901234567",
+        },
+        previousToken,
+      );
+
+      // Must NOT create a new session
+      expect(prisma.publicLocalMateSession.create).not.toHaveBeenCalled();
+      // Must NOT revoke the existing session
+      expect(prisma.publicLocalMateSession.update).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ revokedAt: expect.anything() }),
+        }),
+      );
+      // Retains existing session ID and token capability
+      expect(result.sessionId).toBe("pub-session-active");
+      expect(result.token).toBe(previousToken);
+    });
+
+    it("atomically revokes previous session and creates a fresh session if previous session has only terminal orders", async () => {
+      const previousToken = "p".repeat(43);
+      prisma.publicLocalMateSession.findUnique.mockResolvedValue({
+        id: "pub-session-terminal",
+        expiresAt: new Date(Date.now() + 60_000),
+        revokedAt: null,
+        location: "Hà Nội",
+        guestDisplayName: "Nguyễn Văn A",
+        guestPhone: "0901234567",
+        orders: [{ id: "order-completed", status: MarketplaceOrderStatus.COMPLETED }],
+      });
+      prisma.publicLocalMateSession.update.mockResolvedValue({ id: "pub-session-terminal" });
       prisma.publicLocalMateSession.create.mockResolvedValue({ id: "pub-session-new" });
 
       const result = await service.createSession(
@@ -181,7 +217,7 @@ describe("PublicLocalMateService", () => {
       );
 
       expect(prisma.publicLocalMateSession.update).toHaveBeenCalledWith({
-        where: { id: "pub-session-old" },
+        where: { id: "pub-session-terminal" },
         data: { revokedAt: expect.any(Date) },
       });
       expect(prisma.publicLocalMateSession.create).toHaveBeenCalledWith({
@@ -525,6 +561,12 @@ describe("PublicLocalMateService", () => {
         { body: "Hello", clientMessageId: "cid-1" },
       );
       expect(msg.id).toBe("msg-1");
+    });
+  });
+
+  describe("simulatePayment removal", () => {
+    it("does not expose simulatePayment on PublicLocalMateService", () => {
+      expect((service as any).simulatePayment).toBeUndefined();
     });
   });
 });

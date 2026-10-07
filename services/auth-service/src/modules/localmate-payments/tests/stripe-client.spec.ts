@@ -74,10 +74,10 @@ describe("StripeClient", () => {
       expect(bodyParams.get("metadata[schemaVersion]")).toBe("1");
       expect(bodyParams.get("expires_at")).toBe("1700001800");
       expect(bodyParams.get("success_url")).toBe(
-        "https://app.vietsage.com/localmate/payment-return?result=success",
+        "https://app.vietsage.com/localmate/payment-return?result=success&orderId=order-456",
       );
       expect(bodyParams.get("cancel_url")).toBe(
-        "https://app.vietsage.com/localmate/payment-return?result=cancelled",
+        "https://app.vietsage.com/localmate/payment-return?result=cancelled&orderId=order-456",
       );
 
       expect(result.id).toBe("cs_test_123");

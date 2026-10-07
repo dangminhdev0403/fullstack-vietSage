@@ -1,6 +1,5 @@
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import {
-  CapacityReservationStatus,
   MarketplaceMessageDeliveryStatus,
   MarketplaceOrderActorType,
   MarketplaceOrderStatus,
@@ -11,6 +10,7 @@ import { PrismaService } from "../../../prisma/prisma.service";
 import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 import { TelegramNotificationService } from "./telegram-notification.service";
 import { LocalMatePaymentsService } from "../../localmate-payments/application/localmate-payments.service";
+import { MarketplaceConversationRepository } from "../../marketplace/infrastructure/marketplace-conversation.repository";
 import type {
   TelegramCallbackQuery,
   TelegramMessage,
@@ -36,6 +36,7 @@ export class TelegramMarketplaceBridgeService {
     private readonly prisma: PrismaService,
     private readonly telegramNotificationService: TelegramNotificationService,
     private readonly localMatePaymentsService: LocalMatePaymentsService,
+    private readonly conversationRepo: MarketplaceConversationRepository,
   ) {}
 
   async sendOrderNotificationToGuide(orderInput: any): Promise<SendOrderNotificationResult> {
@@ -589,15 +590,27 @@ export class TelegramMarketplaceBridgeService {
     }
   }
 
-  async completeOrderAndConversation(order: any, chatId?: number | string): Promise<void> {
+  async completeOrderAndConversation(order: any, chatId?: number | string): Promise<boolean> {
     const updatedOrder = await this.prisma.$transaction(async (tx) => {
-      const o = await tx.marketplaceOrder.update({
-        where: { id: order.id },
+      const updateResult = await tx.marketplaceOrder.updateMany({
+        where: {
+          id: order.id,
+          status: MarketplaceOrderStatus.ACKNOWLEDGED,
+          ...(typeof order.version === "number" ? { version: order.version } : {}),
+        },
         data: {
           status: MarketplaceOrderStatus.COMPLETED,
           completedAt: new Date(),
           version: { increment: 1 },
         },
+      });
+
+      if (updateResult.count === 0) {
+        return null;
+      }
+
+      const o = await tx.marketplaceOrder.findUnique({
+        where: { id: order.id },
       });
 
       await tx.marketplaceOrderEvent.create({
@@ -631,8 +644,14 @@ export class TelegramMarketplaceBridgeService {
         });
       }
 
-      return o;
+      return {
+        version: o?.version ?? (typeof order.version === "number" ? order.version + 1 : 1),
+      };
     });
+
+    if (!updatedOrder) {
+      return false;
+    }
 
     if (order.hotelId && order.stayId) {
       RequestRealtimeEmitter.emitExternalServiceOrderStatusChanged({
@@ -662,6 +681,8 @@ export class TelegramMarketplaceBridgeService {
         })
         .catch(() => {});
     }
+
+    return true;
   }
 
   async handleInboundMessage(message: TelegramMessage): Promise<void> {
@@ -906,21 +927,12 @@ export class TelegramMarketplaceBridgeService {
     serviceTenantId: string;
     assignedLocalMateProfileId?: string | null;
   }) {
-    const existing = await this.prisma.marketplaceConversation.findUnique({
-      where: { orderId: order.id },
-    });
-    if (existing) return existing;
-
-    return this.prisma.marketplaceConversation.create({
-      data: {
-        orderId: order.id,
-        hotelId: order.hotelId,
-        stayId: order.stayId,
-        publicSessionId: order.publicSessionId,
-        serviceTenantId: order.serviceTenantId,
-        assignedLocalMateProfileId: order.assignedLocalMateProfileId ?? null,
-        status: "ACTIVE",
-      },
+    return this.conversationRepo.findOrCreateConversation(order.id, {
+      hotelId: order.hotelId,
+      stayId: order.stayId,
+      publicSessionId: order.publicSessionId,
+      serviceTenantId: order.serviceTenantId,
+      assignedLocalMateProfileId: order.assignedLocalMateProfileId,
     });
   }
 }

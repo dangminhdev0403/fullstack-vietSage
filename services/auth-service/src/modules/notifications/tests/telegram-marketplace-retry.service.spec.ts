@@ -1,4 +1,8 @@
-import { MarketplaceMessageDeliveryStatus, MarketplaceOrderStatus } from "@prisma/client";
+import {
+  MarketplaceMessageDeliveryStatus,
+  MarketplaceOrderPaymentStatus,
+  MarketplaceOrderStatus,
+} from "@prisma/client";
 import { TelegramMarketplaceRetryService } from "../application/telegram-marketplace-retry.service";
 
 describe("TelegramMarketplaceRetryService", () => {
@@ -75,16 +79,70 @@ describe("TelegramMarketplaceRetryService", () => {
     expect(mockBridgeService.sendGuestMessageToGuide).not.toHaveBeenCalled();
   });
 
-  it("drops retry for messages belonging to unacknowledged or terminal orders", async () => {
-    const message = {
-      id: "msg_2",
+  it("drops retry for messages belonging to unpaid pending orders or terminal orders", async () => {
+    const messageTerminal = {
+      id: "msg_term",
       deliveryStatus: MarketplaceMessageDeliveryStatus.FAILED,
       attemptCount: 1,
       conversation: {
-        id: "conv_2",
+        id: "conv_term",
         order: {
-          id: "ord_2",
+          id: "ord_term",
           status: MarketplaceOrderStatus.CANCELLED,
+        },
+      },
+    };
+
+    const messageUnpaid = {
+      id: "msg_unpaid",
+      deliveryStatus: MarketplaceMessageDeliveryStatus.FAILED,
+      attemptCount: 1,
+      conversation: {
+        id: "conv_unpaid",
+        order: {
+          id: "ord_unpaid",
+          status: MarketplaceOrderStatus.PENDING,
+          payment: { status: MarketplaceOrderPaymentStatus.OPEN },
+        },
+      },
+    };
+
+    mockPrisma.marketplaceConversationMessage.findMany.mockResolvedValue([
+      messageTerminal,
+      messageUnpaid,
+    ]);
+
+    const count = await service.processPendingRetries();
+
+    expect(count).toBe(0);
+    expect(mockPrisma.marketplaceConversationMessage.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "msg_term" },
+        data: { nextAttemptAt: null },
+      }),
+    );
+    expect(mockPrisma.marketplaceConversationMessage.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "msg_unpaid" },
+        data: { nextAttemptAt: null },
+      }),
+    );
+    expect(mockBridgeService.sendGuestMessageToGuide).not.toHaveBeenCalled();
+  });
+
+  it("retains retry eligibility and retries failed guest messages for paid pending orders", async () => {
+    const message = {
+      id: "msg_pending_paid",
+      deliveryStatus: MarketplaceMessageDeliveryStatus.FAILED,
+      attemptCount: 1,
+      conversation: {
+        id: "conv_pending",
+        order: {
+          id: "ord_pending",
+          status: MarketplaceOrderStatus.PENDING,
+          payment: {
+            status: MarketplaceOrderPaymentStatus.PAID,
+          },
         },
       },
     };
@@ -93,13 +151,61 @@ describe("TelegramMarketplaceRetryService", () => {
 
     const count = await service.processPendingRetries();
 
-    expect(count).toBe(0);
-    expect(mockPrisma.marketplaceConversationMessage.update).toHaveBeenCalledWith(
+    expect(count).toBe(1);
+    expect(mockPrisma.marketplaceConversationMessage.update).not.toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "msg_2" },
+        where: { id: "msg_pending_paid" },
         data: { nextAttemptAt: null },
       }),
     );
-    expect(mockBridgeService.sendGuestMessageToGuide).not.toHaveBeenCalled();
+    expect(mockPrisma.marketplaceConversationMessage.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "msg_pending_paid",
+        deliveryStatus: MarketplaceMessageDeliveryStatus.FAILED,
+        nextAttemptAt: { lte: expect.any(Date) },
+        attemptCount: { lt: 3 },
+      },
+      data: { nextAttemptAt: expect.any(Date) },
+    });
+    expect(mockBridgeService.sendGuestMessageToGuide).toHaveBeenCalledWith({
+      message,
+      order: message.conversation.order,
+      conversation: message.conversation,
+    });
+  });
+
+  it("retains retry eligibility and retries failed guest messages for pending orders when payment is NOT_REQUIRED", async () => {
+    const message = {
+      id: "msg_pending_not_req",
+      deliveryStatus: MarketplaceMessageDeliveryStatus.FAILED,
+      attemptCount: 1,
+      conversation: {
+        id: "conv_pending_2",
+        order: {
+          id: "ord_pending_2",
+          status: MarketplaceOrderStatus.PENDING,
+          payment: {
+            status: MarketplaceOrderPaymentStatus.NOT_REQUIRED,
+          },
+        },
+      },
+    };
+
+    mockPrisma.marketplaceConversationMessage.findMany.mockResolvedValue([message]);
+
+    const count = await service.processPendingRetries();
+
+    expect(count).toBe(1);
+    expect(mockPrisma.marketplaceConversationMessage.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "msg_pending_not_req" },
+        data: { nextAttemptAt: null },
+      }),
+    );
+    expect(mockBridgeService.sendGuestMessageToGuide).toHaveBeenCalledWith({
+      message,
+      order: message.conversation.order,
+      conversation: message.conversation,
+    });
   });
 });

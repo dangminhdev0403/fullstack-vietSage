@@ -25,7 +25,7 @@ export const PUBLIC_REGEX: RegExp[] = [
   /^\/emergency\/guest\/calls$/,
   /^\/payments\/webhook\/[^/]+$/,
   /^\/localmate\/(?:ai\/match|guides\/[^/]+)$/,
-  /^\/public\/localmate\/(?:proposals(?:\/[^/]+\/select)?|candidates\/[^/]+|orders(?:\/[^/]+(?:\/payment-session|\/simulate-payment|\/conversation(?:\/messages)?)?)?)$/,
+  /^\/public\/localmate\/(?:proposals(?:\/[^/]+\/select)?|candidates\/[^/]+|orders(?:\/[^/]+(?:\/payment-session|\/conversation(?:\/messages)?)?)?)$/,
   /^\/api\/v1\/channel-manager\/ical\/[^/]+(?:\.ics)?$/,
 ];
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -10,7 +10,6 @@ import { publicLocalMateRepository } from "../repository";
 import {
   canProceedToBooking,
   transitionStage,
-  type LocalMateViewMode,
   type PublicBookingCandidate,
   type PublicConversationMessage,
   type PublicLocalMateAction,
@@ -39,6 +38,10 @@ type Message = {
   actions?: PublicLocalMateAction[];
 };
 
+type LocalChatMessage = PublicConversationMessage & {
+  retryCount?: number;
+};
+
 const welcome: Message = {
   id: 0,
   sender: "localmate",
@@ -49,6 +52,10 @@ const initialDiscoveryQuery = "Gợi ý các địa danh và trải nghiệm n�
 
 function createIdempotencyKey(): string {
   return `ord_${crypto.randomUUID()}`;
+}
+
+function createClientMessageId(): string {
+  return `msg_${crypto.randomUUID()}`;
 }
 
 function createBookingFingerprint(
@@ -167,7 +174,6 @@ export function PublicLocalMateChat() {
   const setActiveProposalKey = useLocalMateSessionStore((s) => s.setActiveProposalKey);
   const activeCandidateKey = useLocalMateSessionStore((s) => s.activeCandidateKey);
   const setActiveCandidateKey = useLocalMateSessionStore((s) => s.setActiveCandidateKey);
-  const activeOrderId = useLocalMateSessionStore((s) => s.activeOrderId);
   const setActiveOrderId = useLocalMateSessionStore((s) => s.setActiveOrderId);
   const openGuideChat = useLocalMateSessionStore((s) => s.openGuideChat);
   const openPayment = useLocalMateSessionStore((s) => s.openPayment);
@@ -201,11 +207,10 @@ export function PublicLocalMateChat() {
   // Payment state
   const [currentOrder, setCurrentOrder] = useState<PublicOrder | null>(null);
   const [paymentCheckoutUrl, setPaymentCheckoutUrl] = useState<string | null>(null);
-  const [isSimulatingPayment, setIsSimulatingPayment] = useState(false);
   const isPollingPayment = viewMode === "payment" && Boolean(currentOrder?.id);
 
   // Guide Chat state
-  const [conversationMessages, setConversationMessages] = useState<PublicConversationMessage[]>([]);
+  const [conversationMessages, setConversationMessages] = useState<LocalChatMessage[]>([]);
   const [guideInput, setGuideInput] = useState("");
   const [isSendingGuideMessage, setIsSendingGuideMessage] = useState(false);
 
@@ -220,6 +225,8 @@ export function PublicLocalMateChat() {
   const teaserRef = useRef<HTMLElement>(null);
   const openButtonRef = useRef<HTMLButtonElement>(null);
   const openerKindRef = useRef<"teaser" | "button">("button");
+  const lastFocusedElementRef = useRef<HTMLElement | null>(null);
+  const wasOpenRef = useRef(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const guideChatEndRef = useRef<HTMLDivElement>(null);
@@ -235,6 +242,8 @@ export function PublicLocalMateChat() {
     : "";
   const isCandidatePreviewCurrent =
     Boolean(candidateDetails) && bookingPreviewFingerprint === currentBookingFingerprint;
+
+  const closeChat = useCallback(() => setIsOpen(false), [setIsOpen]);
 
   const displayedDestinations = useMemo(() => {
     if (selectedRegion === "all") {
@@ -255,30 +264,88 @@ export function PublicLocalMateChat() {
     }
   }, [isOpen]);
 
+  // Capture the opener once per open/close transition (LM-10).
   useEffect(() => {
-    if (isOpen && viewMode === "discovery") {
-      inputRef.current?.focus();
+    if (isOpen && !wasOpenRef.current) {
+      lastFocusedElementRef.current = (document.activeElement as HTMLElement) ?? null;
+    } else if (
+      !isOpen &&
+      wasOpenRef.current &&
+      lastFocusedElementRef.current &&
+      typeof lastFocusedElementRef.current.focus === "function"
+    ) {
+      lastFocusedElementRef.current.focus();
+    } else if (!isOpen && wasOpenRef.current) {
+      (openerKindRef.current === "teaser" ? teaserRef.current : openButtonRef.current)?.focus();
     }
-  }, [isOpen, viewMode]);
+    wasOpenRef.current = isOpen;
+  }, [isOpen]);
 
+  // Focus the current view without overwriting the captured opener.
   useEffect(() => {
     if (!isOpen) return;
+    const timer = window.setTimeout(() => {
+      if (viewMode === "discovery" && inputRef.current) {
+        inputRef.current.focus();
+        return;
+      }
+      const container = dialogRef.current;
+      if (!container) return;
+      const focusables = Array.from(
+        container.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => el.offsetParent !== null || el.getClientRects().length > 0);
+      focusables[0]?.focus();
+    }, 30);
+    return () => window.clearTimeout(timer);
+  }, [isOpen, viewMode]);
+
+  // Tab containment and Escape handling (LM-10)
+  useEffect(() => {
+    if (!isOpen) return;
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setIsOpen(false);
-        window.setTimeout(
-          () =>
-            (openerKindRef.current === "teaser"
-              ? teaserRef.current
-              : openButtonRef.current
-            )?.focus(),
-          50,
-        );
+        closeChat();
+        return;
+      }
+
+      if (event.key === "Tab") {
+        const container = dialogRef.current;
+        if (!container) return;
+
+        const focusables = Array.from(
+          container.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          ),
+        ).filter((el) => el.offsetParent !== null || el.getClientRects().length > 0);
+
+        if (focusables.length === 0) {
+          event.preventDefault();
+          return;
+        }
+
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+
+        if (event.shiftKey) {
+          if (document.activeElement === first || !container.contains(document.activeElement)) {
+            event.preventDefault();
+            last?.focus();
+          }
+        } else {
+          if (document.activeElement === last || !container.contains(document.activeElement)) {
+            event.preventDefault();
+            first?.focus();
+          }
+        }
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen]);
+  }, [closeChat, isOpen]);
 
   useEffect(() => {
     if (messagesContainerRef.current) {
@@ -299,8 +366,9 @@ export function PublicLocalMateChat() {
     let isMounted = true;
 
     const restoreSessionAndOrder = async () => {
+      const session = useLocalMateSessionStore.getState();
       const urlOrderId = new URLSearchParams(window.location.search).get("orderId");
-      const targetOrderId = urlOrderId || activeOrderId;
+      const targetOrderId = urlOrderId || session.activeOrderId;
 
       let order: PublicOrder | null = null;
 
@@ -326,8 +394,8 @@ export function PublicLocalMateChat() {
       if (!isMounted || !order) return;
 
       setCurrentOrder(order);
-      setIsOpen(true);
-      setActiveOrderId(order.id);
+      session.setIsOpen(true);
+      session.setActiveOrderId(order.id);
 
       const isPaid =
         order.payment?.status === "PAID" ||
@@ -335,8 +403,8 @@ export function PublicLocalMateChat() {
         order.status === "COMPLETED" ||
         order.status === "ACKNOWLEDGED";
 
-      if (isPaid || viewMode === "guide-chat") {
-        openGuideChat(order.id);
+      if (isPaid || session.viewMode === "guide-chat") {
+        session.openGuideChat(order.id);
         try {
           const conv = await publicLocalMateRepository.getConversation(order.id);
           if (isMounted && conv?.items) {
@@ -346,7 +414,7 @@ export function PublicLocalMateChat() {
           // Ignored
         }
       } else {
-        openPayment(order.id);
+        session.openPayment(order.id);
         try {
           if (order.payment?.checkoutUrl) {
             setPaymentCheckoutUrl(order.payment.checkoutUrl);
@@ -398,11 +466,11 @@ export function PublicLocalMateChat() {
 
     const pollInterval = setInterval(checkPaymentStatus, 2000);
 
-    // Listen to postMessage from payment-return tab/popup
+    // Listen to postMessage from payment-return tab/popup (LM-03 same-origin check)
     const handleMessage = (e: MessageEvent) => {
+      if (typeof window !== "undefined" && e.origin !== window.location.origin) return;
       if (e.data?.type === "LOCALMATE_PAYMENT_SUCCESS") {
         void checkPaymentStatus();
-        openGuideChat(currentOrder.id);
       }
     };
 
@@ -717,21 +785,6 @@ export function PublicLocalMateChat() {
     }
   };
 
-  const handleSimulatePayment = async () => {
-    if (!currentOrder?.id || isSimulatingPayment) return;
-    setIsSimulatingPayment(true);
-    try {
-      const updated = await publicLocalMateRepository.simulatePayment(currentOrder.id);
-      setCurrentOrder(updated);
-      openGuideChat(updated.id);
-    } catch (err: unknown) {
-      const errorObj = err as { message?: string } | null | undefined;
-      setBookingError(errorObj?.message || "Không thể giả lập thanh toán.");
-    } finally {
-      setIsSimulatingPayment(false);
-    }
-  };
-
   const handleStartNewDiscovery = () => {
     resetSession();
     setCurrentOrder(null);
@@ -747,28 +800,79 @@ export function PublicLocalMateChat() {
     setIsSendingGuideMessage(true);
     setGuideInput("");
 
+    const clientMessageId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const optimisticId = `temp-${Date.now()}`;
-    const optimisticMessage: PublicConversationMessage = {
+    const optimisticMessage: LocalChatMessage = {
       id: optimisticId,
       orderId: currentOrder.id,
       senderType: "GUEST",
       body,
-      deliveryStatus: "PENDING",
+      deliveryStatus: "SENDING",
       createdAt: new Date().toISOString(),
+      clientMessageId,
+      retryCount: 0,
     };
     setConversationMessages((prev) => [...prev, optimisticMessage]);
 
     try {
       const created = await publicLocalMateRepository.sendMessage(currentOrder.id, {
         body,
-        clientMessageId: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        clientMessageId,
       });
 
       setConversationMessages((prev) =>
-        prev.map((m) => (m.id === optimisticId ? created : m)),
+        prev.map((m) =>
+          m.id === optimisticId
+            ? { ...created, clientMessageId, deliveryStatus: created.deliveryStatus || "SENT" }
+            : m,
+        ),
       );
     } catch {
-      // Revert optimistic or mark error
+      setConversationMessages((prev) =>
+        prev.map((m) =>
+          m.id === optimisticId ? { ...m, deliveryStatus: "FAILED" } : m,
+        ),
+      );
+    } finally {
+      setIsSendingGuideMessage(false);
+    }
+  };
+
+  const handleRetryGuideMessage = async (msg: LocalChatMessage) => {
+    if (!currentOrder?.id || isSendingGuideMessage) return;
+    if ((msg.retryCount ?? 0) >= 3) return; // Bounded retry: max 3 attempts
+
+    const clientMessageId = msg.clientMessageId || createClientMessageId();
+    const newRetryCount = (msg.retryCount ?? 0) + 1;
+
+    setConversationMessages((prev) =>
+      prev.map((m) =>
+        m.id === msg.id
+          ? { ...m, deliveryStatus: "SENDING", retryCount: newRetryCount, clientMessageId }
+          : m,
+      ),
+    );
+    setIsSendingGuideMessage(true);
+
+    try {
+      const created = await publicLocalMateRepository.sendMessage(currentOrder.id, {
+        body: msg.body,
+        clientMessageId,
+      });
+
+      setConversationMessages((prev) =>
+        prev.map((m) =>
+          m.id === msg.id
+            ? { ...created, clientMessageId, retryCount: newRetryCount, deliveryStatus: created.deliveryStatus || "SENT" }
+            : m,
+        ),
+      );
+    } catch {
+      setConversationMessages((prev) =>
+        prev.map((m) =>
+          m.id === msg.id ? { ...m, deliveryStatus: "FAILED", retryCount: newRetryCount } : m,
+        ),
+      );
     } finally {
       setIsSendingGuideMessage(false);
     }
@@ -841,14 +945,6 @@ export function PublicLocalMateChat() {
   const openChat = (opener: "teaser" | "button") => {
     openerKindRef.current = opener;
     setIsOpen(true);
-  };
-
-  const closeChat = () => {
-    setIsOpen(false);
-    window.setTimeout(
-      () => (openerKindRef.current === "teaser" ? teaserRef.current : openButtonRef.current)?.focus(),
-      50,
-    );
   };
 
   return (
@@ -1594,11 +1690,40 @@ export function PublicLocalMateChat() {
                     <h3 className="mt-1 text-sm font-bold text-[#123d2a]">
                       {currentOrder.serviceNameSnapshot}
                     </h3>
-                    <div className="mt-2.5 flex items-baseline justify-between border-t border-[#d6c08b]/30 pt-2 text-sm font-bold text-[#123d2a]">
-                      <span>Tổng chi phí:</span>
-                      <span className="text-base text-[#123d2a]">
-                        {Number(currentOrder.customerTotalAmount || currentOrder.totalAmount).toLocaleString("vi-VN")} VND
-                      </span>
+                    <div className="mt-3 space-y-1.5 border-t border-[#d6c08b]/30 pt-2.5 text-xs text-[#526458]">
+                      <div className="flex items-center justify-between">
+                        <span>Tổng chi phí tour:</span>
+                        <span className="font-semibold text-[#123d2a]">
+                          {Number(
+                            currentOrder.payment?.tourTotalAmount ??
+                              currentOrder.customerTotalAmount ??
+                              currentOrder.totalAmount,
+                          ).toLocaleString("vi-VN")}{" "}
+                          VND
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between font-bold text-emerald-800">
+                        <span>Phí cọc VietSage (thanh toán qua Stripe):</span>
+                        <span className="text-sm">
+                          {Number(
+                            currentOrder.payment?.platformFeeAmount ??
+                              currentOrder.hotelServiceFeeAmount ??
+                              0,
+                          ).toLocaleString("vi-VN")}{" "}
+                          VND
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-[#806118]">
+                        <span>Số tiền còn lại gửi trực tiếp HDV:</span>
+                        <span className="font-semibold">
+                          {Number(
+                            currentOrder.payment?.guideRemainingAmount ??
+                              currentOrder.partnerSubtotal ??
+                              0,
+                          ).toLocaleString("vi-VN")}{" "}
+                          VND
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -1619,25 +1744,6 @@ export function PublicLocalMateChat() {
                         <span>Mở liên kết thanh toán Stripe</span>
                         <VsIcon name="open_in_new" className="text-sm" />
                       </a>
-
-                      <button
-                        type="button"
-                        onClick={handleSimulatePayment}
-                        disabled={isSimulatingPayment}
-                        className="mt-2.5 inline-flex min-h-10 w-full max-w-[280px] items-center justify-center gap-1.5 rounded-xl border border-emerald-600 bg-emerald-50 px-4 text-xs font-bold text-emerald-800 transition hover:bg-emerald-600 hover:text-white active:scale-95 disabled:opacity-50"
-                      >
-                        {isSimulatingPayment ? (
-                          <>
-                            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-emerald-700 border-t-transparent" />
-                            <span>Đang kích hoạt HDV...</span>
-                          </>
-                        ) : (
-                          <>
-                            <VsIcon name="bolt" className="text-sm text-emerald-600 group-hover:text-white" />
-                            <span>⚡ Xác nhận thanh toán thử (Test Mode)</span>
-                          </>
-                        )}
-                      </button>
                     </div>
                   ) : (
                     <div className="py-8">
@@ -1708,14 +1814,43 @@ export function PublicLocalMateChat() {
                             <VsIcon name="person" className="text-sm" />
                           </span>
                         )}
-                        <div
-                          className={`w-fit max-w-[85%] rounded-2xl px-3.5 py-2.5 text-[13.5px] leading-relaxed shadow-sm sm:text-sm ${
-                            msg.senderType === "GUEST"
-                              ? "rounded-tr-sm bg-[#123d2a] text-white"
-                              : "rounded-tl-sm border border-[#123d2a]/10 bg-white text-[#24342b]"
-                          }`}
-                        >
-                          {msg.body}
+                        <div className="flex flex-col items-end max-w-[85%]">
+                          <div
+                            className={`w-fit rounded-2xl px-3.5 py-2.5 text-[13.5px] leading-relaxed shadow-sm sm:text-sm ${
+                              msg.senderType === "GUEST"
+                                ? "rounded-tr-sm bg-[#123d2a] text-white"
+                                : "rounded-tl-sm border border-[#123d2a]/10 bg-white text-[#24342b]"
+                            }`}
+                          >
+                            {msg.body}
+                          </div>
+                          {msg.senderType === "GUEST" && (
+                            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-[#526458]">
+                              {(msg.deliveryStatus === "SENDING" || msg.deliveryStatus === "PENDING") && (
+                                <span className="flex items-center gap-1 text-[#718277]">
+                                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#718277]" />
+                                  <span>Đang gửi...</span>
+                                </span>
+                              )}
+                              {msg.deliveryStatus === "FAILED" && (
+                                <span className="flex items-center gap-1.5 text-red-600">
+                                  <span>Gửi thất bại</span>
+                                  {(msg.retryCount ?? 0) < 3 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRetryGuideMessage(msg)}
+                                      className="font-bold underline hover:text-red-700"
+                                    >
+                                      Thử lại
+                                    </button>
+                                  )}
+                                </span>
+                              )}
+                              {(msg.deliveryStatus === "SENT" || msg.deliveryStatus === "DELIVERED") && (
+                                <span className="text-[#88988e]">Đã gửi</span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))

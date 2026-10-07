@@ -38,30 +38,56 @@ export class MarketplaceConversationRepository {
     });
     if (existing) return existing;
 
-    return this.prisma.marketplaceConversation.create({
-      data: {
-        orderId,
-        hotelId: details.hotelId,
-        stayId: details.stayId,
-        publicSessionId: details.publicSessionId,
-        serviceTenantId: details.serviceTenantId,
-        assignedLocalMateProfileId: details.assignedLocalMateProfileId ?? null,
-        status: "ACTIVE",
-      },
-      include: {
-        order: {
-          select: {
-            id: true,
-            orderNumber: true,
-            status: true,
-            hotelId: true,
-            stayId: true,
-            serviceTenantId: true,
-            assignedLocalMateProfileId: true,
+    try {
+      return await this.prisma.marketplaceConversation.create({
+        data: {
+          orderId,
+          hotelId: details.hotelId,
+          stayId: details.stayId,
+          publicSessionId: details.publicSessionId,
+          serviceTenantId: details.serviceTenantId,
+          assignedLocalMateProfileId: details.assignedLocalMateProfileId ?? null,
+          status: "ACTIVE",
+        },
+        include: {
+          order: {
+            select: {
+              id: true,
+              orderNumber: true,
+              status: true,
+              hotelId: true,
+              stayId: true,
+              serviceTenantId: true,
+              assignedLocalMateProfileId: true,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (error) {
+      if (
+        (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") ||
+        (error && typeof error === "object" && error.code === "P2002")
+      ) {
+        const found = await this.prisma.marketplaceConversation.findUnique({
+          where: { orderId },
+          include: {
+            order: {
+              select: {
+                id: true,
+                orderNumber: true,
+                status: true,
+                hotelId: true,
+                stayId: true,
+                serviceTenantId: true,
+                assignedLocalMateProfileId: true,
+              },
+            },
+          },
+        });
+        if (found) return found;
+      }
+      throw error;
+    }
   }
 
   async findConversationByOrderId(orderId: string) {

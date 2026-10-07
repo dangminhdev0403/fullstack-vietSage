@@ -1,52 +1,123 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
-import { useLocalMateSessionStore } from "@/features/localmate-public/store/localmate-session-store";
+import {
+  useLocalMateSessionStore,
+  useLocalMateSessionStoreHydrated,
+} from "@/features/localmate-public/store/localmate-session-store";
+import { publicLocalMateResource } from "@/features/localmate-public/resource";
+
+type VerificationStatus = "VERIFYING" | "PAID" | "CANCELLED" | "FAILED";
 
 function LocalMatePaymentReturnContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const result = searchParams.get("result"); // "success" | "cancelled"
+  const queryClient = useQueryClient();
+  const result = searchParams.get("result"); // "success" | "cancelled" (hint only)
   const orderId = searchParams.get("orderId");
   const [countdown, setCountdown] = useState(5);
-  const [returnChatUrl, setReturnChatUrl] = useState("/public/localmate/chat");
+  const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>("VERIFYING");
+  const storeHydrated = useLocalMateSessionStoreHydrated();
+  const savedChatUrl = useLocalMateSessionStore((state) => state.lastChatUrl);
+  const returnChatUrl = useMemo(() => {
+    if (!storeHydrated || !savedChatUrl || savedChatUrl.startsWith("/public/")) return "/";
+    try {
+      const origin = window.location.origin;
+      const parsed = new URL(savedChatUrl, origin);
+      return parsed.origin === origin ? parsed.pathname + parsed.search : "/";
+    } catch {
+      return "/";
+    }
+  }, [savedChatUrl, storeHydrated]);
 
+  // Verify backend order payment state - query parameters are hints only
   useEffect(() => {
-    const savedChatUrl = useLocalMateSessionStore.getState().lastChatUrl;
-    const baseChatUrl = savedChatUrl || "/public/localmate/chat";
-    setReturnChatUrl(baseChatUrl);
+    let isMounted = true;
+    let pollCount = 0;
+    const maxPolls = 8;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
-    if (result === "success") {
-      if (orderId) {
-        useLocalMateSessionStore.getState().openGuideChat(orderId);
-      } else {
-        useLocalMateSessionStore.getState().setViewMode("guide-chat");
-        useLocalMateSessionStore.getState().setIsOpen(true);
-      }
+    if (!orderId) return;
 
-      // Bắn postMessage tới opener (nếu mở tab/popup mới từ trang chat)
-      if (typeof window !== "undefined" && window.opener && !window.opener.closed) {
-        try {
-          window.opener.postMessage(
-            {
-              type: "LOCALMATE_PAYMENT_SUCCESS",
-              orderId: orderId || undefined,
-            },
-            "*",
-          );
-        } catch {
-          // Ignore cross-origin error if any
+    const verifyOrder = async () => {
+      try {
+        const order = await queryClient.fetchQuery({
+          ...publicLocalMateResource.bind({}).queries.order.options({ orderId }),
+          staleTime: 0,
+        });
+        if (!isMounted) return;
+
+        const pStatus = order?.payment?.status;
+        if (pStatus === "PAID" || pStatus === "NOT_REQUIRED") {
+          setVerificationStatus("PAID");
+          useLocalMateSessionStore.getState().openGuideChat(orderId);
+
+          // Bắn postMessage tới opener chỉ với explicit same-origin target
+          if (typeof window !== "undefined" && window.opener && !window.opener.closed) {
+            try {
+              window.opener.postMessage(
+                {
+                  type: "LOCALMATE_PAYMENT_SUCCESS",
+                  orderId,
+                },
+                window.location.origin,
+              );
+            } catch {
+              // Ignore cross-origin error if any
+            }
+          }
+          return;
+        }
+
+        if (pStatus === "CANCELLED" || (pStatus !== "OPEN" && pStatus !== "CREATING" && result === "cancelled")) {
+          setVerificationStatus("CANCELLED");
+          return;
+        }
+
+        if (pStatus === "FAILED" || pStatus === "EXPIRED") {
+          setVerificationStatus("FAILED");
+          return;
+        }
+
+        // Bounded polling while webhook/reconciliation finishes
+        pollCount += 1;
+        if (pollCount < maxPolls) {
+          timer = setTimeout(verifyOrder, 1500);
+        } else {
+          setVerificationStatus(result === "cancelled" ? "CANCELLED" : "FAILED");
+        }
+      } catch {
+        if (!isMounted) return;
+        pollCount += 1;
+        if (pollCount < maxPolls) {
+          timer = setTimeout(verifyOrder, 1500);
+        } else {
+          setVerificationStatus("FAILED");
         }
       }
-    }
-  }, [result, orderId]);
+    };
 
-  // Tự động chuyển hướng về trang chat sau khi đếm ngược nếu thành công
+    void verifyOrder();
+
+    return () => {
+      isMounted = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [orderId, queryClient, result]);
+
+  const displayedStatus = orderId
+    ? verificationStatus
+    : result === "cancelled"
+      ? "CANCELLED"
+      : "FAILED";
+
+  // Tự động chuyển hướng về trang chat sau khi đếm ngược nếu đã xác nhận thành công
   useEffect(() => {
-    if (result !== "success") return;
+    if (displayedStatus !== "PAID") return;
 
     const timer = setInterval(() => {
       setCountdown((prev) => {
@@ -60,7 +131,7 @@ function LocalMatePaymentReturnContent() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [result, returnChatUrl, router]);
+  }, [displayedStatus, returnChatUrl, router]);
 
   const handleClose = () => {
     if (typeof window !== "undefined") {
@@ -68,13 +139,10 @@ function LocalMatePaymentReturnContent() {
     }
   };
 
-  const isSuccess = result === "success";
-  const isCancelled = result === "cancelled";
-
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-[#f8f4ea]/60 p-4 text-center dark:bg-neutral-950">
       <div className="w-full max-w-md rounded-3xl border border-[#d6c08b]/40 bg-[#fffdf8] p-6 shadow-xl dark:border-neutral-800 dark:bg-neutral-900">
-        {isSuccess ? (
+        {displayedStatus === "PAID" ? (
           <>
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 shadow-sm dark:bg-emerald-950/50 dark:text-emerald-400">
               <VsIcon name="check_circle" className="h-9 w-9 text-emerald-600" />
@@ -118,7 +186,7 @@ function LocalMatePaymentReturnContent() {
               </button>
             </div>
           </>
-        ) : isCancelled ? (
+        ) : displayedStatus === "CANCELLED" ? (
           <>
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 shadow-sm dark:bg-amber-950/50 dark:text-amber-400">
               <VsIcon name="warning" className="h-9 w-9 text-amber-600" />
@@ -145,13 +213,40 @@ function LocalMatePaymentReturnContent() {
               </Link>
             </div>
           </>
+        ) : displayedStatus === "FAILED" ? (
+          <>
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-red-100 text-red-700 shadow-sm dark:bg-red-950/50 dark:text-red-400">
+              <VsIcon name="warning" className="h-9 w-9 text-red-600" />
+            </div>
+
+            <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-800 border border-red-200">
+              <span>Chưa thể xác nhận</span>
+            </div>
+
+            <h1 className="mt-3 text-xl font-bold text-neutral-900 dark:text-neutral-100">
+              Chưa thể xác nhận kết quả thanh toán
+            </h1>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
+              Chưa thể đồng bộ trạng thái giao dịch từ Stripe hoặc giao dịch không thành công. Quý khách vui lòng quay lại khung chat để kiểm tra hoặc thử lại.
+            </p>
+
+            <div className="mt-6 flex flex-col gap-2.5">
+              <Link
+                href={returnChatUrl}
+                className="flex min-h-[46px] w-full items-center justify-center gap-2 rounded-xl bg-[#123d2a] px-4 py-2.5 text-sm font-bold text-white shadow-md hover:bg-[#184d35] active:scale-[0.98] transition"
+              >
+                <span>Quay lại khung chat LocalMate</span>
+                <VsIcon name="arrow_forward" className="text-base text-[#f3c66b]" />
+              </Link>
+            </div>
+          </>
         ) : (
           <>
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#123d2a]/10 text-[#123d2a] dark:bg-neutral-800 dark:text-neutral-300">
               <VsIcon name="loader" className="h-8 w-8 animate-spin text-[#123d2a]" />
             </div>
             <h1 className="mt-4 text-xl font-bold text-neutral-900 dark:text-neutral-100">
-              Đang xác nhận kết quả thanh toán...
+              Đang kiểm tra trạng thái thanh toán...
             </h1>
             <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
               Vui lòng đợi giây lát trong khi hệ thống đồng bộ trạng thái giao dịch từ Stripe.

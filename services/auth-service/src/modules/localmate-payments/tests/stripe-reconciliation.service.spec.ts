@@ -1,7 +1,13 @@
 import { StripeReconciliationService } from "../application/stripe-reconciliation.service";
 import { StripeClient } from "../infrastructure/stripe-client";
 import { AppLogger } from "../../../common/logging/app-logger.service";
-import { MarketplaceOrderPaymentStatus, MarketplaceGuideNotificationStatus } from "@prisma/client";
+import {
+  MarketplaceOrderPaymentStatus,
+  MarketplaceGuideNotificationStatus,
+  MarketplaceOrderStatus,
+  CapacityReservationStatus,
+  MarketplaceOrderActorType,
+} from "@prisma/client";
 
 describe("StripeReconciliationService", () => {
   let service: StripeReconciliationService;
@@ -17,6 +23,21 @@ describe("StripeReconciliationService", () => {
         findMany: jest.fn(),
         update: jest.fn(),
       },
+      marketplaceOrder: {
+        findUnique: jest.fn(),
+        updateMany: jest.fn(),
+      },
+      marketplaceOrderItem: {
+        findMany: jest.fn(),
+      },
+      marketplaceService: {
+        findUnique: jest.fn(),
+        update: jest.fn(),
+      },
+      marketplaceOrderEvent: {
+        create: jest.fn(),
+      },
+      $queryRaw: jest.fn().mockResolvedValue([]),
       $transaction: jest.fn(async (cb) => cb(mockPrisma)),
     };
 
@@ -219,6 +240,82 @@ describe("StripeReconciliationService", () => {
 
       expect(result.reconciled).toBe(true);
       expect(result.newStatus).toBe(MarketplaceOrderPaymentStatus.EXPIRED);
+    });
+
+    it("releases still-PENDING order reservation and increments capacity exactly once when reconciled session is expired", async () => {
+      const openPayment = {
+        id: "pay-rec-exp-order",
+        orderId: "ord-rec-exp-1",
+        status: MarketplaceOrderPaymentStatus.OPEN,
+        providerCheckoutSessionId: "cs_rec_exp_order",
+        expiresAt: new Date(Date.now() - 60000),
+      };
+
+      const pendingOrder = {
+        id: "ord-rec-exp-1",
+        status: MarketplaceOrderStatus.PENDING,
+        version: 1,
+        capacityReservationStatus: CapacityReservationStatus.RESERVED,
+        serviceId: "svc-rec-1",
+        quantity: 3,
+        items: [{ serviceId: "svc-rec-1", quantity: 3 }],
+      };
+
+      mockPrisma.marketplaceOrderPayment.findUnique.mockResolvedValue(openPayment);
+      mockPrisma.marketplaceOrderPayment.findUniqueOrThrow.mockResolvedValue(openPayment);
+      mockPrisma.marketplaceOrder.findUnique.mockResolvedValue(pendingOrder);
+      mockPrisma.marketplaceOrder.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.marketplaceOrderItem.findMany.mockResolvedValue([
+        { serviceId: "svc-rec-1", quantity: 3 },
+      ]);
+      mockPrisma.marketplaceService.findUnique.mockResolvedValue({
+        id: "svc-rec-1",
+        capacityAvailable: 1,
+      });
+
+      mockStripeClient.getCheckoutSession.mockResolvedValue({
+        id: "cs_rec_exp_order",
+        url: null,
+        expires_at: 1700001800,
+        payment_status: "unpaid",
+        status: "expired",
+      });
+
+      mockPrisma.marketplaceOrderPayment.update.mockResolvedValue({
+        ...openPayment,
+        status: MarketplaceOrderPaymentStatus.EXPIRED,
+      });
+
+      const result = await service.reconcilePayment("pay-rec-exp-order");
+
+      expect(result.reconciled).toBe(true);
+      expect(result.newStatus).toBe(MarketplaceOrderPaymentStatus.EXPIRED);
+      expect(mockPrisma.marketplaceOrder.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: "ord-rec-exp-1",
+          status: MarketplaceOrderStatus.PENDING,
+          version: 1,
+        },
+        data: expect.objectContaining({
+          status: MarketplaceOrderStatus.CANCELLED,
+          capacityReservationStatus: CapacityReservationStatus.RELEASED,
+        }),
+      });
+      expect(mockPrisma.marketplaceService.update).toHaveBeenCalledWith({
+        where: { id: "svc-rec-1" },
+        data: {
+          capacityAvailable: { increment: 3 },
+          version: { increment: 1 },
+        },
+      });
+      expect(mockPrisma.marketplaceOrderEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          orderId: "ord-rec-exp-1",
+          actorType: MarketplaceOrderActorType.SYSTEM,
+          fromStatus: MarketplaceOrderStatus.PENDING,
+          toStatus: MarketplaceOrderStatus.CANCELLED,
+        }),
+      });
     });
 
     it("expires open payment directly when no provider session exists and expiresAt is in past", async () => {

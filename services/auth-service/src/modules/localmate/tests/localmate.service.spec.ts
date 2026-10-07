@@ -293,8 +293,14 @@ describe("LocalMateService", () => {
           duration: "3N2Đ",
           highlights: ["Ruộng bậc thang", "Khoáng nóng"],
           content: "Chi tiết tour Mù Cang Chải...",
+          provinceCode: "15",
+          province: "Yên Bái",
           distanceKm: null,
-          suitableGuides: ["Giàng A Pháo", "Vũ Tuấn Anh"],
+          suitableGuides: [
+            { guideCode: "LM-YB-001", fullName: "Giàng A Pháo" },
+            { guideCode: "LM-YB-003", fullName: "Vũ Tuấn Anh" },
+          ],
+          bookable: true,
         },
       ]);
 
@@ -409,7 +415,7 @@ describe("LocalMateService", () => {
       });
     });
 
-    it("strictly omits tours when no qualified guides are available, avoiding orphan tours without guides", async () => {
+    it("returns matching tours as unbookable when no qualified guides are available", async () => {
       repository.findQualifiedGuides.mockResolvedValueOnce([]);
       repository.searchTourKnowledge.mockResolvedValueOnce([
         {
@@ -423,8 +429,14 @@ describe("LocalMateService", () => {
       });
 
       expect(response.guides).toEqual([]);
-      expect(response.tours).toEqual([]);
-      expect(response.metadata.totalTours).toBe(0);
+      expect(response.tours).toEqual([
+        expect.objectContaining({
+          tourCode: "HVNT-0007-24",
+          suitableGuides: [],
+          bookable: false,
+        }),
+      ]);
+      expect(response.metadata.totalTours).toBe(1);
       expect(response.metadata.totalGuides).toBe(0);
     });
 
@@ -498,8 +510,10 @@ describe("LocalMateService", () => {
       expect(response.tours).toHaveLength(1);
       expect(response.tours[0].tourCode).toBe("TOUR-HN-0002");
       // Tour has both suitable guides identified
-      expect(response.tours[0].suitableGuides).toContain("Lê Hoàng Anh");
-      expect(response.tours[0].suitableGuides).toContain("Nguyễn Văn Minh");
+      expect(response.tours[0].suitableGuides).toEqual([
+        { guideCode: "LM-HN-002", fullName: "Lê Hoàng Anh" },
+        { guideCode: "LM-HN-001", fullName: "Nguyễn Văn Minh" },
+      ]);
 
       // Hyper-local guide for Bát Tràng is sorted FIRST ahead of general Hanoi guide despite rating
       expect(response.guides[0].guideCode).toBe("LM-HN-002");

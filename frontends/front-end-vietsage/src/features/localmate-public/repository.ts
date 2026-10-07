@@ -74,14 +74,6 @@ export const publicLocalMateRepository = {
       isPublic: true,
     }),
 
-  simulatePayment: (orderId: string) =>
-    getHttp().request<PublicOrder>({
-      method: "POST",
-      path: `/api/localmate/orders/${encodeURIComponent(orderId)}/simulate-payment`,
-      body: {},
-      isPublic: true,
-    }),
-
   getConversation: (orderId: string, query?: { limit?: number; before?: string }) =>
     getHttp().request<PublicConversation>({
       method: "GET",

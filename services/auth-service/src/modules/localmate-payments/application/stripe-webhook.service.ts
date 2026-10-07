@@ -8,6 +8,9 @@ import {
   MarketplaceOrderPaymentStatus,
   MarketplaceGuideNotificationStatus,
   MarketplacePaymentProvider,
+  MarketplaceOrderStatus,
+  CapacityReservationStatus,
+  MarketplaceOrderActorType,
   type MarketplaceOrderPayment,
 } from "@prisma/client";
 import type { WebhookProcessingResult } from "../domain/localmate-payment.dto";
@@ -248,7 +251,7 @@ export class StripeWebhookService {
 
     // Success path: idempotent update in transaction
     await this.prisma.$transaction(async (tx) => {
-      // Re-fetch inside transaction for race protection
+      await lockPaymentForUpdate(tx, payment.id);
       const current = await tx.marketplaceOrderPayment.findUniqueOrThrow({
         where: { id: payment.id },
       });
@@ -258,8 +261,24 @@ export class StripeWebhookService {
         typeof session?.payment_intent === "string"
           ? session.payment_intent
           : current.providerPaymentIntentId;
+      const currentOrder = await tx.marketplaceOrder.findUnique({
+        where: { id: current.orderId },
+        select: { status: true },
+      });
 
-      if (current.status === MarketplaceOrderPaymentStatus.CANCELLED) {
+      const canStartRefund =
+        current.status === MarketplaceOrderPaymentStatus.CREATING ||
+        current.status === MarketplaceOrderPaymentStatus.OPEN ||
+        current.status === MarketplaceOrderPaymentStatus.PAID ||
+        current.status === MarketplaceOrderPaymentStatus.EXPIRED ||
+        current.status === MarketplaceOrderPaymentStatus.FAILED ||
+        current.status === MarketplaceOrderPaymentStatus.CANCELLED;
+
+      if (
+        canStartRefund &&
+        (current.status === MarketplaceOrderPaymentStatus.CANCELLED ||
+          currentOrder?.status === MarketplaceOrderStatus.CANCELLED)
+      ) {
         await tx.marketplaceOrderPayment.update({
           where: { id: payment.id },
           data: {
@@ -323,6 +342,7 @@ export class StripeWebhookService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      await lockPaymentForUpdate(tx, payment.id);
       const current = await tx.marketplaceOrderPayment.findUniqueOrThrow({
         where: { id: payment.id },
       });
@@ -376,6 +396,7 @@ export class StripeWebhookService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      await lockPaymentForUpdate(tx, payment.id);
       const current = await tx.marketplaceOrderPayment.findUniqueOrThrow({
         where: { id: payment.id },
       });
@@ -392,6 +413,7 @@ export class StripeWebhookService {
             status: MarketplaceOrderPaymentStatus.EXPIRED,
           },
         });
+        await releaseExpiredOrderReservation(tx, current.orderId);
       }
 
       await tx.marketplacePaymentProviderEvent.create({
@@ -465,6 +487,7 @@ export class StripeWebhookService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      await lockPaymentForUpdate(tx, payment.id);
       const current = await tx.marketplaceOrderPayment.findUniqueOrThrow({
         where: { id: payment.id },
       });
@@ -550,4 +573,89 @@ export class StripeWebhookService {
 
     return { received: true, outcome: MarketplacePaymentEventOutcome.PROCESSED };
   }
+}
+
+export async function lockPaymentForUpdate(tx: any, paymentId: string): Promise<void> {
+  await tx.$queryRaw`SELECT "id" FROM "MarketplaceOrderPayment" WHERE "id" = ${paymentId} FOR UPDATE`;
+}
+
+export async function releaseExpiredOrderReservation(
+  tx: any,
+  orderId: string,
+  note = "Hết hạn thanh toán Stripe",
+): Promise<boolean> {
+  const order = await tx.marketplaceOrder?.findUnique?.({
+    where: { id: orderId },
+    include: { items: true },
+  });
+
+  if (!order || order.status !== MarketplaceOrderStatus.PENDING) {
+    return false;
+  }
+
+  const orderUpdate = await tx.marketplaceOrder.updateMany({
+    where: {
+      id: order.id,
+      status: MarketplaceOrderStatus.PENDING,
+      version: order.version,
+    },
+    data: {
+      status: MarketplaceOrderStatus.CANCELLED,
+      cancelledAt: new Date(),
+      version: { increment: 1 },
+      capacityReservationStatus:
+        order.capacityReservationStatus === CapacityReservationStatus.RESERVED
+          ? CapacityReservationStatus.RELEASED
+          : order.capacityReservationStatus,
+    },
+  });
+
+  if (orderUpdate.count !== 1) {
+    return false;
+  }
+
+  if (order.capacityReservationStatus === CapacityReservationStatus.RESERVED) {
+    const orderItems =
+      order.items && order.items.length > 0
+        ? order.items
+        : await tx.marketplaceOrderItem?.findMany?.({ where: { orderId: order.id } });
+
+    if (orderItems && orderItems.length > 0) {
+      for (const it of orderItems) {
+        const svc = await tx.marketplaceService?.findUnique?.({ where: { id: it.serviceId } });
+        if (svc && svc.capacityAvailable != null) {
+          await tx.marketplaceService?.update?.({
+            where: { id: it.serviceId },
+            data: {
+              capacityAvailable: { increment: it.quantity },
+              version: { increment: 1 },
+            },
+          });
+        }
+      }
+    } else if (order.serviceId) {
+      const svc = await tx.marketplaceService?.findUnique?.({ where: { id: order.serviceId } });
+      if (svc && svc.capacityAvailable != null) {
+        await tx.marketplaceService?.update?.({
+          where: { id: order.serviceId },
+          data: {
+            capacityAvailable: { increment: order.quantity },
+            version: { increment: 1 },
+          },
+        });
+      }
+    }
+  }
+
+  await tx.marketplaceOrderEvent?.create?.({
+    data: {
+      orderId: order.id,
+      actorType: MarketplaceOrderActorType.SYSTEM,
+      fromStatus: MarketplaceOrderStatus.PENDING,
+      toStatus: MarketplaceOrderStatus.CANCELLED,
+      note,
+    },
+  });
+
+  return true;
 }

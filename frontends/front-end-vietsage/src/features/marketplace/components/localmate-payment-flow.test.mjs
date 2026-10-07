@@ -34,6 +34,10 @@ const proxySource = readFileSync(
   new URL("../../../proxy.ts", import.meta.url),
   "utf8",
 );
+const publicChatSource = readFileSync(
+  new URL("../../localmate-public/components/public-localmate-chat.tsx", import.meta.url),
+  "utf8",
+);
 
 function isPublicLocalMateRoute(pathname) {
   return pathname === "/localmate/payment-return";
@@ -217,4 +221,46 @@ test("Complete VI, EN, RU locale dictionaries with Vietnamese em-Quý khách voi
   // Vietnamese voice checks
   assert.match(source, /Quý khách/);
   assert.match(source, /Em đã chuyển thông tin tới hướng dẫn viên/);
+});
+
+test("LM-01: Public chat removes payment simulation UI and test mode button", () => {
+  assert.doesNotMatch(publicChatSource, /simulatePayment/);
+  assert.doesNotMatch(publicChatSource, /handleSimulatePayment/);
+  assert.doesNotMatch(publicChatSource, /Xác nhận thanh toán thử/);
+});
+
+test("LM-02: Public chat payment disclosure uses snapshot tour total, prepaid fee, and guide remainder without hardcoded rate", () => {
+  assert.match(publicChatSource, /platformFeeAmount/);
+  assert.match(publicChatSource, /guideRemainingAmount/);
+  assert.match(publicChatSource, /tourTotalAmount/);
+  assert.doesNotMatch(publicChatSource, /\b0\.15\b/);
+  assert.doesNotMatch(publicChatSource, /Math\.round\([^)]*\* 0\.15\)/);
+});
+
+test("LM-03 & LM-11: Payment return verifies order with backend, uses same-origin postMessage, and falls back to existing route", () => {
+  assert.match(returnPageSource, /Đang kiểm tra trạng thái thanh toán/);
+  assert.match(returnPageSource, /publicLocalMateResource\.bind\(\{\}\)\.queries\.order\.options/);
+  assert.match(returnPageSource, /PAID/);
+  assert.match(returnPageSource, /NOT_REQUIRED/);
+  assert.doesNotMatch(returnPageSource, /postMessage\([^)]*"\*"\)/);
+  assert.match(returnPageSource, /postMessage\([^)]*window\.location\.origin/);
+  assert.doesNotMatch(returnPageSource, /\/public\/localmate\/chat/);
+  assert.match(returnPageSource, /"\/"/);
+});
+
+test("LM-03 parent check: Public chat validates same-origin messages before processing payment event", () => {
+  assert.match(publicChatSource, /e\.origin !== window\.location\.origin/);
+});
+
+test("LM-08: Guest message sending tracks sending/sent/failed delivery status and offers bounded idempotent retry", () => {
+  assert.match(publicChatSource, /deliveryStatus/);
+  assert.match(publicChatSource, /FAILED/);
+  assert.match(publicChatSource, /handleRetryGuideMessage/);
+  assert.match(publicChatSource, /clientMessageId/);
+});
+
+test("LM-10: Public chat dialog contains focus, handles Escape, and restores opener focus", () => {
+  assert.match(publicChatSource, /Tab/);
+  assert.match(publicChatSource, /Escape/);
+  assert.match(publicChatSource, /lastFocusedElementRef/);
 });

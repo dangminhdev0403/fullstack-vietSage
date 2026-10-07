@@ -12,6 +12,7 @@ import { LocalmatePaidOrderNotificationService } from "./application/localmate-p
 import { TelegramPollingService } from "./application/telegram-polling.service";
 import { MarketplaceOrderService } from "../marketplace/application/marketplace-order.service";
 import { MarketplaceConversationService } from "../marketplace/application/marketplace-conversation.service";
+import { MarketplaceConversationRepository } from "../marketplace/infrastructure/marketplace-conversation.repository";
 import { LocalMatePaymentsModule } from "../localmate-payments/localmate-payments.module";
 
 import { LocalMatePaymentsService } from "../localmate-payments/application/localmate-payments.service";
@@ -22,6 +23,7 @@ import { LocalMatePaymentsService } from "../localmate-payments/application/loca
   providers: [
     TelegramNotificationService,
     HotelNotificationRoutesService,
+    MarketplaceConversationRepository,
     TelegramMarketplaceBridgeService,
     TelegramMarketplaceRetryService,
     LocalmatePaidOrderNotificationService,

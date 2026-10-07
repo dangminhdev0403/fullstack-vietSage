@@ -238,6 +238,7 @@ export type PublicConversationMessage = {
   senderType: "GUEST" | "LOCALMATE" | "SERVICE_STAFF";
   body: string;
   deliveryStatus: string;
+  clientMessageId?: string | null;
   createdAt: string;
 };
 

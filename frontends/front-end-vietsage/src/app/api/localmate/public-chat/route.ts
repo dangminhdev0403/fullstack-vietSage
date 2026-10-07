@@ -5,21 +5,13 @@ import { CHAT_UPSTREAM_TIMEOUT_MS, getChatUpstreamError } from "@/app/api/guest/
 import { httpServer } from "@/core/http/http-server";
 import { unwrapApiEnvelope } from "@/core/http/api-envelope";
 import { LOCALMATE_COOKIE_OPTIONS, LOCALMATE_SESSION_COOKIE } from "../_lib/session-cookie";
-import { consumePublicChatQuota } from "./rate-limit";
+import { consumePublicChatQuotas, resolvePublicChatRateKey } from "./rate-limit";
 import {
   mintedProposalsSchema,
   n8nResponseSchema,
   payloadSchema,
   selectedProposalSchema,
 } from "./payload-schema";
-
-function clientKey(request: Request) {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0] ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  ).trim();
-}
 
 async function ensureSession(location: string) {
   const cookieStore = await cookies();
@@ -42,7 +34,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ status: 413, message: "PAYLOAD_TOO_LARGE" }, { status: 413 });
   }
 
-  const quota = consumePublicChatQuota(clientKey(request));
+  const cookieStore = await cookies();
+  const cookieSessionToken = cookieStore.get(LOCALMATE_SESSION_COOKIE)?.value;
+  const quota = consumePublicChatQuotas([
+    resolvePublicChatRateKey(request),
+    resolvePublicChatRateKey(request, cookieSessionToken),
+  ]);
   if (!quota.allowed) {
     return NextResponse.json(
       { status: 429, message: "TOO_MANY_REQUESTS" },

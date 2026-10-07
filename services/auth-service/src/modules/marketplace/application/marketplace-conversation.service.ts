@@ -1,5 +1,9 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import { MarketplaceOrderPaymentStatus, MarketplaceOrderStatus } from "@prisma/client";
+import {
+  MarketplaceMessageDeliveryStatus,
+  MarketplaceOrderPaymentStatus,
+  MarketplaceOrderStatus,
+} from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 import { MarketplaceConversationRepository } from "../infrastructure/marketplace-conversation.repository";
@@ -110,6 +114,7 @@ export class MarketplaceConversationService {
         senderType: msg.senderType,
         body: msg.body,
         deliveryStatus: msg.deliveryStatus,
+        clientMessageId: msg.clientMessageId,
         createdAt: msg.createdAt.toISOString(),
       })),
     };
@@ -155,13 +160,43 @@ export class MarketplaceConversationService {
       clientMessageId: input.clientMessageId.trim(),
     });
 
+    let responseMessage = message;
+
+    if (isDuplicate && message.deliveryStatus === MarketplaceMessageDeliveryStatus.FAILED) {
+      const claimed = await this.prisma.marketplaceConversationMessage.updateMany({
+        where: {
+          id: message.id,
+          deliveryStatus: MarketplaceMessageDeliveryStatus.FAILED,
+        },
+        data: {
+          deliveryStatus: MarketplaceMessageDeliveryStatus.PENDING,
+          nextAttemptAt: null,
+          lastDeliveryError: null,
+        },
+      });
+      if (claimed.count === 1) {
+        responseMessage = {
+          ...message,
+          deliveryStatus: MarketplaceMessageDeliveryStatus.PENDING,
+          nextAttemptAt: null,
+          lastDeliveryError: null,
+        };
+        this.notifyOutboundMessageSafely({
+          message: responseMessage,
+          order,
+          conversation,
+        });
+      }
+    }
+
     const messageDto = {
-      id: message.id,
-      orderId: message.orderId,
-      senderType: message.senderType,
-      body: message.body,
-      deliveryStatus: message.deliveryStatus,
-      createdAt: message.createdAt.toISOString(),
+      id: responseMessage.id,
+      orderId: responseMessage.orderId,
+      senderType: responseMessage.senderType,
+      body: responseMessage.body,
+      deliveryStatus: responseMessage.deliveryStatus,
+      clientMessageId: responseMessage.clientMessageId,
+      createdAt: responseMessage.createdAt.toISOString(),
     };
 
     if (!isDuplicate) {

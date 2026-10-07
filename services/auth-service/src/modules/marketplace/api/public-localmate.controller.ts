@@ -47,9 +47,7 @@ export class PublicLocalMateController {
   }
 
   @Get("session/active")
-  getActiveSession(
-    @Headers("x-public-localmate-token") token: string | undefined,
-  ) {
+  getActiveSession(@Headers("x-public-localmate-token") token: string | undefined) {
     return this.service.getActiveSession(token);
   }
 
@@ -108,17 +106,6 @@ export class PublicLocalMateController {
     @Param("orderId") orderId: string,
   ) {
     return this.service.createPaymentSession(
-      token,
-      parseWithZod(marketplaceOrderIdSchema, orderId),
-    );
-  }
-
-  @Post("orders/:orderId/simulate-payment")
-  simulatePayment(
-    @Headers("x-public-localmate-token") token: string | undefined,
-    @Param("orderId") orderId: string,
-  ) {
-    return this.service.simulatePayment(
       token,
       parseWithZod(marketplaceOrderIdSchema, orderId),
     );

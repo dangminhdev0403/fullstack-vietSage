@@ -1,8 +1,28 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { MarketplaceMessageDeliveryStatus, MarketplaceOrderStatus } from "@prisma/client";
+import {
+  MarketplaceMessageDeliveryStatus,
+  MarketplaceOrderPaymentStatus,
+  MarketplaceOrderStatus,
+} from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { TelegramMarketplaceBridgeService } from "./telegram-marketplace-bridge.service";
+
+function isOrderEligibleForRetry(order: {
+  status: MarketplaceOrderStatus;
+  payment?: { status: MarketplaceOrderPaymentStatus } | null;
+}): boolean {
+  if (order.status === MarketplaceOrderStatus.ACKNOWLEDGED) {
+    return true;
+  }
+  if (order.status === MarketplaceOrderStatus.PENDING) {
+    return (
+      order.payment?.status === MarketplaceOrderPaymentStatus.PAID ||
+      order.payment?.status === MarketplaceOrderPaymentStatus.NOT_REQUIRED
+    );
+  }
+  return false;
+}
 
 @Injectable()
 export class TelegramMarketplaceRetryService {
@@ -35,7 +55,11 @@ export class TelegramMarketplaceRetryService {
         include: {
           conversation: {
             include: {
-              order: true,
+              order: {
+                include: {
+                  payment: true,
+                },
+              },
             },
           },
         },
@@ -46,8 +70,8 @@ export class TelegramMarketplaceRetryService {
 
       for (const message of pendingMessages) {
         const order = message.conversation?.order;
-        if (!order || order.status !== MarketplaceOrderStatus.ACKNOWLEDGED) {
-          // Terminal/unacknowledged order: stop retrying
+        if (!order || !isOrderEligibleForRetry(order)) {
+          // Terminal or ineligible unacknowledged order: stop retrying
           await this.prisma.marketplaceConversationMessage.update({
             where: { id: message.id },
             data: { nextAttemptAt: null },

@@ -1,12 +1,8 @@
 import { ConflictException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { createHash, randomBytes } from "node:crypto";
-import {
-  MarketplaceGuideNotificationStatus,
-  MarketplaceOrderPaymentStatus,
-} from "@prisma/client";
+import { MarketplaceOrderStatus } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { LocalMateService } from "../../localmate/application/localmate.service";
-import { LocalMatePaymentsService } from "../../localmate-payments/application/localmate-payments.service";
 import type { PublicLocalMateOrderRequest } from "../domain/marketplace-order.schema";
 import type {
   ListMarketplaceConversationMessagesQuery,
@@ -45,7 +41,7 @@ export class PublicLocalMateService {
       normalizedPreviousToken && /^[A-Za-z0-9_-]{40,64}$/.test(normalizedPreviousToken)
         ? this.hashToken(normalizedPreviousToken)
         : null;
-    const session = await this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx) => {
       const previousSession = previousTokenHash
         ? await tx.publicLocalMateSession.findUnique({
             where: { tokenHash: previousTokenHash },
@@ -56,18 +52,48 @@ export class PublicLocalMateService {
               location: true,
               guestDisplayName: true,
               guestPhone: true,
-              orders: { select: { id: true }, take: 1 },
+              orders: { select: { id: true, status: true } },
             },
           })
         : null;
 
       if (previousSession && !previousSession.revokedAt && previousSession.expiresAt > new Date()) {
+        const hasActiveNonTerminalOrder = previousSession.orders.some(
+          (order) =>
+            order.status !== MarketplaceOrderStatus.COMPLETED &&
+            order.status !== MarketplaceOrderStatus.CANCELLED &&
+            order.status !== MarketplaceOrderStatus.REJECTED,
+        );
+
+        if (hasActiveNonTerminalOrder) {
+          // LM-04: Retain session capability and order ownership for non-terminal orders.
+          // Invariant: Do not revoke or overwrite tokenHash. Retain location to preserve province restriction.
+          const effectiveExpiresAt =
+            expiresAt > previousSession.expiresAt ? expiresAt : previousSession.expiresAt;
+          await tx.publicLocalMateSession.update({
+            where: { id: previousSession.id },
+            data: {
+              expiresAt: effectiveExpiresAt,
+              guestDisplayName: input.guestDisplayName?.trim() ?? previousSession.guestDisplayName,
+              guestPhone: input.guestPhone?.trim() ?? previousSession.guestPhone,
+            },
+            select: { id: true },
+          });
+          return {
+            token: normalizedPreviousToken!,
+            sessionId: previousSession.id,
+            expiresAt: effectiveExpiresAt.toISOString(),
+          };
+        }
+
         if (previousSession.orders.length > 0) {
+          // All past orders are terminal (completed/cancelled/rejected).
+          // Safely retire the old session and start a fresh session for the new tour/chat lifecycle.
           await tx.publicLocalMateSession.update({
             where: { id: previousSession.id },
             data: { revokedAt: new Date() },
           });
-          return tx.publicLocalMateSession.create({
+          const newSession = await tx.publicLocalMateSession.create({
             data: {
               tokenHash: this.hashToken(token),
               location: input.location,
@@ -77,9 +103,15 @@ export class PublicLocalMateService {
             },
             select: { id: true },
           });
+          return {
+            token,
+            sessionId: newSession.id,
+            expiresAt: expiresAt.toISOString(),
+          };
         }
 
-        return tx.publicLocalMateSession.update({
+        // Early discovery with no orders: rotate token and update session in place.
+        const updatedSession = await tx.publicLocalMateSession.update({
           where: { id: previousSession.id },
           data: {
             tokenHash: this.hashToken(token),
@@ -90,9 +122,14 @@ export class PublicLocalMateService {
           },
           select: { id: true },
         });
+        return {
+          token,
+          sessionId: updatedSession.id,
+          expiresAt: expiresAt.toISOString(),
+        };
       }
 
-      return tx.publicLocalMateSession.create({
+      const createdSession = await tx.publicLocalMateSession.create({
         data: {
           tokenHash: this.hashToken(token),
           location: input.location,
@@ -102,8 +139,12 @@ export class PublicLocalMateService {
         },
         select: { id: true },
       });
+      return {
+        token,
+        sessionId: createdSession.id,
+        expiresAt: expiresAt.toISOString(),
+      };
     });
-    return { token, sessionId: session.id, expiresAt: expiresAt.toISOString() };
   }
 
   async listProposals(token: string | undefined, input: ListPublicLocalMateProposals) {
@@ -173,7 +214,11 @@ export class PublicLocalMateService {
 
   async createOrder(token: string | undefined, input: PublicLocalMateOrderRequest) {
     const session = await this.requireSession(token, { requireIdentity: true });
-    const tour = await this.resolveSelection(session.location, input.proposalKey, input.candidateKey);
+    const tour = await this.resolveSelection(
+      session.location,
+      input.proposalKey,
+      input.candidateKey,
+    );
     const candidate = await this.localMate.resolveBookingCandidate({
       candidateKey: input.candidateKey,
       location: session.location,
@@ -209,11 +254,7 @@ export class PublicLocalMateService {
     );
   }
 
-  async getCandidate(
-    token: string | undefined,
-    proposalKey: string,
-    candidateKey: string,
-  ) {
+  async getCandidate(token: string | undefined, proposalKey: string, candidateKey: string) {
     const session = await this.requireSession(token);
     const tour = await this.resolveSelection(session.location, proposalKey, candidateKey);
     const candidate = await this.localMate.resolveBookingCandidate({
@@ -240,32 +281,6 @@ export class PublicLocalMateService {
   async createPaymentSession(token: string | undefined, orderId: string) {
     const session = await this.requireSession(token);
     return this.orders.createPublicPaymentSession(session.id, orderId);
-  }
-
-  async simulatePayment(token: string | undefined, orderId: string) {
-    const session = await this.requireSession(token);
-    const order = await this.prisma.marketplaceOrder.findFirst({
-      where: { id: orderId, publicSessionId: session.id },
-      include: { payment: true },
-    });
-    if (!order) {
-      throw new ConflictException("Không tìm thấy đơn hàng");
-    }
-
-    if (order.payment) {
-      await this.prisma.marketplaceOrderPayment.update({
-        where: { id: order.payment.id },
-        data: {
-          status: MarketplaceOrderPaymentStatus.PAID,
-          paidAt: new Date(),
-          guideNotificationStatus: MarketplaceGuideNotificationStatus.PENDING,
-          lastProviderErrorCode: null,
-        },
-      });
-      LocalMatePaymentsService.notifyPaymentCompletedSafely(order.payment.id);
-    }
-
-    return this.orders.publicOrder(session.id, orderId);
   }
 
   async getConversation(
@@ -391,4 +406,3 @@ export class PublicLocalMateService {
     return createHash("sha256").update(token).digest("hex");
   }
 }
-

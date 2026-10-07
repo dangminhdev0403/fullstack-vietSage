@@ -27,6 +27,7 @@ describe("TelegramMarketplaceBridgeService", () => {
         findUnique: jest.fn(),
         findMany: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn(),
       },
       localMateTelegramBinding: {
         findFirst: jest.fn(),
@@ -65,7 +66,19 @@ describe("TelegramMarketplaceBridgeService", () => {
       }),
     };
 
-    service = new TelegramMarketplaceBridgeService(mockPrisma, mockTelegram, mockPayments);
+    service = new TelegramMarketplaceBridgeService(mockPrisma, mockTelegram, mockPayments, {
+      findOrCreateConversation: jest.fn(async (orderId: string, details: any) => {
+        const existing = await mockPrisma.marketplaceConversation.findUnique({
+          where: { orderId },
+        });
+        return (
+          existing ??
+          mockPrisma.marketplaceConversation.create({
+            data: { orderId, ...details, status: "ACTIVE" },
+          })
+        );
+      }),
+    } as any);
   });
 
   describe("sendOrderNotificationToGuide", () => {
@@ -350,6 +363,106 @@ describe("TelegramMarketplaceBridgeService", () => {
         paymentId: "pay-1",
         reason: "GUIDE_REJECTED",
       });
+    });
+
+    it("completes order on callback action 'c' for ACKNOWLEDGED order", async () => {
+      mockPrisma.localMateTelegramBinding.findFirst.mockResolvedValue({
+        id: "bind_1",
+        localMateProfileId: "guide_1",
+        telegramUserId: "1001",
+      });
+      mockPrisma.marketplaceOrder.findUnique.mockResolvedValue({
+        id: "ord_1",
+        orderNumber: "MP100",
+        assignedLocalMateProfileId: "guide_1",
+        status: MarketplaceOrderStatus.ACKNOWLEDGED,
+        version: 1,
+        hotelId: "h1",
+        stayId: "s1",
+        serviceTenantId: "st1",
+        serviceId: "svc1",
+        stay: { room: { id: "r1" } },
+      });
+      mockPrisma.marketplaceOrder.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.marketplaceConversation.findUnique.mockResolvedValue({ id: "conv_1" });
+
+      await service.handleCallbackQuery({
+        id: "cb_complete",
+        data: "mo:c:ord_1",
+        from: { id: 1001 },
+        message: { message_id: 888, chat: { id: 777, type: "private" } },
+      });
+
+      expect(mockPrisma.marketplaceOrder.updateMany).toHaveBeenCalledWith({
+        where: { id: "ord_1", status: MarketplaceOrderStatus.ACKNOWLEDGED, version: 1 },
+        data: expect.objectContaining({
+          status: MarketplaceOrderStatus.COMPLETED,
+          completedAt: expect.any(Date),
+          version: { increment: 1 },
+        }),
+      });
+      expect(mockPrisma.marketplaceOrderEvent.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            orderId: "ord_1",
+            fromStatus: MarketplaceOrderStatus.ACKNOWLEDGED,
+            toStatus: MarketplaceOrderStatus.COMPLETED,
+          }),
+        }),
+      );
+      expect(mockPrisma.marketplaceConversationMessage.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            conversationId: "conv_1",
+            deliveryStatus: MarketplaceMessageDeliveryStatus.SENT,
+          }),
+        }),
+      );
+      expect(RequestRealtimeEmitter.emitExternalServiceOrderStatusChanged).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderId: "ord_1",
+          toStatus: MarketplaceOrderStatus.COMPLETED,
+        }),
+      );
+      expect(mockTelegram.callTelegram).toHaveBeenCalledWith(
+        "answerCallbackQuery",
+        expect.objectContaining({
+          callback_query_id: "cb_complete",
+          text: "Bạn đã kết thúc tour thành công!",
+        }),
+      );
+    });
+
+    it("appends completion effects exactly once and ignores concurrent replays where compare-and-set count is 0", async () => {
+      const order = {
+        id: "ord_1",
+        orderNumber: "MP100",
+        assignedLocalMateProfileId: "guide_1",
+        status: MarketplaceOrderStatus.ACKNOWLEDGED,
+        version: 2,
+        hotelId: "h1",
+        stayId: "s1",
+        serviceTenantId: "st1",
+        serviceId: "svc1",
+        stay: { room: { id: "r1" } },
+      };
+
+      // Concurrent request already won compare-and-set
+      mockPrisma.marketplaceOrder.updateMany.mockResolvedValue({ count: 0 });
+
+      await service.completeOrderAndConversation(order, 777);
+
+      expect(mockPrisma.marketplaceOrder.updateMany).toHaveBeenCalledWith({
+        where: { id: "ord_1", status: MarketplaceOrderStatus.ACKNOWLEDGED, version: 2 },
+        data: expect.objectContaining({
+          status: MarketplaceOrderStatus.COMPLETED,
+        }),
+      });
+      expect(mockPrisma.marketplaceOrderEvent.create).not.toHaveBeenCalled();
+      expect(mockPrisma.marketplaceConversation.update).not.toHaveBeenCalled();
+      expect(mockPrisma.marketplaceConversationMessage.create).not.toHaveBeenCalled();
+      expect(RequestRealtimeEmitter.emitExternalServiceOrderStatusChanged).not.toHaveBeenCalled();
+      expect(mockTelegram.callTelegram).not.toHaveBeenCalledWith("sendMessage", expect.anything());
     });
   });
 
