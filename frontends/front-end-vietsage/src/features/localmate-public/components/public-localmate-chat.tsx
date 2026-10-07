@@ -1700,8 +1700,12 @@ export function PublicLocalMateChat() {
                         }`}
                       >
                         {msg.senderType !== "GUEST" && (
-                          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#123d2a]/15 text-[11px] font-bold text-[#123d2a]">
-                            HDV
+                          <span
+                            title="Hướng dẫn viên bản địa"
+                            aria-label="Hướng dẫn viên bản địa"
+                            className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#123d2a] text-[#f3c66b] ring-1 ring-[#123d2a]/30 shadow-2xs"
+                          >
+                            <VsIcon name="person" className="text-sm" />
                           </span>
                         )}
                         <div
