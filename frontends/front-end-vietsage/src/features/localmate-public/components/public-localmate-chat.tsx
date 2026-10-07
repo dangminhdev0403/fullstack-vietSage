@@ -278,6 +278,96 @@ export function PublicLocalMateChat() {
     }
   }, [conversationMessages]);
 
+  // Session & Order restoration effect on mount (page reload or return from payment)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let isMounted = true;
+
+    const restoreSessionAndOrder = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlView = urlParams.get("view");
+      const urlOrderId = urlParams.get("orderId");
+
+      const savedOrderId =
+        urlOrderId ||
+        localStorage.getItem("localmate_active_order_id") ||
+        localStorage.getItem("localmate_last_order_id");
+
+      let order: PublicOrder | null = null;
+
+      if (savedOrderId) {
+        try {
+          order = await publicLocalMateRepository.getOrder(savedOrderId);
+        } catch {
+          order = null;
+        }
+      }
+
+      if (!order) {
+        try {
+          const activeSession = await publicLocalMateRepository.getActiveSession();
+          if (activeSession?.activeOrder) {
+            order = activeSession.activeOrder;
+          }
+        } catch {
+          // Ignored
+        }
+      }
+
+      if (!isMounted || !order) return;
+
+      setCurrentOrder(order);
+      setIsOpen(true);
+      try {
+        localStorage.setItem("localmate_active_order_id", order.id);
+        localStorage.setItem("localmate_last_order_id", order.id);
+      } catch {
+        // Ignored
+      }
+
+      const isPaid =
+        order.payment?.status === "PAID" ||
+        order.payment?.status === "NOT_REQUIRED" ||
+        order.status === "COMPLETED" ||
+        order.status === "ACKNOWLEDGED";
+
+      if (isPaid || urlView === "guide-chat") {
+        setViewMode("guide-chat");
+        try {
+          localStorage.setItem("localmate_active_view_mode", "guide-chat");
+          const conv = await publicLocalMateRepository.getConversation(order.id);
+          if (isMounted && conv?.items) {
+            setConversationMessages(conv.items);
+          }
+        } catch {
+          // Ignored
+        }
+      } else {
+        setViewMode("payment");
+        try {
+          localStorage.setItem("localmate_active_view_mode", "payment");
+          if (order.payment?.checkoutUrl) {
+            setPaymentCheckoutUrl(order.payment.checkoutUrl);
+          } else {
+            const payRes = await publicLocalMateRepository.createPaymentSession(order.id);
+            if (isMounted && payRes?.payment?.checkoutUrl) {
+              setPaymentCheckoutUrl(payRes.payment.checkoutUrl);
+            }
+          }
+        } catch {
+          // Ignored
+        }
+      }
+    };
+
+    void restoreSessionAndOrder();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Payment polling effect: poll every 2000ms while on payment screen & listen to payment events
   useEffect(() => {
     if (viewMode !== "payment" || !currentOrder?.id) return;
@@ -513,14 +603,6 @@ export function PublicLocalMateChat() {
     );
   };
 
-  const handleRefineProposal = (key: string) => {
-    setCurrentStage("DISCOVERY");
-    const matched = activeProposals.find((p) => p.proposalKey === key);
-    const title = matched?.title ?? "";
-    setInput(`Tôi muốn tùy chỉnh lịch trình ${title}: `);
-    inputRef.current?.focus();
-  };
-
   const handleSelectGuide = (candKey: string, propKey?: string) => {
     const targetPropKey = propKey || activeProposalKey;
     if (!targetPropKey) {
@@ -630,6 +712,8 @@ export function PublicLocalMateChat() {
         try {
           localStorage.setItem("localmate_last_chat_url", window.location.href);
           localStorage.setItem("localmate_last_order_id", order.id);
+          localStorage.setItem("localmate_active_order_id", order.id);
+          localStorage.setItem("localmate_active_view_mode", "payment");
         } catch {
           // Ignored
         }
@@ -640,6 +724,13 @@ export function PublicLocalMateChat() {
 
       if (payment?.status === "PAID" || payment?.status === "NOT_REQUIRED") {
         setViewMode("guide-chat");
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem("localmate_active_view_mode", "guide-chat");
+          } catch {
+            // Ignored
+          }
+        }
       } else {
         setPaymentCheckoutUrl(payment?.checkoutUrl ?? null);
         setViewMode("payment");
@@ -660,12 +751,39 @@ export function PublicLocalMateChat() {
       const updated = await publicLocalMateRepository.simulatePayment(currentOrder.id);
       setCurrentOrder(updated);
       setViewMode("guide-chat");
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("localmate_active_view_mode", "guide-chat");
+          localStorage.setItem("localmate_active_order_id", updated.id);
+        } catch {
+          // Ignored
+        }
+      }
     } catch (err: unknown) {
       const errorObj = err as { message?: string } | null | undefined;
       setBookingError(errorObj?.message || "Không thể giả lập thanh toán.");
     } finally {
       setIsSimulatingPayment(false);
     }
+  };
+
+  const handleStartNewDiscovery = () => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("localmate_active_order_id");
+        localStorage.removeItem("localmate_active_view_mode");
+        localStorage.removeItem("localmate_last_order_id");
+      } catch {
+        // Ignored
+      }
+    }
+    setCurrentOrder(null);
+    setCandidateDetails(null);
+    setActiveCandidateKey(null);
+    setActiveProposalKey(null);
+    setConversationMessages([]);
+    setViewMode("discovery");
+    setCurrentStage("DISCOVERY");
   };
 
   const handleSendGuideMessage = async (e: React.FormEvent) => {
@@ -826,7 +944,7 @@ export function PublicLocalMateChat() {
                     {viewMode === "discovery" && "LocalMate AI"}
                     {viewMode === "confirm" && "Xác nhận đặt tour"}
                     {viewMode === "payment" && "Thanh toán Stripe"}
-                    {viewMode === "guide-chat" && (candidateDetails?.guide.fullName || "Hướng dẫn viên")}
+                    {viewMode === "guide-chat" && (candidateDetails?.guide.fullName || currentOrder?.assignedGuide?.fullName || "Hướng dẫn viên bản địa")}
                   </h2>
                   <p className="flex items-center gap-1.5 truncate text-[11.5px] text-white/80 sm:text-[12.5px]">
                     {viewMode === "discovery" && (
@@ -856,6 +974,16 @@ export function PublicLocalMateChat() {
               </div>
 
               <div className="flex shrink-0 items-center gap-1">
+                {viewMode === "guide-chat" && (
+                  <button
+                    type="button"
+                    onClick={handleStartNewDiscovery}
+                    title="Bắt đầu khám phá tour mới"
+                    className="min-h-9 rounded-full px-2.5 text-xs font-semibold text-[#f3c66b] transition hover:bg-white/10 sm:min-h-10 sm:px-3 sm:text-xs"
+                  >
+                    Khám phá mới
+                  </button>
+                )}
                 {viewMode === "discovery" && location && (
                   <button
                     type="button"
@@ -881,6 +1009,21 @@ export function PublicLocalMateChat() {
             {/* VIEW 1: DISCOVERY AI CHAT */}
             {viewMode === "discovery" && (
               <>
+                {currentOrder && (
+                  <div className="shrink-0 flex items-center justify-between border-b border-emerald-600/30 bg-emerald-50 px-3.5 py-2 text-xs">
+                    <div className="flex items-center gap-1.5 truncate text-emerald-900 font-semibold">
+                      <VsIcon name="chat" className="text-sm text-emerald-700 shrink-0" />
+                      <span className="truncate">Quý khách đang có phiên trò chuyện cho đơn <b>#{currentOrder.orderNumber}</b></span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode(currentOrder.payment?.status === "PAID" || currentOrder.status === "COMPLETED" ? "guide-chat" : "payment")}
+                      className="shrink-0 rounded-lg bg-[#123d2a] px-2.5 py-1 text-[11px] font-bold text-[#f3c66b] hover:bg-[#184d35] transition ml-2"
+                    >
+                      Vào khung chat
+                    </button>
+                  </div>
+                )}
                 {activeProposal && (
                   <div className="shrink-0 flex items-center justify-between border-b border-[#d6c08b]/40 bg-[#fff9ed] px-3.5 py-2 text-xs">
                     <div className="flex items-center gap-2 truncate">
@@ -1018,8 +1161,8 @@ export function PublicLocalMateChat() {
                                   </span>
                                 </div>
 
-                                {/* Action buttons: Stack/wrap on mobile 390px, min-h-11 */}
-                                <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-1">
+                                {/* Action buttons: 2 streamlined actions (Primary: Select, Secondary: Alternatives) */}
+                                <div className="flex flex-col sm:flex-row gap-2 pt-1">
                                   <button
                                     type="button"
                                     onClick={() => handleSelectProposal(proposal.proposalKey)}
@@ -1039,14 +1182,6 @@ export function PublicLocalMateChat() {
                                   >
                                     <VsIcon name="swap_horiz" className="text-base text-[#b8872f]" />
                                     <span>Xem lịch trình khác</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRefineProposal(proposal.proposalKey)}
-                                    className="flex min-h-11 items-center justify-center gap-1 rounded-xl border border-[#123d2a]/20 bg-white px-3 py-2 text-xs font-semibold text-[#123d2a] transition hover:bg-[#f8f4ea] active:scale-95"
-                                  >
-                                    <VsIcon name="tune" className="text-base text-[#b8872f]" />
-                                    <span>Tùy chỉnh lịch trình</span>
                                   </button>
                                 </div>
                               </div>
@@ -1582,8 +1717,16 @@ export function PublicLocalMateChat() {
               <div className="flex flex-1 flex-col overflow-hidden bg-[#fffdf8]">
                 <div className="flex-1 space-y-3 overflow-y-auto p-3.5 bg-gradient-to-b from-[#f8f4ea] to-[#f2ecdf]/50">
                   {currentOrder?.status === "COMPLETED" ? (
-                    <div className="rounded-xl border border-[#10b981]/40 bg-[#ecfdf5] p-3 text-center text-xs font-bold text-[#065f46] shadow-sm">
-                      🏁 Buổi trải nghiệm đã hoàn tất. Cảm ơn quý khách đã tin tưởng và đồng hành cùng VietSage LocalMate!
+                    <div className="rounded-xl border border-[#10b981]/40 bg-[#ecfdf5] p-3 text-center text-xs font-bold text-[#065f46] shadow-sm space-y-2">
+                      <p>🏁 Buổi trải nghiệm đã hoàn tất. Cảm ơn quý khách đã tin tưởng và đồng hành cùng VietSage LocalMate!</p>
+                      <button
+                        type="button"
+                        onClick={handleStartNewDiscovery}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#123d2a] px-3.5 py-1.5 text-xs font-bold text-[#f3c66b] hover:bg-[#184d35] transition shadow-sm"
+                      >
+                        <VsIcon name="sparkles" className="text-sm" />
+                        <span>Khám phá trải nghiệm mới</span>
+                      </button>
                     </div>
                   ) : (
                     <div className="rounded-xl border border-[#10b981]/30 bg-[#ecfdf5] p-2.5 text-center text-xs font-semibold text-[#065f46]">

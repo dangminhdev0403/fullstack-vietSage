@@ -1,5 +1,6 @@
 import { HttpClient } from "@/core/http/http-client";
 import type {
+  ActivePublicSessionResponse,
   CreatePublicOrderInput,
   CreatePublicSessionInput,
   PublicBookingCandidate,
@@ -32,6 +33,13 @@ export const publicLocalMateRepository = {
       method: "POST",
       path: "/api/localmate/sessions",
       body: input,
+      isPublic: true,
+    }),
+
+  getActiveSession: () =>
+    getHttp().request<ActivePublicSessionResponse>({
+      method: "GET",
+      path: "/api/localmate/session/active",
       isPublic: true,
     }),
 

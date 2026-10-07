@@ -206,7 +206,25 @@ export type PublicOrder = {
   guestNote?: string | null;
   payment?: PublicOrderPayment | null;
   serviceTenant?: { serviceProfile?: { displayName?: string } } | null;
+  assignedGuide?: {
+    id: string;
+    fullName: string;
+    guideCode: string;
+    avatarUrl?: string | null;
+    rating?: number | null;
+  } | null;
 };
+
+export type ActivePublicSessionResponse = {
+  session: {
+    id: string;
+    location: string;
+    guestDisplayName?: string | null;
+    guestPhone?: string | null;
+    expiresAt: string;
+  };
+  activeOrder?: PublicOrder | null;
+} | null;
 
 export type PublicConversationMessage = {
   id: string;

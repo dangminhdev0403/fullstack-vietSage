@@ -1,0 +1,32 @@
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { httpServer } from "@/core/http/http-server";
+import { unwrapApiEnvelope } from "@/core/http/api-envelope";
+import { LOCALMATE_SESSION_COOKIE } from "../../_lib/session-cookie";
+import { toBffErrorResponse } from "../../_lib/bff-error";
+
+export async function GET() {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(LOCALMATE_SESSION_COOKIE)?.value;
+    if (!token) {
+      return NextResponse.json(null, {
+        status: 200,
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
+
+    const res = unwrapApiEnvelope<unknown>(
+      await httpServer.get("/public/localmate/session/active", {
+        headers: { "x-public-localmate-token": token },
+      }),
+    ).data;
+
+    return NextResponse.json(res, {
+      status: 200,
+      headers: { "Cache-Control": "no-store" },
+    });
+  } catch (error: unknown) {
+    return toBffErrorResponse(error, "Failed to get active session");
+  }
+}

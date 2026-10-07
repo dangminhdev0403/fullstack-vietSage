@@ -16,12 +16,22 @@ function LocalMatePaymentReturnContent() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedChatUrl = localStorage.getItem("localmate_last_chat_url");
-      if (savedChatUrl) {
-        setReturnChatUrl(savedChatUrl);
+      let baseChatUrl = savedChatUrl || "/public/localmate/chat";
+      if (orderId && !baseChatUrl.includes("orderId=")) {
+        const sep = baseChatUrl.includes("?") ? "&" : "?";
+        baseChatUrl = `${baseChatUrl}${sep}view=guide-chat&orderId=${encodeURIComponent(orderId)}`;
+      } else if (!baseChatUrl.includes("view=guide-chat")) {
+        const sep = baseChatUrl.includes("?") ? "&" : "?";
+        baseChatUrl = `${baseChatUrl}${sep}view=guide-chat`;
       }
+      setReturnChatUrl(baseChatUrl);
 
       if (result === "success") {
-        // Ghi nhận thanh toán thành công vào localStorage
+        if (orderId) {
+          localStorage.setItem("localmate_active_order_id", orderId);
+          localStorage.setItem("localmate_last_order_id", orderId);
+        }
+        localStorage.setItem("localmate_active_view_mode", "guide-chat");
         localStorage.setItem(
           "localmate_payment_success",
           JSON.stringify({

@@ -325,7 +325,70 @@ export class PublicLocalMateService {
     return session;
   }
 
+  async getActiveSession(token: string | undefined) {
+    if (!token) return null;
+    const session = await this.requireSession(token).catch(() => null);
+    if (!session) return null;
+
+    const order = await this.prisma.marketplaceOrder.findFirst({
+      where: { publicSessionId: session.id },
+      orderBy: { createdAt: "desc" },
+      include: {
+        payment: {
+          select: {
+            status: true,
+            currency: true,
+            tourTotalAmount: true,
+            platformFeeRateSnapshot: true,
+            platformFeeAmount: true,
+            guideRemainingAmount: true,
+            checkoutUrl: true,
+            expiresAt: true,
+          },
+        },
+        assignedLocalMateProfile: {
+          select: {
+            id: true,
+            fullName: true,
+            guideCode: true,
+            avatarUrl: true,
+            rating: true,
+          },
+        },
+      },
+    });
+
+    return {
+      session: {
+        id: session.id,
+        location: session.location,
+        guestDisplayName: session.guestDisplayName,
+        guestPhone: session.guestPhone,
+        expiresAt: session.expiresAt.toISOString(),
+      },
+      activeOrder: order
+        ? {
+            id: order.id,
+            orderNumber: order.orderNumber,
+            status: order.status,
+            quantity: order.quantity,
+            partnerSubtotal: order.partnerSubtotal.toString(),
+            hotelServiceFeeAmount: order.hotelServiceFeeAmount.toString(),
+            customerTotalAmount: order.customerTotalAmount.toString(),
+            totalAmount: order.totalAmount.toString(),
+            currency: order.currency,
+            serviceNameSnapshot: order.serviceNameSnapshot,
+            requestedStartAt: order.requestedStartAt?.toISOString() ?? null,
+            guestNote: order.guestNote,
+            payment: order.payment,
+            assignedGuide: order.assignedLocalMateProfile,
+          }
+        : null,
+    };
+  }
+
   private hashToken(token: string) {
     return createHash("sha256").update(token).digest("hex");
   }
 }
+

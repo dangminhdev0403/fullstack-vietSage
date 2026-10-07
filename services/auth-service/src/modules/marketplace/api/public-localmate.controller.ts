@@ -46,6 +46,13 @@ export class PublicLocalMateController {
     return this.service.createSession(parseWithZod(createPublicSessionSchema, body), previousToken);
   }
 
+  @Get("session/active")
+  getActiveSession(
+    @Headers("x-public-localmate-token") token: string | undefined,
+  ) {
+    return this.service.getActiveSession(token);
+  }
+
   @AuthRateLimit("login")
   @Post("proposals")
   listProposals(
