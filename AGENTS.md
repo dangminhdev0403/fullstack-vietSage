@@ -14,6 +14,7 @@ Before writing any code, agents MUST reuse the project's standard architectural 
 - **Dialogs & Feedback**: MUST use **`SwalVietSage`** (`src/libs/swal.ts`). FORBIDDEN to use `window.alert()`, `window.confirm()`.
 - **Backend Validation**: MUST use **`Zod`** schemas + `parseWithZod(...)`. FORBIDDEN to use `class-validator`, forbidden manual type casting `as { ... }`.
 - **Timezone Standard**: MUST use canonical **`Asia/Ho_Chi_Minh`** (UTC+7). FORBIDDEN to use `Asia/Saigon`.
+- **UI Copywriting & Clean UI Text Standard**: Strictly FORBIDDEN to expose internal dev notes, architectural comments, wireframe prefixes (`"03 / "`), raw enum/role codes (`SUPER_ADMIN`), raw HTTP status codes (`(404 Not Found)`, `(Mã lỗi 500)`), DB terms (`"trong DB"`), or developer test placeholders (`"VD: Test"`). All user-facing text MUST use professional hospitality phrasing, clean Vietnamese/English without slang or filler words (`"tại đây"`), and all i18n keys must be synchronized without duplicate/orphan keys.
 
 ## Strict Audit Mode
 

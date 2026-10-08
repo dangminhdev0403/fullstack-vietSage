@@ -64,7 +64,7 @@ Create only the folders the feature needs.
 5. Declare only the resource capabilities the backend actually supports with `createResource`, `defineQuery`, `defineInfiniteQuery`, and `defineMutation` from `@dangminhdev04032005/query-resource`.
 6. Add query or feature hooks for scope, permissions, flags, filters, and UI-side orchestration.
 7. Add local hooks/store only for frontend interaction state.
-8. Add feature components for reusable domain UI.
+8. Add feature components for reusable domain UI with clean, professional hospitality copywriting (strictly no dev notes, no wireframe numbers, no raw enums, no raw HTTP errors, no test placeholder strings).
 9. Add route pages that compose the feature.
 10. Add loading, error, and empty states where the user flow needs them.
 11. Add resource type/runtime tests for keys, cache behavior, invalidation, and rollback as applicable.
@@ -108,3 +108,4 @@ const registry = createWorkspaceRegistry([
 - Duplicating backend authorization or workflow rules as frontend truth.
 - Creating every optional feature folder even when unused.
 - Sharing feature internals by deep imports instead of defining a stable interface.
+- Leaking developer comments, wireframe numbers ("03 / "), raw enum/role literals ("SUPER_ADMIN"), raw HTTP status codes ("(404 Not Found)"), or test placeholder strings ("VD: Test") into UI components, toasts, or modals.

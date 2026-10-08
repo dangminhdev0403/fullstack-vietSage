@@ -39,6 +39,25 @@
   - **Spreadsheet URL Auto-Persistence**: Frontends MUST auto-save entered Google Sheets / Excel URLs via a dedicated Zustand store with `persist` and `safeStorage` (e.g. `useMarketplaceAdminImportStore`) and auto-restore input state on load to eliminate repeated copying & pasting. Never read or write `localStorage` directly in feature components.
   - **Summary Metric Key Fallbacks**: Preview summary metric cards MUST handle backend key variations (`creates`/`create`, `updates`/`update`) with safe fallbacks (`creates ?? create ?? 0`) to prevent undefined or blank preview counts.
 
+## UI Copywriting & Professional UX Text Rules (Mandatory)
+
+When designing screens, building components, or adding modules:
+- **Zero Technical & Dev Leakage**:
+  - Never display raw backend role enums or codes (e.g. `SUPER_ADMIN` -> must render "Quản trị nền tảng", `TENANT_ADMIN` -> "Chủ cơ sở/Khách sạn").
+  - Strictly forbidden to expose developer notes, architecture comments, or internal reminders in JSX/UI (e.g. "Nguồn dữ liệu có thể chuyển sang API...", "tuyệt đối không động đến...").
+  - Never display raw HTTP error codes in toasts or dialogs (e.g. `(404 Not Found)`, `(403 Forbidden)`, `Mã lỗi 500`). Extract user-friendly error messages from backend payloads.
+  - Never mention internal database or backend system concepts in end-user copy (e.g. "trong DB", "test đẩy lại BCA").
+- **Zero Wireframe & Draft Residue**:
+  - Never include wireframe numbering prefixes in headings, subtitles, or badges (e.g. `"01 / "`, `"02 / "`, `"03 / "`).
+  - Never use developer test strings in placeholders, labels, or demo values (e.g. `"VD: Test, SGSTAR"` -> use `"VD: Grand Saigon, SGSTAR"`; `"dữ liệu kiểm thử"` -> `"dữ liệu vận hành"`).
+- **Professional Hospitality Tone & No Hybrid Slang**:
+  - Never use informal hybrid slang (e.g. `"full size"` -> `"ảnh gốc / bản gốc"`, `"Service Catalog / Danh mục dịch vụ"` -> `"Danh mục dịch vụ đối tác"`).
+  - Eliminate redundant trailing filler phrases (e.g. `"tại đây"`, `"ngay tại đây."`, `"tại đây ạ"`). Phrasing must be crisp, polite, and hospitality-grade.
+- **Structured i18n Hygiene**:
+  - All public, guest, and multi-lingual flows must use localized dictionary strings, not hardcoded strings.
+  - Never create duplicate translation keys with identical values (e.g. `messages.loadError` vs `messages.errorLoad`).
+  - New dictionary keys must be defined across all 6 supported locales (`vi`, `en`, `zh`, `ko`, `ru`, `hi`).
+
 ## UI Theme Direction & Typography Scale
 
 The application should follow a:
