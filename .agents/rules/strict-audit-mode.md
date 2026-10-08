@@ -100,8 +100,8 @@ Trace each invariant through producer, transport, consumer, persistence, and ver
 | Reliability | Are timeouts, retries, partial failure, restart behavior, fallbacks, and data-loss prevention explicit? |
 | Operability | Are configuration, deployment, compatibility, observability, diagnostics, rollback, and support paths adequate? |
 | Performance | Are bottlenecks, fan-out, unbounded work, scaling assumptions, and resource ceilings acceptable for the real workload? |
-| User boundary | When applicable: accessibility, error/loading/empty states, locale, responsive behavior, and safe feedback. |
-| Maintainability | Is complexity necessary? Are shared primitives reused? Does duplication create inconsistent behavior? |
+| User boundary | When applicable: accessibility, error/loading/empty states, locale/i18n hygiene, responsive behavior, safe feedback, and clean professional copywriting (zero technical/dev leakage, no wireframe numbering, no raw enums/HTTP errors, no test strings). |
+| Maintainability | Is complexity necessary? Are shared primitives reused? Does duplication create inconsistent behavior or duplicate/orphan i18n keys? |
 | Technology fit | Does implementation follow the current project's actual stack, installed dependencies, platform primitives, and local conventions? |
 
 Technology fit comes last. A preferred library does not excuse a broken system invariant. A raw platform primitive is not automatically wrong when the repository permits it or the abstraction cannot satisfy the requirement.
