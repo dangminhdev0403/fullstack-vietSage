@@ -926,6 +926,7 @@ export function PublicLocalMateChat() {
     setSelectedRegion("all");
     setActiveProposalKey(null);
     setActiveCandidateKey(null);
+    setActiveOrderId(null);
     setActiveProposals([]);
     setCandidateDetails(null);
     setBookingPreviewFingerprint("");

@@ -3136,7 +3136,7 @@ paths:
                   type: string
                   minLength: 1
                   maxLength: 80
-                  default: Asia/Saigon
+                  default: Asia/Ho_Chi_Minh
                 brandSettings:
                   type: object
                   additionalProperties: true
@@ -6702,6 +6702,23 @@ paths:
         "200":
           description: ""
       tags: *a16
+  /webhooks/stripe:
+    post:
+      operationId: StripeWebhookController_handleWebhook[0]
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: &a17
+        - StripeWebhook
+  /payments/webhook/stripe:
+    post:
+      operationId: StripeWebhookController_handleWebhook[1]
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a17
   /emergency/guest/calls:
     post:
       operationId: EmergencyController_createGuestEmergencyCall
@@ -6759,7 +6776,7 @@ paths:
                       expiresAt:
                         type: string
                         format: date-time
-      tags: &a17
+      tags: &a18
         - request-realtime
   /hotels/service-portal/request-realtime-ticket:
     post:
@@ -6768,7 +6785,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a17
+      tags: *a18
   /biometric-workstations/pair:
     post:
       operationId: BiometricWorkstationsController_pair
@@ -6776,7 +6793,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: &a18
+      tags: &a19
         - biometric-workstations
   /biometric-workstations/authenticate:
     post:
@@ -6790,7 +6807,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a18
+      tags: *a19
   /hotels/{hotelId}/biometric-workstations/pairing:
     post:
       operationId: BiometricWorkstationsController_issuePairing
@@ -6805,7 +6822,7 @@ paths:
           description: ""
       security:
         - bearer: []
-      tags: *a18
+      tags: *a19
   /hotels/{hotelId}/biometric-workstations/status:
     get:
       operationId: BiometricWorkstationsController_status
@@ -6820,7 +6837,7 @@ paths:
           description: ""
       security:
         - bearer: []
-      tags: *a18
+      tags: *a19
   /hotels/{hotelId}/biometric-workstations:
     delete:
       operationId: BiometricWorkstationsController_disconnect
@@ -6835,7 +6852,7 @@ paths:
           description: ""
       security:
         - bearer: []
-      tags: *a18
+      tags: *a19
   /platform-billing/dashboard/summary:
     get:
       operationId: PlatformBillingController_getDashboardSummary
@@ -6843,10 +6860,10 @@ paths:
       responses:
         "200":
           description: ""
-      security: &a19
+      security: &a20
         - bearer: []
       summary: Get platform billing dashboard summary
-      tags: &a20
+      tags: &a21
         - platform-billing
   /platform-billing/contracts:
     get:
@@ -6855,18 +6872,18 @@ paths:
       responses:
         "200":
           description: ""
-      security: *a19
+      security: *a20
       summary: List platform billing contracts for admin
-      tags: *a20
+      tags: *a21
     post:
       operationId: PlatformBillingController_createContract
       parameters: []
       responses:
         "201":
           description: ""
-      security: *a19
+      security: *a20
       summary: Onboard new platform billing contract for hotel
-      tags: *a20
+      tags: *a21
   /platform-billing/contracts/{contractId}/periods:
     get:
       operationId: PlatformBillingController_listPeriods
@@ -6879,9 +6896,9 @@ paths:
       responses:
         "200":
           description: ""
-      security: *a19
+      security: *a20
       summary: List billing periods for contract
-      tags: *a20
+      tags: *a21
   /platform-billing/periods:
     get:
       operationId: PlatformBillingController_listAllPeriods
@@ -6889,9 +6906,9 @@ paths:
       responses:
         "200":
           description: ""
-      security: *a19
+      security: *a20
       summary: List all platform billing periods across contracts
-      tags: *a20
+      tags: *a21
   /platform-billing/batch-finalize:
     post:
       operationId: PlatformBillingController_batchFinalize
@@ -6899,9 +6916,9 @@ paths:
       responses:
         "201":
           description: ""
-      security: *a19
+      security: *a20
       summary: Batch finalize periods for active contracts
-      tags: *a20
+      tags: *a21
   /platform-billing/periods/{periodId}:
     get:
       operationId: PlatformBillingController_getPeriod
@@ -6914,9 +6931,9 @@ paths:
       responses:
         "200":
           description: ""
-      security: *a19
+      security: *a20
       summary: Get period detail with adjustments and settlements
-      tags: *a20
+      tags: *a21
   /platform-billing/contracts/{contractId}/revisions:
     post:
       operationId: PlatformBillingController_addContractRevision
@@ -6929,9 +6946,9 @@ paths:
       responses:
         "201":
           description: ""
-      security: *a19
+      security: *a20
       summary: Add contract price revision
-      tags: *a20
+      tags: *a21
   /platform-billing/contracts/{contractId}/status:
     patch:
       operationId: PlatformBillingController_updateContractStatus
@@ -6944,9 +6961,9 @@ paths:
       responses:
         "200":
           description: ""
-      security: *a19
+      security: *a20
       summary: Update contract status
-      tags: *a20
+      tags: *a21
   /platform-billing/contracts/{contractId}/finalize:
     post:
       operationId: PlatformBillingController_finalizePeriod
@@ -6959,9 +6976,9 @@ paths:
       responses:
         "201":
           description: ""
-      security: *a19
+      security: *a20
       summary: Finalize period snapshot idempotently
-      tags: *a20
+      tags: *a21
   /platform-billing/periods/{periodId}/settlement:
     post:
       operationId: PlatformBillingController_recordSettlement
@@ -6974,9 +6991,9 @@ paths:
       responses:
         "201":
           description: ""
-      security: *a19
+      security: *a20
       summary: Record settlement for finalized period
-      tags: *a20
+      tags: *a21
   /platform-billing/contracts/{contractId}/adjustments:
     post:
       operationId: PlatformBillingController_createAdjustment
@@ -6989,9 +7006,9 @@ paths:
       responses:
         "201":
           description: ""
-      security: *a19
+      security: *a20
       summary: Create append-only adjustment record
-      tags: *a20
+      tags: *a21
   /platform-billing/owner/analytics/{hotelId}:
     get:
       operationId: PlatformBillingController_getOwnerAnalytics
@@ -7004,9 +7021,9 @@ paths:
       responses:
         "200":
           description: ""
-      security: *a19
+      security: *a20
       summary: Get revenue protection analytics for hotel owner
-      tags: *a20
+      tags: *a21
   /platform-billing/periods/{periodId}/debt-notice:
     post:
       operationId: PlatformBillingController_issueDebtNotice
@@ -7019,9 +7036,9 @@ paths:
       responses:
         "201":
           description: ""
-      security: *a19
+      security: *a20
       summary: Record a manual debt reminder for a finalized period
-      tags: *a20
+      tags: *a21
   /platform-billing/periods/{periodId}/statement:
     get:
       operationId: PlatformBillingController_getDebtStatement
@@ -7034,9 +7051,9 @@ paths:
       responses:
         "200":
           description: ""
-      security: *a19
+      security: *a20
       summary: Get debt statement for a finalized period (Platform Finance)
-      tags: *a20
+      tags: *a21
   /platform-billing/owner/periods/{periodId}/statement:
     get:
       operationId: PlatformBillingController_getOwnerDebtStatement
@@ -7049,9 +7066,9 @@ paths:
       responses:
         "200":
           description: ""
-      security: *a19
+      security: *a20
       summary: Get debt statement for a finalized period (Hotel Owner)
-      tags: *a20
+      tags: *a21
   /hotels/{hotelId}/local-partners/categories:
     get:
       operationId: LocalPartnersController_categories
@@ -7064,7 +7081,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a21
+      tags: &a22
         - local-partners
   /hotels/{hotelId}/local-partners:
     get:
@@ -7078,7 +7095,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a21
+      tags: *a22
     post:
       operationId: LocalPartnersController_create
       parameters:
@@ -7090,7 +7107,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a21
+      tags: *a22
   /hotels/{hotelId}/local-partners/{partnerId}:
     patch:
       operationId: LocalPartnersController_update
@@ -7108,7 +7125,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a21
+      tags: *a22
   /hotels/{hotelId}/local-partners/{partnerId}/status:
     patch:
       operationId: LocalPartnersController_status
@@ -7126,7 +7143,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a21
+      tags: *a22
   /guest/local-partners/categories:
     get:
       operationId: GuestLocalPartnersController_getCategories
@@ -7134,7 +7151,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a22
+      tags: &a23
         - guest-local-partners
   /guest/local-partners:
     get:
@@ -7143,7 +7160,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a22
+      tags: *a23
   /guest/local-partners/{partnerId}:
     get:
       operationId: GuestLocalPartnersController_getPartner
@@ -7156,7 +7173,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a22
+      tags: *a23
   /admin/marketplace/categories:
     get:
       operationId: MarketplaceAdminController_categories
@@ -7164,7 +7181,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a23
+      tags: &a24
         - MarketplaceAdmin
     post:
       operationId: MarketplaceAdminController_createCategory
@@ -7172,7 +7189,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a23
+      tags: *a24
   /admin/marketplace/pricing-config:
     get:
       operationId: MarketplaceAdminController_pricingConfig
@@ -7180,14 +7197,14 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a23
+      tags: *a24
     patch:
       operationId: MarketplaceAdminController_updatePricingConfig
       parameters: []
       responses:
         "200":
           description: ""
-      tags: *a23
+      tags: *a24
   /admin/marketplace/categories/import/template:
     get:
       operationId: MarketplaceAdminController_categoryImportTemplate
@@ -7195,7 +7212,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a23
+      tags: *a24
   /admin/marketplace/categories/import/preview:
     post:
       operationId: MarketplaceAdminController_previewCategoryImport
@@ -7203,7 +7220,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a23
+      tags: *a24
   /admin/marketplace/categories/import/commit:
     post:
       operationId: MarketplaceAdminController_commitCategoryImport
@@ -7211,7 +7228,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a23
+      tags: *a24
   /admin/marketplace/categories/{categoryId}:
     patch:
       operationId: MarketplaceAdminController_updateCategory
@@ -7224,7 +7241,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a23
+      tags: *a24
     delete:
       operationId: MarketplaceAdminController_deleteCategory
       parameters:
@@ -7236,7 +7253,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a23
+      tags: *a24
   /admin/marketplace/service-tenants:
     get:
       operationId: MarketplaceAdminController_serviceTenants
@@ -7244,14 +7261,14 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a23
+      tags: *a24
     post:
       operationId: MarketplaceAdminController_createServiceTenant
       parameters: []
       responses:
         "201":
           description: ""
-      tags: *a23
+      tags: *a24
   /admin/marketplace/service-tenants/{tenantId}:
     patch:
       operationId: MarketplaceAdminController_updateServiceTenant
@@ -7264,7 +7281,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a23
+      tags: *a24
   /service-portal/profile:
     get:
       operationId: ServicePortalController_profile
@@ -7272,7 +7289,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a24
+      tags: &a25
         - ServicePortal
     patch:
       operationId: ServicePortalController_updateProfile
@@ -7280,7 +7297,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a24
+      tags: *a25
   /service-portal/services:
     get:
       operationId: ServicePortalController_services
@@ -7288,14 +7305,14 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a24
+      tags: *a25
     post:
       operationId: ServicePortalController_create
       parameters: []
       responses:
         "201":
           description: ""
-      tags: *a24
+      tags: *a25
   /service-portal/services/{serviceId}:
     patch:
       operationId: ServicePortalController_update
@@ -7308,7 +7325,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a24
+      tags: *a25
   /service-portal/services/{serviceId}/availability:
     patch:
       operationId: ServicePortalController_availability
@@ -7321,7 +7338,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a24
+      tags: *a25
   /service-portal/services/import/template:
     get:
       operationId: ServicePortalController_template
@@ -7329,7 +7346,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a24
+      tags: *a25
   /service-portal/services/import/preview:
     post:
       operationId: ServicePortalController_previewImport
@@ -7337,7 +7354,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a24
+      tags: *a25
   /service-portal/services/import/commit:
     post:
       operationId: ServicePortalController_commitImport
@@ -7345,7 +7362,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a24
+      tags: *a25
   /service-portal/orders:
     get:
       operationId: ServicePortalController_orderList
@@ -7353,7 +7370,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a24
+      tags: *a25
   /service-portal/orders/{orderId}:
     get:
       operationId: ServicePortalController_order
@@ -7366,7 +7383,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a24
+      tags: *a25
   /service-portal/orders/{orderId}/transitions:
     post:
       operationId: ServicePortalController_transition
@@ -7379,7 +7396,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a24
+      tags: *a25
   /service-portal/vouchers/verify:
     post:
       operationId: ServicePortalController_verifyVoucher
@@ -7387,7 +7404,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a24
+      tags: *a25
   /service-portal/vouchers/redeem:
     post:
       operationId: ServicePortalController_redeemVoucher
@@ -7395,7 +7412,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a24
+      tags: *a25
   /service-portal/financial-summary:
     get:
       operationId: ServicePortalController_financialSummary
@@ -7403,7 +7420,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a24
+      tags: *a25
   /service-portal/settlements:
     get:
       operationId: ServicePortalController_settlements
@@ -7411,7 +7428,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a24
+      tags: *a25
   /service-portal/request-realtime-ticket:
     post:
       operationId: ServicePortalController_issueTicket
@@ -7419,7 +7436,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a24
+      tags: *a25
   /guest/marketplace/categories:
     get:
       operationId: GuestMarketplaceController_categories
@@ -7427,7 +7444,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a25
+      tags: &a26
         - GuestMarketplace
   /guest/marketplace/services:
     get:
@@ -7436,7 +7453,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a25
+      tags: *a26
   /guest/marketplace/services/{serviceId}:
     get:
       operationId: GuestMarketplaceController_detail
@@ -7449,7 +7466,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a25
+      tags: *a26
   /guest/marketplace/cart:
     get:
       operationId: GuestMarketplaceController_getCart
@@ -7457,21 +7474,21 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a25
+      tags: *a26
     delete:
       operationId: GuestMarketplaceController_clearCart
       parameters: []
       responses:
         "200":
           description: ""
-      tags: *a25
+      tags: *a26
     put:
       operationId: GuestMarketplaceController_syncCart
       parameters: []
       responses:
         "200":
           description: ""
-      tags: *a25
+      tags: *a26
   /guest/marketplace/cart/items:
     post:
       operationId: GuestMarketplaceController_addCartItem
@@ -7479,7 +7496,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a25
+      tags: *a26
   /guest/marketplace/cart/items/{itemId}:
     patch:
       operationId: GuestMarketplaceController_updateCartItem
@@ -7492,7 +7509,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a25
+      tags: *a26
     delete:
       operationId: GuestMarketplaceController_removeCartItem
       parameters:
@@ -7504,7 +7521,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a25
+      tags: *a26
   /guest/marketplace/cart/checkout:
     post:
       operationId: GuestMarketplaceController_checkoutCart
@@ -7512,7 +7529,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a25
+      tags: *a26
   /guest/marketplace/checkout:
     post:
       operationId: GuestMarketplaceController_checkoutDirect
@@ -7520,7 +7537,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a25
+      tags: *a26
   /guest/marketplace/orders:
     post:
       operationId: GuestMarketplaceController_createOrder
@@ -7528,14 +7545,14 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a25
+      tags: *a26
     get:
       operationId: GuestMarketplaceController_ordersList
       parameters: []
       responses:
         "200":
           description: ""
-      tags: *a25
+      tags: *a26
   /guest/marketplace/orders/{orderId}:
     get:
       operationId: GuestMarketplaceController_order
@@ -7548,7 +7565,20 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a25
+      tags: *a26
+  /guest/marketplace/orders/{orderId}/payment-session:
+    post:
+      operationId: GuestMarketplaceController_paymentSession
+      parameters:
+        - name: orderId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a26
   /guest/marketplace/orders/{orderId}/cancel:
     patch:
       operationId: GuestMarketplaceController_cancelOrder
@@ -7561,7 +7591,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a25
+      tags: *a26
   /hotels/{hotelId}/marketplace/providers:
     get:
       operationId: HotelMarketplaceController_providers
@@ -7574,7 +7604,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a26
+      tags: &a27
         - HotelMarketplace
   /hotels/{hotelId}/marketplace/providers/{serviceTenantId}:
     put:
@@ -7593,7 +7623,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a26
+      tags: *a27
     delete:
       operationId: HotelMarketplaceController_unlinkProvider
       parameters:
@@ -7610,7 +7640,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a26
+      tags: *a27
   /hotels/{hotelId}/marketplace/orders:
     get:
       operationId: HotelMarketplaceController_list
@@ -7623,7 +7653,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a26
+      tags: *a27
   /hotels/{hotelId}/marketplace/orders/{orderId}:
     get:
       operationId: HotelMarketplaceController_order
@@ -7641,7 +7671,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a26
+      tags: *a27
   /hotels/{hotelId}/marketplace/orders/{orderId}/acknowledge:
     post:
       operationId: HotelMarketplaceController_acknowledge
@@ -7659,7 +7689,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a26
+      tags: *a27
   /hotels/{hotelId}/marketplace/orders/{orderId}/issue-voucher:
     post:
       operationId: HotelMarketplaceController_issueVoucher
@@ -7677,7 +7707,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a26
+      tags: *a27
   /hotels/{hotelId}/marketplace/orders/{orderId}/cancel:
     post:
       operationId: HotelMarketplaceController_cancel
@@ -7695,7 +7725,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a26
+      tags: *a27
   /hotels/{hotelId}/marketplace/revenue:
     get:
       operationId: HotelMarketplaceController_revenue
@@ -7708,7 +7738,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a26
+      tags: *a27
   /hotels/{hotelId}/marketplace/settlements:
     get:
       operationId: HotelMarketplaceController_settlements
@@ -7721,7 +7751,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a26
+      tags: *a27
   /hotels/{hotelId}/marketplace/settlements/{settlementId}/settle:
     post:
       operationId: HotelMarketplaceController_settle
@@ -7739,7 +7769,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a26
+      tags: *a27
   /hotels/{hotelId}/marketplace/settlements/settle-batch:
     post:
       operationId: HotelMarketplaceController_settleBatch
@@ -7752,7 +7782,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a26
+      tags: *a27
   /guest/marketplace/orders/{orderId}/conversation:
     get:
       operationId: GuestMarketplaceConversationController_getConversation
@@ -7765,7 +7795,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a27
+      tags: &a28
         - GuestMarketplaceConversation
   /guest/marketplace/orders/{orderId}/conversation/messages:
     post:
@@ -7779,7 +7809,760 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a27
+      tags: *a28
+  /public/localmate/sessions:
+    post:
+      operationId: PublicLocalMateController_createSession
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: &a29
+        - PublicLocalMate
+  /public/localmate/session/active:
+    get:
+      operationId: PublicLocalMateController_getActiveSession
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a29
+  /public/localmate/proposals:
+    post:
+      operationId: PublicLocalMateController_listProposals
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a29
+  /public/localmate/proposals/{proposalKey}/select:
+    post:
+      operationId: PublicLocalMateController_selectProposal
+      parameters:
+        - name: proposalKey
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a29
+  /public/localmate/orders:
+    post:
+      operationId: PublicLocalMateController_createOrder
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a29
+  /public/localmate/candidates/{candidateKey}:
+    get:
+      operationId: PublicLocalMateController_getCandidate
+      parameters:
+        - name: candidateKey
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: proposalKey
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a29
+  /public/localmate/orders/{orderId}:
+    get:
+      operationId: PublicLocalMateController_getOrder
+      parameters:
+        - name: orderId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a29
+  /public/localmate/orders/{orderId}/payment-session:
+    post:
+      operationId: PublicLocalMateController_createPaymentSession
+      parameters:
+        - name: orderId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a29
+  /public/localmate/orders/{orderId}/conversation:
+    get:
+      operationId: PublicLocalMateController_getConversation
+      parameters:
+        - name: orderId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a29
+  /public/localmate/orders/{orderId}/conversation/messages:
+    post:
+      operationId: PublicLocalMateController_sendMessage
+      parameters:
+        - name: orderId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a29
+  /localmate-admin/guides:
+    post:
+      operationId: LocalMateAdminController_createGuide
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - fullName
+                - phone
+                - avatarUrl
+                - languages
+                - operatingRegions
+              properties:
+                guideCode:
+                  type: string
+                  minLength: 2
+                  maxLength: 40
+                fullName:
+                  type: string
+                  minLength: 2
+                  maxLength: 120
+                phone:
+                  type: string
+                  minLength: 8
+                  maxLength: 40
+                email:
+                  type: string
+                  format: email
+                avatarUrl:
+                  type: string
+                  format: uri
+                status:
+                  type: string
+                  enum:
+                    - PENDING
+                    - QUALIFIED
+                    - SUSPENDED
+                position:
+                  type: string
+                  maxLength: 80
+                languages:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                operatingRegions:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                specialties:
+                  type: array
+                  items:
+                    type: string
+                bio:
+                  type: string
+                  maxLength: 1000
+                serviceLatitude:
+                  type: number
+                  minimum: -90
+                  maximum: 90
+                  nullable: true
+                serviceLongitude:
+                  type: number
+                  minimum: -180
+                  maximum: 180
+                  nullable: true
+                dailyRateVnd:
+                  type: integer
+                  minimum: 0
+                userId:
+                  type: string
+                tenantId:
+                  type: string
+      responses:
+        "201":
+          description: ""
+      tags: &a30
+        - localmate-admin
+    get:
+      operationId: LocalMateAdminController_listGuides
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a30
+  /localmate-admin/guides/{id}:
+    get:
+      operationId: LocalMateAdminController_getGuide
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a30
+    patch:
+      operationId: LocalMateAdminController_updateGuide
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                guideCode:
+                  type: string
+                  minLength: 2
+                  maxLength: 40
+                fullName:
+                  type: string
+                  minLength: 2
+                  maxLength: 120
+                phone:
+                  type: string
+                  minLength: 8
+                  maxLength: 40
+                email:
+                  type: string
+                  format: email
+                avatarUrl:
+                  type: string
+                  format: uri
+                status:
+                  type: string
+                  enum:
+                    - PENDING
+                    - QUALIFIED
+                    - SUSPENDED
+                position:
+                  type: string
+                  maxLength: 80
+                languages:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                operatingRegions:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                specialties:
+                  type: array
+                  items:
+                    type: string
+                bio:
+                  type: string
+                  maxLength: 1000
+                serviceLatitude:
+                  type: number
+                  minimum: -90
+                  maximum: 90
+                  nullable: true
+                serviceLongitude:
+                  type: number
+                  minimum: -180
+                  maximum: 180
+                  nullable: true
+                dailyRateVnd:
+                  type: integer
+                  minimum: 0
+                userId:
+                  type: string
+                tenantId:
+                  type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a30
+  /localmate-admin/guides/{id}/orders:
+    get:
+      operationId: LocalMateAdminController_listGuideOrders
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a30
+  /localmate-admin/guides/{id}/qualification:
+    patch:
+      operationId: LocalMateAdminController_updateQualification
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a30
+  /localmate-admin/guides/{id}/telegram-pair:
+    post:
+      operationId: LocalMateAdminController_createTelegramPairingLink
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a30
+  /localmate-admin/guides/{id}/telegram-disconnect:
+    post:
+      operationId: LocalMateAdminController_disconnectTelegram
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a30
+  /localmate-admin/knowledge/tours:
+    post:
+      operationId: LocalMateAdminController_createTour
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - title
+                - duration
+                - content
+              properties:
+                tourCode:
+                  type: string
+                  minLength: 2
+                  maxLength: 80
+                title:
+                  type: string
+                  minLength: 2
+                  maxLength: 255
+                duration:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                highlights:
+                  type: array
+                  items:
+                    type: string
+                content:
+                  type: string
+                  minLength: 5
+                sourceFileName:
+                  type: string
+                  maxLength: 255
+                provinceCode:
+                  type: string
+                  maxLength: 40
+                province:
+                  type: string
+                  maxLength: 80
+                tourScope:
+                  type: string
+                  enum:
+                    - LOCAL
+                    - REGIONAL_DAYTRIP
+                    - INTERPROVINCIAL
+                latitude:
+                  type: number
+                  minimum: -90
+                  maximum: 90
+                  nullable: true
+                longitude:
+                  type: number
+                  minimum: -180
+                  maximum: 180
+                  nullable: true
+      responses:
+        "201":
+          description: ""
+      tags: *a30
+    get:
+      operationId: LocalMateAdminController_listTours
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a30
+  /localmate-admin/knowledge/tours/{id}:
+    patch:
+      operationId: LocalMateAdminController_updateTour
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                tourCode:
+                  type: string
+                  minLength: 2
+                  maxLength: 80
+                title:
+                  type: string
+                  minLength: 2
+                  maxLength: 255
+                duration:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                highlights:
+                  type: array
+                  items:
+                    type: string
+                content:
+                  type: string
+                  minLength: 5
+                sourceFileName:
+                  type: string
+                  maxLength: 255
+                provinceCode:
+                  type: string
+                  maxLength: 40
+                province:
+                  type: string
+                  maxLength: 80
+                tourScope:
+                  type: string
+                  enum:
+                    - LOCAL
+                    - REGIONAL_DAYTRIP
+                    - INTERPROVINCIAL
+                latitude:
+                  type: number
+                  minimum: -90
+                  maximum: 90
+                  nullable: true
+                longitude:
+                  type: number
+                  minimum: -180
+                  maximum: 180
+                  nullable: true
+      responses:
+        "200":
+          description: ""
+      tags: *a30
+    delete:
+      operationId: LocalMateAdminController_deleteTour
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a30
+  /localmate-admin/pricing-config:
+    get:
+      operationId: LocalMateAdminController_getPricingConfig
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a30
+    patch:
+      operationId: LocalMateAdminController_updatePricingConfig
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - localMatePlatformFeeRate
+              properties:
+                localMatePlatformFeeRate:
+                  type: number
+                  minimum: 0
+                  maximum: 100
+                  description: Tỷ lệ phí nền tảng LocalMate thu (%)
+      responses:
+        "200":
+          description: ""
+      tags: *a30
+  /localmate/knowledge:
+    get:
+      operationId: LocalMateAiController_getKnowledge
+      parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            example: 5
+            type: number
+        - name: scope
+          required: false
+          in: query
+          schema:
+            enum:
+              - LOCAL
+              - REGIONAL_DAYTRIP
+              - INTERPROVINCIAL
+            type: string
+        - name: provinceCode
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: radiusKm
+          required: false
+          in: query
+          schema:
+            example: 50
+            type: number
+        - name: hotelId
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: destination
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: query
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: X-VietSage-Knowledge-Key
+          in: header
+          description: Dedicated API key for machine-to-machine knowledge access
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Structured LocalMate knowledge
+        "401":
+          description: Invalid or missing knowledge API key
+        "429":
+          description: Knowledge request rate limit exceeded
+        "503":
+          description: Knowledge service key unconfigured
+      tags: &a31
+        - localmate
+    post:
+      operationId: LocalMateAiController_queryKnowledge
+      parameters:
+        - name: X-VietSage-Knowledge-Key
+          in: header
+          description: Dedicated API key for machine-to-machine knowledge access
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                query:
+                  type: string
+                destination:
+                  type: string
+                hotelId:
+                  type: string
+                  description: Trusted hotel anchor supplied by the authenticated GuestOS BFF.
+                radiusKm:
+                  type: number
+                  minimum: 1
+                  maximum: 300
+                  default: 50
+                provinceCode:
+                  type: string
+                scope:
+                  type: string
+                  enum:
+                    - LOCAL
+                    - REGIONAL_DAYTRIP
+                    - INTERPROVINCIAL
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  default: 5
+      responses:
+        "200":
+          description: Structured LocalMate knowledge
+        "401":
+          description: Invalid or missing knowledge API key
+        "429":
+          description: Knowledge request rate limit exceeded
+        "503":
+          description: Knowledge service key unconfigured
+      tags: *a31
+  /localmate/ai/match:
+    post:
+      operationId: LocalMateAiController_matchLocalMates
+      parameters:
+        - name: X-VietSage-Knowledge-Key
+          in: header
+          description: Dedicated API key for machine-to-machine LocalMate access
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Rule-based LocalMate matching result
+        "401":
+          description: Invalid or missing knowledge API key
+        "429":
+          description: Knowledge request rate limit exceeded
+      tags: *a31
+  /localmate/guides/{guideCode}:
+    get:
+      operationId: LocalMateAiController_getGuideByCode
+      parameters:
+        - name: guideCode
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a31
+  /localmate/tours:
+    get:
+      operationId: LocalMateAiController_listTours
+      parameters:
+        - name: destination
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: X-VietSage-Knowledge-Key
+          in: header
+          description: Dedicated API key for machine-to-machine knowledge access
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: LocalMate tour knowledge
+        "401":
+          description: Invalid or missing knowledge API key
+        "429":
+          description: Knowledge request rate limit exceeded
+        "503":
+          description: Knowledge service key unconfigured
+      tags: *a31
+  /localmate/booking-candidate/{candidateKey}:
+    get:
+      operationId: LocalMateAiController_resolveBookingCandidate
+      parameters:
+        - name: candidateKey
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: hotelId
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: X-VietSage-Knowledge-Key
+          in: header
+          description: Dedicated API key for machine-to-machine knowledge access
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Resolved LocalMate booking candidate
+        "400":
+          description: Validation failed or region mismatch
+        "404":
+          description: Guide or service not found
+      tags: *a31
+  /localmate/telegram/pair:
+    post:
+      operationId: LocalMateTelegramController_createPairingLink
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: &a32
+        - localmate-telegram
+  /localmate/telegram/disconnect:
+    post:
+      operationId: LocalMateTelegramController_disconnect
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a32
+  /localmate/telegram/status:
+    get:
+      operationId: LocalMateTelegramController_getStatus
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a32
   /hotels/{hotelId}/kbtt/connection:
     get:
       operationId: KbttController_get
@@ -7854,18 +8637,18 @@ paths:
                   - error
                   - message
                   - data
-        "401": &a28
+        "401": &a33
           description: Authentication required
-        "403": &a29
+        "403": &a34
           description: Hotel scope or business permission denied
-        "422": &a30
+        "422": &a35
           description: KBTT_AUTH_FAILED; sanitized provider authentication failure
-        "503": &a31
+        "503": &a36
           description: KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable
-      security: &a32
+      security: &a37
         - bearer: []
       summary: View saved hotel KBTT connection; never contacts provider
-      tags: &a33
+      tags: &a38
         - hotel-kbtt
     put:
       operationId: KbttController_connect
@@ -7961,13 +8744,13 @@ paths:
                   - error
                   - message
                   - data
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: Authenticate and save encrypted hotel credentials only after success
-      tags: *a33
+      tags: *a38
     delete:
       operationId: KbttController_disconnect
       parameters:
@@ -8041,13 +8824,13 @@ paths:
                   - error
                   - message
                   - data
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: Best-effort revoke and remove saved credentials and local tokens
-      tags: *a33
+      tags: *a38
   /hotels/{hotelId}/kbtt/connection/check:
     post:
       operationId: KbttController_check
@@ -8122,14 +8905,14 @@ paths:
                   - error
                   - message
                   - data
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: Manually authenticate saved credentials; refresh near expiry, otherwise
         re-login
-      tags: *a33
+      tags: *a38
   /hotels/{hotelId}/kbtt/declarations:
     get:
       operationId: KbttController_listDeclarations
@@ -8142,13 +8925,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: List active occupants combined with KBTT declaration status
-      tags: *a33
+      tags: *a38
   /hotels/{hotelId}/kbtt/declarations/{occupantId}:
     get:
       operationId: KbttController_getDeclaration
@@ -8166,13 +8949,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: Get occupant profile and latest KBTT declaration
-      tags: *a33
+      tags: *a38
   /hotels/{hotelId}/kbtt/declarations/{occupantId}/draft:
     put:
       operationId: KbttController_saveDraft
@@ -8190,13 +8973,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: Create or update KBTT declaration draft
-      tags: *a33
+      tags: *a38
   /hotels/{hotelId}/kbtt/declarations/{occupantId}/submit:
     post:
       operationId: KbttController_submit
@@ -8214,13 +8997,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: Submit validated declaration to KBTT provider (API 4/5)
-      tags: *a33
+      tags: *a38
   /hotels/{hotelId}/kbtt/catalogs:
     get:
       operationId: KbttController_listCatalogByQuery
@@ -8238,13 +9021,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: List cached KBTT reference catalog items by query
-      tags: *a33
+      tags: *a38
   /hotels/{hotelId}/kbtt/catalogs/{kind}:
     get:
       operationId: KbttController_listCatalog
@@ -8269,13 +9052,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: List cached KBTT reference catalog items
-      tags: *a33
+      tags: *a38
   /hotels/{hotelId}/kbtt/catalogs/sync:
     post:
       operationId: KbttController_syncCatalogByBody
@@ -8288,14 +9071,14 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: Manually synchronize a reference catalog from provider into local cache
         by payload
-      tags: *a33
+      tags: *a38
   /hotels/{hotelId}/kbtt/catalogs/{kind}/sync:
     post:
       operationId: KbttController_syncCatalog
@@ -8320,13 +9103,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: Manually synchronize a reference catalog from provider into local cache
-      tags: *a33
+      tags: *a38
   /hotels/{hotelId}/kbtt/auto-submit:
     get:
       operationId: KbttController_getAutoSubmitConfig
@@ -8339,13 +9122,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: Get KBTT auto-submit schedule configuration and recent runs
-      tags: *a33
+      tags: *a38
     put:
       operationId: KbttController_updateAutoSubmitConfig
       parameters:
@@ -8357,13 +9140,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: Update KBTT auto-submit schedule configuration
-      tags: *a33
+      tags: *a38
   /hotels/{hotelId}/kbtt/auto-submit/test:
     post:
       operationId: KbttController_testAutoSubmit
@@ -8376,13 +9159,13 @@ paths:
       responses:
         "201":
           description: ""
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: Trigger a test execution of KBTT auto-submit (defaults to dryRun=true)
-      tags: *a33
+      tags: *a38
   /hotels/{hotelId}/kbtt/auto-submit/telegram-test:
     post:
       operationId: KbttController_testTelegram
@@ -8395,13 +9178,13 @@ paths:
       responses:
         "201":
           description: ""
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: Send a Telegram-only KBTT connectivity test; never contacts C06
-      tags: *a33
+      tags: *a38
   /hotels/{hotelId}/kbtt/auto-submit/summary:
     post:
       operationId: KbttController_sendAutoSubmitSummary
@@ -8414,13 +9197,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: Send aggregated batch submission summary to Telegram aggregate channel
-      tags: *a33
+      tags: *a38
   /hotels/{hotelId}/kbtt/declarations/batch-summary:
     post:
       operationId: KbttController_sendDeclarationsBatchSummary
@@ -8433,13 +9216,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: Send aggregated batch submission summary to Telegram aggregate channel
-      tags: *a33
+      tags: *a38
   /hotels/{hotelId}/kbtt/auto-submit/schedule:
     post:
       operationId: KbttController_scheduleAutoSubmit
@@ -8452,13 +9235,13 @@ paths:
       responses:
         "201":
           description: ""
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: Schedule one KBTT auto-submit in 15 seconds
-      tags: *a33
+      tags: *a38
     delete:
       operationId: KbttController_cancelScheduledAutoSubmit
       parameters:
@@ -8470,13 +9253,13 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: Cancel the pending one-shot KBTT auto-submit
-      tags: *a33
+      tags: *a38
   /hotels/{hotelId}/kbtt/dev/reset-declarations:
     post:
       operationId: KbttController_devResetDeclarations
@@ -8489,14 +9272,14 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: "[DEV] Reset all hotel declarations to DRAFT and optionally generate
         new identity numbers"
-      tags: *a33
+      tags: *a38
   /hotels/{hotelId}/kbtt/dev/update-occupants:
     post:
       operationId: KbttController_devUpdateOccupants
@@ -8509,609 +9292,23 @@ paths:
       responses:
         "200":
           description: ""
-        "401": *a28
-        "403": *a29
-        "422": *a30
-        "503": *a31
-      security: *a32
+        "401": *a33
+        "403": *a34
+        "422": *a35
+        "503": *a36
+      security: *a37
       summary: "[DEV] Intervene in DB to update occupant document numbers / details
         and optionally reset to DRAFT"
-      tags: *a33
-  /localmate-admin/guides:
-    post:
-      operationId: LocalMateAdminController_createGuide
-      parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-                - fullName
-                - phone
-                - avatarUrl
-                - languages
-                - operatingRegions
-              properties:
-                guideCode:
-                  type: string
-                  minLength: 2
-                  maxLength: 40
-                fullName:
-                  type: string
-                  minLength: 2
-                  maxLength: 120
-                phone:
-                  type: string
-                  minLength: 8
-                  maxLength: 40
-                email:
-                  type: string
-                  format: email
-                avatarUrl:
-                  type: string
-                  format: uri
-                status:
-                  type: string
-                  enum:
-                    - PENDING
-                    - QUALIFIED
-                    - SUSPENDED
-                position:
-                  type: string
-                  maxLength: 80
-                languages:
-                  type: array
-                  items:
-                    type: string
-                  minItems: 1
-                operatingRegions:
-                  type: array
-                  items:
-                    type: string
-                  minItems: 1
-                specialties:
-                  type: array
-                  items:
-                    type: string
-                bio:
-                  type: string
-                  maxLength: 1000
-                serviceLatitude:
-                  type: number
-                  minimum: -90
-                  maximum: 90
-                  nullable: true
-                serviceLongitude:
-                  type: number
-                  minimum: -180
-                  maximum: 180
-                  nullable: true
-                dailyRateVnd:
-                  type: integer
-                  minimum: 0
-                userId:
-                  type: string
-                tenantId:
-                  type: string
-      responses:
-        "201":
-          description: ""
-      tags: &a34
-        - localmate-admin
+      tags: *a38
+  /api/v1/channel-manager/admin/overview:
     get:
-      operationId: LocalMateAdminController_listGuides
+      operationId: ChannelManagerController_getAdminOverview
       parameters: []
       responses:
         "200":
           description: ""
-      tags: *a34
-  /localmate-admin/guides/{id}:
-    get:
-      operationId: LocalMateAdminController_getGuide
-      parameters:
-        - name: id
-          required: true
-          in: path
-          schema:
-            type: string
-      responses:
-        "200":
-          description: ""
-      tags: *a34
-    patch:
-      operationId: LocalMateAdminController_updateGuide
-      parameters:
-        - name: id
-          required: true
-          in: path
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              properties:
-                guideCode:
-                  type: string
-                  minLength: 2
-                  maxLength: 40
-                fullName:
-                  type: string
-                  minLength: 2
-                  maxLength: 120
-                phone:
-                  type: string
-                  minLength: 8
-                  maxLength: 40
-                email:
-                  type: string
-                  format: email
-                avatarUrl:
-                  type: string
-                  format: uri
-                status:
-                  type: string
-                  enum:
-                    - PENDING
-                    - QUALIFIED
-                    - SUSPENDED
-                position:
-                  type: string
-                  maxLength: 80
-                languages:
-                  type: array
-                  items:
-                    type: string
-                  minItems: 1
-                operatingRegions:
-                  type: array
-                  items:
-                    type: string
-                  minItems: 1
-                specialties:
-                  type: array
-                  items:
-                    type: string
-                bio:
-                  type: string
-                  maxLength: 1000
-                serviceLatitude:
-                  type: number
-                  minimum: -90
-                  maximum: 90
-                  nullable: true
-                serviceLongitude:
-                  type: number
-                  minimum: -180
-                  maximum: 180
-                  nullable: true
-                dailyRateVnd:
-                  type: integer
-                  minimum: 0
-                userId:
-                  type: string
-                tenantId:
-                  type: string
-      responses:
-        "200":
-          description: ""
-      tags: *a34
-  /localmate-admin/guides/{id}/qualification:
-    patch:
-      operationId: LocalMateAdminController_updateQualification
-      parameters:
-        - name: id
-          required: true
-          in: path
-          schema:
-            type: string
-      responses:
-        "200":
-          description: ""
-      tags: *a34
-  /localmate-admin/guides/{id}/telegram-pair:
-    post:
-      operationId: LocalMateAdminController_createTelegramPairingLink
-      parameters:
-        - name: id
-          required: true
-          in: path
-          schema:
-            type: string
-      responses:
-        "201":
-          description: ""
-      tags: *a34
-  /localmate-admin/guides/{id}/telegram-disconnect:
-    post:
-      operationId: LocalMateAdminController_disconnectTelegram
-      parameters:
-        - name: id
-          required: true
-          in: path
-          schema:
-            type: string
-      responses:
-        "201":
-          description: ""
-      tags: *a34
-  /localmate-admin/knowledge/tours:
-    post:
-      operationId: LocalMateAdminController_createTour
-      parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-                - title
-                - duration
-                - content
-              properties:
-                tourCode:
-                  type: string
-                  minLength: 2
-                  maxLength: 80
-                title:
-                  type: string
-                  minLength: 2
-                  maxLength: 255
-                duration:
-                  type: string
-                  minLength: 1
-                  maxLength: 80
-                highlights:
-                  type: array
-                  items:
-                    type: string
-                content:
-                  type: string
-                  minLength: 5
-                sourceFileName:
-                  type: string
-                  maxLength: 255
-                provinceCode:
-                  type: string
-                  maxLength: 40
-                province:
-                  type: string
-                  maxLength: 80
-                tourScope:
-                  type: string
-                  enum:
-                    - LOCAL
-                    - REGIONAL_DAYTRIP
-                    - INTERPROVINCIAL
-                latitude:
-                  type: number
-                  minimum: -90
-                  maximum: 90
-                  nullable: true
-                longitude:
-                  type: number
-                  minimum: -180
-                  maximum: 180
-                  nullable: true
-      responses:
-        "201":
-          description: ""
-      tags: *a34
-    get:
-      operationId: LocalMateAdminController_listTours
-      parameters: []
-      responses:
-        "200":
-          description: ""
-      tags: *a34
-  /localmate-admin/knowledge/tours/{id}:
-    patch:
-      operationId: LocalMateAdminController_updateTour
-      parameters:
-        - name: id
-          required: true
-          in: path
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              properties:
-                tourCode:
-                  type: string
-                  minLength: 2
-                  maxLength: 80
-                title:
-                  type: string
-                  minLength: 2
-                  maxLength: 255
-                duration:
-                  type: string
-                  minLength: 1
-                  maxLength: 80
-                highlights:
-                  type: array
-                  items:
-                    type: string
-                content:
-                  type: string
-                  minLength: 5
-                sourceFileName:
-                  type: string
-                  maxLength: 255
-                provinceCode:
-                  type: string
-                  maxLength: 40
-                province:
-                  type: string
-                  maxLength: 80
-                tourScope:
-                  type: string
-                  enum:
-                    - LOCAL
-                    - REGIONAL_DAYTRIP
-                    - INTERPROVINCIAL
-                latitude:
-                  type: number
-                  minimum: -90
-                  maximum: 90
-                  nullable: true
-                longitude:
-                  type: number
-                  minimum: -180
-                  maximum: 180
-                  nullable: true
-      responses:
-        "200":
-          description: ""
-      tags: *a34
-    delete:
-      operationId: LocalMateAdminController_deleteTour
-      parameters:
-        - name: id
-          required: true
-          in: path
-          schema:
-            type: string
-      responses:
-        "200":
-          description: ""
-      tags: *a34
-  /localmate/knowledge:
-    get:
-      operationId: LocalMateAiController_getKnowledge
-      parameters:
-        - name: limit
-          required: false
-          in: query
-          schema:
-            example: 5
-            type: number
-        - name: scope
-          required: false
-          in: query
-          schema:
-            enum:
-              - LOCAL
-              - REGIONAL_DAYTRIP
-              - INTERPROVINCIAL
-            type: string
-        - name: provinceCode
-          required: false
-          in: query
-          schema:
-            type: string
-        - name: radiusKm
-          required: false
-          in: query
-          schema:
-            example: 50
-            type: number
-        - name: hotelId
-          required: false
-          in: query
-          schema:
-            type: string
-        - name: destination
-          required: false
-          in: query
-          schema:
-            type: string
-        - name: query
-          required: false
-          in: query
-          schema:
-            type: string
-        - name: X-VietSage-Knowledge-Key
-          in: header
-          description: Dedicated API key for machine-to-machine knowledge access
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Structured LocalMate knowledge
-        "401":
-          description: Invalid or missing knowledge API key
-        "429":
-          description: Knowledge request rate limit exceeded
-        "503":
-          description: Knowledge service key unconfigured
-      tags: &a35
-        - localmate
-    post:
-      operationId: LocalMateAiController_queryKnowledge
-      parameters:
-        - name: X-VietSage-Knowledge-Key
-          in: header
-          description: Dedicated API key for machine-to-machine knowledge access
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              properties:
-                query:
-                  type: string
-                destination:
-                  type: string
-                hotelId:
-                  type: string
-                  description: Trusted hotel anchor supplied by the authenticated GuestOS BFF.
-                radiusKm:
-                  type: number
-                  minimum: 1
-                  maximum: 300
-                  default: 50
-                provinceCode:
-                  type: string
-                scope:
-                  type: string
-                  enum:
-                    - LOCAL
-                    - REGIONAL_DAYTRIP
-                    - INTERPROVINCIAL
-                limit:
-                  type: integer
-                  minimum: 1
-                  maximum: 10
-                  default: 5
-      responses:
-        "200":
-          description: Structured LocalMate knowledge
-        "401":
-          description: Invalid or missing knowledge API key
-        "429":
-          description: Knowledge request rate limit exceeded
-        "503":
-          description: Knowledge service key unconfigured
-      tags: *a35
-  /localmate/ai/match:
-    post:
-      operationId: LocalMateAiController_matchLocalMates
-      parameters:
-        - name: X-VietSage-Knowledge-Key
-          in: header
-          description: Dedicated API key for machine-to-machine LocalMate access
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Rule-based LocalMate matching result
-        "401":
-          description: Invalid or missing knowledge API key
-        "429":
-          description: Knowledge request rate limit exceeded
-      tags: *a35
-  /localmate/guides/{guideCode}:
-    get:
-      operationId: LocalMateAiController_getGuideByCode
-      parameters:
-        - name: guideCode
-          required: true
-          in: path
-          schema:
-            type: string
-      responses:
-        "200":
-          description: ""
-      tags: *a35
-  /localmate/tours:
-    get:
-      operationId: LocalMateAiController_listTours
-      parameters:
-        - name: destination
-          required: true
-          in: query
-          schema:
-            type: string
-        - name: X-VietSage-Knowledge-Key
-          in: header
-          description: Dedicated API key for machine-to-machine knowledge access
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: LocalMate tour knowledge
-        "401":
-          description: Invalid or missing knowledge API key
-        "429":
-          description: Knowledge request rate limit exceeded
-        "503":
-          description: Knowledge service key unconfigured
-      tags: *a35
-  /localmate/booking-candidate/{candidateKey}:
-    get:
-      operationId: LocalMateAiController_resolveBookingCandidate
-      parameters:
-        - name: candidateKey
-          required: true
-          in: path
-          schema:
-            type: string
-        - name: hotelId
-          required: true
-          in: query
-          schema:
-            type: string
-        - name: X-VietSage-Knowledge-Key
-          in: header
-          description: Dedicated API key for machine-to-machine knowledge access
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Resolved LocalMate booking candidate
-        "400":
-          description: Validation failed or region mismatch
-        "404":
-          description: Guide or service not found
-      tags: *a35
-  /localmate/telegram/pair:
-    post:
-      operationId: LocalMateTelegramController_createPairingLink
-      parameters: []
-      responses:
-        "201":
-          description: ""
-      tags: &a36
-        - localmate-telegram
-  /localmate/telegram/disconnect:
-    post:
-      operationId: LocalMateTelegramController_disconnect
-      parameters: []
-      responses:
-        "201":
-          description: ""
-      tags: *a36
-  /localmate/telegram/status:
-    get:
-      operationId: LocalMateTelegramController_getStatus
-      parameters: []
-      responses:
-        "200":
-          description: ""
-      tags: *a36
+      tags: &a39
+        - channel-manager
   /api/v1/channel-manager/hotels/{hotelId}/connections:
     get:
       operationId: ChannelManagerController_getConnections
@@ -9124,8 +9321,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a37
-        - channel-manager
+      tags: *a39
     post:
       operationId: ChannelManagerController_createConnection
       parameters:
@@ -9137,7 +9333,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/connections/{id}:
     delete:
       operationId: ChannelManagerController_deleteConnection
@@ -9155,7 +9351,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/inventory:
     get:
       operationId: ChannelManagerController_getInventory
@@ -9168,7 +9364,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/inventory/restrictions:
     post:
       operationId: ChannelManagerController_updateRestrictions
@@ -9181,7 +9377,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/inventory/availability:
     post:
       operationId: ChannelManagerController_updateAvailability
@@ -9194,7 +9390,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/inventory/bulk-update:
     post:
       operationId: ChannelManagerController_bulkUpdate
@@ -9207,7 +9403,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/ical/{token}.ics:
     get:
       operationId: ChannelManagerController_getIcalFeed[0]
@@ -9220,7 +9416,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/ical/{token}:
     get:
       operationId: ChannelManagerController_getIcalFeed[1]
@@ -9233,7 +9429,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/connections/{id}/sync-now:
     post:
       operationId: ChannelManagerController_syncNow
@@ -9251,7 +9447,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/channex/sync-content:
     post:
       operationId: ChannelManagerController_syncChannexContent
@@ -9264,7 +9460,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/channex/push-ari:
     post:
       operationId: ChannelManagerController_pushChannexAri
@@ -9277,7 +9473,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/channex/poll-feed:
     post:
       operationId: ChannelManagerController_pollChannexFeed
@@ -9290,7 +9486,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/channex/webhook:
     post:
       operationId: ChannelManagerController_channexWebhook
@@ -9304,7 +9500,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/channex/recover:
     post:
       operationId: ChannelManagerController_recoverChannexBookings
@@ -9317,7 +9513,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/channex/pending-modifications:
     get:
       operationId: ChannelManagerController_getPendingChannexModifications
@@ -9330,7 +9526,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/channex/pending-modifications/{logId}/resolve:
     post:
       operationId: ChannelManagerController_resolveChannexModification
@@ -9348,7 +9544,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/channex/doctor:
     get:
       operationId: ChannelManagerController_runChannexDoctor
@@ -9361,7 +9557,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/channex/mappings:
     get:
       operationId: ChannelManagerController_getChannexMappings
@@ -9374,7 +9570,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/channex/channels:
     get:
       operationId: ChannelManagerController_getChannexChannels
@@ -9387,7 +9583,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a37
+      tags: *a39
     post:
       operationId: ChannelManagerController_createChannexChannel
       parameters:
@@ -9399,7 +9595,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/channex/channels/prepare:
     post:
       operationId: ChannelManagerController_prepareChannexChannel
@@ -9412,7 +9608,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/channex/channels/{channelId}/activate:
     post:
       operationId: ChannelManagerController_activateChannexChannel
@@ -9430,7 +9626,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/channex/channels/{channelId}/deactivate:
     post:
       operationId: ChannelManagerController_deactivateChannexChannel
@@ -9448,7 +9644,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/channex/channels/{channelId}:
     get:
       operationId: ChannelManagerController_getChannexChannel
@@ -9466,7 +9662,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a37
+      tags: *a39
     put:
       operationId: ChannelManagerController_updateChannexChannel
       parameters:
@@ -9483,7 +9679,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a37
+      tags: *a39
     delete:
       operationId: ChannelManagerController_deleteChannexChannel
       parameters:
@@ -9500,7 +9696,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/channex/channels/{channelId}/sync:
     post:
       operationId: ChannelManagerController_syncChannexChannel
@@ -9518,7 +9714,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/channex/channel-session:
     post:
       operationId: ChannelManagerController_createChannexChannelSession
@@ -9531,7 +9727,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/channex/simulate-booking:
     post:
       operationId: ChannelManagerController_simulateBooking
@@ -9544,7 +9740,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/channex/simulate-booking/cancel:
     post:
       operationId: ChannelManagerController_cancelSimulatedBooking
@@ -9557,7 +9753,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/channex/simulated-bookings:
     get:
       operationId: ChannelManagerController_getSimulatedBookings
@@ -9570,7 +9766,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a37
+      tags: *a39
   /api/v1/channel-manager/hotels/{hotelId}/channex/config:
     get:
       operationId: ChannelManagerController_getChannexConfig
@@ -9583,7 +9779,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a37
+      tags: *a39
     post:
       operationId: ChannelManagerController_configureChannexProperty
       parameters:
@@ -9595,7 +9791,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a37
+      tags: *a39
 info:
   title: VietSage Auth Service API
   description: HTTP API contract for auth, rbac, and hotel-users modules

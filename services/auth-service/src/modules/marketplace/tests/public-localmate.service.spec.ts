@@ -191,6 +191,15 @@ describe("PublicLocalMateService", () => {
       // Retains existing session ID and token capability
       expect(result.sessionId).toBe("pub-session-active");
       expect(result.token).toBe(previousToken);
+      expect(prisma.publicLocalMateSession.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "pub-session-active" },
+          data: expect.objectContaining({
+            location: "Đà Nẵng",
+            guestDisplayName: "Nguyễn Văn A Updated",
+          }),
+        }),
+      );
     });
 
     it("atomically revokes previous session and creates a fresh session if previous session has only terminal orders", async () => {
@@ -400,6 +409,28 @@ describe("PublicLocalMateService", () => {
       expect(result.proposals[0].proposalKey).toBe(proposalKey);
       expect(result.actions[0].type).toBe("SELECT_PROPOSAL");
       expect(result.actions[0].proposalKey).toBe(proposalKey);
+    });
+
+    it("uses input location override over stale session location when listing proposals", async () => {
+      const token = "b".repeat(45);
+      prisma.publicLocalMateSession.findUnique.mockResolvedValue({
+        id: "pub-session-123",
+        location: "Hội An",
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 100_000),
+      });
+
+      await service.listProposals(token, {
+        query: "Hà Nội 1 ngày",
+        tourCodes: [proposal.tourCode],
+        location: "Hà Nội",
+      });
+
+      expect(localMate.getKnowledge).toHaveBeenCalledWith(
+        expect.objectContaining({
+          destination: "Hà Nội",
+        }),
+      );
     });
   });
 

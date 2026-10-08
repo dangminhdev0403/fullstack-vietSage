@@ -31,7 +31,7 @@ for (const roleScope of ["admin", "owner"]) {
   const updates = [];
   const errors = [];
   const BulkUpdateModal = () => null;
-  const module = { exports: {} };
+  const testModule = { exports: {} };
   const hooks = {
     useInventoryGrid: (options) => {
       query = options;
@@ -69,8 +69,8 @@ for (const roleScope of ["admin", "owner"]) {
     "@/app/(vietsage)/_components/vs-icon": { VsIcon: () => null },
     sonner: { toast: { success: () => {}, error: (message) => errors.push(message) } },
   };
-  runInNewContext(compiled.outputText, { exports: module.exports, module, Error, require: (name) => name in imports ? imports[name] : require(name) });
-  const render = () => { stateIndex = 0; return module.exports.InventoryGrid({ hotelId: "hotel-test", roleScope }); };
+  runInNewContext(compiled.outputText, { exports: testModule.exports, module: testModule, Error, require: (name) => name in imports ? imports[name] : require(name) });
+  const render = () => { stateIndex = 0; return testModule.exports.InventoryGrid({ hotelId: "hotel-test", roleScope, canManage: true }); };
   const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes) : React.isValidElement(tree) ? [tree, ...nodes(tree.props.children)] : [];
   const text = (tree) => Array.isArray(tree) ? tree.map(text).join("") : React.isValidElement(tree) ? text(tree.props.children) : tree == null ? "" : String(tree);
   const button = (tree, label) => nodes(tree).find((node) => node.type === "button" && text(node) === label);

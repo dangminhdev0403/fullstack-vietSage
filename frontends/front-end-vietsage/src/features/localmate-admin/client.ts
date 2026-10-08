@@ -6,13 +6,17 @@ import type {
   CreatedLocalMateGuide,
   CreateLocalMateTourInput,
   LocalMateGuide,
+  LocalMateOrder,
   LocalMateStatus,
   LocalMateTourKnowledge,
   MatchAiResponse,
   MatchLocalMateAiInput,
   UpdateLocalMateGuideInput,
   UpdateLocalMateTourInput,
+  LocalMatePricingConfig,
+  UpdateLocalMatePricingConfigInput,
 } from "./types";
+
 
 const http = new HttpClient({ baseUrl: getBackendApiBaseUrl() });
 
@@ -109,4 +113,19 @@ export const localMateAdminClient = {
       "/localmate/ai/match",
       dto,
     ),
+
+  listGuideOrders: (token: string, guideId: string) =>
+    call<LocalMateOrder[]>(token, "GET", `/localmate-admin/guides/${guideId}/orders`),
+
+  getPricingConfig: (token: string) =>
+    call<LocalMatePricingConfig>(token, "GET", "/localmate-admin/pricing-config"),
+
+  updatePricingConfig: (token: string, localMatePlatformFeeRate: number) =>
+    call<LocalMatePricingConfig, UpdateLocalMatePricingConfigInput>(
+      token,
+      "PATCH",
+      "/localmate-admin/pricing-config",
+      { localMatePlatformFeeRate },
+    ),
 };
+

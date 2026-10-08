@@ -353,6 +353,7 @@ function iconGlyph(name: string): ReactNode {
         </>
       );
 
+    case "groups":
     case "group":
       return (
         <>
@@ -360,6 +361,60 @@ function iconGlyph(name: string): ReactNode {
           <circle cx="16" cy="8" r="2" />
           <path d="M4 19a5 5 0 0 1 10 0" />
           <path d="M13 19a4 4 0 0 1 7 0" />
+        </>
+      );
+
+    case "shield":
+    case "security":
+      return <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />;
+
+    case "lock":
+      return (
+        <>
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </>
+      );
+
+    case "lock_open":
+      return (
+        <>
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+        </>
+      );
+
+    case "workspace_premium":
+    case "military_tech":
+    case "medal":
+      return (
+        <>
+          <circle cx="12" cy="8" r="6" />
+          <path d="m15.5 13.5 2.5 8.5-6-3.5-6 3.5 2.5-8.5" />
+        </>
+      );
+
+    case "grid_view":
+    case "view_module":
+      return (
+        <>
+          <rect x="3" y="3" width="7" height="7" rx="1.5" />
+          <rect x="14" y="3" width="7" height="7" rx="1.5" />
+          <rect x="14" y="14" width="7" height="7" rx="1.5" />
+          <rect x="3" y="14" width="7" height="7" rx="1.5" />
+        </>
+      );
+
+    case "view_list":
+    case "list":
+      return (
+        <>
+          <line x1="8" y1="6" x2="21" y2="6" />
+          <line x1="8" y1="12" x2="21" y2="12" />
+          <line x1="8" y1="18" x2="21" y2="18" />
+          <line x1="3" y1="6" x2="3.01" y2="6" />
+          <line x1="3" y1="12" x2="3.01" y2="12" />
+          <line x1="3" y1="18" x2="3.01" y2="18" />
         </>
       );
 

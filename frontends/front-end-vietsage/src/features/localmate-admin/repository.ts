@@ -5,17 +5,28 @@ import type {
   CreateLocalMateTourInput,
   LocalMateAdminData,
   LocalMateGuide,
+  LocalMateOrder,
   LocalMateStatus,
   LocalMateTourKnowledge,
   MatchAiResponse,
   MatchLocalMateAiInput,
   UpdateLocalMateGuideInput,
   UpdateLocalMateTourInput,
+  LocalMatePricingConfig,
 } from "./types";
 
 export const localMateAdminRepository = {
   data: async () =>
     (await requestInternalApiEnvelope<LocalMateAdminData>("/api/admin/localmate", { method: "GET" })).data,
+
+  guideOrders: async (guideId: string) =>
+    (
+      await requestInternalApiEnvelope<LocalMateOrder[]>(
+        `/api/admin/localmate?guideId=${encodeURIComponent(guideId)}`,
+        { method: "GET" },
+      )
+    ).data,
+
 
   createGuide: async (input: CreateLocalMateGuideInput) =>
     (
@@ -93,6 +104,22 @@ export const localMateAdminRepository = {
       await requestInternalApiEnvelope<MatchAiResponse>("/api/admin/localmate", {
         method: "POST",
         body: { action: "matchAi", input },
+      })
+    ).data,
+
+  pricingConfig: async () =>
+    (
+      await requestInternalApiEnvelope<LocalMatePricingConfig>(
+        "/api/admin/localmate?action=pricingConfig",
+        { method: "GET" },
+      )
+    ).data,
+
+  updatePricingConfig: async (localMatePlatformFeeRate: number) =>
+    (
+      await requestInternalApiEnvelope<LocalMatePricingConfig>("/api/admin/localmate", {
+        method: "POST",
+        body: { action: "updatePricingConfig", localMatePlatformFeeRate },
       })
     ).data,
 };

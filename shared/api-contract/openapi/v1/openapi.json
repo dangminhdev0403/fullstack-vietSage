@@ -4478,7 +4478,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 80,
-                    "default": "Asia/Saigon"
+                    "default": "Asia/Ho_Chi_Minh"
                   },
                   "brandSettings": {
                     "type": "object",
@@ -9822,6 +9822,34 @@
         ]
       }
     },
+    "/webhooks/stripe": {
+      "post": {
+        "operationId": "StripeWebhookController_handleWebhook[0]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "StripeWebhook"
+        ]
+      }
+    },
+    "/payments/webhook/stripe": {
+      "post": {
+        "operationId": "StripeWebhookController_handleWebhook[1]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "StripeWebhook"
+        ]
+      }
+    },
     "/emergency/guest/calls": {
       "post": {
         "operationId": "EmergencyController_createGuestEmergencyCall",
@@ -11325,6 +11353,29 @@
         ]
       }
     },
+    "/guest/marketplace/orders/{orderId}/payment-session": {
+      "post": {
+        "operationId": "GuestMarketplaceController_paymentSession",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GuestMarketplace"
+        ]
+      }
+    },
     "/guest/marketplace/orders/{orderId}/cancel": {
       "patch": {
         "operationId": "GuestMarketplaceController_cancelOrder",
@@ -11721,6 +11772,1182 @@
         },
         "tags": [
           "GuestMarketplaceConversation"
+        ]
+      }
+    },
+    "/public/localmate/sessions": {
+      "post": {
+        "operationId": "PublicLocalMateController_createSession",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublicLocalMate"
+        ]
+      }
+    },
+    "/public/localmate/session/active": {
+      "get": {
+        "operationId": "PublicLocalMateController_getActiveSession",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublicLocalMate"
+        ]
+      }
+    },
+    "/public/localmate/proposals": {
+      "post": {
+        "operationId": "PublicLocalMateController_listProposals",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublicLocalMate"
+        ]
+      }
+    },
+    "/public/localmate/proposals/{proposalKey}/select": {
+      "post": {
+        "operationId": "PublicLocalMateController_selectProposal",
+        "parameters": [
+          {
+            "name": "proposalKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublicLocalMate"
+        ]
+      }
+    },
+    "/public/localmate/orders": {
+      "post": {
+        "operationId": "PublicLocalMateController_createOrder",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublicLocalMate"
+        ]
+      }
+    },
+    "/public/localmate/candidates/{candidateKey}": {
+      "get": {
+        "operationId": "PublicLocalMateController_getCandidate",
+        "parameters": [
+          {
+            "name": "candidateKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "proposalKey",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublicLocalMate"
+        ]
+      }
+    },
+    "/public/localmate/orders/{orderId}": {
+      "get": {
+        "operationId": "PublicLocalMateController_getOrder",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublicLocalMate"
+        ]
+      }
+    },
+    "/public/localmate/orders/{orderId}/payment-session": {
+      "post": {
+        "operationId": "PublicLocalMateController_createPaymentSession",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublicLocalMate"
+        ]
+      }
+    },
+    "/public/localmate/orders/{orderId}/conversation": {
+      "get": {
+        "operationId": "PublicLocalMateController_getConversation",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublicLocalMate"
+        ]
+      }
+    },
+    "/public/localmate/orders/{orderId}/conversation/messages": {
+      "post": {
+        "operationId": "PublicLocalMateController_sendMessage",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublicLocalMate"
+        ]
+      }
+    },
+    "/localmate-admin/guides": {
+      "post": {
+        "operationId": "LocalMateAdminController_createGuide",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "fullName",
+                  "phone",
+                  "avatarUrl",
+                  "languages",
+                  "operatingRegions"
+                ],
+                "properties": {
+                  "guideCode": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 40
+                  },
+                  "fullName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "phone": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 40
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "avatarUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "PENDING",
+                      "QUALIFIED",
+                      "SUSPENDED"
+                    ]
+                  },
+                  "position": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "languages": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1
+                  },
+                  "operatingRegions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1
+                  },
+                  "specialties": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "bio": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "serviceLatitude": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90,
+                    "nullable": true
+                  },
+                  "serviceLongitude": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180,
+                    "nullable": true
+                  },
+                  "dailyRateVnd": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "userId": {
+                    "type": "string"
+                  },
+                  "tenantId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      },
+      "get": {
+        "operationId": "LocalMateAdminController_listGuides",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      }
+    },
+    "/localmate-admin/guides/{id}": {
+      "get": {
+        "operationId": "LocalMateAdminController_getGuide",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      },
+      "patch": {
+        "operationId": "LocalMateAdminController_updateGuide",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "guideCode": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 40
+                  },
+                  "fullName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "phone": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 40
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "avatarUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "PENDING",
+                      "QUALIFIED",
+                      "SUSPENDED"
+                    ]
+                  },
+                  "position": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "languages": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1
+                  },
+                  "operatingRegions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1
+                  },
+                  "specialties": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "bio": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "serviceLatitude": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90,
+                    "nullable": true
+                  },
+                  "serviceLongitude": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180,
+                    "nullable": true
+                  },
+                  "dailyRateVnd": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "userId": {
+                    "type": "string"
+                  },
+                  "tenantId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      }
+    },
+    "/localmate-admin/guides/{id}/orders": {
+      "get": {
+        "operationId": "LocalMateAdminController_listGuideOrders",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      }
+    },
+    "/localmate-admin/guides/{id}/qualification": {
+      "patch": {
+        "operationId": "LocalMateAdminController_updateQualification",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      }
+    },
+    "/localmate-admin/guides/{id}/telegram-pair": {
+      "post": {
+        "operationId": "LocalMateAdminController_createTelegramPairingLink",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      }
+    },
+    "/localmate-admin/guides/{id}/telegram-disconnect": {
+      "post": {
+        "operationId": "LocalMateAdminController_disconnectTelegram",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      }
+    },
+    "/localmate-admin/knowledge/tours": {
+      "post": {
+        "operationId": "LocalMateAdminController_createTour",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "title",
+                  "duration",
+                  "content"
+                ],
+                "properties": {
+                  "tourCode": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 255
+                  },
+                  "duration": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "highlights": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "content": {
+                    "type": "string",
+                    "minLength": 5
+                  },
+                  "sourceFileName": {
+                    "type": "string",
+                    "maxLength": 255
+                  },
+                  "provinceCode": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "province": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "tourScope": {
+                    "type": "string",
+                    "enum": [
+                      "LOCAL",
+                      "REGIONAL_DAYTRIP",
+                      "INTERPROVINCIAL"
+                    ]
+                  },
+                  "latitude": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90,
+                    "nullable": true
+                  },
+                  "longitude": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180,
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      },
+      "get": {
+        "operationId": "LocalMateAdminController_listTours",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      }
+    },
+    "/localmate-admin/knowledge/tours/{id}": {
+      "patch": {
+        "operationId": "LocalMateAdminController_updateTour",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "tourCode": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 255
+                  },
+                  "duration": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "highlights": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "content": {
+                    "type": "string",
+                    "minLength": 5
+                  },
+                  "sourceFileName": {
+                    "type": "string",
+                    "maxLength": 255
+                  },
+                  "provinceCode": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "province": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "tourScope": {
+                    "type": "string",
+                    "enum": [
+                      "LOCAL",
+                      "REGIONAL_DAYTRIP",
+                      "INTERPROVINCIAL"
+                    ]
+                  },
+                  "latitude": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90,
+                    "nullable": true
+                  },
+                  "longitude": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180,
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      },
+      "delete": {
+        "operationId": "LocalMateAdminController_deleteTour",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      }
+    },
+    "/localmate-admin/pricing-config": {
+      "get": {
+        "operationId": "LocalMateAdminController_getPricingConfig",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      },
+      "patch": {
+        "operationId": "LocalMateAdminController_updatePricingConfig",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "localMatePlatformFeeRate"
+                ],
+                "properties": {
+                  "localMatePlatformFeeRate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "Tỷ lệ phí nền tảng LocalMate thu (%)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-admin"
+        ]
+      }
+    },
+    "/localmate/knowledge": {
+      "get": {
+        "operationId": "LocalMateAiController_getKnowledge",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 5,
+              "type": "number"
+            }
+          },
+          {
+            "name": "scope",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "LOCAL",
+                "REGIONAL_DAYTRIP",
+                "INTERPROVINCIAL"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "provinceCode",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "radiusKm",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 50,
+              "type": "number"
+            }
+          },
+          {
+            "name": "hotelId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "destination",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "query",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-VietSage-Knowledge-Key",
+            "in": "header",
+            "description": "Dedicated API key for machine-to-machine knowledge access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Structured LocalMate knowledge"
+          },
+          "401": {
+            "description": "Invalid or missing knowledge API key"
+          },
+          "429": {
+            "description": "Knowledge request rate limit exceeded"
+          },
+          "503": {
+            "description": "Knowledge service key unconfigured"
+          }
+        },
+        "tags": [
+          "localmate"
+        ]
+      },
+      "post": {
+        "operationId": "LocalMateAiController_queryKnowledge",
+        "parameters": [
+          {
+            "name": "X-VietSage-Knowledge-Key",
+            "in": "header",
+            "description": "Dedicated API key for machine-to-machine knowledge access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "type": "string"
+                  },
+                  "destination": {
+                    "type": "string"
+                  },
+                  "hotelId": {
+                    "type": "string",
+                    "description": "Trusted hotel anchor supplied by the authenticated GuestOS BFF."
+                  },
+                  "radiusKm": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 300,
+                    "default": 50
+                  },
+                  "provinceCode": {
+                    "type": "string"
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "LOCAL",
+                      "REGIONAL_DAYTRIP",
+                      "INTERPROVINCIAL"
+                    ]
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10,
+                    "default": 5
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Structured LocalMate knowledge"
+          },
+          "401": {
+            "description": "Invalid or missing knowledge API key"
+          },
+          "429": {
+            "description": "Knowledge request rate limit exceeded"
+          },
+          "503": {
+            "description": "Knowledge service key unconfigured"
+          }
+        },
+        "tags": [
+          "localmate"
+        ]
+      }
+    },
+    "/localmate/ai/match": {
+      "post": {
+        "operationId": "LocalMateAiController_matchLocalMates",
+        "parameters": [
+          {
+            "name": "X-VietSage-Knowledge-Key",
+            "in": "header",
+            "description": "Dedicated API key for machine-to-machine LocalMate access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rule-based LocalMate matching result"
+          },
+          "401": {
+            "description": "Invalid or missing knowledge API key"
+          },
+          "429": {
+            "description": "Knowledge request rate limit exceeded"
+          }
+        },
+        "tags": [
+          "localmate"
+        ]
+      }
+    },
+    "/localmate/guides/{guideCode}": {
+      "get": {
+        "operationId": "LocalMateAiController_getGuideByCode",
+        "parameters": [
+          {
+            "name": "guideCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate"
+        ]
+      }
+    },
+    "/localmate/tours": {
+      "get": {
+        "operationId": "LocalMateAiController_listTours",
+        "parameters": [
+          {
+            "name": "destination",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-VietSage-Knowledge-Key",
+            "in": "header",
+            "description": "Dedicated API key for machine-to-machine knowledge access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "LocalMate tour knowledge"
+          },
+          "401": {
+            "description": "Invalid or missing knowledge API key"
+          },
+          "429": {
+            "description": "Knowledge request rate limit exceeded"
+          },
+          "503": {
+            "description": "Knowledge service key unconfigured"
+          }
+        },
+        "tags": [
+          "localmate"
+        ]
+      }
+    },
+    "/localmate/booking-candidate/{candidateKey}": {
+      "get": {
+        "operationId": "LocalMateAiController_resolveBookingCandidate",
+        "parameters": [
+          {
+            "name": "candidateKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-VietSage-Knowledge-Key",
+            "in": "header",
+            "description": "Dedicated API key for machine-to-machine knowledge access",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resolved LocalMate booking candidate"
+          },
+          "400": {
+            "description": "Validation failed or region mismatch"
+          },
+          "404": {
+            "description": "Guide or service not found"
+          }
+        },
+        "tags": [
+          "localmate"
+        ]
+      }
+    },
+    "/localmate/telegram/pair": {
+      "post": {
+        "operationId": "LocalMateTelegramController_createPairingLink",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-telegram"
+        ]
+      }
+    },
+    "/localmate/telegram/disconnect": {
+      "post": {
+        "operationId": "LocalMateTelegramController_disconnect",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-telegram"
+        ]
+      }
+    },
+    "/localmate/telegram/status": {
+      "get": {
+        "operationId": "LocalMateTelegramController_getStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "localmate-telegram"
         ]
       }
     },
@@ -13039,122 +14266,9 @@
         ]
       }
     },
-    "/localmate-admin/guides": {
-      "post": {
-        "operationId": "LocalMateAdminController_createGuide",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "fullName",
-                  "phone",
-                  "avatarUrl",
-                  "languages",
-                  "operatingRegions"
-                ],
-                "properties": {
-                  "guideCode": {
-                    "type": "string",
-                    "minLength": 2,
-                    "maxLength": 40
-                  },
-                  "fullName": {
-                    "type": "string",
-                    "minLength": 2,
-                    "maxLength": 120
-                  },
-                  "phone": {
-                    "type": "string",
-                    "minLength": 8,
-                    "maxLength": 40
-                  },
-                  "email": {
-                    "type": "string",
-                    "format": "email"
-                  },
-                  "avatarUrl": {
-                    "type": "string",
-                    "format": "uri"
-                  },
-                  "status": {
-                    "type": "string",
-                    "enum": [
-                      "PENDING",
-                      "QUALIFIED",
-                      "SUSPENDED"
-                    ]
-                  },
-                  "position": {
-                    "type": "string",
-                    "maxLength": 80
-                  },
-                  "languages": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "minItems": 1
-                  },
-                  "operatingRegions": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "minItems": 1
-                  },
-                  "specialties": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "bio": {
-                    "type": "string",
-                    "maxLength": 1000
-                  },
-                  "serviceLatitude": {
-                    "type": "number",
-                    "minimum": -90,
-                    "maximum": 90,
-                    "nullable": true
-                  },
-                  "serviceLongitude": {
-                    "type": "number",
-                    "minimum": -180,
-                    "maximum": 180,
-                    "nullable": true
-                  },
-                  "dailyRateVnd": {
-                    "type": "integer",
-                    "minimum": 0
-                  },
-                  "userId": {
-                    "type": "string"
-                  },
-                  "tenantId": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "localmate-admin"
-        ]
-      },
+    "/api/v1/channel-manager/admin/overview": {
       "get": {
-        "operationId": "LocalMateAdminController_listGuides",
+        "operationId": "ChannelManagerController_getAdminOverview",
         "parameters": [],
         "responses": {
           "200": {
@@ -13162,784 +14276,7 @@
           }
         },
         "tags": [
-          "localmate-admin"
-        ]
-      }
-    },
-    "/localmate-admin/guides/{id}": {
-      "get": {
-        "operationId": "LocalMateAdminController_getGuide",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "localmate-admin"
-        ]
-      },
-      "patch": {
-        "operationId": "LocalMateAdminController_updateGuide",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                  "guideCode": {
-                    "type": "string",
-                    "minLength": 2,
-                    "maxLength": 40
-                  },
-                  "fullName": {
-                    "type": "string",
-                    "minLength": 2,
-                    "maxLength": 120
-                  },
-                  "phone": {
-                    "type": "string",
-                    "minLength": 8,
-                    "maxLength": 40
-                  },
-                  "email": {
-                    "type": "string",
-                    "format": "email"
-                  },
-                  "avatarUrl": {
-                    "type": "string",
-                    "format": "uri"
-                  },
-                  "status": {
-                    "type": "string",
-                    "enum": [
-                      "PENDING",
-                      "QUALIFIED",
-                      "SUSPENDED"
-                    ]
-                  },
-                  "position": {
-                    "type": "string",
-                    "maxLength": 80
-                  },
-                  "languages": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "minItems": 1
-                  },
-                  "operatingRegions": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "minItems": 1
-                  },
-                  "specialties": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "bio": {
-                    "type": "string",
-                    "maxLength": 1000
-                  },
-                  "serviceLatitude": {
-                    "type": "number",
-                    "minimum": -90,
-                    "maximum": 90,
-                    "nullable": true
-                  },
-                  "serviceLongitude": {
-                    "type": "number",
-                    "minimum": -180,
-                    "maximum": 180,
-                    "nullable": true
-                  },
-                  "dailyRateVnd": {
-                    "type": "integer",
-                    "minimum": 0
-                  },
-                  "userId": {
-                    "type": "string"
-                  },
-                  "tenantId": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "localmate-admin"
-        ]
-      }
-    },
-    "/localmate-admin/guides/{id}/qualification": {
-      "patch": {
-        "operationId": "LocalMateAdminController_updateQualification",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "localmate-admin"
-        ]
-      }
-    },
-    "/localmate-admin/guides/{id}/telegram-pair": {
-      "post": {
-        "operationId": "LocalMateAdminController_createTelegramPairingLink",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "localmate-admin"
-        ]
-      }
-    },
-    "/localmate-admin/guides/{id}/telegram-disconnect": {
-      "post": {
-        "operationId": "LocalMateAdminController_disconnectTelegram",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "localmate-admin"
-        ]
-      }
-    },
-    "/localmate-admin/knowledge/tours": {
-      "post": {
-        "operationId": "LocalMateAdminController_createTour",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "title",
-                  "duration",
-                  "content"
-                ],
-                "properties": {
-                  "tourCode": {
-                    "type": "string",
-                    "minLength": 2,
-                    "maxLength": 80
-                  },
-                  "title": {
-                    "type": "string",
-                    "minLength": 2,
-                    "maxLength": 255
-                  },
-                  "duration": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 80
-                  },
-                  "highlights": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "content": {
-                    "type": "string",
-                    "minLength": 5
-                  },
-                  "sourceFileName": {
-                    "type": "string",
-                    "maxLength": 255
-                  },
-                  "provinceCode": {
-                    "type": "string",
-                    "maxLength": 40
-                  },
-                  "province": {
-                    "type": "string",
-                    "maxLength": 80
-                  },
-                  "tourScope": {
-                    "type": "string",
-                    "enum": [
-                      "LOCAL",
-                      "REGIONAL_DAYTRIP",
-                      "INTERPROVINCIAL"
-                    ]
-                  },
-                  "latitude": {
-                    "type": "number",
-                    "minimum": -90,
-                    "maximum": 90,
-                    "nullable": true
-                  },
-                  "longitude": {
-                    "type": "number",
-                    "minimum": -180,
-                    "maximum": 180,
-                    "nullable": true
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "localmate-admin"
-        ]
-      },
-      "get": {
-        "operationId": "LocalMateAdminController_listTours",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "localmate-admin"
-        ]
-      }
-    },
-    "/localmate-admin/knowledge/tours/{id}": {
-      "patch": {
-        "operationId": "LocalMateAdminController_updateTour",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                  "tourCode": {
-                    "type": "string",
-                    "minLength": 2,
-                    "maxLength": 80
-                  },
-                  "title": {
-                    "type": "string",
-                    "minLength": 2,
-                    "maxLength": 255
-                  },
-                  "duration": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 80
-                  },
-                  "highlights": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "content": {
-                    "type": "string",
-                    "minLength": 5
-                  },
-                  "sourceFileName": {
-                    "type": "string",
-                    "maxLength": 255
-                  },
-                  "provinceCode": {
-                    "type": "string",
-                    "maxLength": 40
-                  },
-                  "province": {
-                    "type": "string",
-                    "maxLength": 80
-                  },
-                  "tourScope": {
-                    "type": "string",
-                    "enum": [
-                      "LOCAL",
-                      "REGIONAL_DAYTRIP",
-                      "INTERPROVINCIAL"
-                    ]
-                  },
-                  "latitude": {
-                    "type": "number",
-                    "minimum": -90,
-                    "maximum": 90,
-                    "nullable": true
-                  },
-                  "longitude": {
-                    "type": "number",
-                    "minimum": -180,
-                    "maximum": 180,
-                    "nullable": true
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "localmate-admin"
-        ]
-      },
-      "delete": {
-        "operationId": "LocalMateAdminController_deleteTour",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "localmate-admin"
-        ]
-      }
-    },
-    "/localmate/knowledge": {
-      "get": {
-        "operationId": "LocalMateAiController_getKnowledge",
-        "parameters": [
-          {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "example": 5,
-              "type": "number"
-            }
-          },
-          {
-            "name": "scope",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "enum": [
-                "LOCAL",
-                "REGIONAL_DAYTRIP",
-                "INTERPROVINCIAL"
-              ],
-              "type": "string"
-            }
-          },
-          {
-            "name": "provinceCode",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "radiusKm",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "example": 50,
-              "type": "number"
-            }
-          },
-          {
-            "name": "hotelId",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "destination",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "query",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-VietSage-Knowledge-Key",
-            "in": "header",
-            "description": "Dedicated API key for machine-to-machine knowledge access",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Structured LocalMate knowledge"
-          },
-          "401": {
-            "description": "Invalid or missing knowledge API key"
-          },
-          "429": {
-            "description": "Knowledge request rate limit exceeded"
-          },
-          "503": {
-            "description": "Knowledge service key unconfigured"
-          }
-        },
-        "tags": [
-          "localmate"
-        ]
-      },
-      "post": {
-        "operationId": "LocalMateAiController_queryKnowledge",
-        "parameters": [
-          {
-            "name": "X-VietSage-Knowledge-Key",
-            "in": "header",
-            "description": "Dedicated API key for machine-to-machine knowledge access",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                  "query": {
-                    "type": "string"
-                  },
-                  "destination": {
-                    "type": "string"
-                  },
-                  "hotelId": {
-                    "type": "string",
-                    "description": "Trusted hotel anchor supplied by the authenticated GuestOS BFF."
-                  },
-                  "radiusKm": {
-                    "type": "number",
-                    "minimum": 1,
-                    "maximum": 300,
-                    "default": 50
-                  },
-                  "provinceCode": {
-                    "type": "string"
-                  },
-                  "scope": {
-                    "type": "string",
-                    "enum": [
-                      "LOCAL",
-                      "REGIONAL_DAYTRIP",
-                      "INTERPROVINCIAL"
-                    ]
-                  },
-                  "limit": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 10,
-                    "default": 5
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Structured LocalMate knowledge"
-          },
-          "401": {
-            "description": "Invalid or missing knowledge API key"
-          },
-          "429": {
-            "description": "Knowledge request rate limit exceeded"
-          },
-          "503": {
-            "description": "Knowledge service key unconfigured"
-          }
-        },
-        "tags": [
-          "localmate"
-        ]
-      }
-    },
-    "/localmate/ai/match": {
-      "post": {
-        "operationId": "LocalMateAiController_matchLocalMates",
-        "parameters": [
-          {
-            "name": "X-VietSage-Knowledge-Key",
-            "in": "header",
-            "description": "Dedicated API key for machine-to-machine LocalMate access",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Rule-based LocalMate matching result"
-          },
-          "401": {
-            "description": "Invalid or missing knowledge API key"
-          },
-          "429": {
-            "description": "Knowledge request rate limit exceeded"
-          }
-        },
-        "tags": [
-          "localmate"
-        ]
-      }
-    },
-    "/localmate/guides/{guideCode}": {
-      "get": {
-        "operationId": "LocalMateAiController_getGuideByCode",
-        "parameters": [
-          {
-            "name": "guideCode",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "localmate"
-        ]
-      }
-    },
-    "/localmate/tours": {
-      "get": {
-        "operationId": "LocalMateAiController_listTours",
-        "parameters": [
-          {
-            "name": "destination",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-VietSage-Knowledge-Key",
-            "in": "header",
-            "description": "Dedicated API key for machine-to-machine knowledge access",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "LocalMate tour knowledge"
-          },
-          "401": {
-            "description": "Invalid or missing knowledge API key"
-          },
-          "429": {
-            "description": "Knowledge request rate limit exceeded"
-          },
-          "503": {
-            "description": "Knowledge service key unconfigured"
-          }
-        },
-        "tags": [
-          "localmate"
-        ]
-      }
-    },
-    "/localmate/booking-candidate/{candidateKey}": {
-      "get": {
-        "operationId": "LocalMateAiController_resolveBookingCandidate",
-        "parameters": [
-          {
-            "name": "candidateKey",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "hotelId",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-VietSage-Knowledge-Key",
-            "in": "header",
-            "description": "Dedicated API key for machine-to-machine knowledge access",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Resolved LocalMate booking candidate"
-          },
-          "400": {
-            "description": "Validation failed or region mismatch"
-          },
-          "404": {
-            "description": "Guide or service not found"
-          }
-        },
-        "tags": [
-          "localmate"
-        ]
-      }
-    },
-    "/localmate/telegram/pair": {
-      "post": {
-        "operationId": "LocalMateTelegramController_createPairingLink",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "localmate-telegram"
-        ]
-      }
-    },
-    "/localmate/telegram/disconnect": {
-      "post": {
-        "operationId": "LocalMateTelegramController_disconnect",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "localmate-telegram"
-        ]
-      }
-    },
-    "/localmate/telegram/status": {
-      "get": {
-        "operationId": "LocalMateTelegramController_getStatus",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "localmate-telegram"
+          "channel-manager"
         ]
       }
     },

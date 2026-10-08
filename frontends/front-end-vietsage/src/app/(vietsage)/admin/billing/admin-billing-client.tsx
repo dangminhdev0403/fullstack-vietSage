@@ -1,12 +1,12 @@
 "use client";
 
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { SwalVietSage, showSuccessAlert } from "@/libs/swal";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { runtimeConsole } from "@/core/logging/runtime-console";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { DebtStatementModal } from "@/app/(vietsage)/_components/debt-statement-modal";
+import { localMateAdminRepository } from "@/features/localmate-admin/repository";
 
 type Period = {
   id: string;
@@ -92,7 +92,7 @@ function getMonthRange(monthStr: string): { periodStart: string; periodEnd: stri
 export function AdminBillingClient({
   activeView = "invoices",
 }: {
-  activeView?: "invoices" | "finalize" | "contracts";
+  activeView?: "invoices" | "finalize" | "contracts" | "localmate";
 } = {}) {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -101,7 +101,113 @@ export function AdminBillingClient({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<"invoices" | "finalize" | "contracts">(activeView);
+  const [activeTab, setActiveTab] = useState<"invoices" | "finalize" | "contracts" | "localmate">(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (
+        tabParam === "finalize" ||
+        tabParam === "contracts" ||
+        tabParam === "invoices" ||
+        tabParam === "localmate"
+      ) {
+        return tabParam;
+      }
+    }
+    return activeView;
+  });
+
+  const [prevActiveView, setPrevActiveView] = useState(activeView);
+  if (prevActiveView !== activeView) {
+    setPrevActiveView(activeView);
+    setActiveTab(activeView);
+  }
+
+  // LocalMate Platform Fee Configuration State
+  const [localMateFeeRate, setLocalMateFeeRate] = useState<number>(15);
+  const [localMateFeeInput, setLocalMateFeeInput] = useState<number>(15);
+  const [isSavingLocalMateFee, setIsSavingLocalMateFee] = useState<boolean>(false);
+  const [simTourPrice, setSimTourPrice] = useState<number>(1000000);
+
+  const handleTabChange = (tab: "invoices" | "finalize" | "contracts" | "localmate") => {
+    setActiveTab(tab);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (url.pathname.startsWith("/finance")) {
+        const targetPath =
+          tab === "invoices"
+            ? "/finance/billing"
+            : tab === "finalize"
+              ? "/finance/finalize"
+              : tab === "contracts"
+                ? "/finance/contracts"
+                : "/admin/billing?tab=localmate";
+        window.history.replaceState(null, "", `${targetPath}${url.search}`);
+      } else {
+        if (tab === "invoices") {
+          url.searchParams.delete("tab");
+        } else {
+          url.searchParams.set("tab", tab);
+        }
+        window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (
+        tabParam === "finalize" ||
+        tabParam === "contracts" ||
+        tabParam === "invoices" ||
+        tabParam === "localmate"
+      ) {
+        setActiveTab(tabParam);
+      }
+    };
+    window.addEventListener("popstate", syncFromUrl);
+    return () => window.removeEventListener("popstate", syncFromUrl);
+  }, []);
+
+  const handleSaveLocalMateFee = async (e?: FormEvent) => {
+    if (e) e.preventDefault();
+    if (localMateFeeInput < 0 || localMateFeeInput > 100) {
+      await SwalVietSage.fire({
+        title: "Tỷ lệ không hợp lệ",
+        text: "Mức phí VietSage thu LocalMate phải từ 0% đến 100%.",
+        icon: "warning",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+      return;
+    }
+
+    setIsSavingLocalMateFee(true);
+    try {
+      const res = await localMateAdminRepository.updatePricingConfig(localMateFeeInput);
+      const updatedRate = Number(res?.localMatePlatformFeeRate ?? localMateFeeInput);
+      setLocalMateFeeRate(updatedRate);
+      setLocalMateFeeInput(updatedRate);
+      await showSuccessAlert(
+        "Cập nhật thành công",
+        `Đã lưu mức phí VietSage thu LocalMate là ${updatedRate}%. Tỷ lệ mới sẽ tự động áp dụng cho các tour và booking tiếp theo.`,
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Không thể cập nhật biểu phí LocalMate.";
+      await SwalVietSage.fire({
+        title: "Lỗi",
+        text: msg,
+        icon: "error",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+    } finally {
+      setIsSavingLocalMateFee(false);
+    }
+  };
+
 
   // Invoices Tab Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -165,7 +271,7 @@ export function AdminBillingClient({
   const refreshData = async () => {
     setLoadError(null);
     try {
-      const [sumRes, contractsRes, hotelsRes, periodsRes] = await Promise.all([
+      const [sumRes, contractsRes, hotelsRes, periodsRes, localMatePricingRes] = await Promise.all([
         requestInternalApiEnvelope<Summary>(
           "/api/admin/platform-billing/dashboard/summary",
           { method: "GET" },
@@ -182,11 +288,19 @@ export function AdminBillingClient({
           "/api/admin/platform-billing/periods?limit=100",
           { method: "GET" },
         ).catch(() => ({ data: [] as Period[] })),
+        localMateAdminRepository
+          .pricingConfig()
+          .catch(() => ({ localMatePlatformFeeRate: 15 })),
       ]);
 
       if (sumRes.data) setSummary(sumRes.data);
       if (contractsRes.data) setContracts(contractsRes.data);
       if (hotelsRes.data?.items) setHotels(hotelsRes.data.items);
+      if (localMatePricingRes?.localMatePlatformFeeRate != null) {
+        const rate = Number(localMatePricingRes.localMatePlatformFeeRate);
+        setLocalMateFeeRate(rate);
+        setLocalMateFeeInput(rate);
+      }
 
       if (periodsRes?.data && Array.isArray(periodsRes.data) && periodsRes.data.length > 0) {
         setAllPeriods(periodsRes.data);
@@ -468,7 +582,7 @@ export function AdminBillingClient({
         `Đã chốt hóa đơn kỳ Tháng ${m}/${y} cho ${count} khách sạn đối tác.`,
       );
       void refreshData();
-      setActiveTab("invoices");
+      handleTabChange("invoices");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Không thể chốt kỳ hóa đơn hàng loạt";
       await SwalVietSage.fire({
@@ -716,7 +830,9 @@ export function AdminBillingClient({
                 ? "bg-emerald-600 text-white"
                 : activeTab === "finalize"
                   ? "bg-indigo-600 text-white"
-                  : "bg-slate-800 text-white dark:bg-slate-700"
+                  : activeTab === "contracts"
+                    ? "bg-slate-800 text-white dark:bg-slate-700"
+                    : "bg-teal-600 text-white"
             }`}
           >
             <VsIcon
@@ -725,7 +841,9 @@ export function AdminBillingClient({
                   ? "receipt_long"
                   : activeTab === "finalize"
                     ? "bolt"
-                    : "apartment"
+                    : activeTab === "contracts"
+                      ? "apartment"
+                      : "handshake"
               }
               className="text-2xl"
             />
@@ -736,40 +854,58 @@ export function AdminBillingClient({
                 ? "Hóa đơn & Công nợ"
                 : activeTab === "finalize"
                   ? "Chốt kỳ cước theo tháng"
-                  : "Hợp đồng & Biểu phí SaaS"}
+                  : activeTab === "contracts"
+                    ? "Hợp đồng & Biểu phí SaaS"
+                    : "Biểu phí Nền tảng LocalMate"}
             </h1>
             <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
               {activeTab === "invoices"
                 ? "Theo dõi công nợ, ghi nhận thanh toán và phát hành phiếu đối soát."
                 : activeTab === "finalize"
                   ? "Chốt sổ doanh thu định kỳ, niêm phong hóa đơn cho từng khách sạn đối tác."
-                  : "Quản lý thỏa thuận biểu phí theo lượt check-in hoặc % doanh thu phòng."}
+                  : activeTab === "contracts"
+                    ? "Quản lý thỏa thuận biểu phí theo lượt check-in hoặc % doanh thu phòng cho khách sạn."
+                    : "Cấu hình mức phí nền tảng VietSage thu từ mạng lưới Hướng dẫn viên du lịch LocalMate."}
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => handleTabChange("localmate")}
+            className={`inline-flex items-center gap-2 rounded-xl min-h-10 px-4 py-2 text-sm font-bold transition-colors ${
+              activeTab === "localmate"
+                ? "bg-teal-700 text-white shadow-sm"
+                : "border border-teal-200 bg-teal-50 text-teal-800 hover:bg-teal-100 dark:bg-teal-950/40 dark:border-teal-800 dark:text-teal-300"
+            }`}
+          >
+            <VsIcon name="handshake" className="text-base" />
+            <span>Phí LocalMate ({localMateFeeRate}%)</span>
+          </button>
+
           {activeTab !== "finalize" && (
-            <Link
-              href="/finance/finalize"
-              onClick={() => setActiveTab("finalize")}
+            <button
+              type="button"
+              onClick={() => handleTabChange("finalize")}
               className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 min-h-10 px-4 py-2 text-sm font-bold text-indigo-700 hover:bg-indigo-100 transition-colors dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300"
             >
               <VsIcon name="bolt" className="text-base" />
-              Chốt kỳ
-            </Link>
+              <span>Chốt kỳ</span>
+            </button>
           )}
 
           {activeTab !== "invoices" && (
-            <Link
-              href="/finance/billing"
-              onClick={() => setActiveTab("invoices")}
+            <button
+              type="button"
+              onClick={() => handleTabChange("invoices")}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white min-h-10 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300"
             >
               <VsIcon name="receipt_long" className="text-base" />
-              Hóa đơn
-            </Link>
+              <span>Hóa đơn</span>
+            </button>
           )}
+
 
           <button
             type="button"
@@ -787,7 +923,7 @@ export function AdminBillingClient({
         {/* Card 1: Công nợ còn lại */}
         <div
           onClick={() => {
-            setActiveTab("invoices");
+            handleTabChange("invoices");
             setStatusFilter("UNPAID");
           }}
           className="group cursor-pointer rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:border-amber-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
@@ -817,7 +953,7 @@ export function AdminBillingClient({
         {/* Card 2: Quá hạn thu hồi */}
         <div
           onClick={() => {
-            setActiveTab("invoices");
+            handleTabChange("invoices");
             setStatusFilter("OVERDUE");
           }}
           className="group cursor-pointer rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:border-red-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
@@ -847,7 +983,7 @@ export function AdminBillingClient({
         {/* Card 3: Đã thu */}
         <div
           onClick={() => {
-            setActiveTab("invoices");
+            handleTabChange("invoices");
             setStatusFilter("PAID");
           }}
           className="group cursor-pointer rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:border-emerald-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
@@ -873,7 +1009,8 @@ export function AdminBillingClient({
 
         {/* Card 4: Hợp đồng Active */}
         <div
-          onClick={() => setActiveTab("contracts")}
+          onClick={() => handleTabChange("contracts")}
+
           className="group cursor-pointer rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:border-blue-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
         >
           <div className="flex items-start justify-between gap-2">
@@ -917,9 +1054,9 @@ export function AdminBillingClient({
       {/* Navigation Tab Bar — Segmented Control Style */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/60 bg-slate-100/70 px-2 py-2 dark:border-slate-800 dark:bg-slate-900/60">
         <nav className="flex flex-wrap gap-1" aria-label="Finance Views Navigation">
-          <Link
-            href="/finance/billing"
-            onClick={() => setActiveTab("invoices")}
+          <button
+            type="button"
+            onClick={() => handleTabChange("invoices")}
             className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all min-h-9 ${
               activeTab === "invoices"
                 ? "bg-white text-emerald-700 shadow-sm border border-slate-200/80 dark:bg-slate-800 dark:text-emerald-400 dark:border-slate-700"
@@ -937,11 +1074,11 @@ export function AdminBillingClient({
             >
               {allPeriods.length}
             </span>
-          </Link>
+          </button>
 
-          <Link
-            href="/finance/finalize"
-            onClick={() => setActiveTab("finalize")}
+          <button
+            type="button"
+            onClick={() => handleTabChange("finalize")}
             className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all min-h-9 ${
               activeTab === "finalize"
                 ? "bg-white text-indigo-700 shadow-sm border border-slate-200/80 dark:bg-slate-800 dark:text-indigo-400 dark:border-slate-700"
@@ -950,11 +1087,11 @@ export function AdminBillingClient({
           >
             <VsIcon name="bolt" className="text-base" />
             <span>Chốt kỳ theo tháng</span>
-          </Link>
+          </button>
 
-          <Link
-            href="/finance/contracts"
-            onClick={() => setActiveTab("contracts")}
+          <button
+            type="button"
+            onClick={() => handleTabChange("contracts")}
             className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all min-h-9 ${
               activeTab === "contracts"
                 ? "bg-white text-slate-900 shadow-sm border border-slate-200/80 dark:bg-slate-800 dark:text-white dark:border-slate-700"
@@ -963,7 +1100,29 @@ export function AdminBillingClient({
           >
             <VsIcon name="apartment" className="text-base" />
             <span>Hợp đồng & Biểu phí ({contracts.length})</span>
-          </Link>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange("localmate")}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all min-h-9 ${
+              activeTab === "localmate"
+                ? "bg-white text-teal-700 shadow-sm border border-slate-200/80 dark:bg-slate-800 dark:text-teal-400 dark:border-slate-700"
+                : "text-slate-500 hover:bg-white/70 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-white"
+            }`}
+          >
+            <VsIcon name="handshake" className="text-base" />
+            <span>Biểu phí LocalMate</span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${
+                activeTab === "localmate"
+                  ? "bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300"
+                  : "bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400"
+              }`}
+            >
+              {localMateFeeRate}%
+            </span>
+          </button>
         </nav>
 
         <button
@@ -1384,16 +1543,17 @@ export function AdminBillingClient({
                           </td>
                           <td className="px-4 py-3.5 text-right">
                             {existingPeriodForMonth ? (
-                              <Link
-                                href="/finance/billing"
+                              <button
+                                type="button"
                                 onClick={() => {
-                                  setActiveTab("invoices");
+                                  handleTabChange("invoices");
                                   setSearchQuery(c.hotel?.name || "");
                                 }}
                                 className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
                               >
                                 Xem hóa đơn
-                              </Link>
+                              </button>
+
                             ) : (
                               <div className="flex items-center justify-end gap-1.5">
                                 <button
@@ -1451,6 +1611,36 @@ export function AdminBillingClient({
             >
               <VsIcon name="add_circle" className="text-lg" />
               Onboard hợp đồng mới
+            </button>
+          </div>
+
+          {/* Callout to LocalMate Fee Separation */}
+          <div className="rounded-2xl border border-teal-200/80 bg-gradient-to-r from-teal-50/80 to-emerald-50/60 p-4.5 dark:border-teal-900/60 dark:bg-teal-950/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white shadow-sm">
+                <VsIcon name="handshake" className="text-xl" />
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-teal-950 dark:text-teal-200">
+                    Phí Nền tảng LocalMate (Tour &amp; Hướng dẫn viên): Hiện đang thu {localMateFeeRate}%
+                  </h4>
+                  <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-extrabold text-teal-800 dark:bg-teal-900 dark:text-teal-300">
+                    Chính sách riêng
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                  LocalMate là nghiệp vụ hướng dẫn viên du lịch địa phương, tách biệt hoàn toàn với biểu phí SaaS phòng và dịch vụ Marketplace bên ngoài.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleTabChange("localmate")}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-teal-700 px-3.5 py-2 text-xs font-bold text-white hover:bg-teal-600 transition-colors shadow-sm"
+            >
+              <span>Xem &amp; chỉnh sửa phí LocalMate</span>
+              <VsIcon name="arrow_forward" className="text-xs" />
             </button>
           </div>
 
@@ -1550,6 +1740,320 @@ export function AdminBillingClient({
                   })}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* VIEW 4: CẤU HÌNH BIỂU PHÍ NỀN TẢNG LOCALMATE (LOCALMATE PLATFORM PRICING) */}
+      {/* ========================================================================= */}
+      {activeTab === "localmate" && (
+        <div className="space-y-6">
+          {/* Header & KPI Summary */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="rounded-2xl border border-teal-200/80 bg-gradient-to-br from-teal-50/60 to-white p-5 shadow-sm dark:border-teal-900/60 dark:bg-slate-900">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">
+                    Phí VietSage thu
+                  </p>
+                  <p className="mt-2 text-3xl font-extrabold text-teal-900 dark:text-white">
+                    {localMateFeeRate}%
+                  </p>
+                </div>
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-600 text-white shadow-md shadow-teal-600/20">
+                  <VsIcon name="payments" className="text-2xl" />
+                </span>
+              </div>
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                Hoa hồng trích từ mỗi booking tour hoàn thành
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/60 to-white p-5 shadow-sm dark:border-emerald-900/60 dark:bg-slate-900">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                    LocalMate thực nhận
+                  </p>
+                  <p className="mt-2 text-3xl font-extrabold text-emerald-900 dark:text-white">
+                    {100 - localMateFeeRate}%
+                  </p>
+                </div>
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-md shadow-emerald-600/20">
+                  <VsIcon name="handshake" className="text-2xl" />
+                </span>
+              </div>
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                Thu nhập ròng chuyển về ví Hướng dẫn viên
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Phạm vi áp dụng
+                  </p>
+                  <p className="mt-2 text-xl font-bold text-slate-900 dark:text-white">
+                    Toàn sàn LocalMate
+                  </p>
+                </div>
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                  <VsIcon name="explore" className="text-2xl" />
+                </span>
+              </div>
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                Độc lập với Marketplace &amp; SaaS khách sạn
+              </p>
+            </div>
+          </div>
+
+          {/* Form & Simulator Grid */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {/* Left: Configuration Form */}
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-6">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-400">
+                  <VsIcon name="tune" className="text-xl" />
+                </span>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                    Điều chỉnh Tỷ lệ Thu phí Platform
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Cập nhật tỷ lệ hoa hồng VietSage thu từ hướng dẫn viên du lịch
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveLocalMateFee} className="space-y-5">
+                <div className="space-y-2">
+                  <label htmlFor="localmate-fee-input" className="block text-sm font-bold text-slate-900 dark:text-white">
+                    Tỷ lệ hoa hồng VietSage thu (%)
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <div className="relative flex-1">
+                      <input
+                        id="localmate-fee-input"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={localMateFeeInput}
+                        onChange={(e) => setLocalMateFeeInput(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                        className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-base font-bold text-slate-900 shadow-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        placeholder="Nhập số % (0 - 100)"
+                      />
+                      <span className="absolute inset-y-0 right-0 flex items-center pr-4 font-bold text-slate-400">
+                        %
+                      </span>
+                    </div>
+
+                    <div className="flex gap-1.5">
+                      {[10, 15, 20, 25].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setLocalMateFeeInput(preset)}
+                          className={`rounded-xl px-3 py-2 text-xs font-bold transition-colors ${
+                            localMateFeeInput === preset
+                              ? "bg-teal-700 text-white shadow-sm"
+                              : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                          }`}
+                        >
+                          {preset}%
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Range Slider */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-semibold text-slate-500">
+                    <span>0% (Miễn phí)</span>
+                    <span className="text-teal-700 dark:text-teal-400 font-bold">{localMateFeeInput}%</span>
+                    <span>50% (Mức đề xuất)</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="50"
+                    step="1"
+                    value={Math.min(50, localMateFeeInput)}
+                    onChange={(e) => setLocalMateFeeInput(Number(e.target.value))}
+                    className="w-full accent-teal-600 cursor-pointer h-2 bg-slate-200 rounded-lg dark:bg-slate-700"
+                  />
+                </div>
+
+                <div className="rounded-xl bg-slate-50 p-3.5 text-xs text-slate-600 dark:bg-slate-800/60 dark:text-slate-400 space-y-1 border border-slate-200/60 dark:border-slate-700/60">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200">
+                    <VsIcon name="info" className="text-sm text-teal-600" />
+                    <span>Quy tắc áp dụng biểu phí:</span>
+                  </div>
+                  <p>
+                    • Mức phí mặc định toàn hệ thống là <strong>15%</strong>.
+                  </p>
+                  <p>
+                    • Khi lưu thay đổi, mức phí mới sẽ áp dụng ngay cho tất cả booking tour LocalMate mới khởi tạo.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-xs text-slate-500">
+                    Hiện tại đang áp dụng: <strong className="text-teal-700 dark:text-teal-400">{localMateFeeRate}%</strong>
+                  </span>
+                  <button
+                    type="submit"
+                    disabled={isSavingLocalMateFee || localMateFeeInput === localMateFeeRate}
+                    className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-teal-700/20 hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    {isSavingLocalMateFee ? (
+                      <>
+                        <VsIcon name="progress_activity" className="animate-spin text-base" />
+                        <span>Đang lưu...</span>
+                      </>
+                    ) : (
+                      <>
+                        <VsIcon name="check_circle" className="text-base" />
+                        <span>Cập nhật biểu phí LocalMate</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Right: Live Commission Simulator */}
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-6">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+                  <VsIcon name="fact_check" className="text-xl" />
+                </span>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                    Mô phỏng Phân chia Doanh thu Tour
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Tính toán tức thời dòng tiền theo mức phí đang nhập ({localMateFeeInput}%)
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="sim-tour-price-input" className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                    Giá trị booking tour mẫu (VND)
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="sim-tour-price-input"
+                      type="number"
+                      step="50000"
+                      min="0"
+                      value={simTourPrice}
+                      onChange={(e) => setSimTourPrice(Math.max(0, Number(e.target.value) || 0))}
+                      className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-base font-bold text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                      placeholder="1,000,000"
+                    />
+                    <span className="absolute inset-y-0 right-0 flex items-center pr-4 font-bold text-slate-400 text-sm">
+                      VND
+                    </span>
+                  </div>
+                </div>
+
+                {/* Visual Ratio Progress Bar */}
+                <div className="space-y-1.5">
+                  <div className="h-4 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800 flex">
+                    <div
+                      style={{ width: `${Math.max(0, Math.min(100, 100 - localMateFeeInput))}%` }}
+                      className="bg-emerald-500 transition-all duration-300 flex items-center justify-center text-[10px] font-extrabold text-white"
+                      title={`LocalMate: ${100 - localMateFeeInput}%`}
+                    >
+                      {100 - localMateFeeInput >= 15 ? `${100 - localMateFeeInput}%` : ""}
+                    </div>
+                    <div
+                      style={{ width: `${Math.max(0, Math.min(100, localMateFeeInput))}%` }}
+                      className="bg-teal-600 transition-all duration-300 flex items-center justify-center text-[10px] font-extrabold text-white"
+                      title={`VietSage: ${localMateFeeInput}%`}
+                    >
+                      {localMateFeeInput >= 15 ? `${localMateFeeInput}%` : ""}
+                    </div>
+                  </div>
+                  <div className="flex justify-between text-[11px] font-bold">
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      ● Hướng dẫn viên ({100 - localMateFeeInput}%)
+                    </span>
+                    <span className="text-teal-700 dark:text-teal-400">
+                      ● VietSage Fee ({localMateFeeInput}%)
+                    </span>
+                  </div>
+                </div>
+
+                {/* Calculation Breakdown Table */}
+                <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-850/50 p-4 space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-600 dark:text-slate-400">Khách du lịch thanh toán:</span>
+                    <span className="font-extrabold text-slate-900 dark:text-white">
+                      {simTourPrice.toLocaleString("vi-VN")} VND
+                    </span>
+                  </div>
+                  <div className="border-t border-slate-200/60 dark:border-slate-800 pt-2 flex items-center justify-between text-sm">
+                    <span className="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+                      <VsIcon name="handshake" className="text-base" />
+                      HDV LocalMate thực nhận ({100 - localMateFeeInput}%):
+                    </span>
+                    <span className="font-extrabold text-emerald-700 dark:text-emerald-400 text-base">
+                      {Math.round(simTourPrice * (100 - localMateFeeInput) / 100).toLocaleString("vi-VN")} VND
+                    </span>
+                  </div>
+                  <div className="border-t border-slate-200/60 dark:border-slate-800 pt-2 flex items-center justify-between text-sm">
+                    <span className="text-teal-800 dark:text-teal-300 font-semibold flex items-center gap-1.5">
+                      <VsIcon name="payments" className="text-base" />
+                      VietSage Platform thu ({localMateFeeInput}%):
+                    </span>
+                    <span className="font-extrabold text-teal-800 dark:text-teal-300 text-base">
+                      {Math.round(simTourPrice * localMateFeeInput / 100).toLocaleString("vi-VN")} VND
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Business Model Clarity Callout */}
+          <div className="rounded-2xl border border-blue-200/80 bg-blue-50/60 p-5 dark:border-blue-900/60 dark:bg-blue-950/30">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+                <VsIcon name="hub" className="text-xl" />
+              </span>
+              <div className="space-y-1">
+                <h4 className="text-base font-bold text-blue-950 dark:text-blue-200">
+                  Phân định rõ ràng 3 luồng doanh thu trên nền tảng VietSage
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 text-xs text-slate-600 dark:text-slate-300">
+                  <div className="rounded-xl bg-white/80 p-3 shadow-xs dark:bg-slate-900/80 border border-blue-100 dark:border-blue-900/40">
+                    <p className="font-bold text-teal-700 dark:text-teal-400">1. LocalMate (Đang cấu hình)</p>
+                    <p className="mt-1">
+                      Hướng dẫn viên du lịch &amp; trải nghiệm tour địa phương. Thu phí hoa hồng nền tảng <strong>{localMateFeeRate}%</strong>.
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-white/80 p-3 shadow-xs dark:bg-slate-900/80 border border-blue-100 dark:border-blue-900/40">
+                    <p className="font-bold text-indigo-700 dark:text-indigo-400">2. Marketplace dịch vụ</p>
+                    <p className="mt-1">
+                      Dịch vụ ngoài (vé tham quan, xe, spa, quà tặng). Chiết khấu theo từng đối tác cung cấp dịch vụ bên ngoài.
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-white/80 p-3 shadow-xs dark:bg-slate-900/80 border border-blue-100 dark:border-blue-900/40">
+                    <p className="font-bold text-slate-900 dark:text-white">3. VietSage SaaS Khách sạn</p>
+                    <p className="mt-1">
+                      Phí phần mềm quản lý lưu trú &amp; check-in khách sạn. Tính theo lượt check-in hoặc % doanh thu phòng (tab Hợp đồng).
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

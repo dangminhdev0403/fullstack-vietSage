@@ -6,9 +6,7 @@ import {
   ConflictException,
 } from "@nestjs/common";
 import { LocalMateStatus } from "@prisma/client";
-import * as argon2 from "argon2";
 import { calculateHaversineDistanceMeters } from "../../../common/geo-distance";
-import { generateTemporaryPassword } from "../../../common/security/password-policy.util";
 import { LocalMateRepository } from "../infrastructure/repositories/localmate.repository";
 import type {
   CreateLocalMateGuideDto,
@@ -21,6 +19,7 @@ import type {
   QueryLocalMateKnowledgeDto,
   ListLocalMateToursQueryDto,
   ResolveBookingCandidateDto,
+  LocalMatePricingConfigDto,
 } from "../domain/schemas/localmate.schema";
 import {
   inferProvinceAndScope,
@@ -74,8 +73,8 @@ export class LocalMateService {
     const guideCode = dto.guideCode || (await this.repository.generateNextGuideCode());
     const position = dto.position || "GUIDE";
 
-    // Auto-create or link User account for login if not already provided
-    let userId = dto.userId;
+    // Guides interact via Telegram Bot; no dummy web User account or temporary password is created.
+    const userId = dto.userId;
     let tenantId = dto.tenantId;
 
     if (!tenantId) {
@@ -85,38 +84,13 @@ export class LocalMateService {
       }
     }
 
-    let temporaryPassword: string | undefined;
-    if (!userId) {
-      const email = dto.email?.trim() || `${guideCode.toLowerCase()}@localmate.vietsage.vn`;
-      const existingUser = await this.repository.findUserByEmail(email);
-
-      if (existingUser) {
-        userId = existingUser.id;
-      } else {
-        const roleCode = position === "COORDINATOR" ? "LOCALMATE_COORDINATOR" : "LOCALMATE_GUIDE";
-        const role = await this.repository.findRoleByCode(roleCode);
-        temporaryPassword = generateTemporaryPassword(20);
-        const passwordHash = await argon2.hash(temporaryPassword);
-
-        const newUser = await this.repository.createGuideUser({
-          email,
-          fullName: dto.fullName,
-          passwordHash,
-          roleId: role?.id,
-          tenantId,
-        });
-        userId = newUser.id;
-      }
-    }
-
-    const guide = await this.repository.createGuide({
+    return this.repository.createGuide({
       ...dto,
       guideCode,
       position,
       userId,
       tenantId,
     });
-    return temporaryPassword ? { ...guide, temporaryPassword } : guide;
   }
 
   async updateGuide(id: string, dto: UpdateLocalMateGuideDto) {
@@ -516,7 +490,9 @@ export class LocalMateService {
         const titleLower = tour.title.toLowerCase();
         const suitableGuides = projectedGuides
           .filter((guide) => {
-            if (guide.operatingRegions.some((region) => titleLower.includes(region.toLowerCase()))) {
+            if (
+              guide.operatingRegions.some((region) => titleLower.includes(region.toLowerCase()))
+            ) {
               return true;
             }
             if (
@@ -536,9 +512,7 @@ export class LocalMateService {
 
         return { tour, distanceKm, fallbackScore, suitableGuides };
       })
-      .filter(
-        (item) => !useHotelRadius || item.distanceKm === null || item.distanceKm <= radiusKm,
-      )
+      .filter((item) => !useHotelRadius || item.distanceKm === null || item.distanceKm <= radiusKm)
       .sort(
         (left, right) =>
           this.compareDistance(left.distanceKm, right.distanceKm) ||
@@ -807,6 +781,28 @@ export class LocalMateService {
         : { locationContext: { source: "PUBLIC" as const, label: location! } }),
       telegramReady,
       action: "LOCALMATE_BOOKING" as const,
+    };
+  }
+
+  async listGuideOrders(guideId: string) {
+    const guide = await this.repository.findGuideById(guideId);
+    if (!guide) {
+      throw new NotFoundException(`Không tìm thấy hướng dẫn viên với ID '${guideId}'`);
+    }
+    return this.repository.findOrdersByGuideId(guideId);
+  }
+
+  async getPricingConfig() {
+    const config = await this.repository.getPricingConfig();
+    return {
+      localMatePlatformFeeRate: Number(config.localMatePlatformFeeRate),
+    };
+  }
+
+  async updatePricingConfig(actorId: string, dto: LocalMatePricingConfigDto) {
+    const config = await this.repository.updatePricingConfig(actorId, dto.localMatePlatformFeeRate);
+    return {
+      localMatePlatformFeeRate: Number(config.localMatePlatformFeeRate),
     };
   }
 }

@@ -251,3 +251,24 @@ export const resolveBookingCandidateSchema = z
     message: "Cần cung cấp đúng một nguồn vị trí: hotelId hoặc location",
   });
 export type ResolveBookingCandidateDto = z.infer<typeof resolveBookingCandidateSchema>;
+
+export const localMatePricingConfigSchema = z.object({
+  localMatePlatformFeeRate: z
+    .number()
+    .min(0, "Tỷ lệ phí không được nhỏ hơn 0%")
+    .max(100, "Tỷ lệ phí không được vượt quá 100%"),
+});
+export type LocalMatePricingConfigDto = z.infer<typeof localMatePricingConfigSchema>;
+
+export const localMatePricingConfigOpenApiSchema = {
+  type: "object",
+  required: ["localMatePlatformFeeRate"],
+  properties: {
+    localMatePlatformFeeRate: {
+      type: "number",
+      minimum: 0,
+      maximum: 100,
+      description: "Tỷ lệ phí nền tảng LocalMate thu (%)",
+    },
+  },
+};

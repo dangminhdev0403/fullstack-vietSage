@@ -51,11 +51,14 @@ export function RbacRoleListPanel({
   return (
     <div className={`flex flex-col rounded-2xl border border-[color:rgba(198,197,213,0.35)] bg-white p-4 shadow-sm ${className}`}>
       {/* ── Header ── */}
-      <div className="flex items-center justify-between border-b border-[color:rgba(198,197,213,0.35)] pb-3">
+      <div className="flex items-center justify-between border-b border-gray-100 pb-3">
         <div className="flex items-center gap-2">
-          <VsIcon name={isCustomTab ? "tune" : "shield"} className="text-[18px] text-emerald-700" />
+          <VsIcon
+            name={isCustomTab ? "tune" : "shield"}
+            className="text-[18px] text-emerald-800"
+          />
           <h2 className="text-sm font-bold uppercase tracking-wider text-gray-900">
-            {isCustomTab ? "Vai trò tùy chỉnh" : "Vai trò mặc định"}
+            {isCustomTab ? "Vai trò tùy chỉnh" : "Vai trò hệ thống"}
           </h2>
         </div>
         <div className="flex items-center gap-2">
@@ -66,19 +69,19 @@ export function RbacRoleListPanel({
             <button
               type="button"
               onClick={onCreateRole}
-              className="flex min-h-11 items-center gap-1 rounded-xl bg-[#25483f] px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#1a352d]"
+              className="flex min-h-9 items-center gap-1 rounded-xl bg-[#25483f] px-3 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-[#1a352d]"
               aria-label="Tạo vai trò mới"
             >
-              <VsIcon name="add" className="text-[16px]" />
+              <VsIcon name="add" className="text-[15px]" />
               <span>Tạo vai trò</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* ── Search & Filter Controls (44px target) ── */}
-      <div className="mt-3.5 flex items-center gap-2">
-        <div className="relative min-w-0 flex-1">
+      {/* ── Search & Filter Controls (44px touch target) ── */}
+      <div className="mt-3 space-y-2">
+        <div className="relative w-full">
           <VsIcon
             name="search"
             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[16px] text-gray-400"
@@ -87,130 +90,165 @@ export function RbacRoleListPanel({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Tìm kiếm vai trò..."
-            className="h-11 min-h-11 w-full rounded-lg border border-[color:rgba(198,197,213,0.6)] bg-white py-2 pl-9 pr-10 text-sm text-[var(--on-surface)] placeholder-gray-400 outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+            placeholder="Tìm theo tên hoặc mã vai trò..."
+            className="h-10 min-h-10 w-full rounded-xl border border-gray-200 bg-gray-50/80 py-2 pl-9 pr-8 text-xs font-medium text-gray-900 placeholder-gray-400 outline-none transition focus:border-emerald-600 focus:bg-white focus:ring-1 focus:ring-emerald-600"
           />
-          {searchQuery ? (
+          {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="absolute right-0 top-0 flex h-11 min-h-11 w-11 min-w-11 items-center justify-center text-gray-400 hover:text-gray-600"
+              className="absolute right-0 top-0 flex h-10 w-10 items-center justify-center text-gray-400 hover:text-gray-600"
               aria-label="Xóa tìm kiếm"
             >
               <VsIcon name="close" className="text-[14px]" />
             </button>
-          ) : null}
+          )}
         </div>
 
-        <div className="relative shrink-0">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-            className="h-11 min-h-11 appearance-none rounded-lg border border-[color:rgba(198,197,213,0.6)] bg-white py-2 pl-3 pr-8 text-sm font-medium text-gray-700 outline-none focus:border-emerald-500"
-            aria-label="Lọc người dùng"
+        {/* Quick status filter pills */}
+        <div className="flex items-center gap-1 text-[11px]">
+          <button
+            type="button"
+            onClick={() => setStatusFilter("ALL")}
+            className={`rounded-lg px-2.5 py-1 font-semibold transition ${
+              statusFilter === "ALL"
+                ? "bg-gray-800 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
           >
-            <option value="ALL">Tất cả</option>
-            <option value="HAS_USERS">Có người dùng</option>
-            <option value="NO_USERS">Chưa gán</option>
-          </select>
-          <VsIcon
-            name="expand_more"
-            className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[16px] text-gray-400"
-          />
+            Tất cả ({roles.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter("HAS_USERS")}
+            className={`rounded-lg px-2.5 py-1 font-semibold transition ${
+              statusFilter === "HAS_USERS"
+                ? "bg-gray-800 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            Có người dùng
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter("NO_USERS")}
+            className={`rounded-lg px-2.5 py-1 font-semibold transition ${
+              statusFilter === "NO_USERS"
+                ? "bg-gray-800 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            Chưa gán
+          </button>
         </div>
       </div>
 
       {/* ── Role List Area ── */}
-      <div className="mt-3.5 flex-1 space-y-1.5 overflow-y-auto pr-0.5">
+      <div className="mt-3 flex-1 space-y-2 overflow-y-auto pr-0.5">
         {filteredRoles.length === 0 ? (
           isCustomTab ? (
             <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-800 mb-3">
-                <VsIcon name="tune" className="text-[28px]" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-800 mb-2.5">
+                <VsIcon name="tune" className="text-[24px]" />
               </div>
-              <p className="text-base font-bold text-gray-800">
+              <p className="text-sm font-bold text-gray-800">
                 {searchQuery.trim()
                   ? "Không tìm thấy vai trò phù hợp"
                   : "Chưa có vai trò tùy chỉnh"}
               </p>
-              <p className="mt-1.5 text-sm text-gray-500">
+              <p className="mt-1 text-xs text-gray-500">
                 {searchQuery.trim()
-                  ? "Thử thay đổi từ khóa hoặc bộ lọc tìm kiếm."
-                  : "Tạo vai trò tùy chỉnh dựa trên vai trò cơ sở để phân quyền chính xác hơn."}
+                  ? "Thử thay đổi từ khóa hoặc bộ lọc."
+                  : "Tạo vai trò tùy chỉnh kế thừa từ vai trò cơ sở."}
               </p>
               {onCreateRole && !searchQuery.trim() && (
                 <button
                   type="button"
                   onClick={onCreateRole}
-                  className="mt-4 flex min-h-11 items-center gap-2 rounded-xl bg-[#25483f] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#1a352d]"
+                  className="mt-3.5 flex min-h-9 items-center gap-1.5 rounded-xl bg-[#25483f] px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-[#1a352d]"
                 >
-                  <VsIcon name="add" className="text-[18px]" />
+                  <VsIcon name="add" className="text-[16px]" />
                   <span>Tạo vai trò</span>
                 </button>
               )}
             </div>
           ) : (
-            <p className="py-6 text-center text-sm text-gray-400 italic">
+            <p className="py-6 text-center text-xs text-gray-400 italic">
               {searchQuery.trim() ? "Không tìm thấy vai trò phù hợp" : "Không có vai trò mặc định"}
             </p>
           )
         ) : (
-          <ul className="space-y-1.5">
+          <ul className="space-y-2">
             {filteredRoles.map((role) => {
               const isSelected = role.id === selectedRoleId;
               const iconName = getRoleIcon(role.code, role.type);
+              const displayName = role.name !== role.code ? role.name : role.code;
 
               return (
                 <li key={role.id}>
                   <button
                     type="button"
                     onClick={() => onSelectRole(role.id)}
-                    className={`group flex min-h-11 w-full items-center gap-3 rounded-xl border p-2.5 text-left transition-all ${
+                    className={`group relative flex min-h-12 w-full flex-col gap-2 rounded-xl border p-3 text-left transition-all ${
                       isSelected
-                        ? "border-emerald-400 bg-emerald-50/50 shadow-sm"
-                        : "border-transparent bg-gray-50/60 hover:border-gray-200 hover:bg-gray-100/70"
+                        ? "border-emerald-500/80 bg-emerald-50/60 shadow-xs ring-1 ring-emerald-500/30"
+                        : "border-gray-200/70 bg-white hover:border-gray-300 hover:bg-gray-50/80"
                     }`}
                   >
-                    <div
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                        isSelected
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-white text-gray-600 shadow-2xs"
-                      }`}
-                    >
-                      <VsIcon name={iconName} className="text-[18px]" />
+                    {/* Top Row: Icon + Role Name + Arrow */}
+                    <div className="flex items-center gap-2.5 w-full">
+                      <div
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                          isSelected
+                            ? "bg-emerald-700 text-white shadow-2xs"
+                            : "bg-gray-100 text-gray-600 group-hover:bg-gray-200/80"
+                        }`}
+                      >
+                        <VsIcon name={iconName} className="text-[16px]" />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className={`text-sm font-bold leading-tight ${
+                            isSelected ? "text-emerald-950" : "text-gray-900 group-hover:text-gray-950"
+                          }`}
+                        >
+                          {displayName}
+                        </p>
+                      </div>
+
+                      <VsIcon
+                        name="chevron_right"
+                        className={`text-[16px] shrink-0 transition-transform ${
+                          isSelected
+                            ? "text-emerald-700 translate-x-0.5"
+                            : "text-gray-300 group-hover:translate-x-0.5"
+                        }`}
+                      />
                     </div>
 
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-base font-bold uppercase tracking-wide text-gray-900">
+                    {/* Bottom Row: Role Code & Badges */}
+                    <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1 border-t border-gray-100/70">
+                      <span className="font-mono text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                         {role.code}
-                      </p>
-                      <p className="truncate text-sm text-gray-500">
-                        {role.name !== role.code ? role.name : (role.description ?? (role.type === "CUSTOM" ? "Vai trò tùy chỉnh" : "Hệ thống"))}
-                      </p>
-                    </div>
+                      </span>
 
-                    <div className="flex shrink-0 items-center gap-1.5 text-right">
-                      <div className="flex flex-col items-end">
-                        <span className="text-sm font-semibold text-gray-700">
-                          {role.enabledCount != null ? `${role.enabledCount} quyền` : ""}
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-0.5 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-800">
+                          <VsIcon name="key" className="text-[11px]" />
+                          {role.enabledCount != null ? `${role.enabledCount} quyền` : "—"}
                         </span>
+
                         {role.type === "CUSTOM" ? (
-                          <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-semibold text-emerald-800">
-                            <VsIcon name="tune" className="text-[12px]" /> Tùy chỉnh
+                          <span className="inline-flex items-center gap-0.5 rounded-md bg-purple-50 px-1.5 py-0.5 text-[10px] font-semibold text-purple-800">
+                            <VsIcon name="tune" className="text-[10px]" /> Tùy chỉnh
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 rounded bg-gray-100 px-1 py-0.5 text-xs font-semibold text-gray-500">
-                            <VsIcon name="lock" className="text-[12px]" /> Hệ thống
+                          <span className="inline-flex items-center gap-0.5 rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600">
+                            <VsIcon name="lock" className="text-[10px]" /> Hệ thống
                           </span>
                         )}
                       </div>
-                      <VsIcon
-                        name="chevron_right"
-                        className={`text-[16px] transition-transform ${
-                          isSelected ? "text-emerald-700" : "text-gray-300 group-hover:translate-x-0.5"
-                        }`}
-                      />
                     </div>
                   </button>
                 </li>

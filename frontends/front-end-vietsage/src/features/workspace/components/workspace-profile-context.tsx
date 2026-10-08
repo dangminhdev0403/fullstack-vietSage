@@ -31,8 +31,9 @@ export function WorkspaceProfileProvider({
 >) {
   // Synchronously seed the store during the initial render pass so child components
   // can immediately read fresh profile data before the first commit/effect.
-  const isInitializedRef = useRef(false);
-  if (!isInitializedRef.current) {
+  const isInitializedRef = useRef<boolean | null>(null);
+  if (isInitializedRef.current == null) {
+    isInitializedRef.current = true;
     const current = useWorkspaceProfileStore.getState();
     if (
       current.profileName !== profileName ||
@@ -49,7 +50,6 @@ export function WorkspaceProfileProvider({
         permissions,
       });
     }
-    isInitializedRef.current = true;
   }
 
   // Keep Zustand store in sync on subsequent prop changes

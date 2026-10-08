@@ -2,7 +2,11 @@ import { getPrimaryAppRole, hasAppRole } from "@/features/auth/utils/auth-role";
 import { getWorkspaceDefinition } from "@/features/workspace/config/workspace-registry";
 import { resolveWorkspacePersona } from "@/features/workspace/utils/workspace-context";
 import { type UserRole } from "@/libs/auth";
-import { resolveTenantOwnerKbttEquivalent } from "@/features/auth/utils/cross-workspace-equivalent";
+import {
+  resolveAdminBillingEquivalent,
+  resolveFinanceBillingEquivalent,
+  resolveTenantOwnerKbttEquivalent,
+} from "@/features/auth/utils/cross-workspace-equivalent";
 
 export type RoutePolicy = {
   prefix: `/${string}`;
@@ -200,10 +204,29 @@ export function resolveCrossWorkspaceEquivalent(
   roles: readonly string[] | null | undefined,
   path: string,
 ): `/${string}` | null {
-  if (!hasAppRole(roles, "tenant_owner")) return null;
   const normalized = normalizeInternalPath(path);
   if (!normalized) return null;
-  return resolveTenantOwnerKbttEquivalent(normalized);
+
+  if (hasAppRole(roles, "tenant_owner")) {
+    return resolveTenantOwnerKbttEquivalent(normalized);
+  }
+
+  const activeRoleCode = roles?.[0];
+  const persona = activeRoleCode
+    ? resolveWorkspacePersona(activeRoleCode)
+    : null;
+
+  if (persona === "platform_admin" || hasAppRole(roles, "admin")) {
+    const adminEquivalent = resolveAdminBillingEquivalent(normalized);
+    if (adminEquivalent) return adminEquivalent;
+  }
+
+  if (persona === "platform_finance") {
+    const financeEquivalent = resolveFinanceBillingEquivalent(normalized);
+    if (financeEquivalent) return financeEquivalent;
+  }
+
+  return null;
 }
 
 export function resolveSafeRedirect(

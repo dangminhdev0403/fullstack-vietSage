@@ -1,9 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import { ApiBody, ApiTags } from "@nestjs/swagger";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { RequestWithRequiredUser } from "../../../shared/security/request-with-authenticated-user";
 import { LocalMateService } from "../application/localmate.service";
 import { LocalMateTelegramPairingService } from "../application/localmate-telegram-pairing.service";
 import {
@@ -18,6 +19,8 @@ import {
   createLocalMateTourOpenApiSchema,
   updateLocalMateTourSchema,
   updateLocalMateTourOpenApiSchema,
+  localMatePricingConfigSchema,
+  localMatePricingConfigOpenApiSchema,
   idParamSchema,
 } from "../domain/schemas/localmate.schema";
 
@@ -55,6 +58,15 @@ export class LocalMateAdminController {
   async getGuide(@Param("id") idParam: string) {
     const id = parseWithZod(idParamSchema, idParam);
     return this.service.getGuideById(id);
+  }
+
+  @SuccessMessage("Lấy danh sách đơn tour của hướng dẫn viên thành công")
+  @RequirePermission("platform.localmate.view")
+  @ApiDescript("Lấy danh sách đơn tour được phân công của hướng dẫn viên theo ID")
+  @Get("guides/:id/orders")
+  async listGuideOrders(@Param("id") idParam: string) {
+    const id = parseWithZod(idParamSchema, idParam);
+    return this.service.listGuideOrders(id);
   }
 
   @SuccessMessage("Cập nhật thông tin hướng dẫn viên LocalMate thành công")
@@ -133,5 +145,23 @@ export class LocalMateAdminController {
   async listTours(@Query() query?: unknown) {
     const filters = parseWithZod(listLocalMateToursQuerySchema, query ?? {});
     return this.service.listTours(filters);
+  }
+
+  @SuccessMessage("Lấy cấu hình biểu phí LocalMate thành công")
+  @RequirePermission(["platform.localmate.view", "platform.localmate.manage"])
+  @ApiDescript("Lấy cấu hình biểu phí nền tảng LocalMate")
+  @Get("pricing-config")
+  async getPricingConfig() {
+    return this.service.getPricingConfig();
+  }
+
+  @SuccessMessage("Cập nhật cấu hình biểu phí LocalMate thành công")
+  @RequirePermission("platform.localmate.manage")
+  @ApiDescript("Cập nhật cấu hình biểu phí nền tảng LocalMate (%)")
+  @ApiBody({ schema: localMatePricingConfigOpenApiSchema })
+  @Patch("pricing-config")
+  async updatePricingConfig(@Req() req: RequestWithRequiredUser, @Body() body: unknown) {
+    const dto = parseWithZod(localMatePricingConfigSchema, body);
+    return this.service.updatePricingConfig(req.user.userId, dto);
   }
 }

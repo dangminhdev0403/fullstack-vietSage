@@ -15,12 +15,14 @@ import type {
   UpdateLocalMateGuideInput,
 } from "../types";
 
-function formatVnd(amount: number): string {
+function formatVnd(amount: unknown): string {
+  const num = Number(amount);
+  const safeAmount = Number.isFinite(num) ? num : 0;
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency: "VND",
     maximumFractionDigits: 0,
-  }).format(amount);
+  }).format(safeAmount);
 }
 
 const DEFAULT_AVATAR =
@@ -67,11 +69,7 @@ export interface LocalMateGuidesViewProps {
   currentUserName?: string;
 }
 
-export function LocalMateGuidesView({
-  currentUserEmail,
-  currentUserRole,
-  currentUserName,
-}: LocalMateGuidesViewProps = {}) {
+export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | LocalMateStatus>("ALL");
   const [positionFilter, setPositionFilter] = useState<
@@ -130,6 +128,21 @@ export function LocalMateGuidesView({
   const disconnectTelegramMutation = useMutation(
     resource.mutations.disconnectTelegram.options(),
   );
+  const updatePricingConfigMutation = useMutation(
+    resource.mutations.updatePricingConfig.options(),
+  );
+
+  // Pricing configuration modal state
+  const [pricingModalOpen, setPricingModalOpen] = useState(false);
+  const [feeRateInput, setFeeRateInput] = useState<number>(15);
+  const [isUpdatingPricing, setIsUpdatingPricing] = useState(false);
+  const [pricingError, setPricingError] = useState<string | null>(null);
+
+  const currentFeeRate = useMemo(() => {
+    return data?.pricingConfig?.localMatePlatformFeeRate != null
+      ? Number(data.pricingConfig.localMatePlatformFeeRate)
+      : 15;
+  }, [data?.pricingConfig?.localMatePlatformFeeRate]);
 
   // Telegram pairing modal state
   const [pairingModalOpen, setPairingModalOpen] = useState(false);
@@ -143,33 +156,6 @@ export function LocalMateGuidesView({
   const [copiedLink, setCopiedLink] = useState(false);
 
   const guides: LocalMateGuide[] = useMemo(() => data?.guides ?? [], [data?.guides]);
-
-  const isGuideUser =
-    currentUserRole?.toUpperCase() === "LOCALMATE_GUIDE" ||
-    currentUserRole?.toUpperCase() === "LOCAL_MATE_GUIDE" ||
-    Boolean(currentUserRole?.toLowerCase().includes("guide"));
-
-  const myGuide = useMemo(() => {
-    if (!guides.length) return null;
-    if (isGuideUser) {
-      if (currentUserEmail) {
-        const found = guides.find(
-          (g) =>
-            g.email?.trim().toLowerCase() === currentUserEmail.trim().toLowerCase() ||
-            g.user?.email?.trim().toLowerCase() === currentUserEmail.trim().toLowerCase(),
-        );
-        if (found) return found;
-      }
-      if (currentUserName) {
-        const found = guides.find(
-          (g) => g.fullName.trim().toLowerCase() === currentUserName.trim().toLowerCase(),
-        );
-        if (found) return found;
-      }
-      return guides[0];
-    }
-    return null;
-  }, [guides, isGuideUser, currentUserEmail, currentUserName]);
 
   // Filtered guides
   const filteredGuides = useMemo(() => {
@@ -196,6 +182,12 @@ export function LocalMateGuidesView({
   // Statistics
   const qualifiedCount = guides.filter((g) => g.status === "QUALIFIED").length;
   const pendingCount = guides.filter((g) => g.status === "PENDING").length;
+  const telegramConnectedCount = guides.filter(
+    (g) =>
+      g.telegramBinding &&
+      !g.telegramBinding.revokedAt &&
+      !g.telegramBinding.blockedAt,
+  ).length;
 
   // Pagination calculation
   const totalItems = filteredGuides.length;
@@ -356,15 +348,13 @@ export function LocalMateGuidesView({
           ...coordinates,
         };
 
-        const createdGuide = await createGuideMutation.mutateAsync({
+        await createGuideMutation.mutateAsync({
           input: createPayload,
         });
 
         await SwalVietSage.fire({
           title: "Thành công!",
-          text: createdGuide.temporaryPassword
-            ? `Đã thêm ${formData.fullName}. Mật khẩu tạm thời (chỉ hiển thị một lần): ${createdGuide.temporaryPassword}`
-            : `Đã thêm mới hướng dẫn viên ${formData.fullName} vào mạng lưới.`,
+          text: `Đã thêm mới hướng dẫn viên ${formData.fullName} vào mạng lưới.`,
           icon: "success",
           showConfirmButton: true,
           confirmButtonText: "OK",
@@ -390,11 +380,12 @@ export function LocalMateGuidesView({
     const newStatus: LocalMateStatus =
       guide.status === "QUALIFIED" ? "SUSPENDED" : "QUALIFIED";
     const actionLabel =
-      newStatus === "QUALIFIED" ? "Thẩm định Qualified" : "Tạm dừng hoạt động";
+      newStatus === "QUALIFIED" ? "Duyệt thẩm định đạt chuẩn" : "Tạm dừng hoạt động";
+    const statusVietnamese = newStatus === "QUALIFIED" ? "Đạt chuẩn" : "Tạm dừng";
 
     const confirmResult = await SwalVietSage.fire({
       title: `${actionLabel}?`,
-      text: `Xác nhận chuyển trạng thái hướng dẫn viên ${guide.fullName} (${guide.guideCode}) sang ${newStatus}.`,
+      text: `Xác nhận chuyển trạng thái hướng dẫn viên ${guide.fullName} (${guide.guideCode}) sang "${statusVietnamese}".`,
       icon: "question",
       showCancelButton: true,
       confirmButtonText: "Xác nhận",
@@ -412,11 +403,12 @@ export function LocalMateGuidesView({
 
       await SwalVietSage.fire({
         title: "Cập nhật thành công",
-        text: `Đã chuyển hướng dẫn viên ${guide.fullName} sang trạng thái ${newStatus}.`,
+        text: `Đã chuyển hướng dẫn viên ${guide.fullName} sang trạng thái "${statusVietnamese}".`,
         icon: "success",
         showConfirmButton: true,
         confirmButtonText: "OK",
       });
+
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Không thể cập nhật trạng thái.";
       await SwalVietSage.fire({
@@ -524,6 +516,40 @@ export function LocalMateGuidesView({
     }
   };
 
+  const handleSavePricingConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isNaN(feeRateInput) || feeRateInput < 0 || feeRateInput > 100) {
+      setPricingError("Tỷ lệ phí nền tảng phải nằm trong khoảng từ 0% đến 100%");
+      return;
+    }
+    setPricingError(null);
+    setIsUpdatingPricing(true);
+    try {
+      await updatePricingConfigMutation.mutateAsync({
+        localMatePlatformFeeRate: feeRateInput,
+      });
+      setPricingModalOpen(false);
+      await SwalVietSage.fire({
+        icon: "success",
+        title: "Cập nhật biểu phí thành công",
+        text: `Đã thiết lập phí nền tảng LocalMate thành ${feeRateInput}%. Thay đổi chỉ áp dụng cho các đơn đặt tour mới.`,
+        confirmButtonText: "OK",
+        showConfirmButton: true,
+      });
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : "Có lỗi xảy ra khi cập nhật biểu phí";
+      setPricingError(errorMsg);
+      await SwalVietSage.fire({
+        icon: "error",
+        title: "Cập nhật thất bại",
+        text: errorMsg,
+        confirmButtonText: "Đóng",
+      });
+    } finally {
+      setIsUpdatingPricing(false);
+    }
+  };
+
   // Bulk selection
   const handleToggleSelectAll = () => {
     if (selectedGuideIds.size === paginatedGuides.length) {
@@ -545,369 +571,107 @@ export function LocalMateGuidesView({
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      {isGuideUser ? (
-        myGuide ? (
-          <>
-            {/* Header section for Guide */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-1">
-              <div>
-                <div className="flex items-center gap-3">
-                  <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#173F35]/10 text-[#173F35] shadow-xs">
-                    <VsIcon name="manage_accounts" className="text-2xl" />
-                  </span>
-                  <div>
-                    <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-[#142823]">
-                      Cấu hình Hồ sơ &amp; Kết nối Hướng dẫn viên
-                    </h1>
-                    <p className="mt-1 text-base text-[#52635A] max-w-2xl leading-relaxed">
-                      Quản lý thông tin tác nghiệp cá nhân và cấu hình kết nối Telegram để nhận thông báo điều tour tức thì từ AI Concierge khi du khách chốt chuyến.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleOpenEditModal(myGuide)}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#25483F]/20 bg-white px-4 text-sm font-bold text-[#142823] shadow-xs hover:bg-[#FAF7F0] cursor-pointer transition-all"
-                >
-                  <VsIcon name="edit" className="text-lg text-[#52635A]" />
-                  <span>Chỉnh sửa hồ sơ</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleConnectTelegram(myGuide)}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#173F35] to-[#245347] px-5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(23,63,53,0.25)] transition-all hover:scale-[1.02] cursor-pointer"
-                >
-                  <VsIcon name="send" className="text-lg" />
-                  <span>
-                    {myGuide.telegramBinding &&
-                    !myGuide.telegramBinding.revokedAt &&
-                    !myGuide.telegramBinding.blockedAt
-                      ? "Cấu hình Telegram"
-                      : "⚡ Kết nối Telegram"}
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {/* Thẻ 1: Kết nối Telegram Điều Tour (Hero Banner) */}
-            <div className="rounded-3xl border border-[#25483F]/15 bg-white p-6 sm:p-8 shadow-[0_8px_30px_rgba(20,40,35,0.06)] relative overflow-hidden">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="space-y-3 max-w-2xl">
-                  <div className="flex items-center gap-2">
-                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#0088cc]/10 text-[#0088cc]">
-                      <VsIcon name="send" className="text-2xl" />
-                    </span>
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#0088cc]">
-                      Tích hợp Telegram Bot Điều Tour
-                    </span>
-                  </div>
-                  <h2 className="text-2xl font-black text-[#142823] tracking-tight">
-                    Tiếp nhận khách hàng tự động từ AI Concierge
-                  </h2>
-                  <p className="text-sm text-[#52635A] leading-relaxed">
-                    Khi du khách trò chuyện và xác nhận chốt lịch trình với AI Concierge trên web VietSage, hệ thống sẽ tự động gửi thông tin khách hàng, số điện thoại, ngày đi và lịch trình chi tiết trực tiếp qua Telegram bot của bạn.
-                  </p>
-                </div>
-
-                <div className="shrink-0">
-                  {myGuide.telegramBinding &&
-                  !myGuide.telegramBinding.revokedAt &&
-                  !myGuide.telegramBinding.blockedAt ? (
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 space-y-3 min-w-[280px]">
-                      <div className="flex items-center gap-2">
-                        <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-xs font-black uppercase text-emerald-800 tracking-wider">
-                          Đã kết nối thành công
-                        </span>
-                      </div>
-                      <div className="text-xs text-emerald-950">
-                        <div>Tài khoản ID: <strong className="font-mono font-bold">{myGuide.telegramBinding.telegramUserId || myGuide.telegramBinding.telegramChatId}</strong></div>
-                        <div className="mt-0.5 text-emerald-700 font-medium">Sẵn sàng nhận booking từ AI</div>
-                      </div>
-                      <div className="flex items-center gap-2 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => handleConnectTelegram(myGuide)}
-                          className="rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs font-bold text-emerald-800 shadow-2xs hover:bg-emerald-50 cursor-pointer"
-                        >
-                          Cấp lại mã QR
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDisconnectTelegram(myGuide)}
-                          className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-700 shadow-2xs hover:bg-rose-50 cursor-pointer"
-                        >
-                          Hủy kết nối
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50/90 p-5 space-y-3 min-w-[280px]">
-                      <div className="flex items-center gap-2">
-                        <VsIcon name="warning" className="text-lg text-amber-600" />
-                        <span className="text-xs font-black uppercase text-amber-900 tracking-wider">
-                          Chưa kết nối Telegram
-                        </span>
-                      </div>
-                      <p className="text-xs text-amber-950 font-medium max-w-[260px]">
-                        Quét mã QR để liên kết bot Telegram và không bỏ lỡ yêu cầu dẫn tour từ du khách.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => handleConnectTelegram(myGuide)}
-                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:from-amber-700 hover:to-amber-800 cursor-pointer transition-all w-full justify-center"
-                      >
-                        <VsIcon name="qr_code" className="text-base" />
-                        <span>Quét mã QR kết nối ngay</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Thẻ 2: Thông tin Hồ sơ Tác nghiệp & Cấu hình dịch vụ */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Cột trái: Thông tin nhận diện & Biểu phí */}
-              <div className="lg:col-span-5 rounded-3xl border border-[#25483F]/12 bg-white p-6 sm:p-7 shadow-[0_4px_20px_rgba(20,40,35,0.04)] space-y-6">
-                <div className="flex items-center gap-4">
-                  <img
-                    src={myGuide.avatarUrl}
-                    alt={myGuide.fullName}
-                    className="h-20 w-20 rounded-2xl object-cover border-2 border-[#173F35]/20 shadow-md shrink-0"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-xl font-black text-[#142823] tracking-tight">{myGuide.fullName}</h3>
-                      <span className="rounded-lg bg-[#173F35]/10 px-2 py-0.5 font-mono text-xs font-bold text-[#173F35]">
-                        {myGuide.guideCode}
-                      </span>
-                    </div>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                          myGuide.status === "QUALIFIED"
-                            ? "bg-[#16805C]/10 text-[#16805C] border border-[#16805C]/20"
-                            : "bg-[#C79A32]/10 text-[#C79A32] border border-[#C79A32]/20"
-                        }`}
-                      >
-                        {myGuide.status === "QUALIFIED" ? "✓ Đạt chuẩn Qualified" : myGuide.status}
-                      </span>
-                      <span className="text-xs text-[#52635A]">
-                        {myGuide.position === "COORDINATOR"
-                          ? "Điều phối vùng"
-                          : myGuide.position === "LEADER"
-                            ? "Trưởng nhóm"
-                            : "HDV Bản địa"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-t border-[#25483F]/10 pt-4 space-y-3 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[#52635A]">Biểu phí dịch vụ:</span>
-                    <span className="text-base font-black text-[#173F35]">
-                      {formatVnd(myGuide.dailyRateVnd)} <span className="text-xs font-normal text-[#52635A]">/ ngày</span>
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[#52635A]">Số điện thoại:</span>
-                    <span className="font-mono font-bold text-[#142823]">{myGuide.phone}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[#52635A]">Email tài khoản:</span>
-                    <span className="font-mono text-xs font-bold text-[#142823]">{myGuide.user?.email || myGuide.email || "—"}</span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleOpenEditModal(myGuide)}
-                  className="w-full h-11 rounded-xl bg-[#FAF7F0] border border-[#25483F]/15 text-sm font-bold text-[#142823] hover:bg-[#173F35] hover:text-white transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <VsIcon name="edit" className="text-base" />
-                  <span>Chỉnh sửa thông tin tác nghiệp</span>
-                </button>
-              </div>
-
-              {/* Cột phải: Khu vực, Ngôn ngữ, Chuyên môn & Tiểu sử */}
-              <div className="lg:col-span-7 rounded-3xl border border-[#25483F]/12 bg-white p-6 sm:p-7 shadow-[0_4px_20px_rgba(20,40,35,0.04)] space-y-5">
-                <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#52635A]">Khu vực hoạt động thực địa</span>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {myGuide.operatingRegions.map((reg) => (
-                      <span
-                        key={reg}
-                        className="rounded-xl bg-[#FAF7F0] border border-[#25483F]/12 px-3.5 py-1.5 text-xs font-bold text-[#142823]"
-                      >
-                        📍 {reg}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#52635A]">Ngôn ngữ giao tiếp</span>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {myGuide.languages.map((lang) => (
-                      <span
-                        key={lang}
-                        className="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-semibold text-[#142823]"
-                      >
-                        🗣 {lang}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#52635A]">Chuyên môn &amp; Tour thế mạnh</span>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {myGuide.specialties.map((spec) => (
-                      <span
-                        key={spec}
-                        className="rounded-xl bg-emerald-50 border border-emerald-200/60 px-3 py-1.5 text-xs font-medium text-emerald-800"
-                      >
-                        ⭐ {spec}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#52635A]">Tiểu sử &amp; Giới thiệu với du khách</span>
-                  <div className="mt-2 rounded-2xl bg-[#FBF9F5] border border-[#25483F]/10 p-4 text-sm text-[#485951] leading-relaxed italic">
-                    &ldquo;{myGuide.bio || "Chưa có lời giới thiệu. Bạn có thể cập nhật lời giới thiệu để AI Concierge trích dẫn tới du khách khi đề xuất hướng dẫn viên."}&rdquo;
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Thẻ 3: Quy trình nhận tour từ AI Concierge */}
-            <div className="rounded-3xl border border-[#25483F]/12 bg-[#FAF7F0] p-6 sm:p-7">
-              <h3 className="text-base font-bold text-[#142823] flex items-center gap-2">
-                <VsIcon name="info" className="text-lg text-[#173F35]" />
-                <span>Quy trình chuyển tiếp khách hàng từ AI sang LocalMate</span>
-              </h3>
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="rounded-2xl bg-white p-4 border border-[#25483F]/10 shadow-xs">
-                  <span className="text-xs font-black text-[#173F35] bg-[#173F35]/10 px-2.5 py-1 rounded-md">BƯỚC 1</span>
-                  <h4 className="mt-2 text-sm font-bold text-[#142823]">Khách chốt lịch trình</h4>
-                  <p className="mt-1 text-xs text-[#52635A] leading-relaxed">
-                    Du khách trò chuyện với AI Concierge trên web VietSage và chọn bạn làm người đồng hành tại khu vực {myGuide.operatingRegions.join(", ")}.
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-white p-4 border border-[#25483F]/10 shadow-xs">
-                  <span className="text-xs font-black text-[#0088cc] bg-sky-50 px-2.5 py-1 rounded-md">BƯỚC 2</span>
-                  <h4 className="mt-2 text-sm font-bold text-[#142823]">Bắn tin qua Telegram</h4>
-                  <p className="mt-1 text-xs text-[#52635A] leading-relaxed">
-                    VietSage Bot gửi thông tin chi tiết: Tên khách, số điện thoại, lịch trình, thời gian đón và số lượng người trực tiếp vào Telegram của bạn.
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-white p-4 border border-[#25483F]/10 shadow-xs">
-                  <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md">BƯỚC 3</span>
-                  <h4 className="mt-2 text-sm font-bold text-[#142823]">Đón &amp; Dẫn tour thực địa</h4>
-                  <p className="mt-1 text-xs text-[#52635A] leading-relaxed">
-                    Bạn bấm nút nhận khách trên Telegram, liên hệ xác nhận giờ hẹn với khách và tiến hành hướng dẫn du khách trải nghiệm văn hóa bản địa.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </>
-        ) : isLoading ? (
-          <div className="py-24 text-center">
-            <div className="inline-block h-10 w-10 animate-spin rounded-full border-4 border-[#173F35] border-t-transparent" />
-            <p className="mt-4 text-sm font-bold text-[#52635A]">
-              Đang tải thông tin cấu hình hướng dẫn viên...
-            </p>
-          </div>
-        ) : (
-          <div className="p-12 text-center text-[#52635A]">
-            <VsIcon name="person_off" className="mx-auto text-5xl text-amber-500 mb-3" />
-            <h2 className="text-xl font-bold text-[#142823]">Chưa tìm thấy hồ sơ LocalMate</h2>
-            <p className="text-sm mt-1 text-[#52635A]">
-              Tài khoản của bạn ({currentUserEmail || currentUserName}) chưa được liên kết với hồ sơ hướng dẫn viên trong hệ thống. Vui lòng liên hệ Quản trị viên LocalMate để được cấp quyền.
-            </p>
-          </div>
-        )
-      ) : (
-        <>
-          {/* Header section for Manager */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-1">
+      {/* Header section for Manager */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between pb-1">
+        <div>
+          <div className="flex items-center gap-3">
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#173F35]/10 text-[#173F35] shadow-xs">
+              <VsIcon name="groups" className="text-2xl" />
+            </span>
             <div>
-              <div className="flex items-center gap-3">
-                <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#173F35]/10 text-[#173F35] shadow-xs">
-                  <VsIcon name="groups" className="text-2xl" />
-                </span>
-                <div>
-                  <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-[#142823]">
-                    Mạng lưới LocalMate
-                  </h1>
-                  <p className="mt-1 text-base text-[#52635A] max-w-2xl leading-relaxed">
-                    Quản lý hồ sơ, năng lực chuyên môn, khu vực tác nghiệp và trạng thái phê duyệt của đội ngũ hướng dẫn viên.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleOpenCreateModal}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#173F35] to-[#245347] px-6 text-sm font-bold text-white shadow-[0_8px_20px_rgba(23,63,53,0.25)] transition-all hover:scale-[1.02] hover:shadow-[0_12px_28px_rgba(23,63,53,0.32)] active:scale-[0.98] shrink-0 cursor-pointer"
-            >
-              <VsIcon name="add" className="text-xl" />
-              <span>Thêm LocalMate mới</span>
-            </button>
-          </div>
-
-          {/* Executive Metric Cards for Manager */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {/* Card 1: Tổng LocalMate */}
-            <div className="rounded-2xl border border-[#25483F]/12 bg-white p-5 shadow-[0_4px_20px_rgba(20,40,35,0.04)] transition-all hover:shadow-[0_8px_30px_rgba(20,40,35,0.08)]">
-              <div className="flex items-center justify-between text-[#5A6861]">
-                <span className="text-xs font-bold uppercase tracking-wider">Tổng nhân sự</span>
-                <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#173F35]/10 text-[#173F35]">
-                  <VsIcon name="groups" className="text-lg" />
-                </span>
-              </div>
-              <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-3xl font-black text-[#142823] tracking-tight">{guides.length}</span>
-                <span className="text-xs font-semibold text-[#5A6861]">nhân sự thực địa</span>
-              </div>
-            </div>
-
-            {/* Card 2: Đạt chuẩn Qualified */}
-            <div className="rounded-2xl border border-[#25483F]/12 bg-white p-5 shadow-[0_4px_20px_rgba(20,40,35,0.04)] transition-all hover:shadow-[0_8px_30px_rgba(20,40,35,0.08)]">
-              <div className="flex items-center justify-between text-[#5A6861]">
-                <span className="text-xs font-bold uppercase tracking-wider">Đạt chuẩn Qualified</span>
-                <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#16805C]/10 text-[#16805C]">
-                  <VsIcon name="verified" className="text-lg" />
-                </span>
-              </div>
-              <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-3xl font-black text-[#16805C] tracking-tight">{qualifiedCount}</span>
-                <span className="text-xs font-semibold text-[#16805C]">sẵn sàng nhận tour</span>
-              </div>
-            </div>
-
-            {/* Card 3: Chờ duyệt */}
-            <div className="rounded-2xl border border-[#25483F]/12 bg-white p-5 shadow-[0_4px_20px_rgba(20,40,35,0.04)] transition-all hover:shadow-[0_8px_30px_rgba(20,40,35,0.08)]">
-              <div className="flex items-center justify-between text-[#5A6861]">
-                <span className="text-xs font-bold uppercase tracking-wider">Hồ sơ chờ duyệt</span>
-                <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#C79A32]/10 text-[#C79A32]">
-                  <VsIcon name="pending_actions" className="text-lg" />
-                </span>
-              </div>
-              <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-3xl font-black text-[#C79A32] tracking-tight">{pendingCount}</span>
-                <span className="text-xs font-semibold text-[#C79A32]">cần xác thực</span>
-              </div>
+              <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-[#142823]">
+                Mạng lưới LocalMate
+              </h1>
+              <p className="mt-1 text-base text-[#52635A] max-w-2xl leading-relaxed">
+                Quản lý hồ sơ, khu vực tác nghiệp, trạng thái phê duyệt và kết nối Telegram của đội ngũ hướng dẫn viên.
+              </p>
             </div>
           </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setFeeRateInput(currentFeeRate);
+              setPricingError(null);
+              setPricingModalOpen(true);
+            }}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#25483F]/20 bg-white px-4 text-sm font-bold text-[#173F35] shadow-xs transition-all hover:bg-[#FAF7F0] active:scale-[0.98] shrink-0 cursor-pointer"
+          >
+            <VsIcon name="tune" className="text-lg text-[#173F35]" />
+            <span>Biểu phí nền tảng ({currentFeeRate}%)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleOpenCreateModal}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#173F35] to-[#245347] px-5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(23,63,53,0.25)] transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0 cursor-pointer"
+          >
+            <VsIcon name="add" className="text-lg" />
+            <span>Thêm LocalMate mới</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Executive Metric Cards for Manager */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Card 1: Tổng LocalMate */}
+        <div className="rounded-2xl border border-[#25483F]/12 bg-white p-5 shadow-[0_4px_20px_rgba(20,40,35,0.04)] transition-all hover:shadow-[0_8px_30px_rgba(20,40,35,0.08)]">
+          <div className="flex items-center justify-between text-[#5A6861]">
+            <span className="text-xs font-bold uppercase tracking-wider">Tổng nhân sự</span>
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#173F35]/10 text-[#173F35]">
+              <VsIcon name="groups" className="text-lg" />
+            </span>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-black text-[#142823] tracking-tight">{guides.length}</span>
+            <span className="text-xs font-semibold text-[#5A6861]">nhân sự thực địa</span>
+          </div>
+        </div>
+
+        {/* Card 2: Đạt chuẩn thẩm định */}
+        <div className="rounded-2xl border border-[#25483F]/12 bg-white p-5 shadow-[0_4px_20px_rgba(20,40,35,0.04)] transition-all hover:shadow-[0_8px_30px_rgba(20,40,35,0.08)]">
+          <div className="flex items-center justify-between text-[#5A6861]">
+            <span className="text-xs font-bold uppercase tracking-wider">Đạt chuẩn thẩm định</span>
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#16805C]/10 text-[#16805C]">
+              <VsIcon name="verified" className="text-lg" />
+            </span>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-black text-[#16805C] tracking-tight">{qualifiedCount}</span>
+            <span className="text-xs font-semibold text-[#16805C]">sẵn sàng nhận tour</span>
+          </div>
+        </div>
+
+        {/* Card 3: Chờ duyệt */}
+        <div className="rounded-2xl border border-[#25483F]/12 bg-white p-5 shadow-[0_4px_20px_rgba(20,40,35,0.04)] transition-all hover:shadow-[0_8px_30px_rgba(20,40,35,0.08)]">
+          <div className="flex items-center justify-between text-[#5A6861]">
+            <span className="text-xs font-bold uppercase tracking-wider">Hồ sơ chờ duyệt</span>
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#C79A32]/10 text-[#C79A32]">
+              <VsIcon name="pending_actions" className="text-lg" />
+            </span>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-black text-[#C79A32] tracking-tight">{pendingCount}</span>
+            <span className="text-xs font-semibold text-[#C79A32]">cần xác thực</span>
+          </div>
+        </div>
+
+        {/* Card 4: Kết nối Telegram */}
+        <div className="rounded-2xl border border-[#25483F]/12 bg-white p-5 shadow-[0_4px_20px_rgba(20,40,35,0.04)] transition-all hover:shadow-[0_8px_30px_rgba(20,40,35,0.08)]">
+          <div className="flex items-center justify-between text-[#5A6861]">
+            <span className="text-xs font-bold uppercase tracking-wider">Kết nối Telegram</span>
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#0284C7]/10 text-[#0284C7]">
+              <VsIcon name="send" className="text-lg" />
+            </span>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-black text-[#0284C7] tracking-tight">{telegramConnectedCount}</span>
+            <span className="text-xs font-semibold text-[#0284C7]">đang nhận tour bot</span>
+          </div>
+        </div>
+      </div>
 
       {/* Modern High-Capacity Toolbar */}
       <div className="rounded-2xl border border-[#25483F]/12 bg-white p-4 sm:p-5 shadow-[0_4px_20px_rgba(20,40,35,0.04)]">
@@ -935,8 +699,9 @@ export function LocalMateGuidesView({
             {(
               [
                 { key: "ALL", label: "Tất cả" },
-                { key: "QUALIFIED", label: "Qualified" },
+                { key: "QUALIFIED", label: "Đạt chuẩn" },
                 { key: "PENDING", label: "Chờ duyệt" },
+
                 { key: "SUSPENDED", label: "Tạm dừng" },
               ] as const
             ).map((st) => (
@@ -1064,20 +829,15 @@ export function LocalMateGuidesView({
               <tbody className="divide-y divide-[#25483F]/8">
                 {paginatedGuides.map((guide) => {
                   const isSelected = selectedGuideIds.has(guide.id);
-                  const isMyRow = Boolean(isGuideUser && myGuide && guide.id === myGuide.id);
 
                   return (
                     <tr
                       key={guide.id}
-                      onClick={() => (!isGuideUser || isMyRow) && handleOpenEditModal(guide)}
+                      onClick={() => handleOpenEditModal(guide)}
                       className={`group transition-colors ${
-                        isMyRow
-                          ? "bg-emerald-50/70 hover:bg-emerald-50/90 border-l-4 border-l-[#16805C] cursor-pointer"
-                          : isSelected
-                            ? "bg-[#FAF7F0]/80 cursor-pointer"
-                            : isGuideUser
-                              ? "hover:bg-[#FAF7F0]/50 cursor-default"
-                              : "hover:bg-[#FAF7F0]/50 cursor-pointer"
+                        isSelected
+                          ? "bg-[#FAF7F0]/80 cursor-pointer"
+                          : "hover:bg-[#FAF7F0]/50 cursor-pointer"
                       }`}
                     >
                       {/* Checkbox */}
@@ -1106,11 +866,6 @@ export function LocalMateGuidesView({
                               <span className="font-bold text-base text-[#142823] group-hover:text-[#173F35] transition-colors leading-snug">
                                 {guide.fullName}
                               </span>
-                              {isMyRow && (
-                                <span className="rounded-md bg-[#16805C] px-2 py-0.5 text-[10px] font-black text-white uppercase tracking-wider shadow-2xs">
-                                  Hồ sơ của bạn
-                                </span>
-                              )}
                               <span className="font-mono text-xs font-bold text-[#485951] bg-[#FAF7F0] border border-[#25483F]/12 px-2 py-0.5 rounded-md">
                                 {guide.guideCode}
                               </span>
@@ -1119,9 +874,10 @@ export function LocalMateGuidesView({
                               {guide.status === "QUALIFIED" ? (
                                 <span className="inline-flex items-center gap-1.5 rounded-full bg-[#16805C]/10 border border-[#16805C]/20 px-3 py-1 text-xs font-bold text-[#16805C]">
                                   <span className="h-1.5 w-1.5 rounded-full bg-[#16805C]" />
-                                  Qualified
+                                  Đạt chuẩn
                                 </span>
                               ) : guide.status === "PENDING" ? (
+
                                 <span className="rounded-full bg-[#C79A32]/10 border border-[#C79A32]/20 px-3 py-1 text-xs font-bold text-[#C79A32]">
                                   Chờ duyệt
                                 </span>
@@ -1169,13 +925,15 @@ export function LocalMateGuidesView({
                               )}
                             </div>
 
-                            {/* Account Email & Phone */}
+                            {/* Contact Phone & Email */}
                             <div className="mt-1 flex items-center gap-2 text-xs text-[#52635A]">
-                              <span className="font-mono text-[#142823] font-medium">
-                                ✉ {guide.user?.email || guide.email || "Chưa có tài khoản"}
-                              </span>
-                              <span>•</span>
-                              <span>📞 {guide.phone}</span>
+                              <span className="font-medium text-[#142823]">📞 {guide.phone}</span>
+                              {guide.email && (
+                                <>
+                                  <span>•</span>
+                                  <span className="font-mono text-[#52635A]">✉ {guide.email}</span>
+                                </>
+                              )}
                             </div>
 
                             {/* Subtitle / Specialties */}
@@ -1234,86 +992,88 @@ export function LocalMateGuidesView({
                         className="px-6 py-5 text-right relative"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setOpenMenuGuideId(
-                              openMenuGuideId === guide.id ? null : guide.id,
-                            )
-                          }
-                          className="flex h-9 w-9 items-center justify-center rounded-xl text-[#52635A] hover:bg-[#FAF7F0] hover:text-[#142823] ml-auto transition-colors cursor-pointer"
-                          title="Tùy chọn thao tác"
-                        >
-                          <VsIcon name="more_vert" className="text-xl" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditModal(guide)}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-[#25483F]/15 bg-white px-2.5 py-1.5 text-xs font-bold text-[#173F35] hover:bg-[#FAF7F0] transition-colors cursor-pointer shadow-2xs"
+                            title="Chỉnh sửa hồ sơ hướng dẫn viên"
+                          >
+                            <VsIcon name="edit" className="text-base text-[#173F35]" />
+                            <span className="hidden sm:inline">Sửa hồ sơ</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOpenMenuGuideId(
+                                openMenuGuideId === guide.id ? null : guide.id,
+                              )
+                            }
+                            className="flex h-9 w-9 items-center justify-center rounded-xl text-[#52635A] hover:bg-[#FAF7F0] hover:text-[#142823] transition-colors cursor-pointer"
+                            title="Tùy chọn thao tác"
+                          >
+                            <VsIcon name="more_vert" className="text-xl" />
+                          </button>
+                        </div>
 
                         {/* Floating Popup Menu */}
                         {openMenuGuideId === guide.id && (
                           <div
                             ref={menuRef}
-                            className="absolute right-6 top-12 z-20 w-52 rounded-2xl border border-[#25483F]/12 bg-white p-2 shadow-2xl text-left"
+                            className="absolute right-6 top-12 z-20 w-56 rounded-2xl border border-[#25483F]/12 bg-white p-2 shadow-2xl text-left"
                           >
-                            {isGuideUser && !isMyRow ? (
-                              <div className="p-2.5 text-center text-xs font-medium text-[#52635A]">
-                                Chỉ xem thông tin đồng nghiệp
-                              </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenMenuGuideId(null);
+                                handleOpenEditModal(guide);
+                              }}
+                              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-[#142823] hover:bg-[#FAF7F0] cursor-pointer transition-colors"
+                            >
+                              <VsIcon name="edit" className="text-lg text-[#52635A]" />
+                              <span>Chỉnh sửa hồ sơ</span>
+                            </button>
+                            <div className="my-1 border-t border-[#25483F]/10" />
+                            <button
+                              type="button"
+                              onClick={() => handleToggleQualification(guide)}
+                              className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold cursor-pointer transition-colors ${
+                                guide.status === "QUALIFIED"
+                                  ? "text-[#C94A4A] hover:bg-rose-50"
+                                  : "text-[#16805C] hover:bg-emerald-50"
+                              }`}
+                            >
+                              <VsIcon
+                                name={guide.status === "QUALIFIED" ? "block" : "task_alt"}
+                                className="text-lg"
+                              />
+                              <span>
+                                {guide.status === "QUALIFIED"
+                                  ? "Tạm dừng hoạt động"
+                                  : "Duyệt thẩm định đạt chuẩn"}
+                              </span>
+                            </button>
+                            <div className="my-1 border-t border-[#25483F]/10" />
+                            {guide.telegramBinding &&
+                            !guide.telegramBinding.revokedAt &&
+                            !guide.telegramBinding.blockedAt ? (
+                              <button
+                                type="button"
+                                onClick={() => handleDisconnectTelegram(guide)}
+                                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-50 cursor-pointer transition-colors"
+                              >
+                                <VsIcon name="link_off" className="text-lg text-amber-600" />
+                                <span>Hủy kết nối Telegram</span>
+                              </button>
                             ) : (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenEditModal(guide)}
-                                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-[#142823] hover:bg-[#FAF7F0] cursor-pointer transition-colors"
-                                >
-                                  <VsIcon name="edit" className="text-lg text-[#52635A]" />
-                                  <span>{isMyRow ? "Chỉnh sửa hồ sơ của bạn" : "Chỉnh sửa hồ sơ"}</span>
-                                </button>
-                                {!isGuideUser && (
-                                  <>
-                                    <div className="my-1 border-t border-[#25483F]/10" />
-                                    <button
-                                      type="button"
-                                      onClick={() => handleToggleQualification(guide)}
-                                      className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold cursor-pointer transition-colors ${
-                                        guide.status === "QUALIFIED"
-                                          ? "text-[#C94A4A] hover:bg-rose-50"
-                                          : "text-[#16805C] hover:bg-emerald-50"
-                                      }`}
-                                    >
-                                      <VsIcon
-                                        name={guide.status === "QUALIFIED" ? "block" : "task_alt"}
-                                        className="text-lg"
-                                      />
-                                      <span>
-                                        {guide.status === "QUALIFIED"
-                                          ? "Tạm dừng Qualified"
-                                          : "Duyệt Qualified"}
-                                      </span>
-                                    </button>
-                                  </>
-                                )}
-                                <div className="my-1 border-t border-[#25483F]/10" />
-                                {guide.telegramBinding &&
-                                !guide.telegramBinding.revokedAt &&
-                                !guide.telegramBinding.blockedAt ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDisconnectTelegram(guide)}
-                                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-50 cursor-pointer transition-colors"
-                                  >
-                                    <VsIcon name="link_off" className="text-lg text-amber-600" />
-                                    <span>Hủy kết nối Telegram</span>
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleConnectTelegram(guide)}
-                                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-sky-700 hover:bg-sky-50 cursor-pointer transition-colors"
-                                  >
-                                    <VsIcon name="send" className="text-lg text-sky-600" />
-                                    <span>Kết nối Telegram</span>
-                                  </button>
-                                )}
-                              </>
+                              <button
+                                type="button"
+                                onClick={() => handleConnectTelegram(guide)}
+                                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-sky-700 hover:bg-sky-50 cursor-pointer transition-colors"
+                              >
+                                <VsIcon name="send" className="text-lg text-sky-600" />
+                                <span>Kết nối Telegram</span>
+                              </button>
                             )}
                           </div>
                         )}
@@ -1379,8 +1139,6 @@ export function LocalMateGuidesView({
           </div>
         )}
       </div>
-        </>
-      )}
 
       {/* Guide Create/Edit Form Modal */}
       {modalOpen && (
@@ -1421,7 +1179,6 @@ export function LocalMateGuidesView({
                   </label>
                   <select
                     value={formData.position}
-                    disabled={isGuideUser}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
@@ -1442,7 +1199,6 @@ export function LocalMateGuidesView({
                   </label>
                   <select
                     value={formData.status}
-                    disabled={isGuideUser}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
@@ -1451,9 +1207,9 @@ export function LocalMateGuidesView({
                     }
                     className="h-11 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3.5 text-sm font-bold text-[#142823] cursor-pointer focus:bg-white focus:border-[#173F35] disabled:bg-slate-100 disabled:text-[#788880]"
                   >
-                    <option value="QUALIFIED">QUALIFIED (Đã duyệt)</option>
-                    <option value="PENDING">PENDING (Chờ duyệt)</option>
-                    <option value="SUSPENDED">SUSPENDED (Tạm dừng)</option>
+                    <option value="QUALIFIED">Đạt chuẩn (Đã duyệt thẩm định)</option>
+                    <option value="PENDING">Chờ duyệt thẩm định</option>
+                    <option value="SUSPENDED">Tạm dừng hoạt động</option>
                   </select>
                 </div>
               </div>
@@ -1489,13 +1245,13 @@ export function LocalMateGuidesView({
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1.5">
-                    Email (Cấp tài khoản đăng nhập)
+                    Email liên hệ (Không bắt buộc)
                   </label>
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="guide@vietsage.vn"
+                    placeholder="guide@gmail.com (Nếu có)"
                     className="h-11 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-4 text-sm font-semibold text-[#142823] focus:bg-white focus:border-[#173F35]"
                   />
                 </div>
@@ -1816,6 +1572,148 @@ export function LocalMateGuidesView({
                 <span>Kiểm tra trạng thái</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* LocalMate Platform Fee Modal */}
+      {pricingModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-[#25483F]/15 bg-white shadow-2xl transition-all">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-[#25483F]/10 bg-gradient-to-r from-[#173F35] to-[#245347] px-6 py-5 text-white">
+              <div className="flex items-center gap-3">
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/15 text-white shadow-xs">
+                  <VsIcon name="tune" className="text-xl" />
+                </span>
+                <div>
+                  <h3 className="text-lg font-black tracking-tight text-white">
+                    Cấu hình biểu phí LocalMate
+                  </h3>
+                  <p className="text-xs text-white/80">
+                    Phí nền tảng VietSage thu đối với Hướng dẫn viên du lịch
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPricingModalOpen(false)}
+                className="grid h-9 w-9 place-items-center rounded-xl text-white/80 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                aria-label="Đóng"
+              >
+                <VsIcon name="close" className="text-lg" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <form onSubmit={handleSavePricingConfig} className="p-6 space-y-5">
+              {pricingError && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800">
+                  {pricingError}
+                </div>
+              )}
+
+              <div>
+                <label
+                  htmlFor="localmate-platform-fee-rate-input"
+                  className="block text-xs font-bold uppercase tracking-wider text-[#142823] mb-1.5"
+                >
+                  Tỷ lệ phí nền tảng VietSage (%)
+                </label>
+                <div className="relative">
+                  <input
+                    id="localmate-platform-fee-rate-input"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={feeRateInput}
+                    onChange={(e) => setFeeRateInput(Number(e.target.value))}
+                    className="h-11 w-full rounded-xl border border-[#25483F]/20 bg-[#FAF7F0] px-4 pr-10 text-sm font-black text-[#142823] outline-none focus:border-[#173F35] focus:bg-white transition-all"
+                    placeholder="15"
+                    required
+                  />
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm font-black text-[#52635A]">
+                    %
+                  </span>
+                </div>
+              </div>
+
+              {/* Visual Revenue Breakdown */}
+              <div className="rounded-2xl border border-[#25483F]/10 bg-[#FAF7F0] p-4 space-y-3">
+                <div className="text-xs font-bold uppercase tracking-wider text-[#52635A]">
+                  Phân chia doanh thu mỗi đơn tour:
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-[#173F35]/15 bg-white p-3">
+                    <span className="text-[11px] font-semibold text-[#52635A] block">
+                      VietSage thu trước (Stripe)
+                    </span>
+                    <span className="text-lg font-black text-[#173F35]">
+                      {feeRateInput}%
+                    </span>
+                  </div>
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
+                    <span className="text-[11px] font-semibold text-emerald-800 block">
+                      HDV thu trực tiếp từ khách
+                    </span>
+                    <span className="text-lg font-black text-emerald-700">
+                      {Math.max(0, 100 - feeRateInput)}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Example simulation */}
+                <div className="rounded-xl bg-white/80 p-3 border border-[#25483F]/8 text-xs text-[#52635A] space-y-1">
+                  <div className="font-bold text-[#142823] flex items-center gap-1.5">
+                    <VsIcon name="calculate" className="text-sm text-[#173F35]" />
+                    <span>Mô phỏng với tour 1.200.000 đ:</span>
+                  </div>
+                  <div className="flex justify-between text-[#142823] pt-0.5">
+                    <span>• Cọc VietSage thu trực tuyến:</span>
+                    <span className="font-black text-[#173F35]">
+                      {Math.round((1200000 * feeRateInput) / 100).toLocaleString("vi-VN")} đ
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-[#142823]">
+                    <span>• HDV thu tiền mặt / chuyển khoản:</span>
+                    <span className="font-black text-emerald-700">
+                      {Math.round((1200000 * Math.max(0, 100 - feeRateInput)) / 100).toLocaleString("vi-VN")} đ
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notice */}
+              <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-900 space-y-1">
+                <p className="font-bold flex items-center gap-1.5">
+                  <VsIcon name="info" className="text-sm text-amber-700" />
+                  <span>Áp dụng độc lập cho Mạng lưới LocalMate</span>
+                </p>
+                <p className="text-amber-800">
+                  Lưu ý: Thay đổi chỉ áp dụng cho các đơn đặt tour mới, không ảnh hưởng đến đơn tour đã tạo trước đó.
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPricingModalOpen(false)}
+                  className="h-11 rounded-xl border border-[#25483F]/15 bg-white px-5 text-xs font-bold text-[#52635A] hover:bg-[#FAF7F0] cursor-pointer transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingPricing}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#173F35] to-[#245347] px-6 text-xs font-bold text-white shadow-xs hover:scale-[1.02] active:scale-[0.98] cursor-pointer transition-all disabled:opacity-50"
+                >
+                  <VsIcon name="save" className="text-sm" />
+                  <span>{isUpdatingPricing ? "Đang lưu..." : "Lưu biểu phí"}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -193,11 +193,7 @@ describe("LocalMateService", () => {
         status: "PENDING",
       });
 
-      expect(result).toEqual({
-        ...mockQualifiedGuides[0],
-        temporaryPassword: expect.any(String),
-      });
-      expect((result as any).temporaryPassword).toHaveLength(20);
+      expect(result).toEqual(mockQualifiedGuides[0]);
       expect(repository.createGuide).toHaveBeenCalled();
     });
   });
@@ -881,6 +877,32 @@ describe("LocalMateService", () => {
         }),
       );
       expect(created).toBeDefined();
+    });
+  });
+
+  describe("pricing config", () => {
+    it("returns localMatePlatformFeeRate from repository", async () => {
+      repository.getPricingConfig = jest.fn().mockResolvedValue({
+        id: "default",
+        localMatePlatformFeeRate: "15.00",
+        deliveryServiceFeeRate: "10.00",
+      } as any);
+
+      const result = await service.getPricingConfig();
+      expect(result).toEqual({ localMatePlatformFeeRate: 15 });
+    });
+
+    it("updates localMatePlatformFeeRate in repository", async () => {
+      repository.updatePricingConfig = jest.fn().mockResolvedValue({
+        id: "default",
+        localMatePlatformFeeRate: 20,
+      } as any);
+
+      const result = await service.updatePricingConfig("admin-user-1", {
+        localMatePlatformFeeRate: 20,
+      });
+      expect(repository.updatePricingConfig).toHaveBeenCalledWith("admin-user-1", 20);
+      expect(result).toEqual({ localMatePlatformFeeRate: 20 });
     });
   });
 });

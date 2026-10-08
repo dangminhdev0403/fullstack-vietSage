@@ -71,7 +71,7 @@ export async function POST(request: Request) {
         unwrapApiEnvelope<unknown>(
           await httpServer.post(
             `/public/localmate/proposals/${encodeURIComponent(parsed.data.selection.proposalKey)}/select`,
-            {},
+            { location: parsed.data.location },
             { headers: { "x-public-localmate-token": sessionToken } },
           ),
         ).data,
@@ -145,6 +145,7 @@ export async function POST(request: Request) {
           "/public/localmate/proposals",
           {
             query: parsed.data.message,
+            location: parsed.data.location,
             tourCodes: data.data.proposalRefs.map((item) => item.tourCode),
           },
           { headers: { "x-public-localmate-token": sessionToken } },

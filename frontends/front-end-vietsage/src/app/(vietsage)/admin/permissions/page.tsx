@@ -165,21 +165,29 @@ export default async function AdminPermissionsPage({
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-4">
-      {/* ── Page Header matching reference design ── */}
-      <header className="space-y-1">
-        <Link
-          href="/admin/roles"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-900"
-        >
-          <VsIcon name="arrow_back" className="text-[14px]" />
-          <span>Vai trò & Quyền</span>
-        </Link>
-        <h1 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
-          Vai trò & Quyền
-        </h1>
-        <p className="text-xs text-gray-500">
-          Xem danh sách quyền hạn mặc định của các vai trò nghiệp vụ trong hệ thống.
-        </p>
+      {/* ── Page Header ── */}
+      <header className="space-y-1.5">
+        <div className="flex items-center gap-2 text-xs font-semibold text-gray-500">
+          <Link
+            href="/admin/roles"
+            className="inline-flex items-center gap-1 transition-colors hover:text-emerald-800"
+          >
+            <VsIcon name="arrow_back" className="text-[14px]" />
+            <span>Quản lý vai trò</span>
+          </Link>
+          <span>/</span>
+          <span className="text-gray-900 font-bold">Phân quyền vai trò</span>
+        </div>
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+              Vai trò & Quyền hạn
+            </h1>
+            <p className="text-xs text-gray-500">
+              Kiểm soát ma trận quyền hạn mặc định và vai trò tùy chỉnh theo từng phân hệ nghiệp vụ.
+            </p>
+          </div>
+        </div>
       </header>
 
       <PermissionsWarningsAlert warnings={apiWarnings} />

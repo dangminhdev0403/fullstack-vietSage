@@ -70,7 +70,7 @@ export default async function LocalMateLayout({
   const navItems = isGuideRole
     ? allNavItems
         .filter((item) => item.key === "localmate.guides")
-        .map((item) => ({ ...item, label: "Hồ sơ & Kết nối Tour" }))
+        .map((item) => ({ ...item, label: "Trung tâm Tác nghiệp & Điều tour" }))
     : allNavItems;
 
   const subtitle = isGuideRole

@@ -20,7 +20,16 @@ export const localMateAdminResource = createResource<Record<string, never>>()({
       inputKey: () => [],
       queryFn: () => localMateAdminRepository.data(),
     }),
+    guideOrders: defineQuery({
+      inputKey: (guideId: string) => [guideId],
+      queryFn: ({ input }: { input: string }) => localMateAdminRepository.guideOrders(input),
+    }),
+    pricingConfig: defineQuery({
+      inputKey: () => [],
+      queryFn: () => localMateAdminRepository.pricingConfig(),
+    }),
   },
+
   mutations: {
     createGuide: defineMutation({
       mutationFn: ({ variables }: { variables: { input: CreateLocalMateGuideInput } }) =>
@@ -71,6 +80,17 @@ export const localMateAdminResource = createResource<Record<string, never>>()({
     matchAi: defineMutation({
       mutationFn: ({ variables }: { variables: { input: MatchLocalMateAiInput } }) =>
         localMateAdminRepository.matchAi(variables.input),
+    }),
+    updatePricingConfig: defineMutation({
+      mutationFn: ({
+        variables,
+      }: {
+        variables: { localMatePlatformFeeRate: number };
+      }) => localMateAdminRepository.updatePricingConfig(variables.localMatePlatformFeeRate),
+      invalidates: [
+        { type: "query", operation: "data" },
+        { type: "query", operation: "pricingConfig" },
+      ],
     }),
   },
 });

@@ -19,6 +19,7 @@ export type CreatePublicLocalMateSession = {
 
 export type ListPublicLocalMateProposals = {
   query?: string;
+  location?: string;
   tourCodes?: string[];
 };
 
@@ -67,12 +68,13 @@ export class PublicLocalMateService {
 
         if (hasActiveNonTerminalOrder) {
           // LM-04: Retain session capability and order ownership for non-terminal orders.
-          // Invariant: Do not revoke or overwrite tokenHash. Retain location to preserve province restriction.
+          // Do not revoke or overwrite tokenHash. Update location if provided so new discovery matches the selected region.
           const effectiveExpiresAt =
             expiresAt > previousSession.expiresAt ? expiresAt : previousSession.expiresAt;
           await tx.publicLocalMateSession.update({
             where: { id: previousSession.id },
             data: {
+              location: input.location || previousSession.location,
               expiresAt: effectiveExpiresAt,
               guestDisplayName: input.guestDisplayName?.trim() ?? previousSession.guestDisplayName,
               guestPhone: input.guestPhone?.trim() ?? previousSession.guestPhone,
@@ -149,9 +151,10 @@ export class PublicLocalMateService {
 
   async listProposals(token: string | undefined, input: ListPublicLocalMateProposals) {
     const session = await this.requireSession(token);
+    const targetDestination = input.location?.trim() || session.location;
     const knowledge = await this.localMate.getKnowledge({
       query: input.query?.trim() || undefined,
-      destination: session.location,
+      destination: targetDestination,
       limit: 5,
     });
     const requested = new Set((input.tourCodes ?? []).slice(0, 5));
@@ -161,7 +164,7 @@ export class PublicLocalMateService {
       .map((tour) => ({
         proposalKey: `trip_${tour.tourCode}`,
         title: tour.title,
-        location: tour.province || session.location,
+        location: tour.province || targetDestination,
         duration: tour.duration,
         highlights: tour.highlights.slice(0, 8),
         bookable: tour.bookable,
@@ -181,9 +184,10 @@ export class PublicLocalMateService {
     };
   }
 
-  async selectProposal(token: string | undefined, proposalKey: string) {
+  async selectProposal(token: string | undefined, proposalKey: string, location?: string) {
     const session = await this.requireSession(token);
-    const tour = await this.resolveProposal(session.location, proposalKey);
+    const targetLocation = location?.trim() || session.location;
+    const tour = await this.resolveProposal(targetLocation, proposalKey);
     const guideActions = tour.suitableGuides.map((guide) => ({
       type: "SELECT_GUIDE" as const,
       proposalKey,
@@ -197,7 +201,7 @@ export class PublicLocalMateService {
       proposal: {
         proposalKey,
         title: tour.title,
-        location: tour.province || session.location,
+        location: tour.province || targetLocation,
         duration: tour.duration,
         highlights: tour.highlights.slice(0, 8),
         bookable: guideActions.length > 0,

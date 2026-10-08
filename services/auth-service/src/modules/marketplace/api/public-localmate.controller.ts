@@ -29,8 +29,15 @@ const createPublicSessionSchema = z.object({
 
 const mintProposalsSchema = z.object({
   query: z.string().trim().max(300).optional(),
+  location: z.string().trim().max(120).optional(),
   tourCodes: z.array(z.string().trim().min(1).max(80)).max(5).optional(),
 });
+
+const selectProposalBodySchema = z
+  .object({
+    location: z.string().trim().max(120).optional(),
+  })
+  .optional();
 
 @SkipAuthorization()
 @Controller("public/localmate")
@@ -65,8 +72,14 @@ export class PublicLocalMateController {
   selectProposal(
     @Headers("x-public-localmate-token") token: string | undefined,
     @Param("proposalKey") proposalKey: string,
+    @Body() body: unknown,
   ) {
-    return this.service.selectProposal(token, parseWithZod(publicProposalKeySchema, proposalKey));
+    const payload = body ? parseWithZod(selectProposalBodySchema, body) : undefined;
+    return this.service.selectProposal(
+      token,
+      parseWithZod(publicProposalKeySchema, proposalKey),
+      payload?.location,
+    );
   }
 
   @AuthRateLimit("login")

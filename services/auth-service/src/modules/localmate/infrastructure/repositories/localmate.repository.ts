@@ -541,4 +541,65 @@ export class LocalMateRepository {
       where: { localMateProfileId: guideId },
     });
   }
+
+  async findOrdersByGuideId(guideId: string) {
+    return this.prisma.marketplaceOrder.findMany({
+      where: { assignedLocalMateProfileId: guideId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: {
+        payment: {
+          select: {
+            id: true,
+            status: true,
+            currency: true,
+            tourTotalAmount: true,
+            platformFeeAmount: true,
+            guideRemainingAmount: true,
+            paidAt: true,
+          },
+        },
+        stay: {
+          select: {
+            guestDisplayName: true,
+            guestPhone: true,
+            room: {
+              select: {
+                roomNumber: true,
+              },
+            },
+          },
+        },
+
+        publicSession: {
+          select: {
+            guestDisplayName: true,
+            guestPhone: true,
+            location: true,
+          },
+        },
+        hotel: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+  }
+
+  async getPricingConfig() {
+    return this.prisma.marketplacePricingConfig.upsert({
+      where: { id: "default" },
+      create: { id: "default" },
+      update: {},
+    });
+  }
+
+  async updatePricingConfig(actorId: string, rate: number) {
+    return this.prisma.marketplacePricingConfig.upsert({
+      where: { id: "default" },
+      create: { id: "default", localMatePlatformFeeRate: rate, updatedBy: actorId },
+      update: { localMatePlatformFeeRate: rate, updatedBy: actorId },
+    });
+  }
 }

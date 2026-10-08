@@ -25,21 +25,37 @@ interface AdminChannelManagerClientProps {
   canManage?: boolean;
 }
 
-function formatLastSync(isoString: string | null): string {
-  if (!isoString) return "Chưa đồng bộ";
+function formatLastSync(isoString: string | null): { time: string; date: string } | null {
+  if (!isoString) return null;
   try {
     const date = new Date(isoString);
-    return new Intl.DateTimeFormat("vi-VN", {
+    if (Number.isNaN(date.getTime())) return null;
+    const time = new Intl.DateTimeFormat("vi-VN", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+    const day = new Intl.DateTimeFormat("vi-VN", {
       timeZone: "Asia/Ho_Chi_Minh",
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
     }).format(date);
+    return { time, date: day };
   } catch {
-    return isoString;
+    return null;
   }
+}
+
+function formatLastSyncText(isoString: string | null): string {
+  const parsed = formatLastSync(isoString);
+  if (!parsed) return "Chưa đồng bộ";
+  return `${parsed.time} ${parsed.date}`;
+}
+
+function formatTenantName(name: string): string {
+  if (!name || name === "TENANT_OWNER") return "Chủ cơ sở (Owner)";
+  return name;
 }
 
 export function AdminChannelManagerClient({
@@ -115,37 +131,40 @@ export function AdminChannelManagerClient({
     switch (state) {
       case "ACTIVE":
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/80 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 shadow-2xs">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            </span>
             {FRIENDLY_STATE_LABELS.ACTIVE}
           </span>
         );
       case "ATTENTION":
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+          <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/80 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 shadow-2xs">
+            <span className="h-2 w-2 rounded-full bg-amber-500" />
             {FRIENDLY_STATE_LABELS.ATTENTION}
           </span>
         );
       case "INTERRUPTED":
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-800">
-            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+          <span className="inline-flex items-center gap-2 rounded-full border border-rose-300/80 bg-rose-50 px-3 py-1 text-xs font-bold text-rose-800 shadow-2xs">
+            <span className="h-2 w-2 rounded-full bg-rose-500" />
             {FRIENDLY_STATE_LABELS.INTERRUPTED}
           </span>
         );
       case "SETTING_UP":
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-800">
-            <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+          <span className="inline-flex items-center gap-2 rounded-full border border-blue-300/80 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-800 shadow-2xs">
+            <span className="h-2 w-2 rounded-full bg-blue-500" />
             {FRIENDLY_STATE_LABELS.SETTING_UP}
           </span>
         );
       case "UNCONFIGURED":
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-700">
-            <span className="h-1.5 w-1.5 rounded-full bg-gray-400" />
+          <span className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-100 px-3 py-1 text-xs font-medium text-stone-700 shadow-2xs">
+            <span className="h-2 w-2 rounded-full bg-stone-400" />
             {FRIENDLY_STATE_LABELS.UNCONFIGURED}
           </span>
         );
@@ -156,10 +175,15 @@ export function AdminChannelManagerClient({
   const renderIssueDescription = (item: AdminChannelOverviewItem) => {
     if (!item.primaryIssueCode) {
       return (
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
-          <VsIcon name="check_circle" className="text-sm text-emerald-600" />
-          <span>Bình thường ({item.mappedRoomTypes} phòng, {item.mappedRatePlans} gói giá)</span>
-        </span>
+        <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-200/80 bg-emerald-50/60 px-3 py-1.5 text-xs">
+          <VsIcon name="check_circle" className="text-sm text-emerald-600 shrink-0" />
+          <span className="text-emerald-900 font-medium">
+            <strong className="font-bold">Bình thường</strong>
+            <span className="text-emerald-700 ml-1.5 font-normal">
+              ({item.mappedRoomTypes} phòng, {item.mappedRatePlans} gói giá)
+            </span>
+          </span>
+        </div>
       );
     }
 
@@ -168,44 +192,44 @@ export function AdminChannelManagerClient({
     switch (item.primaryIssueCode) {
       case "PROPERTY_MISSING":
         return (
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700">
-            <VsIcon name="warning" className="text-sm text-amber-600" />
-            <span>{label}</span>
-          </span>
+          <div className="inline-flex items-center gap-2 rounded-xl border border-amber-200/80 bg-amber-50/70 px-3 py-1.5 text-xs text-amber-900">
+            <VsIcon name="warning" className="text-sm text-amber-600 shrink-0" />
+            <span className="font-semibold">{label}</span>
+          </div>
         );
       case "MAPPING_INCOMPLETE":
         return (
-          <span className="inline-flex flex-col text-xs font-semibold text-blue-700">
-            <span className="inline-flex items-center gap-1">
-              <VsIcon name="sync_alt" className="text-sm text-blue-600" />
+          <div className="inline-flex flex-col gap-0.5 rounded-xl border border-blue-200/80 bg-blue-50/70 px-3 py-1.5 text-xs text-blue-900">
+            <span className="inline-flex items-center gap-1.5 font-bold">
+              <VsIcon name="sync_alt" className="text-sm text-blue-600 shrink-0" />
               <span>{label}</span>
             </span>
-            <span className="text-[11px] font-normal text-blue-600">
+            <span className="text-[11px] font-normal text-blue-700">
               Đã ghép: {item.mappedRoomTypes} phòng, {item.mappedRatePlans} gói giá
             </span>
-          </span>
+          </div>
         );
       case "RECONCILIATION_REQUIRED":
         return (
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700">
-            <VsIcon name="receipt_long" className="text-sm text-amber-600" />
-            <span>{label} ({item.pendingReconciliations} đơn chờ)</span>
-          </span>
+          <div className="inline-flex items-center gap-2 rounded-xl border border-orange-200/80 bg-orange-50/70 px-3 py-1.5 text-xs text-orange-900">
+            <VsIcon name="receipt_long" className="text-sm text-orange-600 shrink-0" />
+            <span className="font-bold">{label} ({item.pendingReconciliations} đơn chờ)</span>
+          </div>
         );
       case "SYNC_FAILED":
         return (
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-700">
-            <VsIcon name="error" className="text-sm text-rose-600" />
-            <span>{label}</span>
-          </span>
+          <div className="inline-flex items-center gap-2 rounded-xl border border-rose-200/80 bg-rose-50/70 px-3 py-1.5 text-xs text-rose-900">
+            <VsIcon name="error" className="text-sm text-rose-600 shrink-0" />
+            <span className="font-bold">{label}</span>
+          </div>
         );
       case "CONNECTION_INTERRUPTED":
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-700">
-            <VsIcon name="bolt" className="text-sm text-rose-600" />
-            <span>{label}</span>
-          </span>
+          <div className="inline-flex items-center gap-2 rounded-xl border border-rose-200/80 bg-rose-50/70 px-3 py-1.5 text-xs text-rose-900">
+            <VsIcon name="bolt" className="text-sm text-rose-600 shrink-0" />
+            <span className="font-bold">{label}</span>
+          </div>
         );
     }
   };
@@ -217,38 +241,49 @@ export function AdminChannelManagerClient({
     return (
       <div className="space-y-6">
         {/* Navigation & Hotel Banner */}
-        <section className="rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] p-5 shadow-xs">
+        <section className="rounded-2xl border border-[#e8dfd1] bg-white/95 p-6 shadow-[0_12px_36px_rgba(23,32,27,0.04)] backdrop-blur-md">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1">
+            <div className="space-y-2">
               <button
                 type="button"
                 onClick={() => setSelectedHotel(null)}
-                className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-[var(--primary)] transition hover:bg-[var(--surface-container-low)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+                className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#e8dfd1] bg-[#fbf8f2] px-3.5 py-1.5 text-xs font-bold text-[#24473d] transition hover:bg-white shadow-2xs focus:outline-none focus:ring-2 focus:ring-[#24473d]/30"
               >
-                <VsIcon name="arrow_back" className="text-base" />
+                <VsIcon name="arrow_back" className="text-sm" />
                 <span>Quay lại danh sách hạm đội</span>
               </button>
 
               <div className="mt-2 flex flex-wrap items-center gap-3">
-                <h2 className="text-2xl font-bold tracking-tight text-[var(--on-surface)]">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#24473d] text-[#e8b363] shadow-xs ring-2 ring-[#e8b363]/30">
+                  <VsIcon name="hotel" className="text-lg" />
+                </div>
+                <h2 className="text-2xl font-black tracking-tight text-[#17201b]">
                   {selectedHotel.hotelName}
                 </h2>
-                <span className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-mono font-bold text-gray-700">
+                <span className="rounded-lg bg-[#f4ede2] px-2.5 py-1 text-xs font-mono font-bold text-[#69726b]">
                   {selectedHotel.hotelCode}
                 </span>
                 {renderStateBadge(selectedHotel.state)}
               </div>
 
-              <p className="text-xs text-[var(--on-surface-variant)]">
-                Chủ sở hữu (Tenant): <span className="font-semibold text-gray-900">{selectedHotel.tenantName}</span>
-                {" • "}
-                Đồng bộ gần nhất: <span className="font-semibold text-gray-900">{formatLastSync(selectedHotel.lastSyncAt)}</span>
-              </p>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-[#69726b]">
+                <span className="inline-flex items-center gap-1.5">
+                  <VsIcon name="apartment" className="text-sm text-[#8b948d]" />
+                  <span>Chủ sở hữu:</span>
+                  <strong className="font-semibold text-[#17201b]">{formatTenantName(selectedHotel.tenantName)}</strong>
+                </span>
+                <span>•</span>
+                <span className="inline-flex items-center gap-1.5">
+                  <VsIcon name="schedule" className="text-sm text-[#8b948d]" />
+                  <span>Đồng bộ gần nhất:</span>
+                  <strong className="font-semibold text-[#17201b]">{formatLastSyncText(selectedHotel.lastSyncAt)}</strong>
+                </span>
+              </div>
             </div>
           </div>
 
           {selectedHotel.primaryIssueCode && (
-            <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-amber-900">
+            <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 text-xs text-amber-900 shadow-2xs">
               <VsIcon name="warning" className="shrink-0 text-base text-amber-600 mt-0.5" />
               <div>
                 <span className="font-bold">Cảnh báo vấn đề: </span>
@@ -263,63 +298,32 @@ export function AdminChannelManagerClient({
         {/* Drill-down Navigation */}
         <nav
           aria-label="Tác vụ quản lý khách sạn"
-          className="flex gap-2 border-b border-[var(--outline-variant)] pb-px overflow-x-auto"
+          className="flex gap-2 border-b border-[#e5dcd0] pb-px overflow-x-auto"
         >
-          <button
-            type="button"
-            aria-current={drillDownTab === "OVERVIEW" ? "page" : undefined}
-            onClick={() => setDrillDownTab("OVERVIEW")}
-            className={`min-h-11 shrink-0 flex items-center gap-2 rounded-t-xl border-b-2 px-4 py-2.5 text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 ${
-              drillDownTab === "OVERVIEW"
-                ? "border-[var(--primary)] bg-[var(--surface-container-lowest)] text-[var(--primary)] shadow-xs"
-                : "border-transparent text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)] hover:text-gray-900"
-            }`}
-          >
-            <VsIcon name="fact_check" className="text-base" />
-            <span>Tổng quan & Checklist</span>
-          </button>
-
-          <button
-            type="button"
-            aria-current={drillDownTab === "CHANNELS" ? "page" : undefined}
-            onClick={() => setDrillDownTab("CHANNELS")}
-            className={`min-h-11 shrink-0 flex items-center gap-2 rounded-t-xl border-b-2 px-4 py-2.5 text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 ${
-              drillDownTab === "CHANNELS"
-                ? "border-[var(--primary)] bg-[var(--surface-container-lowest)] text-[var(--primary)] shadow-xs"
-                : "border-transparent text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)] hover:text-gray-900"
-            }`}
-          >
-            <VsIcon name="hub" className="text-base" />
-            <span>Kênh OTA & Ghép phòng</span>
-          </button>
-
-          <button
-            type="button"
-            aria-current={drillDownTab === "CONFIG" ? "page" : undefined}
-            onClick={() => setDrillDownTab("CONFIG")}
-            className={`min-h-11 shrink-0 flex items-center gap-2 rounded-t-xl border-b-2 px-4 py-2.5 text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 ${
-              drillDownTab === "CONFIG"
-                ? "border-[var(--primary)] bg-[var(--surface-container-lowest)] text-[var(--primary)] shadow-xs"
-                : "border-transparent text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)] hover:text-gray-900"
-            }`}
-          >
-            <VsIcon name="settings" className="text-base" />
-            <span>Cấu hình Channex</span>
-          </button>
-
-          <button
-            type="button"
-            aria-current={drillDownTab === "REPAIR" ? "page" : undefined}
-            onClick={() => setDrillDownTab("REPAIR")}
-            className={`min-h-11 shrink-0 flex items-center gap-2 rounded-t-xl border-b-2 px-4 py-2.5 text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 ${
-              drillDownTab === "REPAIR"
-                ? "border-[var(--primary)] bg-[var(--surface-container-lowest)] text-[var(--primary)] shadow-xs"
-                : "border-transparent text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)] hover:text-gray-900"
-            }`}
-          >
-            <VsIcon name="build" className="text-base" />
-            <span>Khắc phục sự cố & Đối soát</span>
-          </button>
+          {[
+            { id: "OVERVIEW" as const, label: "Tổng quan & Checklist", icon: "fact_check" },
+            { id: "CHANNELS" as const, label: "Kênh OTA & Ghép phòng", icon: "hub" },
+            { id: "CONFIG" as const, label: "Cấu hình Channex", icon: "settings" },
+            { id: "REPAIR" as const, label: "Khắc phục sự cố & Đối soát", icon: "build" },
+          ].map((tab) => {
+            const isActive = drillDownTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                aria-current={isActive ? "page" : undefined}
+                onClick={() => setDrillDownTab(tab.id)}
+                className={`min-h-11 shrink-0 flex items-center gap-2 rounded-t-xl border-b-2 px-4.5 py-2.5 text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-[#24473d]/30 ${
+                  isActive
+                    ? "border-[#24473d] bg-white text-[#24473d] shadow-2xs"
+                    : "border-transparent text-[#69726b] hover:bg-white/60 hover:text-[#17201b]"
+                }`}
+              >
+                <VsIcon name={tab.icon} className="text-base" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </nav>
 
         {/* Drill-down Panels */}
@@ -494,7 +498,7 @@ export function AdminChannelManagerClient({
                           5. Tình trạng kết nối và đồng bộ gần nhất
                         </h4>
                         <p className="text-xs text-[var(--on-surface-variant)]">
-                          Lần đồng bộ gần nhất: {formatLastSync(selectedHotel.lastSyncAt)}
+                          Lần đồng bộ gần nhất: {formatLastSyncText(selectedHotel.lastSyncAt)}
                         </p>
                       </div>
                     </div>
@@ -614,7 +618,7 @@ export function AdminChannelManagerClient({
                         <div className="rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-3">
                           <span className="block text-xs text-[var(--on-surface-variant)]">Đồng bộ gần nhất</span>
                           <span className="mt-1 block text-sm font-bold text-gray-900">
-                            {formatLastSync(selectedHotel.lastSyncAt)}
+                            {formatLastSyncText(selectedHotel.lastSyncAt)}
                           </span>
                         </div>
                       </div>
@@ -642,170 +646,314 @@ export function AdminChannelManagerClient({
       {/* Exactly 6 Frozen Summary KPI Cards */}
       <section
         aria-label="Chỉ số vận hành hạm đội"
-        className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"
+        className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-6"
       >
+        {/* 1. Tổng khách sạn */}
         <button
           type="button"
           onClick={() => handleStateFilterChange("ALL")}
-          className={`flex flex-col justify-between rounded-2xl border p-4 text-left transition focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 ${
+          className={`group relative flex flex-col justify-between rounded-2xl border p-4.5 text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#24473d]/30 ${
             filterState === "ALL"
-              ? "border-[var(--primary)] bg-[var(--primary)]/5 shadow-xs"
-              : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] hover:border-gray-300"
+              ? "border-[#24473d] bg-white shadow-md ring-2 ring-[#24473d]/20 -translate-y-0.5"
+              : "border-[#e8dfd1] bg-white/90 hover:border-[#24473d]/30 hover:bg-white hover:shadow-sm"
           }`}
         >
-          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[var(--on-surface-variant)]">
-            <span>Tổng khách sạn</span>
-            <VsIcon name="apartment" className="text-base" />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#69726b]">
+              Tổng khách sạn
+            </span>
+            <span className={`grid h-8 w-8 place-items-center rounded-xl transition-colors ${
+              filterState === "ALL" ? "bg-[#24473d] text-[#e8b363]" : "bg-[#24473d]/10 text-[#24473d]"
+            }`}>
+              <VsIcon name="apartment" className="text-base" />
+            </span>
           </div>
-          <p className="mt-2 text-2xl font-black tracking-tight text-[var(--primary)]">
-            {summary?.totalHotels ?? 0}
-          </p>
+          <div className="mt-3">
+            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums text-[#17201b]">
+              {summary?.totalHotels ?? 0}
+            </p>
+            <p className="mt-0.5 text-[11px] font-medium text-[#69726b]">
+              Toàn hệ thống
+            </p>
+          </div>
         </button>
 
-        <div className="flex flex-col justify-between rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] p-4 text-left">
-          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-blue-800">
-            <span>Đã cấu hình</span>
-            <VsIcon name="task_alt" className="text-base text-blue-600" />
+        {/* 2. Đã cấu hình */}
+        <div className="relative flex flex-col justify-between rounded-2xl border border-[#e8dfd1] bg-white/90 p-4.5 text-left shadow-2xs">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-teal-800">
+              Đã cấu hình
+            </span>
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-teal-100/70 text-teal-700">
+              <VsIcon name="task_alt" className="text-base" />
+            </span>
           </div>
-          <p className="mt-2 text-2xl font-black tracking-tight text-blue-700">
-            {summary?.configuredHotels ?? 0}
-          </p>
+          <div className="mt-3">
+            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums text-teal-800">
+              {summary?.configuredHotels ?? 0}
+            </p>
+            <p className="mt-0.5 text-[11px] font-medium text-teal-700/80">
+              Đã liên kết Channex
+            </p>
+          </div>
         </div>
 
+        {/* 3. Đang hoạt động */}
         <button
           type="button"
           onClick={() => handleStateFilterChange("ACTIVE")}
-          className={`flex flex-col justify-between rounded-2xl border p-4 text-left transition focus:outline-none focus:ring-2 focus:ring-emerald-500/30 ${
+          className={`group relative flex flex-col justify-between rounded-2xl border p-4.5 text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 ${
             filterState === "ACTIVE"
-              ? "border-emerald-500 bg-emerald-50/60 shadow-xs"
-              : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] hover:border-emerald-300"
+              ? "border-emerald-600 bg-emerald-50/40 shadow-md ring-2 ring-emerald-500/20 -translate-y-0.5"
+              : "border-[#e8dfd1] bg-white/90 hover:border-emerald-500/40 hover:bg-white hover:shadow-sm"
           }`}
         >
-          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-emerald-800">
-            <span>Đang hoạt động</span>
-            <VsIcon name="check_circle" className="text-base text-emerald-600" />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+              Đang hoạt động
+            </span>
+            <span className={`grid h-8 w-8 place-items-center rounded-xl transition-colors ${
+              filterState === "ACTIVE" ? "bg-emerald-600 text-white" : "bg-emerald-100/70 text-emerald-700"
+            }`}>
+              <VsIcon name="check_circle" className="text-base" />
+            </span>
           </div>
-          <p className="mt-2 text-2xl font-black tracking-tight text-emerald-700">
-            {summary?.activeHotels ?? 0}
-          </p>
+          <div className="mt-3">
+            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums text-emerald-800">
+              {summary?.activeHotels ?? 0}
+            </p>
+            <p className="mt-0.5 text-[11px] font-medium text-emerald-700/80">
+              Đồng bộ ổn định
+            </p>
+          </div>
         </button>
 
+        {/* 4. Cần chú ý */}
         <button
           type="button"
           onClick={() => handleStateFilterChange("ATTENTION")}
-          className={`flex flex-col justify-between rounded-2xl border p-4 text-left transition focus:outline-none focus:ring-2 focus:ring-amber-500/30 ${
+          className={`group relative flex flex-col justify-between rounded-2xl border p-4.5 text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500/30 ${
             filterState === "ATTENTION"
-              ? "border-amber-500 bg-amber-50/60 shadow-xs"
-              : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] hover:border-amber-300"
+              ? "border-amber-600 bg-amber-50/40 shadow-md ring-2 ring-amber-500/20 -translate-y-0.5"
+              : "border-[#e8dfd1] bg-white/90 hover:border-amber-500/40 hover:bg-white hover:shadow-sm"
           }`}
         >
-          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-amber-800">
-            <span>Cần chú ý</span>
-            <VsIcon name="warning" className="text-base text-amber-600" />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
+              Cần chú ý
+            </span>
+            <span className={`grid h-8 w-8 place-items-center rounded-xl transition-colors ${
+              filterState === "ATTENTION" ? "bg-amber-600 text-white" : "bg-amber-100/70 text-amber-700"
+            }`}>
+              <VsIcon name="warning" className="text-base" />
+            </span>
           </div>
-          <p className="mt-2 text-2xl font-black tracking-tight text-amber-700">
-            {summary?.needsAttention ?? 0}
-          </p>
+          <div className="mt-3">
+            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums text-amber-800">
+              {summary?.needsAttention ?? 0}
+            </p>
+            <p className="mt-0.5 text-[11px] font-medium text-amber-700/80">
+              Có cảnh báo / lỗi
+            </p>
+          </div>
         </button>
 
+        {/* 5. Chưa thiết lập */}
         <button
           type="button"
           onClick={() => handleStateFilterChange("UNCONFIGURED")}
-          className={`flex flex-col justify-between rounded-2xl border p-4 text-left transition focus:outline-none focus:ring-2 focus:ring-gray-500/30 ${
+          className={`group relative flex flex-col justify-between rounded-2xl border p-4.5 text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-slate-400/30 ${
             filterState === "UNCONFIGURED"
-              ? "border-gray-500 bg-gray-100 shadow-xs"
-              : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] hover:border-gray-400"
+              ? "border-slate-600 bg-slate-50 shadow-md ring-2 ring-slate-400/20 -translate-y-0.5"
+              : "border-[#e8dfd1] bg-white/90 hover:border-slate-400/50 hover:bg-white hover:shadow-sm"
           }`}
         >
-          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-gray-700">
-            <span>Chưa thiết lập</span>
-            <VsIcon name="settings" className="text-base text-gray-600" />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+              Chưa thiết lập
+            </span>
+            <span className={`grid h-8 w-8 place-items-center rounded-xl transition-colors ${
+              filterState === "UNCONFIGURED" ? "bg-slate-700 text-white" : "bg-slate-100 text-slate-600"
+            }`}>
+              <VsIcon name="settings" className="text-base" />
+            </span>
           </div>
-          <p className="mt-2 text-2xl font-black tracking-tight text-gray-700">
-            {summary?.unconfiguredHotels ?? 0}
-          </p>
+          <div className="mt-3">
+            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums text-slate-800">
+              {summary?.unconfiguredHotels ?? 0}
+            </p>
+            <p className="mt-0.5 text-[11px] font-medium text-slate-600">
+              Chưa kết nối Channex
+            </p>
+          </div>
         </button>
 
-        <div className="flex flex-col justify-between rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] p-4 text-left">
-          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-amber-800">
-            <span>Chờ đối soát</span>
-            <VsIcon name="receipt_long" className="text-base text-amber-600" />
+        {/* 6. Chờ đối soát */}
+        <div className="relative flex flex-col justify-between rounded-2xl border border-[#e8dfd1] bg-white/90 p-4.5 text-left shadow-2xs">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-orange-800">
+              Chờ đối soát
+            </span>
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-orange-100/70 text-orange-700">
+              <VsIcon name="receipt_long" className="text-base" />
+            </span>
           </div>
-          <p className="mt-2 text-2xl font-black tracking-tight text-amber-700">
-            {summary?.pendingReconciliations ?? 0}
-          </p>
+          <div className="mt-3">
+            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums text-orange-800">
+              {summary?.pendingReconciliations ?? 0}
+            </p>
+            <p className="mt-0.5 text-[11px] font-medium text-orange-700/80">
+              Đơn OTA cần duyệt
+            </p>
+          </div>
         </div>
       </section>
 
       {/* Filter and Search Bar */}
-      <section className="flex flex-col gap-3 rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] p-4 sm:flex-row sm:items-center sm:justify-between shadow-xs">
-        <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative w-full max-w-md">
-            <label htmlFor={searchInputId} className="sr-only">
-              Tìm kiếm khách sạn
-            </label>
-            <input
-              id={searchInputId}
-              type="search"
-              maxLength={120}
-              value={searchTerm}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Tìm theo tên khách sạn hoặc mã khách sạn..."
-              className="min-h-11 w-full rounded-xl border border-[var(--outline-variant)] bg-white px-4 py-2 text-sm text-[var(--on-surface)] shadow-xs transition placeholder:text-gray-400 focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
-            />
+      <section className="rounded-2xl border border-[#e8dfd1] bg-white/90 p-4 sm:p-5 shadow-[0_8px_30px_rgba(23,32,27,0.03)] backdrop-blur-md">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            {/* Search Input & Select Dropdown */}
+            <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="relative flex-1 min-w-[260px] max-w-lg">
+                <label htmlFor={searchInputId} className="sr-only">
+                  Tìm kiếm khách sạn
+                </label>
+                <VsIcon
+                  name="search"
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-base text-[#8b948d]"
+                />
+                <input
+                  id={searchInputId}
+                  type="search"
+                  maxLength={120}
+                  value={searchTerm}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  placeholder="Tìm theo tên khách sạn hoặc mã khách sạn..."
+                  className="min-h-11 w-full rounded-xl border border-[#e2d7c5] bg-[#faf6ef]/70 pl-10 pr-9 py-2 text-sm font-medium text-[#17201b] shadow-2xs transition-all placeholder:text-[#8b948d] focus:border-[#24473d] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#24473d]/20"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => handleSearchChange("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8b948d] hover:text-[#17201b]"
+                    title="Xóa tìm kiếm"
+                  >
+                    <VsIcon name="close" className="text-sm" />
+                  </button>
+                )}
+              </div>
+
+              <div className="w-full sm:w-auto">
+                <label htmlFor={stateFilterId} className="sr-only">
+                  Lọc theo trạng thái
+                </label>
+                <div className="relative">
+                  <select
+                    id={stateFilterId}
+                    value={filterState}
+                    onChange={(e) =>
+                      handleStateFilterChange(e.target.value as AdminChannelOverviewState | "ALL")
+                    }
+                    className="min-h-11 w-full sm:w-52 appearance-none rounded-xl border border-[#e2d7c5] bg-[#faf6ef]/70 pl-3.5 pr-9 py-2 text-sm font-semibold text-[#17201b] shadow-2xs transition-all focus:border-[#24473d] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#24473d]/20 cursor-pointer"
+                  >
+                    <option value="ALL">Tất cả trạng thái</option>
+                    <option value="ACTIVE">Hoạt động</option>
+                    <option value="ATTENTION">Cần chú ý</option>
+                    <option value="INTERRUPTED">Gián đoạn</option>
+                    <option value="SETTING_UP">Đang thiết lập</option>
+                    <option value="UNCONFIGURED">Chưa thiết lập</option>
+                  </select>
+                  <VsIcon
+                    name="expand_more"
+                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-base text-[#8b948d]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Right Side: Total counter badge & action buttons */}
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0 justify-between sm:justify-end">
+              <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#e8dfd1] bg-[#fbf8f2] px-3.5 py-2 text-xs font-semibold text-[#69726b]">
+                <VsIcon name="apartment" className="text-sm text-[#24473d]" />
+                <span>Hiển thị <strong className="text-[#17201b]">{items.length}</strong> / <strong className="text-[#17201b]">{total}</strong> khách sạn</span>
+              </span>
+
+              {(searchTerm || filterState !== "ALL") && (
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="min-h-11 inline-flex items-center gap-1.5 rounded-xl border border-[#e8dfd1] bg-white px-3.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 transition-colors shadow-2xs"
+                >
+                  <VsIcon name="close" className="text-xs" />
+                  <span>Đặt lại bộ lọc</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => void refetch()}
+                disabled={isFetching}
+                className="min-h-11 inline-flex items-center gap-1.5 rounded-xl border border-[#e8dfd1] bg-white px-3.5 py-2 text-xs font-bold text-[#17201b] hover:bg-[#fbf8f2] shadow-2xs transition-colors disabled:opacity-60"
+                title="Làm mới danh sách"
+              >
+                <VsIcon name="refresh" className={`text-sm ${isFetching ? "animate-spin text-[#24473d]" : ""}`} />
+                <span>{isFetching ? "Đang đồng bộ..." : "Làm mới"}</span>
+              </button>
+            </div>
           </div>
 
-          <div className="w-full sm:w-auto">
-            <label htmlFor={stateFilterId} className="sr-only">
-              Lọc theo trạng thái
-            </label>
-            <select
-              id={stateFilterId}
-              value={filterState}
-              onChange={(e) =>
-                handleStateFilterChange(e.target.value as AdminChannelOverviewState | "ALL")
-              }
-              className="min-h-11 w-full sm:w-48 rounded-xl border border-[var(--outline-variant)] bg-white px-3 py-2 text-sm font-semibold text-[var(--on-surface)] shadow-xs transition focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
-            >
-              <option value="ALL">Tất cả trạng thái</option>
-              <option value="ACTIVE">Hoạt động</option>
-              <option value="ATTENTION">Cần chú ý</option>
-              <option value="INTERRUPTED">Gián đoạn</option>
-              <option value="SETTING_UP">Đang thiết lập</option>
-              <option value="UNCONFIGURED">Chưa thiết lập</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {(searchTerm || filterState !== "ALL") && (
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              className="min-h-11 rounded-xl px-3 py-2 text-xs font-semibold text-gray-600 transition hover:bg-gray-100 hover:text-gray-900"
-            >
-              Đặt lại bộ lọc
-            </button>
-          )}
-
-          {isFetching && (
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--primary)]">
-              <span className="h-2 w-2 rounded-full bg-[var(--primary)] animate-ping" />
-              Đang làm mới...
+          {/* Quick filter chips */}
+          <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-[#f0eae0]">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#69726b] mr-1">
+              Bộ lọc nhanh:
             </span>
-          )}
+            {[
+              { id: "ALL" as const, label: "Tất cả", count: summary?.totalHotels },
+              { id: "ACTIVE" as const, label: "Đang hoạt động", count: summary?.activeHotels },
+              { id: "ATTENTION" as const, label: "Cần chú ý", count: summary?.needsAttention },
+              { id: "UNCONFIGURED" as const, label: "Chưa thiết lập", count: summary?.unconfiguredHotels },
+            ].map((chip) => {
+              const isCurrent = filterState === chip.id;
+              return (
+                <button
+                  key={chip.id}
+                  type="button"
+                  onClick={() => handleStateFilterChange(chip.id)}
+                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
+                    isCurrent
+                      ? "bg-[#24473d] text-[#fff8e8] shadow-2xs"
+                      : "bg-[#f4ede2] text-[#69726b] hover:bg-[#eae1d2] hover:text-[#17201b]"
+                  }`}
+                >
+                  <span>{chip.label}</span>
+                  {chip.count !== undefined && (
+                    <span
+                      className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
+                        isCurrent
+                          ? "bg-[#e8b363] text-[#17201b]"
+                          : "bg-black/10 text-[#17201b]"
+                      }`}
+                    >
+                      {chip.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </section>
 
       {/* Main Table Content */}
-      <section className="rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] shadow-xs overflow-hidden">
+      <section className="rounded-[1.6rem] border border-[#e8dfd1] bg-white/95 shadow-[0_16px_45px_rgba(23,32,27,0.05)] backdrop-blur-md overflow-hidden">
         {/* Loading State */}
         {isLoading && (
           <div className="space-y-4 p-6" aria-label="Đang tải dữ liệu">
             {[1, 2, 3, 4, 5].map((idx) => (
               <div
                 key={idx}
-                className="h-14 w-full animate-pulse rounded-xl bg-gray-100"
+                className="h-14 w-full animate-pulse rounded-xl bg-[#faf6ef]"
               />
             ))}
           </div>
@@ -813,32 +961,37 @@ export function AdminChannelManagerClient({
 
         {/* Error State */}
         {!isLoading && isError && (
-          <div className="p-12 text-center">
-            <VsIcon name="error" className="text-4xl text-rose-500" />
-            <h3 className="mt-3 text-lg font-bold text-gray-900">
+          <div className="p-12 text-center bg-white/60">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-rose-50 text-rose-600 ring-2 ring-rose-200">
+              <VsIcon name="error" className="text-3xl" />
+            </div>
+            <h3 className="mt-4 text-lg font-bold text-[#17201b]">
               Không thể tải dữ liệu hạm đội
             </h3>
-            <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
+            <p className="mt-1 text-sm text-[#69726b]">
               Đã xảy ra lỗi khi lấy danh sách khách sạn từ máy chủ.
             </p>
             <button
               type="button"
               onClick={() => void refetch()}
-              className="mt-4 min-h-11 rounded-xl bg-[var(--primary)] px-5 py-2 text-sm font-bold text-white shadow-xs transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+              className="mt-4 min-h-11 inline-flex items-center gap-2 rounded-xl bg-[#24473d] px-5 py-2 text-sm font-bold text-[#fff8e8] shadow-xs transition hover:bg-[#1a352d] focus:outline-none focus:ring-2 focus:ring-[#24473d]/30"
             >
-              Thử lại
+              <VsIcon name="refresh" className="text-base" />
+              <span>Thử lại</span>
             </button>
           </div>
         )}
 
         {/* Overall Empty State (no active filter && totalHotels === 0) */}
         {isOverallEmpty && (
-          <div className="p-12 text-center">
-            <VsIcon name="apartment" className="text-4xl text-gray-400" />
-            <h3 className="mt-3 text-lg font-bold text-gray-900">
+          <div className="p-12 text-center bg-white/60">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#24473d]/10 text-[#24473d]">
+              <VsIcon name="apartment" className="text-3xl" />
+            </div>
+            <h3 className="mt-4 text-lg font-bold text-[#17201b]">
               Chưa có khách sạn nào trong hệ thống
             </h3>
-            <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
+            <p className="mt-1 text-sm text-[#69726b]">
               Vui lòng tạo khách sạn tại trang Quản trị Khách sạn trước khi vận hành Channel Manager.
             </p>
           </div>
@@ -846,20 +999,22 @@ export function AdminChannelManagerClient({
 
         {/* Filtered Empty State (active filter && items === 0) */}
         {isFilterEmpty && (
-          <div className="p-12 text-center">
-            <VsIcon name="search" className="text-4xl text-gray-400" />
-            <h3 className="mt-3 text-lg font-bold text-gray-900">
+          <div className="p-12 text-center bg-white/60">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-amber-50 text-amber-600 ring-2 ring-amber-200">
+              <VsIcon name="search" className="text-3xl" />
+            </div>
+            <h3 className="mt-4 text-lg font-bold text-[#17201b]">
               Không tìm thấy khách sạn phù hợp
             </h3>
-            <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
+            <p className="mt-1 text-sm text-[#69726b]">
               Không có khách sạn nào khớp với từ khóa tìm kiếm hoặc trạng thái đã chọn.
             </p>
             <button
               type="button"
               onClick={handleResetFilters}
-              className="mt-4 min-h-11 rounded-xl border border-[var(--outline-variant)] bg-white px-4 py-2 text-sm font-bold text-[var(--primary)] shadow-xs transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+              className="mt-4 min-h-11 inline-flex items-center gap-1.5 rounded-xl border border-[#e8dfd1] bg-white px-4 py-2 text-sm font-bold text-[#24473d] shadow-2xs transition hover:bg-[#fbf8f2] focus:outline-none focus:ring-2 focus:ring-[#24473d]/30"
             >
-              Xóa bộ lọc tìm kiếm
+              <span>Xóa bộ lọc tìm kiếm</span>
             </button>
           </div>
         )}
@@ -867,78 +1022,114 @@ export function AdminChannelManagerClient({
         {/* Populated Table */}
         {!isLoading && !isError && items.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-[var(--on-surface)]">
-              <thead className="border-b border-[var(--outline-variant)] bg-[var(--surface-container-low)] text-xs font-bold uppercase tracking-wider text-[var(--on-surface-variant)]">
+            <table className="w-full text-left text-sm text-[#17201b]">
+              <thead className="border-b border-[#e5dcd0] bg-[#f8f5ee] text-[11px] font-bold uppercase tracking-[0.1em] text-[#69726b]">
                 <tr>
-                  <th scope="col" className="px-5 py-3.5">
+                  <th scope="col" className="px-6 py-4">
                     Khách sạn
                   </th>
-                  <th scope="col" className="px-4 py-3.5">
+                  <th scope="col" className="px-5 py-4">
                     Chủ sở hữu (Tenant)
                   </th>
-                  <th scope="col" className="px-4 py-3.5">
-                    Trạng thái
+                  <th scope="col" className="px-5 py-4">
+                    Trạng thái kết nối
                   </th>
-                  <th scope="col" className="px-4 py-3.5">
-                    Vấn đề chính / Cảnh báo
+                  <th scope="col" className="px-5 py-4">
+                    Tình trạng đồng bộ / Cảnh báo
                   </th>
-                  <th scope="col" className="px-4 py-3.5">
+                  <th scope="col" className="px-5 py-4">
                     Đồng bộ gần nhất
                   </th>
-                  <th scope="col" className="px-5 py-3.5 text-right">
+                  <th scope="col" className="px-6 py-4 text-right">
                     Thao tác
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--outline-variant)]">
+              <tbody className="divide-y divide-[#f0eae0]">
                 {items.map((item) => {
                   const actionLabel = getPrimaryActionLabel(
                     item.state,
                     item.primaryIssueCode,
                   );
 
+                  const sync = formatLastSync(item.lastSyncAt);
+
                   return (
                     <tr
                       key={item.hotelId}
-                      className="group transition hover:bg-[var(--surface-container-low)]/60"
+                      className="group transition-colors hover:bg-[#fcfaf7]"
                     >
-                      <td className="px-5 py-4">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenHotel(item, "OVERVIEW")}
-                          className="text-left font-bold text-[var(--on-surface)] transition hover:text-[var(--primary)] focus:outline-none focus:underline"
-                        >
-                          {item.hotelName}
-                        </button>
-                        <div className="text-xs font-mono text-[var(--on-surface-variant)]">
-                          {item.hotelCode}
+                      <td className="px-6 py-4.5 align-middle">
+                        <div className="flex items-center gap-3.5">
+                          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#24473d] text-[#e8b363] shadow-xs ring-2 ring-[#e8b363]/30">
+                            <VsIcon name="hotel" className="text-lg" />
+                          </div>
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenHotel(item, "OVERVIEW")}
+                              className="text-left font-bold text-sm text-[#17201b] transition-colors hover:text-[#24473d] focus:outline-none focus:underline"
+                            >
+                              {item.hotelName}
+                            </button>
+                            <div className="mt-0.5">
+                              <span className="inline-block font-mono text-[11px] font-semibold text-[#69726b] bg-[#f4ede2] px-2 py-0.5 rounded-md">
+                                {item.hotelCode}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </td>
 
-                      <td className="px-4 py-4 text-xs font-semibold text-gray-700">
-                        {item.tenantName}
+                      <td className="px-5 py-4.5 align-middle">
+                        <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#e8dfd1] bg-[#fbf8f2] px-3 py-1.5 text-xs font-semibold text-[#17201b]">
+                          <VsIcon name="apartment" className="text-sm text-[#8b948d]" />
+                          <span>{formatTenantName(item.tenantName)}</span>
+                        </span>
                       </td>
 
-                      <td className="px-4 py-4">
+                      <td className="px-5 py-4.5 align-middle">
                         {renderStateBadge(item.state)}
                       </td>
 
-                      <td className="px-4 py-4">
+                      <td className="px-5 py-4.5 align-middle">
                         {renderIssueDescription(item)}
                       </td>
 
-                      <td className="px-4 py-4 text-xs text-[var(--on-surface-variant)]">
-                        {formatLastSync(item.lastSyncAt)}
+                      <td className="px-5 py-4.5 align-middle">
+                        {!sync ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-[#8b948d] italic">
+                            <VsIcon name="schedule" className="text-xs" />
+                            <span>Chưa đồng bộ</span>
+                          </span>
+                        ) : (
+                          <div className="flex items-center gap-2 text-xs">
+                            <VsIcon name="schedule" className="text-sm text-[#8b948d] shrink-0" />
+                            <div>
+                              <p className="font-bold text-[#17201b]">{sync.time}</p>
+                              <p className="text-[11px] text-[#69726b]">{sync.date}</p>
+                            </div>
+                          </div>
+                        )}
                       </td>
 
-                      <td className="px-5 py-4 text-right">
+                      <td className="px-6 py-4.5 text-right align-middle">
                         <button
                           type="button"
                           onClick={() => handleOpenHotel(item)}
-                          className="min-h-11 inline-flex items-center gap-1.5 rounded-xl border border-[var(--primary)] bg-[var(--primary)]/5 px-3.5 py-1.5 text-xs font-bold text-[var(--primary)] shadow-xs transition hover:bg-[var(--primary)] hover:text-white focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+                          className={`min-h-10 inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition-all shadow-xs hover:scale-102 focus:outline-none focus:ring-2 focus:ring-[#24473d]/30 ${
+                            actionLabel === "Liên kết Channex"
+                              ? "bg-[#24473d] text-[#fff8e8] hover:bg-[#1a352d]"
+                              : "border border-[#24473d]/25 bg-[#24473d]/5 text-[#24473d] hover:bg-[#24473d] hover:text-[#fff8e8]"
+                          }`}
                         >
                           <span>{actionLabel}</span>
-                          <VsIcon name="arrow_forward" className="text-xs" />
+                          <VsIcon
+                            name="arrow_forward"
+                            className={`text-xs ${
+                              actionLabel === "Liên kết Channex" ? "text-[#e8b363]" : ""
+                            }`}
+                          />
                         </button>
                       </td>
                     </tr>
@@ -951,12 +1142,12 @@ export function AdminChannelManagerClient({
 
         {/* Pagination Bar */}
         {!isLoading && !isError && total > 0 && (
-          <div className="flex flex-col gap-3 border-t border-[var(--outline-variant)] p-4 sm:flex-row sm:items-center sm:justify-between text-xs text-[var(--on-surface-variant)]">
+          <div className="flex flex-col gap-3 border-t border-[#e5dcd0] bg-[#fdfbf7] p-4 sm:flex-row sm:items-center sm:justify-between text-xs text-[#69726b]">
             <div>
-              Hiển thị <span className="font-bold text-gray-900">{items.length}</span> trong số{" "}
-              <span className="font-bold text-gray-900">{total}</span> khách sạn
+              Hiển thị <span className="font-bold text-[#17201b]">{items.length}</span> trong số{" "}
+              <span className="font-bold text-[#17201b]">{total}</span> khách sạn
               {totalPages > 1 && (
-                <span> (Trang {page} / {totalPages})</span>
+                <span className="ml-1 text-[#8b948d]">• Trang {page} / {totalPages}</span>
               )}
             </div>
 
@@ -966,17 +1157,21 @@ export function AdminChannelManagerClient({
                   type="button"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="min-h-11 inline-flex items-center gap-1.5 rounded-xl border border-[var(--outline-variant)] bg-white px-3.5 py-2 font-bold text-[var(--on-surface)] shadow-xs transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+                  className="min-h-10 inline-flex items-center gap-1.5 rounded-xl border border-[#e8dfd1] bg-white px-3.5 py-1.5 font-bold text-[#17201b] shadow-2xs transition hover:bg-[#fbf8f2] disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-[#24473d]/30"
                 >
                   <VsIcon name="arrow_back" className="text-xs" />
                   <span>Trang trước</span>
                 </button>
 
+                <span className="inline-flex items-center justify-center rounded-xl bg-[#f4ede2] px-3 py-1.5 font-bold text-[#24473d]">
+                  {page} / {totalPages}
+                </span>
+
                 <button
                   type="button"
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="min-h-11 inline-flex items-center gap-1.5 rounded-xl border border-[var(--outline-variant)] bg-white px-3.5 py-2 font-bold text-[var(--on-surface)] shadow-xs transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+                  className="min-h-10 inline-flex items-center gap-1.5 rounded-xl border border-[#e8dfd1] bg-white px-3.5 py-1.5 font-bold text-[#17201b] shadow-2xs transition hover:bg-[#fbf8f2] disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-[#24473d]/30"
                 >
                   <span>Trang sau</span>
                   <VsIcon name="arrow_forward" className="text-xs" />

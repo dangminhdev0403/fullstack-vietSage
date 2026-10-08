@@ -136,8 +136,63 @@ export type MatchAiResponse = {
   suggestedTours: MatchedAiTourItem[];
 };
 
+export type LocalMatePricingConfig = {
+  localMatePlatformFeeRate: number | string;
+};
+
+export type UpdateLocalMatePricingConfigInput = {
+  localMatePlatformFeeRate: number;
+};
+
 export type LocalMateAdminData = {
   guides: LocalMateGuide[];
   tours: LocalMateTourKnowledge[];
   totalGuides: number;
+  pricingConfig?: LocalMatePricingConfig;
 };
+
+export type LocalMateOrder = {
+  id: string;
+  orderNumber: string;
+  serviceNameSnapshot: string;
+  status: string;
+  requestedStartAt: string | null;
+  partySize: number | null;
+  totalAmount: number | string;
+  currency: string;
+  guestNote: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  tripSnapshot?: {
+    itineraryMilestones?: string[];
+    duration?: string;
+    highlights?: string[];
+    [key: string]: unknown;
+  } | null;
+  payment?: {
+    id: string;
+    status: string;
+    currency: string;
+    tourTotalAmount: number | string;
+    platformFeeAmount?: number | string;
+    guideRemainingAmount: number | string;
+    paidAt: string | null;
+  } | null;
+  stay?: {
+    guestDisplayName: string;
+    guestPhone: string | null;
+    room?: {
+      roomNumber: string;
+    } | null;
+  } | null;
+  publicSession?: {
+    guestDisplayName: string | null;
+    guestPhone: string | null;
+    location: string;
+  } | null;
+  hotel?: {
+    name: string;
+  } | null;
+};
+

@@ -16,6 +16,7 @@
   - `POST /webhooks/stripe` is JWT-public but requires a valid Stripe signature over the exact raw body. Browser redirects never mark payment paid.
   - Telegram guide notification becomes eligible only after payment is `PAID` or `NOT_REQUIRED`; the guide collects the snapshotted remaining amount directly.
   - LocalMate completion does not create a guide settlement, post the full tour amount to a hotel folio, or recognize the platform fee as hotel Marketplace revenue.
+  - Dedicated LocalMate pricing configuration endpoints: `GET /localmate-admin/pricing-config` (requires `platform.localmate.view` or `platform.localmate.manage`) and `PATCH /localmate-admin/pricing-config` (requires `platform.localmate.manage`), enabling dedicated LocalMate platform fee configuration independent from Marketplace service fees.
 
 - **Hotel room-type catalog (unreleased)**: Private `GET /hotels/{hotelId}/room-types`
   returns `{items:[{id,name,basePrice,readiness,roomCount}]}` including unresolved legacy names.

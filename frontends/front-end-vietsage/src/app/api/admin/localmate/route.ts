@@ -136,6 +136,11 @@ const disconnectTelegramSchema = z.object({
   guideId: z.string().min(1),
 });
 
+const updatePricingConfigSchema = z.object({
+  action: z.literal("updatePricingConfig"),
+  localMatePlatformFeeRate: z.coerce.number().min(0).max(100),
+});
+
 const actionSchema = z.discriminatedUnion("action", [
   createGuideSchema,
   updateGuideSchema,
@@ -146,21 +151,50 @@ const actionSchema = z.discriminatedUnion("action", [
   updateTourSchema,
   deleteTourSchema,
   matchAiSchema,
+  updatePricingConfigSchema,
 ]);
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const guideId = searchParams.get("guideId");
+
+    if (guideId) {
+      const data = await executeHotelOpsBackendRequest(
+        "localmate guide orders",
+        async (token) => {
+          return localMateAdminClient.listGuideOrders(token, guideId);
+        },
+      );
+      return data instanceof Response ? data : successResponse(data);
+    }
+
+    const actionParam = searchParams.get("action");
+    if (actionParam === "pricingConfig") {
+      const data = await executeHotelOpsBackendRequest(
+        "localmate pricing config",
+        async (token) => {
+          return localMateAdminClient.getPricingConfig(token);
+        },
+      );
+      return data instanceof Response ? data : successResponse(data);
+    }
+
     const data = await executeHotelOpsBackendRequest(
       "localmate admin data",
       async (token) => {
-        const [guidesRes, tours] = await Promise.all([
+        const [guidesRes, tours, pricingConfig] = await Promise.all([
           localMateAdminClient.listGuides(token),
           localMateAdminClient.listTours(token),
+          localMateAdminClient
+            .getPricingConfig(token)
+            .catch(() => ({ localMatePlatformFeeRate: 15 })),
         ]);
         return {
           guides: guidesRes.items ?? [],
           totalGuides: guidesRes.total ?? 0,
           tours: tours ?? [],
+          pricingConfig,
         };
       },
     );
@@ -171,6 +205,7 @@ export async function GET() {
       : unknownServerErrorResponse();
   }
 }
+
 
 export async function POST(request: Request) {
   const parsed = actionSchema.safeParse(await request.json().catch(() => null));
@@ -206,6 +241,11 @@ export async function POST(request: Request) {
             return localMateAdminClient.deleteTour(token, action.tourId);
           case "matchAi":
             return localMateAdminClient.matchAi(token, action.input);
+          case "updatePricingConfig":
+            return localMateAdminClient.updatePricingConfig(
+              token,
+              action.localMatePlatformFeeRate,
+            );
         }
       },
     );
