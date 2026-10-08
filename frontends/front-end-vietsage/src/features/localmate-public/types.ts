@@ -237,6 +237,7 @@ export type PublicOrder = {
   orderNumber: string;
   status: "PENDING" | "ACKNOWLEDGED" | "COMPLETED" | "CANCELLED" | "REJECTED";
   quantity: number;
+  partySize?: number | null;
   partnerSubtotal: string | number;
   hotelServiceFeeAmount: string | number;
   customerTotalAmount: string | number;

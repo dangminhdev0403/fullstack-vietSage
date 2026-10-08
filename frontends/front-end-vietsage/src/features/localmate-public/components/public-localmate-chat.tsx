@@ -293,6 +293,12 @@ const PAYMENT_VIEW_TEXT: Record<SupportedLocale, {
   initializingGateway: string;
   pollingPayment: string;
   backToDiscovery: string;
+  qrExpiresIn: (time: string) => string;
+  qrExpiredTitle: string;
+  qrExpiredDesc: string;
+  returnToChatAction: string;
+  recreateQrAction: string;
+  recreatingQr: string;
 }> = {
   vi: {
     orderCode: "Mã đơn:",
@@ -304,7 +310,13 @@ const PAYMENT_VIEW_TEXT: Record<SupportedLocale, {
     openStripeLink: "Mở cổng thanh toán Stripe",
     initializingGateway: "Đang kết nối cổng thanh toán...",
     pollingPayment: "Đang chờ xác nhận giao dịch...",
-    backToDiscovery: "Quay lại khám phá",
+    backToDiscovery: "Quay lại hỏi tiếp & khám phá",
+    qrExpiresIn: (time) => `Mã QR hết hạn sau: ${time}`,
+    qrExpiredTitle: "Mã QR đã hết hạn (5 phút)",
+    qrExpiredDesc: "Phiên quét mã thanh toán 5 phút đã hết hạn để đảm bảo an toàn giao dịch. Quý khách có thể quay lại khung chat để hỏi tiếp và thao tác lại, hoặc tạo mã thanh toán mới.",
+    returnToChatAction: "Quay lại hỏi tiếp & thao tác",
+    recreateQrAction: "Tạo lại mã thanh toán mới",
+    recreatingQr: "Đang tạo lại mã QR...",
   },
   en: {
     orderCode: "Order #:",
@@ -316,7 +328,13 @@ const PAYMENT_VIEW_TEXT: Record<SupportedLocale, {
     openStripeLink: "Proceed to checkout",
     initializingGateway: "Connecting to payment gateway...",
     pollingPayment: "Awaiting confirmation...",
-    backToDiscovery: "Back to discovery",
+    backToDiscovery: "Back to discovery & chat",
+    qrExpiresIn: (time) => `QR code expires in: ${time}`,
+    qrExpiredTitle: "QR Code Expired (5 mins)",
+    qrExpiredDesc: "The 5-minute payment session has expired for transaction security. You can return to chat to ask questions and try again, or generate a new QR code.",
+    returnToChatAction: "Return to chat & ask more",
+    recreateQrAction: "Generate new payment QR",
+    recreatingQr: "Regenerating QR code...",
   },
   zh: {
     orderCode: "订单编号：",
@@ -328,7 +346,13 @@ const PAYMENT_VIEW_TEXT: Record<SupportedLocale, {
     openStripeLink: "前往支付页面",
     initializingGateway: "正在连接支付网关...",
     pollingPayment: "正在确认交易...",
-    backToDiscovery: "返回探索",
+    backToDiscovery: "返回探索与对话",
+    qrExpiresIn: (time) => `二维码有效时间：${time}`,
+    qrExpiredTitle: "二维码已过期（5分钟）",
+    qrExpiredDesc: "为保障交易安全，5分钟支付会话已结束。您可以返回对话继续咨询并重新操作，或重新生成支付二维码。",
+    returnToChatAction: "返回对话继续咨询",
+    recreateQrAction: "重新生成支付二维码",
+    recreatingQr: "正在重新生成二维码...",
   },
   ko: {
     orderCode: "예약 번호:",
@@ -340,7 +364,13 @@ const PAYMENT_VIEW_TEXT: Record<SupportedLocale, {
     openStripeLink: "결제 페이지로 이동",
     initializingGateway: "결제 게이트웨이 연결 중...",
     pollingPayment: "결제 확인 대기 중...",
-    backToDiscovery: "탐색으로 돌아가기",
+    backToDiscovery: "탐색 및 채팅으로 돌아가기",
+    qrExpiresIn: (time) => `QR 코드 만료까지: ${time}`,
+    qrExpiredTitle: "QR 코드가 만료되었습니다 (5분)",
+    qrExpiredDesc: "안전한 거래를 위해 5분 결제 세션이 종료되었습니다. 채팅으로 돌아가 계속 문의하거나 새 결제 QR을 생성할 수 있습니다.",
+    returnToChatAction: "채팅으로 돌아가기",
+    recreateQrAction: "새 결제 QR 생성",
+    recreatingQr: "새 QR 생성 중...",
   },
   ru: {
     orderCode: "Номер заказа:",
@@ -352,7 +382,13 @@ const PAYMENT_VIEW_TEXT: Record<SupportedLocale, {
     openStripeLink: "Перейти к оплате",
     initializingGateway: "Подключение к платежу...",
     pollingPayment: "Подтверждение оплаты...",
-    backToDiscovery: "Назад к поиску",
+    backToDiscovery: "Назад к поиску и чату",
+    qrExpiresIn: (time) => `QR-код истекает через: ${time}`,
+    qrExpiredTitle: "Срок действия QR-кода истек (5 мин)",
+    qrExpiredDesc: "5-минутная сессия оплаты завершена для безопасности. Вы можете вернуться в чат для продолжения вопросов или создать новый QR-код.",
+    returnToChatAction: "Вернуться в чат и продолжить",
+    recreateQrAction: "Создать новый QR-код",
+    recreatingQr: "Создание нового QR...",
   },
   hi: {
     orderCode: "ऑर्डर संख्या:",
@@ -364,7 +400,13 @@ const PAYMENT_VIEW_TEXT: Record<SupportedLocale, {
     openStripeLink: "भुगतान पेज पर जाएं",
     initializingGateway: "भुगतान से जुड़ रहे हैं...",
     pollingPayment: "पुष्टि की प्रतीक्षा...",
-    backToDiscovery: "खोज पर वापस जाएं",
+    backToDiscovery: "खोज और चैट पर वापस जाएं",
+    qrExpiresIn: (time) => `QR कोड समाप्त होने में समय: ${time}`,
+    qrExpiredTitle: "QR कोड समाप्त हो गया (5 मिनट)",
+    qrExpiredDesc: "सुरक्षा कारणों से 5 मिनट का भुगतान सत्र समाप्त हो गया है। आप चैट पर वापस जाकर प्रश्न पूछ सकते हैं या नया QR कोड बना सकते हैं।",
+    returnToChatAction: "चैट पर वापस जाएं और पूछें",
+    recreateQrAction: "नया QR कोड बनाएं",
+    recreatingQr: "नया QR कोड बन रहा है...",
   },
 };
 
@@ -473,6 +515,8 @@ export function PublicLocalMateChat({
   const openPayment = useLocalMateSessionStore((s) => s.openPayment);
   const resetSession = useLocalMateSessionStore((s) => s.resetSession);
   const setLastChatUrl = useLocalMateSessionStore((s) => s.setLastChatUrl);
+  const paymentExpiresAt = useLocalMateSessionStore((s) => s.paymentExpiresAt);
+  const setPaymentExpiresAt = useLocalMateSessionStore((s) => s.setPaymentExpiresAt);
 
   const [location, setLocation] = useState("");
   const [locationInput, setLocationInput] = useState("");
@@ -522,7 +566,10 @@ export function PublicLocalMateChat({
   // Payment state
   const [currentOrder, setCurrentOrder] = useState<PublicOrder | null>(null);
   const [paymentCheckoutUrl, setPaymentCheckoutUrl] = useState<string | null>(null);
-  const isPollingPayment = viewMode === "payment" && Boolean(currentOrder?.id);
+  const [timeRemainingSeconds, setTimeRemainingSeconds] = useState<number>(300);
+  const [isRecreatingPayment, setIsRecreatingPayment] = useState(false);
+  const isPaymentExpired = viewMode === "payment" && Boolean(currentOrder?.id) && timeRemainingSeconds <= 0;
+  const isPollingPayment = viewMode === "payment" && Boolean(currentOrder?.id) && timeRemainingSeconds > 0;
 
   // Guide Chat state
   const [conversationMessages, setConversationMessages] = useState<LocalChatMessage[]>([]);
@@ -745,9 +792,9 @@ export function PublicLocalMateChat({
     };
   }, []);
 
-  // Payment polling effect: poll every 2000ms while on payment screen & listen to payment events
+  // Payment polling effect: poll every 2000ms while on payment screen & listen to payment events (halts if expired)
   useEffect(() => {
-    if (viewMode !== "payment" || !currentOrder?.id) return;
+    if (viewMode !== "payment" || !currentOrder?.id || timeRemainingSeconds <= 0) return;
 
     let isMounted = true;
 
@@ -800,7 +847,90 @@ export function PublicLocalMateChat({
       window.removeEventListener("focus", handleVisibilityChange);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [viewMode, currentOrder?.id, openGuideChat, setActiveOrderId, setLastChatUrl]);
+  }, [viewMode, currentOrder?.id, timeRemainingSeconds, openGuideChat, setActiveOrderId, setLastChatUrl]);
+
+  // 5-minute QR expiration timer effect: counts down when on payment screen
+  useEffect(() => {
+    if (viewMode !== "payment" || !currentOrder?.id) return;
+
+    let target = paymentExpiresAt;
+    const now = Date.now();
+    if (!target) {
+      target = now + 5 * 60 * 1000;
+      setPaymentExpiresAt(target);
+    }
+
+    const calcRemaining = () => {
+      const remaining = Math.max(0, Math.ceil(((target ?? Date.now()) - Date.now()) / 1000));
+      setTimeRemainingSeconds(remaining);
+      return remaining;
+    };
+
+    const initial = calcRemaining();
+    if (initial <= 0) return;
+
+    const timer = setInterval(() => {
+      const remaining = calcRemaining();
+      if (remaining <= 0) {
+        clearInterval(timer);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [viewMode, currentOrder?.id, paymentExpiresAt, setPaymentExpiresAt]);
+
+  const formattedCountdown = useMemo(() => {
+    const mins = Math.floor(timeRemainingSeconds / 60);
+    const secs = timeRemainingSeconds % 60;
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  }, [timeRemainingSeconds]);
+
+  const handleReturnToDiscoveryOnExpire = useCallback(() => {
+    setPaymentExpiresAt(null);
+    setTimeRemainingSeconds(0);
+    setCurrentOrder(null);
+    setActiveOrderId(null);
+    setViewMode("discovery");
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: nextId.current++,
+        sender: "localmate",
+        text:
+          effectiveLocale === "en"
+            ? "The 5-minute payment session has expired. I'm here to help you explore more destinations or create a new booking whenever you're ready! 🌿"
+            : effectiveLocale === "zh"
+              ? "上一笔订单的5分钟二维码支付已过期。我随时准备为您推荐更多目的地或重新预约！🌿"
+              : effectiveLocale === "ko"
+                ? "이전 주문의 5분 결제 세션이 만료되었습니다. 새로운 일정을 계획하거나 문의사항이 있으시면 언제든 말씀해 주세요! 🌿"
+                : effectiveLocale === "ru"
+                  ? "5-минутная сессия оплаты завершилась. Я с радостью помогу вам выбрать новые направления или оформить новую заявку! 🌿"
+                  : effectiveLocale === "hi"
+                    ? "पिछला 5 मिनट का भुगतान सत्र समाप्त हो गया है। नई यात्रा योजना या पूछताछ के लिए मैं हमेशा उपलब्ध हूँ! 🌿"
+                    : "Dạ phiên quét mã QR thanh toán 5 phút trước đó đã kết thúc. Em đã đưa Quý khách quay lại đây để mình có thể tiếp tục hỏi thêm thông tin, chọn lại điểm đến hoặc đặt lại lịch trình mới nhé! 🌿",
+      },
+    ]);
+  }, [effectiveLocale, setActiveOrderId, setPaymentExpiresAt, setViewMode]);
+
+  const handleRecreatePaymentQr = useCallback(async () => {
+    if (!currentOrder?.id || isRecreatingPayment) return;
+    setIsRecreatingPayment(true);
+    try {
+      const payRes = await publicLocalMateRepository.createPaymentSession(currentOrder.id);
+      if (payRes?.payment?.checkoutUrl) {
+        setPaymentCheckoutUrl(payRes.payment.checkoutUrl);
+      }
+      const newTarget = Date.now() + 5 * 60 * 1000;
+      setPaymentExpiresAt(newTarget);
+      setTimeRemainingSeconds(300);
+    } catch {
+      const newTarget = Date.now() + 5 * 60 * 1000;
+      setPaymentExpiresAt(newTarget);
+      setTimeRemainingSeconds(300);
+    } finally {
+      setIsRecreatingPayment(false);
+    }
+  }, [currentOrder?.id, isRecreatingPayment, setPaymentExpiresAt]);
 
   // Guide Chat polling effect: poll conversation messages every 1200ms
   useEffect(() => {
@@ -1119,7 +1249,10 @@ export function PublicLocalMateChat({
         openGuideChat(order.id);
       } else {
         setPaymentCheckoutUrl(payment?.checkoutUrl ?? null);
-        openPayment(order.id);
+        const expiresAt = Date.now() + 5 * 60 * 1000;
+        setPaymentExpiresAt(expiresAt);
+        setTimeRemainingSeconds(300);
+        openPayment(order.id, expiresAt);
       }
     } catch (err: unknown) {
       const errorObj = err as { message?: string } | null | undefined;
@@ -2168,7 +2301,7 @@ export function PublicLocalMateChat({
                   <div className="rounded-2xl border border-[#d6c08b]/50 bg-[#fff9ed] p-3 text-left">
                     <div className="flex items-center justify-between text-xs text-[#526458]">
                       <span className="font-mono font-medium text-[#526458]">#{currentOrder.orderNumber}</span>
-                      <span className="font-semibold text-[#123d2a]">{paymentViewText.guestsCount(currentOrder.quantity)}</span>
+                      <span className="font-semibold text-[#123d2a]">{paymentViewText.guestsCount(currentOrder.partySize ?? currentOrder.quantity)}</span>
                     </div>
                     <h3 className="mt-1 text-sm font-bold text-[#123d2a]">
                       {currentOrder.serviceNameSnapshot}
@@ -2210,34 +2343,98 @@ export function PublicLocalMateChat({
                     </div>
                   </div>
 
-                  {paymentCheckoutUrl ? (
-                    <div className="flex flex-col items-center justify-center rounded-2xl border border-[#123d2a]/10 bg-white p-4 shadow-sm">
-                      <div className="p-2 bg-white rounded-xl shadow-inner border border-black/5">
-                        <QRCodeSVG value={paymentCheckoutUrl} size={170} level="M" />
-                      </div>
-                      <p className="mt-2.5 text-xs font-semibold text-[#123d2a]">
-                        {paymentViewText.qrInstruction}
-                      </p>
-                      <a
-                        href={paymentCheckoutUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-3 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-[#123d2a] bg-[#f8f4ea] px-4 text-xs font-bold text-[#123d2a] transition hover:bg-[#123d2a] hover:text-white"
-                      >
-                        <span>{paymentViewText.openStripeLink}</span>
-                        <VsIcon name="open_in_new" className="text-sm" />
-                      </a>
-                    </div>
-                  ) : (
-                    <div className="py-8">
-                      <span className="text-xs text-[#526458]">{paymentViewText.initializingGateway}</span>
-                    </div>
-                  )}
+                  {!isPaymentExpired ? (
+                    <>
+                      {paymentCheckoutUrl ? (
+                        <div className="flex flex-col items-center justify-center rounded-2xl border border-[#123d2a]/10 bg-white p-4 shadow-sm">
+                          <div className="p-2 bg-white rounded-xl shadow-inner border border-black/5">
+                            <QRCodeSVG value={paymentCheckoutUrl} size={170} level="M" />
+                          </div>
 
-                  {isPollingPayment && (
-                    <div className="flex items-center justify-center gap-2 text-xs font-medium text-[#2a6649]">
-                      <span className="h-2 w-2 animate-ping rounded-full bg-[#10b981]" />
-                      <span>{paymentViewText.pollingPayment}</span>
+                          {/* 5-minute QR countdown timer indicator */}
+                          <div
+                            role="timer"
+                            aria-live="polite"
+                            className={`mt-2.5 flex items-center justify-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+                              timeRemainingSeconds <= 60
+                                ? "bg-rose-50 text-rose-700 border border-rose-200/90 animate-pulse"
+                                : "bg-[#fff7e6] text-[#806118] border border-[#d6c08b]/70"
+                            }`}
+                          >
+                            <VsIcon name="schedule" className="text-sm" />
+                            <span>{paymentViewText.qrExpiresIn(formattedCountdown)}</span>
+                          </div>
+
+                          <p className="mt-2 text-xs font-semibold text-[#123d2a]">
+                            {paymentViewText.qrInstruction}
+                          </p>
+                          <a
+                            href={paymentCheckoutUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-3 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-[#123d2a] bg-[#f8f4ea] px-4 text-xs font-bold text-[#123d2a] transition hover:bg-[#123d2a] hover:text-white"
+                          >
+                            <span>{paymentViewText.openStripeLink}</span>
+                            <VsIcon name="open_in_new" className="text-sm" />
+                          </a>
+                        </div>
+                      ) : (
+                        <div className="py-8">
+                          <span className="text-xs text-[#526458]">{paymentViewText.initializingGateway}</span>
+                        </div>
+                      )}
+
+                      {isPollingPayment && (
+                        <div className="flex items-center justify-center gap-2 text-xs font-medium text-[#2a6649]">
+                          <span className="h-2 w-2 animate-ping rounded-full bg-[#10b981]" />
+                          <span>{paymentViewText.pollingPayment}</span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    /* EXPIRED STATE: Replaces QR so user is not stuck indefinitely */
+                    <div className="flex flex-col items-center justify-center rounded-2xl border border-rose-200/80 bg-white p-5 shadow-sm text-center">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 border border-rose-200">
+                        <VsIcon name="history" className="text-2xl" />
+                      </div>
+                      <h4 className="mt-3 text-sm font-bold text-[#123d2a]">
+                        {paymentViewText.qrExpiredTitle}
+                      </h4>
+                      <p className="mt-1 text-xs text-[#526458] max-w-xs leading-relaxed">
+                        {paymentViewText.qrExpiredDesc}
+                      </p>
+
+                      <div className="mt-4 flex w-full flex-col gap-2">
+                        {/* Primary Action: Return to chat to ask & operate again */}
+                        <button
+                          type="button"
+                          onClick={handleReturnToDiscoveryOnExpire}
+                          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#123d2a] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#184d35] active:scale-95"
+                        >
+                          <VsIcon name="chat" className="text-base text-[#f3c66b]" />
+                          <span>{paymentViewText.returnToChatAction}</span>
+                        </button>
+
+                        {/* Secondary Action: Recreate QR if user still wants to pay */}
+                        <button
+                          type="button"
+                          onClick={handleRecreatePaymentQr}
+                          disabled={isRecreatingPayment}
+                          className="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-[#123d2a]/20 bg-[#f8f4ea] px-4 py-2 text-xs font-semibold text-[#123d2a] transition hover:bg-[#f0e8d6] active:scale-95 disabled:opacity-50"
+                        >
+                          {isRecreatingPayment ? (
+                            <>
+                              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#123d2a] border-t-transparent" />
+                              <span>{paymentViewText.recreatingQr}</span>
+                            </>
+                          ) : (
+                            <>
+                              <VsIcon name="refresh" className="text-sm" />
+                              <span>{paymentViewText.recreateQrAction}</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2245,7 +2442,7 @@ export function PublicLocalMateChat({
                 <div className="w-full pt-3">
                   <button
                     type="button"
-                    onClick={() => setViewMode("discovery")}
+                    onClick={handleReturnToDiscoveryOnExpire}
                     className="text-xs font-semibold text-[#526458] hover:text-[#123d2a] underline"
                   >
                     {paymentViewText.backToDiscovery}

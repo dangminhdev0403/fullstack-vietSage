@@ -194,8 +194,21 @@ export class MarketplaceOrderService {
           }
         }
 
+        const isLocalMate = Boolean(service.localMateProfileId);
+        if (isLocalMate) {
+          if (
+            body.partySize != null &&
+            service.capacityAvailable != null &&
+            body.partySize > service.capacityAvailable
+          ) {
+            throw new ConflictException(
+              `Số lượng khách (${body.partySize}) vượt quá sức chứa tối đa của hướng dẫn viên (${service.capacityAvailable} khách)`,
+            );
+          }
+        }
+
         const reserved =
-          service.capacityAvailable == null
+          isLocalMate || service.capacityAvailable == null
             ? 1
             : (
                 await tx.marketplaceService.updateMany({
@@ -214,7 +227,6 @@ export class MarketplaceOrderService {
         if (reserved !== 1) throw new ConflictException("Dịch vụ đã hết khả năng phục vụ");
 
         const partnerSubtotal = service.unitPrice.mul(body.quantity);
-        const isLocalMate = Boolean(service.localMateProfileId);
         if (isLocalMate && service.currency !== "VND") {
           throw new ConflictException("Thanh toán LocalMate hiện chỉ hỗ trợ VND");
         }
@@ -259,7 +271,7 @@ export class MarketplaceOrderService {
             waitingMinutesSnapshot: service.waitingMinutes,
             guestNote: body.guestNote,
             capacityReservationStatus:
-              service.capacityAvailable == null
+              isLocalMate || service.capacityAvailable == null
                 ? CapacityReservationStatus.NOT_REQUIRED
                 : CapacityReservationStatus.RESERVED,
             items: {

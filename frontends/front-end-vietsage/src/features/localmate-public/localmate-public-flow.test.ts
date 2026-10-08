@@ -334,3 +334,49 @@ test("destination i18n provides localized labels and tags for all 6 supported lo
     }
   }
 });
+
+test("useLocalMateSessionStore openPayment sets 5-minute paymentExpiresAt and resetSession clears it", () => {
+  const store = useLocalMateSessionStore.getState();
+  const before = Date.now();
+  store.openPayment("ord-5min-test");
+
+  const state = useLocalMateSessionStore.getState();
+  assert.equal(state.viewMode, "payment");
+  assert.equal(state.activeOrderId, "ord-5min-test");
+  assert.ok(state.paymentExpiresAt !== null);
+  // Verify expiration is set approximately 5 minutes (300 seconds) in the future
+  const diffMs = state.paymentExpiresAt! - before;
+  assert.ok(diffMs >= 299_000 && diffMs <= 301_000, `Expected ~300000ms diff, got ${diffMs}ms`);
+
+  // Reset clears expiration
+  store.resetSession();
+  const resetState = useLocalMateSessionStore.getState();
+  assert.equal(resetState.paymentExpiresAt, null);
+  assert.equal(resetState.viewMode, "discovery");
+});
+
+test("public chat defines 5-minute QR countdown, halts polling on expiry, and provides return-to-chat action", () => {
+  const publicChatSource = readFileSync(
+    new URL("./components/public-localmate-chat.tsx", import.meta.url),
+    "utf8",
+  );
+
+  // Verifies 5-minute (300 seconds) countdown timer integration
+  assert.match(publicChatSource, /paymentExpiresAt/);
+  assert.match(publicChatSource, /5 \* 60 \* 1000/);
+  assert.match(publicChatSource, /timeRemainingSeconds/);
+  assert.match(publicChatSource, /formattedCountdown/);
+
+  // Verifies polling halts when expired
+  assert.match(publicChatSource, /timeRemainingSeconds <= 0/);
+  assert.match(publicChatSource, /isPollingPayment = viewMode === "payment" && Boolean\(currentOrder\?\.id\) && timeRemainingSeconds > 0/);
+
+  // Verifies expired state allows returning to discovery chat & recreating QR
+  assert.match(publicChatSource, /isPaymentExpired/);
+  assert.match(publicChatSource, /handleReturnToDiscoveryOnExpire/);
+  assert.match(publicChatSource, /handleRecreatePaymentQr/);
+  assert.match(publicChatSource, /qrExpiresIn/);
+  assert.match(publicChatSource, /qrExpiredTitle/);
+  assert.match(publicChatSource, /returnToChatAction/);
+});
+

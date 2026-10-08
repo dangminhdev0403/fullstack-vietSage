@@ -320,7 +320,7 @@ describe("PublicLocalMateService", () => {
         },
         {
           serviceId: "srv-456",
-          quantity: 2,
+          quantity: 1,
           requestedStartAt: null,
           partySize: 2,
           guestNote: null,

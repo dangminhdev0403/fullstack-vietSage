@@ -11,6 +11,7 @@ export type LocalMateSessionState = {
   activeProposalKey: string | null;
   activeCandidateKey: string | null;
   lastChatUrl: string | null;
+  paymentExpiresAt: number | null;
 
   // Primitive mutations
   setIsOpen: (isOpen: boolean) => void;
@@ -20,10 +21,11 @@ export type LocalMateSessionState = {
   setActiveProposalKey: (key: string | null) => void;
   setActiveCandidateKey: (key: string | null) => void;
   setLastChatUrl: (url: string | null) => void;
+  setPaymentExpiresAt: (expiresAt: number | null) => void;
 
   // Semantic domain actions
   openGuideChat: (orderId: string) => void;
-  openPayment: (orderId: string) => void;
+  openPayment: (orderId: string, expiresAt?: number | null) => void;
   resetSession: () => void;
 };
 
@@ -61,6 +63,7 @@ export const useLocalMateSessionStore = create<LocalMateSessionState>()(
       activeProposalKey: null,
       activeCandidateKey: null,
       lastChatUrl: null,
+      paymentExpiresAt: null,
 
       setIsOpen: (isOpen) => set({ isOpen }),
       setViewMode: (viewMode) => set({ viewMode }),
@@ -69,6 +72,7 @@ export const useLocalMateSessionStore = create<LocalMateSessionState>()(
       setActiveProposalKey: (activeProposalKey) => set({ activeProposalKey }),
       setActiveCandidateKey: (activeCandidateKey) => set({ activeCandidateKey }),
       setLastChatUrl: (lastChatUrl) => set({ lastChatUrl }),
+      setPaymentExpiresAt: (paymentExpiresAt) => set({ paymentExpiresAt }),
 
       openGuideChat: (orderId) =>
         set({
@@ -77,11 +81,12 @@ export const useLocalMateSessionStore = create<LocalMateSessionState>()(
           activeOrderId: orderId,
         }),
 
-      openPayment: (orderId) =>
+      openPayment: (orderId, expiresAt) =>
         set({
           isOpen: true,
           viewMode: "payment",
           activeOrderId: orderId,
+          paymentExpiresAt: expiresAt ?? Date.now() + 5 * 60 * 1000,
         }),
 
       resetSession: () =>
@@ -91,6 +96,7 @@ export const useLocalMateSessionStore = create<LocalMateSessionState>()(
           activeCandidateKey: null,
           viewMode: "discovery",
           stage: "DISCOVERY",
+          paymentExpiresAt: null,
         }),
     }),
     {
@@ -104,6 +110,7 @@ export const useLocalMateSessionStore = create<LocalMateSessionState>()(
         activeProposalKey: state.activeProposalKey,
         activeCandidateKey: state.activeCandidateKey,
         lastChatUrl: state.lastChatUrl,
+        paymentExpiresAt: state.paymentExpiresAt,
       }),
     },
   ),

@@ -987,13 +987,14 @@ NGÀY 2: CHINH PHỤC ĐỈNH FANSIPAN - ĐÈO Ô QUY HỒ - TẠM BIỆT
         )
         VALUES (
           gen_random_uuid(), $1, $2, $3, $4, $5, $6, 'tour', 'VND', ARRAY[$7],
-          'CUSTOMER_AT_SERVICE'::"MarketplaceServiceMode", 6, 'ACTIVE'::"MarketplaceRecordStatus",
+          'CUSTOMER_AT_SERVICE'::"MarketplaceServiceMode", 10, 'ACTIVE'::"MarketplaceRecordStatus",
           $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
         )
         ON CONFLICT ("serviceTenantId", "importKey") DO UPDATE
         SET "localMateProfileId" = EXCLUDED."localMateProfileId",
             "name" = EXCLUDED."name",
             "unitPrice" = EXCLUDED."unitPrice",
+            "capacityAvailable" = EXCLUDED."capacityAvailable",
             "status" = 'ACTIVE'::"MarketplaceRecordStatus",
             "updatedAt" = CURRENT_TIMESTAMP
       `,

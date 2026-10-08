@@ -123,6 +123,148 @@ describe("T1 - Marketplace LocalMate Order Lifecycle", () => {
       expect(dispatchSpy).not.toHaveBeenCalled();
     });
 
+    it("does not decrement capacityAvailable for LocalMate services", async () => {
+      const mockOrder = {
+        id: "order-lm-2",
+        orderNumber: "MP12346",
+        status: MarketplaceOrderStatus.PENDING,
+        assignedLocalMateProfileId: "guide-profile-1",
+        partySize: 4,
+        unitPriceSnapshot: new Prisma.Decimal(1000000),
+        partnerSubtotal: new Prisma.Decimal(1000000),
+        hotelServiceFeeAmount: new Prisma.Decimal(0),
+        customerTotalAmount: new Prisma.Decimal(1000000),
+        totalAmount: new Prisma.Decimal(1000000),
+        currency: "VND",
+        serviceNameSnapshot: "Trekking Ta Phin",
+        serviceModeSnapshot: MarketplaceServiceMode.CUSTOMER_AT_SERVICE,
+        waitingMinutesSnapshot: 0,
+        createdAt: new Date(),
+        version: 1,
+        items: [],
+      };
+
+      const tx = {
+        marketplacePricingConfig: { findUnique: jest.fn().mockResolvedValue(null) },
+        marketplaceService: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: "srv-lm-1",
+            serviceTenantId: "tenant-1",
+            name: "Trekking Ta Phin",
+            unitPrice: new Prisma.Decimal(1000000),
+            pricingUnit: "TOUR",
+            currency: "VND",
+            mode: MarketplaceServiceMode.CUSTOMER_AT_SERVICE,
+            waitingMinutes: 0,
+            capacityAvailable: 10,
+            localMateProfileId: "guide-profile-1",
+            serviceTenant: { serviceProfile: { deliveryServiceFeeRate: new Prisma.Decimal(0) } },
+          }),
+          updateMany: jest.fn(),
+        },
+        localMateProfile: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: "guide-profile-1",
+            status: "QUALIFIED",
+            operatingRegions: ["Lao Cai"],
+          }),
+        },
+        hotel: {
+          findUnique: jest.fn().mockResolvedValue({
+            province: "Lào Cai",
+            provinceCode: "LAO_CAI",
+          }),
+        },
+        marketplaceOrder: {
+          create: jest.fn().mockResolvedValue(mockOrder),
+        },
+        guestCart: { findUnique: jest.fn().mockResolvedValue(null) },
+      };
+
+      const prisma = {
+        marketplaceOrder: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          findUnique: jest.fn().mockResolvedValue(mockOrder),
+        },
+        $transaction: jest.fn().mockImplementation(async (cb) => cb(tx)),
+      };
+
+      const service = new MarketplaceOrderService(prisma as never, {} as never);
+      await service.createGuestOrder(
+        { hotelId: "hotel-1", stayId: "stay-1" },
+        {
+          serviceId: "srv-lm-1",
+          quantity: 1,
+          partySize: 4,
+          idempotencyKey: "idem-002",
+        },
+      );
+
+      expect(tx.marketplaceService.updateMany).not.toHaveBeenCalled();
+      expect(tx.marketplaceOrder.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            capacityReservationStatus: CapacityReservationStatus.NOT_REQUIRED,
+            partySize: 4,
+          }),
+        }),
+      );
+    });
+
+    it("rejects booking if partySize exceeds LocalMate capacityAvailable", async () => {
+      const tx = {
+        marketplacePricingConfig: { findUnique: jest.fn().mockResolvedValue(null) },
+        marketplaceService: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: "srv-lm-1",
+            serviceTenantId: "tenant-1",
+            name: "Trekking Ta Phin",
+            unitPrice: new Prisma.Decimal(1000000),
+            pricingUnit: "TOUR",
+            currency: "VND",
+            mode: MarketplaceServiceMode.CUSTOMER_AT_SERVICE,
+            waitingMinutes: 0,
+            capacityAvailable: 6,
+            localMateProfileId: "guide-profile-1",
+            serviceTenant: { serviceProfile: {} },
+          }),
+        },
+        localMateProfile: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: "guide-profile-1",
+            status: "QUALIFIED",
+            operatingRegions: ["Lao Cai"],
+          }),
+        },
+        hotel: {
+          findUnique: jest.fn().mockResolvedValue({
+            province: "Lào Cai",
+            provinceCode: "LAO_CAI",
+          }),
+        },
+      };
+
+      const prisma = {
+        marketplaceOrder: {
+          findFirst: jest.fn().mockResolvedValue(null),
+        },
+        $transaction: jest.fn().mockImplementation(async (cb) => cb(tx)),
+      };
+
+      const service = new MarketplaceOrderService(prisma as never, {} as never);
+      await expect(
+        service.createGuestOrder(
+          { hotelId: "hotel-1", stayId: "stay-1" },
+          {
+            serviceId: "srv-lm-1",
+            quantity: 1,
+            partySize: 8,
+            idempotencyKey: "idem-exceed-capacity",
+          },
+        ),
+      ).rejects.toThrow("vượt quá sức chứa tối đa");
+    });
+
     it("rejects booking if assigned LocalMate is not QUALIFIED", async () => {
       const tx = {
         marketplacePricingConfig: { findUnique: jest.fn().mockResolvedValue(null) },

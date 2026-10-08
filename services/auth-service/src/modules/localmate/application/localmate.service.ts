@@ -768,7 +768,7 @@ export class LocalMateService {
         currency: service.currency,
         unit: service.pricingUnit ?? "tour",
         minDurationHours: 4,
-        maxPartySize: service.capacityAvailable ?? 6,
+        maxPartySize: service.capacityAvailable ?? 10,
       },
       ...(hotel
         ? {

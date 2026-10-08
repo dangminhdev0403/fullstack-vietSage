@@ -243,7 +243,12 @@ export class PublicLocalMateService {
       },
       {
         serviceId: candidate.service.id,
-        quantity: input.partySize,
+        quantity:
+          candidate.service.unit === "person" ||
+          candidate.service.unit === "guest" ||
+          candidate.service.unit === "pax"
+            ? input.partySize
+            : 1,
         requestedStartAt: null,
         partySize: input.partySize,
         guestNote: null,
