@@ -3,7 +3,10 @@ import { createHash, randomBytes } from "node:crypto";
 import { MarketplaceOrderStatus } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { LocalMateService } from "../../localmate/application/localmate.service";
-import type { PublicLocalMateOrderRequest } from "../domain/marketplace-order.schema";
+import {
+  CANONICAL_PUBLIC_PHONE_REGEX,
+  type PublicLocalMateOrderRequest,
+} from "../domain/marketplace-order.schema";
 import type {
   ListMarketplaceConversationMessagesQuery,
   SendMarketplaceConversationMessageInput,
@@ -236,14 +239,14 @@ export class PublicLocalMateService {
         publicSessionId: session.id,
         location: session.location,
         guestDisplayName: session.guestDisplayName!,
-        guestPhone: session.guestPhone?.trim() || "Trao đổi qua Chat",
+        guestPhone: session.guestPhone!.trim(),
       },
       {
         serviceId: candidate.service.id,
-        quantity: input.quantity,
-        requestedStartAt: input.requestedStartAt,
+        quantity: input.partySize,
+        requestedStartAt: null,
         partySize: input.partySize,
-        guestNote: input.guestNote,
+        guestNote: null,
         idempotencyKey: input.idempotencyKey,
       },
       {
@@ -338,7 +341,12 @@ export class PublicLocalMateService {
     if (!session || session.revokedAt || session.expiresAt <= new Date()) {
       throw new UnauthorizedException("Public LocalMate session has expired or was revoked");
     }
-    if (options.requireIdentity && !session.guestDisplayName?.trim()) {
+    if (
+      options.requireIdentity &&
+      (!session.guestDisplayName?.trim() ||
+        !session.guestPhone?.trim() ||
+        !CANONICAL_PUBLIC_PHONE_REGEX.test(session.guestPhone.trim()))
+    ) {
       throw new UnauthorizedException("Public LocalMate session identity is incomplete");
     }
     return session;

@@ -1,12 +1,25 @@
-import assert from "node:assert/strict";
 import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
-// @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
+// @ts-expect-error Node strip-types requires .ts extension
 import { LOCALMATE_COOKIE_OPTIONS, LOCALMATE_SESSION_COOKIE } from "../../app/api/localmate/_lib/session-cookie.ts";
-// @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
+// @ts-expect-error Node strip-types requires .ts extension
 import { toApiErrorMessage, unwrapApiEnvelope } from "../../core/http/api-envelope.ts";
-// @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
+// @ts-expect-error Node strip-types requires .ts extension
 import { candidateKeySchema, proposalKeySchema } from "../../app/api/localmate/public-chat/payload-schema.ts";
+// @ts-expect-error Node strip-types requires .ts extension
+import { PUBLIC_LOCALMATE_DESTINATIONS, getLocalizedDestinations } from "./constants/locations.ts";
+// @ts-expect-error Node strip-types requires .ts extension
+import { PROVINCE_MAP, REGIONS, PROVINCES } from "../localmate/constants/geography.ts";
+// @ts-expect-error Node strip-types requires .ts extension
+import { PUBLIC_CHAT_COPY_BY_LOCALE } from "../localmate-chat/localmate-chat-copy.ts";
+// @ts-expect-error Node strip-types requires .ts extension
+import { SUPPORTED_LOCALES } from "../../core/i18n/locales.ts";
+// @ts-expect-error Node strip-types requires .ts extension
+import { canProceedToBooking, validateBookingPrerequisites, transitionStage, resetSelectionOnLocationChange, type PublicLocalMateProposal, type PublicLocalMateSelection, type PublicLocalMateStage, type PublicLocalMateActionType, type CreatePublicOrderInput } from "./types.ts";
+// @ts-expect-error Node strip-types requires .ts extension
+import { useLocalMateSessionStore } from "./store/localmate-session-store.ts";
 
 test("HttpOnly session cookie is configured securely with path restriction", () => {
   assert.equal(LOCALMATE_SESSION_COOKIE, "public_localmate_token");
@@ -60,9 +73,6 @@ test("order creation idempotency key format is non-empty string", () => {
   const sampleKey = `ord_${Date.now()}_abc123`;
   assert.ok(idempotencyPattern.test(sampleKey));
 });
-
-// @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
-import { canProceedToBooking, validateBookingPrerequisites, transitionStage, resetSelectionOnLocationChange, type PublicLocalMateProposal, type PublicLocalMateSelection, type PublicLocalMateStage, type PublicLocalMateActionType, type CreatePublicOrderInput } from "./types.ts";
 
 test("proposal key format conforms to canonical pattern", () => {
   assert.equal(proposalKeySchema.safeParse(`prop_${"p".repeat(43)}`).success, true);
@@ -185,25 +195,25 @@ test("change location / reset invalidates both proposalKey and candidateKey and 
   assert.equal(reset.stage, "DISCOVERY");
 });
 
-test("order creation payload forwards both candidateKey and proposalKey", () => {
-  const orderInput: CreatePublicOrderInput = {
-    candidateKey: `cand_${"c".repeat(43)}`,
-    proposalKey: `prop_${"p".repeat(43)}`,
-    quantity: 2,
-    partySize: 2,
-    requestedStartAt: "2026-10-10T08:00:00.000Z",
-    guestNote: "Không ăn cay",
-    idempotencyKey: "ord_idemp_key_12345",
+test("CreatePublicOrderInput contract strictly limits payload to partySize and keys", () => {
+  const payload: CreatePublicOrderInput = {
+    candidateKey: "cand_LM-HN-001",
+    proposalKey: "trip_tour-ha-noi-1d",
+    partySize: 3,
+    idempotencyKey: "ord_12345678",
   };
 
-  assert.equal(orderInput.candidateKey, `cand_${"c".repeat(43)}`);
-  assert.equal(orderInput.proposalKey, `prop_${"p".repeat(43)}`);
-  assert.equal(orderInput.partySize, 2);
-  assert.equal(orderInput.idempotencyKey, "ord_idemp_key_12345");
-});
+  assert.equal(payload.candidateKey, "cand_LM-HN-001");
+  assert.equal(payload.proposalKey, "trip_tour-ha-noi-1d");
+  assert.equal(payload.partySize, 3);
+  assert.equal(payload.idempotencyKey, "ord_12345678");
 
-// @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
-import { useLocalMateSessionStore } from "./store/localmate-session-store.ts";
+  // Type contract: quantity, requestedStartAt, and guestNote should not be present
+  const keys = Object.keys(payload);
+  assert.ok(!keys.includes("quantity"));
+  assert.ok(!keys.includes("requestedStartAt"));
+  assert.ok(!keys.includes("guestNote"));
+});
 
 test("useLocalMateSessionStore openGuideChat transitions into open guide-chat with orderId", () => {
   const store = useLocalMateSessionStore.getState();
@@ -239,3 +249,88 @@ test("useLocalMateSessionStore resetSession clears active selections and resets 
   assert.equal(state.stage, "DISCOVERY");
 });
 
+test("PUBLIC_LOCALMATE_DESTINATIONS contains exactly six featured cards in canonical order", () => {
+  assert.equal(PUBLIC_LOCALMATE_DESTINATIONS.length, 6);
+
+  const expected = [
+    { order: 1, provinceCode: "LAO_CAI", label: "Lào Cai – Sa Pa", location: "Sa Pa, Lào Cai" },
+    { order: 2, provinceCode: "HA_NOI", label: "Hà Nội", location: "Hà Nội" },
+    { order: 3, provinceCode: "DA_NANG", label: "Đà Nẵng", location: "Đà Nẵng" },
+    { order: 4, provinceCode: "QUANG_NAM", label: "Quảng Nam – Hội An", location: "Hội An, Quảng Nam" },
+    { order: 5, provinceCode: "HO_CHI_MINH", label: "TP. Hồ Chí Minh", location: "TP. Hồ Chí Minh" },
+    { order: 6, provinceCode: "KIEN_GIANG", label: "Phú Quốc – Kiên Giang", location: "Phú Quốc, Kiên Giang" },
+  ];
+
+  for (let i = 0; i < expected.length; i++) {
+    const item = PUBLIC_LOCALMATE_DESTINATIONS[i];
+    const exp = expected[i];
+    assert.equal(item.order, exp.order);
+    assert.equal(item.provinceCode, exp.provinceCode);
+    assert.equal(item.label, exp.label);
+    assert.equal(item.location, exp.location);
+    assert.ok(item.icon, `Missing icon for ${item.label}`);
+    assert.ok(item.tag, `Missing tag for ${item.label}`);
+  }
+});
+
+test("all featured destinations map to valid canonical provinces in neutral taxonomy", () => {
+  for (const dest of PUBLIC_LOCALMATE_DESTINATIONS) {
+    const province = PROVINCE_MAP[dest.provinceCode];
+    assert.ok(province, `Province code ${dest.provinceCode} must exist in PROVINCE_MAP`);
+    assert.ok(province.destinations.length > 0);
+  }
+});
+
+test("localmate-admin cleanly re-exports neutral geography taxonomy without divergence", () => {
+  const adminGeo = readFileSync(new URL("../localmate-admin/constants/geography.ts", import.meta.url), "utf8");
+  const neutralExports = ["REGIONS", "PROVINCES", "REGION_MAP", "PROVINCE_MAP", "getProvincesByRegion", "detectProvinceFromDestination"];
+  for (const sym of neutralExports) {
+    assert.ok(adminGeo.includes(sym), `Admin geography must re-export ${sym}`);
+  }
+  assert.ok(adminGeo.includes("@/features/localmate/constants/geography"), "Admin must re-export from neutral geography");
+  assert.equal(REGIONS.length, 4);
+  assert.equal(PROVINCES.length, 20);
+});
+
+test("all 6 supported locales have required phone and format error copy", () => {
+  for (const locale of SUPPORTED_LOCALES) {
+    const copy = PUBLIC_CHAT_COPY_BY_LOCALE[locale];
+    assert.ok(copy, `Copy must exist for locale ${locale}`);
+    assert.ok(copy.phoneRequiredError && copy.phoneRequiredError.trim().length > 0);
+    assert.ok(copy.phoneFormatError && copy.phoneFormatError.trim().length > 0);
+    assert.ok(copy.nameRequiredError && copy.nameRequiredError.trim().length > 0);
+  }
+});
+
+test("phone validation enforces valid phone formats and rejects empty/invalid values", () => {
+  const phoneRegex = /^\+?[0-9][0-9 .()-]{5,30}$/;
+
+  // Valid numbers
+  assert.ok(phoneRegex.test("0901234567"));
+  assert.ok(phoneRegex.test("+84901234567"));
+  assert.ok(phoneRegex.test("+1 555-0199"));
+  assert.ok(phoneRegex.test("+84 24 3825 0000"));
+
+  // Invalid numbers
+  assert.ok(!phoneRegex.test(""));
+  assert.ok(!phoneRegex.test("abc"));
+  assert.ok(!phoneRegex.test("123"));
+  assert.ok(!phoneRegex.test("phone: 0901234567"));
+});
+
+test("destination i18n provides localized labels and tags for all 6 supported locales while preserving canonical location and provinceCode", () => {
+  for (const locale of SUPPORTED_LOCALES) {
+    const localized = getLocalizedDestinations(locale);
+    assert.equal(localized.length, 6);
+    for (let i = 0; i < localized.length; i++) {
+      const dest = localized[i];
+      const canonical = PUBLIC_LOCALMATE_DESTINATIONS[i];
+      assert.equal(dest.order, canonical.order);
+      assert.equal(dest.provinceCode, canonical.provinceCode);
+      assert.equal(dest.location, canonical.location);
+      assert.equal(dest.icon, canonical.icon);
+      assert.ok(dest.label && dest.label.trim().length > 0);
+      assert.ok(dest.tag && dest.tag.trim().length > 0);
+    }
+  }
+});

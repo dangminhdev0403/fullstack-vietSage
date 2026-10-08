@@ -55,3 +55,27 @@ test("payloadSchema rejects invalid message or oversized payload", () => {
   assert.equal(payloadSchema.safeParse({ message: "   " }).success, false);
   assert.equal(payloadSchema.safeParse({ message: "a".repeat(2_001) }).success, false);
 });
+
+test("payloadSchema accepts all 6 supported locales and defaults to vi", () => {
+  const supported = ["vi", "en", "zh", "ko", "ru", "hi"] as const;
+  for (const lang of supported) {
+    const parsed = payloadSchema.safeParse({
+      message: "Tư vấn du lịch",
+      location: "Hà Nội",
+      language: lang,
+    });
+    assert.equal(parsed.success, true);
+    if (parsed.success) {
+      assert.equal(parsed.data.language, lang);
+    }
+  }
+
+  const defaulted = payloadSchema.safeParse({
+    message: "Tư vấn du lịch",
+    location: "Hà Nội",
+  });
+  assert.equal(defaulted.success, true);
+  if (defaulted.success) {
+    assert.equal(defaulted.data.language, "vi");
+  }
+});

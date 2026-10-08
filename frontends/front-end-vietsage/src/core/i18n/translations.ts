@@ -1,6 +1,7 @@
-export const DEFAULT_LOCALE = "vi" as const;
+import { DEFAULT_LOCALE, type SupportedLocale } from "./locales";
 
-export type Locale = typeof DEFAULT_LOCALE;
+export { DEFAULT_LOCALE };
+export type Locale = SupportedLocale;
 
 export type TranslationKey =
   | "errors.business.NO_ACTIVE_STAY"
@@ -69,13 +70,14 @@ const vi: TranslationDictionary = {
   "guest.emergency.contactHotel": "Liên hệ lễ tân",
 };
 
-const dictionaries: Record<Locale, TranslationDictionary> = { vi };
+const dictionaries: Partial<Record<Locale, TranslationDictionary>> = { vi };
 
 export function translate(
   key: TranslationKey,
   values: TranslationValues = {},
   locale: Locale = DEFAULT_LOCALE,
 ): string {
-  const template = dictionaries[locale][key] ?? dictionaries[DEFAULT_LOCALE][key];
+  const dictionary = dictionaries[locale] ?? dictionaries[DEFAULT_LOCALE] ?? vi;
+  const template = dictionary[key] ?? dictionaries[DEFAULT_LOCALE]?.[key] ?? vi[key] ?? "";
   return template.replace(/\{(\w+)\}/g, (_, valueKey: string) => String(values[valueKey] ?? ""));
 }

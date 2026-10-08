@@ -11,7 +11,25 @@ import {
   n8nResponseSchema,
   payloadSchema,
   selectedProposalSchema,
+  type ValidatedPublicChatPayload,
 } from "./payload-schema";
+
+function getProposalSelectedReply(language: ValidatedPublicChatPayload["language"]): string {
+  switch (language) {
+    case "en":
+      return "I have recorded your selected itinerary. Please choose a local guide below to proceed with your tour booking:";
+    case "zh":
+      return "已为您记录所选行程。请在下方选择随行当地向导以完成预约：";
+    case "ko":
+      return "선택하신 일정이 등록되었습니다. 아래에서 동행할 로컬 가이드를 선택해 예약을 진행해 주세요:";
+    case "ru":
+      return "Выбранный маршрут сохранен. Пожалуйста, выберите местного гида ниже, чтобы завершить бронирование:";
+    case "hi":
+      return "चुना गया यात्रा कार्यक्रम दर्ज कर लिया गया है। टूर बुकिंग पूरी करने के लिए कृपया नीचे से एक स्थानीय गाइड चुनें:";
+    default:
+      return "Dạ, em đã ghi nhận lịch trình Quý khách chọn. Kính mời Quý khách chọn Hướng dẫn viên đồng hành bên dưới để hoàn tất đặt tour ạ:";
+  }
+}
 
 async function ensureSession(location: string) {
   const cookieStore = await cookies();
@@ -86,7 +104,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           status: 200,
-          reply: "Dạ, em đã ghi nhận lịch trình Quý khách chọn. Kính mời Quý khách chọn Hướng dẫn viên đồng hành bên dưới để hoàn tất đặt tour ạ:",
+          reply: getProposalSelectedReply(parsed.data.language),
           suggestions: [],
           action: null,
           stage: selected.data.stage,

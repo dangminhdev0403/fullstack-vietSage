@@ -1,3 +1,5 @@
+import type { SupportedLocale } from "@/core/i18n/locales";
+
 export type PublicLocalMateSuggestion = {
   label: string;
   query: string;
@@ -74,7 +76,7 @@ export type PublicLocalMateHistoryEntry = {
 export type PublicLocalMateChatInput = {
   message: string;
   location?: string;
-  language: "vi";
+  language?: SupportedLocale;
   history?: PublicLocalMateHistoryEntry[];
   selection?: PublicLocalMateSelection;
   actionType?: PublicLocalMateActionType;
@@ -87,26 +89,62 @@ export function canProceedToBooking(selection: {
   return Boolean(selection.proposalKey && selection.candidateKey);
 }
 
-export function validateBookingPrerequisites(selection: {
-  proposalKey?: string | null;
-  candidateKey?: string | null;
-}): { ok: boolean; error?: string } {
+export function validateBookingPrerequisites(
+  selection: {
+    proposalKey?: string | null;
+    candidateKey?: string | null;
+  },
+  locale?: SupportedLocale,
+): { ok: boolean; error?: string } {
   if (!selection.proposalKey && !selection.candidateKey) {
     return {
       ok: false,
-      error: "Cần chọn cả lịch trình và hướng dẫn viên trước khi đặt tour.",
+      error:
+        locale === "en"
+          ? "Both itinerary and guide must be selected before booking."
+          : locale === "zh"
+            ? "预约前需同时确认行程线路与当地向导。"
+            : locale === "ko"
+              ? "예약 전 일정과 가이드를 모두 선택해야 합니다."
+              : locale === "ru"
+                ? "Необходимо выбрать маршрут и гида перед бронированием."
+                : locale === "hi"
+                  ? "बुकिंग से पहले यात्रा कार्यक्रम और गाइड दोनों चुनना आवश्यक है।"
+                  : "Cần chọn cả lịch trình và hướng dẫn viên trước khi đặt tour.",
     };
   }
   if (!selection.proposalKey) {
     return {
       ok: false,
-      error: "Vui lòng chọn lịch trình trước khi tiến hành đặt tour.",
+      error:
+        locale === "en"
+          ? "Please choose an itinerary before proceeding to booking."
+          : locale === "zh"
+            ? "请在预约前先选择行程线路。"
+            : locale === "ko"
+              ? "투어 예약을 진행하기 전에 일정을 선택해 주세요."
+              : locale === "ru"
+                ? "Пожалуйста, выберите маршрут перед бронированием."
+                : locale === "hi"
+                  ? "कृपया बुकिंग से पहले यात्रा कार्यक्रम चुनें।"
+                  : "Vui lòng chọn lịch trình trước khi tiến hành đặt tour.",
     };
   }
   if (!selection.candidateKey) {
     return {
       ok: false,
-      error: "Vui lòng chọn hướng dẫn viên trước khi tiến hành đặt tour.",
+      error:
+        locale === "en"
+          ? "Please choose a guide before proceeding to booking."
+          : locale === "zh"
+            ? "请在预约前先选择向导。"
+            : locale === "ko"
+              ? "투어 예약을 진행하기 전에 가이드를 선택해 주세요."
+              : locale === "ru"
+                ? "Пожалуйста, выберите гида перед бронированием."
+                : locale === "hi"
+                  ? "कृपया बुकिंग से पहले गाइड चुनें।"
+                  : "Vui lòng chọn hướng dẫn viên trước khi tiến hành đặt tour.",
     };
   }
   return { ok: true };
@@ -179,10 +217,7 @@ export type PublicBookingCandidate = {
 export type CreatePublicOrderInput = {
   candidateKey: string;
   proposalKey: string;
-  quantity?: number;
-  requestedStartAt?: string | null;
-  partySize?: number | null;
-  guestNote?: string | null;
+  partySize: number;
   idempotencyKey: string;
 };
 

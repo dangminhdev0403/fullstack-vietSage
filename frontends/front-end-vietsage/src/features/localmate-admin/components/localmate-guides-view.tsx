@@ -57,7 +57,7 @@ const initialFormData: GuideFormData = {
   languages: "Tiếng Việt, Tiếng Anh",
   operatingRegions: "Hà Nội",
   specialties: "Ẩm thực phố cổ, Lịch sử văn hóa",
-  dailyRateVnd: 1200000,
+  dailyRateVnd: 1000000,
   bio: "",
   serviceLatitude: "",
   serviceLongitude: "",
@@ -1667,18 +1667,18 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
                 <div className="rounded-xl bg-white/80 p-3 border border-[#25483F]/8 text-xs text-[#52635A] space-y-1">
                   <div className="font-bold text-[#142823] flex items-center gap-1.5">
                     <VsIcon name="calculate" className="text-sm text-[#173F35]" />
-                    <span>Mô phỏng với tour 1.200.000 đ:</span>
+                    <span>Mô phỏng với tour 1.000.000 đ:</span>
                   </div>
                   <div className="flex justify-between text-[#142823] pt-0.5">
                     <span>• Cọc VietSage thu trực tuyến:</span>
                     <span className="font-black text-[#173F35]">
-                      {Math.round((1200000 * feeRateInput) / 100).toLocaleString("vi-VN")} đ
+                      {Math.round((1000000 * feeRateInput) / 100).toLocaleString("vi-VN")} đ
                     </span>
                   </div>
                   <div className="flex justify-between text-[#142823]">
                     <span>• HDV thu tiền mặt / chuyển khoản:</span>
                     <span className="font-black text-emerald-700">
-                      {Math.round((1200000 * Math.max(0, 100 - feeRateInput)) / 100).toLocaleString("vi-VN")} đ
+                      {Math.round((1000000 * Math.max(0, 100 - feeRateInput)) / 100).toLocaleString("vi-VN")} đ
                     </span>
                   </div>
                 </div>

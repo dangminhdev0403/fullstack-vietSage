@@ -192,3 +192,9 @@ The frontend may hide unavailable actions for UX, but backend authorization rema
 - Keep backend business rules out of frontend.
 - Keep architecture docs generic and short.
 - Keep detailed docs in the same `docs/` folder, referenced by the Docs Index.
+
+## 12. LocalMate Geography Seam
+
+Canonical geography taxonomy (regions, provinces, regional mapping, and detection) resides in neutral shared constants at `src/features/localmate/constants/geography.ts`.
+- `localmate-admin` re-exports the neutral taxonomy while retaining admin-specific tour scopes and duration helpers.
+- `localmate-public` defines public-facing projections (such as `PUBLIC_LOCALMATE_DESTINATIONS`) referencing neutral taxonomy without importing admin features.

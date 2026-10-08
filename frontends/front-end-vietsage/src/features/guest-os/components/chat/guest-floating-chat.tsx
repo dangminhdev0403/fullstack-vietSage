@@ -6,9 +6,16 @@ import { AnimatePresence, m } from "motion/react";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
 import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
-import type { GuestLocale } from "@/features/guest-os/i18n/config";
 import { GUEST_AI_FLOATING_CHAT, hasHotelFeature } from "@/features/hotel-features/hotel-features";
+import { guestLocaleOptions } from "@/features/guest-os/i18n/config";
 import type { GuestChatAction } from "@/features/marketplace/types/marketplace-contract";
+import {
+  getLocalMateChatUiText,
+  getLocalMateNetworkErrorReply,
+  getLocalMateWelcomeMessage,
+  SUGGESTIONS_BY_LOCALE,
+  type QuickSuggestion,
+} from "@/features/localmate-chat/localmate-chat-copy";
 import { LocalMateBookingCard } from "./localmate-booking-card";
 import { LocalMateOrderRequestDialog } from "@/features/marketplace/components/localmate-order-request-dialog";
 import { LocalMateOrderChat } from "@/features/marketplace/components/localmate-order-chat";
@@ -21,237 +28,7 @@ type ChatMessage = {
   action?: GuestChatAction | null;
 };
 
-type QuickSuggestion = {
-  id: string;
-  label: string;
-  query: string;
-  icon?: string;
-};
 
-const SUGGESTIONS_BY_LOCALE: Record<string, QuickSuggestion[]> = {
-  vi: [
-    {
-      id: "nearby",
-      label: "📍 Gần khách sạn",
-      query: "Gợi ý trải nghiệm khám phá gần khách sạn",
-    },
-    {
-      id: "day_tour",
-      label: "🗓️ Tour trong ngày",
-      query: "Gợi ý tour trong ngày gần khách sạn",
-    },
-    {
-      id: "guide",
-      label: "🧭 Hướng dẫn viên bản địa",
-      query: "Gợi ý hướng dẫn viên bản địa LocalMate trong khu vực",
-    },
-    {
-      id: "food",
-      label: "🍲 Ẩm thực bản địa",
-      query: "Gợi ý các món ngon và quán ăn bản địa đặc sắc gần đây",
-    },
-    {
-      id: "spots",
-      label: "📸 Điểm check-in đẹp",
-      query: "Những địa điểm ngắm cảnh và chụp ảnh đẹp nhất quanh đây",
-    },
-    {
-      id: "culture",
-      label: "🎒 Trải nghiệm văn hóa",
-      query: "Gợi ý các hoạt động trải nghiệm văn hóa truyền thống bản địa",
-    },
-    {
-      id: "booking",
-      label: "🤝 Đặt hướng dẫn viên",
-      query: "Tôi muốn tìm và đặt hướng dẫn viên LocalMate đồng hành",
-    },
-  ],
-  en: [
-    {
-      id: "nearby",
-      label: "📍 Near hotel",
-      query: "Recommend experiences and discoveries near my hotel",
-    },
-    {
-      id: "day_tour",
-      label: "🗓️ Day tours",
-      query: "Recommend day tours near my hotel",
-    },
-    {
-      id: "guide",
-      label: "🧭 Native Local Guides",
-      query: "Are there any verified English-speaking LocalMate native guides available?",
-    },
-    {
-      id: "food",
-      label: "🍲 Local Cuisine",
-      query: "Recommend authentic local specialties and dining spots nearby",
-    },
-    {
-      id: "spots",
-      label: "📸 Scenic Photo Spots",
-      query: "What are the best viewpoints and photography spots in the area?",
-    },
-    {
-      id: "culture",
-      label: "🎒 Cultural Activities",
-      query: "What authentic indigenous cultural activities can I experience here?",
-    },
-    {
-      id: "booking",
-      label: "🤝 Book a Guide",
-      query: "I would like to find and book a certified LocalMate guide",
-    },
-  ],
-  zh: [
-    {
-      id: "nearby",
-      label: "📍 酒店附近",
-      query: "推荐酒店所在区域的特色探索体验",
-    },
-    {
-      id: "day_tour",
-      label: "🗓️ 一日游",
-      query: "推荐酒店附近的一日游精选线路",
-    },
-    {
-      id: "guide",
-      label: "🧭 当地认证向导",
-      query: "我想了解本地区的 LocalMate 认证当地向导",
-    },
-    {
-      id: "food",
-      label: "🍲 地道美食",
-      query: "附近有哪些值得品尝的地道风味与特色美食？",
-    },
-    {
-      id: "spots",
-      label: "📸 绝美打卡机位",
-      query: "推荐附近最出片的自然风光与拍照机位",
-    },
-    {
-      id: "culture",
-      label: "🎒 民俗文化体验",
-      query: "这里有哪些独具特色的少数民族民俗文化体验？",
-    },
-    {
-      id: "booking",
-      label: "🤝 预约向导",
-      query: "我想预约一位 LocalMate 本地向导陪同旅行",
-    },
-  ],
-  ko: [
-    {
-      id: "nearby",
-      label: "📍 호텔 주변",
-      query: "호텔 주변의 로컬 체험 및 명소를 추천해 주세요",
-    },
-    {
-      id: "day_tour",
-      label: "🗓️ 당일 투어",
-      query: "호텔 인근의 알찬 당일 투어를 추천해 주세요",
-    },
-    {
-      id: "guide",
-      label: "🧭 현지 로컬 가이드",
-      query: "현지 로컬 가이드(LocalMate) 추천을 받고 싶습니다",
-    },
-    {
-      id: "food",
-      label: "🍲 로컬 미식",
-      query: "주변의 맛있는 현지 전통 음식과 추천 맛집을 알려주세요",
-    },
-    {
-      id: "spots",
-      label: "📸 포토 스팟",
-      query: "인근에서 가장 멋진 풍경을 담을 수 있는 사진 명소는 어디인가요?",
-    },
-    {
-      id: "culture",
-      label: "🎒 문화 체험",
-      query: "이 지역에서 즐길 수 있는 전통 문화 체험을 알려주세요",
-    },
-    {
-      id: "booking",
-      label: "🤝 가이드 예약",
-      query: "LocalMate 현지 가이드 예약을 진행하고 싶습니다",
-    },
-  ],
-  ru: [
-    {
-      id: "nearby",
-      label: "📍 Рядом с отелем",
-      query: "Порекомендуйте интересные места и активности рядом с отелем",
-    },
-    {
-      id: "day_tour",
-      label: "🗓️ Однодневные туры",
-      query: "Порекомендуйте однодневные туры в регионе отеля",
-    },
-    {
-      id: "guide",
-      label: "🧭 Местные гиды",
-      query: "Порекомендуйте проверенных местных гидов LocalMate",
-    },
-    {
-      id: "food",
-      label: "🍲 Местная кухня",
-      query: "Какие традиционные блюда и аутентичные заведения стоит посетить?",
-    },
-    {
-      id: "spots",
-      label: "📸 Красивые виды",
-      query: "Где находятся лучшие панорамные точки и локации для фото?",
-    },
-    {
-      id: "culture",
-      label: "🎒 Культурный опыт",
-      query: "Какие традиционные культурные активности доступны в этом регионе?",
-    },
-    {
-      id: "booking",
-      label: "🤝 Забронировать гида",
-      query: "Я хочу забронировать местного гида LocalMate для сопровождения",
-    },
-  ],
-  hi: [
-    {
-      id: "nearby",
-      label: "📍 होटल के पास",
-      query: "होटल के पास के अनोखे अनुभव और पर्यटन स्थल सुझाएं",
-    },
-    {
-      id: "day_tour",
-      label: "🗓️ एक-दिवसीय यात्रा",
-      query: "होटल के क्षेत्र में बेहतरीन एक-दिवसीय यात्रा सुझाएं",
-    },
-    {
-      id: "guide",
-      label: "🧭 स्थानीय गाइड",
-      query: "क्या यहाँ प्रमाणित LocalMate स्थानीय गाइड उपलब्ध हैं?",
-    },
-    {
-      id: "food",
-      label: "🍲 स्थानीय भोजन",
-      query: "यहाँ के प्रसिद्ध पारंपरिक व्यंजन और भोजन स्थल सुझाएं",
-    },
-    {
-      id: "spots",
-      label: "📸 दर्शनीय स्थल",
-      query: "आस-पास के सबसे सुंदर दृश्य और फोटो स्थल कौन से हैं?",
-    },
-    {
-      id: "culture",
-      label: "🎒 सांस्कृतिक अनुभव",
-      query: "यहाँ कौन-से पारंपरिक और सांस्कृतिक अनुभव उपलब्ध हैं?",
-    },
-    {
-      id: "booking",
-      label: "🤝 गाइड बुक करें",
-      query: "मैं एक प्रमाणित LocalMate गाइड बुक करना चाहता हूँ",
-    },
-  ],
-};
 
 function getCurrentTimeString(): string {
   const now = new Date();
@@ -260,130 +37,6 @@ function getCurrentTimeString(): string {
   return `${hours}:${minutes}`;
 }
 
-function getWelcomeMessage(locale: GuestLocale, guestName?: string): string {
-  const name = guestName ? ` ${guestName}` : "";
-
-  switch (locale) {
-    case "en":
-      return `Hello${name}! I'm **LocalMate AI**. 🌿\n\nI'm ready 24/7 to assist you with local travel itineraries, authentic regional experiences, and native guide connections. How can I inspire your journey today?`;
-    case "zh":
-      return `您好${name}！我是 **LocalMate AI** 原生旅游助理。🌿\n\n我全天候 24/7 为您提供当地特色体验线路、风土人情及认证向导预约推荐。今天有什么旅行计划需要我协助的吗？`;
-    case "ko":
-      return `안녕하세요${name}님! **LocalMate AI** 현지 여행 비서입니다. 🌿\n\n현지 여행 일정, 맞춤 문화 체험 및 로컬 가이드 연결을 24시간 지원해 드립니다. 오늘 어떤 여행 정보를 찾아드릴까요?`;
-    case "ru":
-      return `Здравствуйте${name}! Я **LocalMate AI** — ваш персональный гид по местным путешествиям. 🌿\n\nЯ готов круглосуточно помочь вам с уникальными маршрутами, аутентичными впечатлениями и подбором местных гидов LocalMate. Куда бы вы хотели отправиться сегодня?`;
-    case "hi":
-      return `नमस्ते${name}! मैं **LocalMate AI** — आपका स्थानीय यात्रा सहायक हूँ। 🌿\n\nस्थानीय पर्यटन स्थलों, सांस्कृतिक अनुभवों और LocalMate गाइड से जुड़ने के लिए मैं 24/7 उपलब्ध हूँ। आज आपकी यात्रा में क्या मदद करूँ?`;
-    default:
-      return `Dạ xin chào${name}! Em là **LocalMate AI** — Trợ lý du lịch bản địa của Quý khách. 🌿\n\nEm luôn sẵn sàng hỗ trợ Quý khách 24/7 về các tour khám phá, trải nghiệm văn hóa ẩm thực đặc sắc và kết nối hướng dẫn viên bản địa LocalMate. Quý khách muốn khám phá điều gì hôm nay ạ?`;
-  }
-}
-
-function getChatUiText(locale: GuestLocale) {
-  switch (locale) {
-    case "en":
-      return {
-        teaserTag: "✨ LocalMate AI",
-        teaserTitle: "Need local travel tips & guides?",
-        teaserDesc: "I can suggest authentic local tours, cultural spots, and connect you with native LocalMate guides!",
-        readyText: "Online",
-        bannerText: "Native Travel & LocalMate Guide Assistant",
-        typing: "LocalMate is composing an answer...",
-        suggestionsTitle: "Quick suggestions:",
-        suggestionsScroll: "Swipe horizontally",
-        placeholder: "Ask about tours, guides, local food, culture...",
-        sendAria: "Send message",
-        closeAria: "Minimize chat",
-      };
-    case "zh":
-      return {
-        teaserTag: "✨ LocalMate 助理",
-        teaserTitle: "需要旅行建议或当地向导推荐吗？",
-        teaserDesc: "我可以为您推荐特色原生态路线、地道美食，或对接认证 LocalMate 当地向导！",
-        readyText: "在线",
-        bannerText: "原生旅游助理 & LocalMate 向导咨询",
-        typing: "LocalMate 正在撰写回复...",
-        suggestionsTitle: "为您推荐的快速提问：",
-        suggestionsScroll: "左右滑动查看更多",
-        placeholder: "咨询特色线路、LocalMate 向导、风土人情...",
-        sendAria: "发送消息",
-        closeAria: "收起聊天窗口",
-      };
-    case "ko":
-      return {
-        teaserTag: "✨ LocalMate AI",
-        teaserTitle: "현지 여행 추천이나 가이드가 필요하신가요?",
-        teaserDesc: "맞춤 로컬 투어 추천, 고유 문화 체험 및 인증된 LocalMate 가이드 연결을 도와드립니다!",
-        readyText: "온라인",
-        bannerText: "현지 여행 비서 & LocalMate 가이드 연결",
-        typing: "LocalMate가 답변 작성 중...",
-        suggestionsTitle: "빠른 질문 선택:",
-        suggestionsScroll: "가로로 스크롤하여 더 보기",
-        placeholder: "투어 일정, LocalMate 가이드, 지역 명소 문의...",
-        sendAria: "메시지 전송",
-        closeAria: "채팅 닫기",
-      };
-    case "ru":
-      return {
-        teaserTag: "✨ LocalMate AI",
-        teaserTitle: "Нужен совет по турам или местный гид?",
-        teaserDesc: "Помогу подобрать аутентичный маршрут, познакомиться с местной культурой и найти гида LocalMate!",
-        readyText: "В сети",
-        bannerText: "Гид по местным путешествиям & LocalMate",
-        typing: "LocalMate печатает ответ...",
-        suggestionsTitle: "Быстрые подсказки:",
-        suggestionsScroll: "Прокрутите для просмотра",
-        placeholder: "Спросите о турах, гидах LocalMate, традициях...",
-        sendAria: "Отправить сообщение",
-        closeAria: "Закрыть чат",
-      };
-    case "hi":
-      return {
-        teaserTag: "✨ LocalMate AI",
-        teaserTitle: "स्थानीय यात्रा या गाइड की सलाह चाहिए?",
-        teaserDesc: "मैं आपको प्रामाणिक स्थानीय यात्राएं, सांस्कृतिक अनुभव और LocalMate गाइड सुझा सकता हूँ!",
-        readyText: "ऑनलाइन",
-        bannerText: "स्थानीय यात्रा सहायक और LocalMate गाइड",
-        typing: "LocalMate उत्तर लिख रहा है...",
-        suggestionsTitle: "त्वरित सुझाव:",
-        suggestionsScroll: "अधिक देखने के लिए स्वाइप करें",
-        placeholder: "टूर, LocalMate गाइड या स्थानीय संस्कृति के बारे में पूछें...",
-        sendAria: "संदेश भेजें",
-        closeAria: "चैट बंद करें",
-      };
-    default:
-      return {
-        teaserTag: "✨ Trợ lý LocalMate",
-        teaserTitle: "Cần gợi ý du lịch & hướng dẫn viên?",
-        teaserDesc: "Em có thể gợi ý các tour trải nghiệm bản địa độc đáo, ẩm thực và kết nối hướng dẫn viên LocalMate cho Quý khách!",
-        readyText: "Trực tuyến",
-        bannerText: "Trợ lý du lịch bản địa & Hướng dẫn viên LocalMate",
-        typing: "LocalMate đang soạn câu trả lời...",
-        suggestionsTitle: "Gợi ý nhanh cho Quý khách:",
-        suggestionsScroll: "Vuốt ngang xem thêm",
-        placeholder: "Hỏi về tour trải nghiệm, hướng dẫn viên LocalMate, văn hóa ẩm thực...",
-        sendAria: "Gửi tin nhắn",
-        closeAria: "Thu nhỏ hộp chat",
-      };
-  }
-}
-
-function getNetworkErrorReply(locale: GuestLocale): string {
-  switch (locale) {
-    case "en":
-      return "LocalMate AI is currently unavailable or connecting to the network. Please contact the front desk directly for immediate assistance! ✨";
-    case "zh":
-      return "网络服务暂时连接中，如需紧急帮助，请直接向前台咨询！✨";
-    case "ko":
-      return "현재 네트워크 연결 중입니다. 긴급한 문의는 프런트 데스크로 직접 문의해 주세요! ✨";
-    case "ru":
-      return "Связь временно недоступна. Пожалуйста, обратитесь на стойку регистрации для получения помощи! ✨";
-    case "hi":
-      return "नेटवर्क सेवा वर्तमान में अनुपलब्ध है। कृपया सहायता के लिए सीधे फ्रंट डेस्क से संपर्क करें! ✨";
-    default:
-      return "Dạ kết nối tới trợ lý LocalMate đang được tối ưu trong giây lát. Quý khách vui lòng thử lại sau hoặc liên hệ trực tiếp quầy lễ tân để được hỗ trợ ngay nhé! ✨";
-  }
-}
 
 function renderFormattedMessage(text: string) {
   const lines = text.split("\n");
@@ -465,7 +118,13 @@ export function GuestFloatingChat() {
   const language = useGuestStore((state) => state.language);
 
   // Lấy ngôn ngữ Web mà khách đã chọn
-  const { locale } = useGuestI18n();
+  const { locale, setLocale } = useGuestI18n();
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = locale;
+    }
+  }, [locale]);
 
   const isWorkspace = isGuestWorkspaceRoute(pathname);
   const hasSelectedLanguage = Boolean(language);
@@ -478,7 +137,26 @@ export function GuestFloatingChat() {
   // Dynamic suggestions from agent — null = show static chips, [] = hide tray, [...] = show agent chips
   const [dynamicSuggestions, setDynamicSuggestions] = useState<QuickSuggestion[] | null>(null);
 
-  const uiText = useMemo(() => getChatUiText(locale), [locale]);
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const langMenuRef = useRef<HTMLDivElement>(null);
+
+  const currentOption = useMemo(
+    () => guestLocaleOptions.find((opt) => opt.code === locale) || guestLocaleOptions[0],
+    [locale]
+  );
+
+  useEffect(() => {
+    if (!langMenuOpen) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (langMenuRef.current && !langMenuRef.current.contains(e.target as Node)) {
+        setLangMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [langMenuOpen]);
+
+  const uiText = useMemo(() => getLocalMateChatUiText(locale), [locale]);
   const suggestions = useMemo(
     () => SUGGESTIONS_BY_LOCALE[locale] || SUGGESTIONS_BY_LOCALE.en || SUGGESTIONS_BY_LOCALE.vi,
     [locale]
@@ -488,15 +166,12 @@ export function GuestFloatingChat() {
   const [selectedBookingAction, setSelectedBookingAction] = useState<GuestChatAction | null>(null);
   const [activeChatOrderId, setActiveChatOrderId] = useState<string | null>(null);
 
-  const welcomeMessage: ChatMessage = useMemo(
-    () => ({
-      id: "welcome-init",
-      sender: "concierge",
-      text: getWelcomeMessage(locale, guest?.displayName),
-      time: getCurrentTimeString(),
-    }),
-    [locale, guest?.displayName]
-  );
+  const [welcomeMessage] = useState<ChatMessage>(() => ({
+    id: "welcome-init",
+    sender: "concierge",
+    text: getLocalMateWelcomeMessage(locale, guest?.displayName),
+    time: getCurrentTimeString(),
+  }));
 
   const messages: ChatMessage[] = useMemo(() => {
     return [welcomeMessage, ...chatHistory];
@@ -604,7 +279,7 @@ export function GuestFloatingChat() {
         const replyText =
           payload?.reply ||
           payload?.data?.reply ||
-          getNetworkErrorReply(locale);
+          getLocalMateNetworkErrorReply(locale);
 
         const action = (payload?.action ?? null) as GuestChatAction | null;
 
@@ -639,7 +314,7 @@ export function GuestFloatingChat() {
           setDynamicSuggestions([]);
         }
       } else {
-        const fallbackText = getNetworkErrorReply(locale);
+        const fallbackText = getLocalMateNetworkErrorReply(locale);
         const botMsg: ChatMessage = {
           id: `bot-${messageIdRef.current++}`,
           sender: "concierge",
@@ -650,7 +325,7 @@ export function GuestFloatingChat() {
         setDynamicSuggestions([]);
       }
     } catch {
-      const fallbackText = getNetworkErrorReply(locale);
+      const fallbackText = getLocalMateNetworkErrorReply(locale);
       const botMsg: ChatMessage = {
         id: `bot-${messageIdRef.current++}`,
         sender: "concierge",
@@ -682,7 +357,7 @@ export function GuestFloatingChat() {
         <div
           role="button"
           tabIndex={0}
-          aria-label="Đóng hộp chat"
+          aria-label={uiText.closeAria}
           onClick={() => setIsOpen(false)}
           onKeyDown={(e) => {
             if (e.key === "Escape" || e.key === "Enter") setIsOpen(false);
@@ -701,7 +376,7 @@ export function GuestFloatingChat() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.94 }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
-                aria-label="Tin nhắn tư vấn từ LocalMate AI"
+                aria-label={uiText.teaserAria}
                 onClick={() => {
                   setIsOpen(true);
                   dismissTeaser();
@@ -728,7 +403,7 @@ export function GuestFloatingChat() {
                       e.stopPropagation();
                       dismissTeaser();
                     }}
-                    aria-label="Đóng tin nhắn"
+                    aria-label={uiText.dismissTeaserAria}
                     className="flex h-6 w-6 items-center justify-center rounded-md text-[#8a948e] hover:bg-[#25483f]/10 hover:text-[#1b352e] cursor-pointer transition-colors"
                   >
                     <VsIcon name="close" className="text-xs" />
@@ -754,7 +429,7 @@ export function GuestFloatingChat() {
               setIsOpen(true);
               dismissTeaser();
             }}
-            aria-label="Mở hộp chat trợ lý du lịch bản địa LocalMate AI"
+            aria-label={uiText.openAria}
             aria-expanded={false}
             className="pointer-events-auto flex h-13 w-13 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#142823] via-[#1d3d34] to-[#2c584b] text-[#fbf9f4] ring-2 ring-[#e8b363]/85 shadow-[0_10px_28px_rgba(20,40,35,0.4)] transition-all duration-300 hover:scale-105 active:scale-90 cursor-pointer"
           >
@@ -774,7 +449,7 @@ export function GuestFloatingChat() {
       {/* Floating Chat Box Window */}
       {isOpen && (
         <section
-          aria-label="Hộp thoại trợ lý du lịch bản địa LocalMate AI"
+          aria-label={uiText.bannerText}
           className="fixed inset-x-0 bottom-0 z-50 flex h-[calc(100dvh-0.75rem)] max-h-[100dvh] flex-col overflow-hidden rounded-t-[24px] border-t border-[#25483f]/25 bg-[#fffdfa] shadow-[0_-12px_44px_rgba(15,35,30,0.32)] transition-all sm:inset-auto sm:bottom-6 sm:right-6 sm:h-[680px] sm:max-h-[min(720px,calc(100vh-48px))] sm:w-[420px] sm:rounded-3xl sm:border sm:border-[#25483f]/15"
         >
           {activeChatOrderId && sessionToken ? (
@@ -818,7 +493,62 @@ export function GuestFloatingChat() {
                     </div>
                   </div>
 
-                  <div className="flex items-center">
+                  <div className="flex items-center gap-1.5">
+                    {/* Language Switcher in Guest Floating Chat Header */}
+                    <div className="relative" ref={langMenuRef}>
+                      <button
+                        type="button"
+                        onClick={() => setLangMenuOpen((prev) => !prev)}
+                        aria-label={uiText.selectLanguageAria}
+                        aria-expanded={langMenuOpen}
+                        title={currentOption.nativeName}
+                        className="flex h-9 items-center gap-1.5 rounded-full border border-[#e8b363]/80 bg-[#142823]/80 px-2.5 sm:px-3 text-xs font-bold text-white shadow-md backdrop-blur-sm transition-all hover:bg-[#142823] hover:border-[#fde4aa] hover:ring-2 hover:ring-[#e8b363]/30 active:scale-95 cursor-pointer"
+                      >
+                        <VsIcon name="globe" className="text-sm text-[#e8b363] shrink-0" />
+                        <span className="font-bold text-xs text-[#fde4aa] tracking-wide">{currentOption.nativeName}</span>
+                        <span className="text-[9px] text-[#fde4aa]/80" aria-hidden="true">{langMenuOpen ? "▴" : "▾"}</span>
+                      </button>
+
+                      {langMenuOpen && (
+                        <ul
+                          role="listbox"
+                          aria-label={uiText.selectLanguageAria}
+                          className="absolute right-0 top-full mt-2 z-50 w-48 overflow-hidden rounded-2xl border border-[#25483f]/20 bg-white p-1.5 text-[#1b352e] shadow-2xl shadow-black/30 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
+                        >
+                          {guestLocaleOptions.map((opt) => (
+                            <li key={opt.code} role="option" aria-selected={opt.code === locale}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setLocale(opt.code);
+                                  setLangMenuOpen(false);
+                                }}
+                                className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition-colors ${
+                                  opt.code === locale
+                                    ? "bg-[#25483f] font-semibold text-white shadow-sm"
+                                    : "text-[#1b352e] hover:bg-[#f7f3ea]"
+                                }`}
+                              >
+                                <span className="flex items-center gap-2">
+                                  <VsIcon name="globe" className="text-xs text-[#25483f] shrink-0" />
+                                  <span className="font-semibold">{opt.nativeName}</span>
+                                </span>
+                                <span
+                                  className={`font-mono text-[10px] px-1.5 py-0.5 rounded ${
+                                    opt.code === locale
+                                      ? "bg-[#e8b363]/25 text-[#fde4aa]"
+                                      : "bg-black/5 text-[#485a51]"
+                                  }`}
+                                >
+                                  {opt.badge}
+                                </span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+
                     <button
                       type="button"
                       onClick={() => setIsOpen(false)}

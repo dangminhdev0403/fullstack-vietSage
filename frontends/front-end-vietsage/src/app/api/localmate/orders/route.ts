@@ -10,10 +10,7 @@ import { candidateKeySchema, proposalKeySchema } from "../public-chat/payload-sc
 const orderInputSchema = z.object({
   proposalKey: proposalKeySchema,
   candidateKey: candidateKeySchema,
-  quantity: z.number().int().min(1).max(100).default(1),
-  requestedStartAt: z.string().trim().datetime().nullish(),
-  partySize: z.number().int().min(1).max(100).nullish(),
-  guestNote: z.string().trim().max(500).nullish(),
+  partySize: z.number().int().min(1).max(100),
   idempotencyKey: z.string().trim().min(8).max(120),
 });
 
@@ -41,10 +38,7 @@ export async function POST(request: Request) {
     const backendPayload = {
       proposalKey: parsed.data.proposalKey,
       candidateKey: parsed.data.candidateKey,
-      quantity: parsed.data.quantity,
-      requestedStartAt: parsed.data.requestedStartAt,
       partySize: parsed.data.partySize,
-      guestNote: parsed.data.guestNote,
       idempotencyKey: parsed.data.idempotencyKey,
     };
 

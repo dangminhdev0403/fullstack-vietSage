@@ -9,6 +9,13 @@ export const publicCandidateKeySchema = z
   .trim()
   .regex(/^cand_[A-Za-z0-9][A-Za-z0-9_-]{0,74}$/);
 
+export const CANONICAL_PUBLIC_PHONE_REGEX = /^\+?[0-9][0-9 .()-]{5,30}$/;
+
+export const publicPhoneSchema = z
+  .string()
+  .trim()
+  .regex(CANONICAL_PUBLIC_PHONE_REGEX, "Invalid phone number format");
+
 export const createMarketplaceOrderSchema = z.object({
   serviceId: z.string().trim().min(1).max(80),
   quantity: z.number().int().min(1).max(100),
@@ -33,10 +40,7 @@ export const createLocalMateOrderSchema = z.object({
 export const createPublicLocalMateOrderSchema = z.object({
   proposalKey: publicProposalKeySchema,
   candidateKey: publicCandidateKeySchema,
-  quantity: z.number().int().min(1).max(100).default(1),
-  requestedStartAt: z.string().trim().datetime().nullish(),
-  partySize: z.number().int().min(1).max(100).nullish(),
-  guestNote: z.string().trim().max(500).nullish(),
+  partySize: z.number().int().min(1).max(100),
   idempotencyKey: z.string().trim().min(8).max(120),
 });
 

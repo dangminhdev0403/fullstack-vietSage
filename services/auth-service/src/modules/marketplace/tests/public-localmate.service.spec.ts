@@ -289,7 +289,7 @@ describe("PublicLocalMateService", () => {
         id: "pub-session-123",
         location: "Hà Nội",
         guestDisplayName: "Lê Văn B",
-        guestPhone: "0912345678",
+        guestPhone: " 0912345678 ",
         revokedAt: null,
         expiresAt: new Date(Date.now() + 100000),
       });
@@ -303,10 +303,7 @@ describe("PublicLocalMateService", () => {
       const result = await service.createOrder(token, {
         proposalKey,
         candidateKey,
-        quantity: 2,
-        requestedStartAt: "2026-10-10T09:00:00.000Z",
         partySize: 2,
-        guestNote: "Không cay",
         idempotencyKey: "idem-key-123456",
       });
 
@@ -324,9 +321,9 @@ describe("PublicLocalMateService", () => {
         {
           serviceId: "srv-456",
           quantity: 2,
-          requestedStartAt: "2026-10-10T09:00:00.000Z",
+          requestedStartAt: null,
           partySize: 2,
-          guestNote: "Không cay",
+          guestNote: null,
           idempotencyKey: "idem-key-123456",
         },
         {
@@ -362,7 +359,7 @@ describe("PublicLocalMateService", () => {
         service.createOrder(token, {
           proposalKey,
           candidateKey,
-          quantity: 1,
+          partySize: 1,
           idempotencyKey: "idem-key-123456",
         }),
       ).rejects.toThrow(ConflictException);
@@ -383,10 +380,105 @@ describe("PublicLocalMateService", () => {
         service.createOrder(token, {
           proposalKey,
           candidateKey,
-          quantity: 1,
+          partySize: 1,
           idempotencyKey: "idem-key-123456",
         }),
       ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it("throws UnauthorizedException if guestPhone is missing or empty when requireIdentity is true", async () => {
+      const token = "b".repeat(45);
+      prisma.publicLocalMateSession.findUnique.mockResolvedValue({
+        id: "pub-session-missing-phone",
+        location: "Hà Nội",
+        guestDisplayName: "Lê Văn B",
+        guestPhone: "   ",
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 100000),
+      });
+
+      await expect(
+        service.createOrder(token, {
+          proposalKey,
+          candidateKey,
+          partySize: 2,
+          idempotencyKey: "idem-key-123456",
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+
+      prisma.publicLocalMateSession.findUnique.mockResolvedValue({
+        id: "pub-session-null-phone",
+        location: "Hà Nội",
+        guestDisplayName: "Lê Văn B",
+        guestPhone: null,
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 100000),
+      });
+
+      await expect(
+        service.createOrder(token, {
+          proposalKey,
+          candidateKey,
+          partySize: 2,
+          idempotencyKey: "idem-key-123456",
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it("throws UnauthorizedException if guestPhone is malformed", async () => {
+      const token = "b".repeat(45);
+      const malformedPhones = ["abc", "123", "phone: 0901234567", "!@#$%^"];
+
+      for (const badPhone of malformedPhones) {
+        prisma.publicLocalMateSession.findUnique.mockResolvedValue({
+          id: "pub-session-bad-phone",
+          location: "Hà Nội",
+          guestDisplayName: "Lê Văn B",
+          guestPhone: badPhone,
+          revokedAt: null,
+          expiresAt: new Date(Date.now() + 100000),
+        });
+
+        await expect(
+          service.createOrder(token, {
+            proposalKey,
+            candidateKey,
+            partySize: 2,
+            idempotencyKey: "idem-key-123456",
+          }),
+        ).rejects.toThrow(UnauthorizedException);
+      }
+    });
+
+    it("accepts valid phone numbers conforming to canonical format", async () => {
+      const token = "b".repeat(45);
+      const validPhones = ["0901234567", "+84901234567", "+1 555-0199", "+84 24 3825 0000"];
+
+      localMate.resolveBookingCandidate.mockResolvedValue({
+        candidateKey,
+        telegramReady: true,
+        service: { id: "srv-456" },
+      });
+      orders.createGuestOrder.mockResolvedValue({ id: "order-ok" });
+
+      for (const goodPhone of validPhones) {
+        prisma.publicLocalMateSession.findUnique.mockResolvedValue({
+          id: "pub-session-good-phone",
+          location: "Hà Nội",
+          guestDisplayName: "Lê Văn B",
+          guestPhone: goodPhone,
+          revokedAt: null,
+          expiresAt: new Date(Date.now() + 100000),
+        });
+
+        const result = await service.createOrder(token, {
+          proposalKey,
+          candidateKey,
+          partySize: 1,
+          idempotencyKey: `idem-${goodPhone.replace(/\s+/g, "")}`,
+        });
+        expect(result).toEqual({ id: "order-ok" });
+      }
     });
   });
 

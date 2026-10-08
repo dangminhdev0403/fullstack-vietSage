@@ -9,9 +9,11 @@ const styles = readFileSync(new URL("../globals.css", import.meta.url), "utf8");
 
 test("trangchu renders complete Vietnamese marketing copy without changing shared English defaults", () => {
   assert.match(home, /title: "VietSage \| Nền tảng trợ lý số tại phòng"/);
-  assert.match(home, /<MarketingShell locale="vi">/);
-  assert.match(home, /<Hero[\s\S]*locale="vi"/);
-  assert.match(home, /<Cta locale="vi"/);
+  assert.match(home, /initialLocale = "vi"/);
+  assert.match(home, /<MarketingShell[\s\S]*locale=\{currentLocale\}/);
+  assert.match(home, /<Hero[\s\S]*locale=\{currentLocale\}/);
+  assert.match(home, /<Cta locale=\{currentLocale\}/);
+  assert.match(home, /<PublicLocalMateChat locale=\{currentLocale\}/);
   assert.match(shell, /text-4xl font-bold/);
   assert.match(shell, /Bạn cần gì để kỳ lưu trú thoải mái hơn\?/);
   assert.match(home, /mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4/);
@@ -51,4 +53,21 @@ test("trangchu renders complete Vietnamese marketing copy without changing share
   assert.match(header, /Yêu cầu demo/);
   assert.match(header, /Mở menu điều hướng/);
   assert.match(header, /Đăng nhập/);
+});
+
+test("marketing chrome and floating chat synchronize across all six supported locales", () => {
+  // Verifies that LOCALE_OPTIONS from canonical config is used in header
+  assert.match(header, /LOCALE_OPTIONS/);
+  assert.match(header, /onLocaleChange/);
+
+  // Verifies that all 6 locales are supported in dictionaries
+  for (const loc of ["vi", "en", "zh", "ko", "ru", "hi"]) {
+    assert.match(home, new RegExp(`${loc}:\\s*\\{`));
+    assert.match(shell, new RegExp(`${loc}:\\s*\\{`));
+    assert.match(header, new RegExp(`${loc}:\\s*\\{`));
+  }
+
+  // Verifies that PublicLocalMateChat receives currentLocale
+  assert.match(home, /<PublicLocalMateChat locale=\{currentLocale\}/);
+  assert.match(home, /handleLocaleChange/);
 });
