@@ -97,7 +97,7 @@ const HOME_COPY: Record<SupportedLocale, HomeCopy> = {
     },
     operations: {
       watermark: "VẬN HÀNH",
-      eyebrow: "03 / Kết nối tức thì từ phòng đến nhân sự",
+      eyebrow: "Kết nối tức thì từ phòng đến nhân sự",
       title: "Chuyển hóa mọi yêu cầu tại phòng thành tác vụ chính xác.",
       text: "VietSage mang đến công cụ hỗ trợ tinh gọn, chuyên nghiệp, giúp khách luôn an tâm được phục vụ chu đáo mà không gây quá tải cho nhân viên qua các cuộc gọi dồn dập.",
       moments: [
@@ -196,7 +196,7 @@ const HOME_COPY: Record<SupportedLocale, HomeCopy> = {
     },
     operations: {
       watermark: "OPERATIONS",
-      eyebrow: "03 / Instant Room-to-Staff Connection",
+      eyebrow: "Instant Room-to-Staff Connection",
       title: "Turn every in-room request into an accurate task.",
       text: "VietSage delivers a streamlined, professional tool that gives guests peace of mind while preventing staff burnout from nonstop phone calls.",
       moments: [
@@ -295,7 +295,7 @@ const HOME_COPY: Record<SupportedLocale, HomeCopy> = {
     },
     operations: {
       watermark: "高效运营",
-      eyebrow: "03 / 客房与服务人员即刻互联",
+      eyebrow: "客房与服务人员即刻互联",
       title: "将客房发起的每一个需求，精准转化为执行工单。",
       text: "VietSage 提供轻量专业的协同工具，让宾客时刻感受贴心照料，同时避免前台电话持续轰炸造成的员工疲劳。",
       moments: [
@@ -394,7 +394,7 @@ const HOME_COPY: Record<SupportedLocale, HomeCopy> = {
     },
     operations: {
       watermark: "현장 운영",
-      eyebrow: "03 / 객실과 직원의 즉각적인 연결",
+      eyebrow: "객실과 직원의 즉각적인 연결",
       title: "객실의 모든 요청을 정확한 업무 티켓으로 전환합니다.",
       text: "VietSage는 전화 업무 과부하 없이 고객에게 세심한 서비스를 제공할 수 있는 간결하고 전문적인 도구를 제공합니다.",
       moments: [
@@ -493,7 +493,7 @@ const HOME_COPY: Record<SupportedLocale, HomeCopy> = {
     },
     operations: {
       watermark: "ОПЕРАЦИИ",
-      eyebrow: "03 / Мгновенная связь номера с персоналом",
+      eyebrow: "Мгновенная связь номера с персоналом",
       title: "Превратите любой запрос из номера в четкую задачу.",
       text: "VietSage дает персоналу четкие задачи, избавляя от бесконечных телефонных звонков.",
       moments: [
@@ -592,7 +592,7 @@ const HOME_COPY: Record<SupportedLocale, HomeCopy> = {
     },
     operations: {
       watermark: "संचालन",
-      eyebrow: "03 / कमरे से कर्मचारियों का तत्काल संपर्क",
+      eyebrow: "कमरे से कर्मचारियों का तत्काल संपर्क",
       title: "कमरे के हर अनुरोध को एक सटीक कार्य में बदलें।",
       text: "VietSage एक सुव्यवस्थित उपकरण प्रदान करता है जो कॉल के दबाव के बिना उत्कृष्ट सेवा सुनिश्चित करता है।",
       moments: [

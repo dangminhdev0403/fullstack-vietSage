@@ -1017,15 +1017,15 @@ export function OwnerRoomsClient({
       title: "Khởi động lại dữ liệu vận hành?",
       html: `
         <div class="text-left text-sm space-y-2">
-          <p>Hệ thống sẽ làm mới toàn bộ dữ liệu kiểm thử về trạng thái ban đầu:</p>
+          <p>Hệ thống sẽ làm mới toàn bộ dữ liệu vận hành về trạng thái ban đầu:</p>
           <ul class="list-disc pl-5 space-y-1 text-slate-700">
             <li><strong>Xoá sạch hoá đơn</strong>, thanh toán và đặt doanh thu về 0.</li>
             <li><strong>Xoá toàn bộ người dùng truy cập</strong>, các lượt khách lưu trú và tin nhắn/yêu cầu.</li>
             <li><strong>Xoá đơn hàng marketplace</strong>, giỏ hàng, voucher dịch vụ và đối soát liên kết.</li>
             <li><strong>Xoá bản khai báo KBTT</strong>, nhật ký đối tác, trạm sinh trắc và sự cố khẩn cấp.</li>
             <li><strong>Đưa toàn bộ trạng thái phòng về TRỐNG (AVAILABLE)</strong>.</li>
-            <li class="text-slate-800 font-semibold"><strong>Bảo toàn tài khoản & cấu hình nhân viên</strong> (không xoá tài khoản, không đổi cấu hình nhân viên).</li>
-            <li class="text-emerald-800 font-semibold"><strong>Bảo toàn nguyên vẹn danh sách phòng và mã QR Code</strong> (tuyệt đối không động đến phòng, QR, room).</li>
+            <li class="text-slate-800 font-semibold"><strong>Bảo toàn tài khoản & cấu hình nhân viên</strong>.</li>
+            <li class="text-emerald-800 font-semibold"><strong>Bảo toàn nguyên vẹn danh mục phòng và mã QR Code</strong>.</li>
           </ul>
         </div>
       `,

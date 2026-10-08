@@ -251,7 +251,7 @@ export function LocationFields({
           </div>
         ) : (
           <div className="rounded-xl border border-dashed border-[#dcd3c1] bg-[#f9f6f0] p-6 text-center text-sm font-medium text-[#65726a]">
-            Nhập tọa độ Vĩ độ & Kinh độ hoặc dán link Google Maps để xem trước bản đồ trực tiếp tại đây.
+            Nhập tọa độ Vĩ độ & Kinh độ hoặc dán link Google Maps để xem trước bản đồ trực tiếp.
           </div>
         )
       ) : hasValidCoords ? (

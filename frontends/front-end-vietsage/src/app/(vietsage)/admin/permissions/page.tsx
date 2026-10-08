@@ -169,11 +169,11 @@ export default async function AdminPermissionsPage({
       <header className="space-y-1.5">
         <div className="flex items-center gap-2 text-xs font-semibold text-gray-500">
           <Link
-            href="/admin/roles"
+            href="/admin"
             className="inline-flex items-center gap-1 transition-colors hover:text-emerald-800"
           >
             <VsIcon name="arrow_back" className="text-[14px]" />
-            <span>Quản lý vai trò</span>
+            <span>Quản trị hệ thống</span>
           </Link>
           <span>/</span>
           <span className="text-gray-900 font-bold">Phân quyền vai trò</span>

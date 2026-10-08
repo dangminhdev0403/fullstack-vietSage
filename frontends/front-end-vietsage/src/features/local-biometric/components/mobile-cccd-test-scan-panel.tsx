@@ -45,7 +45,7 @@ export function MobileCccdTestScanPanel({ hotelId }: { hotelId: string }) {
             </div>
             <div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-[#00003c]">
-                Test quét QR CCCD
+                Kiểm tra quét QR qua điện thoại
               </h2>
               <p className="mt-1 text-sm sm:text-base text-stone-500">
                 Kết quả chỉ hiển thị tạm thời, không tạo check-in.
@@ -62,7 +62,7 @@ export function MobileCccdTestScanPanel({ hotelId }: { hotelId: string }) {
           <MobileCccdScan
             hotelId={hotelId}
             targetContext="biometric-test"
-            targetLabel="Test quét QR CCCD"
+            targetLabel="Kiểm tra quét QR qua điện thoại"
             showSetupLink={false}
             onCapture={(capture) => setPayload(capture?.payload ?? null)}
           />
@@ -80,7 +80,7 @@ export function MobileCccdTestScanPanel({ hotelId }: { hotelId: string }) {
                 <svg className="h-4 w-4 text-stone-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
-                <span>Xóa kết quả test</span>
+                <span>Xóa kết quả quét thử</span>
               </button>
             </div>
           ) : (

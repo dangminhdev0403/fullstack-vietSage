@@ -93,14 +93,14 @@ function getErrorMessage(error: unknown, fallback: string): string {
     if (status === 409)
       return "Thông tin đối tác hoặc danh mục đã tồn tại trên hệ thống (Lỗi trùng lặp).";
     if (status === 404)
-      return "Không tìm thấy tài nguyên yêu cầu (404 Not Found).";
+      return "Không tìm thấy thông tin yêu cầu.";
     if (status === 403)
-      return "Bạn không có quyền thực hiện thao tác này (403 Forbidden).";
+      return "Bạn không có quyền thực hiện thao tác này.";
     if (status === 401) return "Chưa đăng nhập hoặc phiên làm việc hết hạn.";
     if (status === 400)
       return "Yêu cầu không hợp lệ hoặc thông tin nhập chưa đúng.";
     if (status)
-      return `Thao tác thất bại (Mã lỗi ${status}). Vui lòng kiểm tra lại.`;
+      return "Thao tác thất bại. Vui lòng kiểm tra lại thông tin.";
   }
 
   if (error instanceof Error && error.message.trim()) {

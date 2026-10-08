@@ -376,7 +376,7 @@ const GUIDE_CHAT_VIEW_TEXT: Record<SupportedLocale, {
   vi: {
     completedBanner: "🏁 Buổi trải nghiệm đã hoàn tất. Cảm ơn quý khách đã tin tưởng và đồng hành cùng VietSage LocalMate!",
     connectedBanner: "✓ Đã hoàn tất thanh toán. Quý khách đang kết nối trực tiếp với Hướng dẫn viên bản địa!",
-    emptyMessages: "Chưa có tin nhắn. Quý khách hãy gửi lời chào hoặc địa điểm đón tiếp tại đây ạ.",
+    emptyMessages: "Chưa có tin nhắn. Quý khách hãy gửi lời chào hoặc địa điểm đón tiếp.",
   },
   en: {
     completedBanner: "🏁 Tour completed. Thank you for traveling with VietSage LocalMate!",
@@ -1808,7 +1808,7 @@ export function PublicLocalMateChat({
                                       ? "Вы можете подтвердить бронирование и сразу начать диалог с местным гидом."
                                       : effectiveLocale === "hi"
                                         ? "आप यहाँ बुकिंग की पुष्टि कर सकते हैं और स्थानीय गाइड से सीधे बात कर सकते हैं।"
-                                        : "Quý khách có thể xác nhận đặt tour và mở kênh trao đổi trực tiếp với Hướng dẫn viên bản địa ngay tại đây."}
+                                        : "Quý khách có thể xác nhận đặt tour và mở kênh trao đổi trực tiếp với Hướng dẫn viên bản địa."}
                           </p>
                           <button
                             type="button"

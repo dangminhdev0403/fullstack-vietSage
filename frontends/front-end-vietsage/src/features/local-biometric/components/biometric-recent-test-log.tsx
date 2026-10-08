@@ -127,8 +127,8 @@ export function BiometricRecentTestLog({ onSelectRecord }: Props) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
             </div>
-            <p className="mt-3 text-sm font-semibold text-stone-700">Chưa có lượt quét test nào</p>
-            <p className="mt-1 text-xs text-stone-500">Hãy đặt thẻ vào máy HN-212 hoặc quét qua điện thoại để chạy test đầu tiên.</p>
+            <p className="mt-3 text-sm font-semibold text-stone-700">Chưa có lượt quét thử nào</p>
+            <p className="mt-1 text-xs text-stone-500">Hãy đặt thẻ vào máy HN-212 hoặc quét qua điện thoại để thực hiện lượt quét thử đầu tiên.</p>
             <button
               type="button"
               onClick={() => setRecords(INITIAL_RECORDS)}

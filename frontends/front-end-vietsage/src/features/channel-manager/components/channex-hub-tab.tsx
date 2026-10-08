@@ -191,7 +191,7 @@ export function ChannexHubTab({
               )}
             </div>
             <p className="text-sm text-[var(--on-surface-variant)]">
-              Danh sách các nền tảng kết nối và thông số cấu hình cần thiết.
+              Danh sách nền tảng kết nối và thông số cấu hình cần thiết.
             </p>
           </div>
 

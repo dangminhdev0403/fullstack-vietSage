@@ -736,7 +736,7 @@ function RoomDetailDialog({
                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#17201b] px-4 py-2.5 text-xs sm:text-sm font-bold text-[#fff8e8] hover:bg-[#25483f] transition shadow-md focus:outline-none focus:ring-2 focus:ring-[#e8b363]"
                     >
                       <VsIcon name="qr_code" className="text-base text-[#e8b363]" />
-                      <span>Xem / Tải mã QR full size</span>
+                      <span>Xem &amp; Tải mã QR gốc</span>
                     </button>
                   ) : null}
 

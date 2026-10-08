@@ -64,13 +64,13 @@ export default async function AdminHotelsPage() {
         <div className="mx-auto max-w-[1600px] space-y-8">
           <header>
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">
-              SUPER_ADMIN
+              QUẢN TRỊ NỀN TẢNG
             </p>
             <h1 className="mt-3 text-4xl font-semibold text-[var(--primary)]">
               Khách sạn
             </h1>
             <p className="mt-2 max-w-3xl text-base text-[var(--on-surface-variant)]">
-              Tạo khách sạn dưới tổ chức quản lý hiện có. Nguồn dữ liệu có thể chuyển sang API tổ chức riêng mà không đổi giao diện.
+              Quản lý và tạo mới cơ sở lưu trú trực thuộc các tổ chức quản lý đối tác.
             </p>
           </header>
 

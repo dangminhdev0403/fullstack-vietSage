@@ -943,8 +943,8 @@ export function KbttDeclarationsPage({
           ? "Sinh mới Số giấy tờ & Reset chưa gửi"
           : "Đổi trạng thái về Chưa gửi",
         text: generateNewIdentityNumbers
-          ? "Bạn có chắc muốn tự động sinh số CCCD / Hộ chiếu mới ngẫu nhiên hợp lệ cho tất cả khách và đổi trạng thái toàn bộ về Chưa gửi (DRAFT) trong DB không?"
-          : "Bạn có chắc muốn chuyển toàn bộ hồ sơ đã gửi về trạng thái Chưa gửi (DRAFT) để test đẩy lại BCA không?",
+          ? "Bạn có chắc muốn tự động sinh số CCCD / Hộ chiếu mới ngẫu nhiên hợp lệ cho tất cả khách và đổi trạng thái toàn bộ về Chưa gửi (DRAFT) không?"
+          : "Bạn có chắc muốn chuyển toàn bộ hồ sơ đã gửi về trạng thái Chưa gửi (DRAFT) để thực hiện gửi lại Cổng thông tin BCA không?",
         confirmText: generateNewIdentityNumbers
           ? "Sinh mới & Reset"
           : "Đổi về Chưa gửi",

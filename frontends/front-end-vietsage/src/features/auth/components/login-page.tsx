@@ -421,7 +421,7 @@ export default function LoginPage() {
                 Chào mừng trở lại
               </h1>
               <p className="font-body-md text-on-surface-variant">
-                Vui lòng đăng nhập vào tài khoản hội viên của bạn.
+                Đăng nhập để truy cập không gian làm việc của bạn.
               </p>
             </div>
 

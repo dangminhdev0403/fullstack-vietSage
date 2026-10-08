@@ -160,7 +160,7 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
               </span>
             </div>
             <h1 className="mt-2 text-2xl font-extrabold text-slate-900 tracking-tight">
-              Service Catalog / Danh mục dịch vụ
+              Danh mục dịch vụ đối tác
             </h1>
             <p className="mt-1 text-sm font-medium text-slate-500">
               Quản lý bảng giá, thời gian chuẩn bị và hình thức phục vụ của các dịch vụ trong hệ thống.
@@ -338,7 +338,7 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
           <div className="space-y-3.5 border-b border-slate-100 pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                <span>📦</span> Service Catalog
+                <span>📦</span> Danh mục dịch vụ
                 <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-200/80">
                   {filteredServices.length} / {totalCount} dịch vụ
                 </span>
