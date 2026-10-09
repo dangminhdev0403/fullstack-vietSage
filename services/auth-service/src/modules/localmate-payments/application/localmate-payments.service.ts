@@ -31,26 +31,10 @@ export interface RefundPaymentParams {
   reason?: string;
 }
 
-export type LocalMatePaymentDispatcher = {
-  onPaymentCompleted?: (paymentId: string) => Promise<void> | void;
-};
-
 @Injectable()
 export class LocalMatePaymentsService {
-  private static dispatcher?: LocalMatePaymentDispatcher;
   private readonly config: AppConfig;
-
-  static setDispatcher(dispatcher: LocalMatePaymentDispatcher) {
-    this.dispatcher = dispatcher;
-  }
-
-  static notifyPaymentCompletedSafely(paymentId: string) {
-    try {
-      void Promise.resolve(this.dispatcher?.onPaymentCompleted?.(paymentId)).catch(() => {});
-    } catch {
-      // Ignored
-    }
-  }
+  private onPaymentCompleted?: (paymentId: string) => Promise<void> | void;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -58,6 +42,18 @@ export class LocalMatePaymentsService {
     private readonly logger: AppLogger,
   ) {
     this.config = loadAppConfig();
+  }
+
+  setPaymentCompletedHandler(handler: (paymentId: string) => Promise<void> | void): void {
+    this.onPaymentCompleted = handler;
+  }
+
+  private notifyPaymentCompletedSafely(paymentId: string): void {
+    try {
+      void Promise.resolve(this.onPaymentCompleted?.(paymentId)).catch(() => {});
+    } catch {
+      // Notification worker also polls durable PENDING rows every minute.
+    }
   }
 
   async getPaymentByOrderId(orderId: string): Promise<MarketplaceOrderPayment | null> {
@@ -77,9 +73,7 @@ export class LocalMatePaymentsService {
     }
 
     try {
-      const session = await this.stripeClient.getCheckoutSession(
-        payment.providerCheckoutSessionId,
-      );
+      const session = await this.stripeClient.getCheckoutSession(payment.providerCheckoutSessionId);
       if (session.payment_status === "paid") {
         const isSessionIdMatch = session.id === payment.providerCheckoutSessionId;
         const isOrderMatch =
@@ -107,7 +101,7 @@ export class LocalMatePaymentsService {
               lastProviderErrorCode: null,
             },
           });
-          LocalMatePaymentsService.notifyPaymentCompletedSafely(payment.id);
+          this.notifyPaymentCompletedSafely(payment.id);
           return updated;
         }
       }

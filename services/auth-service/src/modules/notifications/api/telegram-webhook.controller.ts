@@ -1,19 +1,14 @@
-import {
-  Body,
-  Controller,
-  ForbiddenException,
-  Headers,
-  Inject,
-  Optional,
-  Post,
-} from "@nestjs/common";
+import { Body, Controller, ForbiddenException, Headers, Inject, Post } from "@nestjs/common";
 import { ApiHeader } from "@nestjs/swagger";
 import { timingSafeEqual } from "node:crypto";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import { SkipAuthorization } from "../../../shared/decorators/skip-authorization.decorator";
 import { TelegramNotificationService } from "../application/telegram-notification.service";
-import { TelegramMarketplaceBridgeService } from "../application/telegram-marketplace-bridge.service";
-import { TelegramUpdateSchema } from "../domain/schemas/telegram-update.schema";
+import {
+  TelegramUpdateSchema,
+  type TelegramCallbackQuery,
+  type TelegramMessage,
+} from "../domain/schemas/telegram-update.schema";
 
 export type TelegramPairingDelegate = {
   handleStartPairing: (input: {
@@ -24,23 +19,22 @@ export type TelegramPairingDelegate = {
   }) => Promise<unknown>;
 };
 
+export type TelegramMarketplaceDelegate = {
+  handleCallbackQuery: (callbackQuery: TelegramCallbackQuery) => Promise<void>;
+  handleInboundMessage: (message: TelegramMessage) => Promise<void>;
+};
+
+export const TELEGRAM_PAIRING_DELEGATE = Symbol("TELEGRAM_PAIRING_DELEGATE");
+export const TELEGRAM_MARKETPLACE_DELEGATE = Symbol("TELEGRAM_MARKETPLACE_DELEGATE");
+
 @Controller("integrations/telegram")
 export class TelegramWebhookController {
-  private static pairingDelegate?: TelegramPairingDelegate;
-
-  static setPairingDelegate(delegate: TelegramPairingDelegate | undefined) {
-    this.pairingDelegate = delegate;
-  }
-
-  static getPairingDelegate(): TelegramPairingDelegate | undefined {
-    return this.pairingDelegate;
-  }
-
   constructor(
     private readonly telegramNotificationService: TelegramNotificationService,
-    @Optional()
-    @Inject(TelegramMarketplaceBridgeService)
-    private readonly bridgeService?: TelegramMarketplaceBridgeService,
+    @Inject(TELEGRAM_PAIRING_DELEGATE)
+    private readonly pairingDelegate: TelegramPairingDelegate,
+    @Inject(TELEGRAM_MARKETPLACE_DELEGATE)
+    private readonly marketplaceDelegate: TelegramMarketplaceDelegate,
   ) {}
 
   @Post("webhook")
@@ -65,8 +59,8 @@ export class TelegramWebhookController {
     const update = parseResult.data;
 
     if (update.callback_query?.id) {
-      if (update.callback_query.data?.startsWith("mo:") && this.bridgeService) {
-        await this.bridgeService.handleCallbackQuery(update.callback_query);
+      if (update.callback_query.data?.startsWith("mo:")) {
+        await this.marketplaceDelegate.handleCallbackQuery(update.callback_query);
       } else {
         await this.telegramNotificationService.handleCallback(update.callback_query);
       }
@@ -84,9 +78,9 @@ export class TelegramWebhookController {
             parse_mode: "HTML",
           })
           .catch(() => {});
-      } else if (TelegramWebhookController.pairingDelegate && update.message.chat && update.message.from) {
+      } else if (this.pairingDelegate && update.message.chat && update.message.from) {
         try {
-          const pairResult: any = await TelegramWebhookController.pairingDelegate.handleStartPairing({
+          const pairResult: any = await this.pairingDelegate.handleStartPairing({
             token,
             telegramUserId: String(update.message.from.id),
             telegramChatId: String(update.message.chat.id),
@@ -116,9 +110,9 @@ export class TelegramWebhookController {
         update.message.text.startsWith("/end") ||
         update.message.text.startsWith("/done") ||
         update.message.text.startsWith("/ketthuc")) &&
-      this.bridgeService
+      this.marketplaceDelegate
     ) {
-      await this.bridgeService.handleInboundMessage(update.message);
+      await this.marketplaceDelegate.handleInboundMessage(update.message);
     }
 
     return { ok: true };

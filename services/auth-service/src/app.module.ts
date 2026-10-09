@@ -26,6 +26,14 @@ import { KbttModule } from "./modules/kbtt/kbtt.module";
 import { LocalMateModule } from "./modules/localmate/localmate.module";
 import { ChannelManagerModule } from "./modules/channel-manager/channel-manager.module";
 import { StayCheckInEventsModule } from "./shared/events";
+import {
+  TELEGRAM_MARKETPLACE_DELEGATE,
+  TELEGRAM_PAIRING_DELEGATE,
+  TelegramPollingService,
+  TelegramWebhookController,
+} from "./modules/notifications/notifications-public";
+import { LocalMateTelegramPairingService } from "./modules/localmate/localmate-public";
+import { TelegramMarketplaceBridgeService } from "./modules/marketplace/marketplace-public";
 
 @Module({
   imports: [
@@ -51,7 +59,17 @@ import { StayCheckInEventsModule } from "./shared/events";
     LocalMateModule,
     ChannelManagerModule,
   ],
+  controllers: [TelegramWebhookController],
   providers: [
+    TelegramPollingService,
+    {
+      provide: TELEGRAM_PAIRING_DELEGATE,
+      useExisting: LocalMateTelegramPairingService,
+    },
+    {
+      provide: TELEGRAM_MARKETPLACE_DELEGATE,
+      useExisting: TelegramMarketplaceBridgeService,
+    },
     {
       provide: APP_GUARD,
       useClass: AuthRateLimitGuard,

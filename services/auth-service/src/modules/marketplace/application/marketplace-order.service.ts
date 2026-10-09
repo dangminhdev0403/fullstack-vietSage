@@ -24,11 +24,8 @@ import type {
 import { ServicePortalService } from "./service-portal.service";
 import type { SupportedLocale } from "../../../common/i18n/i18n.types";
 import { calculateFeePercentage, calculateOnSiteServiceFee } from "../domain/marketplace-pricing";
-import { LocalMatePaymentsService } from "../../localmate-payments/application/localmate-payments.service";
-import {
-  isLocationInProvince,
-  resolveProvinceFromText,
-} from "../../localmate/domain/constants/geography.constant";
+import { LocalMatePaymentsService } from "../../localmate-payments/localmate-payments-public";
+import { isLocationInProvince, resolveProvinceFromText } from "../../localmate/localmate-public";
 
 export type MarketplaceCustomerScope =
   | { hotelId: string; stayId: string; sessionId?: string }
@@ -77,7 +74,7 @@ function requireHotelOrderScope<T extends { hotelId: string | null; stayId: stri
 
 @Injectable()
 export class MarketplaceOrderService {
-  private static notificationDispatcher?: {
+  private notificationDispatcher?: {
     dispatchOrderNotification?: (order: unknown) => Promise<void> | void;
     dispatchOrderCancelledNotification?: (order: unknown) => Promise<void> | void;
   };
@@ -88,18 +85,11 @@ export class MarketplaceOrderService {
     private readonly payments?: LocalMatePaymentsService,
   ) {}
 
-  static setNotificationDispatcher(dispatcher: {
-    dispatchOrderNotification?: (order: unknown) => Promise<void> | void;
-    dispatchOrderCancelledNotification?: (order: unknown) => Promise<void> | void;
-  }) {
-    this.notificationDispatcher = dispatcher;
-  }
-
   setNotificationDispatcher(dispatcher: {
     dispatchOrderNotification?: (order: unknown) => Promise<void> | void;
     dispatchOrderCancelledNotification?: (order: unknown) => Promise<void> | void;
   }) {
-    MarketplaceOrderService.notificationDispatcher = dispatcher;
+    this.notificationDispatcher = dispatcher;
   }
 
   async createGuestOrder(
@@ -567,9 +557,9 @@ export class MarketplaceOrderService {
 
   private notifyOrderCreatedSafely(order: unknown) {
     try {
-      void Promise.resolve(
-        MarketplaceOrderService.notificationDispatcher?.dispatchOrderNotification?.(order),
-      ).catch(() => undefined);
+      void Promise.resolve(this.notificationDispatcher?.dispatchOrderNotification?.(order)).catch(
+        () => undefined,
+      );
     } catch {
       // Ignored: external provider failure must not roll back order creation
     }
@@ -578,7 +568,7 @@ export class MarketplaceOrderService {
   private notifyOrderCancelledSafely(order: unknown) {
     try {
       void Promise.resolve(
-        MarketplaceOrderService.notificationDispatcher?.dispatchOrderCancelledNotification?.(order),
+        this.notificationDispatcher?.dispatchOrderCancelledNotification?.(order),
       ).catch(() => undefined);
     } catch {
       // Ignored: external provider failure must not roll back order cancellation

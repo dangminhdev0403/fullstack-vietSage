@@ -7,6 +7,7 @@ describe("TelegramWebhookController", () => {
   let controller: TelegramWebhookController;
   let mockNotificationService: any;
   let mockBridgeService: any;
+  let mockPairingDelegate: any;
 
   beforeEach(() => {
     process.env.TELEGRAM_WEBHOOK_SECRET = secret;
@@ -18,8 +19,14 @@ describe("TelegramWebhookController", () => {
       handleCallbackQuery: jest.fn().mockResolvedValue(undefined),
       handleInboundMessage: jest.fn().mockResolvedValue(undefined),
     };
-    controller = new TelegramWebhookController(mockNotificationService, mockBridgeService);
-    TelegramWebhookController.setPairingDelegate(undefined);
+    mockPairingDelegate = {
+      handleStartPairing: jest.fn().mockResolvedValue(undefined),
+    };
+    controller = new TelegramWebhookController(
+      mockNotificationService,
+      mockPairingDelegate,
+      mockBridgeService,
+    );
   });
 
   afterEach(() => {
@@ -87,11 +94,6 @@ describe("TelegramWebhookController", () => {
     });
 
     it("routes /start <token> messages to pairing delegate", async () => {
-      const mockPairingDelegate = {
-        handleStartPairing: jest.fn().mockResolvedValue(undefined),
-      };
-      TelegramWebhookController.setPairingDelegate(mockPairingDelegate);
-
       const body = {
         update_id: 3,
         message: {

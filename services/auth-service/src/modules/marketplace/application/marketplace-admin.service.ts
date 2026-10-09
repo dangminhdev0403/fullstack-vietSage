@@ -16,7 +16,7 @@ import {
 import * as argon2 from "argon2";
 import { calculateHaversineDistanceMeters } from "../../../common/geo-distance";
 import { PrismaService } from "../../../prisma/prisma.service";
-import { CodesService } from "../../codes/codes.service";
+import { CodesService } from "../../codes/codes-public";
 import type {
   HotelServiceLinkBody,
   MarketplaceCategoryBody,

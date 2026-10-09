@@ -28,7 +28,8 @@ function Save-Manifest([string]$Path, [object]$Value) {
     ($Value | ConvertTo-Json -Depth 8),
     [Text.UTF8Encoding]::new($false)
   )
-  [IO.File]::Move($temporary, $Path, $true)
+  [IO.File]::Delete($Path)
+  [IO.File]::Move($temporary, $Path)
 }
 
 if ($SelfTest) {

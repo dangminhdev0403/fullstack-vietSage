@@ -22,7 +22,9 @@ describe("ChannelManagerAuditService", () => {
   beforeEach(async () => {
     prisma = {
       auditLog: {
-        create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: "audit-1", ...data })),
+        create: jest
+          .fn()
+          .mockImplementation(({ data }) => Promise.resolve({ id: "audit-1", ...data })),
       },
       hotel: {
         findUnique: jest.fn().mockResolvedValue({ id: "hotel-1", tenantId: "tenant-1" }),
@@ -30,10 +32,7 @@ describe("ChannelManagerAuditService", () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ChannelManagerAuditService,
-        { provide: PrismaService, useValue: prisma },
-      ],
+      providers: [ChannelManagerAuditService, { provide: PrismaService, useValue: prisma }],
     }).compile();
 
     service = module.get<ChannelManagerAuditService>(ChannelManagerAuditService);
@@ -211,11 +210,13 @@ describe("ChannelManagerController Behavioral Audit Contract", () => {
 
   describe("Content Sync Audit Behavior", () => {
     it("skips audit when syncContent throws an error", async () => {
-      mockChannexSyncService.syncContent.mockRejectedValue(new Error("Network timeout contacting Channex"));
+      mockChannexSyncService.syncContent.mockRejectedValue(
+        new Error("Network timeout contacting Channex"),
+      );
 
-      await expect(
-        controller.syncChannexContent(req as never, "hotel-1", {}),
-      ).rejects.toThrow("Network timeout contacting Channex");
+      await expect(controller.syncChannexContent(req as never, "hotel-1", {})).rejects.toThrow(
+        "Network timeout contacting Channex",
+      );
 
       expect(mockAuditService.recordHotelAction).not.toHaveBeenCalled();
     });
@@ -226,9 +227,9 @@ describe("ChannelManagerController Behavioral Audit Contract", () => {
         error: "Verification mismatched",
       });
 
-      await expect(
-        controller.syncChannexContent(req as never, "hotel-1", {}),
-      ).rejects.toThrow(BadRequestException);
+      await expect(controller.syncChannexContent(req as never, "hotel-1", {})).rejects.toThrow(
+        BadRequestException,
+      );
 
       expect(mockAuditService.recordHotelAction).not.toHaveBeenCalled();
     });
@@ -269,7 +270,10 @@ describe("ChannelManagerController Behavioral Audit Contract", () => {
     });
 
     it("records audit entry when drainFeed succeeds", async () => {
-      mockChannexBookingIngestionService.drainFeed.mockResolvedValue({ success: true, processed: 10 });
+      mockChannexBookingIngestionService.drainFeed.mockResolvedValue({
+        success: true,
+        processed: 10,
+      });
 
       const res = await controller.pollChannexFeed(req as never, "hotel-1", { limit: 50 });
       expect(res.success).toBe(true);

@@ -39,7 +39,11 @@ describe("ServicePortalController", () => {
   describe("previewImport", () => {
     it("parses valid csv and optional fileName with parseWithZod", async () => {
       await controller.previewImport(fakeReq, { csv: "col1,col2\nval1,val2" });
-      expect(imports.preview).toHaveBeenCalledWith("user-123", "col1,col2\nval1,val2", "service-items.csv");
+      expect(imports.preview).toHaveBeenCalledWith(
+        "user-123",
+        "col1,col2\nval1,val2",
+        "service-items.csv",
+      );
     });
 
     it("accepts custom fileName", async () => {
@@ -47,7 +51,11 @@ describe("ServicePortalController", () => {
         csv: "col1,col2\nval1,val2",
         fileName: "custom.csv",
       });
-      expect(imports.preview).toHaveBeenCalledWith("user-123", "col1,col2\nval1,val2", "custom.csv");
+      expect(imports.preview).toHaveBeenCalledWith(
+        "user-123",
+        "col1,col2\nval1,val2",
+        "custom.csv",
+      );
     });
 
     it("rejects empty or whitespace csv", () => {

@@ -361,6 +361,7 @@ export class StripeWebhookService {
             lastProviderErrorCode: "payment_failed",
           },
         });
+        await releaseExpiredOrderReservation(tx, current.orderId);
       }
 
       await tx.marketplacePaymentProviderEvent.create({

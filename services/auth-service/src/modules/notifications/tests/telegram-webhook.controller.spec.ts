@@ -9,7 +9,14 @@ describe("TelegramWebhookController", () => {
     const handleCallback = jest.fn();
     const service = { handleCallback } as unknown as TelegramNotificationService;
 
-    return { controller: new TelegramWebhookController(service), handleCallback };
+    return {
+      controller: new TelegramWebhookController(
+        service,
+        { handleStartPairing: jest.fn() },
+        { handleCallbackQuery: jest.fn(), handleInboundMessage: jest.fn() },
+      ),
+      handleCallback,
+    };
   }
 
   afterEach(() => {

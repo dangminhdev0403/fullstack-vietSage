@@ -857,9 +857,17 @@ describe("Channex Channel Manager Integration Suite", () => {
   // ================= 4. INBOUND BOOKINGS TESTS ================= //
   describe("Component 4: ChannexBookingIngestionService (Feed Polling, Dedup & Ack)", () => {
     let ingestionService: ChannexBookingIngestionService;
+    let mockAriSyncService: { pushAri: jest.Mock };
 
     beforeEach(() => {
-      ingestionService = new ChannexBookingIngestionService(mockPrisma, mockApiClient);
+      mockAriSyncService = {
+        pushAri: jest.fn().mockResolvedValue({ success: true }),
+      };
+      ingestionService = new ChannexBookingIngestionService(
+        mockPrisma,
+        mockApiClient,
+        mockAriSyncService as any,
+      );
     });
 
     it("tiếp nhận booking mới từ feed, lưu reservation, lưu mapping và ack", async () => {
@@ -1039,6 +1047,212 @@ describe("Channex Channel Manager Integration Suite", () => {
       expect(mockPrisma.channelSyncLog.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ status: "WARNING" }) }),
       );
+      expect(mockApiClient.ackBookingRevision).not.toHaveBeenCalled();
+    });
+
+    it("inbound cancelled booking: cập nhật CANCELLED trong PMS, đẩy availability sang Channex và ack revision", async () => {
+      const revisionItem = {
+        id: "rev_cancel_101",
+        type: "booking_revision",
+        attributes: {
+          booking_id: "bk_cancel_101",
+          status: "cancelled" as const,
+          property_id: "prop_uuid_1",
+          ota_name: "Booking.com",
+          ota_reservation_code: "BKG-CANCEL-101",
+          arrival_date: "2026-10-15",
+          departure_date: "2026-10-18",
+          amount: "3000000.00",
+          currency: "VND",
+        },
+      };
+
+      mockPrisma.channexMapping.findFirst
+        .mockResolvedValueOnce({ hotelId: "hotel_1" }) // property mapping
+        .mockResolvedValueOnce({
+          hotelId: "hotel_1",
+          kind: "booking",
+          localId: "resv_cancel_1",
+          channexId: "bk_cancel_101",
+          metadata: {
+            otaName: "Booking.com",
+            otaReservationCode: "BKG-CANCEL-101",
+            reservationIds: ["resv_cancel_1"],
+          },
+        }); // booking mapping in tx
+      mockPrisma.reservation.findUnique.mockResolvedValueOnce({
+        reservationCode: "BKG-CANCEL-101",
+      });
+      mockPrisma.reservation.updateMany.mockResolvedValueOnce({ count: 1 });
+      mockPrisma.channelSyncLog.create.mockResolvedValueOnce({});
+
+      const res = await ingestionService.processSingleRevision(revisionItem);
+
+      expect(res.action).toBe("CANCELLED");
+      expect(mockPrisma.reservation.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: { in: ["resv_cancel_1"] },
+            hotelId: "hotel_1",
+            status: { not: "CHECKED_IN" },
+          }),
+          data: { status: "CANCELLED" },
+        }),
+      );
+      expect(mockAriSyncService.pushAri).toHaveBeenCalledWith("hotel_1", {
+        availabilityOnly: true,
+      });
+      expect(mockApiClient.ackBookingRevision).toHaveBeenCalledWith("rev_cancel_101", undefined);
+    });
+
+    it("inbound cancelled booking: khi đẩy ARI thất bại thì ném lỗi và KHÔNG ack revision để Channex retry feed", async () => {
+      const revisionItem = {
+        id: "rev_cancel_102",
+        type: "booking_revision",
+        attributes: {
+          booking_id: "bk_cancel_102",
+          status: "cancelled" as const,
+          property_id: "prop_uuid_1",
+          ota_name: "Booking.com",
+          ota_reservation_code: "BKG-CANCEL-102",
+          arrival_date: "2026-10-15",
+          departure_date: "2026-10-18",
+          amount: "3000000.00",
+          currency: "VND",
+        },
+      };
+
+      mockPrisma.channexMapping.findFirst
+        .mockResolvedValueOnce({ hotelId: "hotel_1" }) // property mapping
+        .mockResolvedValueOnce({
+          hotelId: "hotel_1",
+          kind: "booking",
+          localId: "resv_cancel_2",
+          channexId: "bk_cancel_102",
+          metadata: {
+            otaName: "Booking.com",
+            otaReservationCode: "BKG-CANCEL-102",
+            reservationIds: ["resv_cancel_2"],
+          },
+        }); // booking mapping in tx
+      mockPrisma.reservation.findUnique.mockResolvedValueOnce({
+        reservationCode: "BKG-CANCEL-102",
+      });
+      mockPrisma.reservation.updateMany.mockResolvedValueOnce({ count: 1 });
+      mockPrisma.channelSyncLog.create.mockResolvedValueOnce({});
+
+      mockAriSyncService.pushAri.mockRejectedValueOnce(
+        new Error("Channex ARI push timeout or network error"),
+      );
+
+      await expect(ingestionService.processSingleRevision(revisionItem)).rejects.toThrow(
+        "Channex ARI push timeout or network error",
+      );
+
+      expect(mockPrisma.reservation.updateMany).toHaveBeenCalled();
+      expect(mockAriSyncService.pushAri).toHaveBeenCalledWith("hotel_1", {
+        availabilityOnly: true,
+      });
+      expect(mockApiClient.ackBookingRevision).not.toHaveBeenCalled();
+    });
+
+    it("inbound cancelled booking: ARI trả success:false thì ném lỗi và không ack revision", async () => {
+      const revisionItem = {
+        id: "rev_cancel_103",
+        type: "booking_revision",
+        attributes: {
+          booking_id: "bk_cancel_103",
+          status: "cancelled" as const,
+          property_id: "prop_uuid_1",
+          ota_name: "Booking.com",
+          ota_reservation_code: "BKG-CANCEL-103",
+          arrival_date: "2026-10-15",
+          departure_date: "2026-10-18",
+          amount: "3000000.00",
+          currency: "VND",
+        },
+      };
+
+      mockPrisma.channexMapping.findFirst
+        .mockResolvedValueOnce({ hotelId: "hotel_1" })
+        .mockResolvedValueOnce({
+          hotelId: "hotel_1",
+          kind: "booking",
+          localId: "resv_cancel_3",
+          channexId: "bk_cancel_103",
+          metadata: { reservationIds: ["resv_cancel_3"] },
+        });
+      mockPrisma.reservation.findUnique.mockResolvedValueOnce({
+        reservationCode: "BKG-CANCEL-103",
+      });
+      mockPrisma.reservation.updateMany.mockResolvedValueOnce({ count: 1 });
+      mockPrisma.channelSyncLog.create.mockResolvedValueOnce({});
+      mockAriSyncService.pushAri.mockResolvedValueOnce({ success: false });
+
+      await expect(ingestionService.processSingleRevision(revisionItem)).rejects.toThrow(
+        "Channex ARI availability sync verification failed",
+      );
+      expect(mockApiClient.ackBookingRevision).not.toHaveBeenCalled();
+    });
+
+    it("drainFeed: khi revision cancelled bị lỗi đẩy ARI thì không ack và ghi nhận lỗi để feed retry", async () => {
+      const cancelledRevision = {
+        id: "rev_cancel_feed_1",
+        type: "booking_revision",
+        attributes: {
+          booking_id: "bk_cancel_feed_1",
+          status: "cancelled" as const,
+          property_id: "prop_uuid_1",
+          ota_name: "Booking.com",
+          ota_reservation_code: "BKG-CANCEL-FEED-1",
+          arrival_date: "2026-10-15",
+          departure_date: "2026-10-18",
+          amount: "3000000.00",
+          currency: "VND",
+        },
+      };
+
+      mockApiClient.getBookingFeed.mockResolvedValueOnce({
+        data: [cancelledRevision],
+        meta: { total: 1 },
+      });
+
+      mockPrisma.channexMapping.findUnique.mockResolvedValueOnce({
+        channexId: "prop_uuid_1",
+      });
+      mockPrisma.channexMapping.findFirst
+        .mockResolvedValueOnce({ hotelId: "hotel_1" }) // property mapping
+        .mockResolvedValueOnce({
+          hotelId: "hotel_1",
+          kind: "booking",
+          localId: "resv_cancel_feed_1",
+          channexId: "bk_cancel_feed_1",
+          metadata: {
+            otaName: "Booking.com",
+            otaReservationCode: "BKG-CANCEL-FEED-1",
+            reservationIds: ["resv_cancel_feed_1"],
+          },
+        });
+      mockPrisma.reservation.findUnique.mockResolvedValueOnce({
+        reservationCode: "BKG-CANCEL-FEED-1",
+      });
+      mockPrisma.reservation.updateMany.mockResolvedValueOnce({ count: 1 });
+      mockPrisma.channelSyncLog.create.mockResolvedValueOnce({});
+
+      mockAriSyncService.pushAri.mockRejectedValueOnce(
+        new Error("Channex ARI push network failure"),
+      );
+
+      const drainRes = await ingestionService.drainFeed({ hotelId: "hotel_1" });
+
+      expect(drainRes.success).toBe(false);
+      expect(drainRes.errorsCount).toBe(1);
+      expect(drainRes.cancelledBookingsCount).toBe(0);
+      expect(drainRes.details[0].action).toBe("ERROR");
+      expect(drainRes.details[0].error).toContain("Channex ARI push network failure");
+      expect(mockAriSyncService.pushAri).toHaveBeenCalledWith("hotel_1", {
+        availabilityOnly: true,
+      });
       expect(mockApiClient.ackBookingRevision).not.toHaveBeenCalled();
     });
 

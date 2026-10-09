@@ -46,7 +46,10 @@ describe("Channel Manager RBAC Contract Specification", () => {
   describe("ChannelManagerController RBAC Metadata Contracts", () => {
     it("keeps local inventory grid and update endpoints under hotel.rooms.*", () => {
       expect(
-        Reflect.getMetadata(REQUIRED_PERMISSION_KEY, ChannelManagerController.prototype.getInventory),
+        Reflect.getMetadata(
+          REQUIRED_PERMISSION_KEY,
+          ChannelManagerController.prototype.getInventory,
+        ),
       ).toBe("hotel.rooms.view");
 
       expect(
@@ -64,10 +67,7 @@ describe("Channel Manager RBAC Contract Specification", () => {
       ).toBe("hotel.rooms.manage");
 
       expect(
-        Reflect.getMetadata(
-          REQUIRED_PERMISSION_KEY,
-          ChannelManagerController.prototype.bulkUpdate,
-        ),
+        Reflect.getMetadata(REQUIRED_PERMISSION_KEY, ChannelManagerController.prototype.bulkUpdate),
       ).toBe("hotel.rooms.manage");
     });
 

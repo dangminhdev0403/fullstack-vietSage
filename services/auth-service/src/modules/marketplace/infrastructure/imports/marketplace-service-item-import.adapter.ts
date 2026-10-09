@@ -12,7 +12,7 @@ import type {
   ParsedImportWorkbook,
 } from "../../../../common/import/import.types";
 import { PrismaService } from "../../../../prisma/prisma.service";
-import { CodesService } from "../../../codes/codes.service";
+import { CodesService } from "../../../codes/codes-public";
 
 const MAX_ROWS = 2000;
 const REQUIRED_HEADERS = [

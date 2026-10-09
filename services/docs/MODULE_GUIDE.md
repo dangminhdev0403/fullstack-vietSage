@@ -104,12 +104,17 @@ Do not create empty folders. Let complexity justify structure.
 | Identity/Auth bridge | `AuthService`, `AuthorizationService`, shared `AuthenticatedUser` contract | `AuthRepository`, route permission sync internals |
 | Codes | `CodesService` via `src/modules/codes/codes-public.ts` | `CodesRepository`, sequence persistence |
 | Billing | Billing controllers/services | `BillingRepository`, Prisma financial snapshots |
+| LocalMate | `LocalMateService`, pairing service, geography helpers via `localmate-public.ts` | profile repository and pairing persistence |
+| LocalMate Payments | `LocalMatePaymentsService` via `localmate-payments-public.ts` | Stripe client, signature verification, reconciliation internals |
+| Marketplace | order/conversation services and Telegram adapter via `marketplace-public.ts` | conversation repository, import adapters, retry workers |
+| Request Realtime | `RequestRealtimeTicketService` via `request-realtime-public.ts` | ticket signing and gateway internals |
 
 ## Verification commands
 
 ```bash
 cd services/auth-service
 node scripts/check-service-boundaries.mjs
+npm test -- --runInBand src/modules/tests/final-boundary-release.spec.ts
 npm run build
 npm run test -- --runInBand
 npx eslint "{src,apps,libs,test}/**/*.ts"

@@ -40,7 +40,9 @@ describe("Channex booking reconciliation/recovery", () => {
       ackBookingRevision: jest.fn().mockResolvedValue({ data: {} }),
       getBookings: jest.fn(),
     };
-    service = new ChannexBookingIngestionService(prisma, client);
+    service = new ChannexBookingIngestionService(prisma, client, {
+      pushAri: jest.fn().mockResolvedValue({ success: true }),
+    } as any);
   });
 
   it("does not ack a modified revision when its actionable record cannot be persisted", async () => {

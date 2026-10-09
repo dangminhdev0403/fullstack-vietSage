@@ -553,6 +553,87 @@ describe("StripeWebhookService", () => {
       });
     });
 
+    it("releases still-PENDING order reservation and increments capacity exactly once when checkout.session.async_payment_failed arrives", async () => {
+      mockVerifier.verify.mockReturnValue({ verified: true, timestamp: 123 });
+      mockPrisma.marketplacePaymentProviderEvent.findUnique.mockResolvedValue(null);
+
+      const openPayment = {
+        id: "pay-failed-2",
+        orderId: "ord-pending-failed-1",
+        status: MarketplaceOrderPaymentStatus.OPEN,
+        providerCheckoutSessionId: "cs_failed_2",
+      };
+
+      const pendingOrder = {
+        id: "ord-pending-failed-1",
+        status: MarketplaceOrderStatus.PENDING,
+        version: 1,
+        capacityReservationStatus: CapacityReservationStatus.RESERVED,
+        serviceId: "svc-1",
+        quantity: 2,
+        items: [{ serviceId: "svc-1", quantity: 2 }],
+      };
+
+      mockPrisma.marketplaceOrderPayment.findUnique.mockResolvedValue(openPayment);
+      mockPrisma.marketplaceOrderPayment.findUniqueOrThrow.mockResolvedValue(openPayment);
+      mockPrisma.marketplaceOrder.findUnique.mockResolvedValue(pendingOrder);
+      mockPrisma.marketplaceOrder.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.marketplaceOrderItem.findMany.mockResolvedValue([
+        { serviceId: "svc-1", quantity: 2 },
+      ]);
+      mockPrisma.marketplaceService.findUnique.mockResolvedValue({
+        id: "svc-1",
+        capacityAvailable: 3,
+      });
+
+      const sessionObj = {
+        id: "cs_failed_2",
+        metadata: { paymentId: "pay-failed-2" },
+      };
+
+      const payload = createEventPayload(
+        "checkout.session.async_payment_failed",
+        sessionObj,
+        "evt_fail_2",
+      );
+      const result = await service.handleWebhook(payload, "sig");
+
+      expect(result.outcome).toBe(MarketplacePaymentEventOutcome.PROCESSED);
+      expect(mockPrisma.marketplaceOrderPayment.update).toHaveBeenCalledWith({
+        where: { id: "pay-failed-2" },
+        data: {
+          status: MarketplaceOrderPaymentStatus.FAILED,
+          lastProviderErrorCode: "payment_failed",
+        },
+      });
+      expect(mockPrisma.marketplaceOrder.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: "ord-pending-failed-1",
+          status: MarketplaceOrderStatus.PENDING,
+          version: 1,
+        },
+        data: expect.objectContaining({
+          status: MarketplaceOrderStatus.CANCELLED,
+          capacityReservationStatus: CapacityReservationStatus.RELEASED,
+        }),
+      });
+      expect(mockPrisma.marketplaceService.update).toHaveBeenCalledWith({
+        where: { id: "svc-1" },
+        data: {
+          capacityAvailable: { increment: 2 },
+          version: { increment: 1 },
+        },
+      });
+      expect(mockPrisma.marketplaceOrderEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          orderId: "ord-pending-failed-1",
+          actorType: MarketplaceOrderActorType.SYSTEM,
+          fromStatus: MarketplaceOrderStatus.PENDING,
+          toStatus: MarketplaceOrderStatus.CANCELLED,
+        }),
+      });
+    });
+
     it("does not increment capacity on replay or concurrency conflict when updateMany count is 0", async () => {
       mockVerifier.verify.mockReturnValue({ verified: true, timestamp: 123 });
       mockPrisma.marketplacePaymentProviderEvent.findUnique.mockResolvedValue(null);

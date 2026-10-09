@@ -13,7 +13,7 @@ import {
 } from "../../../../common/import/import.types";
 import { ImportRegistry } from "../../../../common/import/import.registry";
 import { PrismaService } from "../../../../prisma/prisma.service";
-import { CodesService } from "../../../codes/codes.service";
+import { CodesService } from "../../../codes/codes-public";
 
 export type MarketplaceCategoryImportRow = {
   rowNumber: number;

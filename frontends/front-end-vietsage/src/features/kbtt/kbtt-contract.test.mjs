@@ -103,7 +103,7 @@ test("KBTT validates write-only credentials, strips secret fields, preserves pas
       permissions: [permission],
       hotelId: "hotel-1",
     }).find((item) => item.key === "owner.hotel.kbtt");
-    assert.equal(entry?.label, "Khai báo tạm trú Bộ Công an");
+    assert.equal(entry?.label, "Kết nối Bộ Công an");
     assert.equal(entry?.href, "/owner/hotels/hotel-1/kbtt");
   }
   for (const scope of [

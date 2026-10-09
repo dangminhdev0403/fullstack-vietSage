@@ -41,8 +41,17 @@ services/auth-service/
       billing/           # folio/invoice/payment workflows (api/application/domain/infrastructure)
       emergency/         # emergency workflows (api/application/domain/infrastructure)
       notifications/     # notification routing, delivery, and provider webhook adapters
+      biometric-workstations/ # local biometric workstation pairing and access
+      channel-manager/   # Channex channel, ARI, and booking ingestion
       codes/             # code generation
       health/            # health
+      kbtt/              # accommodation declaration provider integration
+      local-partners/    # local partner operations
+      localmate/         # LocalMate profiles, knowledge, and pairing
+      localmate-payments/# LocalMate Stripe payment workflows
+      marketplace/       # catalog, orders, conversations, settlements
+      platform-billing/  # platform billing and revenue reporting
+      request-realtime/  # bounded realtime ticket issuance
     common/              # infrastructure
     shared/              # guards/decorators/contracts
     prisma/              # Prisma runtime wrapper
@@ -103,6 +112,10 @@ Rules:
 - Integration adapters isolate external providers.
 - OpenAPI is the HTTP contract source of truth.
 - Event contracts must be versioned before asynchronous messaging is introduced.
+- Cross-module imports use `*-public.ts`; Nest module composition may use `<context>.module.ts`.
+- Cross-module runtime collaboration uses Nest DI or existing in-process event ports, not mutable
+  static dispatchers.
+- Run `node scripts/check-service-boundaries.mjs` and the final boundary release guard before merge.
 
 ## 7. Backend and Frontend Boundary
 

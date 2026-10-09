@@ -208,6 +208,35 @@ describe("LocalMatePaymentsService", () => {
     });
   });
 
+  describe("syncPaymentIfOpen", () => {
+    it("wakes the durable notification worker after confirming payment", async () => {
+      const wakeWorker = jest.fn();
+      service.setPaymentCompletedHandler(wakeWorker);
+      mockPrisma.marketplaceOrderPayment.findUnique.mockResolvedValue({
+        id: "pay-sync",
+        orderId: "ord-sync",
+        status: MarketplaceOrderPaymentStatus.OPEN,
+        providerCheckoutSessionId: "cs-sync",
+        providerPaymentIntentId: null,
+        currency: "VND",
+        platformFeeAmount: "150000",
+      });
+      mockStripeClient.getCheckoutSession.mockResolvedValue({
+        id: "cs-sync",
+        client_reference_id: "ord-sync",
+        payment_status: "paid",
+        payment_intent: "pi-sync",
+        currency: "vnd",
+        amount_total: 150000,
+      } as never);
+      mockPrisma.marketplaceOrderPayment.update.mockResolvedValue({ id: "pay-sync" });
+
+      await service.syncPaymentIfOpen("ord-sync");
+
+      expect(wakeWorker).toHaveBeenCalledWith("pay-sync");
+    });
+  });
+
   describe("refundLocalMatePayment", () => {
     it("is idempotent: returns alreadyRefunded=true if status is already REFUNDED", async () => {
       const alreadyRefunded = {

@@ -79,9 +79,9 @@ describe("GuestMarketplaceController - cancelOrder", () => {
   });
 
   it("rejects note longer than 500 characters", () => {
-    expect(() =>
-      controller.cancelOrder(fakeReq, "order-1", { note: "a".repeat(501) }),
-    ).toThrow(BadRequestException);
+    expect(() => controller.cancelOrder(fakeReq, "order-1", { note: "a".repeat(501) })).toThrow(
+      BadRequestException,
+    );
   });
 
   it("rejects extra properties due to strict schema", () => {

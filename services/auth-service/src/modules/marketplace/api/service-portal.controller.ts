@@ -1,15 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Header,
-  Param,
-  Patch,
-  Post,
-  Query,
-  Req,
-  Res,
-} from "@nestjs/common";
+import { Body, Controller, Get, Header, Param, Patch, Post, Query, Req, Res } from "@nestjs/common";
 import type { Response } from "express";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
@@ -35,7 +24,7 @@ import {
   partnerSettlementQuerySchema,
 } from "../domain/marketplace-order.schema";
 
-import { RequestRealtimeTicketService } from "../../request-realtime/application/request-realtime-ticket.service";
+import { RequestRealtimeTicketService } from "../../request-realtime/request-realtime-public";
 
 @Controller("service-portal")
 export class ServicePortalController {
@@ -132,11 +121,7 @@ export class ServicePortalController {
   @Post("services/import/preview")
   previewImport(@Req() req: RequestWithRequiredUser, @Body() body: unknown) {
     const input = parseWithZod(serviceImportPreviewBodySchema, body);
-    return this.imports.preview(
-      req.user.userId,
-      input.csv,
-      input.fileName,
-    );
+    return this.imports.preview(req.user.userId, input.csv, input.fileName);
   }
 
   @ApiDescript("Xác nhận nhập dịch vụ CSV")
@@ -144,12 +129,7 @@ export class ServicePortalController {
   @Post("services/import/commit")
   commitImport(@Req() req: RequestWithRequiredUser, @Body() body: unknown) {
     const input = parseWithZod(serviceImportCommitBodySchema, body);
-    return this.imports.commit(
-      req.user.userId,
-      input.csv,
-      input.previewToken,
-      input.fileName,
-    );
+    return this.imports.commit(req.user.userId, input.csv, input.previewToken, input.fileName);
   }
 
   @ApiDescript("Xem đơn Service Tenant")

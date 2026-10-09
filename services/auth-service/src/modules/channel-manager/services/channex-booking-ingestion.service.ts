@@ -2,6 +2,7 @@ import { Injectable, Logger, BadRequestException, NotFoundException } from "@nes
 import { Prisma, ReservationStatus, RoomStatus, type ChannexMapping } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { ChannexApiClient, ChannexRevisionItem } from "./channex-api-client.service";
+import { ChannexAriSyncService } from "./channex-ari-sync.service";
 import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 import type {
   ChannexWebhookDto,
@@ -34,6 +35,7 @@ export class ChannexBookingIngestionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly channexClient: ChannexApiClient,
+    private readonly channexAriSyncService: ChannexAriSyncService,
   ) {}
 
   /**
@@ -426,6 +428,13 @@ export class ChannexBookingIngestionService {
         } catch (emitErr) {
           this.logger.warn(`[Channex Ingestion] Realtime cancel emit thất bại: ${emitErr}`);
         }
+      }
+      const ariResult = await this.channexAriSyncService.pushAri(hotelId, {
+        availabilityOnly: true,
+        ...(apiKey ? { apiKey } : {}),
+      });
+      if (!ariResult.success) {
+        throw new Error("Channex ARI availability sync verification failed");
       }
       if (acknowledge) await this.channexClient.ackBookingRevision(revisionId, apiKey);
       return outcome;

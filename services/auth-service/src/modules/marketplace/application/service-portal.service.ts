@@ -12,7 +12,7 @@ import type {
   MarketplaceServiceUpdate,
   ServiceProfileBody,
 } from "../domain/service-portal.schema";
-import { CodesService } from "../../codes/codes.service";
+import { CodesService } from "../../codes/codes-public";
 
 @Injectable()
 export class ServicePortalService {

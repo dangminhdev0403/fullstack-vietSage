@@ -8,6 +8,10 @@ on:
       - "shared/api-contract/**"
       - "docker-compose*.yml"
       - "docker-compose*.yaml"
+      - "deploy/n8n/workflows/**"
+      - "scripts/capture-qa-window.ps1"
+      - "scripts/init-secrets.sh"
+      - "scripts/verify-production-topology.py"
       - ".github/workflows/ci-gate.yml"
   push:
     branches:
@@ -19,6 +23,10 @@ on:
       - "shared/api-contract/**"
       - "docker-compose*.yml"
       - "docker-compose*.yaml"
+      - "deploy/n8n/workflows/**"
+      - "scripts/capture-qa-window.ps1"
+      - "scripts/init-secrets.sh"
+      - "scripts/verify-production-topology.py"
       - ".github/workflows/ci-gate.yml"
 
 jobs:
@@ -90,6 +98,9 @@ jobs:
               raise SystemExit(1)
           PY
 
+      - name: Verify module boundaries
+        run: node scripts/check-service-boundaries.mjs
+
       - name: Lint
         run: npx eslint "{src,apps,libs,test}/**/*.ts"
 
@@ -128,7 +139,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "pnpm"
           cache-dependency-path: frontends/front-end-vietsage/pnpm-lock.yaml
 
@@ -138,8 +149,47 @@ jobs:
       - name: Lint
         run: pnpm run lint
 
+      - name: Verify frontend contracts
+        run: |
+          node scripts/auth-session-contract-smoke.mjs
+          node --test scripts/marketing-motion-smoke.test.mjs
+          node --test src/features/kbtt/kbtt-contract.test.mjs
+
       - name: Build
         run: pnpm run build
+
+  qa-capture:
+    name: Windows QA capture self-test
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify manifest recovery and ZIP integrity
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/capture-qa-window.ps1 -SelfTest
+
+  localmate-workflows:
+    name: LocalMate n8n workflows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify LocalMate workflows
+        run: |
+          python deploy/n8n/workflows/check_vietsage_localmate_concierge.py
+          python deploy/n8n/workflows/check_vietsage_localmate_public_concierge.py
+          node --test deploy/n8n/workflows/vietsage-localmate-public-concierge.test.mjs
 
   api-contract:
     name: Shared API contract
@@ -168,6 +218,9 @@ jobs:
 
       - name: Prepare CI compose env files
         run: bash scripts/init-secrets.sh
+
+      - name: Verify production topology
+        run: python scripts/verify-production-topology.py
 
       - name: Validate docker-compose.yml
         run: docker compose -f docker-compose.yml config --quiet

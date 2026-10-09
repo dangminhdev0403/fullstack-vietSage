@@ -43,8 +43,8 @@ test("landing sections use distinct reveal choreography", () => {
   );
 
   assert.ok(cssVariants.size >= 5, `expected at least 5 reveal variants, received ${cssVariants.size}`);
-  assert.match(source, /data-reveal="fade"/);
-  assert.match(source, /data-reveal="scale"/);
+  assert.match(source, /data-reveal="fade"|reveal\s*=\s*"fade"/);
+  assert.match(source, /data-reveal="scale"|reveal\s*=\s*"scale"/);
   assert.match(source, /"from-left"/);
   assert.match(source, /"from-right"/);
   assert.match(source, /data-reveal="cta"/);

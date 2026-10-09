@@ -14,15 +14,9 @@ const legacyModuleFolders = [
   "telegram",
 ];
 
-const boundedContexts = [
-  "identity",
-  "organization",
-  "property",
-  "guest-operations",
-  "billing",
-  "emergency",
-  "notifications",
-];
+const boundedContexts = readdirSync(modulesRoot, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && entry.name !== "tests" && entry.name !== "node_modules")
+  .map((entry) => entry.name);
 
 function collectFiles(dir: string, predicate: (path: string) => boolean): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -84,6 +78,19 @@ describe("final bounded-context release guard", () => {
     expect(offenders).toEqual([]);
   });
 
+  it("does not use mutable static dispatchers for cross-module collaboration", () => {
+    const forbidden = [
+      /static\s+set(?:Dispatcher|NotificationDispatcher|BridgeDispatcher|PairingDelegate|MarketplaceDelegate)\s*\(/,
+      /static\s+get(?:PairingDelegate|MarketplaceDelegate)\s*\(/,
+      /static\s+instanceRef\b/,
+    ];
+    const offenders = readTsFiles()
+      .filter(({ source }) => forbidden.some((pattern) => pattern.test(source)))
+      .map(({ rel }) => rel);
+
+    expect(offenders).toEqual([]);
+  });
+
   it("uses public barrels instead of production imports from other bounded-context internals", () => {
     const offenders = readTsFiles().flatMap(({ rel, source }) => {
       const currentContext = boundedContexts.find((context) =>
@@ -100,7 +107,10 @@ describe("final bounded-context release guard", () => {
           const directImplementationImport = new RegExp(
             `from ["'][^"']*/${context}/(api|application|domain|infrastructure)(/|["'])`,
           );
-          return directImplementationImport.test(source);
+          const privateFileImport = new RegExp(
+            `from ["'][^"']*/${context}/(?!(?:${context}-public|${context}\\.module)(?:["']|$))`,
+          );
+          return directImplementationImport.test(source) || privateFileImport.test(source);
         });
 
       return badImports.length > 0 ? [`${rel} -> ${badImports.join(",")}`] : [];

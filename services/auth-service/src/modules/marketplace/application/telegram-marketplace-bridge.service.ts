@@ -8,13 +8,13 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
-import { TelegramNotificationService } from "./telegram-notification.service";
-import { LocalMatePaymentsService } from "../../localmate-payments/application/localmate-payments.service";
-import { MarketplaceConversationRepository } from "../../marketplace/infrastructure/marketplace-conversation.repository";
-import type {
-  TelegramCallbackQuery,
-  TelegramMessage,
-} from "../domain/schemas/telegram-update.schema";
+import {
+  TelegramNotificationService,
+  type TelegramCallbackQuery,
+  type TelegramMessage,
+} from "../../notifications/notifications-public";
+import { LocalMatePaymentsService } from "../../localmate-payments/localmate-payments-public";
+import { MarketplaceConversationService } from "./marketplace-conversation.service";
 
 export function escapeTelegramHtml(text: string): string {
   return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -36,7 +36,7 @@ export class TelegramMarketplaceBridgeService {
     private readonly prisma: PrismaService,
     private readonly telegramNotificationService: TelegramNotificationService,
     private readonly localMatePaymentsService: LocalMatePaymentsService,
-    private readonly conversationRepo: MarketplaceConversationRepository,
+    private readonly conversationService: MarketplaceConversationService,
   ) {}
 
   async sendOrderNotificationToGuide(orderInput: any): Promise<SendOrderNotificationResult> {
@@ -927,7 +927,7 @@ export class TelegramMarketplaceBridgeService {
     serviceTenantId: string;
     assignedLocalMateProfileId?: string | null;
   }) {
-    return this.conversationRepo.findOrCreateConversation(order.id, {
+    return this.conversationService.findOrCreateConversation(order.id, {
       hotelId: order.hotelId,
       stayId: order.stayId,
       publicSessionId: order.publicSessionId,

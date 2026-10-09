@@ -15,7 +15,7 @@ import { RequirePermission } from "../../../shared/decorators/require-permission
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
-import { HotelAccessService } from "../../property/application/hotel-access.service";
+import { HotelAccessService } from "../../property/property-public";
 import { BiometricWorkstationsService } from "../application/biometric-workstations.service";
 import { pairBiometricWorkstationSchema } from "../domain/schemas/biometric-workstations.schema";
 

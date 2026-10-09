@@ -2,7 +2,7 @@ import { ConflictException, Injectable, UnauthorizedException } from "@nestjs/co
 import { createHash, randomBytes } from "node:crypto";
 import { MarketplaceOrderStatus } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
-import { LocalMateService } from "../../localmate/application/localmate.service";
+import { LocalMateService } from "../../localmate/localmate-public";
 import {
   CANONICAL_PUBLIC_PHONE_REGEX,
   type PublicLocalMateOrderRequest,

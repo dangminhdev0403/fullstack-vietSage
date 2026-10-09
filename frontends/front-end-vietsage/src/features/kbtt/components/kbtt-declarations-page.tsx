@@ -1261,8 +1261,8 @@ export function KbttDeclarationsPage({
   useEffect(() => {
     if (
       !IS_AUTO_SUBMIT_ENABLED ||
-      !isListReady ||
       !isConnected ||
+      !isListReady ||
       isAutoPaused ||
       isSubmittingBatch ||
       unsubmittedCount === 0 ||

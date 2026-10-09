@@ -17,12 +17,6 @@ import { StripeSignatureVerifier } from "./infrastructure/stripe-signature.verif
     StripeClient,
     StripeSignatureVerifier,
   ],
-  exports: [
-    LocalMatePaymentsService,
-    StripeWebhookService,
-    StripeReconciliationService,
-    StripeClient,
-    StripeSignatureVerifier,
-  ],
+  exports: [LocalMatePaymentsService],
 })
 export class LocalMatePaymentsModule {}

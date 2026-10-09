@@ -433,6 +433,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
       "hotel.kbtt.view",
       "hotel.kbtt.manage",
       "hotel.kbtt.declarations.view",
+      "hotel.kbtt.declarations.manage",
       "hotel.profile.view",
       "hotel.profile.manage",
     ],

@@ -189,11 +189,7 @@ export const BUSINESS_PERMISSIONS: readonly BusinessPermissionDefinition[] = [
     "hotel-kbtt",
     "Quản lý và lập hồ sơ khai báo tạm trú",
   ),
-  permission(
-    "hotel.channels.view",
-    "hotel-channels",
-    "Xem cấu hình và trạng thái kênh phân phối",
-  ),
+  permission("hotel.channels.view", "hotel-channels", "Xem cấu hình và trạng thái kênh phân phối"),
   permission(
     "hotel.channels.manage",
     "hotel-channels",

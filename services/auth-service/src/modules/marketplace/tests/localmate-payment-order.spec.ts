@@ -96,21 +96,16 @@ describe("LocalMate payment order integration", () => {
     jest
       .spyOn(RequestRealtimeEmitter, "emitExternalServiceOrderCreated")
       .mockImplementation(() => {});
-    MarketplaceOrderService.setNotificationDispatcher({
-      dispatchOrderNotification: jest.fn(),
-      dispatchOrderCancelledNotification: jest.fn(),
-    });
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
-    MarketplaceOrderService.setNotificationDispatcher({});
   });
 
   it("snapshots 15/85 in the order transaction and suppresses creation-time Telegram", async () => {
     const { service, tx } = localMateCreateHarness("15");
     const notification = jest.fn();
-    MarketplaceOrderService.setNotificationDispatcher({ dispatchOrderNotification: notification });
+    service.setNotificationDispatcher({ dispatchOrderNotification: notification });
 
     const order = await service.createGuestOrder(
       { hotelId: "hotel-1", stayId: "stay-1" },

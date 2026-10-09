@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { PlatformBillingContractStatus, Prisma } from "@prisma/client";
 import { AppLogger } from "../../../common/logging/app-logger.service";
 import { PrismaService } from "../../../prisma/prisma.service";
-import { HotelAccessService } from "../../property/application/hotel-access.service";
+import { HotelAccessService } from "../../property/property-public";
 
 const DAY_MS = 86_400_000;
 const MAX_RECONCILIATION_DAYS = 31;

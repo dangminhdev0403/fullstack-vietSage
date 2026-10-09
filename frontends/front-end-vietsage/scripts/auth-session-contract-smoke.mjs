@@ -17,10 +17,10 @@ function assert(condition, message) {
 const [authTypes, authSource, proxySource, serviceSource, refreshSource, publicPaths] =
   await Promise.all([
     source("src/types/next-auth.d.ts"),
-    source("src/lib/auth.ts"),
+    source("src/libs/auth.ts"),
     source("src/proxy.ts"),
     source("src/features/auth/service/auth-service.ts"),
-    source("src/lib/auth-session-refresh.ts"),
+    source("src/libs/auth-session-refresh.ts"),
     source("src/core/http/public-api-paths.ts"),
   ]);
 

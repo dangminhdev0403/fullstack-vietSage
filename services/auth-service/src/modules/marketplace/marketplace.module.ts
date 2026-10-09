@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, OnModuleInit } from "@nestjs/common";
 import { MarketplaceAdminController } from "./api/marketplace-admin.controller";
 import { MarketplaceAdminService } from "./application/marketplace-admin.service";
 import { ServicePortalController } from "./api/service-portal.controller";
@@ -16,6 +16,7 @@ import { MarketplaceCategorySheetService } from "./application/marketplace-categ
 import { MarketplaceServiceItemImportAdapter } from "./infrastructure/imports/marketplace-service-item-import.adapter";
 import { ServiceItemImportService } from "./application/service-item-import.service";
 import { LocalMatePaymentsModule } from "../localmate-payments/localmate-payments.module";
+import { LocalMatePaymentsService } from "../localmate-payments/localmate-payments-public";
 
 import { GuestMarketplaceConversationController } from "./api/guest-marketplace-conversation.controller";
 import { MarketplaceConversationService } from "./application/marketplace-conversation.service";
@@ -23,6 +24,11 @@ import { MarketplaceConversationRepository } from "./infrastructure/marketplace-
 import { PublicLocalMateController } from "./api/public-localmate.controller";
 import { PublicLocalMateService } from "./application/public-localmate.service";
 import { LocalMateModule } from "../localmate/localmate.module";
+import { NotificationsModule } from "../notifications/notifications-public";
+
+import { TelegramMarketplaceBridgeService } from "./application/telegram-marketplace-bridge.service";
+import { TelegramMarketplaceRetryService } from "./application/telegram-marketplace-retry.service";
+import { LocalmatePaidOrderNotificationService } from "./application/localmate-paid-order-notification.service";
 
 @Module({
   imports: [
@@ -32,6 +38,7 @@ import { LocalMateModule } from "../localmate/localmate.module";
     ImportModule,
     LocalMatePaymentsModule,
     LocalMateModule,
+    NotificationsModule,
   ],
   controllers: [
     MarketplaceAdminController,
@@ -53,7 +60,36 @@ import { LocalMateModule } from "../localmate/localmate.module";
     MarketplaceCategorySheetService,
     MarketplaceServiceItemImportAdapter,
     ServiceItemImportService,
+    TelegramMarketplaceBridgeService,
+    TelegramMarketplaceRetryService,
+    LocalmatePaidOrderNotificationService,
   ],
-  exports: [MarketplaceOrderService, MarketplaceConversationService],
+  exports: [
+    MarketplaceOrderService,
+    MarketplaceConversationService,
+    TelegramMarketplaceBridgeService,
+  ],
 })
-export class MarketplaceModule {}
+export class MarketplaceModule implements OnModuleInit {
+  constructor(
+    private readonly bridgeService: TelegramMarketplaceBridgeService,
+    private readonly orderService: MarketplaceOrderService,
+    private readonly conversationService: MarketplaceConversationService,
+    private readonly paymentsService: LocalMatePaymentsService,
+    private readonly paidOrderNotifications: LocalmatePaidOrderNotificationService,
+  ) {}
+
+  onModuleInit() {
+    this.orderService.setNotificationDispatcher({
+      dispatchOrderNotification: async (order) => {
+        await this.bridgeService.sendOrderNotificationToGuide(order);
+      },
+    });
+    this.conversationService.setBridgeDispatcher({
+      dispatchGuestMessage: (payload) => this.bridgeService.sendGuestMessageToGuide(payload),
+    });
+    this.paymentsService.setPaymentCompletedHandler(async () => {
+      await this.paidOrderNotifications.processPendingNotifications();
+    });
+  }
+}

@@ -26,13 +26,11 @@ A context may be extracted only when at least one of these is true and documente
 | Stable data ownership | Tables and transactions no longer require frequent cross-context writes. |
 | Operational maturity | Health checks, logs, migrations, rollback, observability, and on-call ownership are defined. |
 
-## Suggested future extraction order
+## Current direction
 
-1. **Notifications** — if Telegram/provider delivery needs independent retrying, rate limits, and webhook isolation.
-2. **Billing/Payments** — if payment provider integrations require separate audit/security/retry boundaries.
-3. **Emergency** — if incident reliability/SLO requirements diverge from hotel operations.
-4. **Identity & Access** — only after token/session/permission contracts and service-to-service auth are stable.
-5. **Property / Guest Operations** — last, because stays/rooms/requests often share transactions.
+No context is scheduled for extraction. Keep one Core API and one PostgreSQL database. A future
+proposal must bring measured evidence for a trigger below and preserve current transaction and
+rollback guarantees; this document is a decision gate, not an extraction roadmap.
 
 ## Pre-extraction checklist
 

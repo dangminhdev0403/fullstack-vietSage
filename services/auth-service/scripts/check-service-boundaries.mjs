@@ -1,8 +1,10 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
-const sourceRoot = path.resolve(process.cwd(), "src");
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const sourceRoot = path.resolve(scriptDir, "../src");
 const modulesRoot = path.join(sourceRoot, "modules");
 const sourceExtensions = new Set([".ts", ".tsx"]);
 
@@ -51,6 +53,7 @@ function findImportSpecifiers(source) {
 async function checkBoundaries() {
   const files = await collectSourceFiles(sourceRoot);
   const violations = [];
+  const moduleEdges = new Map();
 
   for (const sourceFile of files) {
     const source = await readFile(sourceFile, "utf8");
@@ -61,6 +64,10 @@ async function checkBoundaries() {
       if (!targetPath) continue;
       const owner = moduleOwner(targetPath);
       if (!owner || owner === consumer) continue;
+      if (sourceFile.endsWith(".module.ts")) {
+        if (!moduleEdges.has(consumer)) moduleEdges.set(consumer, new Set());
+        moduleEdges.get(consumer).add(owner);
+      }
       if (!isPublicModuleTarget(targetPath, owner)) {
         violations.push(
           `${path.relative(process.cwd(), sourceFile)} imports private ${owner} path: ${specifier}`,
@@ -72,6 +79,33 @@ async function checkBoundaries() {
       violations.push(
         `${path.relative(process.cwd(), sourceFile)} exports a repository from its module boundary`,
       );
+    }
+  }
+
+  const visiting = new Set();
+  const visited = new Set();
+  const stack = [];
+  function visit(owner) {
+    if (visiting.has(owner)) {
+      return [...stack.slice(stack.indexOf(owner)), owner];
+    }
+    if (visited.has(owner)) return null;
+    visiting.add(owner);
+    stack.push(owner);
+    for (const dependency of moduleEdges.get(owner) ?? []) {
+      const cycle = visit(dependency);
+      if (cycle) return cycle;
+    }
+    stack.pop();
+    visiting.delete(owner);
+    visited.add(owner);
+    return null;
+  }
+  for (const owner of moduleEdges.keys()) {
+    const cycle = visit(owner);
+    if (cycle) {
+      violations.push(`production module dependency cycle: ${cycle.join(" -> ")}`);
+      break;
     }
   }
 

@@ -272,7 +272,7 @@ export class ChannexChannelSessionService {
 
       const remoteRates = new Map<string, Set<number>>();
       for (const room of (mappingDetails.data?.rooms ?? []) as RemoteRoom[]) {
-        for (const rate of (room.rates ?? []) as RemoteRoomRate[]) {
+        for (const rate of room.rates ?? []) {
           const occupancies = new Set<number>();
           const rawList = Array.isArray(rate.occupancies)
             ? rate.occupancies
@@ -487,7 +487,9 @@ export class ChannexChannelSessionService {
       code: channelCode,
       title: channelData.title ?? channelConnectionAttributes(channelItem).title,
       currency: channelData.currency ?? null,
-      isActive: Boolean(channelData.is_active ?? channelConnectionAttributes(channelItem).is_active),
+      isActive: Boolean(
+        channelData.is_active ?? channelConnectionAttributes(channelItem).is_active,
+      ),
       nativeSupported: supportsNativeWizard(adapter),
       adapter: this.toAdapterDescriptor(adapter),
       localRatePlans: (ratePlansResponse.data ?? []).map((item) => ({
@@ -554,9 +556,7 @@ export class ChannexChannelSessionService {
 
     await this.client.deactivateChannel(channelId);
 
-    this.logger.log(
-      `[Channex Kênh] Tạm dừng kênh OTA ${channelId} cho khách sạn ${hotelId}`,
-    );
+    this.logger.log(`[Channex Kênh] Tạm dừng kênh OTA ${channelId} cho khách sạn ${hotelId}`);
 
     await this.recordSyncLog({
       hotelId,
@@ -613,15 +613,15 @@ export class ChannexChannelSessionService {
       try {
         await this.client.deactivateChannel(channelId);
       } catch (err: any) {
-        this.logger.warn(`[Channex Kênh] Deactivate trước khi xóa kênh ${channelId} có cảnh báo: ${err.message}`);
+        this.logger.warn(
+          `[Channex Kênh] Deactivate trước khi xóa kênh ${channelId} có cảnh báo: ${err.message}`,
+        );
       }
     }
 
     await this.client.deleteChannel(channelId);
 
-    this.logger.log(
-      `[Channex Kênh] Đã xóa kết nối kênh OTA ${channelId} cho khách sạn ${hotelId}`,
-    );
+    this.logger.log(`[Channex Kênh] Đã xóa kết nối kênh OTA ${channelId} cho khách sạn ${hotelId}`);
 
     await this.recordSyncLog({
       hotelId,

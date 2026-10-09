@@ -1,7 +1,11 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
-import { TelegramMarketplaceBridgeService } from "./telegram-marketplace-bridge.service";
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { TelegramNotificationService } from "./telegram-notification.service";
-import { TelegramWebhookController } from "../api/telegram-webhook.controller";
+import {
+  TELEGRAM_MARKETPLACE_DELEGATE,
+  TELEGRAM_PAIRING_DELEGATE,
+  type TelegramMarketplaceDelegate,
+  type TelegramPairingDelegate,
+} from "../api/telegram-webhook.controller";
 
 @Injectable()
 export class TelegramPollingService implements OnModuleInit, OnModuleDestroy {
@@ -11,8 +15,11 @@ export class TelegramPollingService implements OnModuleInit, OnModuleDestroy {
   private pollAbortController: AbortController | null = null;
 
   constructor(
-    private readonly bridgeService: TelegramMarketplaceBridgeService,
     private readonly telegramNotificationService: TelegramNotificationService,
+    @Inject(TELEGRAM_PAIRING_DELEGATE)
+    private readonly pairingDelegate: TelegramPairingDelegate,
+    @Inject(TELEGRAM_MARKETPLACE_DELEGATE)
+    private readonly marketplaceDelegate: TelegramMarketplaceDelegate,
   ) {}
 
   async onModuleInit() {
@@ -44,7 +51,9 @@ export class TelegramPollingService implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
-      this.logger.log("Starting Telegram long-polling worker for local development/realtime updates...");
+      this.logger.log(
+        "Starting Telegram long-polling worker for local development/realtime updates...",
+      );
       this.startPollingLoop();
     } catch (err: any) {
       this.logger.warn(`Could not check Telegram webhook info: ${err.message}`);
@@ -111,21 +120,16 @@ export class TelegramPollingService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async processUpdate(update: {
-    update_id: number;
-    callback_query?: any;
-    message?: any;
-  }) {
+  private async processUpdate(update: { update_id: number; callback_query?: any; message?: any }) {
     try {
       if (update.callback_query?.id) {
         if (update.callback_query.data?.startsWith("mo:")) {
-          await this.bridgeService.handleCallbackQuery(update.callback_query);
+          await this.marketplaceDelegate.handleCallbackQuery(update.callback_query);
         } else {
           await this.telegramNotificationService.handleCallback(update.callback_query);
         }
       }
 
-      const pairingDelegate = TelegramWebhookController.getPairingDelegate();
       if (update.message?.text?.startsWith("/start")) {
         const textParts = update.message.text.trim().split(/\s+/);
         const token = textParts.length > 1 ? textParts[1].trim() : "";
@@ -138,9 +142,9 @@ export class TelegramPollingService implements OnModuleInit, OnModuleDestroy {
               parse_mode: "HTML",
             })
             .catch(() => {});
-        } else if (pairingDelegate && update.message.chat && update.message.from) {
+        } else if (this.pairingDelegate && update.message.chat && update.message.from) {
           try {
-            const pairResult: any = await pairingDelegate.handleStartPairing({
+            const pairResult: any = await this.pairingDelegate.handleStartPairing({
               token,
               telegramUserId: String(update.message.from.id),
               telegramChatId: String(update.message.chat.id),
@@ -171,10 +175,13 @@ export class TelegramPollingService implements OnModuleInit, OnModuleDestroy {
           update.message.text.startsWith("/done") ||
           update.message.text.startsWith("/ketthuc"))
       ) {
-        await this.bridgeService.handleInboundMessage(update.message);
+        await this.marketplaceDelegate.handleInboundMessage(update.message);
       }
     } catch (err: any) {
-      this.logger.error(`Error processing Telegram update #${update.update_id}: ${err.message}`, err.stack);
+      this.logger.error(
+        `Error processing Telegram update #${update.update_id}: ${err.message}`,
+        err.stack,
+      );
     }
   }
 }

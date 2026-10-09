@@ -34,13 +34,12 @@ describe("Marketplace orders", () => {
   });
 
   afterEach(() => {
-    MarketplaceOrderService.setNotificationDispatcher({});
     jest.restoreAllMocks();
   });
   it("consumes asynchronous notification failures", async () => {
     const dispatch = jest.fn().mockRejectedValue(new Error("Telegram unavailable"));
-    MarketplaceOrderService.setNotificationDispatcher({ dispatchOrderNotification: dispatch });
     const service = new MarketplaceOrderService({} as never, {} as never);
+    service.setNotificationDispatcher({ dispatchOrderNotification: dispatch });
 
     (
       service as unknown as {

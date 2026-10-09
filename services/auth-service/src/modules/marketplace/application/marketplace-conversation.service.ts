@@ -50,19 +50,28 @@ function isConversationOpen(order: {
 
 @Injectable()
 export class MarketplaceConversationService {
-  private static bridgeDispatcher?: OutboundBridgeDispatcher;
+  private bridgeDispatcher?: OutboundBridgeDispatcher;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly repo: MarketplaceConversationRepository,
   ) {}
 
-  static setBridgeDispatcher(dispatcher: OutboundBridgeDispatcher) {
+  setBridgeDispatcher(dispatcher: OutboundBridgeDispatcher) {
     this.bridgeDispatcher = dispatcher;
   }
 
-  setBridgeDispatcher(dispatcher: OutboundBridgeDispatcher) {
-    MarketplaceConversationService.bridgeDispatcher = dispatcher;
+  async findOrCreateConversation(
+    orderId: string,
+    details: {
+      hotelId?: string | null;
+      stayId?: string | null;
+      publicSessionId?: string | null;
+      serviceTenantId: string;
+      assignedLocalMateProfileId?: string | null;
+    },
+  ) {
+    return this.repo.findOrCreateConversation(orderId, details);
   }
 
   async getConversation(
@@ -224,8 +233,7 @@ export class MarketplaceConversationService {
     conversation: unknown;
   }) {
     try {
-      const dispatch =
-        MarketplaceConversationService.bridgeDispatcher?.dispatchGuestMessage?.(payload);
+      const dispatch = this.bridgeDispatcher?.dispatchGuestMessage?.(payload);
       if (dispatch && typeof dispatch.catch === "function") {
         void dispatch.catch(() => undefined);
       }
