@@ -34,13 +34,12 @@ import type { MarketplaceOrder } from "@/features/marketplace/types/marketplace-
 import { GuestMarketplaceOrderDetail } from "@/features/marketplace/components/guest-marketplace-order-detail";
 import { getCanonicalOrderItems } from "@/features/marketplace/utils/marketplace-unit";
 
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character] ?? character);
-}
-
 type RequestSourceTab = "ALL" | "HOTEL" | "EXTERNAL";
 
-function getExternalOrderStatusBadge(status: string, t: (key: string) => string): { label: string; className: string } {
+function getExternalOrderStatusBadge(
+  status: string,
+  t: (key: string) => string,
+): { label: string; className: string } {
   switch (status) {
     case "PENDING":
       return { label: t("requests.statusPending"), className: "bg-[#fff3db] text-[#925f0e] border-[#f3d6a2]" };
@@ -143,8 +142,8 @@ export default function GuestRequestsPage() {
     if (!sessionToken || !requestToCancel.canCancel) return;
     const confirmation = await showConfirmDialog({
       title: t("requests.cancel"),
-      html: t("requests.cancelConfirm", {
-        title: `<strong>${escapeHtml(getRequestTitle(requestToCancel, t))}</strong>`,
+      text: t("requests.cancelConfirm", {
+        title: getRequestTitle(requestToCancel, t),
       }),
       icon: "warning",
       confirmText: t("requests.cancel"),

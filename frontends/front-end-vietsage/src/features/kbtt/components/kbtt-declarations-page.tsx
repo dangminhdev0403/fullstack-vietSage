@@ -16,6 +16,7 @@ import {
   showErrorAlert,
   showSuccessAlert,
   SwalVietSage,
+  trustedAlertHtml,
 } from "@/libs/swal";
 
 import { KbttConnectionPage } from "./kbtt-connection-page";
@@ -1157,15 +1158,17 @@ export function KbttDeclarationsPage({
     } else {
       await showErrorAlert(
         "Kết quả gửi BCA",
-        formatBatchResultHtml({
-          total: unsubmittedRows.length,
-          success: successCount,
-          failed: errorItems.length,
-          errors: errorItems,
-          itemTypeLabel: "khách",
-          guidance:
-            "Vui lòng kiểm tra lại thông tin hồ sơ của các phòng bị lỗi hoặc chỉnh sửa thông tin chi tiết trước khi gửi lại.",
-        }),
+        trustedAlertHtml(
+          formatBatchResultHtml({
+            total: unsubmittedRows.length,
+            success: successCount,
+            failed: errorItems.length,
+            errors: errorItems,
+            itemTypeLabel: "khách",
+            guidance:
+              "Vui lòng kiểm tra lại thông tin hồ sơ của các phòng bị lỗi hoặc chỉnh sửa thông tin chi tiết trước khi gửi lại.",
+          }),
+        ),
       );
     }
   }, [
@@ -1244,15 +1247,17 @@ export function KbttDeclarationsPage({
       setCountdownSeconds(AUTO_SUBMIT_DELAY_SECONDS);
       await showErrorAlert(
         "Kết quả tự động gửi BCA",
-        formatBatchResultHtml({
-          total: unsubmittedRows.length,
-          success: successCount,
-          failed: errorItems.length,
-          errors: errorItems,
-          itemTypeLabel: "khách",
-          guidance:
-            "Vui lòng kiểm tra lại thông tin của các phòng bị từ chối trước khi hệ thống thực hiện lượt quét tự động tiếp theo.",
-        }),
+        trustedAlertHtml(
+          formatBatchResultHtml({
+            total: unsubmittedRows.length,
+            success: successCount,
+            failed: errorItems.length,
+            errors: errorItems,
+            itemTypeLabel: "khách",
+            guidance:
+              "Vui lòng kiểm tra lại thông tin của các phòng bị từ chối trước khi hệ thống thực hiện lượt quét tự động tiếp theo.",
+          }),
+        ),
       );
     }
   }, [selectableRows, saveInlineRow, submitMutation, sendBatchSummaryMutation, handleRefresh, isConnected, isListReady, isSubmittingBatch]);

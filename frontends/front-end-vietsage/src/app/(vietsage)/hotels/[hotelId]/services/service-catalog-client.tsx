@@ -175,7 +175,7 @@ export function ServiceCatalogClient({
 
       const result = await showConfirmDialog({
         title: actionTitle,
-        html: `Bạn có chắc chắn muốn <strong>${actionText}</strong> nhóm dịch vụ <strong>"${category.name}"</strong> không?`,
+        text: `Bạn có chắc chắn muốn ${actionText} nhóm dịch vụ "${category.name}" không?`,
         icon: "warning",
         confirmText: isDeactivating ? "Vô hiệu hóa" : "Kích hoạt",
         cancelText: "Hủy",
@@ -215,7 +215,7 @@ export function ServiceCatalogClient({
 
       const result = await showConfirmDialog({
         title: actionTitle,
-        html: `Bạn có chắc chắn muốn <strong>${actionText}</strong> dịch vụ <strong>"${item.name}"</strong> không?`,
+        text: `Bạn có chắc chắn muốn ${actionText} dịch vụ "${item.name}" không?`,
         icon: "warning",
         confirmText: isDeactivating ? "Vô hiệu hóa" : "Kích hoạt",
         cancelText: "Hủy",

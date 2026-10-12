@@ -173,7 +173,7 @@ export function HotelPartnerSettlementsTab({
     const confirm = await showConfirmDialog({
       icon: "question",
       title: "Xác nhận quyết toán đơn hàng?",
-      html: `Quyết toán cho đơn hàng <b>#${orderNum}</b> số tiền <b>${netStr} VND</b> cho đối tác dịch vụ.<br/><br/><i>Hành động này xác nhận Khách sạn đã chuyển tiền/thanh toán đầy đủ cho Đối tác.</i>`,
+      text: `Quyết toán cho đơn hàng #${orderNum}, số tiền ${netStr} VND cho đối tác dịch vụ. Hành động này xác nhận Khách sạn đã chuyển tiền/thanh toán đầy đủ cho Đối tác.`,
       confirmText: "Xác nhận quyết toán",
       cancelText: "Quay lại",
     });
@@ -221,7 +221,7 @@ export function HotelPartnerSettlementsTab({
     const confirm = await showConfirmDialog({
       icon: "warning",
       title: `Quyết toán ${count} đơn hàng chọn?`,
-      html: `Tổng tiền thanh toán cho đối tác: <b>${totalBatchStr} VND</b> (${count} giao dịch).<br/><br/>Xác nhận khách sạn đã đối soát và chi trả toàn bộ số tiền này.`,
+      text: `Tổng tiền thanh toán cho đối tác: ${totalBatchStr} VND (${count} giao dịch). Xác nhận khách sạn đã đối soát và chi trả toàn bộ số tiền này.`,
       confirmText: `Quyết toán ${count} đơn`,
       cancelText: "Quay lại",
     });

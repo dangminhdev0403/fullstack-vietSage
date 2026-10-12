@@ -2,7 +2,12 @@
 
 import { useId, useMemo, useState } from "react";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
-import { showErrorAlert, showSuccessAlert } from "@/libs/swal";
+import {
+  escapeHtml,
+  showErrorAlert,
+  showSuccessAlert,
+  trustedAlertHtml,
+} from "@/libs/swal";
 import { useChannex } from "../hooks/use-channel-manager";
 
 interface AriPushCardProps {
@@ -112,6 +117,15 @@ export function AriPushCard({
       const endVn = formatVnDate(result.endDate || endDate);
       const range =
         endVn && endVn !== startVn ? `${startVn} → ${endVn}` : startVn;
+      const safeRange = escapeHtml(range);
+      const safeAvailabilityCount = escapeHtml(
+        String(result.availabilityPushedCount ?? 0),
+      );
+      const safeRestrictionsCount = escapeHtml(
+        String(result.restrictionsPushedCount ?? 0),
+      );
+      const safeSourceCurrency = escapeHtml(String(result.sourceCurrency ?? ""));
+      const safeTargetCurrency = escapeHtml(String(result.targetCurrency ?? ""));
 
       const summary = `Đã phân phối ${result.availabilityPushedCount ?? 0} dải phòng trống & ${result.restrictionsPushedCount ?? 0} dải giá (${range}).`;
 
@@ -142,17 +156,17 @@ export function AriPushCard({
   <div class="rounded-xl border border-amber-200/90 bg-amber-50/70 p-3.5 space-y-2 text-xs sm:text-sm">
     <div class="flex items-center justify-between gap-3 border-b border-amber-200/60 pb-2">
       <span class="text-slate-600 font-medium">Khoảng thời gian:</span>
-      <span class="font-bold text-slate-900">${range}</span>
+      <span class="font-bold text-slate-900">${safeRange}</span>
     </div>
     <div class="flex items-center justify-between gap-3 border-b border-amber-200/60 pb-2">
       <span class="text-slate-600 font-medium">Dữ liệu đã gửi:</span>
-      <span class="font-bold text-amber-950">${result.availabilityPushedCount ?? 0} phòng trống • ${result.restrictionsPushedCount ?? 0} dải giá</span>
+      <span class="font-bold text-amber-950">${safeAvailabilityCount} phòng trống • ${safeRestrictionsCount} dải giá</span>
     </div>
     ${
       result.rateConversionApplied
         ? `<div class="flex items-center justify-between gap-3 pt-0.5">
              <span class="text-slate-600 font-medium">Quy đổi ngoại tệ:</span>
-             <span class="font-bold text-amber-800">${result.sourceCurrency} → ${result.targetCurrency}</span>
+             <span class="font-bold text-amber-800">${safeSourceCurrency} → ${safeTargetCurrency}</span>
            </div>`
         : ""
     }
@@ -164,7 +178,10 @@ export function AriPushCard({
   </div>
 </div>`.trim();
 
-        await showErrorAlert("Đã gửi nhưng đối soát chưa khớp", mismatchHtml);
+        await showErrorAlert(
+          "Đã gửi nhưng đối soát chưa khớp",
+          trustedAlertHtml(mismatchHtml),
+        );
         return;
       }
 
@@ -173,21 +190,21 @@ export function AriPushCard({
   <div class="rounded-xl border border-emerald-200/90 bg-emerald-50/70 p-3.5 space-y-2 text-xs sm:text-sm">
     <div class="flex items-center justify-between gap-3 border-b border-emerald-200/60 pb-2">
       <span class="text-slate-600 font-medium">Khoảng thời gian:</span>
-      <span class="font-bold text-slate-900">${range}</span>
+      <span class="font-bold text-slate-900">${safeRange}</span>
     </div>
     <div class="flex items-center justify-between gap-3 border-b border-emerald-200/60 pb-2">
       <span class="text-slate-600 font-medium">Quỹ phòng trống:</span>
-      <span class="font-bold text-emerald-800">${result.availabilityPushedCount ?? 0} dải phòng</span>
+      <span class="font-bold text-emerald-800">${safeAvailabilityCount} dải phòng</span>
     </div>
     <div class="flex items-center justify-between gap-3 ${result.rateConversionApplied ? "border-b border-emerald-200/60 pb-2" : ""}">
       <span class="text-slate-600 font-medium">Biểu giá & điều kiện:</span>
-      <span class="font-bold text-emerald-800">${result.restrictionsPushedCount ?? 0} dải giá</span>
+      <span class="font-bold text-emerald-800">${safeRestrictionsCount} dải giá</span>
     </div>
     ${
       result.rateConversionApplied
         ? `<div class="flex items-center justify-between gap-3 pt-0.5">
              <span class="text-slate-600 font-medium">Quy đổi ngoại tệ:</span>
-             <span class="font-bold text-amber-800">${result.sourceCurrency} → ${result.targetCurrency} (tỷ giá staging)</span>
+             <span class="font-bold text-amber-800">${safeSourceCurrency} → ${safeTargetCurrency} (tỷ giá staging)</span>
            </div>`
         : ""
     }
@@ -199,7 +216,10 @@ export function AriPushCard({
   </div>
 </div>`.trim();
 
-      await showSuccessAlert("Đồng bộ OTA thành công", successHtml);
+      await showSuccessAlert(
+        "Đồng bộ OTA thành công",
+        trustedAlertHtml(successHtml),
+      );
     } catch (error: unknown) {
       await showErrorAlert("Không thể đồng bộ giá và quỹ phòng", error);
     }

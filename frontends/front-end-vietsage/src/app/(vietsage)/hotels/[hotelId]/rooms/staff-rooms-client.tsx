@@ -895,14 +895,10 @@ export function StaffRoomsClient({
     const confirm = await showConfirmDialog({
       icon: "question",
       title: "Nhận phòng cho khách OTA?",
-      html: `
-        <div style="text-align:left; font-size:13px; line-height:1.6;">
-          <p><strong>Khách hàng:</strong> ${booking.guestName}</p>
-          <p><strong>Kênh OTA:</strong> <span style="color:#0284c7; font-weight:700;">${booking.otaName}</span></p>
-          <p><strong>Phòng:</strong> <strong>${getRoomNumber(room)}</strong> (${room.type || "Tiêu chuẩn"})</p>
-          <p><strong>Lưu trú:</strong> ${booking.checkInDate} ➔ ${booking.checkOutDate}</p>
-        </div>
-      `,
+      text: `Khách hàng: ${booking.guestName}
+Kênh OTA: ${booking.otaName}
+Phòng: ${getRoomNumber(room)} (${room.type || "Tiêu chuẩn"})
+Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
       confirmText: "Nhận phòng",
       cancelText: "Hủy",
     });
@@ -921,12 +917,7 @@ export function StaffRoomsClient({
 
       await showSuccessAlert(
         "Nhận phòng thành công",
-        `
-          <div style="text-align:left; font-size:13px; line-height:1.6;">
-            <p>Đã nhận phòng <strong>${getRoomNumber(room)}</strong> cho khách <strong>${booking.guestName}</strong>.</p>
-            ${res.data?.accessCode ? `<p style="margin-top:8px">Mã GuestOS: <strong style="font-size:15px; color:#0284c7;">${res.data.accessCode}</strong></p>` : ""}
-          </div>
-        `,
+        `Đã nhận phòng ${getRoomNumber(room)} cho khách ${booking.guestName}.${res.data?.accessCode ? ` Mã GuestOS: ${res.data.accessCode}` : ""}`,
       );
 
       await invalidateHotelRealtimeQueries(queryClient, hotelId);

@@ -214,13 +214,9 @@ export function OtaBookingsTab({
     const confirmation = await showConfirmDialog({
       icon: "question",
       title: "Nhận phòng cho khách OTA?",
-      html: `
-        <div class="text-left text-sm text-slate-700 leading-relaxed">
-          <p>Khách hàng: <strong>${b.guestName}</strong></p>
-          <p>Kênh: <strong>${b.otaName}</strong></p>
-          <p>Phòng: <strong class="text-emerald-700 text-base font-bold">Phòng ${b.roomNumber}</strong> (${b.roomType || "Tiêu chuẩn"})</p>
-        </div>
-      `,
+      text: `Khách hàng: ${b.guestName}
+Kênh: ${b.otaName}
+Phòng: ${b.roomNumber} (${b.roomType || "Tiêu chuẩn"})`,
       confirmText: "Nhận phòng",
       cancelText: "Hủy",
     });
@@ -246,12 +242,7 @@ export function OtaBookingsTab({
 
       await showSuccessAlert(
         "Nhận phòng thành công",
-        `
-          <div class="text-left text-sm text-slate-700 leading-relaxed">
-            <p>Khách <strong>${b.guestName}</strong> đã nhận <strong>Phòng ${b.roomNumber}</strong>.</p>
-            ${res.data?.accessCode ? `<p class="mt-2">Mã GuestOS: <span class="font-mono text-base font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">${res.data.accessCode}</span></p>` : ""}
-          </div>
-        `,
+        `Khách ${b.guestName} đã nhận phòng ${b.roomNumber}.${res.data?.accessCode ? ` Mã GuestOS: ${res.data.accessCode}` : ""}`,
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Không thể thực hiện check-in.";
@@ -297,12 +288,7 @@ export function OtaBookingsTab({
 
       await showSuccessAlert(
         "Xếp phòng thành công",
-        `
-          <div class="text-left text-sm text-slate-700 leading-relaxed">
-            <p>Đã xếp <strong>Phòng ${roomNumber}</strong> cho khách <strong>${targetBooking.guestName}</strong>.</p>
-            ${res.data?.accessCode ? `<p class="mt-2">Mã GuestOS: <span class="font-mono text-base font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">${res.data.accessCode}</span></p>` : ""}
-          </div>
-        `,
+        `Đã xếp phòng ${roomNumber} cho khách ${targetBooking.guestName}.${res.data?.accessCode ? ` Mã GuestOS: ${res.data.accessCode}` : ""}`,
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Không thể gán phòng và check-in.";

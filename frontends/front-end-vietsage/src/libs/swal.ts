@@ -19,11 +19,44 @@ export const SwalVietSage = Swal.mixin({
   reverseButtons: false,
 });
 
-export function showSuccessAlert(title: string, messageOrHtml: string) {
-  const isHtml = /^\s*<[a-z][\s\S]*>/i.test(messageOrHtml);
+const TRUSTED_ALERT_HTML = Symbol("trustedAlertHtml");
+
+export type TrustedAlertHtml = {
+  readonly html: string;
+  readonly [TRUSTED_ALERT_HTML]: true;
+};
+
+export function trustedAlertHtml(html: string): TrustedAlertHtml {
+  return { html, [TRUSTED_ALERT_HTML]: true };
+}
+
+function isTrustedAlertHtml(value: unknown): value is TrustedAlertHtml {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    TRUSTED_ALERT_HTML in value &&
+    (value as TrustedAlertHtml)[TRUSTED_ALERT_HTML] === true
+  );
+}
+
+export function resolveAlertContent(
+  value: unknown,
+  formatAsError = false,
+): { text?: string; html?: string } {
+  if (isTrustedAlertHtml(value)) return { html: value.html };
+  const text = typeof value === "string" ? value : extractErrorMessage(value);
+  return formatAsError ? { html: formatAlertErrorMessage(text) } : { text };
+}
+
+export function showSuccessAlert(
+  title: string,
+  messageOrHtml: string | TrustedAlertHtml,
+) {
+  const content = resolveAlertContent(messageOrHtml);
+  const isHtml = "html" in content;
   return SwalVietSage.fire({
-    title,
-    ...(isHtml ? { html: messageOrHtml } : { text: messageOrHtml }),
+    titleText: title,
+    ...content,
     icon: "success",
     showConfirmButton: true,
     confirmButtonText: "OK",
@@ -481,16 +514,14 @@ export function extractErrorMessage(value: unknown): string {
 }
 
 export function showErrorAlert(title: string, messageOrError?: unknown) {
-  const rawText = extractErrorMessage(messageOrError);
-  const isHtml = /^\s*<[a-z][\s\S]*>/i.test(rawText);
-  const htmlContent = isHtml ? rawText : formatAlertErrorMessage(rawText);
+  const { html: htmlContent = "" } = resolveAlertContent(messageOrError, true);
   const isLarge =
     htmlContent.includes("grid-cols-") ||
     htmlContent.includes("max-h-") ||
     htmlContent.length > 350;
 
   return SwalVietSage.fire({
-    title,
+    titleText: title,
     html: htmlContent,
     icon: "error",
     showConfirmButton: true,
@@ -516,14 +547,13 @@ export function showErrorAlert(title: string, messageOrError?: unknown) {
 export function showConfirmDialog(options: {
   title: string;
   text?: string;
-  html?: string;
   confirmText?: string;
   cancelText?: string;
   icon?: "warning" | "question" | "error" | "info";
 }) {
   return SwalVietSage.fire({
-    title: options.title,
-    ...(options.html ? { html: options.html } : { text: options.text }),
+    titleText: options.title,
+    text: options.text,
     icon: options.icon ?? "warning",
     showCancelButton: true,
     confirmButtonText: options.confirmText ?? "Xác nhận",
@@ -531,11 +561,13 @@ export function showConfirmDialog(options: {
   });
 }
 
-export function showWarningAlert(title: string, messageOrHtml: string) {
-  const isHtml = /^\s*<[a-z][\s\S]*>/i.test(messageOrHtml);
+export function showWarningAlert(
+  title: string,
+  messageOrHtml: string | TrustedAlertHtml,
+) {
   return SwalVietSage.fire({
-    title,
-    ...(isHtml ? { html: messageOrHtml } : { text: messageOrHtml }),
+    titleText: title,
+    ...resolveAlertContent(messageOrHtml),
     icon: "warning",
     showConfirmButton: true,
     confirmButtonText: "OK",

@@ -12,6 +12,7 @@ export const PUBLIC_PATTERNS = [
   "/localmate/knowledge",
   "/localmate/tours",
   "/public/localmate/sessions",
+  "/public/localmate/session/active",
   "/api/v1/channel-manager/channex/webhook",
   // Public transport only; StripeWebhookController still requires a valid provider signature.
   "/webhooks/stripe",

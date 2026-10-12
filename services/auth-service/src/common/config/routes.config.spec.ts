@@ -57,6 +57,12 @@ describe("public route configuration", () => {
     expect(publicMatcher.isPublic("/localmate/guides")).toBe(false);
   });
 
+  it("allows the public LocalMate session transport without opening sibling routes", () => {
+    expect(publicMatcher.isPublic("/public/localmate/sessions")).toBe(true);
+    expect(publicMatcher.isPublic("/public/localmate/session/active")).toBe(true);
+    expect(publicMatcher.isPublic("/public/localmate/session/admin")).toBe(false);
+  });
+
   it("forbids simulate-payment and allows only legitimate public localmate order routes", () => {
     expect(publicMatcher.isPublic("/public/localmate/orders/order-1/simulate-payment")).toBe(false);
     expect(publicMatcher.isPublic("/public/localmate/orders/order-1/payment-session")).toBe(true);
