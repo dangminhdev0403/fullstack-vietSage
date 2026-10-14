@@ -45,6 +45,7 @@ type Props = {
     maintenance: number;
   };
   canManageRooms: boolean;
+  canManageReservations?: boolean;
   canManageStays: boolean;
   canViewBilling?: boolean;
   canCheckoutBilling?: boolean;
@@ -52,6 +53,8 @@ type Props = {
   canCheckInStay?: boolean;
   initialFlow?: string;
   initialBusinessDate?: string;
+  initialArrivalRange?: string;
+  initialQuery?: string;
   isHousekeeping?: boolean;
   enabledFeatures?: readonly string[];
 };
@@ -71,15 +74,134 @@ type RoomQrPreview = {
   guestUrl: string | null;
 };
 
-const statusFilters: Array<{ value: RoomStatusFilter; label: string }> = [
-  { value: "all", label: "Tất cả" },
-  { value: "available", label: "Trống" },
-  { value: "occupied", label: "Đang ở" },
-  { value: "overdue", label: "⚠️ Quá hạn trả" },
-  { value: "processing", label: "Chờ dọn" },
-  { value: "maintenance", label: "Bảo trì" },
-  { value: "blocked", label: "Đã khóa" },
+type FilterSelectOption<T extends string> = {
+  value: T;
+  label: string;
+  shortLabel?: string;
+  dotColor?: string;
+};
+
+const statusFilters: Array<FilterSelectOption<RoomStatusFilter>> = [
+  { value: "all", label: "Tất cả trạng thái", shortLabel: "Tất cả" },
+  { value: "available", label: "Trống", shortLabel: "Trống", dotColor: "bg-emerald-500" },
+  { value: "occupied", label: "Đang ở", shortLabel: "Đang ở", dotColor: "bg-sky-500" },
+  { value: "overdue", label: "Quá hạn trả", shortLabel: "Quá hạn", dotColor: "bg-rose-500" },
+  { value: "processing", label: "Chờ dọn", shortLabel: "Chờ dọn", dotColor: "bg-amber-500" },
+  { value: "maintenance", label: "Bảo trì", shortLabel: "Bảo trì", dotColor: "bg-orange-500" },
+  { value: "blocked", label: "Đã khóa", shortLabel: "Đã khóa", dotColor: "bg-slate-400" },
 ];
+
+type FilterSelectProps<T extends string> = {
+  id: string;
+  label: string;
+  value: T;
+  options: FilterSelectOption<T>[];
+  onChange: (value: T) => void;
+  icon: string;
+  activeDropdown: string | null;
+  setActiveDropdown: (id: string | null) => void;
+};
+
+function FilterSelect<T extends string>({
+  id,
+  label,
+  value,
+  options,
+  onChange,
+  icon,
+  activeDropdown,
+  setActiveDropdown,
+}: FilterSelectProps<T>) {
+  const isOpen = activeDropdown === id;
+  const isFiltered = value !== "all" && value !== "";
+  const selectedOption = options.find((o) => o.value === value);
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setActiveDropdown(isOpen ? null : id)}
+        className={`inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs sm:text-sm font-bold transition-all cursor-pointer shadow-2xs min-h-[40px] select-none ${
+          isFiltered
+            ? "border-[var(--primary)] bg-[var(--primary)]/8 text-[var(--primary)] shadow-sm font-black ring-1 ring-[var(--primary)]/20"
+            : isOpen
+              ? "border-[var(--primary)] bg-white text-slate-900 ring-2 ring-[var(--primary)]/15"
+              : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+        }`}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+      >
+        <VsIcon
+          name={icon}
+          className={`text-base shrink-0 transition-colors ${
+            isFiltered ? "text-[var(--primary)]" : "text-slate-500"
+          }`}
+        />
+        <div className="flex items-center gap-1.5 truncate text-left">
+          <span className="text-slate-500 font-semibold">{label}:</span>
+          <span
+            className={`truncate ${
+              isFiltered ? "font-black text-[var(--primary)]" : "font-bold text-slate-800"
+            }`}
+          >
+            {selectedOption?.shortLabel || selectedOption?.label || value}
+          </span>
+          {selectedOption?.dotColor ? (
+            <span
+              className={`inline-block h-2 w-2 rounded-full shrink-0 ${selectedOption.dotColor}`}
+            />
+          ) : null}
+        </div>
+        <VsIcon
+          name="expand_more"
+          className={`text-base shrink-0 text-slate-400 transition-transform duration-200 ${
+            isOpen ? "rotate-180 text-slate-700" : ""
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-0 top-full mt-1.5 min-w-[200px] max-w-[280px] max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl z-30 animate-in fade-in zoom-in-95 duration-150">
+          <div className="py-1 px-2.5 text-[11px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1">
+            Chọn {label.toLowerCase()}
+          </div>
+          {options.map((opt) => {
+            const isSelected = opt.value === value;
+            return (
+              <button
+                type="button"
+                key={opt.value}
+                onClick={() => {
+                  onChange(opt.value);
+                  setActiveDropdown(null);
+                }}
+                className={`flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-xs font-bold transition-colors cursor-pointer ${
+                  isSelected
+                    ? "bg-[var(--primary)] text-white shadow-2xs font-black"
+                    : "text-slate-700 hover:bg-slate-100 hover:text-slate-950"
+                }`}
+              >
+                <span className="flex items-center gap-2 truncate">
+                  {opt.dotColor ? (
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full shrink-0 border ${
+                        isSelected ? "border-white" : "border-transparent"
+                      } ${opt.dotColor}`}
+                    />
+                  ) : null}
+                  <span className="truncate">{opt.label}</span>
+                </span>
+                {isSelected ? (
+                  <VsIcon name="check" className="text-sm shrink-0 text-white font-black" />
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function localDateTime(offsetDays: number, hour: number): string {
   const value = new Date();
@@ -98,6 +220,13 @@ function formatDateTime(value: string | null | undefined): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function formatPriceInput(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === "") return "";
+  const digits = String(value).replace(/\D/g, "");
+  if (!digits) return "";
+  return new Intl.NumberFormat("vi-VN").format(Number(digits));
 }
 
 function getRoomNumber(room: HotelRoomSummary): string {
@@ -302,20 +431,6 @@ function StayOccupantsViewer({ stay }: { stay: NonNullable<HotelRoomSummary["act
   );
 }
 
-function activeStayProgress(room: HotelRoomSummary): number {
-  const stay = room.activeStay;
-  if (!stay?.plannedCheckInAt || !stay.plannedCheckOutAt) return 0;
-  const start = new Date(stay.plannedCheckInAt).getTime();
-  const end = new Date(stay.plannedCheckOutAt).getTime();
-  const now = Date.now();
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start)
-    return 0;
-  return Math.max(
-    0,
-    Math.min(100, Math.round(((now - start) / (end - start)) * 100)),
-  );
-}
-
 function renderPaginationButtons(
   currentPage: number,
   totalPages: number,
@@ -409,6 +524,7 @@ export function StaffRoomsClient({
   initialRoomsPage,
   initialByStatus,
   canManageRooms,
+  canManageReservations = false,
   canManageStays,
   canViewBilling = false,
   canCheckoutBilling = false,
@@ -416,6 +532,8 @@ export function StaffRoomsClient({
   canCheckInStay = false,
   initialFlow,
   initialBusinessDate,
+  initialArrivalRange,
+  initialQuery,
   isHousekeeping = false,
   enabledFeatures,
 }: Props) {
@@ -449,20 +567,53 @@ export function StaffRoomsClient({
   const isFutureDate = !isHousekeeping && Boolean(businessDate && businessDate > todayYmd);
 
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(24);
-  const [inputQuery, setInputQuery] = useState("");
-  const [query, setQuery] = useState("");
+  const [pageSize, setPageSize] = useState<number>(25);
+  const [inputQuery, setInputQuery] = useState(initialQuery ?? "");
+  const [query, setQuery] = useState(initialQuery ?? "");
   const [floor, setFloor] = useState("all");
   const [type, setType] = useState("all");
   const [status, setStatus] = useState<RoomStatusFilter>("all");
   const hasActiveFilters = Boolean(
     inputQuery.trim() || floor !== "all" || type !== "all" || status !== "all"
   );
+  const activeFilterCount = [
+    Boolean(inputQuery.trim()),
+    floor !== "all",
+    type !== "all",
+    status !== "all",
+  ].filter(Boolean).length;
+
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const filterToolbarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        filterToolbarRef.current &&
+        !filterToolbarRef.current.contains(e.target as Node)
+      ) {
+        setActiveDropdown(null);
+      }
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setActiveDropdown(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   const resetFilters = () => {
     setInputQuery("");
     setFloor("all");
     setType("all");
     setStatus("all");
+    setActiveDropdown(null);
     setPage(1);
   };
   const [selectedRoom, setSelectedRoom] = useState<HotelRoomSummary | null>(
@@ -500,6 +651,7 @@ export function StaffRoomsClient({
     initialFlow === "reservation" && !isHousekeeping,
   );
   const [reservationRoomId, setReservationRoomId] = useState<string>("");
+  const [initialReservationRoomId, setInitialReservationRoomId] = useState<string>("");
   const [reservationGuestName, setReservationGuestName] = useState<string>("");
   const [reservationGuestPhone, setReservationGuestPhone] = useState<string>("");
   const [reservationCheckIn, setReservationCheckIn] = useState<string>(() => {
@@ -531,10 +683,17 @@ export function StaffRoomsClient({
   });
   const [reservationNightlyRate, setReservationNightlyRate] = useState<string>("");
   const [reservationSubmitting, setReservationSubmitting] = useState<boolean>(false);
+  const reservationPriceInputRef = useRef<HTMLInputElement>(null);
 
   // Arrivals State
-  const [isArrivalsOpen, setIsArrivalsOpen] = useState(false);
-  const [arrivalsRange, setArrivalsRange] = useState<"today" | "tomorrow" | "week">("today");
+  const initialRange =
+    initialArrivalRange === "today" || initialArrivalRange === "week"
+      ? initialArrivalRange
+      : "tomorrow";
+  const [isArrivalsOpen, setIsArrivalsOpen] = useState(initialFlow === "arrivals");
+  const [arrivalsRange, setArrivalsRange] = useState<"today" | "tomorrow" | "week">(
+    initialRange,
+  );
   const [arrivalsList, setArrivalsList] = useState<HotelArrival[]>([]);
   const [arrivalsLoading, setArrivalsLoading] = useState(false);
 
@@ -553,9 +712,13 @@ export function StaffRoomsClient({
   function openFutureReservationModal(room?: HotelRoomSummary) {
     if (room?.id) {
       setReservationRoomId(room.id);
+      setInitialReservationRoomId(room.id);
       if (room.price) {
         setReservationNightlyRate(String(room.price));
       }
+    } else {
+      setReservationRoomId("");
+      setInitialReservationRoomId("");
     }
     if (businessDate && businessDate > todayYmd) {
       const checkInD = new Date(businessDate);
@@ -685,7 +848,18 @@ export function StaffRoomsClient({
     void loadArrivals(arrivalsRange);
   }
 
+  useEffect(() => {
+    if (initialFlow === "arrivals") {
+      const timer = setTimeout(() => {
+        void loadArrivals(initialRange);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFlow, initialRange]);
+
   async function handleAssignRoom(arrival: HotelArrival) {
+    if (!canManageReservations) return;
     const availableRooms = rooms.filter(
       (r) => getRoomStatus(r) === "available" || r.id === arrival.roomId,
     );
@@ -754,6 +928,7 @@ export function StaffRoomsClient({
   }
 
   async function handleCheckInArrival(arrival: HotelArrival) {
+    if (!canCheckInStay) return;
     if (!arrival.roomId) {
       await showWarningAlert(
         "Chưa gán phòng",
@@ -828,7 +1003,7 @@ export function StaffRoomsClient({
     placeholderData: keepPreviousData,
     initialData:
       page === 1 &&
-      pageSize === 24 &&
+      pageSize === 25 &&
       !query &&
       status === "all" &&
       floor === "all" &&
@@ -836,10 +1011,10 @@ export function StaffRoomsClient({
       businessDate === (isHousekeeping ? todayYmd : initialBusinessDate || todayYmd)
         ? {
             ...initialRoomsPage,
-            items: initialRoomsPage.items.slice(0, 24),
+            items: initialRoomsPage.items.slice(0, 25),
             total: initialRoomsPage.total ?? initialRoomsPage.items.length,
-            totalPages: Math.max(1, Math.ceil((initialRoomsPage.total ?? initialRoomsPage.items.length) / 24)),
-            limit: 24,
+            totalPages: Math.max(1, Math.ceil((initialRoomsPage.total ?? initialRoomsPage.items.length) / 25)),
+            limit: 25,
           }
         : undefined,
   });
@@ -860,6 +1035,78 @@ export function StaffRoomsClient({
     const rawTypes = roomsPage?.types ?? initialRoomsPage.types ?? [];
     return [...new Set(rawTypes)].sort((a, b) => a.localeCompare(b));
   }, [roomsPage?.types, initialRoomsPage.types]);
+
+  const selectedReservationRoom = rooms.find((r) => r.id === reservationRoomId);
+  const initialReservationRoom = rooms.find((r) => r.id === initialReservationRoomId);
+
+  function handleReservationNightlyRateChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.target;
+    const rawValue = input.value;
+    const selectionStart = input.selectionStart ?? rawValue.length;
+
+    const digitsBeforeCursor = rawValue.slice(0, selectionStart).replace(/\D/g, "").length;
+    const rawDigits = rawValue.replace(/\D/g, "");
+    setReservationNightlyRate(rawDigits);
+
+    const formatted = rawDigits ? new Intl.NumberFormat("vi-VN").format(Number(rawDigits)) : "";
+
+    requestAnimationFrame(() => {
+      if (reservationPriceInputRef.current) {
+        let count = 0;
+        let newCursor = 0;
+        if (digitsBeforeCursor === 0) {
+          newCursor = 0;
+        } else {
+          for (let i = 0; i < formatted.length; i++) {
+            if (/\d/.test(formatted[i])) count++;
+            if (count === digitsBeforeCursor) {
+              newCursor = i + 1;
+              break;
+            }
+          }
+        }
+        reservationPriceInputRef.current.setSelectionRange(newCursor, newCursor);
+      }
+    });
+  }
+
+  function handleReservationPriceKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Backspace") {
+      const input = e.currentTarget;
+      const start = input.selectionStart;
+      const end = input.selectionEnd;
+      if (start !== null && start === end && start > 0) {
+        if (input.value[start - 1] === ".") {
+          e.preventDefault();
+          const before = input.value.slice(0, start - 2);
+          const after = input.value.slice(start);
+          const newRaw = before + after;
+          const rawDigits = newRaw.replace(/\D/g, "");
+          setReservationNightlyRate(rawDigits);
+          const formatted = rawDigits ? new Intl.NumberFormat("vi-VN").format(Number(rawDigits)) : "";
+          const digitsBefore = before.replace(/\D/g, "").length;
+          requestAnimationFrame(() => {
+            if (reservationPriceInputRef.current) {
+              let count = 0;
+              let newCursor = 0;
+              if (digitsBefore === 0) {
+                newCursor = 0;
+              } else {
+                for (let i = 0; i < formatted.length; i++) {
+                  if (/\d/.test(formatted[i])) count++;
+                  if (count === digitsBefore) {
+                    newCursor = i + 1;
+                    break;
+                  }
+                }
+              }
+              reservationPriceInputRef.current.setSelectionRange(newCursor, newCursor);
+            }
+          });
+        }
+      }
+    }
+  }
 
   const filteredRooms =
     isFutureDate && status !== "all"
@@ -1739,11 +1986,10 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--primary)] border-t-transparent" />
             </div>
           )}
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-5">
             {filteredRooms.map((room) => {
               const effectiveStatus = getEffectiveRoomStatus(room, isFutureDate);
               const physicalStatus = getRoomStatus(room);
-              const progress = activeStayProgress(room);
               const incomingOta = incomingOtaByRoomNumber.get(getRoomNumber(room).toUpperCase());
               const isVip = /suite|vip|premium|penthouse/i.test(room.type ?? "");
               const isReserved =
@@ -1805,9 +2051,9 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                           <VsIcon name="error" className="text-sm text-rose-500 shrink-0" />
                           <span className="truncate">{room.activeStay?.guestDisplayName ?? "Khách chưa trả phòng"}</span>
                         </div>
-                        {room.activeStay?.reservationCode ? (
-                          <span className="mt-0.5 font-mono text-xs font-bold text-rose-900 bg-rose-100/90 border border-rose-300 px-2 py-0.5 rounded w-fit">
-                            #{room.activeStay.reservationCode}
+                        {room.activeStay?.plannedCheckOutAt ? (
+                          <span className="text-xs font-bold text-rose-700">
+                            Hạn trả: {formatDateTime(room.activeStay.plannedCheckOutAt)}
                           </span>
                         ) : null}
                       </div>
@@ -1834,6 +2080,11 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                                 {isFutureDate ? "Đã có lịch lưu trú tương lai" : (room.activeStay?.guestDisplayName ?? "Khách lưu trú (Đã nhận phòng)")}
                               </span>
                             </div>
+                            {!isFutureDate && room.activeStay?.plannedCheckOutAt ? (
+                              <span className="text-xs font-semibold text-slate-600">
+                                Trả phòng: {formatDateTime(room.activeStay.plannedCheckOutAt)}
+                              </span>
+                            ) : null}
                             {room.activeStay?.reservationCode ? (
                               <span className="font-mono text-xs font-bold text-sky-900 bg-sky-100/90 border border-sky-300 px-2 py-0.5 rounded w-fit">
                                 #{room.activeStay.reservationCode}
@@ -1907,34 +2158,11 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                   </div>
 
                   {/* Footer */}
-                  <div className="mt-auto border-t border-slate-200/60 pt-3">
-                    {!isFutureDate && effectiveStatus === "occupied" ? (
-                      <>
-                        <div className="mb-1 flex justify-between text-xs text-slate-500 font-medium">
-                          <span>
-                            {formatDateTime(
-                              room.activeStay?.checkedInAt ?? room.activeStay?.plannedCheckInAt,
-                            )}
-                          </span>
-                          <span>
-                            {formatDateTime(room.activeStay?.plannedCheckOutAt)}
-                          </span>
-                        </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
-                          <div
-                            className="h-full rounded-full bg-sky-500"
-                            style={{ width: `${progress}%` }}
-                          />
-                        </div>
-                      </>
-                    ) : (
-                      <div className="h-1.5 rounded-full bg-slate-100" />
-                    )}
-
-                    <div className="mt-2.5 flex items-center justify-between gap-1.5 overflow-hidden">
+                  <div className="mt-auto border-t border-slate-200/60 pt-2.5">
+                    <div className="flex items-center justify-between gap-2 overflow-hidden">
                       {!isHousekeeping ? (
                         <span
-                          className="shrink-0 whitespace-nowrap text-xs font-extrabold text-amber-950 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-md shadow-2xs tabular-nums tracking-tight"
+                          className="shrink-0 whitespace-nowrap text-base font-black text-amber-950 bg-amber-100/90 border border-amber-300 px-3 py-1 rounded-lg shadow-2xs tabular-nums tracking-tight"
                           title={
                             room.price && Number(room.price) > 0
                               ? `Giá phòng: ${formatMoney({ price: room.price ?? null, currency: "VND" })}`
@@ -1942,11 +2170,11 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                           }
                         >
                           {room.price && Number(room.price) > 0
-                            ? `${formatMoney({ price: room.price ?? null, currency: "VND" })}`
+                            ? formatMoney({ price: room.price ?? null, currency: "VND" })
                             : room.type ? room.type : "Giá linh hoạt"}
                         </span>
                       ) : (
-                        <span className="shrink-0 whitespace-nowrap text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-300 px-2 py-0.5 rounded-md">
+                        <span className="shrink-0 whitespace-nowrap text-sm font-bold text-slate-700 bg-slate-100 border border-slate-300 px-2.5 py-1 rounded-lg">
                           {room.type ?? "Tiêu chuẩn"}
                         </span>
                       )}
@@ -2195,10 +2423,12 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                 }}
                 className="h-8 rounded-lg border border-slate-300 bg-white px-2 text-xs font-bold text-slate-800 focus:border-blue-900 outline-none cursor-pointer"
               >
-                <option value={12}>12 phòng</option>
-                <option value={24}>24 phòng</option>
-                <option value={48}>48 phòng</option>
-                <option value={96}>96 phòng</option>
+                <option value={15}>15 phòng</option>
+                <option value={20}>20 phòng</option>
+                <option value={25}>25 phòng</option>
+                <option value={30}>30 phòng</option>
+                <option value={50}>50 phòng</option>
+                <option value={100}>100 phòng</option>
               </select>
             </div>
           </div>
@@ -2458,16 +2688,18 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                           Xem chi tiết
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => void handleAssignRoom(arrival)}
-                          className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-amber-600 hover:bg-amber-700 px-3 text-xs font-bold text-white transition cursor-pointer"
-                        >
-                          {arrival.roomId ? "Đổi phòng" : "Gán phòng"}
-                        </button>
+                        {canManageReservations ? (
+                          <button
+                            type="button"
+                            onClick={() => void handleAssignRoom(arrival)}
+                            className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-amber-600 hover:bg-amber-700 px-3 text-xs font-bold text-white transition cursor-pointer"
+                          >
+                            {arrival.roomId ? "Đổi phòng" : "Gán phòng"}
+                          </button>
+                        ) : null}
 
                         {/* Strictly no early check-in for tomorrow or later: only today gets Check-in button */}
-                        {isToday ? (
+                        {isToday && canCheckInStay ? (
                           <button
                             type="button"
                             onClick={() => void handleCheckInArrival(arrival)}
@@ -2500,14 +2732,18 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
             }
           }}
         >
-          <div className="my-auto w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl sm:p-6 text-left">
-            <div className="flex items-start justify-between gap-4 border-b border-[var(--outline-variant)] pb-3">
+          <div className="my-auto w-full max-w-2xl rounded-2xl bg-white p-6 sm:p-8 shadow-2xl text-left">
+            <div className="flex items-start justify-between gap-4 border-b border-[var(--outline-variant)] pb-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">
-                  Đặt phòng trước
+                <p className="text-xs sm:text-sm font-bold uppercase tracking-[0.16em] text-emerald-700">
+                  {selectedReservationRoom?.type
+                    ? `Đặt phòng trước · Hạng ${selectedReservationRoom.type}`
+                    : "Đặt phòng trước"}
                 </p>
-                <h2 id="future-reservation-title" className="vs-display mt-0.5 text-2xl font-semibold text-[var(--primary)]">
-                  Tạo lịch đặt phòng mới
+                <h2 id="future-reservation-title" className="vs-display mt-1 text-2xl sm:text-3xl font-bold text-[var(--primary)]">
+                  {selectedReservationRoom
+                    ? `Tạo lịch đặt trước phòng ${getRoomNumber(selectedReservationRoom)}`
+                    : "Tạo lịch đặt phòng mới"}
                 </h2>
               </div>
               <button
@@ -2516,15 +2752,15 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                   if (!reservationSubmitting) setIsReservationOpen(false);
                 }}
                 disabled={reservationSubmitting}
-                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] hover:bg-[var(--surface-container-low)] min-h-[44px]"
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 min-h-[44px] transition cursor-pointer"
               >
                 <VsIcon name="close" />
               </button>
             </div>
 
-            <form onSubmit={submitFutureReservation} className="mt-4 space-y-3.5">
+            <form onSubmit={submitFutureReservation} className="mt-6 space-y-4 sm:space-y-5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-sm font-semibold text-slate-800 mb-1.5">
                   Họ và tên khách lưu trú <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -2532,66 +2768,186 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                   required
                   value={reservationGuestName}
                   onChange={(e) => setReservationGuestName(e.target.value)}
-                  placeholder="VD: Nguyễn Văn An"
-                  className="w-full h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none min-h-[44px]"
+                  placeholder="Ví dụ: Nguyễn Văn An"
+                  className="w-full h-12 rounded-xl border border-slate-300 bg-white px-4 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px]"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Số điện thoại
-                </label>
-                <input
-                  type="tel"
-                  value={reservationGuestPhone}
-                  onChange={(e) => setReservationGuestPhone(e.target.value)}
-                  placeholder="VD: 0912345678"
-                  className="w-full h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none min-h-[44px]"
-                />
-              </div>
+              {selectedReservationRoom ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+                      Số điện thoại
+                    </label>
+                    <input
+                      type="tel"
+                      value={reservationGuestPhone}
+                      onChange={(e) => setReservationGuestPhone(e.target.value)}
+                      placeholder="Ví dụ: 0912 345 678"
+                      className="w-full h-12 rounded-xl border border-slate-300 bg-white px-4 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px]"
+                    />
+                  </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Chọn phòng (Tùy chọn)
-                  </label>
-                  <select
-                    value={reservationRoomId}
-                    onChange={(e) => {
-                      setReservationRoomId(e.target.value);
-                      const selected = rooms.find((r) => r.id === e.target.value);
-                      if (selected?.price) {
-                        setReservationNightlyRate(String(selected.price));
-                      }
-                    }}
-                    className="w-full h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none min-h-[44px]"
-                  >
-                    <option value="">Chưa gán phòng</option>
-                    {rooms.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        Phòng {getRoomNumber(r)} ({r.type || "Tiêu chuẩn"})
-                      </option>
-                    ))}
-                  </select>
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-sm font-semibold text-slate-800">
+                        Giá phòng mỗi đêm (₫)
+                      </label>
+                      <div className="flex items-center gap-3">
+                        {initialReservationRoom && selectedReservationRoom.id !== initialReservationRoom.id ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReservationRoomId(initialReservationRoom.id);
+                              if (initialReservationRoom.price) {
+                                setReservationNightlyRate(String(initialReservationRoom.price));
+                              }
+                            }}
+                            className="text-xs font-semibold text-amber-700 hover:text-amber-800 hover:underline cursor-pointer flex items-center gap-1"
+                            title={`Khôi phục lại phòng ${getRoomNumber(initialReservationRoom)}`}
+                          >
+                            <VsIcon name="undo" className="text-sm" />
+                            <span>Về phòng {getRoomNumber(initialReservationRoom)}</span>
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => setReservationRoomId("")}
+                          className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
+                        >
+                          Đổi phòng
+                        </button>
+                      </div>
+                    </div>
+                    <div className="relative">
+                      <input
+                        ref={reservationPriceInputRef}
+                        type="text"
+                        inputMode="numeric"
+                        value={formatPriceInput(reservationNightlyRate)}
+                        onChange={handleReservationNightlyRateChange}
+                        onKeyDown={handleReservationPriceKeyDown}
+                        placeholder="Ví dụ: 900.000"
+                        className="w-full h-12 rounded-xl border border-slate-300 bg-white pl-4 pr-18 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px]"
+                      />
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                        <span className="text-sm font-medium text-slate-500">₫ / đêm</span>
+                      </div>
+                    </div>
+                    {selectedReservationRoom.price && Number(selectedReservationRoom.price) > 0 ? (
+                      <div className="mt-1.5 flex items-center justify-between text-xs sm:text-sm">
+                        <span className="text-slate-600">
+                          Giá niêm yết:{" "}
+                          <strong className="font-semibold text-slate-800">
+                            {new Intl.NumberFormat("vi-VN").format(Number(selectedReservationRoom.price))} ₫
+                          </strong>
+                        </span>
+                        {reservationNightlyRate &&
+                        String(selectedReservationRoom.price) !== reservationNightlyRate.replace(/\D/g, "") ? (
+                          <button
+                            type="button"
+                            onClick={() => setReservationNightlyRate(String(selectedReservationRoom.price))}
+                            className="font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
+                          >
+                            Dùng giá niêm yết
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+                      Số điện thoại
+                    </label>
+                    <input
+                      type="tel"
+                      value={reservationGuestPhone}
+                      onChange={(e) => setReservationGuestPhone(e.target.value)}
+                      placeholder="Ví dụ: 0912 345 678"
+                      className="w-full h-12 rounded-xl border border-slate-300 bg-white px-4 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px]"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Giá phòng mỗi đêm (đ)
-                  </label>
-                  <input
-                    type="text"
-                    value={reservationNightlyRate}
-                    onChange={(e) => setReservationNightlyRate(e.target.value)}
-                    placeholder="VD: 500000"
-                    className="w-full h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none min-h-[44px]"
-                  />
-                </div>
-              </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-sm font-semibold text-slate-800">
+                          Chọn phòng (Tùy chọn)
+                        </label>
+                        {initialReservationRoom ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReservationRoomId(initialReservationRoom.id);
+                              if (initialReservationRoom.price) {
+                                setReservationNightlyRate(String(initialReservationRoom.price));
+                              }
+                            }}
+                            className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer flex items-center gap-1"
+                            title={`Khôi phục lại phòng ${getRoomNumber(initialReservationRoom)}`}
+                          >
+                            <VsIcon name="undo" className="text-sm" />
+                            <span>Quay lại phòng {getRoomNumber(initialReservationRoom)}</span>
+                          </button>
+                        ) : null}
+                      </div>
+                      <select
+                        value={reservationRoomId}
+                        onChange={(e) => {
+                          setReservationRoomId(e.target.value);
+                          const selected = rooms.find((r) => r.id === e.target.value);
+                          if (selected?.price) {
+                            setReservationNightlyRate(String(selected.price));
+                          }
+                        }}
+                        className="w-full h-12 rounded-xl border border-slate-300 bg-white px-4 text-base font-medium text-slate-900 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px] cursor-pointer"
+                      >
+                        <option value="">Chưa gán phòng</option>
+                        {rooms.map((r) => {
+                          const priceFormatted =
+                            r.price && Number(r.price) > 0
+                              ? ` - ${new Intl.NumberFormat("vi-VN").format(Number(r.price))} ₫`
+                              : "";
+                          const isInitial = initialReservationRoom && r.id === initialReservationRoom.id;
+                          return (
+                            <option key={r.id} value={r.id}>
+                              Phòng {getRoomNumber(r)} ({r.type || "Tiêu chuẩn"}){priceFormatted}{isInitial ? " (Phòng ban đầu)" : ""}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+                        Giá phòng mỗi đêm (₫)
+                      </label>
+                      <div className="relative">
+                        <input
+                          ref={reservationPriceInputRef}
+                          type="text"
+                          inputMode="numeric"
+                          value={formatPriceInput(reservationNightlyRate)}
+                          onChange={handleReservationNightlyRateChange}
+                          onKeyDown={handleReservationPriceKeyDown}
+                          placeholder="Ví dụ: 900.000"
+                          className="w-full h-12 rounded-xl border border-slate-300 bg-white pl-4 pr-18 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px]"
+                        />
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                          <span className="text-sm font-medium text-slate-500">₫ / đêm</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label className="block text-sm font-semibold text-slate-800 mb-1.5">
                     Thời gian nhận phòng <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -2599,12 +2955,12 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                     required
                     value={reservationCheckIn}
                     onChange={(e) => setReservationCheckIn(e.target.value)}
-                    className="w-full h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none min-h-[44px]"
+                    className="w-full h-12 rounded-xl border border-slate-300 bg-white px-4 text-base font-medium text-slate-900 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px] cursor-pointer"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label className="block text-sm font-semibold text-slate-800 mb-1.5">
                     Thời gian trả phòng <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -2612,24 +2968,24 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                     required
                     value={reservationCheckOut}
                     onChange={(e) => setReservationCheckOut(e.target.value)}
-                    className="w-full h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none min-h-[44px]"
+                    className="w-full h-12 rounded-xl border border-slate-300 bg-white px-4 text-base font-medium text-slate-900 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px] cursor-pointer"
                   />
                 </div>
               </div>
 
-              <div className="mt-5 flex items-center justify-end gap-3 border-t border-[var(--outline-variant)] pt-3">
+              <div className="mt-6 flex items-center justify-end gap-3 border-t border-[var(--outline-variant)] pt-4">
                 <button
                   type="button"
                   onClick={() => setIsReservationOpen(false)}
                   disabled={reservationSubmitting}
-                  className="px-4 py-2.5 rounded-lg border border-slate-300 text-sm font-bold text-slate-700 hover:bg-slate-100 transition min-h-[44px] cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl border border-slate-300 text-sm sm:text-base font-bold text-slate-700 hover:bg-slate-100 transition min-h-[48px] cursor-pointer"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={reservationSubmitting}
-                  className="px-5 py-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-sm font-bold text-white transition min-h-[44px] cursor-pointer flex items-center gap-2 disabled:opacity-60"
+                  className="px-6 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-sm sm:text-base font-bold text-white shadow-sm hover:shadow transition min-h-[48px] cursor-pointer flex items-center gap-2 disabled:opacity-60"
                 >
                   {reservationSubmitting ? (
                     <>

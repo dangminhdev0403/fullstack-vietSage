@@ -44,6 +44,36 @@ describe("ReservationsRepository arrival reads", () => {
     expect(prisma.reservation.count).toHaveBeenCalledTimes(1);
     expect(prisma.reservation.findMany).toHaveBeenCalledTimes(1);
   });
+
+  it("searches arrivals by guest, phone, reservation code, or room number", async () => {
+    const prisma = {
+      reservation: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    };
+    const repository = new ReservationsRepository(prisma as never);
+
+    await repository.listArrivals({
+      hotelId: "hotel-1",
+      from: new Date("2026-09-19T00:00:00.000Z"),
+      to: new Date("2026-09-20T00:00:00.000Z"),
+      q: " Minh ",
+      skip: 0,
+      take: 20,
+    });
+
+    expect(prisma.reservation.count).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        OR: [
+          { guestDisplayName: { contains: "Minh", mode: "insensitive" } },
+          { guestPhone: { contains: "Minh" } },
+          { reservationCode: { contains: "Minh", mode: "insensitive" } },
+          { room: { roomNumber: { contains: "Minh", mode: "insensitive" } } },
+        ],
+      }),
+    });
+  });
 });
 
 describe("ReservationsRepository transactional lifecycle", () => {

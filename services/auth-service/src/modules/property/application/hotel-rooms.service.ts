@@ -197,6 +197,21 @@ export class HotelRoomsService {
             },
           ],
         });
+      } else if (query.status === "IN_HOUSE") {
+        conditions.push({
+          guestStays: {
+            some: {
+              status: {
+                in: [
+                  GuestStayStatus.ACTIVE,
+                  GuestStayStatus.CHECKED_IN,
+                  GuestStayStatus.CHECKOUT_PENDING,
+                ],
+              },
+              checkedOutAt: null,
+            },
+          },
+        });
       } else if (query.status === "PROCESSING") {
         conditions.push({ status: RoomStatus.PROCESSING });
       } else if (query.status === "MAINTENANCE") {
@@ -235,13 +250,40 @@ export class HotelRoomsService {
       });
     }
 
-    if (conditions.length > 0) {
-      where.AND = conditions;
-    }
-
     const q = query.q?.trim();
     if (q) {
-      where.roomNumber = { contains: q, mode: "insensitive" };
+      if (query.status === "IN_HOUSE") {
+        conditions.push({
+          OR: [
+            { roomNumber: { contains: q, mode: "insensitive" } },
+            {
+              guestStays: {
+                some: {
+                  status: {
+                    in: [
+                      GuestStayStatus.ACTIVE,
+                      GuestStayStatus.CHECKED_IN,
+                      GuestStayStatus.CHECKOUT_PENDING,
+                    ],
+                  },
+                  checkedOutAt: null,
+                  OR: [
+                    { guestDisplayName: { contains: q, mode: "insensitive" } },
+                    { guestPhone: { contains: q } },
+                    { reservationCode: { contains: q, mode: "insensitive" } },
+                  ],
+                },
+              },
+            },
+          ],
+        });
+      } else {
+        where.roomNumber = { contains: q, mode: "insensitive" };
+      }
+    }
+
+    if (conditions.length > 0) {
+      where.AND = conditions;
     }
 
     const result = query.businessDate

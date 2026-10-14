@@ -284,6 +284,7 @@ export type HotelArrival = {
 export type ListHotelArrivalsQuery = {
   from?: string;
   to?: string;
+  q?: string;
   page?: number;
   limit?: number;
 };

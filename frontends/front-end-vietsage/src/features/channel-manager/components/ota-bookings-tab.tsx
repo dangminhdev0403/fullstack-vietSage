@@ -12,7 +12,6 @@ import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-r
 import type { SimulatedBookingItem } from "../types/channel-manager.types";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
-import type { HotelOpsPage, HotelRoomSummary } from "@/features/hotel-ops/types/hotel-ops-contract";
 
 interface OtaBookingsTabProps {
   hotelId: string;
@@ -509,44 +508,23 @@ Phòng: ${b.roomNumber} (${b.roomType || "Tiêu chuẩn"})`,
 
   return (
     <div className="space-y-5">
-      {/* Top Header & Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {!baseRoutePrefix.startsWith("/hotels") && (
-          <h2 className="text-xl font-bold tracking-tight text-[#17201b]">
-            Đơn đặt phòng OTA
-          </h2>
-        )}
-
-        <div className="flex flex-wrap items-center gap-2 ml-auto">
+      {/* Top Header Actions (Technical Only) */}
+      {showTechnicalTools && (
+        <div className="flex justify-end">
           <button
             type="button"
-            onClick={() => void refreshSimulatedBookings()}
-            disabled={isLoadingSimulatedBookings}
-            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition active:scale-95 disabled:opacity-50 cursor-pointer"
+            onClick={handleManualDrain}
+            disabled={pollFeed.isPending}
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#003580] px-4 text-sm font-bold text-white shadow-xs hover:bg-[#002860] transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             <VsIcon
-              name="refresh"
-              className={`text-base ${isLoadingSimulatedBookings ? "animate-spin" : ""}`}
+              name="cloud_download"
+              className={`text-base ${pollFeed.isPending ? "animate-bounce" : ""}`}
             />
-            <span>Làm mới</span>
+            <span>{pollFeed.isPending ? "Đang đồng bộ..." : "Đồng bộ Channex"}</span>
           </button>
-
-          {showTechnicalTools && (
-            <button
-              type="button"
-              onClick={handleManualDrain}
-              disabled={pollFeed.isPending}
-              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#003580] px-4 text-sm font-bold text-white shadow-xs hover:bg-[#002860] transition active:scale-95 disabled:opacity-50 cursor-pointer"
-            >
-              <VsIcon
-                name="cloud_download"
-                className={`text-base ${pollFeed.isPending ? "animate-bounce" : ""}`}
-              />
-              <span>{pollFeed.isPending ? "Đang đồng bộ..." : "Đồng bộ Channex"}</span>
-            </button>
-          )}
         </div>
-      </div>
+      )}
 
       {showTechnicalTools &&
         (isLoadingPendingModifications ||
@@ -606,7 +584,7 @@ Phòng: ${b.roomNumber} (${b.roomType || "Tiêu chuẩn"})`,
         <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs">
           <div className="flex items-center justify-between text-slate-600">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Tổng đơn</span>
-            <span className="text-base">📦</span>
+            <VsIcon name="inventory_2" className="text-lg text-slate-400" />
           </div>
           <p className="mt-2 text-2xl font-extrabold text-slate-900">
             {stats.total}
@@ -616,7 +594,7 @@ Phòng: ${b.roomNumber} (${b.roomType || "Tiêu chuẩn"})`,
         <div className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-2xs">
           <div className="flex items-center justify-between text-emerald-700">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">Đang giữ phòng</span>
-            <span className="text-base">🟢</span>
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-200" />
           </div>
           <p className="mt-2 text-2xl font-extrabold text-emerald-950">
             {stats.confirmed}
@@ -626,7 +604,7 @@ Phòng: ${b.roomNumber} (${b.roomType || "Tiêu chuẩn"})`,
         <div className="rounded-2xl border border-rose-100 bg-white p-4 shadow-2xs">
           <div className="flex items-center justify-between text-rose-700">
             <span className="text-xs font-bold uppercase tracking-wider text-rose-800">Đã hủy</span>
-            <span className="text-base">⚪</span>
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-rose-400 ring-2 ring-rose-200" />
           </div>
           <p className="mt-2 text-2xl font-extrabold text-rose-950">
             {stats.cancelled}
@@ -636,7 +614,7 @@ Phòng: ${b.roomNumber} (${b.roomType || "Tiêu chuẩn"})`,
         <div className="rounded-2xl border border-amber-100 bg-white p-4 shadow-2xs">
           <div className="flex items-center justify-between text-amber-700">
             <span className="text-xs font-bold uppercase tracking-wider text-amber-800">Doanh thu dự kiến</span>
-            <span className="text-base">💰</span>
+            <VsIcon name="payments" className="text-lg text-amber-600" />
           </div>
           <div className="mt-2">
             {stats.revenueGbp > 0 && (
@@ -710,7 +688,8 @@ Phòng: ${b.roomNumber} (${b.roomType || "Tiêu chuẩn"})`,
                     : "text-emerald-800 hover:bg-emerald-50 font-bold"
                 }`}
               >
-                <span>🛎️ Đến hôm nay</span>
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                <span>Đến hôm nay</span>
                 <span className={`rounded-full px-1.5 py-0.2 text-xs ${statusFilter === "TODAY_ARRIVALS" ? "bg-white text-emerald-800 font-black" : "bg-emerald-100 text-emerald-800 font-bold"}`}>
                   {todayArrivalsCount}
                 </span>
@@ -725,7 +704,8 @@ Phòng: ${b.roomNumber} (${b.roomType || "Tiêu chuẩn"})`,
                     : "text-blue-800 hover:bg-blue-50 font-bold"
                 }`}
               >
-                <span>🚪 Trả hôm nay</span>
+                <span className="h-2 w-2 rounded-full bg-blue-500" />
+                <span>Trả hôm nay</span>
                 <span className={`rounded-full px-1.5 py-0.2 text-xs ${statusFilter === "TODAY_DEPARTURES" ? "bg-white text-blue-800 font-black" : "bg-blue-100 text-blue-800 font-bold"}`}>
                   {todayDeparturesCount}
                 </span>
@@ -741,7 +721,8 @@ Phòng: ${b.roomNumber} (${b.roomType || "Tiêu chuẩn"})`,
                       : "text-amber-800 hover:bg-amber-50 font-bold"
                   }`}
                 >
-                  <span>⏳ Cần xếp phòng</span>
+                  <span className="h-2 w-2 rounded-full bg-amber-500" />
+                  <span>Cần xếp phòng</span>
                   <span className={`rounded-full px-1.5 py-0.2 text-xs ${statusFilter === "UNASSIGNED" ? "bg-white text-amber-800 font-black" : "bg-amber-100 text-amber-800 font-bold"}`}>
                     {unassignedCount}
                   </span>

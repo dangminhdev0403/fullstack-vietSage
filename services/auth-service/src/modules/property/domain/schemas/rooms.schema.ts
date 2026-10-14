@@ -175,10 +175,11 @@ export const roomFilterStatusSchema = z.preprocess(
       return "MAINTENANCE";
     if (upper === "KHÓA" || upper === "ĐÃ KHÓA" || upper === "BLOCKED") return "BLOCKED";
     if (upper === "OCCUPIED" || upper === "ĐANG Ở" || upper === "RESERVED") return "OCCUPIED";
+    if (upper === "IN_HOUSE" || upper === "ĐANG LƯU TRÚ") return "IN_HOUSE";
     if (upper === "OVERDUE" || upper === "QUÁ HẠN" || upper === "QUÁ HẠN TRẢ") return "OVERDUE";
     return upper;
   },
-  z.enum(["AVAILABLE", "OCCUPIED", "PROCESSING", "MAINTENANCE", "BLOCKED", "OVERDUE"]),
+  z.enum(["AVAILABLE", "OCCUPIED", "IN_HOUSE", "PROCESSING", "MAINTENANCE", "BLOCKED", "OVERDUE"]),
 );
 
 export const listRoomsQuerySchema = z

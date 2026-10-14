@@ -128,6 +128,7 @@ export class ReservationsController {
   @ApiQuery({ name: "to", required: true, type: String })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })
+  @ApiQuery({ name: "q", required: false, type: String })
   @ApiOkResponse({
     description: "Đã lấy danh sách arrivals",
     schema: {

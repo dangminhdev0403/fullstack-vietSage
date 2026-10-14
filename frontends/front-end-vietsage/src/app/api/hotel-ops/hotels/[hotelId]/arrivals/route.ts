@@ -20,6 +20,7 @@ const paramsSchema = z.object({
 const listArrivalsQuerySchema = z.object({
   from: z.string().trim().optional(),
   to: z.string().trim().optional(),
+  q: z.string().trim().max(120).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(50),
 });
@@ -38,7 +39,7 @@ export async function GET(request: Request, context: Params) {
     return validationErrorResponse(parsed.error.issues[0]?.message || "Tham số truy vấn danh sách khách đến không hợp lệ");
   }
 
-  const { from, to, page, limit } = parsed.data;
+  const { from, to, q, page, limit } = parsed.data;
 
   try {
     const data = await executeHotelOpsBackendRequest("list arrivals", (accessToken) =>
@@ -46,6 +47,7 @@ export async function GET(request: Request, context: Params) {
         query: {
           from: from || new Date().toISOString().slice(0, 10),
           to: to || new Date(Date.now() + 86400000 * 7).toISOString().slice(0, 10),
+          ...(q ? { q } : {}),
           page,
           limit,
         },

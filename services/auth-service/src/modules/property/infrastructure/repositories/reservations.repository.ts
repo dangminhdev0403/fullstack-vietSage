@@ -148,12 +148,24 @@ export class ReservationsRepository {
     skip: number;
     take: number;
     roomId?: string;
+    q?: string;
   }) {
+    const q = input.q?.trim();
     const where: Prisma.ReservationWhereInput = {
       hotelId: input.hotelId,
       status: { in: ACTIVE_RESERVATION_STATUSES },
       plannedCheckInAt: { gte: input.from, lt: input.to },
       ...(input.roomId ? { roomId: input.roomId } : {}),
+      ...(q
+        ? {
+            OR: [
+              { guestDisplayName: { contains: q, mode: "insensitive" } },
+              { guestPhone: { contains: q } },
+              { reservationCode: { contains: q, mode: "insensitive" } },
+              { room: { roomNumber: { contains: q, mode: "insensitive" } } },
+            ],
+          }
+        : {}),
     };
     const [total, items] = await Promise.all([
       this.prisma.reservation.count({ where }),

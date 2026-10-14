@@ -29,6 +29,8 @@ export default async function StaffRoomsPage({
   const resolvedSearchParams = (await searchParams) ?? {};
   const initialFlow = getFirst(resolvedSearchParams.flow);
   const initialBusinessDate = getFirst(resolvedSearchParams.businessDate);
+  const initialArrivalRange = getFirst(resolvedSearchParams.range);
+  const initialQuery = getFirst(resolvedSearchParams.q);
   const callbackUrl = `/hotels/${hotelId}/rooms` as const;
   const session = await auth();
   assertCanAccessHotelOps(session, callbackUrl);
@@ -145,6 +147,9 @@ export default async function StaffRoomsPage({
           initialRoomsPage={roomsPage}
           initialByStatus={dashboard?.rooms.byStatus}
           canManageRooms={!isHousekeeping && context.permissions.includes("hotel.rooms.manage")}
+          canManageReservations={
+            !isHousekeeping && context.permissions.includes("hotel.reservations.manage")
+          }
           canManageStays={
             !isHousekeeping &&
             (context.permissions.includes("hotel.stays.manage") ||
@@ -170,6 +175,8 @@ export default async function StaffRoomsPage({
           }
           initialFlow={initialFlow}
           initialBusinessDate={initialBusinessDate}
+          initialArrivalRange={initialArrivalRange}
+          initialQuery={initialQuery}
           isHousekeeping={isHousekeeping}
           enabledFeatures={
             context.accessibleHotels.find((hotel) => hotel.id === hotelId)

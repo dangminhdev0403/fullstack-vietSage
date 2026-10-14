@@ -84,6 +84,7 @@ export class ReservationsService {
       skip: (page - 1) * limit,
       take: limit,
       roomId: scope.allowedRoomId ?? undefined,
+      q: query.q,
     });
     return { page, limit, total, items };
   }

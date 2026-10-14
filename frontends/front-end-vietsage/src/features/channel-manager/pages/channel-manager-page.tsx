@@ -202,18 +202,24 @@ function ChannelManagerContent({
   return (
     <div className="space-y-6 pb-24">
       {/* Header */}
-      <header className="rounded-2xl border border-[#e5ddcd] bg-white p-5 shadow-xs">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#17201b]">
-              {visibleTabs.length === 1 && visibleTabs[0] === "BOOKINGS"
-                ? "Đơn đặt phòng OTA"
-                : "Channel Manager"}
-            </h1>
-            <p className="text-sm text-[#5a6760] font-medium">
-              {currentDisplayName}
-            </p>
-          </div>
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--secondary)]">
+            {visibleTabs.length === 1 && visibleTabs[0] === "BOOKINGS"
+              ? "ĐƠN ĐẶT PHÒNG OTA"
+              : "KHO PHÒNG & KÊNH BÁN"}
+            {currentDisplayName ? ` — ${currentDisplayName}` : ""}
+          </p>
+          <h1 className="vs-display mt-2 text-4xl font-semibold text-[var(--primary)]">
+            {visibleTabs.length === 1 && visibleTabs[0] === "BOOKINGS"
+              ? "Đơn đặt phòng OTA"
+              : "Kho phòng và kênh bán OTA"}
+          </h1>
+          <p className="mt-2 max-w-3xl text-sm text-[var(--on-surface-variant)]">
+            {visibleTabs.length === 1 && visibleTabs[0] === "BOOKINGS"
+              ? "Quản lý danh sách đơn đặt phòng từ các kênh OTA, tiếp nhận khách đến, xếp phòng và làm thủ tục check-in."
+              : "Quản lý tồn kho phòng, cập nhật giá ARI và theo dõi đặt phòng từ các kênh OTA đa nền tảng theo thời gian thực."}
+          </p>
         </div>
       </header>
 

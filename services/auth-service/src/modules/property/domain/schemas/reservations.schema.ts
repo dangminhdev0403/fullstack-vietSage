@@ -40,6 +40,7 @@ export const listArrivalsQuerySchema = z
     to: z.coerce.date(),
     page: z.coerce.number().int().min(1).optional(),
     limit: z.coerce.number().int().min(1).max(100).optional(),
+    q: z.string().trim().max(120).optional(),
   })
   .strict()
   .refine((value) => value.to > value.from, {

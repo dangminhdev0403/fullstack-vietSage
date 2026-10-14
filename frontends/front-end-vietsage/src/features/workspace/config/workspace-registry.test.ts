@@ -273,6 +273,41 @@ test("toggles channel manager in owner and staff navigation based on hotel featu
   );
 });
 
+test("shows front-desk guest operations only to manager and receptionist capabilities", () => {
+  for (const persona of ["manager", "front_desk"] as const) {
+    const navigation = buildWorkspaceNavigation({
+      persona,
+      permissions: ["hotel.reservations.view", "hotel.rooms.view"],
+      hotelId: "hotel-1",
+    });
+
+    assert.deepEqual(
+      navigation.find((item) => item.key === "staff.front-desk"),
+      {
+        key: "staff.front-desk",
+        href: "/hotels/hotel-1/front-desk",
+        label: "Lễ tân",
+        icon: "concierge",
+        section: "OPERATIONS",
+      },
+    );
+  }
+
+  const withoutCapability = buildWorkspaceNavigation({
+    persona: "front_desk",
+    permissions: ["hotel.requests.view"],
+    hotelId: "hotel-1",
+  });
+  const housekeeping = buildWorkspaceNavigation({
+    persona: "housekeeping",
+    permissions: ["hotel.reservations.view", "hotel.rooms.view"],
+    hotelId: "hotel-1",
+  });
+
+  assert.equal(withoutCapability.some((item) => item.key === "staff.front-desk"), false);
+  assert.equal(housekeeping.some((item) => item.key === "staff.front-desk"), false);
+});
+
 test("keeps receptionist room and biometric tools available when feature is enabled and hides biometric when disabled", () => {
   const enabledNav = buildWorkspaceNavigation({
     persona: "front_desk",
