@@ -7,7 +7,9 @@ import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } f
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import type { HotelArrival } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { formatDayMonth } from "./dashboard-presentation";
+import { getArrivalDateRange } from "@/features/hotel-ops/utils/arrival-date-range";
 
 type PageProps = { params: Promise<{ hotelId: string }> };
 export const dynamic = "force-dynamic";
@@ -46,6 +48,41 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
   const dashboard = await authorizedApi("load staff hotel dashboard", (accessToken) =>
     hotelOpsService.getDashboard(hotelId, { accessToken }),
   );
+
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrowYmd = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(tomorrowDate);
+
+  let tomorrowArrivals: HotelArrival[] = [];
+  try {
+    const tomorrowRange = getArrivalDateRange("tomorrow", new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date()));
+    const arrivalsPage = await authorizedApi("load tomorrow arrivals", (accessToken) =>
+      hotelOpsService.listArrivals(hotelId, {
+        query: { ...tomorrowRange, limit: 10 },
+        accessToken,
+      }),
+    );
+    tomorrowArrivals = arrivalsPage?.items ?? [];
+  } catch (_e) {
+    tomorrowArrivals = [];
+  }
+
+  const guests = dashboard.guests ?? {
+    inHouse: dashboard.stays.activeStays ?? dashboard.rooms.byStatus.occupied,
+    advanceReservations: 0,
+    arrivalsToday: dashboard.stays.todayCheckIns,
+    arrivalsTomorrow: tomorrowArrivals.length,
+  };
 
   const roomCards = [
     { label: "Đang ở", value: dashboard.rooms.byStatus.occupied, icon: "hotel", tone: "text-[var(--primary)]", progress: dashboard.rooms.occupancyRate },
@@ -177,6 +214,61 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
         </div>
       </section>
 
+      {/* 4 Chỉ số Điều hành Trọng tâm: Lưu trú, Đặt trước, Phòng trống, Đến ngày mai */}
+      <section className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <article className="flex flex-col justify-between rounded-xl border border-blue-200 bg-blue-50/70 p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-blue-900">Khách đang ở (Lưu trú)</span>
+            <span className="grid size-8 place-items-center rounded-lg bg-blue-100 text-blue-800 shadow-2xs">
+              <VsIcon name="group" className="text-lg" />
+            </span>
+          </div>
+          <p className="vs-display mt-2 text-2xl lg:text-3xl font-extrabold text-blue-950">
+            {String(guests.inHouse).padStart(2, "0")} <span className="text-sm font-normal text-blue-800">khách</span>
+          </p>
+          <p className="mt-1 text-xs text-blue-800 font-medium">Đang có mặt tại khách sạn</p>
+        </article>
+
+        <article className="flex flex-col justify-between rounded-xl border border-purple-200 bg-purple-50/70 p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-purple-900">Đặt trước (Advance)</span>
+            <span className="grid size-8 place-items-center rounded-lg bg-purple-100 text-purple-800 shadow-2xs">
+              <VsIcon name="calendar_month" className="text-lg" />
+            </span>
+          </div>
+          <p className="vs-display mt-2 text-2xl lg:text-3xl font-extrabold text-purple-950">
+            {String(guests.advanceReservations).padStart(2, "0")} <span className="text-sm font-normal text-purple-800">lượt</span>
+          </p>
+          <p className="mt-1 text-xs text-purple-800 font-medium">Đặt trước các ngày tới</p>
+        </article>
+
+        <article className="flex flex-col justify-between rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-900">Phòng trống (Vacant)</span>
+            <span className="grid size-8 place-items-center rounded-lg bg-emerald-100 text-emerald-800 shadow-2xs">
+              <VsIcon name="check_circle" className="text-lg" />
+            </span>
+          </div>
+          <p className="vs-display mt-2 text-2xl lg:text-3xl font-extrabold text-emerald-950">
+            {String(dashboard.rooms.byStatus.available).padStart(2, "0")} <span className="text-sm font-normal text-emerald-800">phòng</span>
+          </p>
+          <p className="mt-1 text-xs text-emerald-800 font-medium">Sẵn sàng đón khách mới</p>
+        </article>
+
+        <article className="flex flex-col justify-between rounded-xl border border-amber-200 bg-amber-50/70 p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-900">Đến ngày mai (Tomorrow)</span>
+            <span className="grid size-8 place-items-center rounded-lg bg-amber-100 text-amber-800 shadow-2xs">
+              <VsIcon name="next_plan" className="text-lg" />
+            </span>
+          </div>
+          <p className="vs-display mt-2 text-2xl lg:text-3xl font-extrabold text-amber-950">
+            {String(guests.arrivalsTomorrow).padStart(2, "0")} <span className="text-sm font-normal text-amber-800">lượt</span>
+          </p>
+          <p className="mt-1 text-xs text-amber-800 font-medium">Cần chuẩn bị phòng trước</p>
+        </article>
+      </section>
+
       <section className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
         {roomCards.map((card) => (
           <article key={card.label} className="group flex min-h-40 flex-col justify-between rounded-xl border border-[var(--outline-variant)]/30 bg-[var(--surface-container-low)] p-5 transition hover:-translate-y-1 hover:shadow-lg">
@@ -207,6 +299,105 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
             </div>
           </article>
         ))}
+      </section>
+
+      {/* Kế hoạch Chuẩn bị đón tiếp ngày mai (Không check-in sớm) */}
+      <section className="rounded-xl border border-amber-200/80 bg-gradient-to-br from-amber-50/60 via-white to-amber-50/30 p-5 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 border-b border-amber-200/50 pb-3">
+          <div className="flex items-center gap-2.5">
+            <span className="grid size-9 place-items-center rounded-lg bg-amber-100 text-amber-900">
+              <VsIcon name="assignment_turned_in" className="text-xl" />
+            </span>
+            <div>
+              <h2 className="text-base font-bold text-amber-950">Công tác chuẩn bị đón khách ngày mai</h2>
+              <p className="text-xs text-amber-900/80">
+                Kiểm tra sơ đồ buồng phòng dự kiến và xếp trước phòng cho khách đến ngày mai. Không thực hiện check-in sớm trước ngày nhận phòng.
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-100/90 border border-amber-200 px-2.5 py-1 rounded-md shrink-0">
+            <VsIcon name="event" className="text-sm" />
+            <span>Ngày mai: {tomorrowYmd}</span>
+          </span>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Link
+            href={`/hotels/${hotelId}/rooms?businessDate=${tomorrowYmd}`}
+            prefetch={true}
+            className="flex min-h-[52px] items-center gap-3 rounded-xl border border-amber-300 bg-white p-3.5 shadow-2xs transition hover:border-amber-500 hover:shadow-sm active:scale-[0.98]"
+          >
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-900">
+              <VsIcon name="meeting_room" className="text-lg" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-amber-950">Sơ đồ phòng ngày mai</p>
+              <p className="text-[11px] text-amber-800/80 truncate">Xem trạng thái dự kiến &amp; gán phòng trước</p>
+            </div>
+          </Link>
+
+          <Link
+            href={`/hotels/${hotelId}/rooms?status=processing`}
+            prefetch={true}
+            className="flex min-h-[52px] items-center gap-3 rounded-xl border border-amber-300 bg-white p-3.5 shadow-2xs transition hover:border-amber-500 hover:shadow-sm active:scale-[0.98]"
+          >
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-900">
+              <VsIcon name="cleaning_services" className="text-lg" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-amber-950">Phòng chờ dọn ({dashboard.rooms.byStatus.processing})</p>
+              <p className="text-[11px] text-amber-800/80 truncate">Đôn đốc buồng phòng hoàn tất sẵn sàng</p>
+            </div>
+          </Link>
+
+          <Link
+            href={`/hotels/${hotelId}/rooms?flow=reservation`}
+            prefetch={true}
+            className="flex min-h-[52px] items-center gap-3 rounded-xl border border-amber-300 bg-white p-3.5 shadow-2xs transition hover:border-amber-500 hover:shadow-sm active:scale-[0.98]"
+          >
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-900">
+              <VsIcon name="edit_calendar" className="text-lg" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-amber-950">Đặt phòng tương lai</p>
+              <p className="text-[11px] text-amber-800/80 truncate">Tạo đặt trước có chọn phòng &amp; giá đêm</p>
+            </div>
+          </Link>
+        </div>
+
+        {tomorrowArrivals.length > 0 ? (
+          <div className="mt-4 rounded-xl border border-amber-200/70 bg-white/95 p-3.5">
+            <p className="text-xs font-bold uppercase tracking-wider text-amber-950 mb-2">
+              Danh sách khách đến dự kiến ngày mai ({tomorrowArrivals.length} lượt)
+            </p>
+            <div className="space-y-2">
+              {tomorrowArrivals.slice(0, 5).map((arrival) => (
+                <div
+                  key={arrival.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border border-amber-100 bg-amber-50/40 p-2.5 text-xs text-amber-950"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold">{arrival.guestDisplayName}</p>
+                    <p className="text-[11px] text-amber-800/80">
+                      Mã: {arrival.reservationCode} · {arrival.roomId ? `Phòng ${arrival.roomId}` : "Chưa gán phòng"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900">
+                      Không check-in sớm
+                    </span>
+                    <Link
+                      href={`/hotels/${hotelId}/rooms?businessDate=${tomorrowYmd}`}
+                      className="inline-flex min-h-[44px] items-center rounded-lg bg-amber-800 px-3 text-xs font-bold text-white shadow-2xs hover:bg-amber-900"
+                    >
+                      Xem &amp; Gán phòng
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <section>

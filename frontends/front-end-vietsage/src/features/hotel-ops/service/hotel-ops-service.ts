@@ -248,6 +248,22 @@ export class HotelOpsService {
     return unwrapApiEnvelope<HotelRoomSummary>(payload).data;
   }
 
+  async markRoomReady(
+    hotelId: string,
+    roomId: string,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+  ): Promise<HotelRoomSummary> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "PATCH",
+      path: hotelPath(hotelId, `/rooms/${encodeURIComponent(roomId)}/ready`),
+      accessToken,
+      accessTokenExpiresAt,
+    });
+
+    return unwrapApiEnvelope<HotelRoomSummary>(payload).data;
+  }
+
   async rotateRoomQr(
     hotelId: string,
     roomId: string,

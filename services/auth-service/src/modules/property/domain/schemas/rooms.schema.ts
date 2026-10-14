@@ -176,6 +176,11 @@ export const listRoomsQuerySchema = z
     type: z.string().max(80, "Loại phòng quá dài").optional(),
     vipOnly: z.preprocess((val) => val === "true" || val === true, z.boolean()).optional(),
     unassignedOnly: z.preprocess((val) => val === "true" || val === true, z.boolean()).optional(),
+    businessDate: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "businessDate phải có định dạng YYYY-MM-DD")
+      .optional(),
   })
   .strict();
 

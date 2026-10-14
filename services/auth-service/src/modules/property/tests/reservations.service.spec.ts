@@ -1,4 +1,16 @@
+process.env.NODE_ENV = process.env.NODE_ENV || "test";
+process.env.PORT = process.env.PORT || "8080";
+process.env.DATABASE_URL =
+  process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/vietsage_auth";
+process.env.JWT_ACCESS_SECRET =
+  process.env.JWT_ACCESS_SECRET || "replace-with-local-docker-access-secret-at-least-32-chars";
+process.env.JWT_REFRESH_SECRET =
+  process.env.JWT_REFRESH_SECRET || "replace-with-local-docker-refresh-secret-at-least-32-chars";
+process.env.JWT_ACCESS_TTL = process.env.JWT_ACCESS_TTL || "15m";
+process.env.JWT_REFRESH_TTL = process.env.JWT_REFRESH_TTL || "30d";
+
 import { ConflictException, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { ReservationsService } from "../application/reservations.service";
 
 function createRepository(overrides: Record<string, jest.Mock> = {}) {
@@ -31,7 +43,11 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
 
 function createService(repository = createRepository()) {
   const accessService = {
-    assertHotelAccess: jest.fn().mockResolvedValue({ id: "hotel-1", tenantId: "tenant-1" }),
+    assertHotelAccess: jest.fn().mockResolvedValue({
+      id: "hotel-1",
+      tenantId: "tenant-1",
+      timezone: "Asia/Ho_Chi_Minh",
+    }),
     resolveRoomScope: jest.fn().mockResolvedValue({
       hotel: { id: "hotel-1", tenantId: "tenant-1" },
       allowedRoomId: null,
@@ -181,7 +197,59 @@ describe("ReservationsService front-desk lifecycle", () => {
         hotelId: "hotel-1",
         reservationId: "reservation-1",
         actorUserId: "actor-1",
+        timezone: "Asia/Ho_Chi_Minh",
       }),
     );
+  });
+
+  it("creates a confirmed reservation with optional roomId and explicit nightly rate snapshot", async () => {
+    const { service, repository } = createService();
+
+    await service.createReservation("actor-1", "active-role", "hotel-1", {
+      guestDisplayName: "Tran Van B",
+      plannedCheckInAt: new Date("2026-08-01T07:00:00.000Z"),
+      plannedCheckOutAt: new Date("2026-08-03T05:00:00.000Z"),
+      roomId: "room-1",
+      rate: 1500000,
+    });
+
+    expect(repository.createReservation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        nightlyRateSnapshot: "1500000.00",
+      }),
+    );
+  });
+
+  it("preserves 0 as free reservation nightly rate snapshot", async () => {
+    const { service, repository } = createService();
+
+    await service.createReservation("actor-1", "active-role", "hotel-1", {
+      guestDisplayName: "Tran Van Free",
+      plannedCheckInAt: new Date("2026-08-01T07:00:00.000Z"),
+      plannedCheckOutAt: new Date("2026-08-03T05:00:00.000Z"),
+      rate: 0,
+    });
+
+    expect(repository.createReservation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nightlyRateSnapshot: "0.00",
+      }),
+    );
+  });
+
+  it("maps early check-in conflict from repository to 409", async () => {
+    const { service } = createService(
+      createRepository({
+        checkInReservation: jest
+          .fn()
+          .mockRejectedValue(new ConflictException("EARLY_CHECK_IN_NOT_ALLOWED")),
+      }),
+    );
+
+    await expect(
+      service.checkIn("actor-1", "active-role", "hotel-1", "reservation-1"),
+    ).rejects.toThrow(new ConflictException("EARLY_CHECK_IN_NOT_ALLOWED"));
   });
 });

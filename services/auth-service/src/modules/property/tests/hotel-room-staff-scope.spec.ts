@@ -6,6 +6,7 @@ import { HotelRequestsService } from "../../guest-operations/application/hotel-r
 import { GuestMessagesService } from "../../guest-operations/application/guest-messages.service";
 import { BillingService } from "../../billing/application/billing.service";
 import { RequestRealtimeTicketService } from "../../request-realtime/application/request-realtime-ticket.service";
+import { getBusinessDateRange } from "../infrastructure/repositories/hotel-rooms.repository";
 
 function createRepository(overrides: Record<string, jest.Mock> = {}) {
   return {
@@ -465,6 +466,7 @@ describe("HotelRoomStaffScope (Phase 1)", () => {
         hotel: { id: "hotel-1", tenantId: "tenant-1" },
         allowedRoomId: "room-101",
       });
+      mockHotelAccessService.assertRoomAccess.mockResolvedValue(undefined);
       const mockReservationsRepo = {
         createReservation: jest.fn().mockResolvedValue({
           id: "res-1",
@@ -643,6 +645,156 @@ describe("HotelRoomStaffScope (Phase 1)", () => {
         }),
         expect.any(Object),
       );
+    });
+  });
+
+  describe("HOTEL_HOUSEKEEPING scope and businessDate projection", () => {
+    it("20. HOTEL_HOUSEKEEPING assigned to hotel gets allowedRoomId: null and mode: HOTEL_WIDE even under ROOM_EXCLUSIVE", async () => {
+      const repository = createRepository({
+        findActorById: jest.fn().mockResolvedValue({
+          id: "hk-1",
+          userRoles: [{ role: { code: "HOTEL_HOUSEKEEPING" } }],
+          tenantUsers: [{ tenantId: "tenant-1" }],
+          hotelAssignments: [{ hotelId: "hotel-1" }],
+        }),
+        findHotelById: jest.fn().mockResolvedValue({
+          id: "hotel-1",
+          tenantId: "tenant-1",
+          staffScopeMode: "ROOM_EXCLUSIVE",
+        }),
+      });
+      const service = new HotelAccessService(repository as never);
+
+      const scope = await service.resolveRoomScope("hk-1", "role-hk", "hotel-1");
+
+      expect(scope.allowedRoomId).toBeNull();
+      expect(scope.mode).toBe("HOTEL_WIDE");
+      expect(repository.findRoomStaffAssignment).not.toHaveBeenCalled();
+    });
+
+    it("21. HOTEL_HOUSEKEEPING without hotel assignment throws ForbiddenException (requires hotel assignment)", async () => {
+      const repository = createRepository({
+        findActorById: jest.fn().mockResolvedValue({
+          id: "hk-unassigned",
+          userRoles: [{ role: { code: "HOTEL_HOUSEKEEPING" } }],
+          tenantUsers: [{ tenantId: "tenant-1" }],
+          hotelAssignments: [{ hotelId: "other-hotel" }],
+        }),
+        findHotelById: jest.fn().mockResolvedValue({
+          id: "hotel-1",
+          tenantId: "tenant-1",
+          staffScopeMode: "ROOM_EXCLUSIVE",
+        }),
+      });
+      const service = new HotelAccessService(repository as never);
+
+      await expect(
+        service.resolveRoomScope("hk-unassigned", "role-hk", "hotel-1"),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("22. businessDate range uses an exclusive next-midnight end", () => {
+      const { start, end } = getBusinessDateRange("2026-10-15", "Asia/Ho_Chi_Minh");
+
+      expect(start.toISOString()).toBe("2026-10-14T17:00:00.000Z");
+      expect(end.toISOString()).toBe("2026-10-15T17:00:00.000Z");
+    });
+
+    it("23. listRooms accepts businessDate and returns businessDate and projectedStatus without mutating status", async () => {
+      const mockRoomsRepo = {
+        listRooms: jest.fn().mockResolvedValue({
+          total: 4,
+          floors: ["1", "2"],
+          types: ["Standard", "Deluxe"],
+          totalAvailable: 1,
+          businessDate: "2026-10-15",
+          items: [
+            {
+              id: "room-1",
+              hotelId: "hotel-1",
+              roomNumber: "101",
+              floor: "1",
+              type: "Standard",
+              status: "AVAILABLE",
+              projectedStatus: "OCCUPIED",
+              businessDate: "2026-10-15",
+              qrCodes: [],
+              guestStays: [],
+              activeGuestDeviceCount: 0,
+            },
+            {
+              id: "room-2",
+              hotelId: "hotel-1",
+              roomNumber: "102",
+              floor: "1",
+              type: "Standard",
+              status: "AVAILABLE",
+              projectedStatus: "RESERVED",
+              businessDate: "2026-10-15",
+              qrCodes: [],
+              guestStays: [],
+              activeGuestDeviceCount: 0,
+            },
+            {
+              id: "room-3",
+              hotelId: "hotel-1",
+              roomNumber: "201",
+              floor: "2",
+              type: "Deluxe",
+              status: "MAINTENANCE",
+              projectedStatus: "MAINTENANCE",
+              businessDate: "2026-10-15",
+              qrCodes: [],
+              guestStays: [],
+              activeGuestDeviceCount: 0,
+            },
+            {
+              id: "room-4",
+              hotelId: "hotel-1",
+              roomNumber: "202",
+              floor: "2",
+              type: "Deluxe",
+              status: "AVAILABLE",
+              projectedStatus: "AVAILABLE",
+              businessDate: "2026-10-15",
+              qrCodes: [],
+              guestStays: [],
+              activeGuestDeviceCount: 0,
+            },
+          ],
+        }),
+      };
+
+      const mockAccess = {
+        resolveRoomScope: jest.fn().mockResolvedValue({
+          hotel: { id: "hotel-1", timezone: "Asia/Ho_Chi_Minh" },
+          allowedRoomId: null,
+          mode: "HOTEL_WIDE",
+        }),
+      };
+
+      const roomsService = new HotelRoomsService(mockRoomsRepo as any, {} as any, mockAccess as any);
+
+      const result = await roomsService.listRooms("hk-1", "role-hk", "hotel-1", {
+        businessDate: "2026-10-15",
+      });
+
+      expect(mockRoomsRepo.listRooms).toHaveBeenCalledWith(
+        expect.anything(),
+        0,
+        20,
+        expect.objectContaining({
+          businessDate: "2026-10-15",
+          timezone: "Asia/Ho_Chi_Minh",
+        }),
+      );
+
+      expect(result.businessDate).toBe("2026-10-15");
+      expect(result.items[0].status).toBe("AVAILABLE");
+      expect(result.items[0].projectedStatus).toBe("OCCUPIED");
+      expect(result.items[1].projectedStatus).toBe("RESERVED");
+      expect(result.items[2].projectedStatus).toBe("MAINTENANCE");
+      expect(result.items[3].projectedStatus).toBe("AVAILABLE");
     });
   });
 });

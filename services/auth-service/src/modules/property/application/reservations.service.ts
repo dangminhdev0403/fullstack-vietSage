@@ -40,7 +40,17 @@ export class ReservationsService {
       activeRoleId,
       hotelId,
     );
+    const roomId = dto.roomId ?? scope.allowedRoomId ?? null;
+    if (roomId) {
+      await this.hotelAccessService.assertRoomAccess(actorUserId, activeRoleId, hotelId, roomId);
+    }
     const reservationCode = await this.codesService.generateEntityCode("RESERVATION");
+    const rawRate = dto.rate !== undefined ? dto.rate : dto.nightlyRateSnapshot;
+    const nightlyRateSnapshot =
+      rawRate !== undefined && rawRate !== null
+        ? new Prisma.Decimal(rawRate).toFixed(2)
+        : null;
+
     return this.reservationsRepository.createReservation({
       hotelId,
       reservationCode,
@@ -49,7 +59,8 @@ export class ReservationsService {
       plannedCheckInAt: dto.plannedCheckInAt,
       plannedCheckOutAt: dto.plannedCheckOutAt,
       createdByUserId: actorUserId,
-      roomId: scope.allowedRoomId ?? null,
+      roomId,
+      nightlyRateSnapshot,
     });
   }
 
@@ -85,11 +96,20 @@ export class ReservationsService {
     dto: AssignReservationRoomBodyInput,
   ) {
     await this.hotelAccessService.assertRoomAccess(actorUserId, activeRoleId, hotelId, dto.roomId);
+    const rawRate = dto.rate !== undefined ? dto.rate : dto.nightlyRateSnapshot;
+    const nightlyRateSnapshot =
+      rawRate !== undefined
+        ? rawRate !== null
+          ? new Prisma.Decimal(rawRate).toFixed(2)
+          : null
+        : undefined;
+
     const reservation = await this.reservationsRepository.assignRoom({
       hotelId,
       reservationId,
       roomId: dto.roomId,
       actorUserId,
+      ...(nightlyRateSnapshot !== undefined ? { nightlyRateSnapshot } : {}),
     });
     if (!reservation) {
       throw new NotFoundException("Không tìm thấy đặt phòng");
@@ -134,6 +154,7 @@ export class ReservationsService {
       accessCodeExpiresAt: addHours(new Date(), 24),
       generateFolioNumber: (tx: Prisma.TransactionClient) =>
         this.codesService.generateEntityCode("FOLIO", tx),
+      timezone: hotel.timezone,
     });
 
     if (!result.idempotent) {

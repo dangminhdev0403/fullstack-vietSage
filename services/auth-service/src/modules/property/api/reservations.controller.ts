@@ -32,6 +32,7 @@ const reservationResponseSchema = {
     id: { type: "string" },
     hotelId: { type: "string" },
     roomId: { type: "string", nullable: true },
+    nightlyRateSnapshot: { type: "string", nullable: true },
     reservationCode: { type: "string" },
     guestDisplayName: { type: "string" },
     guestPhone: { type: "string", nullable: true },
@@ -93,6 +94,9 @@ export class ReservationsController {
         guestPhone: { type: "string" },
         plannedCheckInAt: { type: "string", format: "date-time" },
         plannedCheckOutAt: { type: "string", format: "date-time" },
+        roomId: { type: "string", nullable: true },
+        rate: { type: "string", nullable: true },
+        nightlyRateSnapshot: { type: "string", nullable: true },
       },
     },
   })
@@ -162,7 +166,11 @@ export class ReservationsController {
     schema: {
       type: "object",
       required: ["roomId"],
-      properties: { roomId: { type: "string" } },
+      properties: {
+        roomId: { type: "string" },
+        rate: { type: "string", nullable: true },
+        nightlyRateSnapshot: { type: "string", nullable: true },
+      },
     },
   })
   @ApiOkResponse({

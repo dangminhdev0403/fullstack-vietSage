@@ -24,6 +24,7 @@ export type BusinessPermissionKey =
   | "hotel.rooms.view"
   | "hotel.rooms.manage"
   | "hotel.rooms.status.manage"
+  | "hotel.rooms.ready.confirm"
   | "hotel.rooms.qr.manage"
   | "hotel.stays.view"
   | "hotel.stays.manage"
@@ -131,6 +132,12 @@ export const BUSINESS_PERMISSIONS: readonly BusinessPermissionDefinition[] = [
   permission("hotel.rooms.view", "hotel-rooms", "Xem danh sách phòng"),
   permission("hotel.rooms.manage", "hotel-rooms", "Quản lý phòng"),
   permission("hotel.rooms.status.manage", "hotel-rooms", "Quản lý trạng thái buồng phòng", "HIGH"),
+  permission(
+    "hotel.rooms.ready.confirm",
+    "hotel-rooms",
+    "Xác nhận phòng sẵn sàng đón khách",
+    "MEDIUM",
+  ),
   permission("hotel.rooms.qr.manage", "hotel-room-qr", "Quản lý mã QR", "HIGH"),
   permission("hotel.stays.view", "hotel-stays", "Xem danh sách khách lưu trú"),
   permission("hotel.stays.manage", "hotel-stays", "Quản lý khách lưu trú"),

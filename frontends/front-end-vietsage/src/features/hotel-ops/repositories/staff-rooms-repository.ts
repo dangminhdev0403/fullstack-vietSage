@@ -12,6 +12,7 @@ export type StaffRoomsListInput = Readonly<{
   floor?: string;
   type?: string;
   vipOnly?: boolean;
+  businessDate?: string;
 }>;
 
 export const staffRoomsRepository = {
@@ -28,6 +29,7 @@ export const staffRoomsRepository = {
     if (input?.floor && input.floor !== "all") params.set("floor", input.floor.trim());
     if (input?.type && input.type !== "all") params.set("type", input.type.trim());
     if (input?.vipOnly) params.set("vipOnly", "true");
+    if (input?.businessDate) params.set("businessDate", input.businessDate);
 
     const qs = params.toString();
     const response = await requestInternalApiEnvelope<HotelOpsPage<HotelRoomSummary>>(

@@ -8,6 +8,7 @@ import {
 } from "@/features/hotel-ops/utils/hotel-route-auth";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+import { resolveWorkspacePersona } from "@/features/workspace/config/workspace-registry";
 import { StaffRoomsClient } from "./staff-rooms-client";
 
 type PageProps = {
@@ -27,6 +28,7 @@ export default async function StaffRoomsPage({
   const { hotelId } = await Promise.resolve(params);
   const resolvedSearchParams = (await searchParams) ?? {};
   const initialFlow = getFirst(resolvedSearchParams.flow);
+  const initialBusinessDate = getFirst(resolvedSearchParams.businessDate);
   const callbackUrl = `/hotels/${hotelId}/rooms` as const;
   const session = await auth();
   assertCanAccessHotelOps(session, callbackUrl);
@@ -35,6 +37,8 @@ export default async function StaffRoomsPage({
     callbackUrl,
     tokens.accessToken,
   );
+  const userPersona = resolveWorkspacePersona(context.activeRole.code);
+  const isHousekeeping = userPersona === "housekeeping";
   const canViewRooms =
     context.permissions.includes("hotel.rooms.view") ||
     context.permissions.includes("hotel.rooms.status.manage");
@@ -48,22 +52,28 @@ export default async function StaffRoomsPage({
     notFound();
   }
 
-  let roomsPage;
-  let dashboard;
+  let roomsPage: Awaited<ReturnType<typeof hotelOpsService.listRooms>>;
+  let dashboard: Awaited<ReturnType<typeof hotelOpsService.getDashboard>> | undefined;
 
   try {
     const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
-    [roomsPage, dashboard] = await Promise.all([
-      authorizedApi("list staff rooms", (accessToken) =>
-        hotelOpsService.listRooms(hotelId, {
-          query: { page: 1, limit: 100 },
-          accessToken,
-        }),
-      ),
-      authorizedApi("load room dashboard", (accessToken) =>
-        hotelOpsService.getDashboard(hotelId, { accessToken }),
-      ),
-    ]);
+    roomsPage = await authorizedApi("list staff rooms", (accessToken) =>
+      hotelOpsService.listRooms(hotelId, {
+        query: {
+          page: 1,
+          limit: 100,
+          ...(!isHousekeeping && initialBusinessDate
+            ? { businessDate: initialBusinessDate }
+            : {}),
+        },
+        accessToken,
+      }),
+    );
+    dashboard = isHousekeeping
+      ? undefined
+      : await authorizedApi("load room dashboard", (accessToken) =>
+          hotelOpsService.getDashboard(hotelId, { accessToken }),
+        );
   } catch (error) {
     console.error("[STAFF_ROOMS_PAGE_ERROR]", {
       hotelId,
@@ -108,11 +118,24 @@ export default async function StaffRoomsPage({
     );
   }
 
+  const roomCounts =
+    dashboard?.rooms.byStatus ??
+    roomsPage.items.reduce(
+      (counts, room) => {
+        const status = room.status?.toUpperCase();
+        if (status === "OCCUPIED" || status === "RESERVED") counts.occupied += 1;
+        else if (status === "PROCESSING") counts.processing += 1;
+        else if (status === "MAINTENANCE" || status === "OUT_OF_SERVICE") counts.maintenance += 1;
+        else if (status === "AVAILABLE") counts.available += 1;
+        return counts;
+      },
+      { available: 0, occupied: 0, processing: 0, maintenance: 0 },
+    );
   const metrics = [
-    ["Sẵn sàng", dashboard.rooms.byStatus.available, "text-emerald-700"],
-    ["Đang ở", dashboard.rooms.byStatus.occupied, "text-blue-700"],
-    ["Chờ dọn", dashboard.rooms.byStatus.processing, "text-amber-700"],
-    ["Bảo trì", dashboard.rooms.byStatus.maintenance, "text-red-700"],
+    ["Sẵn sàng", roomCounts.available, "text-emerald-700"],
+    ["Đang ở", roomCounts.occupied, "text-blue-700"],
+    ["Chờ dọn", roomCounts.processing, "text-amber-700"],
+    ["Bảo trì", roomCounts.maintenance, "text-red-700"],
   ] as const;
 
   const currentHotel = context.accessibleHotels.find((h) => h.id === hotelId);
@@ -122,14 +145,16 @@ export default async function StaffRoomsPage({
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--secondary)]">
-            SƠ ĐỒ PHÒNG{currentHotel?.name ? ` — ${currentHotel.name}` : ""}
+            {isHousekeeping ? "VẬN HÀNH BUỒNG PHÒNG" : "SƠ ĐỒ PHÒNG"}
+            {currentHotel?.name ? ` — ${currentHotel.name}` : ""}
           </p>
           <h1 className="vs-display mt-2 text-4xl font-semibold text-[var(--primary)]">
-            Mở phòng và lưu trú
+            {isHousekeeping ? "Buồng phòng & Sơ đồ dọn dẹp" : "Mở phòng và lưu trú"}
           </h1>
           <p className="mt-2 max-w-3xl text-sm text-[var(--on-surface-variant)]">
-            Chọn phòng sẵn sàng để check-in khách vãng lai. Sau khi mở phòng, QR
-            GuestOS và mã truy cập được kích hoạt ngay.
+            {isHousekeeping
+              ? "Theo dõi trạng thái buồng phòng và xác nhận phòng đã dọn dẹp sạch sẽ, sẵn sàng đón khách mới."
+              : "Chọn phòng sẵn sàng để check-in khách vãng lai hoặc đặt trước theo ngày. Sau khi mở phòng, QR GuestOS và mã truy cập được kích hoạt ngay."}
           </p>
         </div>
       </header>
@@ -152,12 +177,15 @@ export default async function StaffRoomsPage({
         <StaffRoomsClient
           hotelId={hotelId}
           initialRoomsPage={roomsPage}
-          canManageRooms={context.permissions.includes("hotel.rooms.manage")}
+          canManageRooms={!isHousekeeping && context.permissions.includes("hotel.rooms.manage")}
           canManageStays={
-            context.permissions.includes("hotel.stays.manage") ||
-            context.permissions.includes("hotel.stays.check-in")
+            !isHousekeeping &&
+            (context.permissions.includes("hotel.stays.manage") ||
+              context.permissions.includes("hotel.stays.check-in"))
           }
           initialFlow={initialFlow}
+          initialBusinessDate={initialBusinessDate}
+          isHousekeeping={isHousekeeping}
           enabledFeatures={
             context.accessibleHotels.find((hotel) => hotel.id === hotelId)
               ?.enabledFeatures ?? []

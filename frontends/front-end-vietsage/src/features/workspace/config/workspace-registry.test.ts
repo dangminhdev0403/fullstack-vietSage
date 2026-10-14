@@ -405,3 +405,26 @@ test("rejects accidental registry key overrides unless explicitly requested", ()
     /already exists/,
   );
 });
+
+test("maps HOTEL_HOUSEKEEPING to housekeeping and provides only room navigation", () => {
+  assert.equal(resolveWorkspacePersona("HOTEL_HOUSEKEEPING"), "housekeeping");
+  const navigation = buildWorkspaceNavigation({
+    persona: "housekeeping",
+    permissions: [
+      "hotel.dashboard.view",
+      "hotel.rooms.view",
+      "hotel.rooms.status.manage",
+      "hotel.requests.view",
+      "hotel.messages.view",
+    ],
+    hotelId: "hotel-1",
+  });
+  assert.deepEqual(
+    navigation.map((item) => ({ key: item.key, href: item.href })),
+    [{ key: "staff.rooms", href: "/hotels/hotel-1/rooms" }],
+  );
+  assert.equal(
+    navigation.find((item) => item.key === "staff.rooms")?.label,
+    "Sơ đồ phòng & Buồng phòng",
+  );
+});

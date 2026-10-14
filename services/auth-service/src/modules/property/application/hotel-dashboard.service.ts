@@ -6,6 +6,7 @@ import {
   GuestStayStatus,
   PaymentStatus,
   Prisma,
+  ReservationStatus,
   RoomStatus,
 } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
@@ -33,6 +34,75 @@ function addDays(date: Date, days: number): Date {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
   return next;
+}
+
+function getBusinessDateBounds(date: Date, timeZone: string) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  });
+  const parts = formatter.formatToParts(date);
+  const getPart = (type: string) => parts.find((p) => p.type === type)?.value;
+  const y = Number(getPart("year"));
+  const m = Number(getPart("month"));
+  const d = Number(getPart("day"));
+
+  function parseZoned(
+    year: number,
+    month: number,
+    day: number,
+    hour: number,
+    minute: number,
+    second: number,
+    ms: number,
+  ): Date {
+    const utcEstimate = new Date(Date.UTC(year, month - 1, day, hour, minute, second, ms));
+    const partFormatter = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+    const p = partFormatter.formatToParts(utcEstimate);
+    const getP = (type: string) => p.find((x) => x.type === type)?.value;
+    const tzYear = Number(getP("year"));
+    const tzMonth = Number(getP("month"));
+    const tzDay = Number(getP("day"));
+    let tzHour = Number(getP("hour"));
+    if (tzHour === 24) tzHour = 0;
+    const tzMinute = Number(getP("minute"));
+    const tzSecond = Number(getP("second"));
+
+    const tzAsUtc = Date.UTC(tzYear, tzMonth - 1, tzDay, tzHour, tzMinute, tzSecond, ms);
+    const offsetMs = tzAsUtc - utcEstimate.getTime();
+    return new Date(utcEstimate.getTime() - offsetMs);
+  }
+
+  const todayStart = parseZoned(y, m, d, 0, 0, 0, 0);
+
+  const tomorrowRef = new Date(todayStart.getTime() + 28 * 60 * 60 * 1000);
+  const tomorrowParts = formatter.formatToParts(tomorrowRef);
+  const getTomPart = (type: string) => tomorrowParts.find((p) => p.type === type)?.value;
+  const tomY = Number(getTomPart("year"));
+  const tomM = Number(getTomPart("month"));
+  const tomD = Number(getTomPart("day"));
+  const tomorrowStart = parseZoned(tomY, tomM, tomD, 0, 0, 0, 0);
+
+  const dayAfterRef = new Date(tomorrowStart.getTime() + 28 * 60 * 60 * 1000);
+  const dayAfterParts = formatter.formatToParts(dayAfterRef);
+  const getDayAfterPart = (type: string) => dayAfterParts.find((p) => p.type === type)?.value;
+  const dayAfterY = Number(getDayAfterPart("year"));
+  const dayAfterM = Number(getDayAfterPart("month"));
+  const dayAfterD = Number(getDayAfterPart("day"));
+  const dayAfterTomorrowStart = parseZoned(dayAfterY, dayAfterM, dayAfterD, 0, 0, 0, 0);
+
+  return { todayStart, tomorrowStart, dayAfterTomorrowStart };
 }
 
 function mapRoomStatus(
@@ -294,6 +364,13 @@ export class HotelDashboardService {
     const sevenDaysStart = addDays(todayStart, -6);
     const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
 
+    const hotelTimeZone = scope.hotel?.timezone || "Asia/Ho_Chi_Minh";
+    const {
+      todayStart: bizTodayStart,
+      tomorrowStart: bizTomorrowStart,
+      dayAfterTomorrowStart: bizDayAfterTomorrowStart,
+    } = getBusinessDateBounds(now, hotelTimeZone);
+
     const [
       totalRooms,
       roomStatusRows,
@@ -321,6 +398,9 @@ export class HotelDashboardService {
       activities,
       acknowledgedEvents,
       completedRequests,
+      inHouseStays,
+      activeReservations,
+      standaloneReservedStays,
     ] = await Promise.all([
       this.prisma.room.count({ where: roomWhere }),
       this.prisma.room.groupBy({ by: ["status"], where: roomWhere, _count: { _all: true } }),
@@ -492,7 +572,90 @@ export class HotelDashboardService {
         select: { id: true, createdAt: true, completedAt: true },
         take: 500,
       }),
+      this.prisma.guestStay.findMany({
+        where: {
+          ...stayWhere,
+          status: {
+            in: [
+              GuestStayStatus.ACTIVE,
+              GuestStayStatus.CHECKED_IN,
+              GuestStayStatus.CHECKOUT_PENDING,
+            ],
+          },
+          checkedOutAt: null,
+        },
+        select: {
+          id: true,
+          occupants: { select: { id: true } },
+        },
+      }),
+      this.prisma.reservation.findMany({
+        where: {
+          hotelId,
+          status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY] },
+          ...(scope.allowedRoomId !== null ? { roomId: scope.allowedRoomId } : {}),
+        },
+        select: {
+          id: true,
+          plannedCheckInAt: true,
+          stay: {
+            select: {
+              occupants: { select: { id: true } },
+            },
+          },
+        },
+      }),
+      this.prisma.guestStay.findMany({
+        where: {
+          ...stayWhere,
+          status: GuestStayStatus.RESERVED,
+          reservationId: null,
+        },
+        select: {
+          id: true,
+          plannedCheckInAt: true,
+          occupants: { select: { id: true } },
+        },
+      }),
     ]);
+
+    let inHouse = 0;
+    for (const stay of inHouseStays) {
+      inHouse += stay.occupants.length > 0 ? stay.occupants.length : 1;
+    }
+
+    let arrivalsToday = 0;
+    let arrivalsTomorrow = 0;
+    let advanceReservations = 0;
+
+    const countBooking = (item: {
+      plannedCheckInAt: Date;
+      occupantsCount: number;
+    }) => {
+      const count = item.occupantsCount > 0 ? item.occupantsCount : 1;
+      const checkIn = item.plannedCheckInAt;
+      if (checkIn >= bizTodayStart && checkIn < bizTomorrowStart) {
+        arrivalsToday += count;
+      } else if (checkIn >= bizTomorrowStart && checkIn < bizDayAfterTomorrowStart) {
+        arrivalsTomorrow += count;
+      } else if (checkIn >= bizDayAfterTomorrowStart) {
+        advanceReservations += count;
+      }
+    };
+
+    for (const res of activeReservations) {
+      countBooking({
+        plannedCheckInAt: res.plannedCheckInAt,
+        occupantsCount: res.stay?.occupants?.length ?? 0,
+      });
+    }
+
+    for (const stay of standaloneReservedStays) {
+      countBooking({
+        plannedCheckInAt: stay.plannedCheckInAt,
+        occupantsCount: stay.occupants?.length ?? 0,
+      });
+    }
 
     const roomsByStatus = { available: 0, occupied: 0, processing: 0, maintenance: 0 };
     const statusMapping: Record<string, string> = {};
@@ -612,6 +775,12 @@ export class HotelDashboardService {
         pendingCheckOuts,
         activeStays,
         insufficientData: false,
+      },
+      guests: {
+        inHouse,
+        advanceReservations,
+        arrivalsToday,
+        arrivalsTomorrow,
       },
       requests: {
         unprocessed: unprocessedRequests,

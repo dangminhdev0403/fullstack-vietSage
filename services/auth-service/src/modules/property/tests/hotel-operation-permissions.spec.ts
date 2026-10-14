@@ -49,6 +49,14 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
         ),
       ).toBe("hotel.rooms.status.manage");
 
+      // Dedicated atomic ready endpoint requires hotel.rooms.ready.confirm
+      expect(
+        Reflect.getMetadata(
+          REQUIRED_PERMISSION_KEY,
+          HotelRoomsController.prototype.confirmRoomReady,
+        ),
+      ).toBe("hotel.rooms.ready.confirm");
+
       // Metadata update remains under hotel.rooms.manage
       expect(
         Reflect.getMetadata(REQUIRED_PERMISSION_KEY, HotelRoomsController.prototype.updateRoom),
@@ -309,6 +317,69 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
       ).rejects.toBeInstanceOf(NotFoundException);
 
       expect(repository.updateRoomInHotel).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("HotelRoomsService.confirmRoomReady operational behavior", () => {
+    function createMockRepository() {
+      return {
+        confirmRoomReady: jest.fn().mockResolvedValue({
+          id: "room-1",
+          hotelId: "hotel-1",
+          roomNumber: "101",
+          floor: "1",
+          type: "Standard",
+          price: 1000000,
+          status: RoomStatus.AVAILABLE,
+          guestStays: [],
+          qrCodes: [],
+          activeGuestDeviceCount: 0,
+        }),
+      };
+    }
+
+    function createMockAccessService() {
+      return {
+        assertHotelAccess: jest.fn().mockResolvedValue({ id: "hotel-1", tenantId: "tenant-1" }),
+        assertRoomAccess: jest.fn().mockResolvedValue({ id: "hotel-1", tenantId: "tenant-1" }),
+      };
+    }
+
+    it("confirms room ready atomically for PROCESSING room", async () => {
+      const repository = createMockRepository();
+      const accessService = createMockAccessService();
+      const service = new HotelRoomsService(repository as any, {} as any, accessService as any);
+
+      const result = await service.confirmRoomReady(
+        "user-housekeeping",
+        "role-housekeeping",
+        "hotel-1",
+        "room-1",
+      );
+
+      expect(accessService.assertRoomAccess).toHaveBeenCalledWith(
+        "user-housekeeping",
+        "role-housekeeping",
+        "hotel-1",
+        "room-1",
+      );
+      expect(repository.confirmRoomReady).toHaveBeenCalledWith("hotel-1", "room-1");
+      expect(result.status).toBe(RoomStatus.AVAILABLE);
+    });
+
+    it("propagates ConflictException on replay/conflict from repository", async () => {
+      const repository = createMockRepository();
+      repository.confirmRoomReady.mockRejectedValue(
+        new ConflictException(
+          "Chỉ có thể xác nhận sẵn sàng cho phòng đang ở trạng thái CHỜ DỌN (PROCESSING)",
+        ),
+      );
+      const accessService = createMockAccessService();
+      const service = new HotelRoomsService(repository as any, {} as any, accessService as any);
+
+      await expect(
+        service.confirmRoomReady("user-housekeeping", "role-housekeeping", "hotel-1", "room-1"),
+      ).rejects.toBeInstanceOf(ConflictException);
     });
   });
 });

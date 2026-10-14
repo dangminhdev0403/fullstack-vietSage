@@ -19,7 +19,6 @@ export type {
 const STAFF_PERSONAS: readonly WorkspacePersona[] = [
   "manager",
   "front_desk",
-  "housekeeping",
   "maintenance",
   "food_beverage",
 ];
@@ -134,7 +133,7 @@ const ROLE_ALIASES: Record<string, WorkspacePersona> = {
   HOTEL_MANAGER: "front_desk",
   HOTEL_FRONTDESK: "front_desk",
   HOUSEKEEPING: "housekeeping",
-  HOTEL_HOUSEKEEPING: "front_desk",
+  HOTEL_HOUSEKEEPING: "housekeeping",
   MAINTENANCE: "maintenance",
   HOTEL_MAINTENANCE: "front_desk",
   HOTEL_FNB: "front_desk",
@@ -479,9 +478,12 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
   },
   {
     key: "staff.rooms",
-    personas: ["manager", "front_desk"],
+    personas: ["manager", "front_desk", "housekeeping"],
     href: "/hotels/{hotelId}/rooms",
     label: "Phòng & Check In",
+    labelByPersona: {
+      housekeeping: "Sơ đồ phòng & Buồng phòng",
+    },
     icon: "bed",
     order: 20,
     section: "OPERATIONS",

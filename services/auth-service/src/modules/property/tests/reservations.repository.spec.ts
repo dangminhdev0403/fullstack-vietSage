@@ -1,5 +1,16 @@
+process.env.NODE_ENV = process.env.NODE_ENV || "test";
+process.env.PORT = process.env.PORT || "8080";
+process.env.DATABASE_URL =
+  process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/vietsage_auth";
+process.env.JWT_ACCESS_SECRET =
+  process.env.JWT_ACCESS_SECRET || "replace-with-local-docker-access-secret-at-least-32-chars";
+process.env.JWT_REFRESH_SECRET =
+  process.env.JWT_REFRESH_SECRET || "replace-with-local-docker-refresh-secret-at-least-32-chars";
+process.env.JWT_ACCESS_TTL = process.env.JWT_ACCESS_TTL || "15m";
+process.env.JWT_REFRESH_TTL = process.env.JWT_REFRESH_TTL || "30d";
+
 import { ConflictException } from "@nestjs/common";
-import { Prisma, ReservationStatus, RoomStatus } from "@prisma/client";
+import { GuestStayStatus, Prisma, ReservationStatus, RoomStatus } from "@prisma/client";
 import { ReservationsRepository } from "../infrastructure/repositories/reservations.repository";
 
 function createRepository(tx: Record<string, unknown>) {
@@ -294,5 +305,313 @@ describe("ReservationsRepository transactional lifecycle", () => {
     expect(tx.room.updateMany).not.toHaveBeenCalled();
     expect(tx.guestStay.create).not.toHaveBeenCalled();
     expect(tx.folio.create).not.toHaveBeenCalled();
+  });
+
+  it("assignRoom allows future non-overlapping interval for currently OCCUPIED room", async () => {
+    const reservation = {
+      id: "res-future",
+      hotelId: "hotel-1",
+      roomId: null,
+      status: ReservationStatus.CONFIRMED,
+      plannedCheckInAt: new Date("2026-11-01T07:00:00.000Z"),
+      plannedCheckOutAt: new Date("2026-11-03T05:00:00.000Z"),
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValueOnce(reservation)
+          .mockResolvedValueOnce(null),
+        update: jest.fn().mockResolvedValue({ id: "res-future", roomId: "room-occ", status: "ARRIVAL_READY" }),
+      },
+      room: {
+        findFirst: jest.fn().mockResolvedValue({ id: "room-occ", status: RoomStatus.OCCUPIED, price: new Prisma.Decimal(1000000) }),
+      },
+      guestStay: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+    };
+    const { repository } = createRepository(tx);
+
+    await expect(
+      repository.assignRoom({
+        hotelId: "hotel-1",
+        reservationId: "res-future",
+        roomId: "room-occ",
+        actorUserId: "actor-1",
+      }),
+    ).resolves.toMatchObject({ id: "res-future", status: "ARRIVAL_READY" });
+
+    expect(tx.reservation.update).toHaveBeenCalled();
+  });
+
+  it("assignRoom rejects assignment to non-sellable room status (BLOCKED / MAINTENANCE / OUT_OF_SERVICE)", async () => {
+    const reservation = {
+      id: "res-1",
+      hotelId: "hotel-1",
+      roomId: null,
+      status: ReservationStatus.CONFIRMED,
+      plannedCheckInAt: new Date("2026-11-01T07:00:00.000Z"),
+      plannedCheckOutAt: new Date("2026-11-03T05:00:00.000Z"),
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: { findFirst: jest.fn().mockResolvedValue(reservation) },
+      room: {
+        findFirst: jest.fn().mockResolvedValue({ id: "room-blocked", status: RoomStatus.BLOCKED }),
+      },
+    };
+    const { repository } = createRepository(tx);
+
+    await expect(
+      repository.assignRoom({
+        hotelId: "hotel-1",
+        reservationId: "res-1",
+        roomId: "room-blocked",
+        actorUserId: "actor-1",
+      }),
+    ).rejects.toThrow(new ConflictException("ROOM_NOT_AVAILABLE"));
+  });
+
+  it("assignRoom rejects assignment when an active stay overlaps the interval", async () => {
+    const reservation = {
+      id: "res-1",
+      hotelId: "hotel-1",
+      roomId: null,
+      status: ReservationStatus.CONFIRMED,
+      plannedCheckInAt: new Date("2026-11-01T07:00:00.000Z"),
+      plannedCheckOutAt: new Date("2026-11-03T05:00:00.000Z"),
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValueOnce(reservation)
+          .mockResolvedValueOnce(null),
+        update: jest.fn(),
+      },
+      room: {
+        findFirst: jest.fn().mockResolvedValue({ id: "room-1", status: RoomStatus.OCCUPIED }),
+      },
+      guestStay: {
+        findFirst: jest.fn().mockResolvedValue({ id: "stay-overlapping" }),
+      },
+    };
+    const { repository } = createRepository(tx);
+
+    await expect(
+      repository.assignRoom({
+        hotelId: "hotel-1",
+        reservationId: "res-1",
+        roomId: "room-1",
+        actorUserId: "actor-1",
+      }),
+    ).rejects.toThrow(new ConflictException("ROOM_RESERVATION_OVERLAP"));
+  });
+
+  it("rejects check-in before reservation date in Hotel.timezone (early check-in)", async () => {
+    const futureDate = new Date(Date.now() + 86400000 * 5); // 5 days in the future
+    const reservation = {
+      id: "res-future",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      status: ReservationStatus.ARRIVAL_READY,
+      plannedCheckInAt: futureDate,
+      hotel: { timezone: "Asia/Ho_Chi_Minh" },
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: { findFirst: jest.fn().mockResolvedValue(reservation) },
+    };
+    const { repository } = createRepository(tx);
+
+    await expect(
+      repository.checkInReservation({
+        hotelId: "hotel-1",
+        tenantId: "tenant-1",
+        reservationId: "res-future",
+        actorUserId: "actor-1",
+        accessCodeHash: "hash",
+        accessCodeExpiresAt: new Date(),
+        generateFolioNumber: jest.fn(),
+        timezone: "Asia/Ho_Chi_Minh",
+      }),
+    ).rejects.toThrow(new ConflictException("EARLY_CHECK_IN_NOT_ALLOWED"));
+  });
+
+  it("check-in snapshots explicit reservation nightlyRateSnapshot to guest stay", async () => {
+    const reservation = {
+      id: "res-snapshot",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      reservationCode: "VSH_RES_001",
+      guestDisplayName: "Nguyen Van A",
+      status: ReservationStatus.ARRIVAL_READY,
+      plannedCheckInAt: new Date("2026-08-01T07:00:00.000Z"),
+      plannedCheckOutAt: new Date("2026-08-03T05:00:00.000Z"),
+      nightlyRateSnapshot: new Prisma.Decimal(1250000),
+      hotel: { timezone: "Asia/Ho_Chi_Minh" },
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: {
+        findFirst: jest.fn().mockResolvedValue(reservation),
+        update: jest.fn().mockResolvedValue({ ...reservation, status: ReservationStatus.CHECKED_IN }),
+      },
+      room: {
+        findFirst: jest.fn().mockResolvedValue({ id: "room-1", status: RoomStatus.AVAILABLE, price: new Prisma.Decimal(900000) }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      guestStay: {
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({ id: "stay-1", status: "ACTIVE" }),
+      },
+      folio: {
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({ id: "folio-1", status: "OPEN" }),
+      },
+      roomQRCode: {
+        findFirst: jest.fn().mockResolvedValue({ id: "qr-1", version: 1 }),
+        updateMany: jest.fn(),
+        update: jest.fn().mockResolvedValue({ id: "qr-1", status: "ACTIVE" }),
+      },
+      domainEvent: { create: jest.fn() },
+    };
+    const { repository } = createRepository(tx);
+
+    await repository.checkInReservation({
+      hotelId: "hotel-1",
+      tenantId: "tenant-1",
+      reservationId: "res-snapshot",
+      actorUserId: "actor-1",
+      accessCodeHash: "hash",
+      accessCodeExpiresAt: new Date(),
+      generateFolioNumber: jest.fn().mockResolvedValue("FOL-1"),
+      timezone: "Asia/Ho_Chi_Minh",
+    });
+
+    expect(tx.guestStay.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        nightlyRateSnapshot: new Prisma.Decimal(1250000),
+      }),
+    });
+  });
+
+  it("check-in snapshots room.price to stay when reservation rate is null", async () => {
+    const reservation = {
+      id: "res-null-rate",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      reservationCode: "VSH_RES_002",
+      guestDisplayName: "Nguyen Van B",
+      status: ReservationStatus.ARRIVAL_READY,
+      plannedCheckInAt: new Date("2026-08-01T07:00:00.000Z"),
+      plannedCheckOutAt: new Date("2026-08-03T05:00:00.000Z"),
+      nightlyRateSnapshot: null,
+      hotel: { timezone: "Asia/Ho_Chi_Minh" },
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: {
+        findFirst: jest.fn().mockResolvedValue(reservation),
+        update: jest.fn().mockResolvedValue({ ...reservation, status: ReservationStatus.CHECKED_IN }),
+      },
+      room: {
+        findFirst: jest.fn().mockResolvedValue({ id: "room-1", status: RoomStatus.AVAILABLE, price: new Prisma.Decimal(800000) }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      guestStay: {
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({ id: "stay-2", status: "ACTIVE" }),
+      },
+      folio: {
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({ id: "folio-2", status: "OPEN" }),
+      },
+      roomQRCode: {
+        findFirst: jest.fn().mockResolvedValue({ id: "qr-1", version: 1 }),
+        updateMany: jest.fn(),
+        update: jest.fn().mockResolvedValue({ id: "qr-1", status: "ACTIVE" }),
+      },
+      domainEvent: { create: jest.fn() },
+    };
+    const { repository } = createRepository(tx);
+
+    await repository.checkInReservation({
+      hotelId: "hotel-1",
+      tenantId: "tenant-1",
+      reservationId: "res-null-rate",
+      actorUserId: "actor-1",
+      accessCodeHash: "hash",
+      accessCodeExpiresAt: new Date(),
+      generateFolioNumber: jest.fn().mockResolvedValue("FOL-2"),
+      timezone: "Asia/Ho_Chi_Minh",
+    });
+
+    expect(tx.guestStay.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        nightlyRateSnapshot: new Prisma.Decimal(800000),
+      }),
+    });
+  });
+
+  it("check-in preserves 0 as free stay in guest stay nightlyRateSnapshot", async () => {
+    const reservation = {
+      id: "res-zero-rate",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      reservationCode: "VSH_RES_003",
+      guestDisplayName: "Nguyen Van Free",
+      status: ReservationStatus.ARRIVAL_READY,
+      plannedCheckInAt: new Date("2026-08-01T07:00:00.000Z"),
+      plannedCheckOutAt: new Date("2026-08-03T05:00:00.000Z"),
+      nightlyRateSnapshot: new Prisma.Decimal(0),
+      hotel: { timezone: "Asia/Ho_Chi_Minh" },
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: {
+        findFirst: jest.fn().mockResolvedValue(reservation),
+        update: jest.fn().mockResolvedValue({ ...reservation, status: ReservationStatus.CHECKED_IN }),
+      },
+      room: {
+        findFirst: jest.fn().mockResolvedValue({ id: "room-1", status: RoomStatus.AVAILABLE, price: new Prisma.Decimal(800000) }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      guestStay: {
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({ id: "stay-3", status: "ACTIVE" }),
+      },
+      folio: {
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({ id: "folio-3", status: "OPEN" }),
+      },
+      roomQRCode: {
+        findFirst: jest.fn().mockResolvedValue({ id: "qr-1", version: 1 }),
+        updateMany: jest.fn(),
+        update: jest.fn().mockResolvedValue({ id: "qr-1", status: "ACTIVE" }),
+      },
+      domainEvent: { create: jest.fn() },
+    };
+    const { repository } = createRepository(tx);
+
+    await repository.checkInReservation({
+      hotelId: "hotel-1",
+      tenantId: "tenant-1",
+      reservationId: "res-zero-rate",
+      actorUserId: "actor-1",
+      accessCodeHash: "hash",
+      accessCodeExpiresAt: new Date(),
+      generateFolioNumber: jest.fn().mockResolvedValue("FOL-3"),
+      timezone: "Asia/Ho_Chi_Minh",
+    });
+
+    expect(tx.guestStay.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        nightlyRateSnapshot: new Prisma.Decimal(0),
+      }),
+    });
   });
 });

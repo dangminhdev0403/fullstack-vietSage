@@ -1,3 +1,14 @@
+process.env.NODE_ENV = process.env.NODE_ENV || "test";
+process.env.PORT = process.env.PORT || "8080";
+process.env.DATABASE_URL =
+  process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/vietsage_auth";
+process.env.JWT_ACCESS_SECRET =
+  process.env.JWT_ACCESS_SECRET || "replace-with-local-docker-access-secret-at-least-32-chars";
+process.env.JWT_REFRESH_SECRET =
+  process.env.JWT_REFRESH_SECRET || "replace-with-local-docker-refresh-secret-at-least-32-chars";
+process.env.JWT_ACCESS_TTL = process.env.JWT_ACCESS_TTL || "15m";
+process.env.JWT_REFRESH_TTL = process.env.JWT_REFRESH_TTL || "30d";
+
 jest.mock("../../../prisma/prisma.service", () => ({
   PrismaService: class MockPrismaService {},
 }));
@@ -1123,5 +1134,75 @@ describe("BillingService checkout safety", () => {
 
     expect(issueInvoicePermission).toBe("hotel.billing.checkout");
     expect(confirmManualPaymentPermission).toBe("hotel.billing.checkout");
+  });
+
+  it("BillingService calculateEstimatedRoomCharge prioritizes stay.nightlyRateSnapshot over room.price", () => {
+    const service = createService({});
+    const charge = service.calculateEstimatedRoomCharge({
+      room: { roomNumber: "101", price: new Prisma.Decimal(800000) },
+      stay: {
+        checkedInAt: new Date("2026-07-17T14:00:00.000Z"),
+        plannedCheckOutAt: new Date("2026-07-18T12:00:00.000Z"),
+        nightlyRateSnapshot: new Prisma.Decimal(650000),
+      },
+    });
+
+    expect(charge.nightlyRate).toEqual(new Prisma.Decimal(650000));
+    expect(charge.subtotal).toEqual(new Prisma.Decimal(650000));
+  });
+
+  it("BillingService calculateEstimatedRoomCharge ensures room-price edits cannot alter stay charge when stay snapshot exists", () => {
+    const service = createService({});
+    // Even if room price changes to 2,000,000, stay locked snapshot remains 650,000
+    const charge = service.calculateEstimatedRoomCharge({
+      room: { roomNumber: "101", price: new Prisma.Decimal(2000000) },
+      stay: {
+        checkedInAt: new Date("2026-07-17T14:00:00.000Z"),
+        plannedCheckOutAt: new Date("2026-07-18T12:00:00.000Z"),
+        nightlyRateSnapshot: new Prisma.Decimal(650000),
+      },
+    });
+
+    expect(charge.nightlyRate).toEqual(new Prisma.Decimal(650000));
+    expect(charge.subtotal).toEqual(new Prisma.Decimal(650000));
+  });
+
+  it("BillingService calculateEstimatedRoomCharge treats 0 as free stay (subtotal 0) and null falls back to room price", () => {
+    const service = createService({});
+    // 0 is free stay
+    const freeCharge = service.calculateEstimatedRoomCharge({
+      room: { roomNumber: "101", price: new Prisma.Decimal(800000) },
+      stay: {
+        checkedInAt: new Date("2026-07-17T14:00:00.000Z"),
+        plannedCheckOutAt: new Date("2026-07-18T12:00:00.000Z"),
+        nightlyRateSnapshot: new Prisma.Decimal(0),
+      },
+    });
+    expect(freeCharge.nightlyRate).toEqual(new Prisma.Decimal(0));
+    expect(freeCharge.subtotal).toEqual(new Prisma.Decimal(0));
+
+    // null falls back to room price
+    const fallbackCharge = service.calculateEstimatedRoomCharge({
+      room: { roomNumber: "101", price: new Prisma.Decimal(750000) },
+      stay: {
+        checkedInAt: new Date("2026-07-17T14:00:00.000Z"),
+        plannedCheckOutAt: new Date("2026-07-18T12:00:00.000Z"),
+        nightlyRateSnapshot: null,
+      },
+    });
+    expect(fallbackCharge.nightlyRate).toEqual(new Prisma.Decimal(750000));
+    expect(fallbackCharge.subtotal).toEqual(new Prisma.Decimal(750000));
+
+    // null stay snapshot and null room price falls back to default 500,000
+    const defaultCharge = service.calculateEstimatedRoomCharge({
+      room: { roomNumber: "101", price: null },
+      stay: {
+        checkedInAt: new Date("2026-07-17T14:00:00.000Z"),
+        plannedCheckOutAt: new Date("2026-07-18T12:00:00.000Z"),
+        nightlyRateSnapshot: null,
+      },
+    });
+    expect(defaultCharge.nightlyRate).toEqual(new Prisma.Decimal(500000));
+    expect(defaultCharge.subtotal).toEqual(new Prisma.Decimal(500000));
   });
 });

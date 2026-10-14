@@ -80,6 +80,7 @@ export type HotelRoomSummary = {
   maxActiveGuestDevices?: number | null;
   activeGuestDeviceCount?: number | null;
   status?: string | null;
+  projectedStatus?: string | null;
   publicCode?: string | null;
   qrCode?: string | null;
   qrStatus?: string | null;
@@ -146,6 +147,8 @@ export type HotelReservationInput = {
   guestPhone?: string;
   plannedCheckInAt: string;
   plannedCheckOutAt: string;
+  roomId?: string;
+  nightlyRateSnapshot?: number | string;
 };
 
 export type HotelReservationCheckInResult = {
@@ -165,6 +168,12 @@ export type HotelDashboard = {
     occupied: number;
     occupancyRate: number;
     byStatus: { available: number; occupied: number; processing: number; maintenance: number };
+  };
+  guests?: {
+    inHouse: number;
+    advanceReservations: number;
+    arrivalsToday: number;
+    arrivalsTomorrow: number;
   };
   stays: {
     todayCheckIns: number;
@@ -230,17 +239,20 @@ export type HotelArrival = {
   id: string;
   hotelId: string;
   roomId: string | null;
+  room?: Pick<HotelRoomSummary, "id" | "roomNumber"> | null;
   reservationCode: string;
   guestDisplayName: string;
   guestPhone: string | null;
   status: "CONFIRMED" | "ARRIVAL_READY" | "CHECKED_IN";
   plannedCheckInAt: string;
   plannedCheckOutAt: string;
+  nightlyRateSnapshot?: number | string | null;
+  rate?: string | null;
 };
 
 export type ListHotelArrivalsQuery = {
-  from: string;
-  to: string;
+  from?: string;
+  to?: string;
   page?: number;
   limit?: number;
 };
@@ -341,6 +353,7 @@ export type ListHotelRoomsQuery = {
   floor?: string;
   type?: string;
   vipOnly?: boolean;
+  businessDate?: string;
   page?: number;
   limit?: number;
 };

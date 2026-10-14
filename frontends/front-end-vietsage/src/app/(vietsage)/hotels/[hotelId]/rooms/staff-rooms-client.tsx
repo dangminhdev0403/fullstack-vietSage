@@ -23,7 +23,9 @@ import { BrandedRoomQr } from "@/features/hotel-ops/components/branded-room-qr";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import { filterExtraOccupants, formatMoney } from "@/features/hotel-ops/utils/hotel-ops-display";
+import { getArrivalDateRange } from "@/features/hotel-ops/utils/arrival-date-range";
 import type {
+  HotelArrival,
   HotelCheckInResult,
   HotelOpsPage,
   HotelRoomSummary,
@@ -38,6 +40,8 @@ type Props = {
   canManageRooms: boolean;
   canManageStays: boolean;
   initialFlow?: string;
+  initialBusinessDate?: string;
+  isHousekeeping?: boolean;
   enabledFeatures?: readonly string[];
 };
 
@@ -123,6 +127,22 @@ function getRoomStatus(room: HotelRoomSummary): RoomStatusFilter {
   if (status === "MAINTENANCE" || status === "OUT_OF_SERVICE")
     return "maintenance";
   return "available";
+}
+
+function getProjectedRoomStatus(room: HotelRoomSummary): RoomStatusFilter {
+  const projected = (room.projectedStatus || room.status || "").toUpperCase();
+  if (projected === "OCCUPIED" || projected === "RESERVED") return "occupied";
+  if (projected === "PROCESSING") return "processing";
+  if (projected === "BLOCKED") return "blocked";
+  if (projected === "MAINTENANCE" || projected === "OUT_OF_SERVICE") return "maintenance";
+  return "available";
+}
+
+function getEffectiveRoomStatus(room: HotelRoomSummary, isFuture: boolean): RoomStatusFilter {
+  if (isFuture && room.projectedStatus) {
+    return getProjectedRoomStatus(room);
+  }
+  return getRoomStatus(room);
 }
 
 function roomStatusLabel(status: RoomStatusFilter): string {
@@ -379,12 +399,38 @@ export function StaffRoomsClient({
   canManageRooms,
   canManageStays,
   initialFlow,
+  initialBusinessDate,
+  isHousekeeping = false,
   enabledFeatures,
 }: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const apiBase = `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}`;
 
+  const todayYmd = useMemo(() => {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+  }, []);
+
+  const tomorrowYmd = useMemo(() => {
+    const tmr = new Date();
+    tmr.setDate(tmr.getDate() + 1);
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(tmr);
+  }, []);
+
+  const [businessDate, setBusinessDate] = useState<string>(
+    () => (isHousekeeping ? todayYmd : initialBusinessDate || todayYmd),
+  );
+  const isFutureDate = !isHousekeeping && Boolean(businessDate && businessDate > todayYmd);
 
   const [page, setPage] = useState(1);
   const [pageSize] = useState(100);
@@ -395,7 +441,7 @@ export function StaffRoomsClient({
   const [status, setStatus] = useState<RoomStatusFilter>("all");
   const [selectedRoom, setSelectedRoom] = useState<HotelRoomSummary | null>(
     () =>
-      initialFlow === "check-in" && canManageStays
+      initialFlow === "check-in" && canManageStays && !isHousekeeping
         ? (initialRoomsPage.items.find(isAvailable) ?? null)
         : null,
   );
@@ -405,10 +451,314 @@ export function StaffRoomsClient({
   const [isCheckInOpen, setIsCheckInOpen] = useState(
     initialFlow === "check-in" &&
       canManageStays &&
+      !isHousekeeping &&
       initialRoomsPage.items.some(isAvailable),
   );
   const [submitError, setSubmitError] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
+
+  // Future Reservation State
+  const [isReservationOpen, setIsReservationOpen] = useState(
+    initialFlow === "reservation" && !isHousekeeping,
+  );
+  const [reservationRoomId, setReservationRoomId] = useState<string>("");
+  const [reservationGuestName, setReservationGuestName] = useState<string>("");
+  const [reservationGuestPhone, setReservationGuestPhone] = useState<string>("");
+  const [reservationCheckIn, setReservationCheckIn] = useState<string>(() => {
+    const d = new Date();
+    if (initialBusinessDate && initialBusinessDate > todayYmd) {
+      const parts = initialBusinessDate.split("-").map(Number);
+      if (parts[0] && parts[1] && parts[2]) {
+        d.setFullYear(parts[0], parts[1] - 1, parts[2]);
+      }
+    } else {
+      d.setDate(d.getDate() + 1);
+    }
+    d.setHours(14, 0, 0, 0);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+  });
+  const [reservationCheckOut, setReservationCheckOut] = useState<string>(() => {
+    const d = new Date();
+    if (initialBusinessDate && initialBusinessDate > todayYmd) {
+      const parts = initialBusinessDate.split("-").map(Number);
+      if (parts[0] && parts[1] && parts[2]) {
+        d.setFullYear(parts[0], parts[1] - 1, parts[2]);
+      }
+      d.setDate(d.getDate() + 1);
+    } else {
+      d.setDate(d.getDate() + 2);
+    }
+    d.setHours(12, 0, 0, 0);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+  });
+  const [reservationNightlyRate, setReservationNightlyRate] = useState<string>("");
+  const [reservationSubmitting, setReservationSubmitting] = useState<boolean>(false);
+
+  // Arrivals State
+  const [isArrivalsOpen, setIsArrivalsOpen] = useState(false);
+  const [arrivalsRange, setArrivalsRange] = useState<"today" | "tomorrow" | "week">("today");
+  const [arrivalsList, setArrivalsList] = useState<HotelArrival[]>([]);
+  const [arrivalsLoading, setArrivalsLoading] = useState(false);
+
+  function handleBusinessDateChange(newDate: string) {
+    setBusinessDate(newDate);
+    const params = new URLSearchParams(window.location.search);
+    if (newDate && newDate !== todayYmd) {
+      params.set("businessDate", newDate);
+    } else {
+      params.delete("businessDate");
+    }
+    const queryStr = params.toString();
+    router.push(`/hotels/${encodeURIComponent(hotelId)}/rooms${queryStr ? `?${queryStr}` : ""}`);
+  }
+
+  function openFutureReservationModal(room?: HotelRoomSummary) {
+    if (room?.id) {
+      setReservationRoomId(room.id);
+      if (room.price) {
+        setReservationNightlyRate(String(room.price));
+      }
+    }
+    if (businessDate && businessDate > todayYmd) {
+      const checkInD = new Date(businessDate);
+      checkInD.setHours(14, 0, 0, 0);
+      setReservationCheckIn(new Date(checkInD.getTime() - checkInD.getTimezoneOffset() * 60_000).toISOString().slice(0, 16));
+      const checkOutD = new Date(businessDate);
+      checkOutD.setDate(checkOutD.getDate() + 1);
+      checkOutD.setHours(12, 0, 0, 0);
+      setReservationCheckOut(new Date(checkOutD.getTime() - checkOutD.getTimezoneOffset() * 60_000).toISOString().slice(0, 16));
+    }
+    setIsReservationOpen(true);
+  }
+
+  async function submitFutureReservation(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    if (!reservationGuestName.trim()) {
+      await showWarningAlert("Thiếu thông tin", "Vui lòng nhập họ và tên khách lưu trú.");
+      return;
+    }
+    if (!reservationCheckIn || !reservationCheckOut) {
+      await showWarningAlert("Thiếu thông tin", "Vui lòng chọn thời gian nhận và trả phòng.");
+      return;
+    }
+
+    setReservationSubmitting(true);
+    try {
+      const checkInIso = new Date(reservationCheckIn).toISOString();
+      const checkOutIso = new Date(reservationCheckOut).toISOString();
+
+      const payload: Record<string, unknown> = {
+        guestDisplayName: reservationGuestName.trim(),
+        plannedCheckInAt: checkInIso,
+        plannedCheckOutAt: checkOutIso,
+      };
+      if (reservationGuestPhone.trim()) {
+        payload.guestPhone = reservationGuestPhone.trim();
+      }
+      if (reservationRoomId.trim()) {
+        payload.roomId = reservationRoomId.trim();
+      }
+      if (reservationNightlyRate.trim()) {
+        const num = Number(reservationNightlyRate.replace(/[^0-9.-]+/g, ""));
+        payload.nightlyRateSnapshot = !isNaN(num) && num > 0 ? num : reservationNightlyRate.trim();
+      }
+
+      const res = await requestInternalApiEnvelope<HotelArrival>(
+        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations`,
+        {
+          method: "POST",
+          body: payload,
+        },
+      );
+
+      setIsReservationOpen(false);
+      setReservationGuestName("");
+      setReservationGuestPhone("");
+      setReservationNightlyRate("");
+      setReservationRoomId("");
+
+      await showSuccessAlert(
+        "Đặt phòng thành công",
+        `Đã tạo đặt phòng thành công cho khách ${res.data?.guestDisplayName || reservationGuestName}.`,
+      );
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
+      void refetch();
+    } catch (err: unknown) {
+      const errorObj = err as {
+        status?: number;
+        data?: { actionable?: boolean; detail?: string; code?: string };
+        message?: string;
+      };
+
+      if (errorObj?.status === 409 || errorObj?.data?.code === "INTERVAL_CONFLICT") {
+        const conflictDetail =
+          errorObj.data?.detail ||
+          errorObj.message ||
+          "Phòng đã có khách lưu trú hoặc xung đột với lịch đặt phòng khác trong khoảng thời gian này. Vui lòng chọn phòng khác hoặc thay đổi thời gian lưu trú.";
+
+        await SwalVietSage.fire({
+          icon: "warning",
+          title: "Xung đột lịch đặt phòng (409)",
+          html: `
+            <div style="font-size:14px;color:#475569;text-align:left;line-height:1.6">
+              ${conflictDetail}
+            </div>
+            <div style="margin-top:16px;padding:12px;background:#fef2f2;border-radius:10px;border:1px solid #fecaca;font-size:13px;color:#991b1b;text-align:left">
+              💡 <strong>Gợi ý:</strong> Bạn có thể đổi sang phòng trống khác hoặc điều chỉnh ngày nhận/trả phòng trên biểu mẫu đặt phòng.
+            </div>
+          `,
+          confirmButtonText: "Đổi phòng / Đổi ngày",
+          showCancelButton: true,
+          cancelButtonText: "Đóng",
+        });
+      } else {
+        await showErrorAlert(
+          "Không thể tạo đặt phòng",
+          err instanceof Error ? err.message : "Đã có lỗi xảy ra.",
+        );
+      }
+    } finally {
+      setReservationSubmitting(false);
+    }
+  }
+
+  async function loadArrivals(range: "today" | "tomorrow" | "week") {
+    setArrivalsLoading(true);
+    const { from, to } = getArrivalDateRange(range, todayYmd);
+
+    try {
+      const res = await requestInternalApiEnvelope<HotelOpsPage<HotelArrival>>(
+        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/arrivals?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&limit=100`,
+        { method: "GET" },
+      );
+      setArrivalsList(res.data?.items ?? []);
+    } catch (err) {
+      await showErrorAlert(
+        "Không thể tải danh sách khách đến",
+        err instanceof Error ? err.message : "Đã có lỗi xảy ra.",
+      );
+    } finally {
+      setArrivalsLoading(false);
+    }
+  }
+
+  function openArrivalsModal() {
+    setIsArrivalsOpen(true);
+    void loadArrivals(arrivalsRange);
+  }
+
+  async function handleAssignRoom(arrival: HotelArrival) {
+    const availableRooms = rooms.filter(
+      (r) => getRoomStatus(r) === "available" || r.id === arrival.roomId,
+    );
+
+    if (availableRooms.length === 0) {
+      await showWarningAlert(
+        "Không có phòng trống",
+        "Hiện không có phòng nào ở trạng thái TRỐNG để gán cho đơn đặt này.",
+      );
+      return;
+    }
+
+    const optionsHtml = availableRooms
+      .map(
+        (r) =>
+          `<option value="${r.id}" ${r.id === arrival.roomId ? "selected" : ""}>Phòng ${getRoomNumber(r)} (${r.type || "Tiêu chuẩn"})</option>`,
+      )
+      .join("");
+
+    const { value: selectedRoomId } = await SwalVietSage.fire({
+      title: `Gán / Đổi phòng cho khách ${arrival.guestDisplayName}`,
+      html: `
+        <div style="font-size:14px;color:#475569;margin-bottom:12px;text-align:left">
+          Chọn phòng từ danh sách phòng trống khả dụng:
+        </div>
+        <select id="swal-assign-room-select" style="width:100%;padding:10px;border-radius:8px;border:1px solid #cbd5e1;font-size:14px">
+          ${optionsHtml}
+        </select>
+      `,
+      showCancelButton: true,
+      confirmButtonText: "Xác nhận gán phòng",
+      cancelButtonText: "Hủy",
+      preConfirm: () => {
+        const select = document.getElementById(
+          "swal-assign-room-select",
+        ) as HTMLSelectElement | null;
+        return select?.value;
+      },
+    });
+
+    if (!selectedRoomId) return;
+
+    try {
+      await requestInternalApiEnvelope(
+        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(arrival.id)}/room`,
+        {
+          method: "PUT",
+          body: { roomId: selectedRoomId },
+        },
+      );
+      await showSuccessAlert(
+        "Đã gán phòng thành công",
+        `Đã gán phòng cho khách ${arrival.guestDisplayName}.`,
+      );
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
+      void refetch();
+      if (isArrivalsOpen) {
+        void loadArrivals(arrivalsRange);
+      }
+    } catch (err) {
+      await showErrorAlert(
+        "Không thể gán phòng",
+        err instanceof Error ? err.message : "Đã có lỗi xảy ra.",
+      );
+    }
+  }
+
+  async function handleCheckInArrival(arrival: HotelArrival) {
+    if (!arrival.roomId) {
+      await showWarningAlert(
+        "Chưa gán phòng",
+        "Vui lòng gán phòng cho khách trước khi làm thủ tục check-in.",
+      );
+      return;
+    }
+
+    const confirm = await showConfirmDialog({
+      icon: "question",
+      title: "Xác nhận nhận phòng (Check-in)?",
+      text: `Khách hàng: ${arrival.guestDisplayName}\nPhòng: ${arrival.room?.roomNumber || arrival.roomId}`,
+      confirmText: "Nhận phòng",
+      cancelText: "Hủy",
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    try {
+      const res = await requestInternalApiEnvelope<{
+        accessCode: string;
+        stayId: string;
+      }>(
+        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(arrival.id)}/check-in`,
+        { method: "POST" },
+      );
+
+      await showSuccessAlert(
+        "Nhận phòng thành công",
+        `Đã nhận phòng cho khách ${arrival.guestDisplayName}.${res.data?.accessCode ? ` Mã GuestOS: ${res.data.accessCode}` : ""}`,
+      );
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
+      void refetch();
+      if (isArrivalsOpen) {
+        void loadArrivals(arrivalsRange);
+      }
+    } catch (err) {
+      await showErrorAlert(
+        "Không thể nhận phòng",
+        err instanceof Error ? err.message : "Đã có lỗi xảy ra.",
+      );
+    }
+  }
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -429,10 +779,11 @@ export function StaffRoomsClient({
       page,
       limit: pageSize,
       q: query,
-      status,
+      status: isFutureDate ? "all" : status,
       floor,
       type,
       vipOnly: false,
+      businessDate: isFutureDate ? businessDate : undefined,
     }),
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,
@@ -442,7 +793,8 @@ export function StaffRoomsClient({
       !query &&
       status === "all" &&
       floor === "all" &&
-      type === "all"
+      type === "all" &&
+      businessDate === (isHousekeeping ? todayYmd : initialBusinessDate || todayYmd)
         ? initialRoomsPage
         : undefined,
   });
@@ -453,7 +805,7 @@ export function StaffRoomsClient({
       Boolean(error?.message?.includes("Chưa gán phòng")) ||
       (error as { status?: number })?.status === 403);
 
-  const rooms = useMemo(() => roomsPage?.items ?? [], [roomsPage?.items]);
+  const rooms = roomsPage?.items ?? [];
   const floors = useMemo(() => {
     const rawFloors = roomsPage?.floors ?? initialRoomsPage.floors ?? [];
     return [...new Set(rawFloors)].sort((a, b) => a.localeCompare(b));
@@ -464,6 +816,48 @@ export function StaffRoomsClient({
     return [...new Set(rawTypes)].sort((a, b) => a.localeCompare(b));
   }, [roomsPage?.types, initialRoomsPage.types]);
 
+  const filteredRooms =
+    isFutureDate && status !== "all"
+      ? rooms.filter((r) => getEffectiveRoomStatus(r, true) === status)
+      : rooms;
+
+  const futureAvailableCount = rooms.filter(
+    (r) => getEffectiveRoomStatus(r, isFutureDate) === "available",
+  ).length;
+
+  async function confirmRoomReady(room: HotelRoomSummary) {
+    const roomNum = getRoomNumber(room);
+    const confirmation = await showConfirmDialog({
+      icon: "question",
+      title: `Xác nhận phòng ${roomNum} đã sẵn sàng?`,
+      text: "Xác nhận phòng đã được dọn dẹp sạch sẽ và sẵn sàng đón khách mới.",
+      confirmText: "Xác nhận sẵn sàng",
+      cancelText: "Hủy",
+    });
+
+    if (!confirmation.isConfirmed) return;
+
+    try {
+      await requestInternalApiEnvelope(
+        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}/ready`,
+        {
+          method: "PATCH",
+        },
+      );
+      await showSuccessAlert(
+        `Phòng ${roomNum} đã sẵn sàng!`,
+        "Trạng thái phòng đã chuyển thành TRỐNG.",
+      );
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
+      void refetch();
+    } catch (error) {
+      await showErrorAlert(
+        "Không thể cập nhật trạng thái phòng",
+        error instanceof Error ? error.message : "Vui lòng thử lại.",
+      );
+    }
+  }
+
   const boundChannelResource = useMemo(
     () => channelManagerResource.bind({ hotelId, roleScope: "owner" }),
     [hotelId],
@@ -471,18 +865,12 @@ export function StaffRoomsClient({
 
   const { data: otaBookings = [] } = useQuery({
     ...boundChannelResource.queries.simulatedBookings.options(undefined as never),
-    refetchInterval: 30_000,
+    enabled: !isHousekeeping,
+    refetchInterval: isHousekeeping ? false : 30_000,
     staleTime: 10_000,
   });
 
-  const todayYmd = useMemo(() => {
-    return new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Ho_Chi_Minh",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
-  }, []);
+
 
   const { incomingOtaByRoomNumber, todayOtaArrivalCount, unassignedOtaCount } =
     useMemo(() => {
@@ -588,37 +976,7 @@ export function StaffRoomsClient({
     }
   }, []);
 
-  async function markRoomCleaned(room: HotelRoomSummary) {
-    const confirmation = await showConfirmDialog({
-      icon: "question",
-      title: `Hoàn tất dọn phòng ${room.roomNumber ?? room.id}?`,
-      text: "Xác nhận phòng đã được dọn dẹp sạch sẽ và sẵn sàng đón khách mới.",
-      confirmText: "Chuyển sang TRỐNG (Sẵn sàng)",
-      cancelText: "Hủy",
-    });
 
-    if (!confirmation.isConfirmed) return;
-
-    try {
-      await requestInternalApiEnvelope(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}`,
-        {
-          method: "PATCH",
-          body: { status: "AVAILABLE" },
-        },
-      );
-      await showSuccessAlert(
-        `Phòng ${room.roomNumber ?? room.id} đã sẵn sàng!`,
-        "Trạng thái phòng đã chuyển thành TRỐNG.",
-      );
-      void refetch();
-    } catch (error) {
-      await showErrorAlert(
-        "Không thể cập nhật trạng thái phòng",
-        error instanceof Error ? error.message : "Vui lòng thử lại.",
-      );
-    }
-  }
 
   async function toggleRoomBlocked(room: HotelRoomSummary) {
     const isBlocked = getRoomStatus(room) === "blocked";
@@ -932,6 +1290,18 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
   }
 
   function handleCardClick(room: HotelRoomSummary) {
+    if (isHousekeeping) {
+      if (getRoomStatus(room) === "processing") {
+        void confirmRoomReady(room);
+      }
+      return;
+    }
+    if (isFutureDate) {
+      if (getEffectiveRoomStatus(room, true) === "available") {
+        openFutureReservationModal(room);
+      }
+      return;
+    }
     const roomStatus = getRoomStatus(room);
     if (roomStatus === "overdue") {
       void handleOverdueRoomClick(room);
@@ -948,9 +1318,11 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
         guestUrl: getGuestQrUrl(room, window.location.origin),
       });
     } else if (roomStatus === "processing") {
-      void markRoomCleaned(room);
+      void confirmRoomReady(room);
     } else if (roomStatus === "blocked") {
-      void handleBlockedRoomClick(room);
+      if (canManageRooms) {
+        void handleBlockedRoomClick(room);
+      }
     } else if (roomStatus === "maintenance") {
       void handleMaintenanceRoomClick(room);
     }
@@ -1029,11 +1401,55 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {isHousekeeping ? (
+        <div className="rounded-2xl border border-emerald-300 bg-emerald-50/90 p-4 text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white">
+              <VsIcon name="cleaning_services" className="text-xl" />
+            </span>
+            <div>
+              <p className="font-extrabold text-sm text-emerald-950">Chế độ phân quyền Buồng phòng (Housekeeping)</p>
+              <p className="text-xs text-emerald-800 mt-0.5">
+                Hiển thị sơ đồ buồng phòng tối giản. Bạn có quyền xác nhận phòng chờ dọn sang trạng thái sẵn sàng đón khách.
+              </p>
+            </div>
+          </div>
+          <span className="self-start sm:self-auto shrink-0 rounded-lg bg-emerald-200/80 px-2.5 py-1 text-xs font-black text-emerald-900 border border-emerald-300">
+            Quyền hạn tối thiểu
+          </span>
+        </div>
+      ) : null}
+
+      {isFutureDate ? (
+        <div className="rounded-2xl border border-sky-300 bg-sky-50/90 p-4 text-sky-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-700 text-white">
+              <VsIcon name="calendar_today" className="text-xl" />
+            </span>
+            <div>
+              <p className="font-extrabold text-sm text-sky-950">
+                Đang xem sơ đồ dự kiến ngày: {formatDateTime(businessDate).slice(0, 10)}
+              </p>
+              <p className="text-xs text-sky-800 mt-0.5">
+                Trạng thái phòng hiển thị theo lịch đặt phòng tương lai (projectedStatus). Trạng thái vật lý hiện tại của phòng không bị thay đổi.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleBusinessDateChange(todayYmd)}
+            className="self-start sm:self-auto shrink-0 inline-flex min-h-[44px] items-center justify-center rounded-xl bg-sky-700 hover:bg-sky-800 px-4 text-xs font-bold text-white transition cursor-pointer shadow-2xs"
+          >
+            Quay lại Hôm nay
+          </button>
+        </div>
+      ) : null}
+
       <section className="sticky top-0 z-20 -mx-2 rounded-xl bg-[var(--surface)]/90 px-2 py-3 backdrop-blur md:top-2">
         <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
-            <label className="relative min-w-[200px] flex-1 sm:flex-initial sm:w-60 lg:w-72">
+            <label className="relative w-full sm:w-60 lg:w-72 min-w-0">
               <VsIcon
                 name="search"
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-[var(--outline)]"
@@ -1041,18 +1457,54 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
               <input
                 value={inputQuery}
                 onChange={(event) => setInputQuery(event.target.value)}
-                className="h-11 w-full rounded-lg border-0 bg-[var(--surface-container-low)] pl-10 pr-4 text-sm outline-none ring-1 ring-transparent focus:ring-[var(--primary)]"
-                placeholder="Tìm kiếm phòng hoặc khách..."
+                className="h-11 w-full rounded-lg border-0 bg-[var(--surface-container-low)] pl-10 pr-4 text-sm outline-none ring-1 ring-transparent focus:ring-[var(--primary)] min-h-[44px]"
+                placeholder="Tìm kiếm phòng..."
               />
             </label>
-            <div className="flex flex-wrap items-center gap-2">
+
+            {/* Date selection group */}
+            {!isHousekeeping ? (
+            <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
+              <input
+                type="date"
+                value={businessDate}
+                onChange={(e) => handleBusinessDateChange(e.target.value)}
+                className="h-11 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)] min-h-[44px] flex-1 sm:flex-initial"
+                title="Chọn ngày kinh doanh (Xem sơ đồ phòng dự kiến)"
+              />
+              <button
+                type="button"
+                onClick={() => handleBusinessDateChange(todayYmd)}
+                className={`h-11 px-3 text-xs font-bold rounded-lg min-h-[44px] transition cursor-pointer ${
+                  businessDate === todayYmd
+                    ? "bg-[var(--primary)] text-white shadow-2xs"
+                    : "bg-[var(--surface-container-low)] text-[var(--primary)] hover:bg-[var(--surface-container)]"
+                }`}
+              >
+                Hôm nay
+              </button>
+              <button
+                type="button"
+                onClick={() => handleBusinessDateChange(tomorrowYmd)}
+                className={`h-11 px-3 text-xs font-bold rounded-lg min-h-[44px] transition cursor-pointer ${
+                  businessDate === tomorrowYmd
+                    ? "bg-[var(--primary)] text-white shadow-2xs"
+                    : "bg-[var(--surface-container-low)] text-[var(--primary)] hover:bg-[var(--surface-container)]"
+                }`}
+              >
+                Ngày mai
+              </button>
+            </div>
+            ) : null}
+
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               <select
                 value={floor}
                 onChange={(event) => {
                   setFloor(event.target.value);
                   setPage(1);
                 }}
-                className="h-11 shrink-0 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)] min-w-[115px]"
+                className="h-11 shrink-0 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)] min-w-[115px] min-h-[44px]"
               >
                 <option value="all">Tầng: Tất cả</option>
                 {floors.map((value) => (
@@ -1067,7 +1519,7 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                   setType(event.target.value);
                   setPage(1);
                 }}
-                className="h-11 shrink-0 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)] min-w-[145px]"
+                className="h-11 shrink-0 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)] min-w-[145px] min-h-[44px]"
               >
                 <option value="all">Loại phòng: Tất cả</option>
                 {types.map((value) => (
@@ -1082,7 +1534,7 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                   setStatus(event.target.value as RoomStatusFilter);
                   setPage(1);
                 }}
-                className="h-11 shrink-0 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)] min-w-[145px]"
+                className="h-11 shrink-0 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)] min-w-[145px] min-h-[44px]"
               >
                 {statusFilters.map((item) => (
                   <option key={item.value} value={item.value}>
@@ -1091,30 +1543,56 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                 ))}
               </select>
             </div>
-            <button type="button" onClick={printActiveStayList} className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--primary)] px-4 text-sm font-bold text-white hover:opacity-90 whitespace-nowrap">
-              <VsIcon name="print" className="text-base" />
-              In danh sách lưu trú
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push(`/hotels/${encodeURIComponent(hotelId)}/channel-manager?tab=BOOKINGS`)}
-              className="relative inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-4 text-sm font-bold text-[var(--primary)] hover:bg-[var(--surface-container)] whitespace-nowrap shadow-2xs transition cursor-pointer"
-              title="Xem danh sách đơn đặt phòng từ Booking.com, Trip.com, Agoda"
-            >
-              <VsIcon name="book_online" className="text-base" />
-              <span>Đơn đặt phòng OTA</span>
-              {todayOtaArrivalCount > 0 ? (
-                <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold bg-sky-700 text-white rounded-full shadow-2xs">
-                  {todayOtaArrivalCount} đến
-                </span>
-              ) : null}
-              {unassignedOtaCount > 0 ? (
-                <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold bg-amber-600 text-white rounded-full shadow-2xs">
-                  {unassignedOtaCount} chưa xếp
-                </span>
-              ) : null}
-            </button>
+
+            {!isHousekeeping ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => openFutureReservationModal()}
+                  className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-4 text-sm font-bold text-white whitespace-nowrap min-h-[44px] cursor-pointer transition shadow-2xs"
+                >
+                  <VsIcon name="event" className="text-base" />
+                  <span>Đặt phòng trước</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={openArrivalsModal}
+                  className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-sky-700 hover:bg-sky-800 px-4 text-sm font-bold text-white whitespace-nowrap min-h-[44px] cursor-pointer transition shadow-2xs"
+                >
+                  <VsIcon name="flight_land" className="text-base" />
+                  <span>Khách đến (Arrivals)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={printActiveStayList}
+                  className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--primary)] px-4 text-sm font-bold text-white hover:opacity-90 whitespace-nowrap min-h-[44px] cursor-pointer transition"
+                >
+                  <VsIcon name="print" className="text-base" />
+                  <span>In danh sách lưu trú</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push(`/hotels/${encodeURIComponent(hotelId)}/channel-manager?tab=BOOKINGS`)}
+                  className="relative inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-4 text-sm font-bold text-[var(--primary)] hover:bg-[var(--surface-container)] whitespace-nowrap shadow-2xs transition cursor-pointer min-h-[44px]"
+                  title="Xem danh sách đơn đặt phòng từ Booking.com, Trip.com, Agoda"
+                >
+                  <VsIcon name="book_online" className="text-base" />
+                  <span>Đơn đặt phòng OTA</span>
+                  {todayOtaArrivalCount > 0 ? (
+                    <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold bg-sky-700 text-white rounded-full shadow-2xs">
+                      {todayOtaArrivalCount} đến
+                    </span>
+                  ) : null}
+                  {unassignedOtaCount > 0 ? (
+                    <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold bg-amber-600 text-white rounded-full shadow-2xs">
+                      {unassignedOtaCount} chưa xếp
+                    </span>
+                  ) : null}
+                </button>
+              </>
+            ) : null}
           </div>
+
           <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 2xl:ml-auto">
             <div className="grid grid-cols-2 gap-4 text-center shrink-0">
               <div>
@@ -1126,7 +1604,7 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                   Khả dụng
                 </p>
                 <p className="font-bold text-[var(--secondary)]">
-                  {totalAvailable}
+                  {isFutureDate ? futureAvailableCount : totalAvailable}
                 </p>
               </div>
             </div>
@@ -1142,175 +1620,162 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
             </div>
           )}
           <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
-              {rooms.map((room) => {
-                const roomStatus = getRoomStatus(room);
-                const progress = activeStayProgress(room);
-                const incomingOta = incomingOtaByRoomNumber.get(getRoomNumber(room).toUpperCase());
-                const isVip = /suite|vip|premium|penthouse/i.test(
-                  room.type ?? "",
-                );
-                const isInteractiveCard =
-                  (roomStatus === "available" && canManageStays) ||
-                  roomStatus === "occupied" ||
-                  roomStatus === "overdue" ||
-                  roomStatus === "processing" ||
-                  roomStatus === "blocked" ||
-                  roomStatus === "maintenance";
-                return (
-                  <div
-                    key={room.id}
-                    onClick={() => handleCardClick(room)}
-                    className={`flex flex-col justify-between h-full min-h-[235px] rounded-2xl border p-5 text-left shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-all ${
-                      isInteractiveCard
-                        ? "cursor-pointer hover:-translate-y-0.5"
-                        : ""
-                    } ${roomCardClass(roomStatus)}`}
-                  >
-                    {/* Header */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <h3 className="vs-display text-3xl font-semibold">
-                          {getRoomNumber(room)}
-                        </h3>
-                        <p
-                          className={
-                            roomStatus === "occupied" || roomStatus === "overdue"
-                              ? "text-sm text-white/75"
-                              : "text-sm text-[var(--on-surface-variant)]"
-                          }
-                        >
-                          {room.type ?? "Tiêu chuẩn"}
-                        </p>
-                      </div>
-                      <span
-                        className={
-                          isVip
-                            ? roomStatus === "occupied" || roomStatus === "overdue"
-                              ? "rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 px-3 py-1 text-xs font-black text-slate-950 shadow-xs border border-yellow-200 tracking-wider shrink-0 whitespace-nowrap"
-                              : "rounded-full bg-slate-900 px-3 py-1 text-xs font-black text-amber-300 shadow-xs border border-amber-400/80 tracking-wider shrink-0 whitespace-nowrap"
-                            : "rounded-full bg-[var(--surface-container-high)] px-3 py-1 text-xs font-bold text-[var(--on-surface-variant)] shrink-0 whitespace-nowrap"
-                        }
-                      >
-                        {isVip
-                          ? "VIP"
-                          : room.floor
-                            ? `Tầng ${room.floor}`
-                            : roomStatusLabel(roomStatus)}
-                      </span>
-                    </div>
+            {filteredRooms.map((room) => {
+              const effectiveStatus = getEffectiveRoomStatus(room, isFutureDate);
+              const physicalStatus = getRoomStatus(room);
+              const progress = activeStayProgress(room);
+              const incomingOta = incomingOtaByRoomNumber.get(getRoomNumber(room).toUpperCase());
+              const isVip = /suite|vip|premium|penthouse/i.test(room.type ?? "");
 
-                    {/* Middle Body */}
-                    <div className="my-3 flex-1 flex flex-col justify-center">
+              return (
+                <div
+                  key={room.id}
+                  onClick={() => handleCardClick(room)}
+                  className={`flex flex-col justify-between h-full min-h-[240px] rounded-2xl border p-5 text-left shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-all cursor-pointer ${roomCardClass(effectiveStatus)}`}
+                >
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="vs-display text-3xl font-semibold">
+                        {getRoomNumber(room)}
+                      </h3>
                       <p
                         className={
-                          roomStatus === "overdue"
-                            ? "text-xs uppercase tracking-[0.18em] text-red-300 font-bold"
-                            : roomStatus === "occupied"
-                              ? "text-xs uppercase tracking-[0.18em] text-white/70 font-semibold"
-                              : roomStatus === "maintenance"
-                                ? "text-xs uppercase tracking-[0.18em] text-rose-900/80 font-bold"
-                                : roomStatus === "blocked"
-                                  ? "text-xs uppercase tracking-[0.18em] text-slate-700 font-bold"
-                                  : roomStatus === "processing"
-                                    ? "text-xs uppercase tracking-[0.18em] text-amber-900/80 font-bold"
-                                    : "text-xs uppercase tracking-[0.18em] text-emerald-800/80 font-bold"
+                          effectiveStatus === "occupied" || effectiveStatus === "overdue"
+                            ? "text-sm text-white/75"
+                            : "text-sm text-[var(--on-surface-variant)]"
                         }
                       >
-                        {roomStatus === "overdue" ? "⚠️ Cảnh báo quá hạn" : "Khách hàng"}
+                        {room.type ?? "Tiêu chuẩn"}
                       </p>
-                      <div
-                        className={
-                          roomStatus === "overdue"
-                            ? "mt-1 font-extrabold text-red-200 text-sm flex items-center gap-1.5"
-                            : roomStatus === "occupied"
-                              ? "mt-1 font-bold text-white text-base"
-                              : roomStatus === "maintenance"
-                                ? "mt-1.5 font-extrabold text-rose-900 text-sm flex items-center gap-1.5"
-                                : roomStatus === "blocked"
-                                  ? "mt-1.5 font-extrabold text-slate-900 text-sm flex items-center gap-1.5"
-                                  : roomStatus === "processing"
-                                    ? "mt-1.5 font-extrabold text-amber-950 text-sm flex items-center gap-1.5"
-                                    : "mt-1.5 font-extrabold text-emerald-900 text-sm flex items-center gap-1.5"
-                        }
-                      >
-                        {roomStatus === "overdue" ? (
-                          <>
-                            <VsIcon name="warning" className="text-base text-red-400 shrink-0 animate-bounce" />
-                            <span>{room.activeStay?.guestDisplayName ?? "Khách chưa check-out"}</span>
-                          </>
-                        ) : roomStatus === "occupied" ? (
-                          room.activeStay?.guestDisplayName ?? "Khách lưu trú (Đã nhận phòng)"
-                        ) : roomStatus === "processing" ? (
-                          <>
-                            <VsIcon name="cleaning_services" className="text-base text-amber-700 shrink-0" />
-                            <span>Đang chờ dọn dẹp...</span>
-                          </>
-                        ) : roomStatus === "available" ? (
-                          incomingOta ? (
-                            <div className="flex flex-col gap-0.5">
-                              <div className="flex items-center gap-1.5 text-sky-800 font-extrabold text-sm">
-                                <VsIcon name="book_online" className="text-base text-sky-600 shrink-0" />
-                                <span className="truncate">{incomingOta.guestName}</span>
-                              </div>
-                              <span className="text-[11px] font-semibold text-sky-700">
-                                🛎️ {incomingOta.otaName} · Đến hôm nay
-                              </span>
-                            </div>
-                          ) : (
-                            <>
-                              <VsIcon name="check_circle" className="text-base text-emerald-600 shrink-0" />
-                              <span>Sẵn sàng đón khách</span>
-                            </>
-                          )
-                        ) : roomStatus === "blocked" ? (
-                          <>
-                            <VsIcon name="lock" className="text-base text-slate-700 shrink-0" />
-                            <span>Đã khóa phòng</span>
-                          </>
-                        ) : (
-                          <>
-                            <VsIcon name="build" className="text-base text-rose-700 shrink-0" />
-                            <span>Đang bảo trì / Tạm ngưng</span>
-                          </>
-                        )}
-                      </div>
                     </div>
-
-                    {/* Footer */}
-                    <div
+                    <span
                       className={
-                        roomStatus === "occupied"
-                          ? "mt-auto border-t border-white/15 pt-3.5"
-                          : "mt-auto border-t border-[var(--outline-variant)]/40 pt-3.5"
+                        isVip
+                          ? effectiveStatus === "occupied" || effectiveStatus === "overdue"
+                            ? "rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 px-3 py-1 text-xs font-black text-slate-950 shadow-xs border border-yellow-200 tracking-wider shrink-0 whitespace-nowrap"
+                            : "rounded-full bg-slate-900 px-3 py-1 text-xs font-black text-amber-300 shadow-xs border border-amber-400/80 tracking-wider shrink-0 whitespace-nowrap"
+                          : "rounded-full bg-[var(--surface-container-high)] px-3 py-1 text-xs font-bold text-[var(--on-surface-variant)] shrink-0 whitespace-nowrap"
                       }
                     >
-                      {roomStatus === "occupied" ? (
+                      {isVip
+                        ? "VIP"
+                        : room.floor
+                          ? `Tầng ${room.floor}`
+                          : roomStatusLabel(effectiveStatus)}
+                    </span>
+                  </div>
+
+                  {/* Middle Body */}
+                  <div className="my-3 flex-1 flex flex-col justify-center">
+                    <p
+                      className={
+                        effectiveStatus === "overdue"
+                          ? "text-xs uppercase tracking-[0.18em] text-red-300 font-bold"
+                          : effectiveStatus === "occupied"
+                            ? "text-xs uppercase tracking-[0.18em] text-white/70 font-semibold"
+                            : effectiveStatus === "maintenance"
+                              ? "text-xs uppercase tracking-[0.18em] text-rose-900/80 font-bold"
+                              : effectiveStatus === "blocked"
+                                ? "text-xs uppercase tracking-[0.18em] text-slate-700 font-bold"
+                                : effectiveStatus === "processing"
+                                  ? "text-xs uppercase tracking-[0.18em] text-amber-900/80 font-bold"
+                                  : "text-xs uppercase tracking-[0.18em] text-emerald-800/80 font-bold"
+                      }
+                    >
+                      {effectiveStatus === "overdue" ? "⚠️ Cảnh báo quá hạn" : "Trạng thái vận hành"}
+                    </p>
+                    <div
+                      className={
+                        effectiveStatus === "overdue"
+                          ? "mt-1 font-extrabold text-red-200 text-sm flex items-center gap-1.5"
+                          : effectiveStatus === "occupied"
+                            ? "mt-1 font-bold text-white text-base"
+                            : effectiveStatus === "maintenance"
+                              ? "mt-1.5 font-extrabold text-rose-900 text-sm flex items-center gap-1.5"
+                              : effectiveStatus === "blocked"
+                                ? "mt-1.5 font-extrabold text-slate-900 text-sm flex items-center gap-1.5"
+                                : effectiveStatus === "processing"
+                                  ? "mt-1.5 font-extrabold text-amber-950 text-sm flex items-center gap-1.5"
+                                  : "mt-1.5 font-extrabold text-emerald-900 text-sm flex items-center gap-1.5"
+                      }
+                    >
+                      {effectiveStatus === "overdue" ? (
                         <>
-                          <div className="mb-1 flex justify-between text-xs text-white/65">
-                            <span>
-                              {formatDateTime(
-                                room.activeStay?.checkedInAt ??
-                                  room.activeStay?.plannedCheckInAt,
-                              )}
-                            </span>
-                            <span>
-                              {formatDateTime(
-                                room.activeStay?.plannedCheckOutAt,
-                              )}
+                          <VsIcon name="warning" className="text-base text-red-400 shrink-0 animate-bounce" />
+                          <span>{room.activeStay?.guestDisplayName ?? "Khách chưa check-out"}</span>
+                        </>
+                      ) : effectiveStatus === "occupied" ? (
+                        isFutureDate ? "Đã có lịch lưu trú tương lai" : (room.activeStay?.guestDisplayName ?? "Khách lưu trú (Đã nhận phòng)")
+                      ) : effectiveStatus === "processing" ? (
+                        <>
+                          <VsIcon name="cleaning_services" className="text-base text-amber-700 shrink-0" />
+                          <span>Chờ dọn dẹp buồng phòng</span>
+                        </>
+                      ) : effectiveStatus === "available" ? (
+                        !isFutureDate && incomingOta ? (
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1.5 text-sky-800 font-extrabold text-sm">
+                              <VsIcon name="book_online" className="text-base text-sky-600 shrink-0" />
+                              <span className="truncate">{incomingOta.guestName}</span>
+                            </div>
+                            <span className="text-[11px] font-semibold text-sky-700">
+                              🛎️ {incomingOta.otaName} · Đến hôm nay
                             </span>
                           </div>
-                          <div className="h-1.5 overflow-hidden rounded-full bg-white/20">
-                            <div
-                              className="h-full rounded-full bg-[var(--secondary-fixed-dim)]"
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
+                        ) : (
+                          <>
+                            <VsIcon name="check_circle" className="text-base text-emerald-600 shrink-0" />
+                            <span>Sẵn sàng đón khách</span>
+                          </>
+                        )
+                      ) : effectiveStatus === "blocked" ? (
+                        <>
+                          <VsIcon name="lock" className="text-base text-slate-700 shrink-0" />
+                          <span>Đã khóa phòng</span>
                         </>
                       ) : (
-                        <div className="h-1.5 rounded-full bg-[var(--surface-container-high)]" />
+                        <>
+                          <VsIcon name="build" className="text-base text-rose-700 shrink-0" />
+                          <span>Đang bảo trì / Tạm ngưng</span>
+                        </>
                       )}
+                    </div>
+                  </div>
 
-                      <div className="mt-3 flex items-center justify-between gap-1.5 overflow-hidden">
+                  {/* Footer */}
+                  <div
+                    className={
+                      effectiveStatus === "occupied"
+                        ? "mt-auto border-t border-white/15 pt-3"
+                        : "mt-auto border-t border-[var(--outline-variant)]/40 pt-3"
+                    }
+                  >
+                    {!isFutureDate && effectiveStatus === "occupied" ? (
+                      <>
+                        <div className="mb-1 flex justify-between text-xs text-white/65">
+                          <span>
+                            {formatDateTime(
+                              room.activeStay?.checkedInAt ?? room.activeStay?.plannedCheckInAt,
+                            )}
+                          </span>
+                          <span>
+                            {formatDateTime(room.activeStay?.plannedCheckOutAt)}
+                          </span>
+                        </div>
+                        <div className="h-1.5 overflow-hidden rounded-full bg-white/20">
+                          <div
+                            className="h-full rounded-full bg-[var(--secondary-fixed-dim)]"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="h-1.5 rounded-full bg-[var(--surface-container-high)]" />
+                    )}
+
+                    <div className="mt-2.5 flex items-center justify-between gap-1.5 overflow-hidden">
+                      {!isHousekeeping ? (
                         <span
                           className="shrink-0 whitespace-nowrap text-xs font-extrabold text-amber-950 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-md shadow-2xs tabular-nums tracking-tight"
                           title={
@@ -1323,179 +1788,182 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                             ? `${formatMoney({ price: room.price ?? null, currency: "VND" })}`
                             : room.type ? room.type : "Giá linh hoạt"}
                         </span>
-                        <span className={`${roomStatusBadgeClass(roomStatus)} shrink-0 whitespace-nowrap`}>
-                          {roomStatusLabel(roomStatus)}
+                      ) : (
+                        <span className="shrink-0 whitespace-nowrap text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-300 px-2 py-0.5 rounded-md">
+                          {room.type ?? "Tiêu chuẩn"}
                         </span>
-                      </div>
+                      )}
+                      <span className={`${roomStatusBadgeClass(effectiveStatus)} shrink-0 whitespace-nowrap`}>
+                        {isFutureDate && room.projectedStatus ? `Dự kiến: ${roomStatusLabel(effectiveStatus)}` : roomStatusLabel(effectiveStatus)}
+                      </span>
+                    </div>
 
-                      {roomStatus !== "occupied" ? (
-                        <div className="group relative mt-3 w-full">
-                          {/* Animated hover popover menu */}
-                          <div className="absolute bottom-full left-0 right-0 mb-2 z-30 pointer-events-none opacity-0 translate-y-2 scale-95 transition-all duration-200 ease-out group-hover:pointer-events-auto group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:scale-100 rounded-2xl border border-[var(--outline-variant)] bg-white/95 p-1.5 shadow-2xl backdrop-blur-md">
-                            <div className="flex flex-col gap-1">
-                              {/* Cleaning Action */}
-                              {roomStatus === "processing" ? (
-                                <button
-                                  type="button"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    markRoomCleaned(room);
-                                  }}
-                                  className="flex w-full items-center gap-2 rounded-xl bg-amber-700 py-2 px-3 text-xs font-extrabold text-white shadow-xs hover:bg-amber-800 transition text-left"
-                                >
-                                  <VsIcon
-                                    name="cleaning_services"
-                                    className="text-base shrink-0"
-                                  />
-                                  <span>Đánh dấu phòng Trống</span>
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    updateRoomStatus(room, "PROCESSING");
-                                  }}
-                                  className="flex w-full items-center gap-2 rounded-xl bg-amber-600/90 py-2 px-3 text-xs font-extrabold text-white shadow-xs hover:bg-amber-700 transition text-left"
-                                >
-                                  <VsIcon
-                                    name="cleaning_services"
-                                    className="text-base shrink-0"
-                                  />
-                                  <span>Chuyển CHỜ DỌN DẸP</span>
-                                </button>
-                              )}
+                    {isFutureDate && room.projectedStatus ? (
+                      <p className="mt-1 text-[11px] text-slate-500 font-medium">
+                        Thực tế hiện tại: <span className="font-bold text-slate-700">{roomStatusLabel(physicalStatus)}</span>
+                      </p>
+                    ) : null}
 
-                              {/* Maintenance Action */}
-                              {roomStatus === "maintenance" ? (
-                                <button
-                                  type="button"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    updateRoomStatus(room, "AVAILABLE");
-                                  }}
-                                  className="flex w-full items-center gap-2 rounded-xl bg-emerald-700 py-2 px-3 text-xs font-extrabold text-white shadow-xs hover:bg-emerald-800 transition text-left"
-                                >
-                                  <VsIcon
-                                    name="build"
-                                    className="text-base shrink-0"
-                                  />
-                                  <span>Xong bảo trì → Chuyển TRỐNG</span>
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    updateRoomStatus(room, "MAINTENANCE");
-                                  }}
-                                  className="flex w-full items-center gap-2 rounded-xl bg-slate-700 py-2 px-3 text-xs font-extrabold text-white shadow-xs hover:bg-slate-800 transition text-left"
-                                >
-                                  <VsIcon
-                                    name="build"
-                                    className="text-base shrink-0"
-                                  />
-                                  <span>Đánh dấu BẢO TRÌ</span>
-                                </button>
-                              )}
-
-                              {/* Lock / Unlock Action */}
-                              {canManageRooms ? (
-                                <button
-                                  type="button"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    toggleRoomBlocked(room);
-                                  }}
-                                  className={`flex w-full items-center gap-2 rounded-xl py-2 px-3 text-xs font-extrabold shadow-xs transition text-left ${
-                                    roomStatus === "blocked"
-                                      ? "bg-emerald-700 text-white hover:bg-emerald-800"
-                                      : "bg-rose-700 text-white hover:bg-rose-800"
-                                  }`}
-                                >
-                                  <VsIcon
-                                    name={
-                                      roomStatus === "blocked"
-                                        ? "lock_open"
-                                        : "block"
-                                    }
-                                    className="text-base shrink-0"
-                                  />
-                                  <span>
-                                    {roomStatus === "blocked"
-                                      ? "Mở khóa → Chuyển TRỐNG"
-                                      : "Khóa phòng"}
-                                  </span>
-                                </button>
-                              ) : null}
-                            </div>
-                          </div>
-
-                          {incomingOta && roomStatus === "available" && canManageStays ? (
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void handleOtaFastCheckIn(incomingOta, room);
-                              }}
-                              className="mb-2 flex w-full items-center justify-center rounded-xl bg-sky-700 py-2 px-3 text-xs font-bold text-white shadow-2xs hover:bg-sky-800 transition active:scale-[0.98] cursor-pointer"
-                            >
-                              <span>Nhận phòng {incomingOta.otaName}</span>
-                            </button>
-                          ) : null}
-
-                          {/* Single Update Trigger Button */}
+                    {/* Direct Touch Action Buttons - min-h-[44px] */}
+                    <div className="mt-3 flex flex-col gap-2">
+                      {isHousekeeping ? (
+                        effectiveStatus === "processing" ? (
                           <button
                             type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleCardClick(room);
-                            }}
-                            className="flex w-full items-center justify-between gap-1.5 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] py-2 px-3 text-xs font-extrabold text-[var(--primary)] transition hover:border-[var(--primary)] hover:bg-[var(--primary)] hover:text-white"
+                            onClick={() => void confirmRoomReady(room)}
+                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-sm transition active:scale-[0.98] cursor-pointer"
                           >
-                            <span className="flex items-center gap-1.5">
-                              <VsIcon name="tune" className="text-base" />
-                              Cập nhật phòng
-                            </span>
-                            <VsIcon
-                              name="keyboard_arrow_up"
-                              className="text-base transition-transform duration-200 group-hover:-translate-y-0.5"
-                            />
+                            <VsIcon name="check_circle" className="text-base shrink-0" />
+                            <span>Xác nhận phòng đã dọn xong</span>
                           </button>
-                        </div>
-                      ) : null}
+                        ) : (
+                          <div className="flex w-full min-h-[44px] items-center justify-center rounded-xl bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200">
+                            <span>Trạng thái: {roomStatusLabel(effectiveStatus)}</span>
+                          </div>
+                        )
+                      ) : isFutureDate ? (
+                        effectiveStatus === "available" ? (
+                          <button
+                            type="button"
+                            onClick={() => openFutureReservationModal(room)}
+                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-sm transition active:scale-[0.98] cursor-pointer"
+                          >
+                            <VsIcon name="event" className="text-base shrink-0" />
+                            <span>Đặt trước phòng này</span>
+                          </button>
+                        ) : (
+                          <div className="flex w-full min-h-[44px] items-center justify-center rounded-xl bg-slate-200/80 text-slate-700 text-xs font-bold border border-slate-300">
+                            <span>Đã có lịch đặt / Đang bận</span>
+                          </div>
+                        )
+                      ) : (
+                        // Realtime / Today actions
+                        effectiveStatus === "available" ? (
+                          incomingOta && canManageStays ? (
+                            <button
+                              type="button"
+                              onClick={() => void handleOtaFastCheckIn(incomingOta, room)}
+                              className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-sky-700 hover:bg-sky-800 text-white font-bold text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                            >
+                              <VsIcon name="book_online" className="text-base shrink-0" />
+                              <span>Nhận phòng {incomingOta.otaName}</span>
+                            </button>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => openWalkIn(room)}
+                                className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-[var(--primary)] hover:opacity-90 text-white font-extrabold text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                              >
+                                <VsIcon name="login" className="text-base shrink-0" />
+                                <span>Walk-in</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openFutureReservationModal(room)}
+                                className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] hover:bg-[var(--surface-container)] text-[var(--primary)] font-bold text-xs transition active:scale-[0.98] cursor-pointer"
+                              >
+                                <VsIcon name="event" className="text-base shrink-0" />
+                                <span>Đặt trước</span>
+                              </button>
+                            </div>
+                          )
+                        ) : effectiveStatus === "processing" ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => void confirmRoomReady(room)}
+                              className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-xs transition active:scale-[0.98] cursor-pointer col-span-full sm:col-span-1"
+                            >
+                              <VsIcon name="check_circle" className="text-base shrink-0" />
+                              <span>Dọn xong</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void updateRoomStatus(room, "MAINTENANCE")}
+                              className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition active:scale-[0.98] cursor-pointer col-span-full sm:col-span-1"
+                            >
+                              <VsIcon name="build" className="text-base shrink-0" />
+                              <span>Bảo trì</span>
+                            </button>
+                          </div>
+                        ) : effectiveStatus === "occupied" ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRoomQrPreview({
+                                room,
+                                guestUrl: getGuestQrUrl(room, window.location.origin),
+                              });
+                            }}
+                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-extrabold text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                          >
+                            <VsIcon name="qr_code_2" className="text-base shrink-0" />
+                            <span>QR & Khách lưu trú</span>
+                          </button>
+                        ) : effectiveStatus === "overdue" ? (
+                          <button
+                            type="button"
+                            onClick={() => void handleOverdueRoomClick(room)}
+                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs shadow-md transition active:scale-[0.98] cursor-pointer"
+                          >
+                            <VsIcon name="warning" className="text-base shrink-0" />
+                            <span>Xử lý check-out quá hạn</span>
+                          </button>
+                        ) : effectiveStatus === "blocked" ? (
+                          <button
+                            type="button"
+                            onClick={() => void toggleRoomBlocked(room)}
+                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                          >
+                            <VsIcon name="lock_open" className="text-base shrink-0" />
+                            <span>Mở khóa phòng → Trống</span>
+                          </button>
+                        ) : effectiveStatus === "maintenance" ? (
+                          <button
+                            type="button"
+                            onClick={() => void updateRoomStatus(room, "AVAILABLE")}
+                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                          >
+                            <VsIcon name="check_circle" className="text-base shrink-0" />
+                            <span>Xong bảo trì → Trống</span>
+                          </button>
+                        ) : null
+                      )}
                     </div>
                   </div>
-                );
-              })}
-              {rooms.length === 0 && !isFetching ? (
-                isUnassigned ? (
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center col-span-full">
-                    <VsIcon name="warning" className="text-3xl text-amber-600 mb-2 inline-block" />
-                    <h3 className="font-bold text-base text-amber-950">Chưa gán phòng — tài khoản chưa thể thao tác vận hành</h3>
-                    <p className="mt-1 text-xs text-amber-800 max-w-md mx-auto">
-                      Khách sạn này áp dụng mô hình phân quyền độc quyền phòng. Vui lòng liên hệ Chủ khách sạn (Owner) để được gán phòng phụ trách.
-                    </p>
-                  </div>
-                ) : (
-                  <p className="rounded-xl border border-[var(--outline-variant)] bg-white p-8 text-center text-sm text-[var(--on-surface-variant)] col-span-full">
-                    Không có phòng phù hợp với bộ lọc.
+                </div>
+              );
+            })}
+            {filteredRooms.length === 0 && !isFetching ? (
+              isUnassigned ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center col-span-full">
+                  <VsIcon name="warning" className="text-3xl text-amber-600 mb-2 inline-block" />
+                  <h3 className="font-bold text-base text-amber-950">Chưa gán phòng — tài khoản chưa thể thao tác vận hành</h3>
+                  <p className="mt-1 text-xs text-amber-800 max-w-md mx-auto">
+                    Khách sạn này áp dụng mô hình phân quyền độc quyền phòng. Vui lòng liên hệ Chủ khách sạn (Owner) để được gán phòng phụ trách.
                   </p>
-                )
-              ) : null}
-            </div>
+                </div>
+              ) : (
+                <p className="rounded-xl border border-[var(--outline-variant)] bg-white p-8 text-center text-sm text-[var(--on-surface-variant)] col-span-full">
+                  Không có phòng phù hợp với bộ lọc.
+                </p>
+              )
+            ) : null}
           </div>
+        </div>
 
-          {totalPages > 1 ? (
-            <div className="mt-6 flex flex-col gap-3 border-t border-[var(--outline-variant)] pt-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-[var(--on-surface-variant)]">
-                Hiển thị {rooms.length} trên {totalItems} phòng
-              </p>
-              {renderPaginationButtons(page, totalPages, setPage)}
-            </div>
-          ) : null}
-        
+        {totalPages > 1 ? (
+          <div className="mt-6 flex flex-col gap-3 border-t border-[var(--outline-variant)] pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-[var(--on-surface-variant)]">
+              Hiển thị {filteredRooms.length} trên {totalItems} phòng
+            </p>
+            {renderPaginationButtons(page, totalPages, setPage)}
+          </div>
+        ) : null}
       </section>
+
+      {/* Guest QR Preview Portal */}
       {roomQrPreview
         ? createPortal(
             <div
@@ -1530,7 +1998,7 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                     type="button"
                     onClick={() => setRoomQrPreview(null)}
                     aria-label="Đóng mã QR phòng"
-                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--surface-container-low)]"
+                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--surface-container-low)] min-h-[44px]"
                   >
                     <VsIcon name="close" />
                   </button>
@@ -1572,6 +2040,7 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
           )
         : null}
 
+      {/* Walk-in Check-in Workspace */}
       {isCheckInOpen && selectedRoom ? (
         <CheckInWorkspace
           key={selectedRoom.id}
@@ -1591,6 +2060,342 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
             setSubmitError(undefined);
           }}
         />
+      ) : null}
+
+      {/* Arrivals Modal Portal */}
+      {isArrivalsOpen ? createPortal(
+        <div
+          className="fixed inset-0 z-[100] grid place-items-center overflow-y-auto bg-black/50 p-4 sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="arrivals-modal-title"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setIsArrivalsOpen(false);
+          }}
+        >
+          <div className="my-auto w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl sm:p-6 text-left">
+            <div className="flex items-start justify-between gap-4 border-b border-[var(--outline-variant)] pb-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-700">
+                  Lịch đón khách
+                </p>
+                <h2 id="arrivals-modal-title" className="vs-display mt-0.5 text-2xl font-semibold text-[var(--primary)]">
+                  Danh sách khách đến (Arrivals)
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsArrivalsOpen(false)}
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] hover:bg-[var(--surface-container-low)] min-h-[44px]"
+              >
+                <VsIcon name="close" />
+              </button>
+            </div>
+
+            {/* Date Range Tabs */}
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setArrivalsRange("today");
+                  void loadArrivals("today");
+                }}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition min-h-[44px] cursor-pointer ${
+                  arrivalsRange === "today"
+                    ? "bg-sky-700 text-white shadow-2xs"
+                    : "bg-[var(--surface-container-low)] text-[var(--primary)] hover:bg-[var(--surface-container)]"
+                }`}
+              >
+                Hôm nay
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setArrivalsRange("tomorrow");
+                  void loadArrivals("tomorrow");
+                }}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition min-h-[44px] cursor-pointer ${
+                  arrivalsRange === "tomorrow"
+                    ? "bg-sky-700 text-white shadow-2xs"
+                    : "bg-[var(--surface-container-low)] text-[var(--primary)] hover:bg-[var(--surface-container)]"
+                }`}
+              >
+                Ngày mai
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setArrivalsRange("week");
+                  void loadArrivals("week");
+                }}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition min-h-[44px] cursor-pointer ${
+                  arrivalsRange === "week"
+                    ? "bg-sky-700 text-white shadow-2xs"
+                    : "bg-[var(--surface-container-low)] text-[var(--primary)] hover:bg-[var(--surface-container)]"
+                }`}
+              >
+                7 ngày tới
+              </button>
+            </div>
+
+            {/* List */}
+            <div className="mt-4 max-h-[60vh] overflow-y-auto space-y-3 pr-1">
+              {arrivalsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-sky-700 border-t-transparent" />
+                </div>
+              ) : arrivalsList.length === 0 ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-600">
+                  Không có khách đến trong khoảng thời gian đã chọn.
+                </div>
+              ) : (
+                arrivalsList.map((arrival) => {
+                  const isToday = arrival.plannedCheckInAt?.slice(0, 10) === todayYmd;
+                  return (
+                    <div
+                      key={arrival.id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4 hover:border-slate-300 transition"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-extrabold text-base text-slate-900 truncate">
+                            {arrival.guestDisplayName}
+                          </p>
+                          {arrival.room?.roomNumber ? (
+                            <span className="rounded-md bg-emerald-100 text-emerald-900 border border-emerald-300 px-2 py-0.5 text-xs font-bold">
+                              Phòng {arrival.room?.roomNumber}
+                            </span>
+                          ) : (
+                            <span className="rounded-md bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 text-xs font-bold">
+                              Chưa gán phòng
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                          <span>SĐT: {arrival.guestPhone || "Chưa có"}</span>
+                          <span>Đến: {formatDateTime(arrival.plannedCheckInAt)}</span>
+                          <span>Đi: {formatDateTime(arrival.plannedCheckOutAt)}</span>
+                          {arrival.rate || arrival.nightlyRateSnapshot ? (
+                            <span className="font-bold text-amber-900">
+                              Giá: {formatMoney({ price: Number(arrival.rate || arrival.nightlyRateSnapshot) || null, currency: "VND" })}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void SwalVietSage.fire({
+                              title: `Chi tiết khách đến: ${arrival.guestDisplayName}`,
+                              html: `
+                                <div style="font-size:14px;text-align:left;line-height:1.6;color:#334155">
+                                  <p><strong>Mã đặt phòng:</strong> ${arrival.id}</p>
+                                  <p><strong>Họ tên:</strong> ${arrival.guestDisplayName}</p>
+                                  <p><strong>Điện thoại:</strong> ${arrival.guestPhone || "Chưa có"}</p>
+                                  <p><strong>Phòng:</strong> ${arrival.room?.roomNumber ? `Phòng ${arrival.room?.roomNumber}` : "Chưa gán phòng"}</p>
+                                  <p><strong>Thời gian nhận phòng:</strong> ${formatDateTime(arrival.plannedCheckInAt)}</p>
+                                  <p><strong>Thời gian trả phòng:</strong> ${formatDateTime(arrival.plannedCheckOutAt)}</p>
+                                  <p><strong>Giá phòng:</strong> ${arrival.rate || arrival.nightlyRateSnapshot ? formatMoney({ price: Number(arrival.rate || arrival.nightlyRateSnapshot) || null, currency: "VND" }) : "Giá linh hoạt"}</p>
+                                  <p><strong>Trạng thái:</strong> ${arrival.status || "CONFIRMED"}</p>
+                                </div>
+                              `,
+                              confirmButtonText: "Đóng",
+                            });
+                          }}
+                          className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                        >
+                          Xem chi tiết
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => void handleAssignRoom(arrival)}
+                          className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-amber-600 hover:bg-amber-700 px-3 text-xs font-bold text-white transition cursor-pointer"
+                        >
+                          {arrival.roomId ? "Đổi phòng" : "Gán phòng"}
+                        </button>
+
+                        {/* Strictly no early check-in for tomorrow or later: only today gets Check-in button */}
+                        {isToday ? (
+                          <button
+                            type="button"
+                            onClick={() => void handleCheckInArrival(arrival)}
+                            className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3 text-xs font-bold text-white transition cursor-pointer"
+                          >
+                            Nhận phòng (Check-in)
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body,
+      ) : null}
+
+      {/* Future Reservation Modal Portal */}
+      {isReservationOpen ? createPortal(
+        <div
+          className="fixed inset-0 z-[100] grid place-items-center overflow-y-auto bg-black/50 p-4 sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="future-reservation-title"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !reservationSubmitting) {
+              setIsReservationOpen(false);
+            }
+          }}
+        >
+          <div className="my-auto w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl sm:p-6 text-left">
+            <div className="flex items-start justify-between gap-4 border-b border-[var(--outline-variant)] pb-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">
+                  Đặt phòng trước
+                </p>
+                <h2 id="future-reservation-title" className="vs-display mt-0.5 text-2xl font-semibold text-[var(--primary)]">
+                  Tạo lịch đặt phòng mới
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!reservationSubmitting) setIsReservationOpen(false);
+                }}
+                disabled={reservationSubmitting}
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] hover:bg-[var(--surface-container-low)] min-h-[44px]"
+              >
+                <VsIcon name="close" />
+              </button>
+            </div>
+
+            <form onSubmit={submitFutureReservation} className="mt-4 space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Họ và tên khách lưu trú <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={reservationGuestName}
+                  onChange={(e) => setReservationGuestName(e.target.value)}
+                  placeholder="VD: Nguyễn Văn An"
+                  className="w-full h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none min-h-[44px]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Số điện thoại
+                </label>
+                <input
+                  type="tel"
+                  value={reservationGuestPhone}
+                  onChange={(e) => setReservationGuestPhone(e.target.value)}
+                  placeholder="VD: 0912345678"
+                  className="w-full h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none min-h-[44px]"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Chọn phòng (Tùy chọn)
+                  </label>
+                  <select
+                    value={reservationRoomId}
+                    onChange={(e) => {
+                      setReservationRoomId(e.target.value);
+                      const selected = rooms.find((r) => r.id === e.target.value);
+                      if (selected?.price) {
+                        setReservationNightlyRate(String(selected.price));
+                      }
+                    }}
+                    className="w-full h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none min-h-[44px]"
+                  >
+                    <option value="">Chưa gán phòng (Gán sau)</option>
+                    {rooms.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        Phòng {getRoomNumber(r)} ({r.type || "Tiêu chuẩn"})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Giá phòng mỗi đêm (VND)
+                  </label>
+                  <input
+                    type="text"
+                    value={reservationNightlyRate}
+                    onChange={(e) => setReservationNightlyRate(e.target.value)}
+                    placeholder="VD: 500000"
+                    className="w-full h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none min-h-[44px]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Thời gian nhận phòng (Check-in) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={reservationCheckIn}
+                    onChange={(e) => setReservationCheckIn(e.target.value)}
+                    className="w-full h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none min-h-[44px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Thời gian trả phòng (Check-out) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={reservationCheckOut}
+                    onChange={(e) => setReservationCheckOut(e.target.value)}
+                    className="w-full h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none min-h-[44px]"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-5 flex items-center justify-end gap-3 border-t border-[var(--outline-variant)] pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsReservationOpen(false)}
+                  disabled={reservationSubmitting}
+                  className="px-4 py-2.5 rounded-lg border border-slate-300 text-sm font-bold text-slate-700 hover:bg-slate-100 transition min-h-[44px] cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={reservationSubmitting}
+                  className="px-5 py-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-sm font-bold text-white transition min-h-[44px] cursor-pointer flex items-center gap-2 disabled:opacity-60"
+                >
+                  {reservationSubmitting ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      <span>Đang xử lý...</span>
+                    </>
+                  ) : (
+                    <span>Xác nhận đặt phòng</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );

@@ -20,6 +20,18 @@ const ACTIVE_RESERVATION_STATUSES: ReservationStatus[] = [
   ReservationStatus.ARRIVAL_READY,
 ];
 
+const ACTIVE_STAY_STATUSES: GuestStayStatus[] = [
+  GuestStayStatus.CHECKED_IN,
+  GuestStayStatus.ACTIVE,
+  GuestStayStatus.CHECKOUT_PENDING,
+];
+
+const NON_SELLABLE_ROOM_STATUSES: RoomStatus[] = [
+  RoomStatus.BLOCKED,
+  RoomStatus.MAINTENANCE,
+  RoomStatus.OUT_OF_SERVICE,
+];
+
 @Injectable()
 export class ReservationsRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -33,11 +45,82 @@ export class ReservationsRepository {
     plannedCheckOutAt: Date;
     createdByUserId: string;
     roomId?: string | null;
+    nightlyRateSnapshot?: Prisma.Decimal | number | string | null;
   }) {
+    if (input.roomId) {
+      const roomId = input.roomId;
+      return this.runSerializable(async (tx) => {
+        await tx.$queryRawUnsafe(
+          'SELECT id FROM "Room" WHERE id = $1 AND "hotelId" = $2 FOR UPDATE',
+          roomId,
+          input.hotelId,
+        );
+        const room = await tx.room.findFirst({
+          where: { id: roomId, hotelId: input.hotelId },
+          select: { id: true, status: true, price: true },
+        });
+        if (!room) {
+          throw new NotFoundException("Không tìm thấy phòng");
+        }
+        if (NON_SELLABLE_ROOM_STATUSES.includes(room.status)) {
+          throw new ConflictException("ROOM_NOT_AVAILABLE");
+        }
+
+        const overlap = await tx.reservation.findFirst({
+          where: {
+            hotelId: input.hotelId,
+            roomId,
+            status: { in: ACTIVE_RESERVATION_STATUSES },
+            plannedCheckInAt: { lt: input.plannedCheckOutAt },
+            plannedCheckOutAt: { gt: input.plannedCheckInAt },
+          },
+          select: { id: true },
+        });
+        if (overlap) {
+          throw new ConflictException("ROOM_RESERVATION_OVERLAP");
+        }
+
+        const stayOverlap = tx.guestStay?.findFirst
+          ? await tx.guestStay.findFirst({
+              where: {
+                hotelId: input.hotelId,
+                roomId,
+                status: { in: ACTIVE_STAY_STATUSES },
+                plannedCheckInAt: { lt: input.plannedCheckOutAt },
+                plannedCheckOutAt: { gt: input.plannedCheckInAt },
+              },
+              select: { id: true },
+            })
+          : null;
+        if (stayOverlap) {
+          throw new ConflictException("ROOM_RESERVATION_OVERLAP");
+        }
+
+        return tx.reservation.create({
+          data: {
+            hotelId: input.hotelId,
+            roomId,
+            reservationCode: input.reservationCode,
+            guestDisplayName: input.guestDisplayName,
+            guestPhone: input.guestPhone,
+            plannedCheckInAt: input.plannedCheckInAt,
+            plannedCheckOutAt: input.plannedCheckOutAt,
+            createdByUserId: input.createdByUserId,
+            status: ReservationStatus.ARRIVAL_READY,
+            assignedAt: new Date(),
+            assignedByUserId: input.createdByUserId,
+            nightlyRateSnapshot:
+              input.nightlyRateSnapshot !== undefined ? input.nightlyRateSnapshot : null,
+          },
+          include: { room: true },
+        });
+      }, "RESERVATION_ROOM_ASSIGNMENT_CONCURRENCY_CONFLICT");
+    }
+
     return this.prisma.reservation.create({
       data: {
         hotelId: input.hotelId,
-        roomId: input.roomId ?? null,
+        roomId: null,
         reservationCode: input.reservationCode,
         guestDisplayName: input.guestDisplayName,
         guestPhone: input.guestPhone,
@@ -45,6 +128,8 @@ export class ReservationsRepository {
         plannedCheckOutAt: input.plannedCheckOutAt,
         createdByUserId: input.createdByUserId,
         status: ReservationStatus.CONFIRMED,
+        nightlyRateSnapshot:
+          input.nightlyRateSnapshot !== undefined ? input.nightlyRateSnapshot : null,
       },
     });
   }
@@ -88,6 +173,7 @@ export class ReservationsRepository {
     reservationId: string;
     roomId: string;
     actorUserId: string;
+    nightlyRateSnapshot?: Prisma.Decimal | number | string | null;
   }) {
     return this.runSerializable(async (tx) => {
       await tx.$queryRawUnsafe(
@@ -110,12 +196,12 @@ export class ReservationsRepository {
       );
       const room = await tx.room.findFirst({
         where: { id: input.roomId, hotelId: input.hotelId },
-        select: { id: true, status: true },
+        select: { id: true, status: true, price: true },
       });
       if (!room) {
         throw new NotFoundException("Không tìm thấy phòng");
       }
-      if (room.status !== RoomStatus.AVAILABLE) {
+      if (NON_SELLABLE_ROOM_STATUSES.includes(room.status)) {
         throw new ConflictException("ROOM_NOT_AVAILABLE");
       }
 
@@ -134,6 +220,23 @@ export class ReservationsRepository {
         throw new ConflictException("ROOM_RESERVATION_OVERLAP");
       }
 
+      const stayOverlap = tx.guestStay?.findFirst
+        ? await tx.guestStay.findFirst({
+            where: {
+              hotelId: input.hotelId,
+              roomId: input.roomId,
+              status: { in: ACTIVE_STAY_STATUSES },
+              ...(reservation.id ? { reservationId: { not: reservation.id } } : {}),
+              plannedCheckInAt: { lt: reservation.plannedCheckOutAt },
+              plannedCheckOutAt: { gt: reservation.plannedCheckInAt },
+            },
+            select: { id: true },
+          })
+        : null;
+      if (stayOverlap) {
+        throw new ConflictException("ROOM_RESERVATION_OVERLAP");
+      }
+
       return tx.reservation.update({
         where: { id: reservation.id },
         data: {
@@ -141,6 +244,9 @@ export class ReservationsRepository {
           status: ReservationStatus.ARRIVAL_READY,
           assignedAt: new Date(),
           assignedByUserId: input.actorUserId,
+          ...(input.nightlyRateSnapshot !== undefined
+            ? { nightlyRateSnapshot: input.nightlyRateSnapshot }
+            : {}),
         },
         include: { room: true },
       });
@@ -155,6 +261,7 @@ export class ReservationsRepository {
     accessCodeHash: string;
     accessCodeExpiresAt: Date;
     generateFolioNumber: (tx: Prisma.TransactionClient) => Promise<string>;
+    timezone?: string;
   }) {
     return this.runSerializable(async (tx) => {
       await tx.$queryRawUnsafe(
@@ -164,6 +271,7 @@ export class ReservationsRepository {
       );
       const reservation = await tx.reservation.findFirst({
         where: { id: input.reservationId, hotelId: input.hotelId },
+        include: { hotel: { select: { timezone: true } } },
       });
       if (!reservation) {
         throw new NotFoundException("Không tìm thấy đặt phòng");
@@ -186,6 +294,33 @@ export class ReservationsRepository {
         return { idempotent: true, reservation, stay, folio };
       }
 
+      const hotelTimezone =
+        input.timezone || (reservation as any).hotel?.timezone || "Asia/Ho_Chi_Minh";
+      const formatHotelDate = (date: Date) => {
+        try {
+          return new Intl.DateTimeFormat("en-CA", {
+            timeZone: hotelTimezone,
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          }).format(date);
+        } catch {
+          return new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Asia/Ho_Chi_Minh",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          }).format(date);
+        }
+      };
+
+      const now = new Date();
+      const todayStr = formatHotelDate(now);
+      const reservationDateStr = formatHotelDate(reservation.plannedCheckInAt);
+      if (todayStr < reservationDateStr) {
+        throw new ConflictException("EARLY_CHECK_IN_NOT_ALLOWED");
+      }
+
       if (reservation.status !== ReservationStatus.ARRIVAL_READY || !reservation.roomId) {
         throw new ConflictException("RESERVATION_NOT_READY_FOR_CHECK_IN");
       }
@@ -197,7 +332,7 @@ export class ReservationsRepository {
       );
       const room = await tx.room.findFirst({
         where: { id: reservation.roomId, hotelId: input.hotelId },
-        select: { id: true, status: true },
+        select: { id: true, status: true, price: true },
       });
       if (!room || room.status !== RoomStatus.AVAILABLE) {
         throw new ConflictException("ROOM_NOT_READY_FOR_CHECK_IN");
@@ -249,7 +384,13 @@ export class ReservationsRepository {
         throw new ConflictException("ROOM_CHECK_IN_CONFLICT");
       }
 
-      const now = new Date();
+      const stayRate =
+        reservation.nightlyRateSnapshot !== null && reservation.nightlyRateSnapshot !== undefined
+          ? reservation.nightlyRateSnapshot
+          : room.price !== null && room.price !== undefined
+            ? room.price
+            : null;
+
       const stay = await tx.guestStay.create({
         data: {
           reservationId: reservation.id,
@@ -261,6 +402,7 @@ export class ReservationsRepository {
           status: GuestStayStatus.ACTIVE,
           plannedCheckInAt: reservation.plannedCheckInAt,
           plannedCheckOutAt: reservation.plannedCheckOutAt,
+          nightlyRateSnapshot: stayRate,
           checkedInAt: now,
           activatedAt: now,
           accessCodeHash: input.accessCodeHash,

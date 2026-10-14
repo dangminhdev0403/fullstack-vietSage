@@ -35,4 +35,26 @@ describe("HotelUsersService listHotelUsers", () => {
       20,
     );
   });
+
+  it("includes HOTEL_FRONTDESK and HOTEL_HOUSEKEEPING in listManagedRoles", async () => {
+    const repository = {
+      findActorById: jest.fn().mockResolvedValue({
+        id: "owner-1",
+        userRoles: [{ role: { code: "TENANT_OWNER" } }],
+        tenantUsers: [{ tenantId: "tenant-1" }],
+      }),
+      listManagedRoles: jest.fn().mockResolvedValue([
+        { id: "role-1", code: "HOTEL_FRONTDESK", name: "Lễ tân" },
+        { id: "role-2", code: "HOTEL_HOUSEKEEPING", name: "Buồng phòng" },
+      ]),
+    };
+    const service = new HotelUsersService(repository as never, {} as never);
+
+    const roles = await service.listManagedRoles("owner-1", "role-owner", "tenant-1");
+
+    expect(repository.listManagedRoles).toHaveBeenCalledWith(
+      expect.arrayContaining(["HOTEL_FRONTDESK", "HOTEL_HOUSEKEEPING"]),
+    );
+    expect(roles).toHaveLength(2);
+  });
 });

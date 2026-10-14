@@ -196,9 +196,15 @@ export class HotelRoomsService {
       where.roomNumber = { contains: q, mode: "insensitive" };
     }
 
-    const result = await this.hotelRoomsRepository.listRooms(where, (page - 1) * limit, limit);
+    const result = query.businessDate
+      ? await this.hotelRoomsRepository.listRooms(where, (page - 1) * limit, limit, {
+          businessDate: query.businessDate,
+          timezone: scope.hotel?.timezone,
+        })
+      : await this.hotelRoomsRepository.listRooms(where, (page - 1) * limit, limit);
     const totalPages = Math.ceil(result.total / limit);
     return {
+      businessDate: query.businessDate ?? null,
       page,
       limit,
       total: result.total,
@@ -310,6 +316,33 @@ export class HotelRoomsService {
       hotelId,
       roomId,
       status: room.status,
+    });
+    return this.toRoomData(room);
+  }
+
+  async confirmRoomReady(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    roomId: string,
+  ) {
+    if (this.hotelAccessService.assertRoomAccess) {
+      await this.hotelAccessService.assertRoomAccess(actorUserId, activeRoleId, hotelId, roomId);
+    } else {
+      await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    }
+
+    const room = await this.hotelRoomsRepository.confirmRoomReady(hotelId, roomId);
+    if (!room) {
+      throw new NotFoundException("Không tìm thấy phòng");
+    }
+
+    this.logBusinessEvent("Room confirmed ready", "ROOM_READY_CONFIRMED", "confirmRoomReady", {
+      actorUserId,
+      hotelId,
+      roomId,
+      previousStatus: RoomStatus.PROCESSING,
+      newStatus: RoomStatus.AVAILABLE,
     });
     return this.toRoomData(room);
   }
@@ -663,6 +696,8 @@ export class HotelRoomsService {
       maxActiveGuestDevices: row.maxActiveGuestDevices ?? 3,
       activeGuestDeviceCount: row.activeGuestDeviceCount,
       status: row.status,
+      businessDate: (row as any).businessDate ?? null,
+      projectedStatus: (row as any).projectedStatus ?? row.status,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       qr: latestQr ? this.toQrData(latestQr) : null,

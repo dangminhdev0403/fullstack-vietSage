@@ -166,6 +166,7 @@ export class HotelRoomsController {
   @ApiQuery({ name: "limit", required: false, type: Number })
   @ApiQuery({ name: "q", required: false, type: String })
   @ApiQuery({ name: "unassignedOnly", required: false, type: Boolean })
+  @ApiQuery({ name: "businessDate", required: false, type: String })
   @ApiOkResponse({ description: "Đã lấy danh sách phòng" })
   @Get(":hotelId/rooms")
   async listRooms(
@@ -232,6 +233,28 @@ export class HotelRoomsController {
       hotelId,
       roomId,
       dto,
+    );
+  }
+
+  @SuccessMessage("Xác nhận phòng sẵn sàng thành công")
+  @RequirePermission("hotel.rooms.ready.confirm")
+  @ApiDescript("Xác nhận phòng sẵn sàng đón khách")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "roomId", type: String })
+  @ApiOkResponse({ description: "Đã xác nhận phòng sẵn sàng đón khách" })
+  @Patch(":hotelId/rooms/:roomId/ready")
+  async confirmRoomReady(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("roomId") roomIdParam: string,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const roomId = parseWithZod(roomIdParamSchema, roomIdParam);
+    return this.hotelRoomsService.confirmRoomReady(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      roomId,
     );
   }
 

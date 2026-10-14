@@ -19,6 +19,62 @@ import { PrismaService } from "../../../../prisma/prisma.service";
 import { inferCitizenshipKind } from "../../domain/infer-citizenship-kind";
 import { roomListInclude, type RoomListRow } from "./hotel-repository.types";
 
+export function getBusinessDateRange(
+  dateStr: string,
+  timeZone?: string | null,
+): { start: Date; end: Date } {
+  const tz = timeZone || "Asia/Ho_Chi_Minh";
+  const [year, month, day] = dateStr.split("-").map(Number);
+
+  function parseZoned(
+    y: number,
+    m: number,
+    d: number,
+    hour: number,
+    minute: number,
+    second: number,
+    ms: number,
+  ): Date {
+    const utcEstimate = new Date(Date.UTC(y, m - 1, d, hour, minute, second, ms));
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+    const parts = formatter.formatToParts(utcEstimate);
+    const getPart = (type: string) => parts.find((p) => p.type === type)?.value;
+    const tzYear = Number(getPart("year"));
+    const tzMonth = Number(getPart("month"));
+    const tzDay = Number(getPart("day"));
+    let tzHour = Number(getPart("hour"));
+    if (tzHour === 24) tzHour = 0;
+    const tzMinute = Number(getPart("minute"));
+    const tzSecond = Number(getPart("second"));
+
+    const tzAsUtc = Date.UTC(tzYear, tzMonth - 1, tzDay, tzHour, tzMinute, tzSecond, ms);
+    const offsetMs = tzAsUtc - utcEstimate.getTime();
+    return new Date(utcEstimate.getTime() - offsetMs);
+  }
+
+  const start = parseZoned(year, month, day, 0, 0, 0, 0);
+  const nextDay = new Date(Date.UTC(year, month - 1, day + 1));
+  const end = parseZoned(
+    nextDay.getUTCFullYear(),
+    nextDay.getUTCMonth() + 1,
+    nextDay.getUTCDate(),
+    0,
+    0,
+    0,
+    0,
+  );
+  return { start, end };
+}
+
 @Injectable()
 export class HotelRoomsRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -300,7 +356,12 @@ export class HotelRoomsRepository {
     return assignments.map((a) => a.roomId);
   }
 
-  async listRooms(where: Prisma.RoomWhereInput, skip: number, take: number) {
+  async listRooms(
+    where: Prisma.RoomWhereInput,
+    skip: number,
+    take: number,
+    projectionOptions?: { businessDate?: string; timezone?: string },
+  ) {
     const hotelId = where.hotelId as string;
     const scopedBaseWhere: Prisma.RoomWhereInput = where.id
       ? { hotelId, id: where.id }
@@ -331,14 +392,161 @@ export class HotelRoomsRepository {
 
     const uniqueFloors = allFloors.map((f) => f.floor).filter((f): f is string => Boolean(f));
     const uniqueTypes = allTypes.map((t) => t.type).filter((t): t is string => Boolean(t));
+    const items = await this.withActiveGuestDeviceCounts(this.prisma, rows);
+
+    if (projectionOptions?.businessDate) {
+      const { start: dateStart, end: dateEnd } = getBusinessDateRange(
+        projectionOptions.businessDate,
+        projectionOptions.timezone,
+      );
+      const roomIds = items.map((r) => r.id);
+
+      const overlappingStays =
+        roomIds.length > 0
+          ? await this.prisma.guestStay.findMany({
+              where: {
+                hotelId,
+                roomId: { in: roomIds },
+                status: {
+                  in: [
+                    GuestStayStatus.ACTIVE,
+                    GuestStayStatus.CHECKED_IN,
+                    GuestStayStatus.CHECKOUT_PENDING,
+                  ],
+                },
+                plannedCheckInAt: { lt: dateEnd },
+                plannedCheckOutAt: { gt: dateStart },
+              },
+              select: {
+                roomId: true,
+                plannedCheckInAt: true,
+                plannedCheckOutAt: true,
+                checkedInAt: true,
+                checkedOutAt: true,
+              },
+            })
+          : [];
+
+      const occupiedRoomIds = new Set(
+        overlappingStays
+          .filter((stay) => {
+            const stayStart = stay.checkedInAt ?? stay.plannedCheckInAt;
+            const stayEnd = stay.checkedOutAt ?? stay.plannedCheckOutAt;
+            return stayStart < dateEnd && stayEnd > dateStart;
+          })
+          .map((s) => s.roomId),
+      );
+
+      const unassignedForReservation = roomIds.filter((id) => !occupiedRoomIds.has(id));
+      const reservedRoomIds = new Set<string>();
+
+      if (unassignedForReservation.length > 0) {
+        const [reservations, reservedStays] = await Promise.all([
+          this.prisma.reservation.findMany({
+            where: {
+              hotelId,
+              roomId: { in: unassignedForReservation },
+              status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY] },
+              plannedCheckInAt: { lt: dateEnd },
+              plannedCheckOutAt: { gt: dateStart },
+            },
+            select: { roomId: true },
+          }),
+          this.prisma.guestStay.findMany({
+            where: {
+              hotelId,
+              roomId: { in: unassignedForReservation },
+              status: GuestStayStatus.RESERVED,
+              plannedCheckInAt: { lt: dateEnd },
+              plannedCheckOutAt: { gt: dateStart },
+            },
+            select: { roomId: true },
+          }),
+        ]);
+
+        for (const r of reservations) {
+          if (r.roomId) reservedRoomIds.add(r.roomId);
+        }
+        for (const s of reservedStays) {
+          reservedRoomIds.add(s.roomId);
+        }
+      }
+
+      for (const item of items) {
+        let projectedStatus: RoomStatus;
+        if (occupiedRoomIds.has(item.id)) {
+          projectedStatus = RoomStatus.OCCUPIED;
+        } else if (reservedRoomIds.has(item.id)) {
+          projectedStatus = RoomStatus.RESERVED;
+        } else if (
+          item.status === RoomStatus.MAINTENANCE ||
+          item.status === RoomStatus.BLOCKED ||
+          item.status === RoomStatus.OUT_OF_SERVICE
+        ) {
+          projectedStatus = item.status;
+        } else {
+          projectedStatus = RoomStatus.AVAILABLE;
+        }
+        (item as any).projectedStatus = projectedStatus;
+        (item as any).businessDate = projectionOptions.businessDate;
+      }
+    } else {
+      for (const item of items) {
+        (item as any).projectedStatus = item.status;
+        (item as any).businessDate = null;
+      }
+    }
 
     return {
       total,
-      items: await this.withActiveGuestDeviceCounts(this.prisma, rows),
+      items,
       floors: [...uniqueFloors].sort((a, b) => a.localeCompare(b)),
       types: [...uniqueTypes].sort((a, b) => a.localeCompare(b)),
       totalAvailable: availableCount,
     };
+  }
+
+  async confirmRoomReady(hotelId: string, roomId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const room = await tx.room.findFirst({
+        where: { id: roomId, hotelId },
+        select: { id: true, status: true },
+      });
+
+      if (!room) {
+        throw new NotFoundException("Không tìm thấy phòng");
+      }
+
+      if (room.status !== RoomStatus.PROCESSING) {
+        throw new ConflictException(
+          "Chỉ có thể xác nhận sẵn sàng cho phòng đang ở trạng thái CHỜ DỌN (PROCESSING)",
+        );
+      }
+
+      const updated = await tx.room.updateMany({
+        where: {
+          id: roomId,
+          hotelId,
+          status: RoomStatus.PROCESSING,
+        },
+        data: {
+          status: RoomStatus.AVAILABLE,
+        },
+      });
+
+      if (updated.count !== 1) {
+        throw new ConflictException(
+          "Trạng thái phòng đã thay đổi hoặc đang được xử lý bởi yêu cầu khác",
+        );
+      }
+
+      const updatedRoom = await tx.room.findUniqueOrThrow({
+        where: { id: roomId },
+        include: roomListInclude,
+      });
+
+      return (await this.withActiveGuestDeviceCounts(tx, [updatedRoom]))[0] ?? null;
+    });
   }
 
   async updateRoomInHotel(hotelId: string, roomId: string, data: Prisma.RoomUpdateInput) {

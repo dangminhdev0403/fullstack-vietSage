@@ -271,4 +271,26 @@ describe("business-permissions.registry capability contract", () => {
       expect(secondRun).toEqual(firstRun);
     });
   });
+
+  describe("hotel.rooms.ready.confirm capability and housekeeping role reactivation", () => {
+    it("exposes hotel.rooms.ready.confirm in the registry", () => {
+      expect(isBusinessPermissionKey("hotel.rooms.ready.confirm")).toBe(true);
+      const def = BUSINESS_PERMISSIONS.find((p) => p.key === "hotel.rooms.ready.confirm");
+      expect(def).toBeDefined();
+      expect(def?.domain).toBe("hotel-rooms");
+      expect(def?.risk).toBe("MEDIUM");
+    });
+
+    it("includes candidate migration for reactivating HOTEL_HOUSEKEEPING with exact permissions", () => {
+      const housekeepingMigrationPath = resolve(
+        __dirname,
+        "../../../prisma/migrations/20261014113000_reactivate_housekeeping_role/migration.sql",
+      );
+      expect(existsSync(housekeepingMigrationPath)).toBe(true);
+      const migrationSql = readFileSync(housekeepingMigrationPath, "utf-8");
+      expect(migrationSql).toContain("hotel.rooms.ready.confirm");
+      expect(migrationSql).toContain("HOTEL_HOUSEKEEPING");
+      expect(migrationSql).toContain("hotel.rooms.view");
+    });
+  });
 });

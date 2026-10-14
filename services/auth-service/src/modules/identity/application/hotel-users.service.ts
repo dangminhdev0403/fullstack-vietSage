@@ -21,7 +21,7 @@ import type {
 import { AuthService } from "./authentication.service";
 import { generateTemporaryPassword } from "../../../common/security/password-policy.util";
 
-const MANAGED_ROLE_CODES = new Set(["HOTEL_FRONTDESK"]);
+const MANAGED_ROLE_CODES = new Set(["HOTEL_FRONTDESK", "HOTEL_HOUSEKEEPING"]);
 const PROTECTED_ROLE_CODES = new Set([
   "SUPER_ADMIN",
   "VIETSAGE_OPERATION",

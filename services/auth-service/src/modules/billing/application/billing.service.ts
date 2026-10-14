@@ -1447,6 +1447,7 @@ export class BillingService {
       checkedInAt?: Date | string | null;
       plannedCheckInAt?: Date | string | null;
       plannedCheckOutAt?: Date | string | null;
+      nightlyRateSnapshot?: Prisma.Decimal | number | string | null;
     } | null;
   }) {
     const rawStart =
@@ -1466,9 +1467,11 @@ export class BillingService {
 
     const defaultPrice = new Prisma.Decimal(500000);
     const unitPrice =
-      folio.room?.price && !new Prisma.Decimal(folio.room.price).isZero()
-        ? new Prisma.Decimal(folio.room.price)
-        : defaultPrice;
+      folio.stay?.nightlyRateSnapshot !== null && folio.stay?.nightlyRateSnapshot !== undefined
+        ? new Prisma.Decimal(folio.stay.nightlyRateSnapshot)
+        : folio.room?.price !== null && folio.room?.price !== undefined
+          ? new Prisma.Decimal(folio.room.price)
+          : defaultPrice;
 
     const diffMs = Math.max(0, chargeEnd.getTime() - chargeStart.getTime());
     const nights = Math.max(1, Math.ceil(diffMs / 86400000));

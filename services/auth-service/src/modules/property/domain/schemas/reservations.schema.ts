@@ -1,11 +1,32 @@
 import { z } from "zod";
 
+export const nightlyRateSnapshotSchema = z
+  .union([
+    z.number().finite().nonnegative("Giá không được là số âm").max(999_999_999_999.99),
+    z
+      .string()
+      .trim()
+      .refine(
+        (val) => {
+          if (!val) return false;
+          const num = Number(val);
+          return !isNaN(num) && num >= 0 && num <= 999_999_999_999.99;
+        },
+        { message: "Giá không được là số âm" },
+      ),
+  ])
+  .nullable()
+  .optional();
+
 export const createReservationBodySchema = z
   .object({
     guestDisplayName: z.string().trim().min(2).max(120),
     guestPhone: z.string().trim().max(40).optional(),
     plannedCheckInAt: z.coerce.date(),
     plannedCheckOutAt: z.coerce.date(),
+    roomId: z.string().trim().min(1).nullable().optional(),
+    rate: nightlyRateSnapshotSchema,
+    nightlyRateSnapshot: nightlyRateSnapshotSchema,
   })
   .strict()
   .refine((value) => value.plannedCheckOutAt > value.plannedCheckInAt, {
@@ -27,7 +48,11 @@ export const listArrivalsQuerySchema = z
   });
 
 export const assignReservationRoomBodySchema = z
-  .object({ roomId: z.string().trim().min(1) })
+  .object({
+    roomId: z.string().trim().min(1),
+    rate: nightlyRateSnapshotSchema,
+    nightlyRateSnapshot: nightlyRateSnapshotSchema,
+  })
   .strict();
 
 export type CreateReservationBodyInput = z.infer<typeof createReservationBodySchema>;

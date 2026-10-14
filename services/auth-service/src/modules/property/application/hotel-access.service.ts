@@ -193,12 +193,16 @@ export class HotelAccessService {
       actor.roleCodes.has("HOTEL_OWNER") || actor.baseRoleCodes?.has("HOTEL_OWNER");
     const isHotelManager =
       actor.roleCodes.has("HOTEL_MANAGER") || actor.baseRoleCodes?.has("HOTEL_MANAGER");
+    const isHousekeeping =
+      actor.roleCodes.has("HOTEL_HOUSEKEEPING") ||
+      actor.baseRoleCodes?.has("HOTEL_HOUSEKEEPING");
 
     if (
       actor.isSuperAdmin ||
       actor.isTenantOwner ||
       isHotelOwner ||
       isHotelManager ||
+      isHousekeeping ||
       actor.hotelWideRoomScopeIds?.has(hotelId)
     ) {
       return { hotel, allowedRoomId: null, mode: "HOTEL_WIDE" };
