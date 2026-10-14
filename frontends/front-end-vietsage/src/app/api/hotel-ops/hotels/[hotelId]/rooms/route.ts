@@ -25,6 +25,7 @@ const listRoomsQuerySchema = z.object({
   floor: z.string().trim().optional(),
   type: z.string().trim().optional(),
   vipOnly: z.preprocess((val) => val === "true" || val === true, z.boolean().optional()),
+  businessDate: z.string().trim().optional(),
 });
 
 export async function GET(request: Request, context: Params) {
@@ -41,7 +42,7 @@ export async function GET(request: Request, context: Params) {
     return validationErrorResponse(parsed.error.issues[0]?.message || "Tham số truy vấn danh sách phòng không hợp lệ");
   }
 
-  const { page, limit, q, status, floor, type, vipOnly } = parsed.data;
+  const { page, limit, q, status, floor, type, vipOnly, businessDate } = parsed.data;
 
   try {
     const data = await executeHotelOpsBackendRequest("list staff rooms", (accessToken) =>
@@ -54,6 +55,7 @@ export async function GET(request: Request, context: Params) {
           ...(floor ? { floor } : {}),
           ...(type ? { type } : {}),
           ...(vipOnly ? { vipOnly } : {}),
+          ...(businessDate ? { businessDate } : {}),
         },
         accessToken,
       }),

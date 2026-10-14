@@ -1,4 +1,4 @@
-import { GuestStayStatus, Prisma } from "@prisma/client";
+import { GuestStayStatus, Prisma, RoomStatus } from "@prisma/client";
 
 export const hotelDetailInclude = {
   tenant: {
@@ -40,6 +40,10 @@ export const roomListInclude = {
 export type HotelDetailRow = Prisma.HotelGetPayload<{ include: typeof hotelDetailInclude }>;
 export type RoomListRow = Prisma.RoomGetPayload<{ include: typeof roomListInclude }> & {
   activeGuestDeviceCount: number;
+  projectedStay?: any;
+  projectedReservation?: any;
+  projectedStatus?: RoomStatus;
+  businessDate?: string | null;
 };
 
 export const serviceItemInclude = {

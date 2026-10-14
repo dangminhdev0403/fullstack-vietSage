@@ -366,7 +366,7 @@ export class HotelRoomsRepository {
     const scopedBaseWhere: Prisma.RoomWhereInput = where.id
       ? { hotelId, id: where.id }
       : { hotelId };
-    const [total, rows, allFloors, allTypes, availableCount] = await Promise.all([
+    const [total, rows, allFloors, allTypes, availableCount, statusRows] = await Promise.all([
       this.prisma.room.count({ where }),
       this.prisma.room.findMany({
         where,
@@ -386,7 +386,21 @@ export class HotelRoomsRepository {
         distinct: ["type"],
       }),
       this.prisma.room.count({
-        where: { ...scopedBaseWhere, status: RoomStatus.AVAILABLE },
+        where: {
+          ...scopedBaseWhere,
+          status: RoomStatus.AVAILABLE,
+          guestStays: {
+            none: {
+              status: { in: [GuestStayStatus.ACTIVE, GuestStayStatus.CHECKED_IN, GuestStayStatus.CHECKOUT_PENDING] },
+              checkedOutAt: null,
+            },
+          },
+        },
+      }),
+      this.prisma.room.groupBy({
+        by: ["status"],
+        where: scopedBaseWhere,
+        _count: { _all: true },
       }),
     ]);
 
@@ -418,27 +432,49 @@ export class HotelRoomsRepository {
                 plannedCheckOutAt: { gt: dateStart },
               },
               select: {
+                id: true,
+                hotelId: true,
                 roomId: true,
+                reservationCode: true,
+                guestDisplayName: true,
+                guestPhone: true,
+                guestIdentityNumber: true,
+                guestDateOfBirth: true,
+                guestGender: true,
+                guestNationality: true,
+                guestResidencePlace: true,
+                status: true,
                 plannedCheckInAt: true,
                 plannedCheckOutAt: true,
+                nightlyRateSnapshot: true,
                 checkedInAt: true,
+                activatedAt: true,
                 checkedOutAt: true,
+                accessCodeExpiresAt: true,
+                createdAt: true,
+                updatedAt: true,
+                occupants: {
+                  orderBy: { createdAt: "asc" },
+                },
               },
+              orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
             })
           : [];
 
-      const occupiedRoomIds = new Set(
-        overlappingStays
-          .filter((stay) => {
-            const stayStart = stay.checkedInAt ?? stay.plannedCheckInAt;
-            const stayEnd = stay.checkedOutAt ?? stay.plannedCheckOutAt;
-            return stayStart < dateEnd && stayEnd > dateStart;
-          })
-          .map((s) => s.roomId),
-      );
+      const staysByRoomId = new Map<string, (typeof overlappingStays)[0]>();
+      for (const stay of overlappingStays) {
+        const stayStart = stay.checkedInAt ?? stay.plannedCheckInAt;
+        const stayEnd = stay.checkedOutAt ?? stay.plannedCheckOutAt;
+        if (stayStart < dateEnd && stayEnd > dateStart) {
+          if (!staysByRoomId.has(stay.roomId)) {
+            staysByRoomId.set(stay.roomId, stay);
+          }
+        }
+      }
 
-      const unassignedForReservation = roomIds.filter((id) => !occupiedRoomIds.has(id));
-      const reservedRoomIds = new Set<string>();
+      const unassignedForReservation = roomIds.filter((id) => !staysByRoomId.has(id));
+      const reservationsByRoomId = new Map<string, any>();
+      const reservedStaysByRoomId = new Map<string, any>();
 
       if (unassignedForReservation.length > 0) {
         const [reservations, reservedStays] = await Promise.all([
@@ -450,7 +486,25 @@ export class HotelRoomsRepository {
               plannedCheckInAt: { lt: dateEnd },
               plannedCheckOutAt: { gt: dateStart },
             },
-            select: { roomId: true },
+            select: {
+              id: true,
+              hotelId: true,
+              roomId: true,
+              roomTypeSnapshot: true,
+              reservationCode: true,
+              guestDisplayName: true,
+              guestPhone: true,
+              status: true,
+              plannedCheckInAt: true,
+              plannedCheckOutAt: true,
+              nightlyRateSnapshot: true,
+              assignedAt: true,
+              assignedByUserId: true,
+              checkedInAt: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+            orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
           }),
           this.prisma.guestStay.findMany({
             where: {
@@ -460,24 +514,65 @@ export class HotelRoomsRepository {
               plannedCheckInAt: { lt: dateEnd },
               plannedCheckOutAt: { gt: dateStart },
             },
-            select: { roomId: true },
+            select: {
+              id: true,
+              hotelId: true,
+              roomId: true,
+              reservationCode: true,
+              guestDisplayName: true,
+              guestPhone: true,
+              guestIdentityNumber: true,
+              guestDateOfBirth: true,
+              guestGender: true,
+              guestNationality: true,
+              guestResidencePlace: true,
+              status: true,
+              plannedCheckInAt: true,
+              plannedCheckOutAt: true,
+              nightlyRateSnapshot: true,
+              checkedInAt: true,
+              activatedAt: true,
+              checkedOutAt: true,
+              accessCodeExpiresAt: true,
+              createdAt: true,
+              updatedAt: true,
+              occupants: {
+                orderBy: { createdAt: "asc" },
+              },
+            },
+            orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
           }),
         ]);
 
         for (const r of reservations) {
-          if (r.roomId) reservedRoomIds.add(r.roomId);
+          if (r.roomId && !reservationsByRoomId.has(r.roomId)) {
+            reservationsByRoomId.set(r.roomId, r);
+          }
         }
         for (const s of reservedStays) {
-          reservedRoomIds.add(s.roomId);
+          if (!reservedStaysByRoomId.has(s.roomId)) {
+            reservedStaysByRoomId.set(s.roomId, s);
+          }
         }
       }
 
       for (const item of items) {
         let projectedStatus: RoomStatus;
-        if (occupiedRoomIds.has(item.id)) {
+        if (staysByRoomId.has(item.id)) {
           projectedStatus = RoomStatus.OCCUPIED;
-        } else if (reservedRoomIds.has(item.id)) {
+          item.projectedStay = staysByRoomId.get(item.id);
+        } else if (reservationsByRoomId.has(item.id)) {
           projectedStatus = RoomStatus.RESERVED;
+          item.projectedReservation = {
+            ...reservationsByRoomId.get(item.id),
+            sourceType: "RESERVATION",
+          };
+        } else if (reservedStaysByRoomId.has(item.id)) {
+          projectedStatus = RoomStatus.RESERVED;
+          item.projectedReservation = {
+            ...reservedStaysByRoomId.get(item.id),
+            sourceType: "STAY",
+          };
         } else if (
           item.status === RoomStatus.MAINTENANCE ||
           item.status === RoomStatus.BLOCKED ||
@@ -487,13 +582,123 @@ export class HotelRoomsRepository {
         } else {
           projectedStatus = RoomStatus.AVAILABLE;
         }
-        (item as any).projectedStatus = projectedStatus;
-        (item as any).businessDate = projectionOptions.businessDate;
+        item.projectedStatus = projectedStatus;
+        item.businessDate = projectionOptions.businessDate;
       }
     } else {
+      const reservedRoomIds = items.filter((i) => i.status === RoomStatus.RESERVED).map((i) => i.id);
+      const reservationsByRoomId = new Map<string, any>();
+      const reservedStaysByRoomId = new Map<string, any>();
+      if (reservedRoomIds.length > 0) {
+        const [reservations, reservedStays] = await Promise.all([
+          this.prisma.reservation.findMany({
+            where: {
+              hotelId,
+              roomId: { in: reservedRoomIds },
+              status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY] },
+            },
+            select: {
+              id: true,
+              hotelId: true,
+              roomId: true,
+              roomTypeSnapshot: true,
+              reservationCode: true,
+              guestDisplayName: true,
+              guestPhone: true,
+              status: true,
+              plannedCheckInAt: true,
+              plannedCheckOutAt: true,
+              nightlyRateSnapshot: true,
+              assignedAt: true,
+              assignedByUserId: true,
+              checkedInAt: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+            orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
+          }),
+          this.prisma.guestStay.findMany({
+            where: {
+              hotelId,
+              roomId: { in: reservedRoomIds },
+              status: GuestStayStatus.RESERVED,
+            },
+            select: {
+              id: true,
+              hotelId: true,
+              roomId: true,
+              reservationCode: true,
+              guestDisplayName: true,
+              guestPhone: true,
+              guestIdentityNumber: true,
+              guestDateOfBirth: true,
+              guestGender: true,
+              guestNationality: true,
+              guestResidencePlace: true,
+              status: true,
+              plannedCheckInAt: true,
+              plannedCheckOutAt: true,
+              nightlyRateSnapshot: true,
+              checkedInAt: true,
+              activatedAt: true,
+              checkedOutAt: true,
+              accessCodeExpiresAt: true,
+              createdAt: true,
+              updatedAt: true,
+              occupants: {
+                orderBy: { createdAt: "asc" },
+              },
+            },
+            orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
+          }),
+        ]);
+        for (const r of reservations) {
+          if (r.roomId && !reservationsByRoomId.has(r.roomId)) {
+            reservationsByRoomId.set(r.roomId, r);
+          }
+        }
+        for (const s of reservedStays) {
+          if (!reservedStaysByRoomId.has(s.roomId)) {
+            reservedStaysByRoomId.set(s.roomId, s);
+          }
+        }
+      }
+
       for (const item of items) {
-        (item as any).projectedStatus = item.status;
-        (item as any).businessDate = null;
+        item.projectedStatus = item.status;
+        item.businessDate = null;
+        if (item.status === RoomStatus.RESERVED) {
+          if (reservationsByRoomId.has(item.id)) {
+            item.projectedReservation = {
+              ...reservationsByRoomId.get(item.id),
+              sourceType: "RESERVATION",
+            };
+          } else if (reservedStaysByRoomId.has(item.id)) {
+            item.projectedReservation = {
+              ...reservedStaysByRoomId.get(item.id),
+              sourceType: "STAY",
+            };
+          }
+        }
+      }
+    }
+
+    const byStatus = {
+      available: availableCount,
+      occupied: 0,
+      processing: 0,
+      maintenance: 0,
+      blocked: 0,
+    };
+    for (const row of statusRows) {
+      if (row.status === RoomStatus.OCCUPIED || row.status === RoomStatus.RESERVED) {
+        byStatus.occupied += row._count._all;
+      } else if (row.status === RoomStatus.PROCESSING) {
+        byStatus.processing += row._count._all;
+      } else if (row.status === RoomStatus.MAINTENANCE || row.status === RoomStatus.OUT_OF_SERVICE) {
+        byStatus.maintenance += row._count._all;
+      } else if (row.status === RoomStatus.BLOCKED) {
+        byStatus.blocked += row._count._all;
       }
     }
 
@@ -503,6 +708,7 @@ export class HotelRoomsRepository {
       floors: [...uniqueFloors].sort((a, b) => a.localeCompare(b)),
       types: [...uniqueTypes].sort((a, b) => a.localeCompare(b)),
       totalAvailable: availableCount,
+      byStatus,
     };
   }
 

@@ -118,26 +118,6 @@ export default async function StaffRoomsPage({
     );
   }
 
-  const roomCounts =
-    dashboard?.rooms.byStatus ??
-    roomsPage.items.reduce(
-      (counts, room) => {
-        const status = room.status?.toUpperCase();
-        if (status === "OCCUPIED" || status === "RESERVED") counts.occupied += 1;
-        else if (status === "PROCESSING") counts.processing += 1;
-        else if (status === "MAINTENANCE" || status === "OUT_OF_SERVICE") counts.maintenance += 1;
-        else if (status === "AVAILABLE") counts.available += 1;
-        return counts;
-      },
-      { available: 0, occupied: 0, processing: 0, maintenance: 0 },
-    );
-  const metrics = [
-    ["Sẵn sàng", roomCounts.available, "text-emerald-700"],
-    ["Đang ở", roomCounts.occupied, "text-blue-700"],
-    ["Chờ dọn", roomCounts.processing, "text-amber-700"],
-    ["Bảo trì", roomCounts.maintenance, "text-red-700"],
-  ] as const;
-
   const currentHotel = context.accessibleHotels.find((h) => h.id === hotelId);
 
   return (
@@ -159,29 +139,34 @@ export default async function StaffRoomsPage({
         </div>
       </header>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {metrics.map(([label, value, tone]) => (
-          <article
-            key={label}
-            className="rounded-lg border border-[var(--outline-variant)] bg-white p-4"
-          >
-            <p className="text-sm font-semibold text-[var(--on-surface-variant)]">
-              {label}
-            </p>
-            <p className={`mt-2 text-3xl font-black ${tone}`}>{value}</p>
-          </article>
-        ))}
-      </section>
-
       <section>
         <StaffRoomsClient
           hotelId={hotelId}
           initialRoomsPage={roomsPage}
+          initialByStatus={dashboard?.rooms.byStatus}
           canManageRooms={!isHousekeeping && context.permissions.includes("hotel.rooms.manage")}
           canManageStays={
             !isHousekeeping &&
             (context.permissions.includes("hotel.stays.manage") ||
               context.permissions.includes("hotel.stays.check-in"))
+          }
+          canViewBilling={
+            !isHousekeeping &&
+            (context.permissions.includes("hotel.billing.view") ||
+              context.permissions.includes("hotel.billing.manage"))
+          }
+          canCheckoutBilling={
+            !isHousekeeping &&
+            (context.permissions.includes("hotel.billing.manage") ||
+              context.permissions.includes("hotel.billing.checkout"))
+          }
+          canCheckOutStay={
+            !isHousekeeping &&
+            (context.permissions.includes("hotel.stays.manage") ||
+              context.permissions.includes("hotel.stays.check-out"))
+          }
+          canCheckInStay={
+            !isHousekeeping && context.permissions.includes("hotel.stays.check-in")
           }
           initialFlow={initialFlow}
           initialBusinessDate={initialBusinessDate}

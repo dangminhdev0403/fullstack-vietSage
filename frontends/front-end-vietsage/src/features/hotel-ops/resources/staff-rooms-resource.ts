@@ -7,6 +7,7 @@ import {
 import {
   staffRoomsRepository,
   type StaffRoomsListInput,
+  type StayFolioContext,
 } from "@/features/hotel-ops/repositories/staff-rooms-repository";
 import type {
   HotelOpsPage,
@@ -38,6 +39,15 @@ export const staffRoomsResource = createResource<{ hotelId: string }>()({
         StaffRoomsListInput | void
       >): Promise<HotelOpsPage<HotelRoomSummary>> =>
         staffRoomsRepository.list(scope.hotelId, input || undefined, signal),
+    }),
+    stayFolio: defineQuery({
+      inputKey: (stayId: string) => [stayId],
+      queryFn: ({
+        scope,
+        input,
+        signal,
+      }: ResourceQueryContext<{ hotelId: string }, string>): Promise<StayFolioContext> =>
+        staffRoomsRepository.getStayFolioContext(scope.hotelId, input, signal),
     }),
   },
 });

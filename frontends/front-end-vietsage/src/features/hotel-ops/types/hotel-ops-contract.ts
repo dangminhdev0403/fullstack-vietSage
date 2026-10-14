@@ -23,6 +23,13 @@ export type HotelOpsPage<TItem> = {
   totalItems?: number;
   totalPages?: number;
   totalAvailable?: number;
+  byStatus?: {
+    available: number;
+    occupied: number;
+    processing: number;
+    maintenance: number;
+    blocked?: number;
+  };
   floors?: string[];
   types?: string[];
   items: TItem[];
@@ -92,6 +99,9 @@ export type HotelRoomSummary = {
     status?: string | null;
   } | null;
   activeStay?: HotelStaySummary | null;
+  projectedStay?: HotelStaySummary | null;
+  projectedReservation?: HotelReservationSummary | null;
+  businessDate?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 };
@@ -102,6 +112,26 @@ export type HotelRoomType = {
   basePrice: number | null;
   readiness: "READY" | "MISSING_PRICE";
   roomCount: number;
+};
+
+export type HotelReservationSummary = {
+  id: string;
+  sourceType: "RESERVATION" | "STAY";
+  hotelId?: string;
+  roomId?: string | null;
+  roomTypeSnapshot?: string | null;
+  reservationCode: string;
+  guestDisplayName: string;
+  guestPhone?: string | null;
+  status: string;
+  plannedCheckInAt: string;
+  plannedCheckOutAt: string;
+  nightlyRateSnapshot?: number | string | null;
+  assignedAt?: string | null;
+  assignedByUserId?: string | null;
+  checkedInAt?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 };
 
 export type HotelStaySummary = {
@@ -119,6 +149,7 @@ export type HotelStaySummary = {
   status?: string | null;
   plannedCheckInAt?: string | null;
   plannedCheckOutAt?: string | null;
+  nightlyRateSnapshot?: number | string | null;
   checkedInAt?: string | null;
   checkedOutAt?: string | null;
   createdAt?: string | null;

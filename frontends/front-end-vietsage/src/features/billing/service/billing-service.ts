@@ -51,6 +51,21 @@ export class BillingService {
     };
   }
 
+  async getActiveFolioByStay(
+    hotelId: string,
+    stayId: string,
+    options: AuthRequestOptions = {},
+  ): Promise<FolioListItem | null> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, `/stays/${encodeURIComponent(stayId)}/active-folio`),
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+
+    return unwrapApiEnvelope<FolioListItem>(payload).data;
+  }
+
   async getFolioSummary(hotelId: string, folioId: string, options: AuthRequestOptions = {}): Promise<FolioSummary> {
     const payload = await this.httpClient.request<unknown>({
       method: "GET",

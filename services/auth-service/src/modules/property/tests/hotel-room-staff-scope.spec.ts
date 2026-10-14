@@ -338,6 +338,9 @@ describe("HotelRoomStaffScope (Phase 1)", () => {
       assertHotelAccess: jest.fn(),
       resolveRoomScope: jest.fn(),
       assertRoomAccess: jest.fn(),
+      loadActorContext: jest.fn().mockResolvedValue({
+        permissions: new Set(["hotel.stays.view", "hotel.reservations.view"]),
+      }),
     };
     const mockHotelRoomsRepo = {
       listRooms: jest.fn(),
@@ -771,6 +774,9 @@ describe("HotelRoomStaffScope (Phase 1)", () => {
           allowedRoomId: null,
           mode: "HOTEL_WIDE",
         }),
+        loadActorContext: jest.fn().mockResolvedValue({
+          permissions: new Set(["hotel.stays.view", "hotel.reservations.view"]),
+        }),
       };
 
       const roomsService = new HotelRoomsService(mockRoomsRepo as any, {} as any, mockAccess as any);
@@ -795,6 +801,256 @@ describe("HotelRoomStaffScope (Phase 1)", () => {
       expect(result.items[1].projectedStatus).toBe("RESERVED");
       expect(result.items[2].projectedStatus).toBe("MAINTENANCE");
       expect(result.items[3].projectedStatus).toBe("AVAILABLE");
+    });
+
+    it("24. listRooms on businessDate preserves activeStay for current occupied room and attaches projectedStay for future occupied room", async () => {
+      const mockRoomsRepo = {
+        listRooms: jest.fn().mockResolvedValue({
+          total: 2,
+          floors: ["1"],
+          types: ["Standard"],
+          totalAvailable: 0,
+          businessDate: "2026-10-20",
+          items: [
+            {
+              id: "room-current",
+              hotelId: "hotel-1",
+              roomNumber: "101",
+              floor: "1",
+              type: "Standard",
+              status: "OCCUPIED",
+              projectedStatus: "OCCUPIED",
+              businessDate: "2026-10-20",
+              qrCodes: [],
+              guestStays: [
+                {
+                  id: "stay-current",
+                  hotelId: "hotel-1",
+                  roomId: "room-current",
+                  reservationCode: "RES-CURR",
+                  guestDisplayName: "Current Guest",
+                  guestPhone: "0901111111",
+                  status: "CHECKED_IN",
+                  plannedCheckInAt: new Date("2026-10-14T07:00:00Z"),
+                  plannedCheckOutAt: new Date("2026-10-21T05:00:00Z"),
+                  checkedInAt: new Date("2026-10-14T07:15:00Z"),
+                  activatedAt: null,
+                  checkedOutAt: null,
+                  accessCodeExpiresAt: null,
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                  occupants: [],
+                },
+              ],
+              activeGuestDeviceCount: 1,
+            },
+            {
+              id: "room-future",
+              hotelId: "hotel-1",
+              roomNumber: "102",
+              floor: "1",
+              type: "Standard",
+              status: "AVAILABLE",
+              projectedStatus: "OCCUPIED",
+              businessDate: "2026-10-20",
+              qrCodes: [],
+              guestStays: [],
+              projectedStay: {
+                id: "stay-future",
+                hotelId: "hotel-1",
+                roomId: "room-future",
+                reservationCode: "RES-FUT",
+                guestDisplayName: "Future Guest",
+                guestPhone: "0902222222",
+                status: "ACTIVE",
+                plannedCheckInAt: new Date("2026-10-20T07:00:00Z"),
+                plannedCheckOutAt: new Date("2026-10-22T05:00:00Z"),
+                nightlyRateSnapshot: 1200000,
+                checkedInAt: null,
+                activatedAt: null,
+                checkedOutAt: null,
+                accessCodeExpiresAt: null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                occupants: [],
+              },
+              activeGuestDeviceCount: 0,
+            },
+          ],
+        }),
+      };
+
+      const mockAccess = {
+        resolveRoomScope: jest.fn().mockResolvedValue({
+          hotel: { id: "hotel-1", timezone: "Asia/Ho_Chi_Minh" },
+          allowedRoomId: null,
+          mode: "HOTEL_WIDE",
+        }),
+        loadActorContext: jest.fn().mockResolvedValue({
+          permissions: new Set(["hotel.stays.view", "hotel.reservations.view"]),
+        }),
+      };
+
+      const roomsService = new HotelRoomsService(mockRoomsRepo as any, {} as any, mockAccess as any);
+
+      const result = await roomsService.listRooms("staff-1", "role-frontdesk", "hotel-1", {
+        businessDate: "2026-10-20",
+      });
+
+      expect(result.items[0].activeStay?.id).toBe("stay-current");
+      expect(result.items[0].activeStay?.guestDisplayName).toBe("Current Guest");
+      expect(result.items[1].projectedStay?.id).toBe("stay-future");
+      expect(result.items[1].projectedStay?.guestDisplayName).toBe("Future Guest");
+      expect(result.items[1].projectedStay?.nightlyRateSnapshot).toBe(1200000);
+      expect(result.items[1].activeStay?.id).toBe("stay-future");
+    });
+
+    it("25. listRooms on businessDate exposes projectedReservation with reservation code, guest, phone, dates, nightlyRateSnapshot for reserved room", async () => {
+      const mockRoomsRepo = {
+        listRooms: jest.fn().mockResolvedValue({
+          total: 1,
+          floors: ["1"],
+          types: ["Deluxe"],
+          totalAvailable: 0,
+          businessDate: "2026-10-20",
+          items: [
+            {
+              id: "room-res",
+              hotelId: "hotel-1",
+              roomNumber: "201",
+              floor: "1",
+              type: "Deluxe",
+              status: "AVAILABLE",
+              projectedStatus: "RESERVED",
+              businessDate: "2026-10-20",
+              qrCodes: [],
+              guestStays: [],
+              projectedReservation: {
+                id: "res-123",
+                sourceType: "RESERVATION",
+                hotelId: "hotel-1",
+                roomId: "room-res",
+                roomTypeSnapshot: "Deluxe",
+                reservationCode: "RES-999",
+                guestDisplayName: "Nguyen Van A",
+                guestPhone: "0912345678",
+                status: "CONFIRMED",
+                plannedCheckInAt: new Date("2026-10-20T07:00:00Z"),
+                plannedCheckOutAt: new Date("2026-10-23T05:00:00Z"),
+                nightlyRateSnapshot: "1500000.00",
+                assignedAt: new Date(),
+                assignedByUserId: "user-1",
+                checkedInAt: null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              },
+              activeGuestDeviceCount: 0,
+            },
+          ],
+        }),
+      };
+
+      const mockAccess = {
+        resolveRoomScope: jest.fn().mockResolvedValue({
+          hotel: { id: "hotel-1", timezone: "Asia/Ho_Chi_Minh" },
+          allowedRoomId: null,
+          mode: "HOTEL_WIDE",
+        }),
+        loadActorContext: jest.fn().mockResolvedValue({
+          permissions: new Set(["hotel.stays.view", "hotel.reservations.view"]),
+        }),
+      };
+
+      const roomsService = new HotelRoomsService(mockRoomsRepo as any, {} as any, mockAccess as any);
+
+      const result = await roomsService.listRooms("staff-1", "role-frontdesk", "hotel-1", {
+        businessDate: "2026-10-20",
+      });
+
+      expect(result.items[0].projectedStatus).toBe("RESERVED");
+      expect(result.items[0].projectedReservation).toBeDefined();
+      expect(result.items[0].projectedReservation?.id).toBe("res-123");
+      expect(result.items[0].projectedReservation?.sourceType).toBe("RESERVATION");
+      expect(result.items[0].projectedReservation?.reservationCode).toBe("RES-999");
+      expect(result.items[0].projectedReservation?.guestDisplayName).toBe("Nguyen Van A");
+      expect(result.items[0].projectedReservation?.guestPhone).toBe("0912345678");
+      expect(result.items[0].projectedReservation?.nightlyRateSnapshot).toBe(1500000);
+      expect(result.items[0].projectedReservation?.status).toBe("CONFIRMED");
+    });
+
+    it("26. listRooms redacts guest context without stay or reservation view capability", async () => {
+      const privateStay = {
+        id: "stay-private",
+        hotelId: "hotel-1",
+        roomId: "room-private",
+        reservationCode: "RES-PRIVATE",
+        guestDisplayName: "Private Guest",
+        guestPhone: "0900000000",
+        status: "CHECKED_IN",
+        plannedCheckInAt: new Date("2026-10-14T07:00:00Z"),
+        plannedCheckOutAt: new Date("2026-10-16T05:00:00Z"),
+        checkedInAt: new Date("2026-10-14T07:05:00Z"),
+        activatedAt: null,
+        checkedOutAt: null,
+        accessCodeExpiresAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        occupants: [],
+      };
+      const mockRoomsRepo = {
+        listRooms: jest.fn().mockResolvedValue({
+          total: 1,
+          floors: ["1"],
+          types: ["Standard"],
+          totalAvailable: 0,
+          items: [{
+            id: "room-private",
+            hotelId: "hotel-1",
+            roomNumber: "101",
+            floor: "1",
+            type: "Standard",
+            status: "OCCUPIED",
+            projectedStatus: "RESERVED",
+            qrCodes: [],
+            guestStays: [privateStay],
+            projectedStay: privateStay,
+            projectedReservation: {
+              id: "reservation-private",
+              sourceType: "RESERVATION",
+              hotelId: "hotel-1",
+              roomId: "room-private",
+              reservationCode: "RES-FUTURE",
+              guestDisplayName: "Future Private Guest",
+              guestPhone: "0911111111",
+              status: "CONFIRMED",
+              plannedCheckInAt: new Date("2026-10-20T07:00:00Z"),
+              plannedCheckOutAt: new Date("2026-10-21T05:00:00Z"),
+              nightlyRateSnapshot: 1000000,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+            activeGuestDeviceCount: 0,
+          }],
+        }),
+      };
+      const mockAccess = {
+        resolveRoomScope: jest.fn().mockResolvedValue({
+          hotel: { id: "hotel-1", timezone: "Asia/Ho_Chi_Minh" },
+          allowedRoomId: null,
+          mode: "HOTEL_WIDE",
+        }),
+        loadActorContext: jest.fn().mockResolvedValue({
+          permissions: new Set(["hotel.rooms.view"]),
+        }),
+      };
+      const roomsService = new HotelRoomsService(mockRoomsRepo as any, {} as any, mockAccess as any);
+
+      const result = await roomsService.listRooms("housekeeping-1", "role-housekeeping", "hotel-1", {});
+
+      expect(result.items[0].activeStay).toBeNull();
+      expect(result.items[0].projectedStay).toBeNull();
+      expect(result.items[0].projectedReservation).toBeNull();
+      expect(result.items[0].projectedStatus).toBe("RESERVED");
     });
   });
 });

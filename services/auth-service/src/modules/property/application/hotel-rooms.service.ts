@@ -170,8 +170,50 @@ export class HotelRoomsService {
       }
     }
 
+    const conditions: Prisma.RoomWhereInput[] = [];
+
     if (query.status) {
-      where.status = query.status;
+      if (query.status === "AVAILABLE") {
+        conditions.push({
+          status: RoomStatus.AVAILABLE,
+          guestStays: {
+            none: {
+              status: { in: [GuestStayStatus.ACTIVE, GuestStayStatus.CHECKED_IN, GuestStayStatus.CHECKOUT_PENDING] },
+              checkedOutAt: null,
+            },
+          },
+        });
+      } else if (query.status === "OCCUPIED") {
+        conditions.push({
+          OR: [
+            { status: { in: [RoomStatus.OCCUPIED, RoomStatus.RESERVED] } },
+            {
+              guestStays: {
+                some: {
+                  status: { in: [GuestStayStatus.ACTIVE, GuestStayStatus.CHECKED_IN, GuestStayStatus.CHECKOUT_PENDING] },
+                  checkedOutAt: null,
+                },
+              },
+            },
+          ],
+        });
+      } else if (query.status === "PROCESSING") {
+        conditions.push({ status: RoomStatus.PROCESSING });
+      } else if (query.status === "MAINTENANCE") {
+        conditions.push({ status: { in: [RoomStatus.MAINTENANCE, RoomStatus.OUT_OF_SERVICE] } });
+      } else if (query.status === "BLOCKED") {
+        conditions.push({ status: RoomStatus.BLOCKED });
+      } else if (query.status === "OVERDUE") {
+        conditions.push({
+          guestStays: {
+            some: {
+              status: { in: [GuestStayStatus.ACTIVE, GuestStayStatus.CHECKED_IN, GuestStayStatus.CHECKOUT_PENDING] },
+              checkedOutAt: null,
+              plannedCheckOutAt: { lt: new Date() },
+            },
+          },
+        });
+      }
     }
 
     if (query.floor) {
@@ -183,12 +225,18 @@ export class HotelRoomsService {
     }
 
     if (query.vipOnly) {
-      where.OR = [
-        { type: { contains: "suite", mode: "insensitive" } },
-        { type: { contains: "vip", mode: "insensitive" } },
-        { type: { contains: "premium", mode: "insensitive" } },
-        { type: { contains: "penthouse", mode: "insensitive" } },
-      ];
+      conditions.push({
+        OR: [
+          { type: { contains: "suite", mode: "insensitive" } },
+          { type: { contains: "vip", mode: "insensitive" } },
+          { type: { contains: "premium", mode: "insensitive" } },
+          { type: { contains: "penthouse", mode: "insensitive" } },
+        ],
+      });
+    }
+
+    if (conditions.length > 0) {
+      where.AND = conditions;
     }
 
     const q = query.q?.trim();
@@ -202,6 +250,19 @@ export class HotelRoomsService {
           timezone: scope.hotel?.timezone,
         })
       : await this.hotelRoomsRepository.listRooms(where, (page - 1) * limit, limit);
+    const actor = await this.hotelAccessService.loadActorContext(actorUserId, activeRoleId);
+    const permissions = actor.permissions ?? new Set<string>();
+    const canViewStayContext = [
+      "hotel.stays.view",
+      "hotel.stays.manage",
+      "hotel.stays.check-in",
+      "hotel.stays.check-out",
+    ].some((permission) => permissions.has(permission));
+    const canViewReservationContext = [
+      "hotel.reservations.view",
+      "hotel.reservations.manage",
+      "hotel.stays.check-in",
+    ].some((permission) => permissions.has(permission));
     const totalPages = Math.ceil(result.total / limit);
     return {
       businessDate: query.businessDate ?? null,
@@ -212,7 +273,11 @@ export class HotelRoomsService {
       totalPages,
       floors: result.floors,
       types: result.types,
-      items: result.items.map((row) => this.toRoomData(row)),
+      totalAvailable: result.totalAvailable,
+      byStatus: result.byStatus,
+      items: result.items.map((row) =>
+        this.toRoomData(row, { canViewStayContext, canViewReservationContext }),
+      ),
     };
   }
 
@@ -680,9 +745,17 @@ export class HotelRoomsService {
     return generateOpaqueToken(9).slice(0, 12).toUpperCase();
   }
 
-  private toRoomData(row: RoomListRow) {
+  private toRoomData(
+    row: RoomListRow,
+    visibility: { canViewStayContext: boolean; canViewReservationContext: boolean } = {
+      canViewStayContext: true,
+      canViewReservationContext: true,
+    },
+  ) {
     const latestQr = row.qrCodes[0] ?? null;
     const activeStay = row.guestStays[0] ?? null;
+    const projectedStay = row.projectedStay ?? null;
+    const projectedReservation = row.projectedReservation ?? null;
 
     return {
       id: row.id,
@@ -701,7 +774,60 @@ export class HotelRoomsService {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       qr: latestQr ? this.toQrData(latestQr) : null,
-      activeStay: activeStay ? this.toStayData(activeStay) : null,
+      activeStay: visibility.canViewStayContext && activeStay
+        ? this.toStayData(activeStay)
+        : visibility.canViewStayContext && projectedStay
+          ? this.toStayData(projectedStay)
+          : null,
+      projectedStay:
+        visibility.canViewStayContext && projectedStay ? this.toStayData(projectedStay) : null,
+      projectedReservation: visibility.canViewReservationContext && projectedReservation
+        ? this.toReservationData(projectedReservation)
+        : null,
+    };
+  }
+
+  private toReservationData(row: {
+    id: string;
+    sourceType?: "RESERVATION" | "STAY";
+    hotelId?: string;
+    roomId?: string | null;
+    roomTypeSnapshot?: string | null;
+    reservationCode: string;
+    guestDisplayName: string;
+    guestPhone?: string | null;
+    status: string;
+    plannedCheckInAt: Date;
+    plannedCheckOutAt: Date;
+    nightlyRateSnapshot?: Prisma.Decimal | number | string | null;
+    assignedAt?: Date | null;
+    assignedByUserId?: string | null;
+    checkedInAt?: Date | null;
+    createdAt?: Date;
+    updatedAt?: Date;
+  }) {
+    const rawRate = row.nightlyRateSnapshot;
+    const nightlyRateSnapshot =
+      rawRate !== undefined && rawRate !== null ? Number(rawRate) : null;
+
+    return {
+      id: row.id,
+      sourceType: row.sourceType ?? "RESERVATION",
+      hotelId: row.hotelId,
+      roomId: row.roomId ?? null,
+      roomTypeSnapshot: row.roomTypeSnapshot ?? null,
+      reservationCode: row.reservationCode,
+      guestDisplayName: row.guestDisplayName,
+      guestPhone: row.guestPhone ?? null,
+      status: row.status,
+      plannedCheckInAt: row.plannedCheckInAt,
+      plannedCheckOutAt: row.plannedCheckOutAt,
+      nightlyRateSnapshot,
+      assignedAt: row.assignedAt ?? null,
+      assignedByUserId: row.assignedByUserId ?? null,
+      checkedInAt: row.checkedInAt ?? null,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
     };
   }
 
@@ -770,6 +896,10 @@ export class HotelRoomsService {
       status: row.status,
       plannedCheckInAt: row.plannedCheckInAt,
       plannedCheckOutAt: row.plannedCheckOutAt,
+      nightlyRateSnapshot:
+        (row as any).nightlyRateSnapshot !== undefined && (row as any).nightlyRateSnapshot !== null
+          ? Number((row as any).nightlyRateSnapshot)
+          : null,
       checkedInAt: row.checkedInAt,
       activatedAt: row.activatedAt,
       checkedOutAt: row.checkedOutAt,
