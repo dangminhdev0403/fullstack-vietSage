@@ -154,6 +154,13 @@ export const updateRoomBodySchema = z
 export const updateRoomStatusBodySchema = z
   .object({
     status: roomStatusSchema,
+    expectedUpdatedAt: z.coerce.date({ message: "Phiên bản trạng thái phòng không hợp lệ" }),
+  })
+  .strict();
+
+export const confirmRoomReadyBodySchema = z
+  .object({
+    expectedUpdatedAt: z.coerce.date({ message: "Phiên bản trạng thái phòng không hợp lệ" }),
   })
   .strict();
 
@@ -209,7 +216,7 @@ export const listRoomsQuerySchema = z
   })
   .strict();
 
-const identityNumberSchema = z
+export const identityNumberSchema = z
   .string()
   .trim()
   .transform((val) => val.toUpperCase())
@@ -277,8 +284,8 @@ export const checkOutBodySchema = z
   .object({
     nextRoomStatus: z
       .nativeEnum(RoomStatus, { message: "Trạng thái phòng kế tiếp không hợp lệ" })
-      .refine((value) => value === RoomStatus.AVAILABLE || value === RoomStatus.MAINTENANCE, {
-        message: "Trạng thái phòng kế tiếp phải là Sẵn sàng (AVAILABLE) hoặc Bảo trì (MAINTENANCE)",
+      .refine((value) => value === RoomStatus.PROCESSING || value === RoomStatus.MAINTENANCE, {
+        message: "Trạng thái phòng kế tiếp phải là Chờ dọn (PROCESSING) hoặc Bảo trì (MAINTENANCE)",
       })
       .optional(),
   })
@@ -319,6 +326,7 @@ export type CreateRoomTypeBodyInput = z.infer<typeof createRoomTypeBodySchema>;
 export type CreateRoomsBodyInput = z.infer<typeof createRoomsBodySchema>;
 export type UpdateRoomBodyInput = z.infer<typeof updateRoomBodySchema>;
 export type UpdateRoomStatusBodyInput = z.infer<typeof updateRoomStatusBodySchema>;
+export type ConfirmRoomReadyBodyInput = z.infer<typeof confirmRoomReadyBodySchema>;
 export type ListRoomsQueryInput = z.infer<typeof listRoomsQuerySchema>;
 export type CreateStayBodyInput = z.infer<typeof createStayBodySchema>;
 export type CheckOutBodyInput = z.infer<typeof checkOutBodySchema>;

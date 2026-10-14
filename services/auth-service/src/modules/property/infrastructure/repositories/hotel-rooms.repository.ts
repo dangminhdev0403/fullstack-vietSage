@@ -712,11 +712,11 @@ export class HotelRoomsRepository {
     };
   }
 
-  async confirmRoomReady(hotelId: string, roomId: string) {
+  async confirmRoomReady(hotelId: string, roomId: string, expectedUpdatedAt: Date) {
     return this.prisma.$transaction(async (tx) => {
       const room = await tx.room.findFirst({
         where: { id: roomId, hotelId },
-        select: { id: true, status: true },
+        select: { id: true, status: true, updatedAt: true },
       });
 
       if (!room) {
@@ -729,11 +729,18 @@ export class HotelRoomsRepository {
         );
       }
 
+      if (room.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+        throw new ConflictException(
+          "Trạng thái phòng đã thay đổi. Vui lòng tải lại trước khi thao tác.",
+        );
+      }
+
       const updated = await tx.room.updateMany({
         where: {
           id: roomId,
           hotelId,
           status: RoomStatus.PROCESSING,
+          updatedAt: expectedUpdatedAt,
         },
         data: {
           status: RoomStatus.AVAILABLE,
@@ -755,8 +762,35 @@ export class HotelRoomsRepository {
     });
   }
 
-  async updateRoomInHotel(hotelId: string, roomId: string, data: Prisma.RoomUpdateInput) {
+  async updateRoomInHotel(
+    hotelId: string,
+    roomId: string,
+    data: Prisma.RoomUpdateInput,
+    expected?: { status: RoomStatus; updatedAt: Date },
+  ) {
     return this.prisma.$transaction(async (tx) => {
+      if (expected) {
+        const updated = await tx.room.updateMany({
+          where: {
+            id: roomId,
+            hotelId,
+            status: expected.status,
+            updatedAt: expected.updatedAt,
+          },
+          data,
+        });
+        if (updated.count !== 1) {
+          throw new ConflictException(
+            "Trạng thái phòng đã thay đổi. Vui lòng tải lại trước khi thao tác.",
+          );
+        }
+        const updatedRoom = await tx.room.findUniqueOrThrow({
+          where: { id: roomId },
+          include: roomListInclude,
+        });
+        return (await this.withActiveGuestDeviceCounts(tx, [updatedRoom]))[0] ?? null;
+      }
+
       const room = await tx.room.findFirst({
         where: { id: roomId, hotelId },
         select: { id: true },
@@ -925,10 +959,13 @@ export class HotelRoomsRepository {
         generateFolioNumber: input.generateFolioNumber,
       });
 
-      await tx.room.update({
-        where: { id: input.roomId },
-        data: { status: RoomStatus.PROCESSING },
+      const reservedRoom = await tx.room.updateMany({
+        where: { id: input.roomId, hotelId: input.hotelId, status: RoomStatus.AVAILABLE },
+        data: { status: RoomStatus.RESERVED },
       });
+      if (reservedRoom.count !== 1) {
+        throw new ConflictException("Phòng đã thay đổi trạng thái trong lúc đặt giữ chỗ");
+      }
 
       await this.createDomainEvent(tx, {
         eventType: "ROOM_RESERVED",
@@ -999,44 +1036,7 @@ export class HotelRoomsRepository {
         throw new BadRequestException("Không tìm thấy phòng");
       }
 
-      let roomStatus = room.status;
-
-      if (roomStatus === RoomStatus.OCCUPIED) {
-        const [activeStayCount, openFolioCount] = await Promise.all([
-          tx.guestStay.count({
-            where: {
-              hotelId: input.hotelId,
-              roomId: input.roomId,
-              status: {
-                in: [
-                  GuestStayStatus.ACTIVE,
-                  GuestStayStatus.CHECKED_IN,
-                  GuestStayStatus.CHECKOUT_PENDING,
-                ],
-              },
-            },
-          }),
-          tx.folio.count({
-            where: {
-              hotelId: input.hotelId,
-              roomId: input.roomId,
-              status: FolioStatus.OPEN,
-            },
-          }),
-        ]);
-
-        if (activeStayCount > 0 || openFolioCount > 0) {
-          throw new ConflictException("Phòng chưa sẵn sàng để check-in");
-        }
-
-        await tx.room.update({
-          where: { id: input.roomId },
-          data: { status: RoomStatus.AVAILABLE },
-        });
-        roomStatus = RoomStatus.AVAILABLE;
-      }
-
-      if (roomStatus !== RoomStatus.PROCESSING && roomStatus !== RoomStatus.AVAILABLE) {
+      if (room.status !== RoomStatus.RESERVED && room.status !== RoomStatus.AVAILABLE) {
         throw new ConflictException("Phòng chưa sẵn sàng để check-in");
       }
 
@@ -1049,7 +1049,7 @@ export class HotelRoomsRepository {
         where: {
           id: input.roomId,
           hotelId: input.hotelId,
-          status: { in: [RoomStatus.AVAILABLE, RoomStatus.PROCESSING] },
+          status: { in: [RoomStatus.AVAILABLE, RoomStatus.RESERVED] },
         },
         data: { status: RoomStatus.OCCUPIED },
       });
@@ -1196,44 +1196,7 @@ export class HotelRoomsRepository {
         throw new BadRequestException("Không tìm thấy phòng");
       }
 
-      let roomStatus = room.status;
-
-      if (roomStatus === RoomStatus.OCCUPIED || roomStatus === RoomStatus.RESERVED) {
-        const [activeStayCount, openFolioCount] = await Promise.all([
-          tx.guestStay.count({
-            where: {
-              hotelId: input.hotelId,
-              roomId: input.roomId,
-              status: {
-                in: [
-                  GuestStayStatus.ACTIVE,
-                  GuestStayStatus.CHECKED_IN,
-                  GuestStayStatus.CHECKOUT_PENDING,
-                ],
-              },
-            },
-          }),
-          tx.folio.count({
-            where: {
-              hotelId: input.hotelId,
-              roomId: input.roomId,
-              status: { in: [FolioStatus.OPEN, FolioStatus.CHECKOUT_PENDING] },
-            },
-          }),
-        ]);
-
-        if (activeStayCount > 0 || openFolioCount > 0) {
-          throw new ConflictException("Phòng không khả dụng để check-in");
-        }
-
-        await tx.room.update({
-          where: { id: input.roomId },
-          data: { status: RoomStatus.AVAILABLE },
-        });
-        roomStatus = RoomStatus.AVAILABLE;
-      }
-
-      if (roomStatus !== RoomStatus.AVAILABLE && roomStatus !== RoomStatus.PROCESSING) {
+      if (room.status !== RoomStatus.AVAILABLE) {
         throw new ConflictException("Phòng không khả dụng để check-in");
       }
 
@@ -1338,7 +1301,7 @@ export class HotelRoomsRepository {
         where: {
           id: input.roomId,
           hotelId: input.hotelId,
-          status: { in: [RoomStatus.AVAILABLE, RoomStatus.PROCESSING] },
+          status: RoomStatus.AVAILABLE,
         },
         data: { status: RoomStatus.OCCUPIED },
       });
@@ -1451,8 +1414,13 @@ export class HotelRoomsRepository {
     const now = new Date();
 
     return this.prisma.$transaction(async (tx) => {
-      const stay = await tx.guestStay.update({
-        where: { id: input.stayId },
+      const checkedOut = await tx.guestStay.updateMany({
+        where: {
+          id: input.stayId,
+          hotelId: input.hotelId,
+          roomId: input.roomId,
+          status: GuestStayStatus.ACTIVE,
+        },
         data: {
           status: GuestStayStatus.CHECKED_OUT,
           checkedOutAt: now,
@@ -1461,11 +1429,21 @@ export class HotelRoomsRepository {
           accessCodeExpiresAt: null,
         },
       });
+      if (checkedOut.count !== 1) {
+        throw new ConflictException("Lượt lưu trú đã thay đổi trong lúc check-out");
+      }
 
-      await tx.room.update({
-        where: { id: input.roomId },
+      const roomTransition = await tx.room.updateMany({
+        where: {
+          id: input.roomId,
+          hotelId: input.hotelId,
+          status: RoomStatus.OCCUPIED,
+        },
         data: { status: input.nextRoomStatus },
       });
+      if (roomTransition.count !== 1) {
+        throw new ConflictException("Trạng thái phòng đã thay đổi trong lúc check-out");
+      }
 
       await tx.guestSession.updateMany({
         where: {
@@ -1483,22 +1461,22 @@ export class HotelRoomsRepository {
       await this.createDomainEvent(tx, {
         eventType: "GUEST_CHECKED_OUT",
         aggregateType: "GuestStay",
-        aggregateId: stay.id,
+        aggregateId: input.stayId,
         hotelId: input.hotelId,
         tenantId: input.tenantId,
-        payload: { stayId: stay.id, roomId: input.roomId, actorUserId: input.actorUserId },
+        payload: { stayId: input.stayId, roomId: input.roomId, actorUserId: input.actorUserId },
       });
 
       await this.createDomainEvent(tx, {
         eventType: "GUEST_SESSION_REVOKED",
         aggregateType: "GuestStay",
-        aggregateId: stay.id,
+        aggregateId: input.stayId,
         hotelId: input.hotelId,
         tenantId: input.tenantId,
-        payload: { stayId: stay.id, reason: "CHECKOUT" },
+        payload: { stayId: input.stayId, reason: "CHECKOUT" },
       });
 
-      return stay;
+      return tx.guestStay.findUniqueOrThrow({ where: { id: input.stayId } });
     });
   }
 

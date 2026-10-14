@@ -499,7 +499,7 @@ export function HotelPartnerSettlementsTab({
                 onClick={() => handleStatusFilterChange("ALL")}
                 className={`h-11 px-5 text-sm font-extrabold rounded-xl transition-all duration-200 cursor-pointer ${
                   statusFilter === "ALL"
-                    ? "bg-slate-900 text-white shadow-md shadow-slate-900/20 scale-[1.02]"
+                    ? "bg-blue-700 text-white shadow-md shadow-blue-700/20 scale-[1.02]"
                     : "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-[1.01]"
                 }`}
               >

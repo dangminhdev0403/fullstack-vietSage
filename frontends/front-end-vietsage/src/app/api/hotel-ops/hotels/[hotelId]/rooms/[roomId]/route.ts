@@ -20,22 +20,16 @@ function sanitizeUpdateRoomPayload(payload: unknown): UpdateHotelRoomInput | nul
   const input = payload as Record<string, unknown>;
   const updatePayload: UpdateHotelRoomInput = {};
 
-  if ("status" in input && typeof input.status === "string" && input.status.trim()) {
-    const raw = input.status.trim().toUpperCase();
-    const mapped =
-      raw === "CLEAN" || raw === "CLEANED" || raw === "READY" || raw === "TRỐNG" ? "AVAILABLE" :
-      raw === "DIRTY" || raw === "CHỜ DỌN" || raw === "CLEANING" ? "PROCESSING" :
-      raw === "BẢO TRÌ" || raw === "OUT_OF_SERVICE" ? "MAINTENANCE" :
-      raw === "KHÓA" || raw === "ĐÃ KHÓA" ? "BLOCKED" : raw;
-    updatePayload.status = mapped;
-  }
-
   if (typeof input.roomNumber === "string" && input.roomNumber.trim()) {
     updatePayload.roomNumber = input.roomNumber.trim();
   }
 
   if ("floor" in input) {
     updatePayload.floor = typeof input.floor === "string" && input.floor.trim() ? input.floor.trim() : null;
+  }
+
+  if ("roomTypeId" in input && typeof input.roomTypeId === "string" && input.roomTypeId.trim()) {
+    updatePayload.roomTypeId = input.roomTypeId.trim();
   }
 
   if ("type" in input) {
@@ -45,6 +39,16 @@ function sanitizeUpdateRoomPayload(payload: unknown): UpdateHotelRoomInput | nul
   if ("price" in input) {
     const price = typeof input.price === "number" ? input.price : Number(input.price);
     if (Number.isFinite(price) && price > 0) updatePayload.price = price;
+  }
+
+  if ("maxActiveGuestDevices" in input) {
+    const maxDevices =
+      typeof input.maxActiveGuestDevices === "number"
+        ? input.maxActiveGuestDevices
+        : Number(input.maxActiveGuestDevices);
+    if (Number.isInteger(maxDevices) && maxDevices >= 1) {
+      updatePayload.maxActiveGuestDevices = maxDevices;
+    }
   }
 
   return Object.keys(updatePayload).length > 0 ? updatePayload : null;
@@ -61,34 +65,29 @@ export async function PATCH(request: Request, context: Params) {
     return validationErrorResponse("Request body must be valid JSON");
   }
 
+  if (
+    payload &&
+    typeof payload === "object" &&
+    ("status" in (payload as Record<string, unknown>) ||
+      "expectedUpdatedAt" in (payload as Record<string, unknown>))
+  ) {
+    return validationErrorResponse("Đổi trạng thái phòng phải sử dụng endpoint /status chuyên biệt");
+  }
+
   const updateRoomPayload = sanitizeUpdateRoomPayload(payload);
   if (!updateRoomPayload) {
     return validationErrorResponse("Thông tin phòng không hợp lệ");
   }
 
   try {
-    const data = await executeHotelOpsBackendRequest("update staff room", async (accessToken) => {
-      let result: unknown;
-      if (updateRoomPayload.status) {
-        result = await hotelOpsService.updateRoomStatus(
-          hotelId,
-          roomId,
-          updateRoomPayload.status,
-          accessToken,
-        );
-      }
-      const metadata = { ...updateRoomPayload };
-      delete metadata.status;
-      if (Object.keys(metadata).length > 0) {
-        result = await hotelOpsService.updateRoom(
-          hotelId,
-          roomId,
-          metadata,
-          accessToken,
-        );
-      }
-      return result;
-    });
+    const data = await executeHotelOpsBackendRequest("update staff room", (accessToken) =>
+      hotelOpsService.updateRoom(
+        hotelId,
+        roomId,
+        updateRoomPayload,
+        accessToken,
+      ),
+    );
     if (data instanceof Response) return data;
     return successResponse(data, 200, "Cập nhật thông tin phòng thành công");
   } catch (error) {

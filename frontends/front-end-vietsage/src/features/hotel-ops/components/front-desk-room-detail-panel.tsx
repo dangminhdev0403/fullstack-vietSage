@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
@@ -89,7 +90,7 @@ export function FrontDeskRoomDetailPanel({
   const titleId = useId();
   const descId = useId();
 
-  const [showAllServices, setShowAllServices] = useState(false);
+  const [serviceSearch, setServiceSearch] = useState("");
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [nowTimestamp] = useState(() => Date.now());
 
@@ -139,11 +140,6 @@ export function FrontDeskRoomDetailPanel({
       ? reservation?.reservationCode
       : null;
 
-  const activeGuestDisplayName = isOccupiedMode
-    ? stay?.guestDisplayName
-    : isReservedMode
-      ? reservation?.guestDisplayName
-      : null;
 
   // Lazy Folio Query: Only enabled when panel is open, room is occupied/overdue, and user has billing view capability
   const stayId = stay?.id || "";
@@ -213,7 +209,13 @@ export function FrontDeskRoomDetailPanel({
     [serviceItems],
   );
 
-  const visibleServices = showAllServices ? serviceItems : serviceItems.slice(0, 5);
+  const filteredServices = useMemo(() => {
+    if (!serviceSearch.trim()) return serviceItems;
+    const term = serviceSearch.trim().toLowerCase();
+    return serviceItems.filter((item) =>
+      (item.nameSnapshot || "").toLowerCase().includes(term),
+    );
+  }, [serviceItems, serviceSearch]);
 
   const stayOccupants = stay?.occupants;
   const extraOccupants = useMemo(() => {
@@ -274,8 +276,25 @@ export function FrontDeskRoomDetailPanel({
                 Phòng {roomNumberDisplay}
               </h2>
               {activeReservationCode ? (
-                <span className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-0.5 font-mono text-xs sm:text-sm font-black text-blue-900 shadow-2xs">
-                  #{activeReservationCode}
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 font-mono text-xs sm:text-sm font-black text-blue-900 shadow-2xs">
+                  <span>#{activeReservationCode}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (activeReservationCode) {
+                        void navigator.clipboard.writeText(activeReservationCode);
+                        void showSuccessAlert(
+                          "Đã sao chép",
+                          `Mã đặt phòng #${activeReservationCode} đã được sao chép vào bộ nhớ tạm.`,
+                        );
+                      }
+                    }}
+                    className="inline-flex items-center text-blue-600 hover:text-blue-950 transition cursor-pointer"
+                    title="Sao chép mã đặt phòng"
+                    aria-label="Sao chép mã đặt phòng"
+                  >
+                    <VsIcon name="content_copy" className="text-xs" />
+                  </button>
                 </span>
               ) : null}
               {isOverdue ? (
@@ -314,119 +333,67 @@ export function FrontDeskRoomDetailPanel({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
-          {/* KHỐI RIÊNG BIỆT: MÃ ĐẶT PHÒNG & KHÁCH ĐẠI DIỆN NỔI BẬT NGAY ĐẦU TIÊN */}
-          {activeReservationCode ? (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 rounded-2xl border-2 border-blue-200/90 bg-gradient-to-r from-blue-50/90 via-sky-50/60 to-white p-4 sm:p-5 shadow-xs">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-700 text-white shadow-sm">
-                  <VsIcon name="bookmark" className="text-2xl" />
-                </div>
-                <div className="min-w-0">
-                  <span className="text-xs font-black uppercase tracking-wider text-blue-900 block">
-                    Mã đặt phòng
-                  </span>
-                  <div className="flex items-center gap-2.5 mt-0.5">
-                    <span className="font-mono text-xl sm:text-2xl font-black text-blue-950 tracking-tight select-all">
-                      {activeReservationCode}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (activeReservationCode) {
-                          void navigator.clipboard.writeText(activeReservationCode);
-                          void showSuccessAlert(
-                            "Đã sao chép",
-                            `Mã đặt phòng #${activeReservationCode} đã được sao chép vào bộ nhớ tạm.`,
-                          );
-                        }
-                      }}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-white hover:bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-900 transition shadow-2xs cursor-pointer"
-                      title="Sao chép mã đặt phòng"
-                    >
-                      <VsIcon name="content_copy" className="text-xs" />
-                      <span>Sao chép</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4 sm:border-l sm:border-blue-200/80 sm:pl-5 shrink-0">
-                <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
-                    {isReservedMode ? "Khách đặt trước" : "Khách đại diện"}
-                  </span>
-                  <span className="text-base sm:text-lg font-black text-slate-900">
-                    {activeGuestDisplayName || "Chưa rõ"}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
           {/* Semantic Overdue Warning */}
           {isOverdue && (
-            <div className="rounded-xl border border-red-300 bg-red-50 p-4 text-red-950">
-              <div className="flex items-center gap-2 font-black text-base text-red-800">
-                <VsIcon name="warning" className="text-lg text-red-600 shrink-0 animate-bounce" />
-                <span>Cảnh báo quá hạn trả phòng</span>
-              </div>
-              <p className="mt-1 text-sm text-red-900 leading-relaxed font-medium">
-                Lượt lưu trú đã quá hạn dự kiến{" "}
-                <strong className="font-black">{formatDateTime(stay?.plannedCheckOutAt)}</strong>. Vui lòng rà soát
-                dịch vụ và hướng dẫn khách hoàn tất thanh toán hoặc gia hạn thời gian lưu trú.
-              </p>
+            <div className="flex items-center gap-2.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs sm:text-sm text-rose-900 font-medium shadow-2xs">
+              <VsIcon name="warning" className="text-base text-rose-600 shrink-0" />
+              <span>
+                Lượt lưu trú đã quá hạn trả phòng. Vui lòng rà soát dịch vụ và hướng dẫn khách hoàn tất thanh toán hoặc gia hạn thời gian lưu trú.
+              </span>
             </div>
           )}
 
           {/* OCCUPIED / OVERDUE STAY CONTEXT */}
           {isOccupiedMode && stay && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
               {/* Guest & Stay Snapshot */}
-              <section className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5 space-y-4">
-                <div className="flex items-center gap-2 border-b border-slate-200/80 pb-2.5">
-                  <VsIcon name="person" className="text-slate-600 text-lg" />
-                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">
-                    Thông tin khách & Lưu trú
-                  </h3>
-                </div>
-                <div className="space-y-3 text-base">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-slate-600">Khách đại diện:</span>
-                    <span className="font-black text-slate-900 text-lg">
-                      {stay.guestDisplayName || "Chưa rõ"}
-                    </span>
+              <section className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5 space-y-4">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 border-b border-slate-200/80 pb-2.5">
+                    <VsIcon name="person" className="text-slate-600 text-lg" />
+                    <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">
+                      Thông tin khách & Lưu trú
+                    </h3>
                   </div>
-                  {stay.guestPhone && (
+                  <div className="space-y-3 text-base">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-slate-600">Số điện thoại:</span>
-                      <span className="font-bold text-slate-900">{stay.guestPhone}</span>
+                      <span className="text-sm font-semibold text-slate-600">Khách đại diện:</span>
+                      <span className="font-black text-slate-900 text-lg">
+                        {stay.guestDisplayName || "Chưa rõ"}
+                      </span>
                     </div>
-                  )}
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-200/70">
-                    <span className="text-sm font-semibold text-slate-600">Nhận phòng thực tế:</span>
-                    <span className="font-black text-slate-900">
-                      {stay.checkedInAt
-                        ? formatDateTime(stay.checkedInAt)
-                        : formatDateTime(stay.plannedCheckInAt)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-slate-600">Trả phòng dự kiến:</span>
-                    <span
-                      className={`font-black ${isOverdue ? "text-red-700" : "text-slate-900"}`}
-                    >
-                      {formatDateTime(stay.plannedCheckOutAt)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-slate-600">Số đêm lưu trú:</span>
-                    <span className="font-black text-slate-900">
-                      {calculateNights(
-                        stay.checkedInAt ?? stay.plannedCheckInAt,
-                        stay.plannedCheckOutAt,
-                      )}{" "}
-                      đêm
-                    </span>
+                    {stay.guestPhone && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-slate-600">Số điện thoại:</span>
+                        <span className="font-bold text-slate-900">{stay.guestPhone}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/70">
+                      <span className="text-sm font-semibold text-slate-600">Nhận phòng thực tế:</span>
+                      <span className="font-black text-slate-900">
+                        {stay.checkedInAt
+                          ? formatDateTime(stay.checkedInAt)
+                          : formatDateTime(stay.plannedCheckInAt)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-slate-600">Trả phòng dự kiến:</span>
+                      <span
+                        className={`font-black ${isOverdue ? "text-red-700" : "text-slate-900"}`}
+                      >
+                        {formatDateTime(stay.plannedCheckOutAt)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-slate-600">Số đêm lưu trú:</span>
+                      <span className="font-black text-slate-900">
+                        {calculateNights(
+                          stay.checkedInAt ?? stay.plannedCheckInAt,
+                          stay.plannedCheckOutAt,
+                        )}{" "}
+                        đêm
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -455,7 +422,7 @@ export function FrontDeskRoomDetailPanel({
 
               {/* FOLIO & BILLABLE SERVICES */}
               {canViewBilling ? (
-                <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
+                <section className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                     <div className="flex items-center gap-2">
                       <VsIcon name="receipt" className="text-slate-600 text-xl" />
@@ -498,7 +465,7 @@ export function FrontDeskRoomDetailPanel({
                       Chưa có hóa đơn đang mở cho lượt lưu trú này.
                     </div>
                   ) : (
-                    <div className="space-y-3.5">
+                    <div className="flex-1 flex flex-col space-y-3.5">
                       {/* Summary breakdown */}
                       <div className="rounded-xl bg-slate-50 p-4 space-y-2.5 text-sm">
                         {folioContext.summary?.estimatedRoomCharge && (
@@ -560,66 +527,129 @@ export function FrontDeskRoomDetailPanel({
                       )}
 
                       {/* Service Lines List */}
-                      <div>
-                        <p className="text-sm font-black uppercase tracking-wider text-slate-700 mb-2.5">
-                          Chi tiết dịch vụ ({serviceItems.length}):
-                        </p>
-                        {serviceItems.length === 0 ? (
-                          <p className="text-sm text-slate-500 italic py-1">
-                            Chưa có dịch vụ nào phát sinh.
-                          </p>
-                        ) : (
-                          <div className="space-y-2 max-h-56 overflow-y-auto">
-                            {visibleServices.map((item) => {
-                              const isVoided = Boolean(
-                                item.voidedAt || item.status === "VOIDED",
-                              );
-                              return (
-                                <div
-                                  key={item.id}
-                                  className={`flex items-center justify-between text-sm p-3 rounded-lg border ${
-                                    isVoided
-                                      ? "bg-slate-100 border-slate-200 text-slate-400 line-through"
-                                      : "bg-white border-slate-200 text-slate-900"
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
-                                    <span className="truncate font-semibold">
-                                      {item.nameSnapshot}
-                                    </span>
-                                    {item.quantity > 1 && (
-                                      <span className="shrink-0 text-slate-500 font-bold">
-                                        x{item.quantity}
-                                      </span>
-                                    )}
-                                    {isVoided && (
-                                      <span className="shrink-0 text-xs uppercase font-extrabold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
-                                        Đã hủy
-                                      </span>
-                                    )}
-                                  </div>
-                                  <span
-                                    className={`font-bold shrink-0 ${
-                                      isVoided ? "text-slate-400" : "text-slate-900"
-                                    }`}
-                                  >
-                                    {formatVnd(item.totalSnapshot)}
-                                  </span>
-                                </div>
-                              );
-                            })}
+                      <div className="flex-1 flex flex-col min-h-0 space-y-2.5 pt-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-black uppercase tracking-wider text-slate-700">
+                              Chi tiết dịch vụ
+                            </span>
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">
+                              {serviceItems.length}
+                            </span>
+                          </div>
+                          {activeServices.length > 0 && (
+                            <span className="text-xs font-bold text-emerald-700">
+                              {formatVnd(
+                                activeServices.reduce(
+                                  (sum, i) => sum + Number(i.totalSnapshot || 0),
+                                  0,
+                                ),
+                              )}
+                            </span>
+                          )}
+                        </div>
 
+                        {serviceItems.length === 0 ? (
+                          <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/70 p-6 text-center min-h-[140px]">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-400 mb-2">
+                              <VsIcon name="room_service" className="text-xl" />
+                            </div>
+                            <p className="text-sm font-bold text-slate-700">
+                              Chưa có dịch vụ nào phát sinh
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500 max-w-xs leading-relaxed">
+                              Các dịch vụ phòng, ăn uống hoặc tiện ích phát sinh trong quá trình lưu trú sẽ tự động hiển thị tại đây.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="flex-1 flex flex-col min-h-0 space-y-2">
                             {serviceItems.length > 5 && (
-                              <button
-                                type="button"
-                                onClick={() => setShowAllServices((prev) => !prev)}
-                                className="w-full text-center text-sm font-bold text-blue-700 hover:text-blue-900 py-2 cursor-pointer min-h-[44px] flex items-center justify-center"
-                              >
-                                {showAllServices
-                                  ? "Thu gọn"
-                                  : `Xem tất cả (${serviceItems.length} dịch vụ)`}
-                              </button>
+                              <div className="relative">
+                                <VsIcon
+                                  name="search"
+                                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-slate-400 pointer-events-none"
+                                />
+                                <input
+                                  type="text"
+                                  value={serviceSearch}
+                                  onChange={(e) => setServiceSearch(e.target.value)}
+                                  placeholder="Tìm dịch vụ theo tên..."
+                                  className="w-full rounded-lg border border-slate-200 bg-slate-50/70 py-1.5 pl-8 pr-7 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none transition-colors"
+                                />
+                                {serviceSearch && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setServiceSearch("")}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                                  >
+                                    <VsIcon name="close" className="text-xs" />
+                                  </button>
+                                )}
+                              </div>
                             )}
+
+                            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs">
+                              <div className="max-h-56 sm:max-h-60 overflow-y-auto divide-y divide-slate-100">
+                                {filteredServices.length === 0 ? (
+                                  <div className="py-6 px-4 text-center text-xs text-slate-500">
+                                    Không tìm thấy dịch vụ nào khớp với từ khóa &ldquo;{serviceSearch}&rdquo;.
+                                  </div>
+                                ) : (
+                                  filteredServices.map((item) => {
+                                    const isVoided = Boolean(
+                                      item.voidedAt || item.status === "VOIDED",
+                                    );
+                                    return (
+                                      <div
+                                        key={item.id}
+                                        className={`flex items-center justify-between px-3.5 py-2.5 text-xs transition-colors hover:bg-slate-50/80 ${
+                                          isVoided
+                                            ? "bg-slate-50/60 text-slate-400 line-through"
+                                            : "text-slate-800"
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2 min-w-0 flex-1 mr-3">
+                                          <span className="truncate font-medium">{item.nameSnapshot}</span>
+                                          {item.quantity > 1 && (
+                                            <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-600">
+                                              x{item.quantity}
+                                            </span>
+                                          )}
+                                          {isVoided && (
+                                            <span className="shrink-0 text-[10px] uppercase font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                                              Đã hủy
+                                            </span>
+                                          )}
+                                        </div>
+                                        <span
+                                          className={`font-bold shrink-0 tabular-nums ${
+                                            isVoided ? "text-slate-400" : "text-slate-900"
+                                          }`}
+                                        >
+                                          {formatVnd(item.totalSnapshot)}
+                                        </span>
+                                      </div>
+                                    );
+                                  })
+                                )}
+                              </div>
+
+                              {/* Footer count & link */}
+                              <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50/80 px-3.5 py-2 text-xs">
+                                <span className="text-slate-500 font-medium">
+                                  {serviceSearch ? `${filteredServices.length} / ${serviceItems.length} kết quả` : `${serviceItems.length} dịch vụ phát sinh`}
+                                </span>
+                                {serviceItems.length > 5 && (
+                                  <Link
+                                    href={`/hotels/${encodeURIComponent(hotelId)}/billing?stayId=${encodeURIComponent(stay.id)}&roomId=${encodeURIComponent(room?.id || "")}&roomNumber=${encodeURIComponent(room?.roomNumber || "")}`}
+                                    className="font-bold text-blue-700 hover:text-blue-900 flex items-center gap-1 transition"
+                                  >
+                                    <span>Chi tiết Folio</span>
+                                    <VsIcon name="arrow_forward" className="text-xs" />
+                                  </Link>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -632,98 +662,108 @@ export function FrontDeskRoomDetailPanel({
 
           {/* RESERVED MODE CONTEXT */}
           {isReservedMode && reservation && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-              <section className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5 space-y-3">
-                <div className="flex items-center gap-2 border-b border-slate-200/80 pb-2.5">
-                  <VsIcon name="event" className="text-blue-600 text-lg" />
-                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">
-                    Thông tin Đặt trước
-                  </h3>
-                </div>
-                <div className="space-y-2.5 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Khách đặt phòng:</span>
-                    <span className="font-extrabold text-slate-900 text-base">
-                      {reservation.guestDisplayName || "Chưa rõ"}
-                    </span>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
+              <section className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5 space-y-3">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 border-b border-slate-200/80 pb-2.5">
+                    <VsIcon name="event" className="text-blue-600 text-lg" />
+                    <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">
+                      Thông tin Đặt trước
+                    </h3>
                   </div>
-                  {reservation.guestPhone && (
+                  <div className="space-y-2.5 text-sm">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-600">Số điện thoại:</span>
-                      <span className="font-medium text-slate-900">{reservation.guestPhone}</span>
+                      <span className="text-slate-600">Khách đặt phòng:</span>
+                      <span className="font-extrabold text-slate-900 text-base">
+                        {reservation.guestDisplayName || "Chưa rõ"}
+                      </span>
                     </div>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Mã đặt phòng:</span>
-                    <span className="font-mono text-sm font-bold text-slate-800 bg-slate-200 px-2.5 py-0.5 rounded">
-                      {reservation.reservationCode}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Trạng thái:</span>
-                    <span className="font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded text-xs">
-                      {reservation.status}
-                    </span>
+                    {reservation.guestPhone && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-600">Số điện thoại:</span>
+                        <span className="font-medium text-slate-900">{reservation.guestPhone}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-600">Mã đặt phòng:</span>
+                      <span className="font-mono text-sm font-bold text-slate-800 bg-slate-200 px-2.5 py-0.5 rounded">
+                        {reservation.reservationCode}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-600">Trạng thái:</span>
+                      <span className="font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded text-xs">
+                        {reservation.status}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </section>
 
-              <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs space-y-3">
-                <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
-                  <VsIcon name="calendar_month" className="text-slate-500 text-lg" />
-                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">
-                    Lịch lưu trú & Chi phí dự kiến
-                  </h3>
-                </div>
-                <div className="space-y-2.5 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Thời gian nhận phòng:</span>
-                    <span className="font-bold text-slate-900">
-                      {formatDateTime(reservation.plannedCheckInAt)}
-                    </span>
+              <section className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs space-y-3">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
+                    <VsIcon name="calendar_month" className="text-slate-500 text-lg" />
+                    <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">
+                      Lịch lưu trú & Chi phí dự kiến
+                    </h3>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Thời gian trả phòng:</span>
-                    <span className="font-bold text-slate-900">
-                      {formatDateTime(reservation.plannedCheckOutAt)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Số đêm:</span>
-                    <span className="font-medium text-slate-900">
-                      {calculateNights(
-                        reservation.plannedCheckInAt,
-                        reservation.plannedCheckOutAt,
-                      )}{" "}
-                      đêm
-                    </span>
-                  </div>
-                  {reservation.nightlyRateSnapshot && (
+                  <div className="space-y-2.5 text-sm">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-600">Giá phòng snapshot:</span>
+                      <span className="text-slate-600">Thời gian nhận phòng:</span>
                       <span className="font-bold text-slate-900">
-                        {formatVnd(reservation.nightlyRateSnapshot)} / đêm
+                        {formatDateTime(reservation.plannedCheckInAt)}
                       </span>
                     </div>
-                  )}
-                  {reservation.nightlyRateSnapshot && (
-                    <div className="flex items-center justify-between pt-2.5 border-t border-slate-200/70 text-base font-black text-slate-900">
-                      <span>Dự kiến tiền phòng:</span>
-                      <span className="text-emerald-700 text-lg font-black">
-                        {formatVnd(
-                          Number(reservation.nightlyRateSnapshot) *
-                            calculateNights(
-                              reservation.plannedCheckInAt,
-                              reservation.plannedCheckOutAt,
-                            ),
-                        )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-600">Thời gian trả phòng:</span>
+                      <span className="font-bold text-slate-900">
+                        {formatDateTime(reservation.plannedCheckOutAt)}
                       </span>
                     </div>
-                  )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-600">Số đêm:</span>
+                      <span className="font-medium text-slate-900">
+                        {calculateNights(
+                          reservation.plannedCheckInAt,
+                          reservation.plannedCheckOutAt,
+                        )}{" "}
+                        đêm
+                      </span>
+                    </div>
+                    {reservation.nightlyRateSnapshot && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-600">Giá phòng snapshot:</span>
+                        <span className="font-bold text-slate-900">
+                          {formatVnd(reservation.nightlyRateSnapshot)} / đêm
+                        </span>
+                      </div>
+                    )}
+                    {reservation.nightlyRateSnapshot && (
+                      <div className="flex items-center justify-between pt-2.5 border-t border-slate-200/70 text-base font-black text-slate-900">
+                        <span>Dự kiến tiền phòng:</span>
+                        <span className="text-emerald-700 text-lg font-black">
+                          {formatVnd(
+                            Number(reservation.nightlyRateSnapshot) *
+                              calculateNights(
+                                reservation.plannedCheckInAt,
+                                reservation.plannedCheckOutAt,
+                              ),
+                          )}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="mt-3 rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm font-medium text-blue-900">
-                  Phòng chưa nhận phòng. Chưa có hóa đơn hoặc dịch vụ phát sinh.
+                <div className="mt-3 flex flex-1 flex-col items-center justify-center rounded-xl border border-blue-200/80 bg-blue-50/60 p-5 text-center text-sm font-medium text-blue-900 min-h-[100px]">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-700 mb-1.5">
+                    <VsIcon name="info" className="text-base" />
+                  </div>
+                  <p className="font-bold text-slate-800">Chưa phát sinh dịch vụ</p>
+                  <p className="mt-0.5 text-xs text-slate-600 max-w-xs">
+                    Phòng đang ở trạng thái đặt trước. Chưa có hóa đơn hoặc dịch vụ phát sinh.
+                  </p>
                 </div>
               </section>
             </div>

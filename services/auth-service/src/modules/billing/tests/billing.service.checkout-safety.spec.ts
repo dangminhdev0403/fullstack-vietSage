@@ -236,7 +236,7 @@ describe("BillingService checkout safety", () => {
       folio: { update: jest.fn().mockResolvedValue({}) },
       guestStay: { update: jest.fn().mockResolvedValue({}) },
       guestSession: { updateMany: jest.fn().mockResolvedValue({ count: 2 }) },
-      room: { update: jest.fn().mockResolvedValue({}) },
+      room: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       roomQRCode: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       $queryRawUnsafe: jest.fn().mockResolvedValue([]),
     };
@@ -279,8 +279,12 @@ describe("BillingService checkout safety", () => {
       },
       data: { status: GuestSessionStatus.CLOSED, closedAt: now },
     });
-    expect(tx.room.update).toHaveBeenCalledWith({
-      where: { id: "room-1" },
+    expect(tx.room.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "room-1",
+        hotelId: "hotel-1",
+        status: RoomStatus.OCCUPIED,
+      },
       data: { status: RoomStatus.PROCESSING },
     });
     expect(tx.roomQRCode.updateMany).not.toHaveBeenCalled();
@@ -316,7 +320,7 @@ describe("BillingService checkout safety", () => {
       folio: { update: jest.fn().mockResolvedValue({}) },
       guestStay: { update: jest.fn().mockResolvedValue({}) },
       guestSession: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
-      room: { update: jest.fn().mockResolvedValue({}) },
+      room: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       roomQRCode: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
     };
     const prisma = {
@@ -340,7 +344,123 @@ describe("BillingService checkout safety", () => {
       stayId: "stay-1",
       roomId: "room-1",
     });
+    expect(tx.room.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "room-1",
+        hotelId: "hotel-1",
+        status: RoomStatus.OCCUPIED,
+      },
+      data: { status: RoomStatus.PROCESSING },
+    });
     expect(tx.roomQRCode.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects zero-balance checkout settlement when room status is no longer OCCUPIED", async () => {
+    const payment = { id: "payment-zero", status: PaymentStatus.SUCCEEDED };
+    const tx = {
+      $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+      invoice: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "invoice-zero",
+          hotelId: "hotel-1",
+          folioId: "folio-1",
+          stayId: "stay-1",
+          status: InvoiceStatus.ISSUED,
+          paidAmount: new Prisma.Decimal(0),
+          balanceAmount: new Prisma.Decimal(0),
+          currency: "VND",
+          stay: { roomId: "room-1" },
+        }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      payment: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue(payment),
+      },
+      folio: { update: jest.fn().mockResolvedValue({}) },
+      guestStay: { update: jest.fn().mockResolvedValue({}) },
+      guestSession: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      room: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      roomQRCode: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+    };
+    const prisma = {
+      invoice: {
+        findFirst: jest.fn().mockResolvedValue({ balanceAmount: new Prisma.Decimal(0) }),
+      },
+      $transaction: jest.fn((callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
+    };
+    const eventPublisher = { publishConversationClosed: jest.fn() };
+    const service = createService(prisma, {}, eventPublisher);
+    jest
+      .spyOn(service, "getInvoiceDetail")
+      .mockResolvedValue({ invoice: { id: "invoice-zero" } } as never);
+
+    await expect(
+      service.confirmManualPayment("staff-1", "frontdesk-role", "hotel-1", "invoice-zero", {
+        method: PaymentMethod.CASH,
+      }),
+    ).rejects.toThrow(new ConflictException("ROOM_CHECKOUT_STATUS_CONFLICT"));
+
+    expect(eventPublisher.publishConversationClosed).not.toHaveBeenCalled();
+  });
+
+  it("rejects payment webhook checkout settlement when room status is no longer OCCUPIED", async () => {
+    const lockedPayment = {
+      id: "payment-conflict",
+      hotelId: "hotel-1",
+      invoiceId: "invoice-1",
+      folioId: "folio-1",
+      stayId: "stay-1",
+      status: PaymentStatus.PENDING,
+      amount: new Prisma.Decimal(100),
+      currency: "VND",
+      invoice: {
+        id: "invoice-1",
+        hotelId: "hotel-1",
+        folioId: "folio-1",
+        stayId: "stay-1",
+        status: InvoiceStatus.ISSUED,
+        paidAmount: new Prisma.Decimal(0),
+        balanceAmount: new Prisma.Decimal(100),
+        currency: "VND",
+        stay: { roomId: "room-1" },
+      },
+    };
+    const tx = {
+      payment: {
+        findFirst: jest.fn().mockResolvedValue(lockedPayment),
+        findUnique: jest.fn().mockResolvedValue(lockedPayment),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      paymentTransaction: {
+        create: jest.fn().mockResolvedValue({ id: "transaction-1" }),
+      },
+      invoice: { update: jest.fn().mockResolvedValue({}) },
+      folio: { update: jest.fn().mockResolvedValue({}) },
+      guestStay: { update: jest.fn().mockResolvedValue({}) },
+      guestSession: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      room: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      roomQRCode: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+    };
+    const prisma = {
+      paymentTransaction: { findFirst: jest.fn().mockResolvedValue(null) },
+      $transaction: jest.fn((callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
+    };
+    const eventPublisher = { publishConversationClosed: jest.fn() };
+    const service = createService(prisma, {}, eventPublisher);
+
+    await expect(
+      service.processPaymentWebhook(PaymentProvider.MOMO, {
+        providerEventId: "event-conflict",
+        paymentId: "payment-conflict",
+        amount: "100",
+        eventType: "payment.succeeded",
+        signatureVerified: true,
+      }),
+    ).rejects.toThrow(new ConflictException("ROOM_CHECKOUT_STATUS_CONFLICT"));
+
+    expect(eventPublisher.publishConversationClosed).not.toHaveBeenCalled();
   });
 
   it("confirmManualPayment records the counter method and settles through the guarded payment flow", async () => {

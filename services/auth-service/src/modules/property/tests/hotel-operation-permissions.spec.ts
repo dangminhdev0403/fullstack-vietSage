@@ -177,32 +177,35 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
       ).toThrow();
     });
 
-    it("updateRoomStatusBodySchema strictly requires status and rejects extra metadata fields", () => {
+    it("updateRoomStatusBodySchema strictly requires status and the observed room version", () => {
+      const expectedUpdatedAt = "2026-10-15T00:00:00.000Z";
       const validStatus = parseWithZod(updateRoomStatusBodySchema, {
         status: "PROCESSING",
+        expectedUpdatedAt,
       });
       expect(validStatus).toEqual({
         status: RoomStatus.PROCESSING,
+        expectedUpdatedAt: new Date(expectedUpdatedAt),
       });
 
-      // Normalizes preprocessing aliases
-      expect(parseWithZod(updateRoomStatusBodySchema, { status: "clean" })).toEqual({
+      expect(
+        parseWithZod(updateRoomStatusBodySchema, { status: "clean", expectedUpdatedAt }),
+      ).toEqual({
         status: RoomStatus.AVAILABLE,
+        expectedUpdatedAt: new Date(expectedUpdatedAt),
       });
 
-      expect(parseWithZod(updateRoomStatusBodySchema, { status: "dirty" })).toEqual({
-        status: RoomStatus.PROCESSING,
-      });
-
-      // Rejects invalid statuses
       expect(() =>
-        parseWithZod(updateRoomStatusBodySchema, { status: "INVALID_STATUS" }),
+        parseWithZod(updateRoomStatusBodySchema, {
+          status: "INVALID_STATUS",
+          expectedUpdatedAt,
+        }),
       ).toThrow();
-
-      // Rejects extra metadata fields (strict schema)
+      expect(() => parseWithZod(updateRoomStatusBodySchema, { status: "PROCESSING" })).toThrow();
       expect(() =>
         parseWithZod(updateRoomStatusBodySchema, {
           status: "AVAILABLE",
+          expectedUpdatedAt,
           roomNumber: "201",
         }),
       ).toThrow();
@@ -220,6 +223,7 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
           type: "Standard",
           price: 1000000,
           status: RoomStatus.AVAILABLE,
+          updatedAt: new Date("2026-10-15T00:00:00.000Z"),
           guestStays: [],
           qrCodes: [],
           ...overrides,
@@ -261,7 +265,10 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
         "role-frontdesk",
         "hotel-1",
         "room-1",
-        { status: RoomStatus.PROCESSING },
+        {
+          status: RoomStatus.PROCESSING,
+          expectedUpdatedAt: new Date("2026-10-15T00:00:00.000Z"),
+        },
       );
 
       expect(accessService.assertHotelAccess).toHaveBeenCalledWith(
@@ -273,6 +280,10 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
         "hotel-1",
         "room-1",
         expect.objectContaining({ status: RoomStatus.PROCESSING }),
+        expect.objectContaining({
+          status: RoomStatus.AVAILABLE,
+          updatedAt: new Date("2026-10-15T00:00:00.000Z"),
+        }),
       );
       expect(result.status).toBe(RoomStatus.PROCESSING);
     });
@@ -286,6 +297,7 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
       await expect(
         service.updateRoomStatus("user-1", "role-frontdesk", "hotel-1", "room-1", {
           status: RoomStatus.BLOCKED,
+          expectedUpdatedAt: new Date("2026-10-15T00:00:00.000Z"),
         }),
       ).rejects.toBeInstanceOf(ConflictException);
 
@@ -299,6 +311,7 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
       await expect(
         service.updateRoomStatus("user-1", "role-frontdesk", "hotel-1", "room-1", {
           status: RoomStatus.OCCUPIED,
+          expectedUpdatedAt: new Date("2026-10-15T00:00:00.000Z"),
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
 
@@ -313,9 +326,38 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
       await expect(
         service.updateRoomStatus("user-1", "role-frontdesk", "hotel-1", "room-999", {
           status: RoomStatus.AVAILABLE,
+          expectedUpdatedAt: new Date("2026-10-15T00:00:00.000Z"),
         }),
       ).rejects.toBeInstanceOf(NotFoundException);
 
+      expect(repository.updateRoomInHotel).not.toHaveBeenCalled();
+    });
+
+    it("propagates a concurrent status conflict instead of overwriting newer work", async () => {
+      const repository = createMockRepository();
+      repository.updateRoomInHotel.mockRejectedValue(
+        new ConflictException("Trạng thái phòng đã thay đổi. Vui lòng tải lại trước khi thao tác."),
+      );
+      const service = createService(repository);
+
+      await expect(
+        service.updateRoomStatus("user-frontdesk", "role-frontdesk", "hotel-1", "room-1", {
+          status: RoomStatus.PROCESSING,
+          expectedUpdatedAt: new Date("2026-10-15T00:00:00.000Z"),
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("rejects bypassing housekeeping confirmation via manual PROCESSING to AVAILABLE", async () => {
+      const repository = createMockRepository({ status: RoomStatus.PROCESSING });
+      const service = createService(repository);
+
+      await expect(
+        service.updateRoomStatus("user-frontdesk", "role-frontdesk", "hotel-1", "room-1", {
+          status: RoomStatus.AVAILABLE,
+          expectedUpdatedAt: new Date("2026-10-15T00:00:00.000Z"),
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
       expect(repository.updateRoomInHotel).not.toHaveBeenCalled();
     });
   });
@@ -355,6 +397,7 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
         "role-housekeeping",
         "hotel-1",
         "room-1",
+        { expectedUpdatedAt: new Date("2026-10-15T00:00:00.000Z") },
       );
 
       expect(accessService.assertRoomAccess).toHaveBeenCalledWith(
@@ -363,7 +406,11 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
         "hotel-1",
         "room-1",
       );
-      expect(repository.confirmRoomReady).toHaveBeenCalledWith("hotel-1", "room-1");
+      expect(repository.confirmRoomReady).toHaveBeenCalledWith(
+        "hotel-1",
+        "room-1",
+        new Date("2026-10-15T00:00:00.000Z"),
+      );
       expect(result.status).toBe(RoomStatus.AVAILABLE);
     });
 
@@ -378,7 +425,9 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
       const service = new HotelRoomsService(repository as any, {} as any, accessService as any);
 
       await expect(
-        service.confirmRoomReady("user-housekeeping", "role-housekeeping", "hotel-1", "room-1"),
+        service.confirmRoomReady("user-housekeeping", "role-housekeeping", "hotel-1", "room-1", {
+          expectedUpdatedAt: new Date("2026-10-15T00:00:00.000Z"),
+        }),
       ).rejects.toBeInstanceOf(ConflictException);
     });
   });

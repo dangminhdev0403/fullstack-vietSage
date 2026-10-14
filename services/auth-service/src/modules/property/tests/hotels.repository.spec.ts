@@ -28,7 +28,7 @@ describe("HotelsRepository stay creation", () => {
         })),
       },
       room: {
-        update: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       folio: {
         findFirst: jest.fn().mockResolvedValue(null),
@@ -334,55 +334,18 @@ describe("HotelsRepository check-in QR creation", () => {
     expect(tx.guestStay.create).not.toHaveBeenCalled();
   });
 
-  it("reopens a checked-out RESERVED room when no active stay or blocking folio remains", async () => {
-    const qr = {
-      id: "qr-1",
-      hotelId: "hotel-1",
-      roomId: "room-1",
-      publicCode: "token_existing",
-      status: "INACTIVE",
-      version: 1,
-    };
-    const stay = {
-      id: "stay-new",
-      hotelId: "hotel-1",
-      roomId: "room-1",
-      reservationCode: "VSH_RESERVATION_0002",
-      guestDisplayName: "Tran Van B",
-      guestPhone: null,
-      status: "ACTIVE",
-      plannedCheckInAt: new Date("2026-06-13T07:00:00.000Z"),
-      plannedCheckOutAt: new Date("2026-06-15T05:00:00.000Z"),
-      checkedInAt: new Date("2026-06-13T07:00:00.000Z"),
-      activatedAt: new Date("2026-06-13T07:00:00.000Z"),
-      checkedOutAt: null,
-      accessCodeExpiresAt: new Date("2026-06-14T07:00:00.000Z"),
-      createdAt: new Date("2026-06-13T00:00:00.000Z"),
-      updatedAt: new Date("2026-06-13T07:00:00.000Z"),
-    };
+  it("rejects walk-in check-in when room is RESERVED", async () => {
     const tx = {
       room: {
         findFirst: jest.fn().mockResolvedValue({ id: "room-1", status: "RESERVED" }),
         update: jest.fn(),
-        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        updateMany: jest.fn(),
       },
       guestStay: {
-        count: jest.fn().mockResolvedValue(0),
-        create: jest.fn().mockResolvedValue(stay),
-      },
-      folio: {
-        count: jest.fn().mockResolvedValue(0),
-        findFirst: jest.fn().mockResolvedValue(null),
-        create: jest.fn().mockResolvedValue({ id: "folio-new" }),
+        create: jest.fn(),
       },
       roomQRCode: {
-        findFirst: jest.fn().mockResolvedValue(qr),
-        create: jest.fn(),
-        updateMany: jest.fn(),
-        update: jest.fn().mockImplementation(({ data }) => ({ ...qr, ...data })),
-      },
-      domainEvent: {
-        create: jest.fn(),
+        findFirst: jest.fn(),
       },
     };
     const repository = createRepository(tx);
@@ -402,31 +365,10 @@ describe("HotelsRepository check-in QR creation", () => {
         generateReservationCode: jest.fn().mockResolvedValue("VSH_RESERVATION_0002"),
         generateFolioNumber: jest.fn().mockResolvedValue("VSH_FOLIO_0002"),
       }),
-    ).resolves.toMatchObject({ stay: { id: "stay-new" } });
+    ).rejects.toThrow(new ConflictException("Phòng không khả dụng để check-in"));
 
-    expect(tx.guestStay.count).toHaveBeenCalledWith({
-      where: expect.objectContaining({
-        roomId: "room-1",
-        status: { in: ["ACTIVE", "CHECKED_IN", "CHECKOUT_PENDING"] },
-      }),
-    });
-    expect(tx.folio.count).toHaveBeenCalledWith({
-      where: expect.objectContaining({
-        roomId: "room-1",
-        status: { in: ["OPEN", "CHECKOUT_PENDING"] },
-      }),
-    });
-    expect(tx.room.update).toHaveBeenCalledWith({
-      where: { id: "room-1" },
-      data: { status: "AVAILABLE" },
-    });
-    expect(tx.room.updateMany).toHaveBeenCalledWith({
-      where: expect.objectContaining({
-        id: "room-1",
-        status: { in: ["AVAILABLE", "PROCESSING"] },
-      }),
-      data: { status: "OCCUPIED" },
-    });
+    expect(tx.room.updateMany).not.toHaveBeenCalled();
+    expect(tx.guestStay.create).not.toHaveBeenCalled();
   });
 
   it("allows only one concurrent submit to claim an available room", async () => {

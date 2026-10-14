@@ -14,6 +14,8 @@ import {
   RoomStatus,
 } from "@prisma/client";
 import { PrismaService } from "../../../../prisma/prisma.service";
+import type { CheckInReservationBodyInput } from "../../domain/schemas/reservations.schema";
+import { inferCitizenshipKind } from "../../domain/infer-citizenship-kind";
 
 const ACTIVE_RESERVATION_STATUSES: ReservationStatus[] = [
   ReservationStatus.CONFIRMED,
@@ -274,6 +276,7 @@ export class ReservationsRepository {
     accessCodeExpiresAt: Date;
     generateFolioNumber: (tx: Prisma.TransactionClient) => Promise<string>;
     timezone?: string;
+    dto?: CheckInReservationBodyInput;
   }) {
     return this.runSerializable(async (tx) => {
       await tx.$queryRawUnsafe(
@@ -403,17 +406,68 @@ export class ReservationsRepository {
             ? room.price
             : null;
 
+      const primaryName =
+        input.dto?.guestDisplayName?.trim() || reservation.guestDisplayName.trim();
+      const primaryPhone =
+        input.dto?.guestPhone?.trim() || reservation.guestPhone?.trim() || null;
+      const plannedCheckOutAt =
+        input.dto?.plannedCheckOutAt || reservation.plannedCheckOutAt;
+
+      const primaryOccupant = {
+        hotelId: input.hotelId,
+        fullName: primaryName,
+        phone: primaryPhone,
+        identityNumber: input.dto?.guestIdentityNumber?.trim() || null,
+        dateOfBirth: input.dto?.guestDateOfBirth?.trim() || null,
+        gender: input.dto?.guestGender?.trim() || null,
+        nationality: input.dto?.guestNationality?.trim() || null,
+        residencePlace: input.dto?.guestResidencePlace?.trim() || null,
+        citizenshipKind: inferCitizenshipKind({
+          identityNumber: input.dto?.guestIdentityNumber,
+          nationality: input.dto?.guestNationality,
+        }),
+        isPrimary: true,
+      };
+
+      const extraOccupants = (input.dto?.occupants ?? [])
+        .filter(
+          (occ) =>
+            occ.fullName?.trim() &&
+            !(
+              occ.fullName.trim() === primaryName &&
+              (!occ.identityNumber?.trim() ||
+                occ.identityNumber?.trim() === (primaryOccupant.identityNumber ?? ""))
+            ),
+        )
+        .map((occ) => ({
+          hotelId: input.hotelId,
+          fullName: occ.fullName.trim(),
+          phone: occ.phone?.trim() || null,
+          identityNumber: occ.identityNumber?.trim() || null,
+          dateOfBirth: occ.dateOfBirth?.trim() || null,
+          gender: occ.gender?.trim() || null,
+          nationality: occ.nationality?.trim() || null,
+          residencePlace: occ.residencePlace?.trim() || null,
+          citizenshipKind: inferCitizenshipKind(occ),
+          isPrimary: false,
+        }));
+
       const stay = await tx.guestStay.create({
         data: {
           reservationId: reservation.id,
           hotelId: input.hotelId,
           roomId: room.id,
           reservationCode: reservation.reservationCode,
-          guestDisplayName: reservation.guestDisplayName,
-          guestPhone: reservation.guestPhone,
+          guestDisplayName: primaryName,
+          guestPhone: primaryPhone,
+          guestIdentityNumber: primaryOccupant.identityNumber,
+          guestDateOfBirth: primaryOccupant.dateOfBirth,
+          guestGender: primaryOccupant.gender,
+          guestNationality: primaryOccupant.nationality,
+          guestResidencePlace: primaryOccupant.residencePlace,
           status: GuestStayStatus.ACTIVE,
           plannedCheckInAt: reservation.plannedCheckInAt,
-          plannedCheckOutAt: reservation.plannedCheckOutAt,
+          plannedCheckOutAt,
           nightlyRateSnapshot: stayRate,
           checkedInAt: now,
           activatedAt: now,
@@ -421,15 +475,7 @@ export class ReservationsRepository {
           accessCodeExpiresAt: input.accessCodeExpiresAt,
           createdByUserId: input.actorUserId,
           occupants: {
-            create: [
-              {
-                hotelId: input.hotelId,
-                fullName: reservation.guestDisplayName.trim(),
-                phone: reservation.guestPhone?.trim(),
-                citizenshipKind: "VIETNAMESE",
-                isPrimary: true,
-              },
-            ],
+            create: [primaryOccupant, ...extraOccupants],
           },
         },
       });

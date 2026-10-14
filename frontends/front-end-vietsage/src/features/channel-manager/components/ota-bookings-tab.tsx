@@ -198,8 +198,8 @@ export function OtaBookingsTab({
     staleTime: 5000,
   });
 
-  // Fast 1-Click Check-In Handler
-  const handleFastCheckIn = async (b: SimulatedBookingItem, e?: React.MouseEvent) => {
+  // Check-In Handler: Điều hướng sang màn hình Sơ đồ phòng để mở CheckInWorkspace quét CCCD chuẩn xác
+  const handleFastCheckIn = (b: SimulatedBookingItem, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!b.reservationId) return;
 
@@ -210,48 +210,15 @@ export function OtaBookingsTab({
       return;
     }
 
-    const confirmation = await showConfirmDialog({
-      icon: "question",
-      title: "Nhận phòng cho khách OTA?",
-      text: `Khách hàng: ${b.guestName}
-Kênh: ${b.otaName}
-Phòng: ${b.roomNumber} (${b.roomType || "Tiêu chuẩn"})`,
-      confirmText: "Nhận phòng",
-      cancelText: "Hủy",
-    });
-
-    if (!confirmation.isConfirmed) return;
-
-    setIsProcessing(true);
-    try {
-      const res = await requestInternalApiEnvelope<{
-        accessCode: string | null;
-        reservation: { id: string; status: string };
-        stay: { id: string; status: string };
-      }>(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(b.reservationId)}/check-in`,
-        { method: "POST" },
-      );
-
-      await invalidateHotelRealtimeQueries(queryClient, hotelId);
-      await refreshSimulatedBookings();
-      if (selectedBooking?.bookingId === b.bookingId) {
-        setSelectedBooking((prev) => (prev ? { ...prev, status: "CHECKED_IN" } : null));
-      }
-
-      await showSuccessAlert(
-        "Nhận phòng thành công",
-        `Khách ${b.guestName} đã nhận phòng ${b.roomNumber}.${res.data?.accessCode ? ` Mã GuestOS: ${res.data.accessCode}` : ""}`,
-      );
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Không thể thực hiện check-in.";
-      await showErrorAlert("Lỗi nhận phòng", msg);
-    } finally {
-      setIsProcessing(false);
-    }
+    const roomsPrefix = baseRoutePrefix?.startsWith("/hotels") ? "/hotels" : "/owner/hotels";
+    const params = new URLSearchParams();
+    if (b.roomNumber) params.set("roomNumber", b.roomNumber);
+    if (b.reservationId) params.set("reservationId", b.reservationId);
+    params.set("flow", "check-in");
+    router.push(`${roomsPrefix}/${encodeURIComponent(hotelId)}/rooms?${params.toString()}`);
   };
 
-  // Assign Room & Check-In in 1 go
+  // Assign Room & Navigate to Check-In
   const handleAssignAndCheckIn = async () => {
     if (!assigningBooking || !selectedRoomIdToAssign) {
       toast.error("Vui lòng chọn phòng để xếp cho khách");
@@ -271,13 +238,6 @@ Phòng: ${b.roomNumber} (${b.roomType || "Tiêu chuẩn"})`,
         },
       );
 
-      const res = await requestInternalApiEnvelope<{
-        accessCode: string | null;
-      }>(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(assigningBooking.reservationId)}/check-in`,
-        { method: "POST" },
-      );
-
       const targetBooking = assigningBooking;
       setAssigningBooking(null);
       setSelectedRoomIdToAssign("");
@@ -285,12 +245,14 @@ Phòng: ${b.roomNumber} (${b.roomType || "Tiêu chuẩn"})`,
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       await refreshSimulatedBookings();
 
-      await showSuccessAlert(
-        "Xếp phòng thành công",
-        `Đã xếp phòng ${roomNumber} cho khách ${targetBooking.guestName}.${res.data?.accessCode ? ` Mã GuestOS: ${res.data.accessCode}` : ""}`,
-      );
+      const roomsPrefix = baseRoutePrefix?.startsWith("/hotels") ? "/hotels" : "/owner/hotels";
+      const params = new URLSearchParams();
+      if (roomNumber) params.set("roomNumber", roomNumber);
+      if (targetBooking.reservationId) params.set("reservationId", targetBooking.reservationId);
+      params.set("flow", "check-in");
+      router.push(`${roomsPrefix}/${encodeURIComponent(hotelId)}/rooms?${params.toString()}`);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Không thể gán phòng và check-in.";
+      const msg = err instanceof Error ? err.message : "Không thể gán phòng.";
       await showErrorAlert("Lỗi gán phòng", msg);
     } finally {
       setIsProcessing(false);
@@ -311,8 +273,7 @@ Phòng: ${b.roomNumber} (${b.roomType || "Tiêu chuẩn"})`,
   // Registration shortcut
   const handleOpenRegistration = (b: SimulatedBookingItem, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    const roomsPrefix = baseRoutePrefix?.startsWith("/hotels") ? "/hotels" : "/owner/hotels";
-    router.push(`${roomsPrefix}/${encodeURIComponent(hotelId)}/rooms?flow=check-in`);
+    handleFastCheckIn(b, e);
   };
 
   // Close modal on Escape key

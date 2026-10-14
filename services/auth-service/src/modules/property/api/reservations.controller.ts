@@ -16,6 +16,7 @@ import type { AuthenticatedUser } from "../../../shared/security";
 import { ReservationsService } from "../application/reservations.service";
 import {
   assignReservationRoomBodySchema,
+  checkInReservationBodySchema,
   createReservationBodySchema,
   listArrivalsQuerySchema,
 } from "../domain/schemas/reservations.schema";
@@ -202,6 +203,23 @@ export class ReservationsController {
   @ApiDescript("Tạo stay và folio theo transaction")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "reservationId", type: String })
+  @ApiBody({
+    required: false,
+    schema: {
+      type: "object",
+      properties: {
+        guestDisplayName: { type: "string" },
+        guestPhone: { type: "string" },
+        guestIdentityNumber: { type: "string" },
+        guestDateOfBirth: { type: "string" },
+        guestGender: { type: "string" },
+        guestNationality: { type: "string" },
+        guestResidencePlace: { type: "string" },
+        plannedCheckOutAt: { type: "string", format: "date-time" },
+        occupants: { type: "array", items: { type: "object" } },
+      },
+    },
+  })
   @ApiOkResponse({
     description: "Đặt phòng đã được check-in",
     schema: checkInResponseSchema,
@@ -211,14 +229,17 @@ export class ReservationsController {
     @Req() request: RequestWithUser,
     @Param("hotelId") hotelIdParam: string,
     @Param("reservationId") reservationIdParam: string,
+    @Body() body?: unknown,
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const reservationId = parseWithZod(reservationIdParamSchema, reservationIdParam);
+    const dto = parseWithZod(checkInReservationBodySchema, body ?? {});
     return this.reservationsService.checkIn(
       request.user.userId,
       request.user.roleId,
       hotelId,
       reservationId,
+      dto,
     );
   }
 }

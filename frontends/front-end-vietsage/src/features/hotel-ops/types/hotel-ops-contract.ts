@@ -403,11 +403,10 @@ export type CreateHotelRoomInput = {
 export type UpdateHotelRoomInput = {
   roomNumber?: string;
   floor?: string | null;
-    type?: string | null;
-    roomTypeId?: string;
+  type?: string | null;
+  roomTypeId?: string;
   price?: number | null;
   maxActiveGuestDevices?: number | null;
-  status?: string | null;
 };
 
 export type CreateHotelStayInput = {

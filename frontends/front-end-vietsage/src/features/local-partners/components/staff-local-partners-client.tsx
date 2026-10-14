@@ -196,7 +196,7 @@ export function OwnerNearbyProvidersClient({
           onClick={() => setActiveTab("partners")}
           className={`h-12 px-6 text-sm font-extrabold rounded-2xl transition-all duration-200 cursor-pointer flex items-center gap-2 shadow-2xs ${
             activeTab === "partners"
-              ? "bg-slate-900 text-white shadow-md shadow-slate-900/20 scale-[1.01]"
+              ? "bg-gradient-to-r from-blue-700 via-indigo-800 to-blue-800 text-white shadow-md shadow-blue-800/25 scale-[1.01]"
               : "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-[1.01]"
           }`}
         >

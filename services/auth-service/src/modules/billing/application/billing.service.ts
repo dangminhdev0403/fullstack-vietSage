@@ -1150,10 +1150,17 @@ export class BillingService {
           },
           data: { status: GuestSessionStatus.CLOSED, closedAt: new Date() },
         });
-        await tx.room.update({
-          where: { id: invoice.stay.roomId },
+        const roomTransition = await tx.room.updateMany({
+          where: {
+            id: invoice.stay.roomId,
+            hotelId,
+            status: RoomStatus.OCCUPIED,
+          },
           data: { status: RoomStatus.PROCESSING },
         });
+        if (roomTransition.count !== 1) {
+          throw new ConflictException("ROOM_CHECKOUT_STATUS_CONFLICT");
+        }
         return {
           payment,
           conversation: { hotelId, stayId: invoice.stayId, roomId: invoice.stay.roomId },
@@ -1334,10 +1341,17 @@ export class BillingService {
             },
             data: { status: GuestSessionStatus.CLOSED, closedAt: new Date() },
           });
-          await tx.room.update({
-            where: { id: lockedPayment.invoice.stay.roomId },
+          const roomTransition = await tx.room.updateMany({
+            where: {
+              id: lockedPayment.invoice.stay.roomId,
+              hotelId: lockedPayment.hotelId,
+              status: RoomStatus.OCCUPIED,
+            },
             data: { status: RoomStatus.PROCESSING },
           });
+          if (roomTransition.count !== 1) {
+            throw new ConflictException("ROOM_CHECKOUT_STATUS_CONFLICT");
+          }
           return {
             received: true,
             idempotent: false,

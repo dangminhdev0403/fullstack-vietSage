@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  identityNumberSchema,
+  normalizeDateStringToIso,
+  stayOccupantInputSchema,
+} from "./rooms.schema";
 
 export const nightlyRateSnapshotSchema = z
   .union([
@@ -56,6 +61,26 @@ export const assignReservationRoomBodySchema = z
   })
   .strict();
 
+export const checkInReservationBodySchema = z
+  .object({
+    guestDisplayName: z.string().trim().min(2).max(120).optional(),
+    guestPhone: z.string().trim().max(40).optional(),
+    guestIdentityNumber: identityNumberSchema.optional(),
+    guestDateOfBirth: z
+      .string()
+      .trim()
+      .max(20)
+      .optional()
+      .transform((v) => (v ? (normalizeDateStringToIso(v) ?? v) : v)),
+    guestGender: z.string().trim().max(20).optional(),
+    guestNationality: z.string().trim().max(80).optional(),
+    guestResidencePlace: z.string().trim().max(500).optional(),
+    plannedCheckOutAt: z.coerce.date().optional(),
+    occupants: z.array(stayOccupantInputSchema).optional(),
+  })
+  .strict();
+
 export type CreateReservationBodyInput = z.infer<typeof createReservationBodySchema>;
 export type ListArrivalsQueryInput = z.infer<typeof listArrivalsQuerySchema>;
 export type AssignReservationRoomBodyInput = z.infer<typeof assignReservationRoomBodySchema>;
+export type CheckInReservationBodyInput = z.infer<typeof checkInReservationBodySchema>;

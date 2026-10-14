@@ -24,8 +24,12 @@ export async function PATCH(request: Request, context: Params) {
   }
 
   const rawStatus = (payload as Record<string, unknown>)?.status;
+  const expectedUpdatedAt = (payload as Record<string, unknown>)?.expectedUpdatedAt;
   if (typeof rawStatus !== "string" || !rawStatus.trim()) {
     return validationErrorResponse("Trạng thái phòng không hợp lệ");
+  }
+  if (typeof expectedUpdatedAt !== "string" || !expectedUpdatedAt.trim()) {
+    return validationErrorResponse("Thiếu phiên bản trạng thái phòng");
   }
 
   const raw = rawStatus.trim().toUpperCase();
@@ -37,7 +41,7 @@ export async function PATCH(request: Request, context: Params) {
 
   try {
     const data = await executeHotelOpsBackendRequest("update staff room status", (accessToken) =>
-      hotelOpsService.updateRoomStatus(hotelId, roomId, mapped, accessToken),
+      hotelOpsService.updateRoomStatus(hotelId, roomId, mapped, expectedUpdatedAt, accessToken),
     );
     if (data instanceof Response) return data;
     return successResponse(data, 200, "Cập nhật trạng thái phòng thành công");

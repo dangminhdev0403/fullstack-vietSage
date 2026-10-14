@@ -26,6 +26,7 @@ import { HotelRoomsRepository } from "../infrastructure/repositories/hotel-rooms
 import type { RoomListRow } from "../infrastructure/repositories/hotel-repository.types";
 import type {
   CheckOutBodyInput,
+  ConfirmRoomReadyBodyInput,
   CreateRoomTypeBodyInput,
   CreateRoomBodyInput,
   CreateRoomsBodyInput,
@@ -43,6 +44,25 @@ const MANUAL_ROOM_STATUSES = new Set<RoomStatus>([
   RoomStatus.MAINTENANCE,
   RoomStatus.BLOCKED,
 ]);
+
+const MANUAL_ROOM_STATUS_TRANSITIONS: Partial<Record<RoomStatus, ReadonlySet<RoomStatus>>> = {
+  [RoomStatus.AVAILABLE]: new Set([
+    RoomStatus.PROCESSING,
+    RoomStatus.MAINTENANCE,
+    RoomStatus.BLOCKED,
+  ]),
+  [RoomStatus.PROCESSING]: new Set([RoomStatus.MAINTENANCE, RoomStatus.BLOCKED]),
+  [RoomStatus.MAINTENANCE]: new Set([
+    RoomStatus.AVAILABLE,
+    RoomStatus.PROCESSING,
+    RoomStatus.BLOCKED,
+  ]),
+  [RoomStatus.BLOCKED]: new Set([
+    RoomStatus.AVAILABLE,
+    RoomStatus.PROCESSING,
+    RoomStatus.MAINTENANCE,
+  ]),
+};
 
 @Injectable()
 export class HotelRoomsService {
@@ -381,7 +401,7 @@ export class HotelRoomsService {
     activeRoleId: string,
     hotelId: string,
     roomId: string,
-    dto: UpdateRoomBodyInput & { status?: RoomStatus },
+    dto: UpdateRoomBodyInput,
   ) {
     if (this.hotelAccessService.assertRoomAccess) {
       await this.hotelAccessService.assertRoomAccess(actorUserId, activeRoleId, hotelId, roomId);
@@ -389,21 +409,9 @@ export class HotelRoomsService {
       await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     }
 
-    if (dto.status && !MANUAL_ROOM_STATUSES.has(dto.status)) {
-      throw new BadRequestException(
-        "Chỉ có thể đổi phòng sang TRỐNG, CHỜ DỌN, BẢO TRÌ hoặc ĐÃ KHÓA.",
-      );
-    }
-
     const currentRoom = await this.hotelRoomsRepository.findRoomInHotel(hotelId, roomId);
     if (!currentRoom) {
       throw new NotFoundException("Không tìm thấy phòng");
-    }
-
-    if (dto.status === RoomStatus.BLOCKED && currentRoom.guestStays.length > 0) {
-      throw new ConflictException(
-        "Không thể khóa phòng khi khách đang lưu trú. Hãy xử lý hoặc chuyển phòng cho khách trước.",
-      );
     }
 
     const selectedType =
@@ -418,7 +426,6 @@ export class HotelRoomsService {
         : {}),
       price: dto.price,
       maxActiveGuestDevices: dto.maxActiveGuestDevices,
-      status: dto.status,
     } satisfies Prisma.RoomUpdateInput);
 
     if (!room) {
@@ -463,9 +470,20 @@ export class HotelRoomsService {
       );
     }
 
-    const room = await this.hotelRoomsRepository.updateRoomInHotel(hotelId, roomId, {
-      status: dto.status,
-    } satisfies Prisma.RoomUpdateInput);
+    if (!MANUAL_ROOM_STATUS_TRANSITIONS[currentRoom.status]?.has(dto.status)) {
+      throw new ConflictException(
+        dto.status === RoomStatus.AVAILABLE && currentRoom.status === RoomStatus.PROCESSING
+          ? "Phòng CHỜ DỌN chỉ được chuyển sang TRỐNG bằng thao tác xác nhận đã dọn xong."
+          : `Không thể chuyển trạng thái phòng từ ${currentRoom.status} sang ${dto.status}.`,
+      );
+    }
+
+    const room = await this.hotelRoomsRepository.updateRoomInHotel(
+      hotelId,
+      roomId,
+      { status: dto.status } satisfies Prisma.RoomUpdateInput,
+      { status: currentRoom.status, updatedAt: dto.expectedUpdatedAt },
+    );
 
     if (!room) {
       throw new NotFoundException("Không tìm thấy phòng");
@@ -485,6 +503,7 @@ export class HotelRoomsService {
     activeRoleId: string,
     hotelId: string,
     roomId: string,
+    dto: ConfirmRoomReadyBodyInput,
   ) {
     if (this.hotelAccessService.assertRoomAccess) {
       await this.hotelAccessService.assertRoomAccess(actorUserId, activeRoleId, hotelId, roomId);
@@ -492,7 +511,11 @@ export class HotelRoomsService {
       await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     }
 
-    const room = await this.hotelRoomsRepository.confirmRoomReady(hotelId, roomId);
+    const room = await this.hotelRoomsRepository.confirmRoomReady(
+      hotelId,
+      roomId,
+      dto.expectedUpdatedAt,
+    );
     if (!room) {
       throw new NotFoundException("Không tìm thấy phòng");
     }
@@ -525,7 +548,7 @@ export class HotelRoomsService {
       throw new NotFoundException("Không tìm thấy phòng");
     }
 
-    if (room.status !== RoomStatus.AVAILABLE && room.status !== RoomStatus.PROCESSING) {
+    if (room.status !== RoomStatus.AVAILABLE) {
       throw new BadRequestException("Phòng không khả dụng để đặt giữ chỗ");
     }
 
@@ -573,7 +596,7 @@ export class HotelRoomsService {
       throw new NotFoundException("Không tìm thấy phòng");
     }
 
-    if (room.status !== RoomStatus.PROCESSING && room.status !== RoomStatus.AVAILABLE) {
+    if (room.status !== RoomStatus.RESERVED && room.status !== RoomStatus.AVAILABLE) {
       throw new ConflictException("Phòng chưa sẵn sàng để check-in");
     }
 
@@ -727,7 +750,7 @@ export class HotelRoomsService {
       roomId: stay.roomId,
       actorUserId,
       tenantId: hotel.tenantId,
-      nextRoomStatus: dto.nextRoomStatus ?? RoomStatus.AVAILABLE,
+      nextRoomStatus: dto.nextRoomStatus ?? RoomStatus.PROCESSING,
     });
 
     this.eventPublisher.publishConversationClosed({

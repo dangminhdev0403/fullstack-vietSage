@@ -16,6 +16,7 @@ import type { AuthenticatedUser } from "../../../shared/security";
 import { HotelRoomsService } from "../application/hotel-rooms.service";
 import {
   checkOutBodySchema,
+  confirmRoomReadyBodySchema,
   createRoomBodySchema,
   createRoomTypeBodySchema,
   createRoomsBodySchema,
@@ -241,20 +242,24 @@ export class HotelRoomsController {
   @ApiDescript("Xác nhận phòng sẵn sàng đón khách")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "roomId", type: String })
+  @ApiBody({ schema: { type: "object", required: ["expectedUpdatedAt"] } })
   @ApiOkResponse({ description: "Đã xác nhận phòng sẵn sàng đón khách" })
   @Patch(":hotelId/rooms/:roomId/ready")
   async confirmRoomReady(
     @Req() request: RequestWithUser,
     @Param("hotelId") hotelIdParam: string,
     @Param("roomId") roomIdParam: string,
+    @Body() body: unknown,
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const roomId = parseWithZod(roomIdParamSchema, roomIdParam);
+    const dto = parseWithZod(confirmRoomReadyBodySchema, body);
     return this.hotelRoomsService.confirmRoomReady(
       request.user.userId,
       request.user.roleId,
       hotelId,
       roomId,
+      dto,
     );
   }
 

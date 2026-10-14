@@ -204,6 +204,45 @@ describe("ReservationsRepository transactional lifecycle", () => {
     });
   });
 
+  it("rejects reservation check-in while the room is still PROCESSING", async () => {
+    const reservation = {
+      id: "reservation-1",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      status: ReservationStatus.ARRIVAL_READY,
+      plannedCheckInAt: new Date("2026-08-01T07:00:00.000Z"),
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: { findFirst: jest.fn().mockResolvedValue(reservation) },
+      room: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "room-1",
+          status: RoomStatus.PROCESSING,
+        }),
+        updateMany: jest.fn(),
+      },
+      guestStay: { create: jest.fn() },
+      folio: { create: jest.fn() },
+    };
+    const { repository } = createRepository(tx);
+
+    await expect(
+      repository.checkInReservation({
+        hotelId: "hotel-1",
+        tenantId: "tenant-1",
+        reservationId: "reservation-1",
+        actorUserId: "actor-1",
+        accessCodeHash: "access-hash",
+        accessCodeExpiresAt: new Date("2026-08-02T07:00:00.000Z"),
+        generateFolioNumber: jest.fn(),
+      }),
+    ).rejects.toThrow(new ConflictException("ROOM_NOT_READY_FOR_CHECK_IN"));
+
+    expect(tx.room.updateMany).not.toHaveBeenCalled();
+    expect(tx.guestStay.create).not.toHaveBeenCalled();
+  });
+
   it("rejects check-in when an active stay or blocking folio already owns the room", async () => {
     const reservation = {
       id: "reservation-1",
@@ -641,6 +680,108 @@ describe("ReservationsRepository transactional lifecycle", () => {
     expect(tx.guestStay.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         nightlyRateSnapshot: new Prisma.Decimal(0),
+      }),
+    });
+  });
+
+  it("saves identity profile and accompanying occupants in guest stay and occupants in transaction", async () => {
+    const reservation = {
+      id: "res-identity",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      status: ReservationStatus.ARRIVAL_READY,
+      reservationCode: "RES-IDENT",
+      guestDisplayName: "Nguyễn Văn A",
+      guestPhone: "0901234567",
+      plannedCheckInAt: new Date("2026-08-01T07:00:00.000Z"),
+      plannedCheckOutAt: new Date("2026-08-03T05:00:00.000Z"),
+      nightlyRateSnapshot: new Prisma.Decimal(500000),
+      hotel: { timezone: "Asia/Ho_Chi_Minh" },
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: {
+        findFirst: jest.fn().mockResolvedValue(reservation),
+        update: jest.fn().mockResolvedValue({ ...reservation, status: ReservationStatus.CHECKED_IN }),
+      },
+      room: {
+        findFirst: jest.fn().mockResolvedValue({ id: "room-1", status: RoomStatus.AVAILABLE, price: new Prisma.Decimal(500000) }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      guestStay: {
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({ id: "stay-ident", status: "ACTIVE" }),
+      },
+      folio: {
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({ id: "folio-ident", status: "OPEN" }),
+      },
+      roomQRCode: {
+        findFirst: jest.fn().mockResolvedValue({ id: "qr-1", version: 1 }),
+        updateMany: jest.fn(),
+        update: jest.fn().mockResolvedValue({ id: "qr-1", status: "ACTIVE" }),
+      },
+      domainEvent: { create: jest.fn() },
+    };
+    const { repository } = createRepository(tx);
+
+    await repository.checkInReservation({
+      hotelId: "hotel-1",
+      tenantId: "tenant-1",
+      reservationId: "res-identity",
+      actorUserId: "actor-1",
+      accessCodeHash: "hash",
+      accessCodeExpiresAt: new Date(),
+      generateFolioNumber: jest.fn().mockResolvedValue("FOL-IDENT"),
+      timezone: "Asia/Ho_Chi_Minh",
+      dto: {
+        guestDisplayName: "Nguyễn Văn A",
+        guestPhone: "0901234567",
+        guestIdentityNumber: "079090001234",
+        guestDateOfBirth: "1990-01-15",
+        guestGender: "MALE",
+        guestNationality: "VNM",
+        guestResidencePlace: "123 Lê Lợi, Q1, TP.HCM",
+        occupants: [
+          {
+            fullName: "Trần Thị B",
+            phone: "0909999888",
+            identityNumber: "079192004567",
+            dateOfBirth: "1992-05-20",
+            gender: "FEMALE",
+            nationality: "VNM",
+            residencePlace: "123 Lê Lợi, Q1, TP.HCM",
+            isPrimary: false,
+          },
+        ],
+      },
+    });
+
+    expect(tx.guestStay.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        guestDisplayName: "Nguyễn Văn A",
+        guestPhone: "0901234567",
+        guestIdentityNumber: "079090001234",
+        guestDateOfBirth: "1990-01-15",
+        guestGender: "MALE",
+        guestNationality: "VNM",
+        guestResidencePlace: "123 Lê Lợi, Q1, TP.HCM",
+        occupants: {
+          create: [
+            expect.objectContaining({
+              fullName: "Nguyễn Văn A",
+              identityNumber: "079090001234",
+              citizenshipKind: "VIETNAMESE",
+              isPrimary: true,
+            }),
+            expect.objectContaining({
+              fullName: "Trần Thị B",
+              identityNumber: "079192004567",
+              citizenshipKind: "VIETNAMESE",
+              isPrimary: false,
+            }),
+          ],
+        },
       }),
     });
   });

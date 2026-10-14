@@ -12,6 +12,7 @@ import {
 import { CodesService } from "../../codes/codes-public";
 import type {
   AssignReservationRoomBodyInput,
+  CheckInReservationBodyInput,
   CreateReservationBodyInput,
   ListArrivalsQueryInput,
 } from "../domain/schemas/reservations.schema";
@@ -127,7 +128,13 @@ export class ReservationsService {
     return reservation;
   }
 
-  async checkIn(actorUserId: string, activeRoleId: string, hotelId: string, reservationId: string) {
+  async checkIn(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    reservationId: string,
+    dto?: CheckInReservationBodyInput,
+  ) {
     const hotel = await this.hotelAccessService.assertHotelAccess(
       actorUserId,
       activeRoleId,
@@ -165,6 +172,7 @@ export class ReservationsService {
       generateFolioNumber: (tx: Prisma.TransactionClient) =>
         this.codesService.generateEntityCode("FOLIO", tx),
       timezone: hotel.timezone,
+      dto,
     });
 
     if (!result.idempotent) {

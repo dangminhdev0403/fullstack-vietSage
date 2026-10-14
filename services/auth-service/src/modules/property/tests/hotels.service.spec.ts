@@ -324,6 +324,8 @@ function createService(
     createRooms: hotelRoomsService.createRooms.bind(hotelRoomsService),
     listRooms: hotelRoomsService.listRooms.bind(hotelRoomsService),
     updateRoom: hotelRoomsService.updateRoom.bind(hotelRoomsService),
+    updateRoomStatus: hotelRoomsService.updateRoomStatus.bind(hotelRoomsService),
+    confirmRoomReady: hotelRoomsService.confirmRoomReady.bind(hotelRoomsService),
     createStay: hotelRoomsService.createStay.bind(hotelRoomsService),
     checkInStay: hotelRoomsService.checkInStay.bind(hotelRoomsService),
     createAndCheckInStay: hotelRoomsService.createAndCheckInStay.bind(hotelRoomsService),
@@ -1424,12 +1426,29 @@ describe("HotelsService", () => {
   });
 
   it("allows staff to block an unoccupied room", async () => {
-    const repository = createRepository();
+    const updatedAt = new Date("2026-06-04T00:00:00.000Z");
+    const repository = createRepository({
+      updateRoomInHotel: jest.fn().mockImplementation((_hotelId, roomId, data) => ({
+        id: roomId,
+        hotelId: "hotel-1",
+        code: "VSH_ROOM_0001",
+        roomNumber: "101",
+        floor: "1",
+        type: "Deluxe",
+        price: 900000,
+        status: data.status ?? "AVAILABLE",
+        createdAt: new Date("2026-06-04T00:00:00.000Z"),
+        updatedAt,
+        qrCodes: [],
+        guestStays: [],
+      })),
+    });
     const service = createService(repository);
 
     await expect(
-      service.updateRoom("actor-1", "active-role", "hotel-1", "room-1", {
+      service.updateRoomStatus("actor-1", "active-role", "hotel-1", "room-1", {
         status: RoomStatus.BLOCKED,
+        expectedUpdatedAt: updatedAt,
       }),
     ).resolves.toMatchObject({ status: "BLOCKED" });
 
@@ -1437,6 +1456,7 @@ describe("HotelsService", () => {
       "hotel-1",
       "room-1",
       expect.objectContaining({ status: "BLOCKED" }),
+      { status: RoomStatus.AVAILABLE, updatedAt },
     );
   });
 
@@ -1452,8 +1472,9 @@ describe("HotelsService", () => {
     const service = createService(repository);
 
     await expect(
-      service.updateRoom("actor-1", "active-role", "hotel-1", "room-1", {
+      service.updateRoomStatus("actor-1", "active-role", "hotel-1", "room-1", {
         status: RoomStatus.BLOCKED,
+        expectedUpdatedAt: new Date("2026-06-04T00:00:00.000Z"),
       }),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(repository.updateRoomInHotel).not.toHaveBeenCalled();
@@ -1464,10 +1485,26 @@ describe("HotelsService", () => {
     const service = createService(repository);
 
     await expect(
-      service.updateRoom("actor-1", "active-role", "hotel-1", "room-1", {
+      service.updateRoomStatus("actor-1", "active-role", "hotel-1", "room-1", {
         status: RoomStatus.OCCUPIED,
+        expectedUpdatedAt: new Date("2026-06-04T00:00:00.000Z"),
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(repository.updateRoomInHotel).not.toHaveBeenCalled();
+  });
+
+  it("ensures metadata endpoint updateRoom does not alter room status", async () => {
+    const repository = createRepository();
+    const service = createService(repository);
+
+    await service.updateRoom("actor-1", "active-role", "hotel-1", "room-1", {
+      price: 1200000,
+    });
+
+    expect(repository.updateRoomInHotel).toHaveBeenCalledWith(
+      "hotel-1",
+      "room-1",
+      expect.not.objectContaining({ status: expect.anything() }),
+    );
   });
 });

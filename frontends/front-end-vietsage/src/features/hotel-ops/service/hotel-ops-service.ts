@@ -152,14 +152,16 @@ export class HotelOpsService {
   async checkInReservation(
     hotelId: string,
     reservationId: string,
+    body?: unknown,
     accessToken?: string,
   ): Promise<HotelReservationCheckInResult> {
-    const payload = await this.httpClient.request<unknown>({
+    const payload = await this.httpClient.request<unknown, unknown>({
       method: "POST",
       path: hotelPath(
         hotelId,
         `/reservations/${encodeURIComponent(reservationId)}/check-in`,
       ),
+      body: body ?? {},
       accessToken,
     });
     return unwrapApiEnvelope<HotelReservationCheckInResult>(payload).data;
@@ -231,16 +233,17 @@ export class HotelOpsService {
     hotelId: string,
     roomId: string,
     status: string,
+    expectedUpdatedAt: string,
     accessToken?: string,
     accessTokenExpiresAt?: number | null,
   ): Promise<HotelRoomSummary> {
     const payload = await this.httpClient.request<
       unknown,
-      { status: string }
+      { status: string; expectedUpdatedAt: string }
     >({
       method: "PATCH",
       path: hotelPath(hotelId, `/rooms/${encodeURIComponent(roomId)}/status`),
-      body: { status },
+      body: { status, expectedUpdatedAt },
       accessToken,
       accessTokenExpiresAt,
     });
@@ -251,12 +254,14 @@ export class HotelOpsService {
   async markRoomReady(
     hotelId: string,
     roomId: string,
+    expectedUpdatedAt: string,
     accessToken?: string,
     accessTokenExpiresAt?: number | null,
   ): Promise<HotelRoomSummary> {
-    const payload = await this.httpClient.request<unknown>({
+    const payload = await this.httpClient.request<unknown, { expectedUpdatedAt: string }>({
       method: "PATCH",
       path: hotelPath(hotelId, `/rooms/${encodeURIComponent(roomId)}/ready`),
+      body: { expectedUpdatedAt },
       accessToken,
       accessTokenExpiresAt,
     });

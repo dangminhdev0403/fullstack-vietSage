@@ -241,10 +241,12 @@ function iconGlyph(name: string): ReactNode {
 
     case "expand_more":
     case "chevron_down":
+    case "keyboard_arrow_down":
       return <path d="m6 9 6 6 6-6" />;
 
     case "expand_less":
     case "chevron_up":
+    case "keyboard_arrow_up":
       return <path d="m18 15-6-6-6 6" />;
 
     case "location_on":

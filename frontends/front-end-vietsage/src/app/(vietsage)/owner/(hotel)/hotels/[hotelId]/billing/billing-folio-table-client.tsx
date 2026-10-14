@@ -165,7 +165,7 @@ export function BillingFolioTableClient({
                 onClick={() => setStatusFilter(value)}
                 className={`rounded-xl px-4 py-2 text-xs font-bold transition-all duration-150 ${
                   statusFilter === value
-                    ? "bg-slate-900 text-white shadow-xs"
+                    ? "bg-emerald-700 text-white shadow-xs"
                     : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                 }`}
               >
