@@ -1119,7 +1119,7 @@ export function StaffBillingWorkspaceClient({
               <span className="text-[#d97706] text-base">📊</span>
               <span>
                 Tính theo <strong>%</strong>: Quy đổi dựa trên{" "}
-                <strong>Tạm tính dịch vụ (Subtotal)</strong> của phòng.
+                <strong>Tạm tính dịch vụ</strong> của phòng.
               </span>
             </li>
             <li className="flex items-start gap-2 text-amber-950 font-bold">
@@ -1273,7 +1273,7 @@ export function StaffBillingWorkspaceClient({
 
             <div className="flex justify-between items-center">
               <dt className="text-amber-100 font-bold text-sm">
-                Thuế (VAT)
+                Thuế GTGT
               </dt>
               <dd className="font-black text-base text-white">
                 {formatMoney(tax, currency)}
@@ -1333,7 +1333,7 @@ export function StaffBillingWorkspaceClient({
                       type="text"
                       value={surchargeNote}
                       onChange={(e) => setSurchargeNote(e.target.value)}
-                      placeholder="Lý do phụ thu (vd: Check-in sớm, phụ thu người ở...)"
+                      placeholder="Lý do phụ thu (nhận phòng sớm, phụ thu người ở...)"
                       className="h-9 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-3 py-1 text-xs sm:text-sm font-medium text-[#ffe270] placeholder-[#ffe270]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
                     />
                   ) : null}
@@ -1373,7 +1373,7 @@ export function StaffBillingWorkspaceClient({
                         type="button"
                         onClick={() => {
                           setSurchargeInput(formatNumberInput("50000"));
-                          setSurchargeNote("Phụ thu Check-in sớm");
+                          setSurchargeNote("Phụ thu nhận phòng sớm");
                         }}
                         className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
                       >
@@ -1383,7 +1383,7 @@ export function StaffBillingWorkspaceClient({
                         type="button"
                         onClick={() => {
                           setSurchargeInput(formatNumberInput("100000"));
-                          setSurchargeNote("Phụ thu Check-out muộn");
+                          setSurchargeNote("Phụ thu trả phòng muộn");
                         }}
                         className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
                       >
@@ -1421,7 +1421,7 @@ export function StaffBillingWorkspaceClient({
                       type="text"
                       value={discountNote}
                       onChange={(e) => setDiscountNote(e.target.value)}
-                      placeholder="Lý do giảm giá (vd: Khách VIP, voucher...)"
+                      placeholder="Lý do giảm giá (khách thân thiết, ưu đãi đặc biệt...)"
                       className="h-9 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-3 py-1 text-xs sm:text-sm font-medium text-[#fef08a] placeholder-[#fef08a]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
                     />
                   ) : null}

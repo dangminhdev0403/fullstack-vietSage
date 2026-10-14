@@ -54,7 +54,7 @@ function formatLastSyncText(isoString: string | null): string {
 }
 
 function formatTenantName(name: string): string {
-  if (!name || name === "TENANT_OWNER") return "Chủ cơ sở (Owner)";
+  if (!name || name === "TENANT_OWNER") return "Chủ cơ sở";
   return name;
 }
 
@@ -355,7 +355,7 @@ export function AdminChannelManagerClient({
                       </div>
                       <div>
                         <h4 className="text-sm font-bold text-gray-900">
-                          1. Khách sạn liên kết trên Channex (Property)
+                          1. Khách sạn liên kết trên Channex
                         </h4>
                         <p className="text-xs text-[var(--on-surface-variant)]">
                           {selectedHotel.propertyConfigured
@@ -390,7 +390,7 @@ export function AdminChannelManagerClient({
                       </div>
                       <div>
                         <h4 className="text-sm font-bold text-gray-900">
-                          2. Ánh xạ loại phòng (Room Types)
+                          2. Ánh xạ loại phòng
                         </h4>
                         <p className="text-xs text-[var(--on-surface-variant)]">
                           {selectedHotel.mappedRoomTypes > 0
@@ -425,7 +425,7 @@ export function AdminChannelManagerClient({
                       </div>
                       <div>
                         <h4 className="text-sm font-bold text-gray-900">
-                          3. Ánh xạ gói giá (Rate Plans)
+                          3. Ánh xạ gói giá
                         </h4>
                         <p className="text-xs text-[var(--on-surface-variant)]">
                           {selectedHotel.mappedRatePlans > 0
@@ -460,7 +460,7 @@ export function AdminChannelManagerClient({
                       </div>
                       <div>
                         <h4 className="text-sm font-bold text-gray-900">
-                          4. Đơn đặt phòng chờ đối soát (Pending Reconciliations)
+                          4. Đơn đặt phòng chờ đối soát
                         </h4>
                         <p className="text-xs text-[var(--on-surface-variant)]">
                           {selectedHotel.pendingReconciliations === 0
@@ -590,10 +590,10 @@ export function AdminChannelManagerClient({
                       <VsIcon name="info" className="shrink-0 text-xl text-blue-600 mt-0.5" />
                       <div className="space-y-2">
                         <h4 className="text-base font-bold text-gray-900">
-                          Chế độ xem chỉ đọc (Read-only)
+                          Chế độ xem chỉ đọc
                         </h4>
                         <p className="text-sm text-[var(--on-surface-variant)]">
-                          Các thao tác đẩy lại ARI, ép kéo feed đồng bộ từ Channex và xử lý đơn đặt phòng OTA (check-in, check-out, đối soát) chỉ khả dụng với tài khoản có quyền quản trị Channel Manager (channex.manage).
+                          Các thao tác đẩy lại ARI, đồng bộ từ Channex và xử lý đơn đặt phòng OTA (nhận phòng, trả phòng, đối soát) chỉ khả dụng với tài khoản có quyền quản trị kênh phân phối.
                         </p>
                       </div>
                     </div>
@@ -1029,7 +1029,7 @@ export function AdminChannelManagerClient({
                     Khách sạn
                   </th>
                   <th scope="col" className="px-5 py-4">
-                    Chủ sở hữu (Tenant)
+                    Chủ sở hữu
                   </th>
                   <th scope="col" className="px-5 py-4">
                     Trạng thái kết nối

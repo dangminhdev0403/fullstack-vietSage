@@ -603,7 +603,7 @@ function KbttAutoSubmitSection({
       const total = run.totalEligible ?? run.totalCount ?? 0;
       const failed = (run.failureCount ?? run.failedCount ?? 0) + (run.unknownCount ?? 0);
       await showSuccessAlert(
-        "Chạy thử nghiệm hoàn tất (Dry Run)",
+        "Chạy thử nghiệm hoàn tất",
         `Tổng hồ sơ đủ điều kiện: ${total}\nThành công giả lập: ${run.successCount}\nLỗi/Timeout: ${failed}`,
       );
     } catch (error) {
@@ -633,7 +633,7 @@ function KbttAutoSubmitSection({
           </div>
           <div>
             <h2 className="text-xl font-black text-slate-900 sm:text-2xl">
-              Tự động nộp hồ sơ định kỳ (KBTT Auto-Submit)
+              Tự động nộp hồ sơ định kỳ
             </h2>
             <p className="mt-1 text-sm text-slate-600 sm:text-base">
               Hệ thống tự động quét và nộp các hồ sơ khách có trạng thái SẴN SÀNG theo lịch mỗi ngày.
@@ -755,7 +755,7 @@ function KbttAutoSubmitSection({
                     <svg className="h-4 w-4 text-teal-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
-                    {testing ? "Đang thử nghiệm..." : "Thử nghiệm nộp (Dry Run)"}
+                    {testing ? "Đang thử nghiệm..." : "Thử nghiệm nộp"}
                   </button>
                   <button
                     type="button"

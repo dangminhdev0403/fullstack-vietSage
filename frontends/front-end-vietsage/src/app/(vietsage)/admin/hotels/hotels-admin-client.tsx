@@ -543,8 +543,8 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, c
                     onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as HotelFormState["status"] }))}
                     className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition-all focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   >
-                    <option value="ACTIVE">Đang hoạt động (ACTIVE)</option>
-                    <option value="DISABLED">Tạm ngưng (DISABLED)</option>
+                    <option value="ACTIVE">Đang hoạt động</option>
+                    <option value="DISABLED">Tạm ngưng</option>
                   </select>
                 </label>
               ) : null}

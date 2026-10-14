@@ -210,13 +210,13 @@ function ChannelDetailBody({
         await deactivateChannel();
         await showSuccessAlert(
           "Đã tạm dừng kênh",
-          "Kênh đã chuyển sang trạng thái tạm dừng (Inactive).",
+          "Kênh đã chuyển sang trạng thái tạm dừng.",
         );
       } else {
         await activateChannel();
         await showSuccessAlert(
           "Đã kích hoạt kênh",
-          "Kênh đã hoạt động và đang mở bán trực tiếp (Active).",
+          "Kênh đã hoạt động và đang mở bán trực tiếp.",
         );
       }
       onCatalogRefresh?.();
@@ -271,8 +271,8 @@ function ChannelDetailBody({
           <div>
             <strong>Quy tắc ánh xạ:</strong>{" "}
             {canManage
-              ? "Mỗi gói giá VietSage (PMS) được ghép với 1 Rate tương ứng trên sàn OTA. Giá và tồn phòng sẽ được tự động đồng bộ theo từng cặp ghép này."
-              : "Danh sách ghép nối giữa gói giá VietSage (PMS) và Rate tương ứng trên sàn OTA."}
+              ? "Mỗi gói giá VietSage được ghép với 1 gói giá tương ứng trên sàn OTA. Giá và tồn phòng sẽ được tự động đồng bộ theo từng cặp ghép này."
+              : "Danh sách ghép nối giữa gói giá VietSage và gói giá tương ứng trên sàn OTA."}
           </div>
         </div>
 
@@ -313,7 +313,7 @@ function ChannelDetailBody({
                 >
                   <div>
                     <span className="text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
-                      Gói giá VietSage (PMS)
+                      Gói giá VietSage
                     </span>
                     <p className="text-base font-bold text-[var(--on-surface)] mt-0.5">
                       {localRatePlan.title}
@@ -551,7 +551,7 @@ function ChannelDetailBody({
             <div className="flex items-center gap-2 pt-1 text-sm font-bold">
               <span className={`h-2.5 w-2.5 rounded-full ${channel.isActive ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
               <span className={channel.isActive ? "text-emerald-800" : "text-amber-900"}>
-                {channel.isActive ? "Đang mở bán trực tiếp (Active)" : "Đang tạm dừng (Inactive)"}
+                {channel.isActive ? "Đang mở bán trực tiếp" : "Đang tạm dừng"}
               </span>
             </div>
           )}
@@ -773,7 +773,7 @@ export function ChannexChannelDetailModal({
             }`}
           >
             <VsIcon name="shuffle" className="text-base" />
-            <span>Ánh xạ gói giá (Rate Mapping)</span>
+            <span>Ánh xạ gói giá</span>
           </button>
 
           <button

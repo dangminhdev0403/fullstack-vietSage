@@ -36,11 +36,29 @@ type Message = {
   id: number;
   sender: "guest" | "localmate";
   text: string;
+  kind?: "welcome" | "ask_location" | "payment_expired" | "network_error" | "reply";
   candidateKey?: string;
   stage?: PublicLocalMateStage;
   proposals?: PublicLocalMateProposal[];
   actions?: PublicLocalMateAction[];
 };
+
+function getPaymentExpiredReply(locale: SupportedLocale): string {
+  switch (locale) {
+    case "en":
+      return "The 5-minute payment session has expired. I'm here to help you explore more destinations or create a new booking whenever you're ready! 🌿";
+    case "zh":
+      return "上一笔订单的5分钟二维码支付已过期。我随时准备为您推荐更多目的地或重新预约！🌿";
+    case "ko":
+      return "이전 주문의 5분 결제 세션이 만료되었습니다. 새로운 일정을 계획하거나 문의사항이 있으시면 언제든 말씀해 주세요! 🌿";
+    case "ru":
+      return "5-минутная сессия оплаты завершилась. Я с радостью помогу вам выбрать новые направления или оформить новую заявку! 🌿";
+    case "hi":
+      return "पिछला 5 मिनट का भुगतान सत्र समाप्त हो गया है। नई यात्रा योजना या पूछताछ के लिए मैं हमेशा उपलब्ध हूँ! 🌿";
+    default:
+      return "Dạ phiên quét mã QR thanh toán 5 phút trước đó đã kết thúc. Em đã đưa Quý khách quay lại đây để mình có thể tiếp tục hỏi thêm thông tin, chọn lại điểm đến hoặc đặt lại lịch trình mới nhé! 🌿";
+  }
+}
 
 type LocalChatMessage = PublicConversationMessage & {
   retryCount?: number;
@@ -525,9 +543,55 @@ export function PublicLocalMateChat({
     {
       id: 0,
       sender: "localmate",
+      kind: "welcome",
       text: getLocalMateWelcomeMessage(effectiveLocale),
     },
   ]);
+
+  const [prevLocaleForMessages, setPrevLocaleForMessages] = useState<SupportedLocale>(effectiveLocale);
+
+  if (prevLocaleForMessages !== effectiveLocale) {
+    setPrevLocaleForMessages(effectiveLocale);
+    setMessages((prev) => {
+      if (prev.length === 0) {
+        return [
+          {
+            id: 0,
+            sender: "localmate",
+            kind: "welcome",
+            text: getLocalMateWelcomeMessage(effectiveLocale),
+          },
+        ];
+      }
+      return prev.map((msg) => {
+        if (msg.id === 0 || msg.kind === "welcome") {
+          return {
+            ...msg,
+            text: getLocalMateWelcomeMessage(effectiveLocale),
+          };
+        }
+        if (msg.kind === "ask_location") {
+          return {
+            ...msg,
+            text: getLocalMatePublicCopy(effectiveLocale).askLocationFallback,
+          };
+        }
+        if (msg.kind === "network_error") {
+          return {
+            ...msg,
+            text: getLocalMateNetworkErrorReply(effectiveLocale),
+          };
+        }
+        if (msg.kind === "payment_expired") {
+          return {
+            ...msg,
+            text: getPaymentExpiredReply(effectiveLocale),
+          };
+        }
+        return msg;
+      });
+    });
+  }
   const [suggestions, setSuggestions] = useState<PublicLocalMateSuggestion[]>([]);
   const [locationError, setLocationError] = useState("");
 
@@ -575,6 +639,20 @@ export function PublicLocalMateChat({
   const [conversationMessages, setConversationMessages] = useState<LocalChatMessage[]>([]);
   const [guideInput, setGuideInput] = useState("");
   const [isSendingGuideMessage, setIsSendingGuideMessage] = useState(false);
+
+  const [showTeaser, setShowTeaser] = useState(true);
+
+  useEffect(() => {
+    // Auto-dismiss teaser after 10 seconds so it doesn't linger forever
+    const timer = setTimeout(() => {
+      setShowTeaser(false);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isOpen && showTeaser) {
+    setShowTeaser(false);
+  }
 
   const activeProposal = useMemo(
     () => activeProposals.find((p) => p.proposalKey === activeProposalKey) ?? null,
@@ -631,7 +709,10 @@ export function PublicLocalMateChat({
     ) {
       lastFocusedElementRef.current.focus();
     } else if (!isOpen && wasOpenRef.current) {
-      (openerKindRef.current === "teaser" ? teaserRef.current : openButtonRef.current)?.focus();
+      const opener = (openerKindRef.current === "teaser" && teaserRef.current)
+        ? teaserRef.current
+        : openButtonRef.current;
+      opener?.focus();
     }
     wasOpenRef.current = isOpen;
   }, [isOpen]);
@@ -896,18 +977,8 @@ export function PublicLocalMateChat({
       {
         id: nextId.current++,
         sender: "localmate",
-        text:
-          effectiveLocale === "en"
-            ? "The 5-minute payment session has expired. I'm here to help you explore more destinations or create a new booking whenever you're ready! 🌿"
-            : effectiveLocale === "zh"
-              ? "上一笔订单的5分钟二维码支付已过期。我随时准备为您推荐更多目的地或重新预约！🌿"
-              : effectiveLocale === "ko"
-                ? "이전 주문의 5분 결제 세션이 만료되었습니다. 새로운 일정을 계획하거나 문의사항이 있으시면 언제든 말씀해 주세요! 🌿"
-                : effectiveLocale === "ru"
-                  ? "5-минутная сессия оплаты завершилась. Я с радостью помогу вам выбрать новые направления или оформить новую заявку! 🌿"
-                  : effectiveLocale === "hi"
-                    ? "पिछला 5 मिनट का भुगतान सत्र समाप्त हो गया है। नई यात्रा योजना या पूछताछ के लिए मैं हमेशा उपलब्ध हूँ! 🌿"
-                    : "Dạ phiên quét mã QR thanh toán 5 phút trước đó đã kết thúc. Em đã đưa Quý khách quay lại đây để mình có thể tiếp tục hỏi thêm thông tin, chọn lại điểm đến hoặc đặt lại lịch trình mới nhé! 🌿",
+        kind: "payment_expired",
+        text: getPaymentExpiredReply(effectiveLocale),
       },
     ]);
   }, [effectiveLocale, setActiveOrderId, setPaymentExpiresAt, setViewMode]);
@@ -930,7 +1001,7 @@ export function PublicLocalMateChat({
     } finally {
       setIsRecreatingPayment(false);
     }
-  }, [currentOrder?.id, isRecreatingPayment, setPaymentExpiresAt]);
+  }, [currentOrder, isRecreatingPayment, setPaymentExpiresAt]);
 
   // Guide Chat polling effect: poll conversation messages every 1200ms
   useEffect(() => {
@@ -1062,6 +1133,7 @@ export function PublicLocalMateChat({
         {
           id: nextId.current++,
           sender: "localmate",
+          kind: "network_error",
           text: getLocalMateNetworkErrorReply(effectiveLocale),
         },
       ]);
@@ -1401,6 +1473,7 @@ export function PublicLocalMateChat({
       {
         id: nextId.current++,
         sender: "localmate",
+        kind: "ask_location",
         text: publicCopy.askLocationFallback,
       },
     ]);
@@ -1996,20 +2069,15 @@ export function PublicLocalMateChat({
                             key={dest.provinceCode}
                             type="button"
                             onClick={() => saveLocation(dest.location)}
-                            className="group relative flex min-h-[56px] flex-col justify-between rounded-xl border border-[#123d2a]/15 bg-[#fffdf8] p-2.5 text-left shadow-[0_1px_3px_rgba(18,61,42,0.04)] transition hover:border-[#b8872f] hover:bg-[#fff9ed] hover:shadow-sm active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-[#123d2a] sm:min-h-[60px] sm:p-3"
+                            className="group flex min-h-14 items-center gap-2 rounded-xl border border-[#123d2a]/15 bg-[#fffdf8] p-3 text-left shadow-[0_1px_3px_rgba(18,61,42,0.04)] transition hover:border-[#b8872f] hover:bg-[#fff9ed] hover:shadow-sm active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-[#123d2a]"
                           >
-                            <div className="flex w-full items-center justify-between gap-1">
-                              <span className="flex items-center gap-1.5 truncate text-[13px] font-bold text-[#123d2a] group-hover:text-[#916e15] sm:text-sm">
-                                {dest.icon && <span className="text-sm leading-none shrink-0">{dest.icon}</span>}
-                                <span className="truncate">{dest.label}</span>
+                            {dest.icon && (
+                              <span className="shrink-0 select-none text-base leading-none" aria-hidden="true">
+                                {dest.icon}
                               </span>
-                              <VsIcon
-                                name="north_east"
-                                className="text-xs text-[#b8872f] opacity-50 transition group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 shrink-0"
-                              />
-                            </div>
-                            <span className="mt-1 line-clamp-1 text-[11.5px] text-[#526458] group-hover:text-[#38483d] sm:text-xs">
-                              {dest.tag}
+                            )}
+                            <span className="text-base font-bold leading-snug text-[#123d2a] group-hover:text-[#916e15]">
+                              {dest.label}
                             </span>
                           </button>
                         ))}
@@ -2573,36 +2641,51 @@ export function PublicLocalMateChat({
         </>
       ) : (
         <div className="flex flex-col items-end gap-3">
-          {/* Speech-bubble teaser card */}
-          <aside
-            ref={teaserRef}
-            aria-label={chatUi.teaserTitle}
-            className="relative w-[196px] cursor-pointer rounded-2xl border border-[#d6c08b]/60 bg-[#fffdf8] px-4 py-3 shadow-[0_8px_24px_rgba(18,61,42,0.13)] transition-all hover:border-[#d6c08b] hover:shadow-[0_10px_28px_rgba(18,61,42,0.18)]"
-            onClick={() => openChat("teaser")}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                openChat("teaser");
-              }
-            }}
-          >
-            <div className="absolute -bottom-[9px] right-6 h-[18px] w-[18px] rotate-45 border-b border-r border-[#d6c08b]/60 bg-[#fffdf8]" />
-            <div className="mb-1.5 flex items-center gap-2">
-              <span className="relative flex h-2 w-2 shrink-0">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#10b981] opacity-75 motion-reduce:animate-none" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#10b981]" />
-              </span>
-              <span className="text-[10.5px] font-bold uppercase tracking-wider text-[#916e15]">{chatUi.teaserTag}</span>
-            </div>
-            <p className="text-[13px] font-semibold leading-snug text-[#1b352e]">
-              {chatUi.teaserTitle}
-            </p>
-            <p className="mt-0.5 text-[11.5px] leading-relaxed text-[#6b7d73]">
-              {chatUi.teaserDesc}
-            </p>
-          </aside>
+          {/* Speech-bubble teaser card: hidden on mobile so it never blocks CTA buttons or hero content */}
+          {showTeaser && (
+            <aside
+              ref={teaserRef}
+              aria-label={chatUi.teaserAria || chatUi.teaserTitle}
+              className="relative hidden sm:block w-[196px] cursor-pointer rounded-2xl border border-[#d6c08b]/60 bg-[#fffdf8] px-4 py-3 shadow-[0_8px_24px_rgba(18,61,42,0.13)] transition-all hover:border-[#d6c08b] hover:shadow-[0_10px_28px_rgba(18,61,42,0.18)]"
+              onClick={() => openChat("teaser")}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  openChat("teaser");
+                }
+              }}
+            >
+              <div className="absolute -bottom-[9px] right-6 h-[18px] w-[18px] rotate-45 border-b border-r border-[#d6c08b]/60 bg-[#fffdf8]" />
+              <div className="mb-1.5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#10b981] opacity-75 motion-reduce:animate-none" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-[#10b981]" />
+                  </span>
+                  <span className="text-[10.5px] font-bold uppercase tracking-wider text-[#916e15]">{chatUi.teaserTag}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowTeaser(false);
+                  }}
+                  aria-label={chatUi.dismissTeaserAria}
+                  className="rounded-full p-0.5 text-[#6b7d73] hover:bg-black/5 hover:text-[#1b352e] transition-colors"
+                >
+                  <VsIcon name="close" className="text-xs" />
+                </button>
+              </div>
+              <p className="text-[13px] font-semibold leading-snug text-[#1b352e]">
+                {chatUi.teaserTitle}
+              </p>
+              <p className="mt-0.5 text-[11.5px] leading-relaxed text-[#6b7d73]">
+                {chatUi.teaserDesc}
+              </p>
+            </aside>
+          )}
 
           {/* Glowing round avatar FAB */}
           <button
@@ -2610,10 +2693,10 @@ export function PublicLocalMateChat({
             type="button"
             onClick={() => openChat("button")}
             aria-label={publicCopy.openFabAria}
-            className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-[#123d2a] via-[#1a5038] to-[#2a6649] shadow-[0_8px_28px_rgba(18,61,42,0.38)] ring-2 ring-[#f3c66b]/80 transition-all duration-300 hover:scale-110 hover:shadow-[0_12px_36px_rgba(18,61,42,0.50)] active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f] motion-reduce:transform-none cursor-pointer"
+            className="relative flex h-13 w-13 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-gradient-to-tr from-[#123d2a] via-[#1a5038] to-[#2a6649] shadow-[0_8px_28px_rgba(18,61,42,0.38)] ring-2 ring-[#f3c66b]/80 transition-all duration-300 hover:scale-110 hover:shadow-[0_12px_36px_rgba(18,61,42,0.50)] active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f] motion-reduce:transform-none cursor-pointer"
           >
             <span className="absolute inset-[-4px] animate-ping rounded-full bg-[#f3c66b]/20 motion-reduce:animate-none" />
-            <VsIcon name="sparkles" className="relative text-[26px] text-[#f3c66b]" />
+            <VsIcon name="sparkles" className="relative text-[24px] sm:text-[26px] text-[#f3c66b]" />
           </button>
         </div>
       )}

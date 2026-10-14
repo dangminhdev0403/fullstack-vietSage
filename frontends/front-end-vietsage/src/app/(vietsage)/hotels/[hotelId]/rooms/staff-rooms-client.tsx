@@ -157,7 +157,7 @@ function getEffectiveRoomStatus(room: HotelRoomSummary, isFuture: boolean): Room
 }
 
 function roomStatusLabel(status: RoomStatusFilter): string {
-  if (status === "overdue") return "QUÁ HẠN CHECK-OUT";
+  if (status === "overdue") return "QUÁ HẠN TRẢ PHÒNG";
   if (status === "available") return "TRỐNG";
   if (status === "occupied") return "ĐANG Ở";
   if (status === "processing") return "CHỜ DỌN";
@@ -169,30 +169,30 @@ function roomStatusLabel(status: RoomStatusFilter): string {
 function roomStatusBadgeClass(status: RoomStatusFilter): string {
   const base = "shrink-0 whitespace-nowrap px-2.5 py-0.5 text-xs font-black rounded-lg border shadow-2xs tracking-wide";
   if (status === "overdue")
-    return `${base} bg-red-600 text-white border-red-700 font-black animate-pulse shadow-md shadow-red-600/30`;
+    return `${base} bg-rose-50 text-rose-700 border-rose-300`;
   if (status === "occupied")
-    return `${base} bg-amber-400 text-slate-950 border-amber-300`;
+    return `${base} bg-sky-50 text-sky-800 border-sky-300`;
   if (status === "processing")
-    return `${base} bg-amber-600 text-white border-amber-700`;
+    return `${base} bg-amber-50 text-amber-900 border-amber-300`;
   if (status === "maintenance")
-    return `${base} bg-rose-700 text-white border-rose-800`;
+    return `${base} bg-rose-50 text-rose-800 border-rose-300`;
   if (status === "blocked")
-    return `${base} bg-slate-900 text-amber-300 border-slate-700`;
-  return `${base} bg-emerald-700 text-white border-emerald-800`;
+    return `${base} bg-slate-100 text-slate-800 border-slate-300`;
+  return `${base} bg-emerald-50 text-emerald-800 border-emerald-300`;
 }
 
 function roomCardClass(status: RoomStatusFilter): string {
   if (status === "overdue")
-    return "border-2 border-red-500 bg-gradient-to-br from-red-950 via-slate-900 to-red-900 text-white shadow-xl shadow-red-900/40 cursor-pointer animate-pulse-subtle";
+    return "border-2 border-rose-300 hover:border-rose-400 bg-gradient-to-br from-rose-50/60 via-white to-rose-50/30 text-slate-900 shadow-[inset_0_2px_10px_rgba(244,63,94,0.1)] hover:shadow-[inset_0_2px_14px_rgba(244,63,94,0.18)] transition-all cursor-pointer";
   if (status === "occupied")
-    return "border-2 border-[var(--primary)] bg-gradient-to-br from-[var(--primary)] via-[#1c2922] to-[var(--primary)] text-white shadow-md";
+    return "border-2 border-sky-300/90 hover:border-sky-400 bg-gradient-to-br from-sky-50/60 via-white to-sky-50/30 text-slate-900 shadow-[inset_0_2px_10px_rgba(14,165,233,0.1)] hover:shadow-[inset_0_2px_14px_rgba(14,165,233,0.18)] transition-all cursor-pointer";
   if (status === "processing")
-    return "border-2 border-amber-300 bg-gradient-to-br from-amber-50/70 via-white to-amber-50/40 text-amber-950 hover:border-amber-400 hover:shadow-md transition-all";
+    return "border-2 border-amber-300 hover:border-amber-400 bg-gradient-to-br from-amber-50/70 via-white to-amber-50/40 text-amber-950 shadow-[inset_0_2px_10px_rgba(245,158,11,0.1)] hover:shadow-[inset_0_2px_14px_rgba(245,158,11,0.18)] transition-all cursor-pointer";
   if (status === "maintenance")
-    return "border-2 border-rose-300 bg-gradient-to-br from-rose-50/90 via-amber-50/40 to-rose-50/80 text-rose-950 shadow-xs hover:border-rose-400 hover:shadow-md transition-all";
+    return "border-2 border-rose-300 hover:border-rose-400 bg-gradient-to-br from-rose-50/60 via-amber-50/30 to-rose-50/50 text-rose-950 shadow-[inset_0_2px_10px_rgba(244,63,94,0.08)] hover:shadow-[inset_0_2px_14px_rgba(244,63,94,0.16)] transition-all cursor-pointer";
   if (status === "blocked")
-    return "border-2 border-slate-400 bg-gradient-to-br from-slate-100 via-slate-50 to-slate-200/90 text-slate-950 shadow-xs hover:border-slate-500 hover:shadow-md transition-all";
-  return "border-2 border-emerald-300/90 bg-gradient-to-br from-emerald-50/50 via-white to-emerald-50/30 text-[var(--primary)] hover:border-emerald-500 hover:shadow-md transition-all";
+    return "border-2 border-slate-300 hover:border-slate-400 bg-gradient-to-br from-slate-100/70 via-white to-slate-100/50 text-slate-950 shadow-[inset_0_2px_10px_rgba(100,116,139,0.08)] hover:shadow-[inset_0_2px_14px_rgba(100,116,139,0.16)] transition-all cursor-pointer";
+  return "border-2 border-emerald-300/90 hover:border-emerald-500 bg-gradient-to-br from-emerald-50/50 via-white to-emerald-50/30 text-[var(--primary)] shadow-[inset_0_2px_10px_rgba(16,185,129,0.1)] hover:shadow-[inset_0_2px_14px_rgba(16,185,129,0.18)] transition-all cursor-pointer";
 }
 
 function isAvailable(room: HotelRoomSummary): boolean {
@@ -270,8 +270,8 @@ function StayOccupantsViewer({ stay }: { stay: NonNullable<HotelRoomSummary["act
             <p><span className="font-bold text-blue-950">Giới tính:</span> {stay.guestGender || "chưa có"}</p>
             <p><span className="font-bold text-blue-950">Quốc tịch:</span> {stay.guestNationality || "chưa có"}</p>
             <p className="sm:col-span-2"><span className="font-bold text-blue-950">Địa chỉ thường trú:</span> {stay.guestResidencePlace || "chưa có"}</p>
-            <p><span className="font-bold text-blue-950">Check-in:</span> {formatDateTime(stay.checkedInAt ?? stay.plannedCheckInAt)}</p>
-            <p><span className="font-bold text-blue-950">Check-out:</span> {formatDateTime(stay.plannedCheckOutAt)}</p>
+            <p><span className="font-bold text-blue-950">Nhận phòng:</span> {formatDateTime(stay.checkedInAt ?? stay.plannedCheckInAt)}</p>
+            <p><span className="font-bold text-blue-950">Trả phòng:</span> {formatDateTime(stay.plannedCheckOutAt)}</p>
           </div>
         </div>
       ) : (
@@ -293,8 +293,8 @@ function StayOccupantsViewer({ stay }: { stay: NonNullable<HotelRoomSummary["act
             <p className="sm:col-span-2"><span className="font-bold text-blue-950">Địa chỉ thường trú:</span> {currentOccupant.residencePlace || "chưa có"}</p>
             <p><span className="font-bold text-blue-950">Chủ phòng đại diện:</span> {stay.guestDisplayName}</p>
             <p><span className="font-bold text-blue-950">Mã đặt phòng:</span> {stay.reservationCode || "chưa có"}</p>
-            <p><span className="font-bold text-blue-950">Check-in:</span> {formatDateTime(stay.checkedInAt ?? stay.plannedCheckInAt)}</p>
-            <p><span className="font-bold text-blue-950">Check-out:</span> {formatDateTime(stay.plannedCheckOutAt)}</p>
+            <p><span className="font-bold text-blue-950">Nhận phòng:</span> {formatDateTime(stay.checkedInAt ?? stay.plannedCheckInAt)}</p>
+            <p><span className="font-bold text-blue-950">Trả phòng:</span> {formatDateTime(stay.plannedCheckOutAt)}</p>
           </div>
         </div>
       )}
@@ -328,10 +328,10 @@ function renderPaginationButtons(
       key="prev"
       type="button"
       onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-      disabled={currentPage === 1}
-      className="inline-flex min-h-9 items-center justify-center rounded-lg border border-[var(--outline-variant)] px-3 text-sm font-bold text-[var(--primary)] transition hover:bg-[var(--surface-container-low)] disabled:opacity-40 disabled:cursor-not-allowed"
+      disabled={currentPage <= 1}
+      className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs sm:text-sm font-extrabold text-slate-800 transition hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-2xs"
     >
-      &lt; Prev
+      Trước
     </button>,
   );
 
@@ -365,7 +365,7 @@ function renderPaginationButtons(
       buttons.push(
         <span
           key={`ellipsis-${idx}`}
-          className="px-2 text-sm text-[var(--on-surface-variant)] select-none"
+          className="px-1 text-sm font-bold text-slate-500 select-none"
         >
           ...
         </span>,
@@ -377,10 +377,10 @@ function renderPaginationButtons(
           key={`page-${pageNum}`}
           type="button"
           onClick={() => onPageChange(pageNum)}
-          className={`h-9 w-9 rounded-lg text-sm font-semibold transition ${
+          className={`h-9 min-w-[36px] rounded-lg px-2 text-xs sm:text-sm font-extrabold transition cursor-pointer ${
             pageNum === currentPage
-              ? "bg-[var(--primary)] text-white"
-              : "text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)]"
+              ? "bg-[#00003c] text-white shadow-sm border border-[#00003c]"
+              : "border border-slate-300 bg-white text-slate-800 hover:bg-slate-100 shadow-2xs"
           }`}
         >
           {pageNum}
@@ -394,10 +394,10 @@ function renderPaginationButtons(
       key="next"
       type="button"
       onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-      disabled={currentPage === totalPages}
-      className="inline-flex min-h-9 items-center justify-center rounded-lg border border-[var(--outline-variant)] px-3 text-sm font-bold text-[var(--primary)] transition hover:bg-[var(--surface-container-low)] disabled:opacity-40 disabled:cursor-not-allowed"
+      disabled={currentPage >= totalPages}
+      className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs sm:text-sm font-extrabold text-slate-800 transition hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-2xs"
     >
-      Next &gt;
+      Tiếp theo
     </button>,
   );
 
@@ -449,12 +449,22 @@ export function StaffRoomsClient({
   const isFutureDate = !isHousekeeping && Boolean(businessDate && businessDate > todayYmd);
 
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(100);
+  const [pageSize, setPageSize] = useState<number>(24);
   const [inputQuery, setInputQuery] = useState("");
   const [query, setQuery] = useState("");
   const [floor, setFloor] = useState("all");
   const [type, setType] = useState("all");
   const [status, setStatus] = useState<RoomStatusFilter>("all");
+  const hasActiveFilters = Boolean(
+    inputQuery.trim() || floor !== "all" || type !== "all" || status !== "all"
+  );
+  const resetFilters = () => {
+    setInputQuery("");
+    setFloor("all");
+    setType("all");
+    setStatus("all");
+    setPage(1);
+  };
   const [selectedRoom, setSelectedRoom] = useState<HotelRoomSummary | null>(
     () =>
       initialFlow === "check-in" && canManageStays && !isHousekeeping
@@ -747,14 +757,14 @@ export function StaffRoomsClient({
     if (!arrival.roomId) {
       await showWarningAlert(
         "Chưa gán phòng",
-        "Vui lòng gán phòng cho khách trước khi làm thủ tục check-in.",
+        "Vui lòng gán phòng cho khách trước khi làm thủ tục nhận phòng.",
       );
       return;
     }
 
     const confirm = await showConfirmDialog({
       icon: "question",
-      title: "Xác nhận nhận phòng (Check-in)?",
+      title: "Xác nhận nhận phòng?",
       text: `Khách hàng: ${arrival.guestDisplayName}\nPhòng: ${arrival.room?.roomNumber || arrival.roomId}`,
       confirmText: "Nhận phòng",
       cancelText: "Hủy",
@@ -818,12 +828,19 @@ export function StaffRoomsClient({
     placeholderData: keepPreviousData,
     initialData:
       page === 1 &&
+      pageSize === 24 &&
       !query &&
       status === "all" &&
       floor === "all" &&
       type === "all" &&
       businessDate === (isHousekeeping ? todayYmd : initialBusinessDate || todayYmd)
-        ? initialRoomsPage
+        ? {
+            ...initialRoomsPage,
+            items: initialRoomsPage.items.slice(0, 24),
+            total: initialRoomsPage.total ?? initialRoomsPage.items.length,
+            totalPages: Math.max(1, Math.ceil((initialRoomsPage.total ?? initialRoomsPage.items.length) / 24)),
+            limit: 24,
+          }
         : undefined,
   });
 
@@ -848,10 +865,6 @@ export function StaffRoomsClient({
     isFutureDate && status !== "all"
       ? rooms.filter((r) => getEffectiveRoomStatus(r, true) === status)
       : rooms;
-
-  const futureAvailableCount = rooms.filter(
-    (r) => getEffectiveRoomStatus(r, isFutureDate) === "available",
-  ).length;
 
   async function confirmRoomReady(room: HotelRoomSummary) {
     const roomNum = getRoomNumber(room);
@@ -941,15 +954,8 @@ export function StaffRoomsClient({
       };
     }, [otaBookings, todayYmd]);
 
-  const totalPages = roomsPage?.totalPages ?? 1;
-  const totalItems = roomsPage?.totalItems ?? 0;
-  const totalAvailable =
-    roomsPage?.totalAvailable ??
-    roomsPage?.byStatus?.available ??
-    initialRoomsPage.totalAvailable ??
-    initialRoomsPage.byStatus?.available ??
-    initialByStatus?.available ??
-    0;
+  const totalItems = roomsPage?.total ?? roomsPage?.totalItems ?? initialRoomsPage.total ?? rooms.length;
+  const totalPages = roomsPage?.totalPages ?? Math.max(1, Math.ceil(totalItems / pageSize));
 
   const currentByStatus = useMemo(() => {
     return {
@@ -1045,7 +1051,7 @@ export function StaffRoomsClient({
         : `Khóa phòng ${getRoomNumber(room)}?`,
       text: isBlocked
         ? "Phòng sẽ trở lại trạng thái TRỐNG và có thể được sử dụng."
-        : "Phòng sẽ không thể được đặt, gán booking hoặc check-in cho đến khi mở khóa.",
+        : "Phòng sẽ không thể được đặt, gán đặt phòng hoặc nhận phòng cho đến khi mở khóa.",
       confirmText: isBlocked ? "Mở khóa phòng" : "Khóa phòng",
       cancelText: "Hủy",
     });
@@ -1079,7 +1085,7 @@ export function StaffRoomsClient({
     targetStatus: "AVAILABLE" | "PROCESSING" | "MAINTENANCE" | "BLOCKED",
   ) {
     const labels: Record<string, string> = {
-      AVAILABLE: "TRỐNG (Sẵn sàng)",
+      AVAILABLE: "TRỐNG",
       PROCESSING: "CHỜ DỌN",
       MAINTENANCE: "BẢO TRÌ",
       BLOCKED: "ĐÃ KHÓA",
@@ -1214,10 +1220,10 @@ export function StaffRoomsClient({
       html: `
         <div style="font-size:14px;color:#475569;margin-bottom:12px;text-align:left">
           Khách: <strong>${stay.guestDisplayName || "Chưa rõ"}</strong><br/>
-          Check-out cũ: <span style="color:#dc2626;font-weight:700">${formatDateTime(stay.plannedCheckOutAt)}</span>
+          Thời gian trả phòng cũ: <span style="color:#dc2626;font-weight:700">${formatDateTime(stay.plannedCheckOutAt)}</span>
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;text-align:left">
-          <label style="font-size:13px;font-weight:700;color:#334155">Thời gian Check-out mới:</label>
+          <label style="font-size:13px;font-weight:700;color:#334155">Thời gian trả phòng mới:</label>
           <input id="swal-input-checkout" type="datetime-local" value="${defaultNewCheckOut}" style="padding:10px;border-radius:8px;border:1px solid #cbd5e1;font-size:14px;width:100%" />
         </div>
       `,
@@ -1362,13 +1368,13 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
 
     const plannedCheckOutAt = new Date(fields.plannedCheckOutAt).toISOString();
     if (isNaN(new Date(plannedCheckOutAt).getTime())) {
-      setSubmitError("Thời gian check-out không hợp lệ.");
+      setSubmitError("Thời gian trả phòng không hợp lệ.");
       return;
     }
 
     const confirmation = await showConfirmDialog({
       icon: "question",
-      title: "Xác nhận mở phòng check-in?",
+      title: "Xác nhận mở phòng và nhận phòng?",
       text: `Mở phòng ${getRoomNumber(selectedRoom)} cho khách "${fields.guestDisplayName.trim()}". Hệ thống sẽ kích hoạt QR và mã GuestOS ngay.`,
       confirmText: "Xác nhận mở phòng",
       cancelText: "Hủy",
@@ -1439,7 +1445,7 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
               <VsIcon name="cleaning_services" className="text-xl" />
             </span>
             <div>
-              <p className="font-extrabold text-sm text-emerald-950">Chế độ phân quyền Buồng phòng (Housekeeping)</p>
+              <p className="font-extrabold text-sm text-emerald-950">Chế độ phân quyền Buồng phòng</p>
               <p className="text-xs text-emerald-800 mt-0.5">
                 Hiển thị sơ đồ buồng phòng tối giản. Bạn có quyền xác nhận phòng chờ dọn sang trạng thái sẵn sàng đón khách.
               </p>
@@ -1514,19 +1520,19 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                 setStatus((prev) => (prev === item.key ? "all" : item.key));
                 setPage(1);
               }}
-              className={`cursor-pointer rounded-lg border p-4 transition-all hover:shadow-xs ${
+              className={`cursor-pointer rounded-xl border p-4 transition-all hover:shadow-sm ${
                 isActive
                   ? item.borderActive
-                  : "border-[var(--outline-variant)] bg-white hover:border-slate-300"
+                  : "border-slate-300 bg-white hover:border-slate-400 shadow-2xs"
               }`}
               title={`Lọc phòng: ${item.label}`}
             >
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-[var(--on-surface-variant)]">
+                <p className="text-sm font-extrabold text-slate-800">
                   {item.label}
                 </p>
                 {isActive && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-200/80 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-800 bg-slate-200 px-2 py-0.5 rounded-full border border-slate-300">
                     Đang lọc
                   </span>
                 )}
@@ -1537,168 +1543,191 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
         })}
       </section>
 
-      <section className="sticky top-0 z-20 -mx-2 rounded-xl bg-[var(--surface)]/90 px-2 py-3 backdrop-blur md:top-2">
-        <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
-            <label className="relative w-full sm:w-60 lg:w-72 min-w-0">
+      <section className="sticky top-0 z-20 -mx-2 rounded-2xl border border-slate-200/90 bg-white/98 p-3.5 shadow-md backdrop-blur-md md:top-2 space-y-3">
+        {!isHousekeeping ? (
+          <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
+            {/* Timeline & Business Date Selection */}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+              <div className="flex items-center rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 shadow-2xs" title="Ngày vận hành (Business Date) của khách sạn">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-800">
+                  Ngày vận hành:
+                </span>
+              </div>
+              <div className="inline-flex h-10 items-center rounded-lg bg-white px-3 border border-slate-300 hover:border-slate-400 focus-within:border-[var(--primary)] focus-within:ring-2 focus-within:ring-[var(--primary)]/20 shadow-2xs min-h-[40px] transition">
+                <input
+                  type="date"
+                  value={businessDate}
+                  onChange={(e) => handleBusinessDateChange(e.target.value)}
+                  className="bg-transparent border-0 text-xs sm:text-sm font-bold text-slate-900 outline-none cursor-pointer"
+                  title="Chọn ngày vận hành khách sạn (Xem sơ đồ phòng & lịch lưu trú)"
+                />
+              </div>
+              <div className="inline-flex h-10 items-center rounded-lg bg-slate-100 p-1 border border-slate-300 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => handleBusinessDateChange(todayYmd)}
+                  className={`h-full rounded-md px-3.5 text-xs font-extrabold transition cursor-pointer ${
+                    businessDate === todayYmd
+                      ? "bg-[var(--primary)] text-white shadow-sm"
+                      : "text-slate-800 hover:text-black hover:bg-white/80"
+                  }`}
+                >
+                  Hôm nay
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBusinessDateChange(tomorrowYmd)}
+                  className={`h-full rounded-md px-3.5 text-xs font-extrabold transition cursor-pointer ${
+                    businessDate === tomorrowYmd
+                      ? "bg-[var(--primary)] text-white shadow-sm"
+                      : "text-slate-800 hover:text-black hover:bg-white/80"
+                  }`}
+                >
+                  Ngày mai
+                </button>
+              </div>
+              {isFutureDate ? (
+                <span className="inline-flex items-center rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 shadow-2xs">
+                  <span>Sơ đồ phòng dự kiến tương lai</span>
+                </span>
+              ) : null}
+            </div>
+
+            {/* Reception Operational Actions */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={openArrivalsModal}
+                className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-sky-700 hover:bg-sky-800 active:bg-sky-900 px-4 text-sm font-extrabold text-white whitespace-nowrap shadow-sm border border-sky-800/40 transition cursor-pointer min-h-[40px]"
+                title="Xem danh sách khách dự kiến đến trong ngày"
+              >
+                <span>Khách đến</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push(`/hotels/${encodeURIComponent(hotelId)}/channel-manager?tab=BOOKINGS`)}
+                className="relative inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 px-4 text-sm font-extrabold text-slate-900 whitespace-nowrap shadow-2xs transition cursor-pointer min-h-[40px]"
+                title="Xem danh sách đơn đặt phòng từ Booking.com, Trip.com, Agoda"
+              >
+                <span>Đơn đặt phòng OTA</span>
+                {todayOtaArrivalCount > 0 ? (
+                  <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-black bg-sky-700 text-white rounded-md shadow-2xs">
+                    {todayOtaArrivalCount} đến
+                  </span>
+                ) : null}
+                {unassignedOtaCount > 0 ? (
+                  <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-black bg-amber-600 text-white rounded-md shadow-2xs">
+                    {unassignedOtaCount} chưa xếp
+                  </span>
+                ) : null}
+              </button>
+              <button
+                type="button"
+                onClick={printActiveStayList}
+                className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)] hover:bg-[#000055] px-4 text-sm font-extrabold text-white whitespace-nowrap shadow-sm border border-[#000020] transition cursor-pointer min-h-[40px]"
+                title="In danh sách khách đang lưu trú tại khách sạn"
+              >
+                <span>In danh sách lưu trú</span>
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Search & Filter Toolbar */}
+        <div className={`flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between ${!isHousekeeping ? "border-t border-slate-200 pt-2.5" : ""}`}>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+            <div className="relative w-full sm:w-60 lg:w-72 min-w-0">
               <VsIcon
                 name="search"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-[var(--outline)]"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-lg text-slate-600"
               />
               <input
                 value={inputQuery}
                 onChange={(event) => setInputQuery(event.target.value)}
-                className="h-11 w-full rounded-lg border-0 bg-[var(--surface-container-low)] pl-10 pr-4 text-sm outline-none ring-1 ring-transparent focus:ring-[var(--primary)] min-h-[44px]"
+                className="h-10 w-full rounded-lg border border-slate-300 hover:border-slate-400 bg-white pl-9.5 pr-8 text-sm font-semibold text-slate-900 outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 shadow-2xs min-h-[40px] placeholder:text-slate-500 transition"
                 placeholder="Tìm kiếm phòng..."
               />
-            </label>
-
-            {/* Date selection group */}
-            {!isHousekeeping ? (
-            <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
-              <input
-                type="date"
-                value={businessDate}
-                onChange={(e) => handleBusinessDateChange(e.target.value)}
-                className="h-11 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)] min-h-[44px] flex-1 sm:flex-initial"
-                title="Chọn ngày kinh doanh (Xem sơ đồ phòng dự kiến)"
-              />
-              <button
-                type="button"
-                onClick={() => handleBusinessDateChange(todayYmd)}
-                className={`h-11 px-3 text-xs font-bold rounded-lg min-h-[44px] transition cursor-pointer ${
-                  businessDate === todayYmd
-                    ? "bg-[var(--primary)] text-white shadow-2xs"
-                    : "bg-[var(--surface-container-low)] text-[var(--primary)] hover:bg-[var(--surface-container)]"
-                }`}
-              >
-                Hôm nay
-              </button>
-              <button
-                type="button"
-                onClick={() => handleBusinessDateChange(tomorrowYmd)}
-                className={`h-11 px-3 text-xs font-bold rounded-lg min-h-[44px] transition cursor-pointer ${
-                  businessDate === tomorrowYmd
-                    ? "bg-[var(--primary)] text-white shadow-2xs"
-                    : "bg-[var(--surface-container-low)] text-[var(--primary)] hover:bg-[var(--surface-container)]"
-                }`}
-              >
-                Ngày mai
-              </button>
-            </div>
-            ) : null}
-
-            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-              <select
-                value={floor}
-                onChange={(event) => {
-                  setFloor(event.target.value);
-                  setPage(1);
-                }}
-                className="h-11 shrink-0 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)] min-w-[115px] min-h-[44px]"
-              >
-                <option value="all">Tầng: Tất cả</option>
-                {floors.map((value) => (
-                  <option key={value} value={value}>
-                    Tầng {value}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={type}
-                onChange={(event) => {
-                  setType(event.target.value);
-                  setPage(1);
-                }}
-                className="h-11 shrink-0 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)] min-w-[145px] min-h-[44px]"
-              >
-                <option value="all">Loại phòng: Tất cả</option>
-                {types.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={status}
-                onChange={(event) => {
-                  setStatus(event.target.value as RoomStatusFilter);
-                  setPage(1);
-                }}
-                className="h-11 shrink-0 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)] min-w-[145px] min-h-[44px]"
-              >
-                {statusFilters.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    Trạng thái: {item.label}
-                  </option>
-                ))}
-              </select>
+              {inputQuery ? (
+                <button
+                  type="button"
+                  onClick={() => setInputQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-800 p-0.5 rounded-full cursor-pointer transition"
+                  title="Xóa tìm kiếm"
+                >
+                  <VsIcon name="close" className="text-sm" />
+                </button>
+              ) : null}
             </div>
 
-            {!isHousekeeping ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => openFutureReservationModal()}
-                  className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-4 text-sm font-bold text-white whitespace-nowrap min-h-[44px] cursor-pointer transition shadow-2xs"
-                >
-                  <VsIcon name="event" className="text-base" />
-                  <span>Đặt phòng trước</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={openArrivalsModal}
-                  className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-sky-700 hover:bg-sky-800 px-4 text-sm font-bold text-white whitespace-nowrap min-h-[44px] cursor-pointer transition shadow-2xs"
-                >
-                  <VsIcon name="flight_land" className="text-base" />
-                  <span>Khách đến (Arrivals)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={printActiveStayList}
-                  className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--primary)] px-4 text-sm font-bold text-white hover:opacity-90 whitespace-nowrap min-h-[44px] cursor-pointer transition"
-                >
-                  <VsIcon name="print" className="text-base" />
-                  <span>In danh sách lưu trú</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => router.push(`/hotels/${encodeURIComponent(hotelId)}/channel-manager?tab=BOOKINGS`)}
-                  className="relative inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-4 text-sm font-bold text-[var(--primary)] hover:bg-[var(--surface-container)] whitespace-nowrap shadow-2xs transition cursor-pointer min-h-[44px]"
-                  title="Xem danh sách đơn đặt phòng từ Booking.com, Trip.com, Agoda"
-                >
-                  <VsIcon name="book_online" className="text-base" />
-                  <span>Đơn đặt phòng OTA</span>
-                  {todayOtaArrivalCount > 0 ? (
-                    <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold bg-sky-700 text-white rounded-full shadow-2xs">
-                      {todayOtaArrivalCount} đến
-                    </span>
-                  ) : null}
-                  {unassignedOtaCount > 0 ? (
-                    <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold bg-amber-600 text-white rounded-full shadow-2xs">
-                      {unassignedOtaCount} chưa xếp
-                    </span>
-                  ) : null}
-                </button>
-              </>
+            <select
+              value={floor}
+              onChange={(event) => {
+                setFloor(event.target.value);
+                setPage(1);
+              }}
+              className="h-10 shrink-0 rounded-lg border border-slate-300 hover:border-slate-400 bg-white px-3 text-sm font-bold text-slate-900 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 shadow-2xs min-w-[120px] cursor-pointer transition"
+            >
+              <option value="all">Tầng: Tất cả</option>
+              {floors.map((value) => (
+                <option key={value} value={value}>
+                  Tầng {value}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={type}
+              onChange={(event) => {
+                setType(event.target.value);
+                setPage(1);
+              }}
+              className="h-10 shrink-0 rounded-lg border border-slate-300 hover:border-slate-400 bg-white px-3 text-sm font-bold text-slate-900 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 shadow-2xs min-w-[150px] cursor-pointer transition"
+            >
+              <option value="all">Loại phòng: Tất cả</option>
+              {types.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={status}
+              onChange={(event) => {
+                setStatus(event.target.value as RoomStatusFilter);
+                setPage(1);
+              }}
+              className="h-10 shrink-0 rounded-lg border border-slate-300 hover:border-slate-400 bg-white px-3 text-sm font-bold text-slate-900 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 shadow-2xs min-w-[155px] cursor-pointer transition"
+            >
+              {statusFilters.map((item) => (
+                <option key={item.value} value={item.value}>
+                  Trạng thái: {item.label}
+                </option>
+              ))}
+            </select>
+
+            {hasActiveFilters ? (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-rose-300 hover:border-rose-400 bg-rose-50 hover:bg-rose-100/90 px-3.5 text-xs font-black text-rose-800 shadow-2xs transition cursor-pointer min-h-[40px]"
+                title="Đặt lại toàn bộ bộ lọc"
+              >
+                <span>Xóa lọc</span>
+              </button>
             ) : null}
           </div>
 
-          <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 2xl:ml-auto">
-            <div className="grid grid-cols-2 gap-4 text-center shrink-0">
-              <div>
-                <p className="text-xs text-[var(--on-surface-variant)]">Tổng</p>
-                <p className="font-bold text-[var(--primary)]">{totalItems}</p>
-              </div>
-              <div>
-                <p className="text-xs text-[var(--on-surface-variant)]">
-                  Khả dụng
-                </p>
-                <p className="font-bold text-[var(--secondary)]">
-                  {isFutureDate ? futureAvailableCount : totalAvailable}
-                </p>
-              </div>
-            </div>
+          <div className="hidden sm:flex items-center text-xs font-semibold text-slate-600 shrink-0">
+            {hasActiveFilters ? (
+              <span>
+                Kết quả: <strong className="font-black text-emerald-800">{filteredRooms.length}</strong> / <strong className="font-bold text-slate-900">{totalItems}</strong> phòng
+              </span>
+            ) : (
+              <span>
+                Tổng cộng: <strong className="font-black text-slate-950">{filteredRooms.length}</strong> phòng
+              </span>
+            )}
           </div>
         </div>
       </section>
@@ -1737,31 +1766,23 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                     }
                   }}
                   onClick={(e) => handleCardClick(room, e.currentTarget)}
-                  className={`flex flex-col justify-between h-full min-h-[240px] rounded-2xl border p-5 text-left shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-all cursor-pointer ${roomCardClass(effectiveStatus)}`}
+                  className={`flex flex-col justify-between h-full min-h-[240px] rounded-2xl border p-5 text-left transition-all cursor-pointer ${roomCardClass(effectiveStatus)}`}
                 >
                   {/* Header */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <h3 className="vs-display text-3xl font-semibold">
+                      <h3 className="vs-display text-3xl font-semibold text-slate-900">
                         {getRoomNumber(room)}
                       </h3>
-                      <p
-                        className={
-                          effectiveStatus === "occupied" || effectiveStatus === "overdue"
-                            ? "text-sm text-white/75"
-                            : "text-sm text-[var(--on-surface-variant)]"
-                        }
-                      >
+                      <p className="text-sm text-slate-500">
                         {room.type ?? "Tiêu chuẩn"}
                       </p>
                     </div>
                     <span
                       className={
                         isVip
-                          ? effectiveStatus === "occupied" || effectiveStatus === "overdue"
-                            ? "rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 px-3 py-1 text-xs font-black text-slate-950 shadow-xs border border-yellow-200 tracking-wider shrink-0 whitespace-nowrap"
-                            : "rounded-full bg-slate-900 px-3 py-1 text-xs font-black text-amber-300 shadow-xs border border-amber-400/80 tracking-wider shrink-0 whitespace-nowrap"
-                          : "rounded-full bg-[var(--surface-container-high)] px-3 py-1 text-xs font-bold text-[var(--on-surface-variant)] shrink-0 whitespace-nowrap"
+                          ? "rounded-full bg-amber-100 text-amber-950 border border-amber-300 px-3 py-1 text-xs font-black tracking-wider shrink-0 whitespace-nowrap"
+                          : "rounded-full bg-slate-100 border border-slate-200/60 px-3 py-1 text-xs font-bold text-slate-600 shrink-0 whitespace-nowrap"
                       }
                     >
                       {isVip
@@ -1774,102 +1795,122 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
 
                   {/* Middle Body */}
                   <div className="my-3 flex-1 flex flex-col justify-center">
-                    <p
-                      className={
-                        effectiveStatus === "overdue"
-                          ? "text-xs uppercase tracking-[0.18em] text-red-300 font-bold"
-                          : effectiveStatus === "occupied"
-                            ? "text-xs uppercase tracking-[0.18em] text-white/70 font-semibold"
-                            : effectiveStatus === "maintenance"
+                    {effectiveStatus === "overdue" ? (
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-rose-600">
+                          <VsIcon name="warning" className="text-sm text-rose-500 shrink-0" />
+                          <span>Cảnh báo quá hạn</span>
+                        </div>
+                        <div className="mt-0.5 flex items-center gap-1.5 text-sm font-extrabold text-slate-900">
+                          <VsIcon name="error" className="text-sm text-rose-500 shrink-0" />
+                          <span className="truncate">{room.activeStay?.guestDisplayName ?? "Khách chưa trả phòng"}</span>
+                        </div>
+                        {room.activeStay?.reservationCode ? (
+                          <span className="mt-0.5 font-mono text-xs font-bold text-rose-900 bg-rose-100/90 border border-rose-300 px-2 py-0.5 rounded w-fit">
+                            #{room.activeStay.reservationCode}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : effectiveStatus === "occupied" ? (
+                      <div className="flex flex-col gap-1">
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-sky-800">
+                          Trạng thái vận hành
+                        </p>
+                        {isReserved ? (
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5 text-slate-900 font-extrabold text-sm">
+                              <VsIcon name="event" className="text-base text-sky-600 shrink-0" />
+                              <span className="truncate">{room.projectedReservation?.guestDisplayName || "Khách đặt trước"}</span>
+                            </div>
+                            <span className="font-mono text-xs font-bold text-sky-900 bg-sky-100/90 border border-sky-300 px-2 py-0.5 rounded w-fit">
+                              #{room.projectedReservation?.reservationCode || "Đã giữ phòng"}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5 text-slate-900 font-extrabold text-sm">
+                              <VsIcon name="person" className="text-base text-sky-600 shrink-0" />
+                              <span className="truncate">
+                                {isFutureDate ? "Đã có lịch lưu trú tương lai" : (room.activeStay?.guestDisplayName ?? "Khách lưu trú (Đã nhận phòng)")}
+                              </span>
+                            </div>
+                            {room.activeStay?.reservationCode ? (
+                              <span className="font-mono text-xs font-bold text-sky-900 bg-sky-100/90 border border-sky-300 px-2 py-0.5 rounded w-fit">
+                                #{room.activeStay.reservationCode}
+                              </span>
+                            ) : null}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <p
+                          className={
+                            effectiveStatus === "maintenance"
                               ? "text-xs uppercase tracking-[0.18em] text-rose-900/80 font-bold"
                               : effectiveStatus === "blocked"
                                 ? "text-xs uppercase tracking-[0.18em] text-slate-700 font-bold"
                                 : effectiveStatus === "processing"
                                   ? "text-xs uppercase tracking-[0.18em] text-amber-900/80 font-bold"
                                   : "text-xs uppercase tracking-[0.18em] text-emerald-800/80 font-bold"
-                      }
-                    >
-                      {effectiveStatus === "overdue" ? "⚠️ Cảnh báo quá hạn" : "Trạng thái vận hành"}
-                    </p>
-                    <div
-                      className={
-                        effectiveStatus === "overdue"
-                          ? "mt-1 font-extrabold text-red-200 text-sm flex items-center gap-1.5"
-                          : effectiveStatus === "occupied"
-                            ? "mt-1 font-bold text-white text-base"
-                            : effectiveStatus === "maintenance"
+                          }
+                        >
+                          Trạng thái vận hành
+                        </p>
+                        <div
+                          className={
+                            effectiveStatus === "maintenance"
                               ? "mt-1.5 font-extrabold text-rose-900 text-sm flex items-center gap-1.5"
                               : effectiveStatus === "blocked"
                                 ? "mt-1.5 font-extrabold text-slate-900 text-sm flex items-center gap-1.5"
                                 : effectiveStatus === "processing"
                                   ? "mt-1.5 font-extrabold text-amber-950 text-sm flex items-center gap-1.5"
                                   : "mt-1.5 font-extrabold text-emerald-900 text-sm flex items-center gap-1.5"
-                      }
-                    >
-                      {effectiveStatus === "overdue" ? (
-                        <>
-                          <VsIcon name="warning" className="text-base text-red-400 shrink-0 animate-bounce" />
-                          <span>{room.activeStay?.guestDisplayName ?? "Khách chưa check-out"}</span>
-                        </>
-                      ) : effectiveStatus === "occupied" ? (
-                        isReserved ? (
-                          <div className="flex flex-col gap-0.5">
-                            <div className="flex items-center gap-1.5 text-white font-extrabold text-sm">
-                              <VsIcon name="event" className="text-base text-amber-300 shrink-0" />
-                              <span className="truncate">{room.projectedReservation?.guestDisplayName || "Khách đặt trước"}</span>
-                            </div>
-                            <span className="text-[11px] font-semibold text-white/80">
-                              Mã: {room.projectedReservation?.reservationCode || "Đã giữ phòng"}
-                            </span>
-                          </div>
-                        ) : isFutureDate ? "Đã có lịch lưu trú tương lai" : (room.activeStay?.guestDisplayName ?? "Khách lưu trú (Đã nhận phòng)")
-                      ) : effectiveStatus === "processing" ? (
-                        <>
-                          <VsIcon name="cleaning_services" className="text-base text-amber-700 shrink-0" />
-                          <span>Chờ dọn dẹp buồng phòng</span>
-                        </>
-                      ) : effectiveStatus === "available" ? (
-                        !isFutureDate && incomingOta ? (
-                          <div className="flex flex-col gap-0.5">
-                            <div className="flex items-center gap-1.5 text-sky-800 font-extrabold text-sm">
-                              <VsIcon name="book_online" className="text-base text-sky-600 shrink-0" />
-                              <span className="truncate">{incomingOta.guestName}</span>
-                            </div>
-                            <span className="text-[11px] font-semibold text-sky-700">
-                              🛎️ {incomingOta.otaName} · Đến hôm nay
-                            </span>
-                          </div>
-                        ) : (
-                          <>
-                            <VsIcon name="check_circle" className="text-base text-emerald-600 shrink-0" />
-                            <span>Sẵn sàng đón khách</span>
-                          </>
-                        )
-                      ) : effectiveStatus === "blocked" ? (
-                        <>
-                          <VsIcon name="lock" className="text-base text-slate-700 shrink-0" />
-                          <span>Đã khóa phòng</span>
-                        </>
-                      ) : (
-                        <>
-                          <VsIcon name="build" className="text-base text-rose-700 shrink-0" />
-                          <span>Đang bảo trì / Tạm ngưng</span>
-                        </>
-                      )}
-                    </div>
+                          }
+                        >
+                          {effectiveStatus === "processing" ? (
+                            <>
+                              <VsIcon name="cleaning_services" className="text-base text-amber-700 shrink-0" />
+                              <span>Chờ dọn dẹp buồng phòng</span>
+                            </>
+                          ) : effectiveStatus === "available" ? (
+                            !isFutureDate && incomingOta ? (
+                              <div className="flex flex-col gap-0.5">
+                                <div className="flex items-center gap-1.5 text-sky-800 font-extrabold text-sm">
+                                  <VsIcon name="book_online" className="text-base text-sky-600 shrink-0" />
+                                  <span className="truncate">{incomingOta.guestName}</span>
+                                </div>
+                                <span className="text-[11px] font-semibold text-sky-700">
+                                  🛎️ {incomingOta.otaName} · Đến hôm nay
+                                </span>
+                              </div>
+                            ) : (
+                              <>
+                                <VsIcon name="check_circle" className="text-base text-emerald-600 shrink-0" />
+                                <span>Sẵn sàng đón khách</span>
+                              </>
+                            )
+                          ) : effectiveStatus === "blocked" ? (
+                            <>
+                              <VsIcon name="lock" className="text-base text-slate-700 shrink-0" />
+                              <span>Đã khóa phòng</span>
+                            </>
+                          ) : (
+                            <>
+                              <VsIcon name="build" className="text-base text-rose-700 shrink-0" />
+                              <span>Đang bảo trì / Tạm ngưng</span>
+                            </>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Footer */}
-                  <div
-                    className={
-                      effectiveStatus === "occupied"
-                        ? "mt-auto border-t border-white/15 pt-3"
-                        : "mt-auto border-t border-[var(--outline-variant)]/40 pt-3"
-                    }
-                  >
+                  <div className="mt-auto border-t border-slate-200/60 pt-3">
                     {!isFutureDate && effectiveStatus === "occupied" ? (
                       <>
-                        <div className="mb-1 flex justify-between text-xs text-white/65">
+                        <div className="mb-1 flex justify-between text-xs text-slate-500 font-medium">
                           <span>
                             {formatDateTime(
                               room.activeStay?.checkedInAt ?? room.activeStay?.plannedCheckInAt,
@@ -1879,15 +1920,15 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                             {formatDateTime(room.activeStay?.plannedCheckOutAt)}
                           </span>
                         </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-white/20">
+                        <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
                           <div
-                            className="h-full rounded-full bg-[var(--secondary-fixed-dim)]"
+                            className="h-full rounded-full bg-sky-500"
                             style={{ width: `${progress}%` }}
                           />
                         </div>
                       </>
                     ) : (
-                      <div className="h-1.5 rounded-full bg-[var(--surface-container-high)]" />
+                      <div className="h-1.5 rounded-full bg-slate-100" />
                     )}
 
                     <div className="mt-2.5 flex items-center justify-between gap-1.5 overflow-hidden">
@@ -1909,9 +1950,11 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                           {room.type ?? "Tiêu chuẩn"}
                         </span>
                       )}
-                      <span className={`${roomStatusBadgeClass(effectiveStatus)} shrink-0 whitespace-nowrap`}>
-                        {isFutureDate && room.projectedStatus ? `Dự kiến: ${roomStatusLabel(effectiveStatus)}` : roomStatusLabel(effectiveStatus)}
-                      </span>
+                      {isFutureDate && room.projectedStatus ? (
+                        <span className={`${roomStatusBadgeClass(effectiveStatus)} shrink-0 whitespace-nowrap`}>
+                          Dự kiến: {roomStatusLabel(effectiveStatus)}
+                        </span>
+                      ) : null}
                     </div>
 
                     {isFutureDate && room.projectedStatus ? (
@@ -1930,13 +1973,13 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                               e.stopPropagation();
                               void confirmRoomReady(room);
                             }}
-                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-sm transition active:scale-[0.98] cursor-pointer"
+                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-sm shadow-sm transition active:scale-[0.98] cursor-pointer"
                           >
                             <VsIcon name="check_circle" className="text-base shrink-0" />
                             <span>Xác nhận phòng đã dọn xong</span>
                           </button>
                         ) : (
-                          <div className="flex w-full min-h-[44px] items-center justify-center rounded-xl bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200">
+                          <div className="flex w-full min-h-[44px] items-center justify-center rounded-xl bg-slate-100 text-slate-700 text-sm font-bold border border-slate-200">
                             <span>Trạng thái: {roomStatusLabel(effectiveStatus)}</span>
                           </div>
                         )
@@ -1948,7 +1991,7 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                               e.stopPropagation();
                               openFutureReservationModal(room);
                             }}
-                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-sm transition active:scale-[0.98] cursor-pointer"
+                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-sm shadow-sm transition active:scale-[0.98] cursor-pointer"
                           >
                             <VsIcon name="event" className="text-base shrink-0" />
                             <span>Đặt trước phòng này</span>
@@ -1960,13 +2003,13 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                               e.stopPropagation();
                               openRoomContextPanel(room, e.currentTarget);
                             }}
-                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-sky-700 hover:bg-sky-800 text-white font-extrabold text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-sky-700 hover:bg-sky-800 text-white font-extrabold text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
                           >
                             <VsIcon name="event_available" className="text-base shrink-0" />
                             <span>Chi tiết đặt phòng</span>
                           </button>
                         ) : (
-                          <div className="flex w-full min-h-[44px] items-center justify-center rounded-xl bg-slate-200/80 text-slate-700 text-xs font-bold border border-slate-300">
+                          <div className="flex w-full min-h-[44px] items-center justify-center rounded-xl bg-slate-200/80 text-slate-700 text-sm font-bold border border-slate-300">
                             <span>Đã có lịch đặt / Đang bận</span>
                           </div>
                         )
@@ -1980,7 +2023,7 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                                 e.stopPropagation();
                                 void handleOtaFastCheckIn(incomingOta, room);
                               }}
-                              className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-sky-700 hover:bg-sky-800 text-white font-bold text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                              className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-sky-700 hover:bg-sky-800 text-white font-extrabold text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
                             >
                               <VsIcon name="book_online" className="text-base shrink-0" />
                               <span>Nhận phòng {incomingOta.otaName}</span>
@@ -1993,10 +2036,10 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                                   e.stopPropagation();
                                   openWalkIn(room);
                                 }}
-                                className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-[var(--primary)] hover:opacity-90 text-white font-extrabold text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                                className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-extrabold text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
                               >
                                 <VsIcon name="login" className="text-base shrink-0" />
-                                <span>Walk-in</span>
+                                <span>Nhận phòng</span>
                               </button>
                               <button
                                 type="button"
@@ -2004,7 +2047,7 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                                   e.stopPropagation();
                                   openFutureReservationModal(room);
                                 }}
-                                className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] hover:bg-[var(--surface-container)] text-[var(--primary)] font-bold text-xs transition active:scale-[0.98] cursor-pointer"
+                                className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 font-bold text-sm transition active:scale-[0.98] cursor-pointer"
                               >
                                 <VsIcon name="event" className="text-base shrink-0" />
                                 <span>Đặt trước</span>
@@ -2019,7 +2062,7 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                                 e.stopPropagation();
                                 void confirmRoomReady(room);
                               }}
-                              className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-xs transition active:scale-[0.98] cursor-pointer col-span-full sm:col-span-1"
+                              className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-sm shadow-xs transition active:scale-[0.98] cursor-pointer col-span-full sm:col-span-1"
                             >
                               <VsIcon name="check_circle" className="text-base shrink-0" />
                               <span>Dọn xong</span>
@@ -2030,7 +2073,7 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                                 e.stopPropagation();
                                 void updateRoomStatus(room, "MAINTENANCE");
                               }}
-                              className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition active:scale-[0.98] cursor-pointer col-span-full sm:col-span-1"
+                              className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-sm transition active:scale-[0.98] cursor-pointer col-span-full sm:col-span-1"
                             >
                               <VsIcon name="build" className="text-base shrink-0" />
                               <span>Bảo trì</span>
@@ -2044,7 +2087,7 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                                 e.stopPropagation();
                                 openRoomContextPanel(room, e.currentTarget);
                               }}
-                              className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-sky-700 hover:bg-sky-800 text-white font-extrabold text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                              className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-sky-700 hover:bg-sky-800 text-white font-extrabold text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
                             >
                               <VsIcon name="event_available" className="text-base shrink-0" />
                               <span>Chi tiết đặt phòng</span>
@@ -2056,10 +2099,10 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                                 e.stopPropagation();
                                 openRoomContextPanel(room, e.currentTarget);
                               }}
-                              className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-extrabold text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                              className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-sky-700 hover:bg-sky-800 text-white font-extrabold text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
                             >
                               <VsIcon name="info" className="text-base shrink-0" />
-                              <span>Chi tiết lưu trú & Folio</span>
+                              <span>Chi tiết lưu trú & hóa đơn</span>
                             </button>
                           )
                         ) : effectiveStatus === "overdue" ? (
@@ -2069,10 +2112,10 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                               e.stopPropagation();
                               openRoomContextPanel(room, e.currentTarget);
                             }}
-                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs shadow-md transition active:scale-[0.98] cursor-pointer"
+                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl border border-rose-300 hover:border-rose-400 bg-white hover:bg-rose-50/60 text-rose-700 font-bold text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
                           >
-                            <VsIcon name="warning" className="text-base shrink-0" />
-                            <span>Xử lý check-out quá hạn</span>
+                            <VsIcon name="error_outline" className="text-base shrink-0 text-rose-600" />
+                            <span>Xử lý trả phòng quá hạn</span>
                           </button>
                         ) : effectiveStatus === "blocked" ? (
                           <button
@@ -2081,7 +2124,7 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                               e.stopPropagation();
                               void toggleRoomBlocked(room);
                             }}
-                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
                           >
                             <VsIcon name="lock_open" className="text-base shrink-0" />
                             <span>Mở khóa phòng → Trống</span>
@@ -2093,7 +2136,7 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                               e.stopPropagation();
                               void updateRoomStatus(room, "AVAILABLE");
                             }}
-                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
                           >
                             <VsIcon name="check_circle" className="text-base shrink-0" />
                             <span>Xong bảo trì → Trống</span>
@@ -2123,14 +2166,50 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
           </div>
         </div>
 
-        {totalPages > 1 ? (
-          <div className="mt-6 flex flex-col gap-3 border-t border-[var(--outline-variant)] pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-[var(--on-surface-variant)]">
-              Hiển thị {filteredRooms.length} trên {totalItems} phòng
-            </p>
-            {renderPaginationButtons(page, totalPages, setPage)}
+        {/* Pagination & Display Controls */}
+        <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl border border-slate-300 bg-white p-3.5 sm:px-5 shadow-2xs">
+          <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
+            <div className="flex items-center gap-1.5 font-bold">
+              <span>Hiển thị</span>
+              <strong className="text-slate-950 font-black">
+                {totalItems === 0
+                  ? 0
+                  : `${(page - 1) * pageSize + 1} - ${Math.min(page * pageSize, totalItems)}`}
+              </strong>
+              <span>trên</span>
+              <strong className="text-slate-950 font-black">{totalItems}</strong>
+              <span>phòng</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 pl-3 border-l border-slate-300">
+              <label htmlFor="room-page-size" className="text-xs font-semibold text-slate-600">
+                Mỗi trang:
+              </label>
+              <select
+                id="room-page-size"
+                value={pageSize}
+                onChange={(e) => {
+                  const newSize = Number(e.target.value);
+                  setPageSize(newSize);
+                  setPage(1);
+                }}
+                className="h-8 rounded-lg border border-slate-300 bg-white px-2 text-xs font-bold text-slate-800 focus:border-blue-900 outline-none cursor-pointer"
+              >
+                <option value={12}>12 phòng</option>
+                <option value={24}>24 phòng</option>
+                <option value={48}>48 phòng</option>
+                <option value={96}>96 phòng</option>
+              </select>
+            </div>
           </div>
-        ) : null}
+
+          <div className="flex items-center justify-center sm:justify-end gap-2">
+            {renderPaginationButtons(page, Math.max(1, totalPages), (newPage) => {
+              setPage(newPage);
+              window.scrollTo({ top: 380, behavior: "smooth" });
+            })}
+          </div>
+        </div>
       </section>
 
       {/* Guest QR Preview Portal */}
@@ -2250,7 +2329,7 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                   Lịch đón khách
                 </p>
                 <h2 id="arrivals-modal-title" className="vs-display mt-0.5 text-2xl font-semibold text-[var(--primary)]">
-                  Danh sách khách đến (Arrivals)
+                  Danh sách khách đến
                 </h2>
               </div>
               <button
@@ -2394,7 +2473,7 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                             onClick={() => void handleCheckInArrival(arrival)}
                             className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3 text-xs font-bold text-white transition cursor-pointer"
                           >
-                            Nhận phòng (Check-in)
+                            Nhận phòng
                           </button>
                         ) : null}
                       </div>
@@ -2487,7 +2566,7 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
                     }}
                     className="w-full h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none min-h-[44px]"
                   >
-                    <option value="">Chưa gán phòng (Gán sau)</option>
+                    <option value="">Chưa gán phòng</option>
                     {rooms.map((r) => (
                       <option key={r.id} value={r.id}>
                         Phòng {getRoomNumber(r)} ({r.type || "Tiêu chuẩn"})
@@ -2498,7 +2577,7 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Giá phòng mỗi đêm (VND)
+                    Giá phòng mỗi đêm (đ)
                   </label>
                   <input
                     type="text"
@@ -2513,7 +2592,7 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Thời gian nhận phòng (Check-in) <span className="text-red-500">*</span>
+                    Thời gian nhận phòng <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="datetime-local"
@@ -2526,7 +2605,7 @@ Lưu trú: ${booking.checkInDate} ➔ ${booking.checkOutDate}`,
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Thời gian trả phòng (Check-out) <span className="text-red-500">*</span>
+                    Thời gian trả phòng <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="datetime-local"

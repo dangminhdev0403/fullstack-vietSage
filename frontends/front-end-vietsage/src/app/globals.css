@@ -275,6 +275,47 @@ button:disabled,
   display: none;
 }
 
+/* ==========================================================================
+   VietSage Typography: Anti-Orphan & Balanced Text Wrapping Standard
+   Prevents isolated single words on trailing lines (chống gãy chữ lẻ tẻ / từ mồ côi)
+   ========================================================================== */
+h1, h2, h3, h4, h5, h6,
+.text-balance,
+.swal2-title,
+[role="dialog"] h2,
+[role="dialog"] h3,
+[role="alertdialog"] h2,
+[role="alertdialog"] h3 {
+  text-wrap: balance;
+}
+
+p,
+.text-pretty,
+.swal2-html-container,
+.dialog-description,
+.modal-description,
+[role="dialog"] p,
+[role="alertdialog"] p {
+  text-wrap: pretty;
+}
+
+/* Centered modal & alert messages: balance text symmetrically */
+.swal2-html-container:not([class*="!text-left"]),
+.text-center > p,
+p.text-center {
+  text-wrap: balance;
+}
+
+.swal2-html-container {
+  max-width: 46ch;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.swal2-html-container:where([class*="!text-left"]) {
+  max-width: 100%;
+}
+
 .swal2-popup.vs-service-confirm-popup {
   width: min(92vw, 440px);
   padding: 1.25rem 1.1rem 1.2rem;
@@ -1716,6 +1757,10 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
     border-radius: 1.35rem;
   }
 
+  .vs-device-float {
+    transform: none;
+  }
+
   .vs-landing-orb {
     animation: none;
   }
@@ -1839,3 +1884,4 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
   width: 0;
   height: 0;
 }
+

@@ -13,7 +13,7 @@ import { PUBLIC_LOCALMATE_DESTINATIONS, getLocalizedDestinations } from "./const
 // @ts-expect-error Node strip-types requires .ts extension
 import { PROVINCE_MAP, REGIONS, PROVINCES } from "../localmate/constants/geography.ts";
 // @ts-expect-error Node strip-types requires .ts extension
-import { PUBLIC_CHAT_COPY_BY_LOCALE } from "../localmate-chat/localmate-chat-copy.ts";
+import { PUBLIC_CHAT_COPY_BY_LOCALE, getLocalMateWelcomeMessage } from "../localmate-chat/localmate-chat-copy.ts";
 // @ts-expect-error Node strip-types requires .ts extension
 import { SUPPORTED_LOCALES } from "../../core/i18n/locales.ts";
 // @ts-expect-error Node strip-types requires .ts extension
@@ -249,16 +249,16 @@ test("useLocalMateSessionStore resetSession clears active selections and resets 
   assert.equal(state.stage, "DISCOVERY");
 });
 
-test("PUBLIC_LOCALMATE_DESTINATIONS contains exactly six featured cards in canonical order", () => {
+test("PUBLIC_LOCALMATE_DESTINATIONS contains exactly six province-only cards in canonical order", () => {
   assert.equal(PUBLIC_LOCALMATE_DESTINATIONS.length, 6);
 
   const expected = [
-    { order: 1, provinceCode: "LAO_CAI", label: "Lào Cai – Sa Pa", location: "Sa Pa, Lào Cai" },
+    { order: 1, provinceCode: "LAO_CAI", label: "Lào Cai", location: "Lào Cai" },
     { order: 2, provinceCode: "HA_NOI", label: "Hà Nội", location: "Hà Nội" },
     { order: 3, provinceCode: "DA_NANG", label: "Đà Nẵng", location: "Đà Nẵng" },
-    { order: 4, provinceCode: "QUANG_NAM", label: "Quảng Nam – Hội An", location: "Hội An, Quảng Nam" },
+    { order: 4, provinceCode: "QUANG_NAM", label: "Quảng Nam", location: "Quảng Nam" },
     { order: 5, provinceCode: "HO_CHI_MINH", label: "TP. Hồ Chí Minh", location: "TP. Hồ Chí Minh" },
-    { order: 6, provinceCode: "KIEN_GIANG", label: "Phú Quốc – Kiên Giang", location: "Phú Quốc, Kiên Giang" },
+    { order: 6, provinceCode: "KIEN_GIANG", label: "Kiên Giang", location: "Kiên Giang" },
   ];
 
   for (let i = 0; i < expected.length; i++) {
@@ -269,8 +269,16 @@ test("PUBLIC_LOCALMATE_DESTINATIONS contains exactly six featured cards in canon
     assert.equal(item.label, exp.label);
     assert.equal(item.location, exp.location);
     assert.ok(item.icon, `Missing icon for ${item.label}`);
-    assert.ok(item.tag, `Missing tag for ${item.label}`);
+    assert.equal("tag" in item, false);
   }
+});
+
+test("province selection requests services and tourist attractions after the guest selects a province", () => {
+  const copy = PUBLIC_CHAT_COPY_BY_LOCALE.vi;
+  assert.equal(copy.popularDestinations, "Tỉnh thành nổi bật");
+  assert.equal(copy.locationSelectPrompt, "Chọn tỉnh thành để bắt đầu:");
+  assert.equal(copy.searchLocationPlaceholder, "Tìm tỉnh thành...");
+  assert.equal(copy.initialQuery, "Gợi ý các dịch vụ và địa điểm du lịch nổi bật tại tỉnh này");
 });
 
 test("all featured destinations map to valid canonical provinces in neutral taxonomy", () => {
@@ -318,7 +326,7 @@ test("phone validation enforces valid phone formats and rejects empty/invalid va
   assert.ok(!phoneRegex.test("phone: 0901234567"));
 });
 
-test("destination i18n provides localized labels and tags for all 6 supported locales while preserving canonical location and provinceCode", () => {
+test("destination i18n provides province-only labels for all 6 supported locales while preserving canonical location and provinceCode", () => {
   for (const locale of SUPPORTED_LOCALES) {
     const localized = getLocalizedDestinations(locale);
     assert.equal(localized.length, 6);
@@ -330,7 +338,7 @@ test("destination i18n provides localized labels and tags for all 6 supported lo
       assert.equal(dest.location, canonical.location);
       assert.equal(dest.icon, canonical.icon);
       assert.ok(dest.label && dest.label.trim().length > 0);
-      assert.ok(dest.tag && dest.tag.trim().length > 0);
+      assert.equal("tag" in dest, false);
     }
   }
 });
@@ -378,5 +386,34 @@ test("public chat defines 5-minute QR countdown, halts polling on expiry, and pr
   assert.match(publicChatSource, /qrExpiresIn/);
   assert.match(publicChatSource, /qrExpiredTitle/);
   assert.match(publicChatSource, /returnToChatAction/);
+});
+
+test("getLocalMateWelcomeMessage provides distinct localized greetings for all 6 locales", () => {
+  for (const locale of SUPPORTED_LOCALES) {
+    const welcome = getLocalMateWelcomeMessage(locale);
+    assert.ok(welcome && welcome.trim().length > 0, `Missing welcome message for ${locale}`);
+    assert.match(welcome, /LocalMate AI/);
+  }
+  // Verify specific localized keywords
+  assert.match(getLocalMateWelcomeMessage("vi"), /Dạ xin chào! Em là \*\*LocalMate AI\*\*/);
+  assert.match(getLocalMateWelcomeMessage("zh"), /您好！我是 \*\*LocalMate AI\*\*/);
+  assert.match(getLocalMateWelcomeMessage("en"), /Hello! I'm \*\*LocalMate AI\*\*/);
+  assert.match(getLocalMateWelcomeMessage("ko"), /안녕하세요! \*\*LocalMate AI\*\*/);
+  assert.match(getLocalMateWelcomeMessage("ru"), /Здравствуйте! Я \*\*LocalMate AI\*\*/);
+  assert.match(getLocalMateWelcomeMessage("hi"), /नमस्ते! मैं \*\*LocalMate AI\*\*/);
+});
+
+test("public chat synchronizes welcome and template messages when locale changes", () => {
+  const publicChatSource = readFileSync(
+    new URL("./components/public-localmate-chat.tsx", import.meta.url),
+    "utf8",
+  );
+
+  // Verifies message locale synchronization
+  assert.match(publicChatSource, /prevLocaleForMessages !== effectiveLocale/);
+  assert.match(publicChatSource, /setMessages\(\(prev\) =>/);
+  assert.match(publicChatSource, /getLocalMateWelcomeMessage\(effectiveLocale\)/);
+  assert.match(publicChatSource, /getPaymentExpiredReply\(effectiveLocale\)/);
+  assert.match(publicChatSource, /getLocalMateNetworkErrorReply\(effectiveLocale\)/);
 });
 

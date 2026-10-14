@@ -248,18 +248,18 @@ export function MarketingHeader({
   return (
     <header ref={headerRef} className="vs-mkt-header sticky top-0 z-50">
       <nav
-        className="vs-mkt-navbar mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-5 lg:px-6"
+        className="vs-mkt-navbar mx-auto flex max-w-7xl items-center justify-between gap-2 sm:gap-4 px-3 py-2.5 sm:px-5 sm:py-3 lg:px-6"
         aria-label={t.navAria}
       >
-        <Link href="/" className="vs-mkt-brand flex min-w-0 items-center">
-          <span className="min-w-0">
+        <Link href="/" className="vs-mkt-brand flex shrink-0 items-center">
+          <span className="flex items-center">
             <VietSageBrand
               priority
-              className="justify-start gap-2 rounded-xl px-2 py-1"
-              markClassName="h-9 w-9"
-              wordmarkClassName="h-5 w-auto sm:h-6"
+              className="justify-start gap-1.5 sm:gap-2 rounded-xl px-1.5 py-1 sm:px-2"
+              markClassName="h-7 w-7 sm:h-9 sm:w-9"
+              wordmarkClassName="h-4 w-auto sm:h-6"
             />
-            <span className="hidden truncate text-xs font-medium text-[#627064] sm:block">
+            <span className="hidden truncate text-xs font-medium text-[#627064] lg:block">
               {t.brandSubtitle}
             </span>
           </span>
@@ -300,7 +300,7 @@ export function MarketingHeader({
           ))}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <Link className="vs-mkt-sign-in hidden sm:inline-flex text-sm font-semibold" href={accountAction.href}>
             {accountLabel}
           </Link>
@@ -317,7 +317,7 @@ export function MarketingHeader({
           <div className="relative" ref={langMenuRef}>
             <button
               type="button"
-              className="inline-flex h-10 items-center gap-2 rounded-full border border-[#123d2a]/20 bg-white/95 px-3.5 py-2 text-xs sm:text-sm font-semibold text-[#123d2a] shadow-sm backdrop-blur-md transition-all hover:border-[#b8872f] hover:bg-white hover:shadow-md hover:ring-2 hover:ring-[#b8872f]/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f] cursor-pointer"
+              className="inline-flex h-9 sm:h-10 items-center gap-1.5 sm:gap-2 rounded-full border border-[#123d2a]/20 bg-white/95 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-[#123d2a] shadow-sm backdrop-blur-md transition-all hover:border-[#b8872f] hover:bg-white hover:shadow-md hover:ring-2 hover:ring-[#b8872f]/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f] cursor-pointer"
               onClick={() => setLangMenuOpen((prev) => !prev)}
               aria-expanded={langMenuOpen}
               aria-haspopup="listbox"
@@ -327,7 +327,8 @@ export function MarketingHeader({
                 <circle cx="12" cy="12" r="10" />
                 <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
               </svg>
-              <span className="font-bold tracking-tight">{currentOption.nativeName}</span>
+              <span className="hidden sm:inline font-bold tracking-tight">{currentOption.nativeName}</span>
+              <span className="sm:hidden font-bold tracking-tight text-xs">{currentOption.badge}</span>
               <span className="text-[10px] text-[#627064] transition-transform duration-150" aria-hidden="true">
                 {langMenuOpen ? "▴" : "▾"}
               </span>
@@ -373,7 +374,7 @@ export function MarketingHeader({
             )}
           </div>
           <button
-            className="vs-mobile-menu-toggle grid h-11 w-11 place-items-center rounded-full xl:hidden"
+            className="vs-mobile-menu-toggle grid h-10 w-10 sm:h-11 sm:w-11 place-items-center rounded-full xl:hidden"
             type="button"
             aria-expanded={mobileOpen}
             aria-controls="marketing-mobile-menu"

@@ -1945,7 +1945,7 @@ export function AdminBillingClient({
               <div className="space-y-4">
                 <div>
                   <label htmlFor="sim-tour-price-input" className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-                    Giá trị booking tour mẫu (VND)
+                    Giá trị booking tour mẫu (đ)
                   </label>
                   <div className="relative">
                     <input
@@ -2130,7 +2130,7 @@ export function AdminBillingClient({
                   >
                     <option value="">-- Chọn khách sạn cần kích hoạt hợp đồng --</option>
                     {availableHotels.length > 0 && (
-                      <optgroup label="Khách sạn sẵn sàng onboard (Chưa có hợp đồng)">
+                      <optgroup label="Khách sạn sẵn sàng kích hoạt (Chưa có hợp đồng)">
                         {availableHotels.map((h) => (
                           <option key={h.id} value={h.id}>
                             {h.name} {h.code ? `(${h.code})` : ""}
@@ -2139,7 +2139,7 @@ export function AdminBillingClient({
                       </optgroup>
                     )}
                     {activeHotels.length > 0 && (
-                      <optgroup label="Khách sạn đang hoạt động (Đã có hợp đồng Active)">
+                      <optgroup label="Khách sạn đang hoạt động (Đã có hợp đồng)">
                         {activeHotels.map((h) => (
                           <option key={h.id} value={h.id} disabled>
                             {h.name} {h.code ? `(${h.code})` : ""} — [ĐÃ CÓ HỢP ĐỒNG]
@@ -2153,7 +2153,7 @@ export function AdminBillingClient({
                     <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-3.5 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200 flex items-start gap-2.5">
                       <VsIcon name="warning" className="text-lg text-amber-600 shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-bold">Khách sạn này đã có hợp đồng đang hoạt động (ACTIVE)</p>
+                        <p className="font-bold">Khách sạn này đã có hợp đồng đang hoạt động</p>
                         <p className="mt-0.5 text-amber-800 dark:text-amber-300">
                           Hệ thống không cho phép tạo hợp đồng mới đè lên. Vui lòng đóng modal và sử dụng tính năng &quot;Chốt kỳ hóa đơn&quot; hoặc &quot;Điều chỉnh biểu phí&quot;.
                         </p>
@@ -2235,7 +2235,7 @@ export function AdminBillingClient({
                   <div className="flex items-center justify-between">
                     <label htmlFor="onboard-unit-price" className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                       <VsIcon name="payments" className="text-base text-emerald-600 dark:text-emerald-400" />
-                      {createForm.pricingModel === "FIXED" ? "Mức phí mỗi lượt check-in (VND)" : "Tỷ lệ phí trên doanh thu phòng (%)"}{" "}
+                      {createForm.pricingModel === "FIXED" ? "Mức phí mỗi lượt nhận phòng (đ)" : "Tỷ lệ phí trên doanh thu phòng (%)"}{" "}
                       <span className="text-red-500">*</span>
                     </label>
                     <span className="text-xs text-slate-500">Mức đề xuất nhanh</span>
@@ -2449,7 +2449,7 @@ export function AdminBillingClient({
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label htmlFor="settle-amount" className="block text-sm font-semibold text-slate-800 dark:text-slate-200">
-                    Số tiền thanh toán (VND) <span className="text-red-500">*</span>
+                    Số tiền thanh toán (đ) <span className="text-red-500">*</span>
                   </label>
                   <button
                     type="button"
@@ -2499,15 +2499,15 @@ export function AdminBillingClient({
                   }
                   className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 >
-                  <option value="BANK_TRANSFER">Chuyển khoản ngân hàng (Bank Transfer)</option>
-                  <option value="CASH">Tiền mặt (Cash)</option>
-                  <option value="CREDIT_CARD">Thẻ tín dụng (Credit Card)</option>
+                  <option value="BANK_TRANSFER">Chuyển khoản ngân hàng</option>
+                  <option value="CASH">Tiền mặt</option>
+                  <option value="CREDIT_CARD">Thẻ tín dụng</option>
                 </select>
               </div>
 
               <div>
                 <label htmlFor="settle-reference" className="block text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
-                  Mã giao dịch / Ghi chú đối soát (Reference)
+                  Mã giao dịch / Ghi chú đối soát
                 </label>
                 <input
                   id="settle-reference"
@@ -2655,14 +2655,14 @@ export function AdminBillingClient({
                   }
                   className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 >
-                  <option value="FIXED">Cố định theo lượt check-in (VND)</option>
+                  <option value="FIXED">Cố định theo lượt nhận phòng</option>
                   <option value="PERCENTAGE">Tỷ lệ % doanh thu phòng</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
-                  {revisionForm.pricingModel === "FIXED" ? "Mức phí mới (VND / lượt)" : "Tỷ lệ phí mới (%)"}
+                  {revisionForm.pricingModel === "FIXED" ? "Mức phí mới (đ / lượt)" : "Tỷ lệ phí mới (%)"}
                 </label>
                 <input
                   type="number"

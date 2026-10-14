@@ -8,7 +8,7 @@ import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import type { HotelArrival } from "@/features/hotel-ops/types/hotel-ops-contract";
-import { formatDayMonth } from "./dashboard-presentation";
+import { formatDayMonth, formatDashboardCount } from "./dashboard-presentation";
 import { getArrivalDateRange } from "@/features/hotel-ops/utils/arrival-date-range";
 
 type PageProps = { params: Promise<{ hotelId: string }> };
@@ -198,7 +198,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
               </span>
             </div>
             <p className="vs-display mt-2 text-2xl lg:text-3xl font-bold text-[#991b1b]">
-              {String(dashboard.stays.pendingCheckOuts).padStart(2, "0")} <span className="text-sm font-normal">lượt</span>
+              {formatDashboardCount(dashboard.stays.pendingCheckOuts)} <span className="text-sm font-normal">lượt</span>
             </p>
             <div className="mt-1 flex items-center justify-between text-xs">
               <span className="text-[#991b1b] font-medium">Chưa chốt hóa đơn</span>
@@ -218,52 +218,52 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
       <section className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <article className="flex flex-col justify-between rounded-xl border border-blue-200 bg-blue-50/70 p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-blue-900">Khách đang ở (Lưu trú)</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-blue-900">Khách đang lưu trú</span>
             <span className="grid size-8 place-items-center rounded-lg bg-blue-100 text-blue-800 shadow-2xs">
               <VsIcon name="group" className="text-lg" />
             </span>
           </div>
           <p className="vs-display mt-2 text-2xl lg:text-3xl font-extrabold text-blue-950">
-            {String(guests.inHouse).padStart(2, "0")} <span className="text-sm font-normal text-blue-800">khách</span>
+            {formatDashboardCount(guests.inHouse)} <span className="text-sm font-normal text-blue-800">khách</span>
           </p>
           <p className="mt-1 text-xs text-blue-800 font-medium">Đang có mặt tại khách sạn</p>
         </article>
 
         <article className="flex flex-col justify-between rounded-xl border border-purple-200 bg-purple-50/70 p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-purple-900">Đặt trước (Advance)</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-purple-900">Đặt phòng trước</span>
             <span className="grid size-8 place-items-center rounded-lg bg-purple-100 text-purple-800 shadow-2xs">
               <VsIcon name="calendar_month" className="text-lg" />
             </span>
           </div>
           <p className="vs-display mt-2 text-2xl lg:text-3xl font-extrabold text-purple-950">
-            {String(guests.advanceReservations).padStart(2, "0")} <span className="text-sm font-normal text-purple-800">lượt</span>
+            {formatDashboardCount(guests.advanceReservations)} <span className="text-sm font-normal text-purple-800">lượt</span>
           </p>
           <p className="mt-1 text-xs text-purple-800 font-medium">Đặt trước các ngày tới</p>
         </article>
 
         <article className="flex flex-col justify-between rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-900">Phòng trống (Vacant)</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-900">Phòng còn trống</span>
             <span className="grid size-8 place-items-center rounded-lg bg-emerald-100 text-emerald-800 shadow-2xs">
               <VsIcon name="check_circle" className="text-lg" />
             </span>
           </div>
           <p className="vs-display mt-2 text-2xl lg:text-3xl font-extrabold text-emerald-950">
-            {String(dashboard.rooms.byStatus.available).padStart(2, "0")} <span className="text-sm font-normal text-emerald-800">phòng</span>
+            {formatDashboardCount(dashboard.rooms.byStatus.available)} <span className="text-sm font-normal text-emerald-800">phòng</span>
           </p>
           <p className="mt-1 text-xs text-emerald-800 font-medium">Sẵn sàng đón khách mới</p>
         </article>
 
         <article className="flex flex-col justify-between rounded-xl border border-amber-200 bg-amber-50/70 p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-900">Đến ngày mai (Tomorrow)</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-900">Khách đến ngày mai</span>
             <span className="grid size-8 place-items-center rounded-lg bg-amber-100 text-amber-800 shadow-2xs">
               <VsIcon name="next_plan" className="text-lg" />
             </span>
           </div>
           <p className="vs-display mt-2 text-2xl lg:text-3xl font-extrabold text-amber-950">
-            {String(guests.arrivalsTomorrow).padStart(2, "0")} <span className="text-sm font-normal text-amber-800">lượt</span>
+            {formatDashboardCount(guests.arrivalsTomorrow)} <span className="text-sm font-normal text-amber-800">lượt</span>
           </p>
           <p className="mt-1 text-xs text-amber-800 font-medium">Cần chuẩn bị phòng trước</p>
         </article>
@@ -283,7 +283,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
             </div>
             <div>
               <p className="text-sm font-bold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">{card.label}</p>
-              <p className={`vs-display mt-1 text-4xl font-bold ${card.tone}`}>{String(card.value).padStart(2, "0")}</p>
+              <p className={`vs-display mt-1 text-4xl font-bold ${card.tone}`}>{formatDashboardCount(card.value)}</p>
             </div>
           </article>
         ))}
@@ -295,13 +295,13 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
             <span className={`flex size-12 items-center justify-center rounded-lg ${operation.iconTone}`}><VsIcon name={operation.icon} className="text-2xl" /></span>
             <div>
               <p className="text-sm font-semibold text-[var(--on-surface-variant)]">{operation.label}</p>
-              <p className="vs-display mt-1 text-2xl font-semibold text-[var(--primary)]">{String(operation.value).padStart(2, "0")}</p>
+              <p className="vs-display mt-1 text-2xl font-semibold text-[var(--primary)]">{formatDashboardCount(operation.value)}</p>
             </div>
           </article>
         ))}
       </section>
 
-      {/* Kế hoạch Chuẩn bị đón tiếp ngày mai (Không check-in sớm) */}
+      {/* Kế hoạch Chuẩn bị đón tiếp ngày mai (Không nhận phòng sớm) */}
       <section className="rounded-xl border border-amber-200/80 bg-gradient-to-br from-amber-50/60 via-white to-amber-50/30 p-5 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 border-b border-amber-200/50 pb-3">
           <div className="flex items-center gap-2.5">
@@ -311,7 +311,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
             <div>
               <h2 className="text-base font-bold text-amber-950">Công tác chuẩn bị đón khách ngày mai</h2>
               <p className="text-xs text-amber-900/80">
-                Kiểm tra sơ đồ buồng phòng dự kiến và xếp trước phòng cho khách đến ngày mai. Không thực hiện check-in sớm trước ngày nhận phòng.
+                Kiểm tra sơ đồ buồng phòng dự kiến và xếp trước phòng cho khách đến ngày mai. Không thực hiện nhận phòng sớm trước ngày nhận phòng.
               </p>
             </div>
           </div>
@@ -384,7 +384,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900">
-                      Không check-in sớm
+                      Không nhận phòng sớm
                     </span>
                     <Link
                       href={`/hotels/${hotelId}/rooms?businessDate=${tomorrowYmd}`}

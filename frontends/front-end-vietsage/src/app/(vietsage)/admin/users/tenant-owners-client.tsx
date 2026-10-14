@@ -616,7 +616,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
                     className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 font-normal outline-none focus:border-[var(--primary)]"
                   >
                     <option value="ACTIVE">Đang hoạt động</option>
-                    <option value="DISABLED">Vô hiệu hóa (Khóa tài khoản &amp; tổ chức)</option>
+                    <option value="DISABLED">Vô hiệu hóa</option>
                     <option value="INVITED">Đã mời</option>
                   </select>
                 </label>

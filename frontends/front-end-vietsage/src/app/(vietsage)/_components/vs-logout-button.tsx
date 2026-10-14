@@ -19,7 +19,7 @@ export function VsLogoutButton({ className }: VsLogoutButtonProps) {
     const confirmed = await SwalVietSage.fire({
       icon: "question",
       title: "Đăng xuất?",
-      text: "Bạn sẽ cần đăng nhập lại để tiếp tục sử dụng hệ thống.",
+      text: "Bạn sẽ cần đăng nhập lại để tiếp tục sử dụng hệ\u00A0thống.",
       showCancelButton: true,
       confirmButtonText: "Đồng ý đăng xuất",
       cancelButtonText: "Hủy",
@@ -33,7 +33,7 @@ export function VsLogoutButton({ className }: VsLogoutButtonProps) {
 
     void SwalVietSage.fire({
       title: "Đang đăng xuất",
-      text: "Vui lòng chờ trong giây lát.",
+      text: "Vui lòng chờ trong giây\u00A0lát.",
       allowOutsideClick: false,
       allowEscapeKey: false,
       showConfirmButton: false,
@@ -50,7 +50,7 @@ export function VsLogoutButton({ className }: VsLogoutButtonProps) {
       await SwalVietSage.fire({
         icon: "error",
         title: "Không thể đăng xuất",
-        text: "Vui lòng thử lại.",
+        text: "Vui lòng thử\u00A0lại.",
         confirmButtonText: "Đóng",
       });
     } finally {

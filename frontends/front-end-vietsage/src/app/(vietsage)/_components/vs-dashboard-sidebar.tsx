@@ -42,7 +42,7 @@ export function VsDashboardSidebar({
   activePath,
   description: _description = "Trung tâm điều hành theo phạm vi và quyền của phiên hiện tại.",
   eyebrow = "Workspace",
-  hotelName,
+  hotelName: _hotelName,
   items,
   badgeByKey,
   isCollapsed = false,
@@ -76,11 +76,11 @@ export function VsDashboardSidebar({
 
   return (
     <aside
-      className={`fixed left-0 top-0 z-50 hidden h-full flex-col border-r border-[#1f3d35]/15 bg-[#17201b] pt-5 text-[#f8f1e6] shadow-[18px_0_60px_rgba(23,32,27,0.18)] transition-all duration-300 md:flex ${
+      className={`fixed left-0 top-0 z-50 hidden h-full flex-col border-r border-[#e8b363]/20 bg-[#17201b] pt-5 text-[#f8f1e6] shadow-[18px_0_50px_rgba(232,179,99,0.22),6px_0_18px_rgba(217,140,50,0.12)] transition-all duration-300 md:flex ${
         isCollapsed ? "w-20" : sidebarWidthClass
       }`}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(232,179,99,0.22),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.08),transparent_34%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(232,179,99,0.14),transparent_40%),linear-gradient(180deg,rgba(232,179,99,0.10)_0%,rgba(232,179,99,0.07)_50%,rgba(232,179,99,0.05)_100%),linear-gradient(180deg,rgba(255,255,255,0.05),transparent_25%)]" />
 
       {/* Floating edge toggle button on sidebar border */}
       {onToggleCollapse ? (

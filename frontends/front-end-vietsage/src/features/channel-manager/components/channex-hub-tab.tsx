@@ -216,8 +216,8 @@ export function ChannexHubTab({
           <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900">
             <strong>Lưu ý:</strong> Khách sạn chưa được cấu hình liên kết với Channex.{" "}
             {roleScope === "admin"
-              ? "Vui lòng liên kết khách sạn với Property trên Channex trong tab Cấu hình Channex trước khi kết nối OTA."
-              : "Vui lòng liên hệ quản trị viên nền tảng để hoàn tất liên kết thuộc tính (Property Mapping) trước khi mở bán OTA."}
+              ? "Vui lòng liên kết khách sạn với cơ sở trên Channex trong tab Cấu hình Channex trước khi kết nối OTA."
+              : "Vui lòng liên hệ quản trị viên nền tảng để hoàn tất liên kết cơ sở trước khi mở bán OTA."}
           </div>
         )}
 

@@ -33,7 +33,7 @@ export default async function AdminChannelManagerPage() {
               <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold tracking-tight text-[#17201b]">
                 Channel Manager
               </h1>
-              <p className="mt-1 max-w-3xl text-sm sm:text-base text-[#69726b] leading-relaxed">
+              <p className="mt-1 max-w-3xl text-sm sm:text-base text-[#69726b] leading-relaxed text-pretty">
                 Trung tâm điều phối hạm đội kênh phân phối: theo dõi sự cố toàn hệ thống, cấu hình liên kết Channex và xử lý đồng bộ theo từng khách sạn.
               </p>
             </div>

@@ -25,7 +25,7 @@ const paymentMethodLabels: Record<string, string> = {
   BANK_TRANSFER: "Chuyển khoản",
   MOMO: "Ví MoMo",
   VNPAY: "VNPAY",
-  STRIPE: "Thẻ quốc tế (Stripe)",
+  STRIPE: "Thẻ quốc tế",
   MANUAL: "Xác nhận tại lễ tân",
   MANUAL_FRONTDESK: "Xác nhận tại lễ tân",
 };
@@ -112,8 +112,8 @@ export default async function StaffInvoicePage({ params }: PageProps) {
           <dl className="grid grid-cols-2 gap-3 text-sm">
             <div><dt className="text-xs text-slate-500">Folio</dt><dd className="font-bold">{folio.folioNumber}</dd></div>
             <div><dt className="text-xs text-slate-500">Khách</dt><dd className="font-bold">{stay.guestName ?? "-"}</dd></div>
-            <div><dt className="text-xs text-slate-500">Check-in</dt><dd className="font-bold">{formatDateTime(stay.checkInAt)}</dd></div>
-            <div><dt className="text-xs text-slate-500">Check-out</dt><dd className="font-bold">{formatDateTime(stay.checkOutAt)}</dd></div>
+            <div><dt className="text-xs text-slate-500">Nhận phòng</dt><dd className="font-bold">{formatDateTime(stay.checkInAt)}</dd></div>
+            <div><dt className="text-xs text-slate-500">Trả phòng</dt><dd className="font-bold">{formatDateTime(stay.checkOutAt)}</dd></div>
           </dl>
           <dl className="rounded-lg bg-slate-50 p-4 text-sm">
             <div className="flex justify-between"><dt>Tạm tính</dt><dd className="font-bold">{formatMoney(invoice.subtotalAmount, invoice.currency)}</dd></div>
@@ -215,7 +215,7 @@ export default async function StaffInvoicePage({ params }: PageProps) {
             </div>
             <div className="rounded-xl border border-purple-200 bg-purple-50/60 p-3 text-xs print:border-slate-300 print:bg-white">
               <div className="flex items-center justify-between font-semibold text-purple-950">
-                <span>🌐 Dịch vụ ngoài khách sạn (Đối tác)</span>
+                <span>🌐 Dịch vụ đối tác liên kết</span>
                 <span className="text-sm tabular-nums">{formatMoney(externalServicesTotal, invoice.currency)}</span>
               </div>
               <p className="mt-1 text-[11px] text-purple-700">Dịch vụ đối tác liên kết bên ngoài / thu hộ đối tác</p>

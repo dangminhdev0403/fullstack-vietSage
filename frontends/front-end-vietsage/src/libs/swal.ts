@@ -1,13 +1,29 @@
 import Swal from "sweetalert2";
 
+/**
+ * Prevents typographic orphans (isolated words on trailing lines)
+ * by joining the last two words of each sentence or line with a non-breaking space (\u00A0).
+ */
+export function preventOrphans(text: string): string {
+  if (!text || typeof text !== "string") return text;
+  return text
+    .split("\n")
+    .map((line) => {
+      const trimmed = line.trimEnd();
+      if (!trimmed.includes(" ")) return line;
+      return trimmed.replace(/\s+([^\s]+)$/, "\u00A0$1");
+    })
+    .join("\n");
+}
+
 export const SwalVietSage = Swal.mixin({
   customClass: {
     popup:
       "rounded-[2rem] bg-white p-5 sm:p-7 shadow-2xl border border-gray-100 w-[94vw] sm:w-[90vw] max-w-lg max-h-[88vh] flex flex-col my-auto overflow-hidden",
     title:
-      "text-xl sm:text-2xl md:text-3xl font-extrabold text-[#18211d] text-center mb-2 tracking-tight shrink-0",
+      "text-xl sm:text-2xl md:text-3xl font-extrabold text-[#18211d] text-center mb-2 tracking-tight shrink-0 text-balance [text-wrap:balance]",
     htmlContainer:
-      "text-sm sm:text-base font-medium text-gray-700 text-center mb-3 leading-relaxed max-h-[58vh] overflow-y-auto pr-1 focus:outline-none custom-scrollbar w-full !m-0 !mt-2",
+      "text-sm sm:text-base font-medium text-gray-700 text-center mb-3 leading-relaxed max-h-[58vh] overflow-y-auto pr-1 focus:outline-none custom-scrollbar w-full max-w-[46ch] mx-auto !m-0 !mt-2 text-pretty [text-wrap:pretty] [text-wrap:balance]",
     confirmButton:
       "inline-flex h-11 sm:h-12 items-center justify-center gap-2 rounded-full bg-[#25483f] px-7 text-sm sm:text-base font-extrabold text-white shadow-lg shadow-[#25483f]/25 transition-all hover:bg-[#1a352d] cursor-pointer mx-1.5 min-w-[120px]",
     cancelButton:
@@ -45,7 +61,8 @@ export function resolveAlertContent(
 ): { text?: string; html?: string } {
   if (isTrustedAlertHtml(value)) return { html: value.html };
   const text = typeof value === "string" ? value : extractErrorMessage(value);
-  return formatAsError ? { html: formatAlertErrorMessage(text) } : { text };
+  const orphanSafe = preventOrphans(text);
+  return formatAsError ? { html: formatAlertErrorMessage(orphanSafe) } : { text: orphanSafe };
 }
 
 export function showSuccessAlert(
@@ -55,7 +72,7 @@ export function showSuccessAlert(
   const content = resolveAlertContent(messageOrHtml);
   const isHtml = "html" in content;
   return SwalVietSage.fire({
-    titleText: title,
+    titleText: preventOrphans(title),
     ...content,
     icon: "success",
     showConfirmButton: true,
@@ -66,9 +83,9 @@ export function showSuccessAlert(
             popup:
               "rounded-[2rem] bg-white p-5 sm:p-7 shadow-2xl border border-gray-100 w-[92vw] sm:w-[88vw] max-w-lg max-h-[88vh] flex flex-col my-auto overflow-hidden",
             title:
-              "text-xl sm:text-2xl md:text-3xl font-extrabold text-[#18211d] text-center mb-2 tracking-tight shrink-0",
+              "text-xl sm:text-2xl md:text-3xl font-extrabold text-[#18211d] text-center mb-2 tracking-tight shrink-0 text-balance [text-wrap:balance]",
             htmlContainer:
-              "text-sm sm:text-base font-medium text-gray-700 !text-left mb-3 leading-relaxed max-h-[58vh] overflow-y-auto pr-1 focus:outline-none custom-scrollbar w-full !m-0 !mt-2",
+              "text-sm sm:text-base font-medium text-gray-700 !text-left mb-3 leading-relaxed max-h-[58vh] overflow-y-auto pr-1 focus:outline-none custom-scrollbar w-full !m-0 !mt-2 text-pretty [text-wrap:pretty]",
             confirmButton:
               "inline-flex h-11 sm:h-12 items-center justify-center gap-2 rounded-full bg-[#25483f] px-7 text-sm sm:text-base font-extrabold text-white shadow-lg shadow-[#25483f]/25 transition-all hover:bg-[#1a352d] cursor-pointer mx-1.5 min-w-[120px]",
             actions:
@@ -521,7 +538,7 @@ export function showErrorAlert(title: string, messageOrError?: unknown) {
     htmlContent.length > 350;
 
   return SwalVietSage.fire({
-    titleText: title,
+    titleText: preventOrphans(title),
     html: htmlContent,
     icon: "error",
     showConfirmButton: true,
@@ -531,9 +548,9 @@ export function showErrorAlert(title: string, messageOrError?: unknown) {
         isLarge ? "w-[94vw] sm:w-[90vw] md:max-w-2xl" : "w-[92vw] sm:w-[88vw] max-w-xl"
       } max-h-[88vh] flex flex-col my-auto overflow-hidden`,
       title:
-        "text-xl sm:text-2xl md:text-3xl font-extrabold text-[#18211d] text-center mb-2 tracking-tight shrink-0",
+        "text-xl sm:text-2xl md:text-3xl font-extrabold text-[#18211d] text-center mb-2 tracking-tight shrink-0 text-balance [text-wrap:balance]",
       htmlContainer:
-        "text-sm sm:text-base font-medium text-gray-700 !text-left mb-3 leading-relaxed max-h-[58vh] overflow-y-auto pr-1 focus:outline-none custom-scrollbar w-full !m-0 !mt-2",
+        "text-sm sm:text-base font-medium text-gray-700 !text-left mb-3 leading-relaxed max-h-[58vh] overflow-y-auto pr-1 focus:outline-none custom-scrollbar w-full !m-0 !mt-2 text-pretty [text-wrap:pretty]",
       confirmButton:
         "inline-flex h-11 sm:h-12 items-center justify-center gap-2 rounded-full bg-[#25483f] px-7 text-sm sm:text-base font-extrabold text-white shadow-lg shadow-[#25483f]/25 transition-all hover:bg-[#1a352d] cursor-pointer mx-1.5 min-w-[120px]",
       cancelButton:
@@ -552,8 +569,8 @@ export function showConfirmDialog(options: {
   icon?: "warning" | "question" | "error" | "info";
 }) {
   return SwalVietSage.fire({
-    titleText: options.title,
-    text: options.text,
+    titleText: preventOrphans(options.title),
+    text: options.text ? preventOrphans(options.text) : undefined,
     icon: options.icon ?? "warning",
     showCancelButton: true,
     confirmButtonText: options.confirmText ?? "Xác nhận",
@@ -566,7 +583,7 @@ export function showWarningAlert(
   messageOrHtml: string | TrustedAlertHtml,
 ) {
   return SwalVietSage.fire({
-    titleText: title,
+    titleText: preventOrphans(title),
     ...resolveAlertContent(messageOrHtml),
     icon: "warning",
     showConfirmButton: true,

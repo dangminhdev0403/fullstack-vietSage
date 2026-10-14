@@ -38,7 +38,7 @@ export const PERMISSION_MODULES: Record<PermissionModuleId, PermissionModuleConf
     id: "FRONTDESK",
     name: "Lễ tân & Đặt phòng",
     icon: "hotel",
-    description: "Đặt phòng, phân bổ buồng phòng, thủ tục check-in / check-out và quản lý khách lưu trú",
+    description: "Đặt phòng, phân bổ buồng phòng, thủ tục nhận phòng / trả phòng và quản lý khách lưu trú",
     tagColor: {
       bg: "bg-blue-50/70",
       text: "text-blue-900",
@@ -72,7 +72,7 @@ export const PERMISSION_MODULES: Record<PermissionModuleId, PermissionModuleConf
   },
   KBTT: {
     id: "KBTT",
-    name: "Khai báo tạm trú (KBTT)",
+    name: "Khai báo tạm trú",
     icon: "fact_check",
     description: "Kết nối cổng dịch vụ công, lập hồ sơ và nộp báo cáo lưu trú tự động cho cơ quan chức năng",
     tagColor: {
@@ -110,7 +110,7 @@ export const PERMISSION_MODULES: Record<PermissionModuleId, PermissionModuleConf
     id: "CHANNELS",
     name: "Kênh bán OTA & Đối tác",
     icon: "storefront",
-    description: "Đồng bộ kênh bán Channex (OTA), thị trường Marketplace và liên kết dịch vụ địa phương",
+    description: "Đồng bộ kênh bán trực tuyến Channex, thị trường Marketplace và liên kết dịch vụ địa phương",
     tagColor: {
       bg: "bg-purple-50/70",
       text: "text-purple-900",

@@ -26,16 +26,6 @@ type VsTopBarProps = {
 
 const profileImage = "/brand/vietsage-logo.jpg";
 
-function formatHotelDisplayName(name: string | null | undefined): string | null {
-  if (!name) return null;
-  const trimmed = name.trim();
-  if (!trimmed) return null;
-  if (/(?:khách sạn|khach san|hotel)\b/i.test(trimmed)) {
-    return trimmed;
-  }
-  return `Khách sạn ${trimmed}`;
-}
-
 function TopBarLeftControl({
   showLeftControl,
   shouldUseButton,
@@ -64,7 +54,7 @@ function TopBarRightControls({
   rightMode,
   rightLabel,
   subtitle,
-  hotelName,
+  hotelName: _hotelName,
   showRightInfo,
   languageBadge,
 }: {
@@ -83,7 +73,7 @@ function TopBarRightControls({
         <Link
           href="/g/language"
           aria-label="Change language"
-          className="flex size-11 items-center justify-center rounded-full bg-[#e8e5dc] text-[11px] font-black uppercase tracking-[0.08em] text-[#24473d] shadow-[inset_0_0_0_1px_rgba(36,71,61,0.04)] transition-colors hover:bg-[#ded9cc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26]"
+          className="flex size-11 items-center justify-center rounded-full bg-[#e8e5dc] text-xs font-black uppercase tracking-[0.08em] text-[#24473d] shadow-[inset_0_0_0_1px_rgba(36,71,61,0.04)] transition-colors hover:bg-[#ded9cc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26]"
         >
           {languageBadge}
         </Link>
@@ -102,8 +92,8 @@ function TopBarRightControls({
 
   const isDuplicateSubtitle = Boolean(
     subtitle &&
-      rightLabel &&
-      subtitle.trim().toLowerCase() === rightLabel.trim().toLowerCase(),
+    rightLabel &&
+    subtitle.trim().toLowerCase() === rightLabel.trim().toLowerCase(),
   );
   const displaySubtitle = isDuplicateSubtitle ? null : subtitle;
 
@@ -160,16 +150,14 @@ export function VsTopBar({
     brandLockup && title.trim().toLowerCase() === "vietsage";
 
   const brandMarkClass =
-    brandSize === "large"
-      ? "h-12 w-12"
-      : "h-8 w-8 md:h-10 md:w-10";
+    brandSize === "large" ? "h-12 w-12" : "h-8 w-8 md:h-10 md:w-10";
   const brandWordmarkClass =
-    brandSize === "large"
-      ? "h-8 w-auto"
-      : "h-5 w-auto md:h-7";
+    brandSize === "large" ? "h-8 w-auto" : "h-5 w-auto md:h-7";
 
   return (
-    <header className={`fixed top-0 z-40 flex h-16 w-full items-center justify-between border-b border-[#24473d]/10 bg-[#fff8e8]/78 px-4 shadow-[0_16px_45px_rgba(31,61,53,0.08)] backdrop-blur-xl md:px-10 ${headerClassName ?? ""}`}>
+    <header
+      className={`fixed top-0 z-40 flex h-16 w-full items-center justify-between border-b border-[#dfe3e1] bg-white px-4 shadow-[0_1px_2px_rgba(23,32,27,0.04)] md:px-8 ${headerClassName ?? ""}`}
+    >
       <div className="flex items-center gap-3 md:gap-4">
         <TopBarLeftControl
           showLeftControl={showLeftControl}

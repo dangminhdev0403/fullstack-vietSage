@@ -166,12 +166,14 @@ export function GuestFloatingChat() {
   const [selectedBookingAction, setSelectedBookingAction] = useState<GuestChatAction | null>(null);
   const [activeChatOrderId, setActiveChatOrderId] = useState<string | null>(null);
 
-  const [welcomeMessage] = useState<ChatMessage>(() => ({
+  const [welcomeTime] = useState(() => getCurrentTimeString());
+
+  const welcomeMessage: ChatMessage = useMemo(() => ({
     id: "welcome-init",
     sender: "concierge",
     text: getLocalMateWelcomeMessage(locale, guest?.displayName),
-    time: getCurrentTimeString(),
-  }));
+    time: welcomeTime,
+  }), [locale, guest?.displayName, welcomeTime]);
 
   const messages: ChatMessage[] = useMemo(() => {
     return [welcomeMessage, ...chatHistory];

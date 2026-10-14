@@ -23,7 +23,7 @@ export function printMarketplaceVoucherTicket(data: PrintVoucherData) {
 
   const popup = window.open("", "_blank", "width=750,height=850");
   if (!popup) {
-    toast.error("Vui lòng cho phép trình duyệt bật cửa sổ mới (popup) để in phiếu dịch vụ.");
+    toast.error("Vui lòng cho phép trình duyệt mở cửa sổ mới để in phiếu dịch vụ.");
     return;
   }
 

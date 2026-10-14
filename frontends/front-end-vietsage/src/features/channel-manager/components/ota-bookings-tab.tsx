@@ -1149,7 +1149,7 @@ Phòng: ${b.roomNumber} (${b.roomType || "Tiêu chuẩn"})`,
                     {(selectedBooking.status || "").toUpperCase() === "CANCELLED" ? (
                       <span className="text-rose-600">Đã giải phóng về kho trống</span>
                     ) : (selectedBooking.status || "").toUpperCase() === "CHECKED_IN" ? (
-                      <span className="text-blue-600">Đã nhận phòng (đang lưu trú)</span>
+                      <span className="text-blue-600">Đang lưu trú</span>
                     ) : (
                       <span className="text-emerald-600">Đang giữ chỗ</span>
                     )}

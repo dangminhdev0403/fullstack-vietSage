@@ -244,9 +244,9 @@ export function LocalMateOrderRequestDialog({
           platformFee: "Phí xác nhận VietSage",
           guideRemaining: "Còn lại thanh toán cho hướng dẫn viên",
           step1FeeNotice:
-            "VietSage sẽ xác nhận và hiển thị chi tiết mức phí chính xác trước khi thanh toán. Đặt cọc qua Stripe để giữ lịch, hoàn 100% nếu hướng dẫn viên từ chối nhận lịch.",
+            "VietSage sẽ xác nhận và hiển thị chi tiết mức phí chính xác trước khi thanh toán. Đặt cọc trực tuyến để giữ lịch, hoàn 100% nếu hướng dẫn viên từ chối nhận lịch.",
           policyNotice:
-            "Đặt cọc qua Stripe để giữ lịch. Hoàn 100% nếu hướng dẫn viên từ chối nhận lịch hoặc huỷ trước khi bắt đầu. Phiên thanh toán hết hạn sau 30 phút.",
+            "Đặt cọc trực tuyến để giữ lịch. Hoàn 100% nếu hướng dẫn viên từ chối nhận lịch hoặc huỷ trước khi bắt đầu. Phiên thanh toán hết hạn sau 30 phút.",
           dateTime: "Ngày & giờ khởi hành",
           partySize: "Số lượng khách tham gia",
           note: "Ghi chú cho hướng dẫn viên",
@@ -255,7 +255,7 @@ export function LocalMateOrderRequestDialog({
           step1Submitting: "Đang tạo yêu cầu đặt lịch...",
           confirmAndCreateQr: "Xác nhận và tạo mã QR thanh toán",
           orderNumber: "Đơn #",
-          creatingSession: "Đang tạo mã thanh toán Stripe...",
+          creatingSession: "Đang tạo mã thanh toán trực tuyến...",
           scanQrTitle: "Quét mã QR để đặt cọc",
           qrPhoneNotice:
             "Nếu đang dùng điện thoại này, Quý khách có thể bấm 'Thanh toán ngay' bên dưới thay vì quét mã QR.",

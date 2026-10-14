@@ -157,7 +157,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
             label: "Xem ngay",
             onClick: () => {
               if (raw?.orderId) toast.dismiss(`hotel-ops-ext-order-created-${raw.orderId}`);
-              router.push(`/hotels/${hotelId}/requests`);
+              router.push(`/hotels/${hotelId}/requests?tab=external`);
             },
           },
         });

@@ -157,9 +157,33 @@ export const updateRoomStatusBodySchema = z
   })
   .strict();
 
+export const roomFilterStatusSchema = z.preprocess(
+  (val) => {
+    if (typeof val !== "string" || !val.trim()) return val;
+    const upper = val.trim().toUpperCase();
+    if (
+      upper === "CLEAN" ||
+      upper === "CLEANED" ||
+      upper === "READY" ||
+      upper === "TRỐNG" ||
+      upper === "AVAILABLE"
+    )
+      return "AVAILABLE";
+    if (upper === "DIRTY" || upper === "CHỜ DỌN" || upper === "CLEANING" || upper === "PROCESSING")
+      return "PROCESSING";
+    if (upper === "BẢO TRÌ" || upper === "MAINTENANCE" || upper === "OUT_OF_SERVICE")
+      return "MAINTENANCE";
+    if (upper === "KHÓA" || upper === "ĐÃ KHÓA" || upper === "BLOCKED") return "BLOCKED";
+    if (upper === "OCCUPIED" || upper === "ĐANG Ở" || upper === "RESERVED") return "OCCUPIED";
+    if (upper === "OVERDUE" || upper === "QUÁ HẠN" || upper === "QUÁ HẠN TRẢ") return "OVERDUE";
+    return upper;
+  },
+  z.enum(["AVAILABLE", "OCCUPIED", "PROCESSING", "MAINTENANCE", "BLOCKED", "OVERDUE"]),
+);
+
 export const listRoomsQuerySchema = z
   .object({
-    status: roomStatusSchema.optional(),
+    status: roomFilterStatusSchema.optional(),
     page: z.coerce
       .number({ message: "Trang phải là số" })
       .int("Trang phải là số nguyên")

@@ -443,7 +443,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                   Tài chính vận hành &amp; Dòng tiền
                 </h2>
                 <p className="mt-1 text-xs text-[#5a6860]">
-                  Theo dõi doanh thu phòng, dịch vụ nội bộ và doanh thu dịch vụ đối tác ngoài (Marketplace).
+                  Theo dõi doanh thu phòng, dịch vụ nội bộ và doanh thu dịch vụ đối tác liên kết.
                 </p>
               </div>
 
@@ -638,7 +638,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                       />
                       <span className="text-sm font-bold text-[#17382F]">
                         {platformBilling?.hasContract
-                          ? "Đang hiệu lực (Active)"
+                          ? "Đang hiệu lực"
                           : "Chưa kích hoạt"}
                       </span>
                     </div>

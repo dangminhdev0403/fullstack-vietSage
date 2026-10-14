@@ -147,7 +147,7 @@ const defaultLabels: RequestQueueLabels = {
   saveAssignment: "Lưu phân công",
   unassign: "Bỏ phân công",
   noTimeline: "Chưa có sự kiện tiến trình nào.",
-  guestVisibleNoteHelp: "Ghi chú sẽ hiển thị Realtime tới khách hàng.",
+  guestVisibleNoteHelp: "Ghi chú sẽ hiển thị tức thời tới khách hàng.",
   openRequest: "Mở yêu cầu",
   loadingDetail: "Đang tải chi tiết yêu cầu...",
   operationError: "Không thể cập nhật yêu cầu này.",
@@ -417,9 +417,20 @@ export function RequestQueueClient({
   const [liveRequestChanges, setLiveRequestChanges] = useState<
     Record<string, Partial<StaffRequestListItem> & { id: string }>
   >({});
+  const normalizeInitialTab = (
+    tabValue?: string,
+  ): "HOTEL_REQUESTS" | "EXTERNAL_ORDERS" | "ALL" => {
+    if (!tabValue) return "HOTEL_REQUESTS";
+    const lower = tabValue.toLowerCase();
+    if (lower === "external" || lower === "external_orders")
+      return "EXTERNAL_ORDERS";
+    if (lower === "all") return "ALL";
+    return "HOTEL_REQUESTS";
+  };
+
   const [inboxTab, setInboxTab] = useState<
     "HOTEL_REQUESTS" | "EXTERNAL_ORDERS" | "ALL"
-  >("HOTEL_REQUESTS");
+  >(() => normalizeInitialTab(initialFilters.tab));
   const [externalPage, setExternalPage] = useState(1);
   const [externalPageSize, setExternalPageSize] = useState(10);
   const [hotelPage, setHotelPage] = useState(1);
@@ -428,11 +439,28 @@ export function RequestQueueClient({
     initialDetailRequestId ?? null,
   );
 
+  function selectInboxTab(nextTab: "HOTEL_REQUESTS" | "EXTERNAL_ORDERS" | "ALL") {
+    setInboxTab(nextTab);
+    const params = new URLSearchParams(window.location.search);
+    if (nextTab === "HOTEL_REQUESTS") {
+      params.delete("tab");
+    } else if (nextTab === "EXTERNAL_ORDERS") {
+      params.set("tab", "external");
+    } else {
+      params.set("tab", "all");
+    }
+    const nextUrl = `${basePath}${params.size ? `?${params.toString()}` : ""}`;
+    window.history.pushState({}, "", nextUrl);
+  }
 
   useEffect(() => {
     function onPopState() {
       const params = new URLSearchParams(window.location.search);
       setActiveDetailRequestId(params.get("requestId"));
+      const tabParam = params.get("tab");
+      if (tabParam) {
+        setInboxTab(normalizeInitialTab(tabParam));
+      }
     }
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -456,8 +484,23 @@ export function RequestQueueClient({
   useEffect(() => {
     startTransition(() => {
       setFilters(toFilterState(initialFilters));
+      if (initialFilters.tab) {
+        setInboxTab(normalizeInitialTab(initialFilters.tab));
+      }
     });
   }, [initialFilters]);
+
+  const { orders: externalOrdersQuery } = useNearbyServiceProviders(hotelId);
+  const externalOrders = useMemo(
+    () => externalOrdersQuery.data ?? [],
+    [externalOrdersQuery.data],
+  );
+
+  const externalOrdersById = useMemo(() => {
+    return new Map<string, HotelMarketplaceOrder>(
+      externalOrders.map((order) => [order.id, order]),
+    );
+  }, [externalOrders]);
 
   const applyLiveRequestChange = useCallback(
     (request: Partial<StaffRequestListItem> & { id: string }) => {
@@ -485,17 +528,23 @@ export function RequestQueueClient({
           applyLiveRequestChange(request as Partial<StaffRequestListItem> & { id: string });
         }
       },
+      onExternalOrderCreated: () => {
+        void externalOrdersQuery.refetch();
+      },
+      onExternalOrderStatusChanged: () => {
+        void externalOrdersQuery.refetch();
+      },
+      onExternalOrderHotelAcknowledged: () => {
+        void externalOrdersQuery.refetch();
+      },
+      onExternalOrderVoucherIssued: () => {
+        void externalOrdersQuery.refetch();
+      },
     }),
-    [applyLiveRequestChange],
+    [applyLiveRequestChange, externalOrdersQuery],
   );
 
   useOwnerRequestRealtime(hotelId, realtimeHandlers);
-
-  const { orders: externalOrdersQuery } = useNearbyServiceProviders(hotelId);
-  const externalOrders = useMemo(
-    () => externalOrdersQuery.data ?? [],
-    [externalOrdersQuery.data],
-  );
 
   const convertedExternalOrders = useMemo<StaffRequestListItem[]>(() => {
     return externalOrders.map((order) => {
@@ -630,6 +679,50 @@ export function RequestQueueClient({
     sortState,
   ]);
 
+  const filteredExternalOrders = useMemo(() => {
+    let list = externalOrders;
+    if (filters.status) {
+      const statusMap: Record<string, GuestRequestStatus> = {
+        PENDING: "PENDING",
+        ACKNOWLEDGED: "ACKNOWLEDGED",
+        CONFIRMED: "ACKNOWLEDGED",
+        PROCESSING: "ACKNOWLEDGED",
+        ACCEPTED: "ACKNOWLEDGED",
+        PREPARING: "ACKNOWLEDGED",
+        DELIVERING: "ACKNOWLEDGED",
+        READY: "ACKNOWLEDGED",
+        COMPLETED: "COMPLETED",
+        CANCELLED: "CANCELLED",
+        REJECTED: "REJECTED",
+      };
+      list = list.filter((order) => {
+        const canonical = statusMap[order.status] ?? "PENDING";
+        return canonical === filters.status;
+      });
+    }
+    if (filters.roomNumber) {
+      const q = filters.roomNumber.toLowerCase();
+      list = list.filter((order) =>
+        (order.stay?.room?.roomNumber ?? "").toLowerCase().includes(q),
+      );
+    }
+    if (filters.q) {
+      const q = filters.q.toLowerCase();
+      list = list.filter(
+        (order) =>
+          (order.orderNumber ?? "").toLowerCase().includes(q) ||
+          (order.stay?.room?.roomNumber ?? "").toLowerCase().includes(q) ||
+          (order.stay?.guestDisplayName ?? "").toLowerCase().includes(q) ||
+          (order.serviceNameSnapshot ?? "").toLowerCase().includes(q) ||
+          (order.serviceTenant?.serviceProfile?.displayName ?? "")
+            .toLowerCase()
+            .includes(q) ||
+          (order.guestNote ?? "").toLowerCase().includes(q),
+      );
+    }
+    return list;
+  }, [externalOrders, filters.status, filters.roomNumber, filters.q]);
+
   const activeSummaryCounts = useMemo(() => {
     const counts: Record<GuestRequestStatus, number> = {
       PENDING: 0,
@@ -640,10 +733,10 @@ export function RequestQueueClient({
     };
     const list =
       inboxTab === "HOTEL_REQUESTS"
-        ? requests
+        ? displayedRequests
         : inboxTab === "EXTERNAL_ORDERS"
           ? convertedExternalOrders
-          : [...requests, ...convertedExternalOrders];
+          : [...displayedRequests, ...convertedExternalOrders];
 
     list.forEach((item) => {
       if (item.status && counts[item.status] !== undefined) {
@@ -651,7 +744,7 @@ export function RequestQueueClient({
       }
     });
     return counts;
-  }, [inboxTab, requests, convertedExternalOrders]);
+  }, [inboxTab, displayedRequests, convertedExternalOrders]);
 
   function openRequestRow(request: StaffRequestListItem) {
     if (detailMode === "modal") {
@@ -856,7 +949,23 @@ export function RequestQueueClient({
       key: "service",
       sortable: true,
       header: mergedLabels.service,
-      cell: (request) => request.displayName,
+      cell: (request) => {
+        const isExternal = externalOrdersById.has(request.id);
+        if (isExternal) {
+          return (
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-800 border border-amber-200">
+                  <VsIcon name="public" className="text-xs shrink-0" />
+                  Dịch vụ ngoài
+                </span>
+                <span className="font-semibold text-slate-900">{request.displayName}</span>
+              </div>
+            </div>
+          );
+        }
+        return request.displayName;
+      },
     },
     {
       key: "priority",
@@ -876,13 +985,55 @@ export function RequestQueueClient({
       sortable: true,
       header: mergedLabels.status,
       className: "whitespace-nowrap",
-      cell: (request) => (
-        <span
-          className={`inline-flex items-center justify-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold shrink-0 ${statusTone(request.status)}`}
-        >
-          {requestStatusLabelMap[request.status]}
-        </span>
-      ),
+      cell: (request) => {
+        const externalOrder = externalOrdersById.get(request.id);
+        if (externalOrder) {
+          const isHotelAcknowledged =
+            externalOrder.hotelCoordinationStatus === "ACKNOWLEDGED" ||
+            externalOrder.hotelCoordinationStatus === "VOUCHER_ISSUED";
+
+          if (externalOrder.status === "CANCELLED" || externalOrder.status === "REJECTED") {
+            return (
+              <span className="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 border border-rose-200">
+                Đã hủy
+              </span>
+            );
+          }
+
+          if (externalOrder.status === "COMPLETED") {
+            return (
+              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 border border-emerald-200">
+                Hoàn thành
+              </span>
+            );
+          }
+
+          if (!isHotelAcknowledged) {
+            return (
+              <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 border border-amber-200">
+                Chờ tiếp nhận
+              </span>
+            );
+          }
+
+          const partnerMeta = getExternalOrderStatusLabel(externalOrder.status);
+          return (
+            <span
+              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold border ${partnerMeta.className}`}
+            >
+              {partnerMeta.label}
+            </span>
+          );
+        }
+
+        return (
+          <span
+            className={`inline-flex items-center justify-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold shrink-0 ${statusTone(request.status)}`}
+          >
+            {requestStatusLabelMap[request.status]}
+          </span>
+        );
+      },
     },
     {
       key: "created",
@@ -896,6 +1047,80 @@ export function RequestQueueClient({
       header: mergedLabels.statusActions,
       className: "whitespace-nowrap min-w-[210px]",
       cell: (request) => {
+        const externalOrder = externalOrdersById.get(request.id);
+        if (externalOrder) {
+          if (readOnly) {
+            return <span className="text-xs font-semibold text-slate-500">Chỉ xem</span>;
+          }
+          const isFinished = isTerminalOrderStatus(externalOrder.status);
+          if (isFinished) {
+            return <span className="text-xs font-medium text-slate-400">-</span>;
+          }
+          const isHotelAcknowledged =
+            externalOrder.hotelCoordinationStatus === "ACKNOWLEDGED" ||
+            externalOrder.hotelCoordinationStatus === "VOUCHER_ISSUED";
+          const isVoucherIssued = Boolean(
+            externalOrder.voucher?.voucherNumber ||
+            externalOrder.hotelCoordinationStatus === "VOUCHER_ISSUED",
+          );
+
+          return (
+            <div
+              className="flex items-center gap-1.5 whitespace-nowrap"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {!isHotelAcknowledged ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={isMutating || isTerminalOrderStatus(externalOrder.status)}
+                    onClick={() => {
+                      void acknowledgeExternalOrder(externalOrder);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-700 active:scale-[0.97] transition-all disabled:opacity-50 cursor-pointer"
+                    title="Tiếp nhận đơn hàng và khởi tạo mã dịch vụ"
+                  >
+                    <VsIcon name="check_circle" className="text-xs" />
+                    <span>Tiếp nhận</span>
+                  </button>
+
+                  {externalOrder.status === "PENDING" ? (
+                    <button
+                      type="button"
+                      disabled={isMutating || isTerminalOrderStatus(externalOrder.status)}
+                      onClick={() => {
+                        void cancelExternalOrder(externalOrder);
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100 hover:border-rose-400 active:scale-[0.97] transition-all shadow-2xs disabled:opacity-50 cursor-pointer"
+                      title="Hủy đơn hàng"
+                    >
+                      <VsIcon name="close" className="text-xs" />
+                      <span>Hủy</span>
+                    </button>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  {isVoucherIssued ? (
+                    <button
+                      type="button"
+                      disabled={isMutating}
+                      onClick={() => openVoucherModal(externalOrder)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 active:scale-[0.97] transition-all shadow-2xs disabled:opacity-50 cursor-pointer"
+                      title="Xem mã phiếu dịch vụ"
+                    >
+                      <VsIcon name="confirmation_number" className="text-xs" />
+                      <span>Xem phiếu</span>
+                    </button>
+                  ) : (
+                    <span className="text-xs font-bold text-emerald-700">Đã tiếp nhận</span>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        }
+
         const available =
           request.actions ?? statusActions[request.status] ?? [];
         if (readOnly || !available.length || isCheckedOutRequest(request))
@@ -913,7 +1138,7 @@ export function RequestQueueClient({
                     e.stopPropagation();
                     void updateStatusForRequest(request, action);
                   }}
-                  className={`inline-flex items-center justify-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-all duration-150 shadow-2xs hover:shadow-xs active:scale-[0.97] disabled:opacity-50 ${meta.className}`}
+                  className={`inline-flex items-center justify-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-all duration-150 shadow-2xs hover:shadow-xs active:scale-[0.97] disabled:opacity-50 cursor-pointer ${meta.className}`}
                 >
                   <VsIcon
                     name={meta.icon}
@@ -966,8 +1191,8 @@ export function RequestQueueClient({
           </div>
           <div style="margin-top:6px;padding:10px 12px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;font-size:12px;color:#065f46">
             ⚡ <b>Hệ thống sẽ tự động:</b><br/>
-            • Tạo Mã phiếu dịch vụ (Voucher)<br/>
-            • Gửi thông báo Realtime trực tiếp tới Đối tác & Khách hàng.
+            • Tạo mã phiếu dịch vụ<br/>
+            • Gửi thông báo tức thời trực tiếp tới đối tác & khách hàng.
           </div>
         </div>
       `,
@@ -988,7 +1213,7 @@ export function RequestQueueClient({
         },
       );
       toast.success(
-        `Đã tiếp nhận đơn dịch vụ #${order.orderNumber}! Mã phiếu dịch vụ (Voucher) đã tạo thành công.`,
+        `Đã tiếp nhận đơn dịch vụ #${order.orderNumber}! Mã phiếu dịch vụ đã tạo thành công.`,
       );
       void externalOrdersQuery.refetch();
     } catch (error) {
@@ -1014,7 +1239,7 @@ export function RequestQueueClient({
           <p style="margin:0"><b>Khách / Phòng:</b> Phòng ${order.stay?.room?.roomNumber ?? "-"} (${order.stay?.guestDisplayName ?? "Khách lưu trú"})</p>
           <p style="margin:0"><b>Giá trị đơn:</b> ${financials.customerTotal.toLocaleString("vi-VN")} ${financials.currency}</p>
           <div style="margin-top:6px;padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;font-size:12px;color:#991b1b">
-            ⚠️ <b>Lưu ý:</b> Đơn hàng này sẽ bị hủy. Thông báo hủy sẽ gửi Realtime đến Đối tác & Khách hàng.
+            ⚠️ <b>Lưu ý:</b> Đơn hàng này sẽ bị hủy. Thông báo hủy sẽ gửi tức thời đến đối tác & khách hàng.
           </div>
         </div>
       `,
@@ -1095,9 +1320,9 @@ export function RequestQueueClient({
         <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left">
           <thead style="background:#f8fafc;border-bottom:1px solid #e2e8f0;color:#64748b;font-weight:700">
             <tr>
-              <th style="padding:8px 10px">Dịch vụ (Canonical Items)</th>
+              <th style="padding:8px 10px">Hạng mục dịch vụ</th>
               <th style="padding:8px 10px;text-align:center">Số lượng</th>
-              <th style="padding:8px 10px;text-align:right">Đơn giá (Read-only)</th>
+              <th style="padding:8px 10px;text-align:right">Đơn giá</th>
               <th style="padding:8px 10px;text-align:right">Thành tiền</th>
             </tr>
           </thead>
@@ -1150,15 +1375,15 @@ export function RequestQueueClient({
           <!-- Pricing breakdown card (Read-only for hotel) -->
           <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:12px 14px;display:grid;gap:4px;font-size:13px">
             <div style="display:flex;justify-content:space-between;align-items:center;color:#334155">
-              <span>Tạm tính đối tác (Partner Subtotal):</span>
+              <span>Tạm tính đối tác:</span>
               <span style="font-weight:700;font-family:monospace;color:#1e293b">${financials.partnerSubtotal.toLocaleString("vi-VN")} ${financials.currency}</span>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;color:#0284c7">
-              <span>Phí dịch vụ khách sạn (Hotel Fee 10%):</span>
+              <span>Phí dịch vụ khách sạn (10%):</span>
               <span style="font-weight:700;font-family:monospace">+${financials.hotelFee.toLocaleString("vi-VN")} ${financials.currency}</span>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;border-top:1.5px solid #86efac;padding-top:6px;margin-top:2px;font-size:14px">
-              <span style="font-weight:800;color:#065f46">Tổng tiền khách thanh toán (Customer Total):</span>
+              <span style="font-weight:800;color:#065f46">Tổng tiền khách thanh toán:</span>
               <span style="font-weight:900;font-family:monospace;color:#047857;font-size:16px">${financials.customerTotal.toLocaleString("vi-VN")} ${financials.currency}</span>
             </div>
             <div style="font-size:11px;color:#64748b;margin-top:2px;font-style:italic">
@@ -1172,7 +1397,7 @@ export function RequestQueueClient({
           </div>
 
           ${order.guestNote ? `<p style="margin:2px 0 0;padding:8px 10px;background:#fffbeb;border-radius:8px;font-style:italic;border:1px solid #fef3c7;font-size:12px;color:#92400e">Ghi chú của khách: &quot;${order.guestNote}&quot;</p>` : ""}
-          ${order.voucher?.voucherNumber ? `<p style="margin:2px 0 0;padding:8px 10px;background:#eef2ff;border-radius:8px;font-weight:bold;color:#312e81;border:1px solid #c7d2fe;font-size:12px">🎟️ Mã phiếu dịch vụ (Voucher): <span style="font-family:monospace;letter-spacing:0.05em">${order.voucher.voucherNumber}</span></p>` : ""}
+          ${order.voucher?.voucherNumber ? `<p style="margin:2px 0 0;padding:8px 10px;background:#eef2ff;border-radius:8px;font-weight:bold;color:#312e81;border:1px solid #c7d2fe;font-size:12px">🎟️ Mã phiếu dịch vụ: <span style="font-family:monospace;letter-spacing:0.05em">${order.voucher.voucherNumber}</span></p>` : ""}
         </div>
       `,
       confirmButtonText: "Đóng",
@@ -1366,7 +1591,7 @@ export function RequestQueueClient({
                     void acknowledgeExternalOrder(order);
                   }}
                   className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-700 active:scale-[0.97] transition-all disabled:opacity-50"
-                  title="Tiếp nhận đơn hàng và khởi tạo mã dịch vụ (Voucher)"
+                  title="Tiếp nhận đơn hàng và khởi tạo mã dịch vụ"
                 >
                   <VsIcon name="check_circle" className="text-xs" />
                   <span>Tiếp nhận</span>
@@ -1429,8 +1654,8 @@ export function RequestQueueClient({
       <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-3.5">
         <button
           type="button"
-          onClick={() => setInboxTab("HOTEL_REQUESTS")}
-          className={`inline-flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
+          onClick={() => selectInboxTab("HOTEL_REQUESTS")}
+          className={`inline-flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-bold transition-all cursor-pointer ${
             inboxTab === "HOTEL_REQUESTS"
               ? "bg-[#00003c] text-white shadow-xs"
               : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -1446,8 +1671,8 @@ export function RequestQueueClient({
 
         <button
           type="button"
-          onClick={() => setInboxTab("EXTERNAL_ORDERS")}
-          className={`inline-flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
+          onClick={() => selectInboxTab("EXTERNAL_ORDERS")}
+          className={`inline-flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-bold transition-all cursor-pointer ${
             inboxTab === "EXTERNAL_ORDERS"
               ? "bg-amber-800 text-white shadow-xs"
               : "bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100"
@@ -1463,8 +1688,8 @@ export function RequestQueueClient({
 
         <button
           type="button"
-          onClick={() => setInboxTab("ALL")}
-          className={`inline-flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
+          onClick={() => selectInboxTab("ALL")}
+          className={`inline-flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-bold transition-all cursor-pointer ${
             inboxTab === "ALL"
               ? "bg-slate-800 text-white shadow-xs"
               : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -1770,16 +1995,16 @@ export function RequestQueueClient({
       {inboxTab === "EXTERNAL_ORDERS" ? (
         <DataTable<HotelMarketplaceOrder>
           columns={externalOrderColumns}
-          data={externalOrders}
+          data={filteredExternalOrders}
           getRowKey={(order) => order.id}
-          emptyMessage="Hiện chưa có đơn hàng dịch vụ ngoài khách sạn nào."
+          emptyMessage="Hiện chưa có đơn hàng dịch vụ ngoài khách sạn nào phù hợp."
           minWidth="1000px"
           header={requestTableHeader}
           onRowClick={(order) => openExternalOrderDetailModal(order)}
           pagination={{
             page: externalPage,
             pageSize: externalPageSize,
-            totalItems: externalOrders.length,
+            totalItems: filteredExternalOrders.length,
             pageSizeOptions: [10, 20, 50],
             onPageChange: (newPage) => setExternalPage(newPage),
             onPageSizeChange: (newPageSize) => {
@@ -1796,7 +2021,14 @@ export function RequestQueueClient({
           emptyMessage={mergedLabels.emptyState}
           minWidth="1000px"
           header={requestTableHeader}
-          onRowClick={(request) => openRequestRow(request)}
+          onRowClick={(request) => {
+            const externalOrder = externalOrdersById.get(request.id);
+            if (externalOrder) {
+              openExternalOrderDetailModal(externalOrder);
+            } else {
+              openRequestRow(request);
+            }
+          }}
           sort={{
             key: sortState.key,
             direction: sortState.direction,

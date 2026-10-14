@@ -178,7 +178,7 @@ export function WorkspaceShell({
           {children}
         </div>
       </main>
-      <nav className="fixed inset-x-3 bottom-3 z-50 flex items-stretch justify-around gap-1 rounded-2xl border border-[#24473d]/10 bg-[#17201b]/95 p-2 text-[#fff8e8] shadow-[0_18px_50px_rgba(23,32,27,0.28)] backdrop-blur-xl print:hidden md:hidden">
+      <nav className="fixed inset-x-3 bottom-3 z-50 flex items-stretch justify-around gap-1 rounded-2xl border border-[#e8b363]/15 bg-[#17201b]/95 p-2 text-[#fff8e8] shadow-[0_18px_50px_rgba(232,179,99,0.18),0_18px_50px_rgba(23,32,27,0.28)] backdrop-blur-xl print:hidden md:hidden">
         {effectiveNavItems.slice(0, 4).map((item) => {
           const active = isNavItemActive(item.href, activePath, effectiveNavItems);
           const badge = badgeByKey[item.key] ?? 0;

@@ -616,17 +616,17 @@ export function Hero({
           <Image src={image} alt="" fill className="object-cover" priority />
         </div>
       )}
-      <div className="mx-auto max-w-7xl px-5 py-14 lg:px-8 lg:py-20">
-        <div className="grid gap-12 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-20">
+        <div className="grid gap-8 sm:gap-12 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
           <div data-reveal="from-left">
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#b8872f]">{eyebrow}</p>
-            <h1 className="vs-display mt-4 text-4xl font-bold leading-tight tracking-[-0.03em] text-[#123d2a] md:text-6xl md:leading-[1.06] [text-wrap:balance]">
+            <h1 className="vs-display mt-4 text-3xl sm:text-4xl font-bold leading-tight tracking-[-0.03em] text-[#123d2a] md:text-6xl md:leading-[1.06] [text-wrap:balance]">
               {title}
             </h1>
-            <p className="mt-5 max-w-2xl text-base sm:text-lg leading-7 sm:leading-8 text-[#506054]">{text}</p>
-            <div className="mt-8 flex flex-wrap gap-4">
+            <p className="mt-4 sm:mt-5 max-w-2xl text-base sm:text-lg leading-7 sm:leading-8 text-[#506054]">{text}</p>
+            <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4">
               <a
-                className="vs-mkt-primary-btn rounded-full bg-[#123d2a] px-8 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white shadow-xl shadow-[#123d2a]/20 transition-all hover:bg-[#184d35]"
+                className="vs-mkt-primary-btn w-full sm:w-auto rounded-full bg-[#123d2a] px-6 sm:px-8 py-3.5 sm:py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white shadow-xl shadow-[#123d2a]/20 transition-all hover:bg-[#184d35]"
                 href={REQUEST_DEMO_URL}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -634,7 +634,7 @@ export function Hero({
                 {t.demoBtn}
               </a>
               <Link
-                className="vs-mkt-secondary-btn whitespace-nowrap rounded-full border border-[#123d2a]/20 bg-white/80 px-8 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-[#123d2a] shadow-sm backdrop-blur-sm transition-all hover:bg-white"
+                className="vs-mkt-secondary-btn w-full sm:w-auto whitespace-nowrap rounded-full border border-[#123d2a]/20 bg-white/80 px-6 sm:px-8 py-3.5 sm:py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-[#123d2a] shadow-sm backdrop-blur-sm transition-all hover:bg-white"
                 href="/g/home"
               >
                 {t.guestBtn}

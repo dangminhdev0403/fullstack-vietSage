@@ -35,6 +35,15 @@ function iconGlyph(name: string): ReactNode {
         </>
       );
 
+    case "north_east":
+    case "arrow_outward":
+      return (
+        <>
+          <path d="M7 17L17 7" />
+          <path d="M7 7h10v10" />
+        </>
+      );
+
     case "swap_horiz":
     case "sync_alt":
       return (
@@ -183,6 +192,7 @@ function iconGlyph(name: string): ReactNode {
         </>
       );
 
+    case "event":
     case "calendar":
     case "calendar_today":
       return (
@@ -191,6 +201,35 @@ function iconGlyph(name: string): ReactNode {
           <path d="M17 3v4" />
           <rect x="4" y="5" width="16" height="16" rx="2" />
           <path d="M4 10h16" />
+        </>
+      );
+
+    case "flight_land":
+    case "flight":
+      return (
+        <>
+          <path d="M2 22h20" />
+          <path d="M19 13.5 14 12l-5 4-2-1 3-5-3.5-1L4 10l-2-1 3.5-2L17 11.5l3.5 1a1.5 1.5 0 0 1-.5 2.5z" />
+        </>
+      );
+
+    case "print":
+    case "printer":
+      return (
+        <>
+          <path d="M6 9V2h12v7" />
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+          <rect x="6" y="14" width="12" height="8" rx="1" />
+        </>
+      );
+
+    case "book_online":
+      return (
+        <>
+          <rect x="5" y="2" width="14" height="20" rx="2" />
+          <path d="M9 7h6" />
+          <path d="M9 11h6" />
+          <path d="M10 15h4" />
         </>
       );
 
@@ -284,6 +323,16 @@ function iconGlyph(name: string): ReactNode {
           <path d="m2 2 20 20" />
           <path d="M4.5 4.5l5.5 6.5V17l4 2v-4.5l2-2.5" />
           <path d="M7 4h13l-4.5 5.5" />
+        </>
+      );
+
+    case "log_in":
+    case "login":
+      return (
+        <>
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+          <polyline points="10 17 15 12 10 7" />
+          <line x1="15" y1="12" x2="3" y2="12" />
         </>
       );
 

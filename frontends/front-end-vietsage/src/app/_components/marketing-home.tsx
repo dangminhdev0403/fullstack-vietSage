@@ -103,7 +103,7 @@ const HOME_COPY: Record<SupportedLocale, HomeCopy> = {
       moments: [
         "Khách cần bổ sung khăn tắm và vật dụng sau khi nhận phòng, gửi yêu cầu tức thì qua mã QR đặt tại phòng.",
         "Gia đình đặt dịch vụ ẩm thực tại phòng thuận tiện mà không cần chờ máy tổng đài trong khung giờ cao điểm.",
-        "Khách quốc tế tra cứu hướng dẫn trả phòng (check-out) và chính sách khách sạn bằng chính ngôn ngữ của họ một cách chuẩn xác.",
+        "Khách quốc tế tra cứu hướng dẫn trả phòng và chính sách khách sạn bằng chính ngôn ngữ của họ một cách chuẩn xác.",
       ],
     },
     visibility: {

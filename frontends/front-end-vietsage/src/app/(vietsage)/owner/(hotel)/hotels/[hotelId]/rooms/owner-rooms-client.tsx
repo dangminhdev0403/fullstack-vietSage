@@ -1023,7 +1023,7 @@ export function OwnerRoomsClient({
             <li><strong>Xoá toàn bộ người dùng truy cập</strong>, các lượt khách lưu trú và tin nhắn/yêu cầu.</li>
             <li><strong>Xoá đơn hàng marketplace</strong>, giỏ hàng, voucher dịch vụ và đối soát liên kết.</li>
             <li><strong>Xoá bản khai báo KBTT</strong>, nhật ký đối tác, trạm sinh trắc và sự cố khẩn cấp.</li>
-            <li><strong>Đưa toàn bộ trạng thái phòng về TRỐNG (AVAILABLE)</strong>.</li>
+            <li><strong>Đưa toàn bộ trạng thái phòng về Trống</strong>.</li>
             <li class="text-slate-800 font-semibold"><strong>Bảo toàn tài khoản & cấu hình nhân viên</strong>.</li>
             <li class="text-emerald-800 font-semibold"><strong>Bảo toàn nguyên vẹn danh mục phòng và mã QR Code</strong>.</li>
           </ul>
@@ -1299,7 +1299,7 @@ export function OwnerRoomsClient({
           className="min-h-12 min-w-[170px] shrink-0 rounded-xl border-0 bg-[var(--surface-container-low)] px-4 text-sm outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
         >
           <option value="">Trạng thái: Tất cả</option>
-          <option value="AVAILABLE">Trống (Sẵn sàng)</option>
+          <option value="AVAILABLE">Trống</option>
           <option value="OCCUPIED">Đang ở</option>
           <option value="PROCESSING">Chờ dọn</option>
           <option value="MAINTENANCE">Bảo trì</option>

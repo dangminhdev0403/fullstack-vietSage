@@ -613,7 +613,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
                   {/* Pricing & Financial Breakdown (Hides Hotel Fee) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl bg-white/90 p-4 border border-emerald-800/10 shadow-2xs">
                     <div>
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Doanh thu đối tác (Partner Subtotal)</p>
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Doanh thu đối tác</p>
                       <p className="text-xl font-black text-emerald-700 mt-0.5">{financials.partnerSubtotal.toLocaleString("vi-VN")} {financials.currency}</p>
                       <span className="text-[10px] text-slate-500 font-medium">Doanh thu thực nhận của đối tác</span>
                     </div>

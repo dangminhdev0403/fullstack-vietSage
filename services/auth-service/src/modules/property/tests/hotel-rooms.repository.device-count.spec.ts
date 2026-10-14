@@ -20,6 +20,7 @@ describe("HotelRoomsRepository guest device count", () => {
           .mockResolvedValueOnce([room])
           .mockResolvedValueOnce([{ floor: "2" }])
           .mockResolvedValueOnce([{ type: "DELUXE" }]),
+        groupBy: jest.fn().mockResolvedValue([]),
       },
       guestSession: {
         findMany: jest.fn().mockResolvedValue([

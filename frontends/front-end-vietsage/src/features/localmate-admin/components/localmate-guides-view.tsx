@@ -1259,7 +1259,7 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1.5">
-                  Đường dẫn ảnh đại diện (Avatar URL) *
+                  Đường dẫn ảnh đại diện *
                 </label>
                 <input
                   type="url"
@@ -1273,7 +1273,7 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1.5">
-                  Mức phí dịch vụ / ngày (VND)
+                  Mức phí dịch vụ / ngày (đ)
                 </label>
                 <input
                   type="number"
@@ -1647,7 +1647,7 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-xl border border-[#173F35]/15 bg-white p-3">
                     <span className="text-[11px] font-semibold text-[#52635A] block">
-                      VietSage thu trước (Stripe)
+                      VietSage thu trước
                     </span>
                     <span className="text-lg font-black text-[#173F35]">
                       {feeRateInput}%

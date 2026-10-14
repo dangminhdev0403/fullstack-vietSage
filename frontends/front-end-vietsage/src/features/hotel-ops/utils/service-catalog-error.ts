@@ -10,6 +10,19 @@ function nestedDetail(value: unknown): string | undefined {
 }
 
 export function getServiceCatalogErrorMessage(error: unknown): string {
+  if (
+    error instanceof Error &&
+    error.message &&
+    error.message !== "BAD_REQUEST"
+  ) {
+    if (
+      /network|failed to fetch|fetch failed|connection/i.test(error.message)
+    ) {
+      return "Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng rồi thử lại.";
+    }
+    return error.message;
+  }
+
   if (isRecord(error)) {
     const status = typeof error.status === "number" ? error.status : undefined;
     const detail = nestedDetail(error.data);
@@ -32,22 +45,9 @@ export function getServiceCatalogErrorMessage(error: unknown): string {
       return status ? `[Lỗi ${status}] ${error.message}` : error.message;
     }
 
-    if (status === 404) return "[Lỗi 404] Không tìm thấy Google Sheets hoặc tài nguyên (404 Not Found).";
-    if (status === 403) return "[Lỗi 403] Google Sheets từ chối truy cập hoặc không có quyền (403 Forbidden).";
-    if (status) return `[Lỗi ${status}] Yêu cầu đồng bộ thất bại với mã ${status}.`;
-  }
-
-  if (
-    error instanceof Error &&
-    error.message &&
-    error.message !== "BAD_REQUEST"
-  ) {
-    if (
-      /network|failed to fetch|fetch failed|connection/i.test(error.message)
-    ) {
-      return "Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng rồi thử lại.";
-    }
-    return error.message;
+    if (status === 404) return "Không tìm thấy bảng tính Google Sheets hoặc tài nguyên.";
+    if (status === 403) return "Google Sheets từ chối truy cập. Vui lòng cấp quyền xem cho liên kết.";
+    if (status) return `Yêu cầu đồng bộ thất bại (mã ${status}).`;
   }
 
   return "Vui lòng kiểm tra dữ liệu trong hai tab đầu của Google Sheets rồi thử lại.";

@@ -135,7 +135,7 @@ export function RoomSearchSelect({
           {hasNoAvailableRooms ? (
             <span className="flex items-center gap-1.5 text-slate-400 text-xs sm:text-sm">
               <VsIcon name="block" className="text-base text-slate-400 shrink-0" />
-              <span>Hết phòng khả dụng (Đã có người phụ trách hết)</span>
+              <span>Hết phòng khả dụng</span>
             </span>
           ) : selectedRoom ? (
             <>

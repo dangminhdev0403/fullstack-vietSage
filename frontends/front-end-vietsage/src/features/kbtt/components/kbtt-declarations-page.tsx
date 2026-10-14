@@ -944,11 +944,11 @@ export function KbttDeclarationsPage({
           ? "Sinh mới Số giấy tờ & Reset chưa gửi"
           : "Đổi trạng thái về Chưa gửi",
         text: generateNewIdentityNumbers
-          ? "Bạn có chắc muốn tự động sinh số CCCD / Hộ chiếu mới ngẫu nhiên hợp lệ cho tất cả khách và đổi trạng thái toàn bộ về Chưa gửi (DRAFT) không?"
-          : "Bạn có chắc muốn chuyển toàn bộ hồ sơ đã gửi về trạng thái Chưa gửi (DRAFT) để thực hiện gửi lại Cổng thông tin BCA không?",
+          ? "Bạn có chắc muốn tự động tạo số CCCD / Hộ chiếu mới hợp lệ cho tất cả khách và chuyển toàn bộ hồ sơ về trạng thái Chưa gửi không?"
+          : "Bạn có chắc muốn chuyển toàn bộ hồ sơ đã gửi về trạng thái Chưa gửi để thực hiện gửi lại cổng khai báo không?",
         confirmText: generateNewIdentityNumbers
-          ? "Sinh mới & Reset"
-          : "Đổi về Chưa gửi",
+          ? "Tạo mới & Đặt lại"
+          : "Chuyển về Chưa gửi",
         cancelText: "Hủy",
       });
       if (!confirm.isConfirmed) return;
@@ -1323,11 +1323,11 @@ export function KbttDeclarationsPage({
         await submitMutation.mutateAsync({ occupantId: row.occupantId });
         handleRefresh();
         await showSuccessAlert(
-          "Gửi BCA thành công",
+          "Nộp khai báo thành công",
           `Đã gửi khai báo cho khách ${row.fullName}.`,
         );
       } catch (err) {
-        await showErrorAlert("Lỗi gửi BCA", errorText(err));
+        await showErrorAlert("Lỗi nộp khai báo", errorText(err));
       }
     },
     [isConnected, saveInlineRow, submitMutation, handleRefresh, isListReady],
@@ -2408,13 +2408,13 @@ function DeclarationModal({
         },
       });
       await showSuccessAlert(
-        "Đã lưu vào CSDL",
-        "Đã lưu thông tin chi tiết (Tỉnh/Xã, địa chỉ...) vào CSDL thành công.",
+        "Đã lưu thông tin",
+        "Đã lưu thông tin chi tiết hồ sơ thành công.",
       );
       onUpdated();
       onClose();
     } catch (error) {
-      await showErrorAlert("Không thể lưu vào CSDL", errorText(error));
+      await showErrorAlert("Không thể lưu thông tin hồ sơ", errorText(error));
     } finally {
       setIsSavingDraft(false);
     }
@@ -2685,8 +2685,8 @@ function DeclarationModal({
                       onChange={(e) => updateField("gioiTinh", e.target.value)}
                       className={selectClass}
                     >
-                      <option value="M">Nam (M)</option>
-                      <option value="F">Nữ (F)</option>
+                      <option value="M">Nam</option>
+                      <option value="F">Nữ</option>
                     </select>
                   </div>
                 </div>
@@ -2697,7 +2697,7 @@ function DeclarationModal({
                       htmlFor="ngayThangNamSinhStr"
                       className="block text-sm font-semibold text-slate-700 mb-1"
                     >
-                      Ngày sinh (DD/MM/YYYY){" "}
+                      Ngày sinh (ngày/tháng/năm){" "}
                       <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -3154,8 +3154,8 @@ function DeclarationModal({
                       onChange={(e) => updateField("gioiTinh", e.target.value)}
                       className={selectClass}
                     >
-                      <option value="M">Nam (M)</option>
-                      <option value="F">Nữ (F)</option>
+                      <option value="M">Nam</option>
+                      <option value="F">Nữ</option>
                     </select>
                   </div>
                 </div>
@@ -3189,7 +3189,7 @@ function DeclarationModal({
                       htmlFor="f-ngayThangNamSinhStr"
                       className="block text-sm font-semibold text-slate-700 mb-1"
                     >
-                      Ngày sinh (DD/MM/YYYY){" "}
+                      Ngày sinh (ngày/tháng/năm){" "}
                       <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -3477,7 +3477,7 @@ function KbttDevInterventionModal({
                 </h3>
               </div>
               <p className="mt-1 text-xs text-slate-600 leading-relaxed">
-                Đổi trạng thái toàn bộ hồ sơ đang Đã gửi / Thất bại về <span className="font-semibold text-amber-800">Chưa gửi (DRAFT)</span> để có thể ấn nút Upload đẩy lại lên BCA.
+                Đổi trạng thái toàn bộ hồ sơ đang Đã gửi / Thất bại về <span className="font-semibold text-amber-800">Chưa gửi</span> để sẵn sàng gửi lại cổng khai báo.
               </p>
             </div>
             <div className="mt-3.5 pt-2 border-t border-slate-100 flex items-center justify-end">
@@ -3488,7 +3488,7 @@ function KbttDevInterventionModal({
                 className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-amber-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-amber-700 disabled:opacity-50 transition-colors"
               >
                 <RefreshIcon className={`h-3.5 w-3.5 ${isDevLoading ? "animate-spin" : ""}`} />
-                <span>Reset tất cả về Chưa gửi</span>
+                <span>Đặt lại tất cả về Chưa gửi</span>
               </button>
             </div>
           </div>
@@ -3499,11 +3499,11 @@ function KbttDevInterventionModal({
               <div className="flex items-center gap-2">
                 <span className="text-lg">🎲</span>
                 <h3 className="font-bold text-slate-900">
-                  1-Click: Sinh Số giấy tờ ngẫu nhiên & Reset
+                  Tạo số giấy tờ hợp lệ &amp; Đặt lại
                 </h3>
               </div>
               <p className="mt-1 text-xs text-slate-600 leading-relaxed">
-                Tự động sinh CCCD 12 số hợp lệ (VN) hoặc Passport (QT) cho <span className="font-semibold text-emerald-800">toàn bộ khách</span>, lưu thông tin và đặt lại hồ sơ về Chưa gửi.
+                Tự động tạo CCCD 12 số hợp lệ cho khách Việt Nam hoặc Hộ chiếu cho khách quốc tế cho <span className="font-semibold text-emerald-800">toàn bộ khách</span>, lưu thông tin và đặt lại hồ sơ về Chưa gửi.
               </p>
             </div>
             <div className="mt-3.5 pt-2 border-t border-slate-100 flex items-center justify-end">
@@ -3514,7 +3514,7 @@ function KbttDevInterventionModal({
                 className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-[#064e3b] px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-[#043327] disabled:opacity-50 transition-colors"
               >
                 <SparklesIcon className="h-3.5 w-3.5" />
-                <span>Sinh ngẫu nhiên & Reset toàn bộ</span>
+                <span>Tạo giấy tờ &amp; Đặt lại toàn bộ</span>
               </button>
             </div>
           </div>
@@ -3580,7 +3580,7 @@ function KbttDevInterventionModal({
                   <th className="px-3.5 py-2.5 w-24">Phòng</th>
                   <th className="px-3.5 py-2.5">Họ tên & Quốc tịch</th>
                   <th className="px-3.5 py-2.5 w-32">Trạng thái</th>
-                  <th className="px-3.5 py-2.5 w-36">Số giấy tờ (DB)</th>
+                  <th className="px-3.5 py-2.5 w-36">Số giấy tờ</th>
                   <th className="px-3.5 py-2.5">Sửa đổi Số giấy tờ mới</th>
                   <th className="px-3.5 py-2.5 text-right w-44">Hành động</th>
                 </tr>

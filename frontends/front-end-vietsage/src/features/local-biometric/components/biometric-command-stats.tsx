@@ -82,7 +82,7 @@ export function BiometricCommandStats({ workstationOnline, mobilePhase }: Props)
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">Chế độ Quét Thử Nghiệm</p>
           <div className="mt-1 flex items-baseline gap-1.5">
-            <span className="text-base font-bold text-[#00003c]">Cục bộ (RAM)</span>
+            <span className="text-base font-bold text-[#00003c]">Bộ nhớ tạm thời</span>
           </div>
           <p className="mt-0.5 text-xs text-stone-400">Không lưu hệ thống · Tự hủy</p>
         </div>

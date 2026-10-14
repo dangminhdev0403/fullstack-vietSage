@@ -1313,7 +1313,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                     onChange={(e) => setEditForm({ ...editForm, roomId: e.target.value })}
                     className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
                   >
-                    <option value="">-- Không gán phòng (Vận hành chung) --</option>
+                    <option value="">-- Không gán phòng --</option>
                     {availableRoomsForEdit.map((r) => {
                       const isCurrent = userRoomAssignmentMap.get(editingUser.id)?.roomId === r.id;
                       return (

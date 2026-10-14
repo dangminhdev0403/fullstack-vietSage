@@ -38,7 +38,7 @@ type RoomDetailDrawerProps = {
 };
 
 const ROOM_STATUS_MAP: Record<string, { label: string; bg: string; text: string; icon: string }> = {
-  AVAILABLE: { label: "Trống (Sẵn sàng)", bg: "bg-emerald-100", text: "text-emerald-800", icon: "check_circle" },
+  AVAILABLE: { label: "Trống", bg: "bg-emerald-100", text: "text-emerald-800", icon: "check_circle" },
   OCCUPIED: { label: "Đang ở", bg: "bg-blue-100", text: "text-blue-800", icon: "person" },
   PROCESSING: { label: "Chờ dọn", bg: "bg-amber-100", text: "text-amber-800", icon: "cleaning_services" },
   MAINTENANCE: { label: "Bảo trì", bg: "bg-rose-100", text: "text-rose-800", icon: "build" },
@@ -320,7 +320,7 @@ function RoomDetailDialog({
               type="button"
               onClick={onClose}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#f8f1e6]/15 bg-white/5 text-[#d7cbb8] hover:bg-white/15 hover:text-[#fff8e8] transition focus:outline-none focus:ring-2 focus:ring-[#e8b363]"
-              title="Đóng (Esc)"
+              title="Đóng"
               aria-label="Đóng chi tiết phòng"
             >
               <VsIcon name="close" className="text-xl" />
@@ -578,11 +578,11 @@ function RoomDetailDialog({
                           {activeStay.reservationCode || "--"}
                         </p>
                         <p>
-                          <span className="font-semibold text-blue-800">Check-in:</span>{" "}
+                          <span className="font-semibold text-blue-800">Nhận phòng:</span>{" "}
                           {formatDateTime(activeStay.checkedInAt ?? activeStay.plannedCheckInAt)}
                         </p>
                         <p>
-                          <span className="font-semibold text-blue-800">Check-out:</span>{" "}
+                          <span className="font-semibold text-blue-800">Trả phòng:</span>{" "}
                           {formatDateTime(activeStay.plannedCheckOutAt)}
                         </p>
                       </div>

@@ -9,3 +9,9 @@ export function formatDayMonth(value: string): string {
 
   return `${valueOf("day")}/${valueOf("month")}`;
 }
+
+export function formatDashboardCount(value: number | null | undefined): string {
+  const numeric = Number(value ?? 0);
+  if (!numeric || numeric <= 0) return "0";
+  return String(numeric).padStart(2, "0");
+}

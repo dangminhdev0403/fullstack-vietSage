@@ -43,7 +43,7 @@ const paymentMethodLabels: Record<string, string> = {
   BANK_TRANSFER: "Chuyển khoản",
   MOMO: "Ví MoMo",
   VNPAY: "VNPAY",
-  STRIPE: "Thẻ quốc tế (Stripe)",
+  STRIPE: "Thẻ quốc tế",
   MANUAL: "Xác nhận tại lễ tân",
   MANUAL_FRONTDESK: "Xác nhận tại lễ tân",
 };
@@ -276,7 +276,7 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
             </div>
             <div className="rounded-xl border border-purple-200 bg-purple-50/60 p-3.5 text-xs print:border-slate-300 print:bg-white">
               <div className="flex items-center justify-between font-semibold text-purple-950">
-                <span>🌐 Tổng dịch vụ ngoài khách sạn (Đối tác)</span>
+                <span>🌐 Tổng dịch vụ đối tác liên kết</span>
                 <span className="text-sm tabular-nums">{formatMoney(externalServicesTotal, currency)}</span>
               </div>
               <p className="mt-1 text-[11px] text-purple-700">Các dịch vụ liên kết đối tác bên ngoài / thu hộ đối tác dịch vụ</p>

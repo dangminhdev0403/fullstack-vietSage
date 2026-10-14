@@ -3,7 +3,6 @@ export interface PublicLocalMateDestination {
   provinceCode: string;
   label: string;
   location: string;
-  tag: string;
   icon: string;
 }
 
@@ -11,9 +10,8 @@ export const PUBLIC_LOCALMATE_DESTINATIONS: readonly PublicLocalMateDestination[
   {
     order: 1,
     provinceCode: "LAO_CAI",
-    label: "Lào Cai – Sa Pa",
-    location: "Sa Pa, Lào Cai",
-    tag: "Săn mây Tây Bắc",
+    label: "Lào Cai",
+    location: "Lào Cai",
     icon: "🏔️",
   },
   {
@@ -21,7 +19,6 @@ export const PUBLIC_LOCALMATE_DESTINATIONS: readonly PublicLocalMateDestination[
     provinceCode: "HA_NOI",
     label: "Hà Nội",
     location: "Hà Nội",
-    tag: "Thủ đô di sản",
     icon: "🏛️",
   },
   {
@@ -29,15 +26,13 @@ export const PUBLIC_LOCALMATE_DESTINATIONS: readonly PublicLocalMateDestination[
     provinceCode: "DA_NANG",
     label: "Đà Nẵng",
     location: "Đà Nẵng",
-    tag: "Thành phố biển",
     icon: "🌉",
   },
   {
     order: 4,
     provinceCode: "QUANG_NAM",
-    label: "Quảng Nam – Hội An",
-    location: "Hội An, Quảng Nam",
-    tag: "Phố cổ di sản",
+    label: "Quảng Nam",
+    location: "Quảng Nam",
     icon: "🏮",
   },
   {
@@ -45,70 +40,68 @@ export const PUBLIC_LOCALMATE_DESTINATIONS: readonly PublicLocalMateDestination[
     provinceCode: "HO_CHI_MINH",
     label: "TP. Hồ Chí Minh",
     location: "TP. Hồ Chí Minh",
-    tag: "Trung tâm sôi động",
     icon: "🏙️",
   },
   {
     order: 6,
     provinceCode: "KIEN_GIANG",
-    label: "Phú Quốc – Kiên Giang",
-    location: "Phú Quốc, Kiên Giang",
-    tag: "Đảo ngọc nghỉ dưỡng",
+    label: "Kiên Giang",
+    location: "Kiên Giang",
     icon: "🏝️",
   },
 ] as const;
 
 export const DESTINATION_I18N: Record<
   string,
-  Record<string, { label: string; tag: string }>
+  Record<string, string>
 > = {
   vi: {
-    LAO_CAI: { label: "Lào Cai – Sa Pa", tag: "Săn mây Tây Bắc" },
-    HA_NOI: { label: "Hà Nội", tag: "Thủ đô di sản" },
-    DA_NANG: { label: "Đà Nẵng", tag: "Thành phố biển" },
-    QUANG_NAM: { label: "Quảng Nam – Hội An", tag: "Phố cổ di sản" },
-    HO_CHI_MINH: { label: "TP. Hồ Chí Minh", tag: "Trung tâm sôi động" },
-    KIEN_GIANG: { label: "Phú Quốc – Kiên Giang", tag: "Đảo ngọc nghỉ dưỡng" },
+    LAO_CAI: "Lào Cai",
+    HA_NOI: "Hà Nội",
+    DA_NANG: "Đà Nẵng",
+    QUANG_NAM: "Quảng Nam",
+    HO_CHI_MINH: "TP. Hồ Chí Minh",
+    KIEN_GIANG: "Kiên Giang",
   },
   en: {
-    LAO_CAI: { label: "Lao Cai – Sa Pa", tag: "Northwest Cloud Hunting" },
-    HA_NOI: { label: "Hanoi", tag: "Heritage Capital" },
-    DA_NANG: { label: "Da Nang", tag: "Coastal City" },
-    QUANG_NAM: { label: "Quang Nam – Hoi An", tag: "Heritage Ancient Town" },
-    HO_CHI_MINH: { label: "Ho Chi Minh City", tag: "Vibrant Megacity" },
-    KIEN_GIANG: { label: "Phu Quoc – Kien Giang", tag: "Pearl Island Retreat" },
+    LAO_CAI: "Lao Cai",
+    HA_NOI: "Hanoi",
+    DA_NANG: "Da Nang",
+    QUANG_NAM: "Quang Nam",
+    HO_CHI_MINH: "Ho Chi Minh City",
+    KIEN_GIANG: "Kien Giang",
   },
   zh: {
-    LAO_CAI: { label: "老街 – 沙坝", tag: "西北云海仙境" },
-    HA_NOI: { label: "河内", tag: "千年历史古都" },
-    DA_NANG: { label: "岘港", tag: "美丽海滨名城" },
-    QUANG_NAM: { label: "广南 – 会安", tag: "古镇世界遗产" },
-    HO_CHI_MINH: { label: "胡志明市", tag: "繁华活力都会" },
-    KIEN_GIANG: { label: "富国岛 – 坚江", tag: "度假珍珠之岛" },
+    LAO_CAI: "老街",
+    HA_NOI: "河内",
+    DA_NANG: "岘港",
+    QUANG_NAM: "广南",
+    HO_CHI_MINH: "胡志明市",
+    KIEN_GIANG: "坚江",
   },
   ko: {
-    LAO_CAI: { label: "라오까이 – 사파", tag: "서북부 운해 명소" },
-    HA_NOI: { label: "하노이", tag: "천년 역사의 수도" },
-    DA_NANG: { label: "다낭", tag: "아름다운 해변 도시" },
-    QUANG_NAM: { label: "꽝남 – 호이안", tag: "유네스코 고대 도시" },
-    HO_CHI_MINH: { label: "호치민시", tag: "활력 넘치는 대도시" },
-    KIEN_GIANG: { label: "푸꾸옥 – 끼엔장", tag: "휴양의 진주 섬" },
+    LAO_CAI: "라오까이",
+    HA_NOI: "하노이",
+    DA_NANG: "다낭",
+    QUANG_NAM: "꽝남",
+    HO_CHI_MINH: "호치민시",
+    KIEN_GIANG: "끼엔장",
   },
   ru: {
-    LAO_CAI: { label: "Лаокай – Сапа", tag: "Охота за облаками" },
-    HA_NOI: { label: "Ханой", tag: "Историческая столица" },
-    DA_NANG: { label: "Дананг", tag: "Приморский город" },
-    QUANG_NAM: { label: "Куангнам – Хойан", tag: "Древний город-памятник" },
-    HO_CHI_MINH: { label: "Хошимин", tag: "Динамичный мегаполис" },
-    KIEN_GIANG: { label: "Фукуок – Киензянг", tag: "Жемчужный остров" },
+    LAO_CAI: "Лаокай",
+    HA_NOI: "Ханой",
+    DA_NANG: "Дананг",
+    QUANG_NAM: "Куангнам",
+    HO_CHI_MINH: "Хошимин",
+    KIEN_GIANG: "Киензянг",
   },
   hi: {
-    LAO_CAI: { label: "लाओ काई – सा पा", tag: "उत्तर-पश्चिम बादलों की सैर" },
-    HA_NOI: { label: "हनोई", tag: "ऐतिहासिक राजधानी" },
-    DA_NANG: { label: "दा नांग", tag: "तटीय शहर" },
-    QUANG_NAM: { label: "क्वांग नाम – होई आन", tag: "प्राचीन धरोहर शहर" },
-    HO_CHI_MINH: { label: "हो ची मिन्ह सिटी", tag: "जीवंत महानगर" },
-    KIEN_GIANG: { label: "फू क्वोक – किएन गियांग", tag: "पर्ल आइलैंड रिट्रीट" },
+    LAO_CAI: "लाओ काई",
+    HA_NOI: "हनोई",
+    DA_NANG: "दा नांग",
+    QUANG_NAM: "क्वांग नाम",
+    HO_CHI_MINH: "हो ची मिन्ह सिटी",
+    KIEN_GIANG: "किएन गियांग",
   },
 };
 
@@ -117,12 +110,11 @@ export function getLocalizedDestinations(
 ): readonly PublicLocalMateDestination[] {
   const i18n = DESTINATION_I18N[locale] ?? DESTINATION_I18N.vi;
   return PUBLIC_LOCALMATE_DESTINATIONS.map((dest) => {
-    const item = i18n[dest.provinceCode];
-    if (!item) return dest;
+    const label = i18n[dest.provinceCode];
+    if (!label) return dest;
     return {
       ...dest,
-      label: item.label,
-      tag: item.tag,
+      label,
     };
   });
 }

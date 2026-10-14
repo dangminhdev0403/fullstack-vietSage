@@ -19,7 +19,7 @@ export function VietSageBrand({
     <span
       role="img"
       aria-label="VietSage"
-      className={`inline-flex items-center justify-center bg-white ${className}`}
+      className={`inline-flex shrink-0 items-center justify-center bg-white ${className}`}
     >
       {variant !== "wordmark" ? (
         <Image
@@ -39,7 +39,7 @@ export function VietSageBrand({
           width={1855}
           height={258}
           priority={priority}
-          className={`object-contain ${wordmarkClassName}`}
+          className={`shrink-0 object-contain ${wordmarkClassName}`}
         />
       ) : null}
     </span>

@@ -16,18 +16,18 @@ const TROUBLESHOOTING_GUIDES: GuideItem[] = [
     title: "Máy đọc HN-212 báo Ngoại tuyến hoặc không sáng đèn",
     category: "HN-212",
     steps: [
-      "Kiểm tra dây cáp USB kết nối trực tiếp vào cổng USB 3.0 phía sau case máy tính (tránh cắm qua Hub chia cổng không đủ nguồn).",
-      "Đảm bảo dịch vụ VietSage Device Daemon đang chạy dưới khay hệ thống Windows (Taskbar Tray) tại cổng localhost:8080.",
+      "Kiểm tra dây cáp USB kết nối trực tiếp vào cổng USB phía sau máy tính, tránh cắm qua bộ chia cổng không đủ nguồn.",
+      "Đảm bảo ứng dụng trạm VietSage Device Daemon đang chạy dưới thanh tác vụ Windows tại cổng 8080.",
       "Bấm nút 'Tạo mã ghép nối' trên màn hình này và nhập mã hiển thị vào máy đọc HN-212.",
     ],
-    recommendedFix: "Khởi động lại phần mềm trạm VietSage Daemon hoặc rút cắm lại cáp USB.",
+    recommendedFix: "Khởi động lại phần mềm trạm VietSage Daemon hoặc cắm lại cáp USB.",
   },
   {
     id: "guide-mobile-camera",
     title: "Camera điện thoại không quét được hoặc báo lỗi quyền truy cập",
     category: "Mobile",
     steps: [
-      "Đảm bảo đã cấp quyền 'Cho phép truy cập Camera' trên trình duyệt (Safari đối với iPhone, Chrome đối với Android).",
+      "Đảm bảo đã cấp quyền 'Cho phép truy cập Camera' trên trình duyệt của điện thoại (Safari trên iPhone, Chrome trên Android).",
       "Giữ camera vuông góc với mã QR CCCD ở khoảng cách từ 15 đến 20 cm.",
       "Tránh để ánh đèn trần hoặc ánh sáng mạnh phản chiếu trực tiếp lên bề mặt thẻ gây lóa bóng camera.",
     ],
@@ -50,7 +50,7 @@ const TROUBLESHOOTING_GUIDES: GuideItem[] = [
     category: "Mobile",
     steps: [
       "Đảm bảo điện thoại di động và máy tính lễ tân cùng kết nối vào một mạng Wi-Fi nội bộ của khách sạn.",
-      "Kiểm tra điện thoại không bật mạng riêng ảo (VPN / Proxy / 4G) làm gián đoạn kênh WebRTC cục bộ.",
+      "Kiểm tra điện thoại không bật mạng riêng ảo VPN, Proxy hoặc dữ liệu di động làm gián đoạn kết nối mạng nội bộ.",
       "Nếu phiên quét bị gián đoạn, bấm 'Tạo QR kết nối điện thoại' để làm mới phiên ghép nối mới.",
     ],
     recommendedFix: "Tắt VPN trên điện thoại và kiểm tra đang vào đúng mạng Wi-Fi Lễ tân.",

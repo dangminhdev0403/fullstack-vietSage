@@ -13,7 +13,7 @@ const items = [
   { title: "Quản lý tồn kho & Menu linh hoạt", text: "Cập nhật giá cả, trạng thái còn/hết món tức thì trên toàn bộ hệ thống mà không phải in lại menu giấy tốn kém." },
   { title: "Trải nghiệm cá nhân hóa", text: "Gợi ý thông minh các món ăn kèm, thức uống phù hợp theo thời điểm trong ngày (bữa sáng, trà chiều, dạ tiệc đêm)." },
   { title: "Báo cáo phân tích doanh thu", text: "Thống kê chi tiết doanh thu theo từng phòng, khung giờ cao điểm, các món được ưa chuộng nhất giúp tối ưu chi phí nguyên liệu." },
-  { title: "Tích hợp thanh toán an toàn", text: "Hỗ trợ ghi nợ vào hóa đơn phòng (Folio) hoặc thanh toán trực tuyến qua cổng thẻ, QR code ngân hàng thuận tiện." },
+  { title: "Tích hợp thanh toán an toàn", text: "Hỗ trợ ghi nợ vào hóa đơn phòng hoặc thanh toán trực tuyến qua cổng thẻ, mã QR ngân hàng thuận tiện." },
   { title: "Kết nối hệ sinh thái PMS", text: "Đồng bộ tức thì chi phí vào tài khoản phòng của khách trên hệ thống quản trị lễ tân trung tâm." },
   { title: "Giao diện quản lý trực quan", text: "Bảng điều khiển trực quan dành cho quản lý F&B và bếp, hiển thị thứ tự đơn gọi món theo thời gian thực." },
 ];
