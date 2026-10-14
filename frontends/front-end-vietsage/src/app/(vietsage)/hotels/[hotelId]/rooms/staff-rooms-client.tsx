@@ -1191,63 +1191,6 @@ export function StaffRoomsClient({
   }
 
 
-  const handledFlowCheckInRef = useRef(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || handledFlowCheckInRef.current) return;
-    if (!rooms.length && !otaBookings.length) return;
-
-    const search = window.location.search;
-    if (!search.includes("flow=")) return;
-
-    const params = new URLSearchParams(search);
-    const flow = params.get("flow");
-    if (flow !== "check-in") return;
-
-    const reservationId = params.get("reservationId");
-    const roomNumber = params.get("roomNumber");
-
-    const matchingOta = reservationId
-      ? otaBookings.find((b) => b.reservationId === reservationId)
-      : roomNumber
-        ? incomingOtaByRoomNumber.get(roomNumber.trim().toUpperCase())
-        : undefined;
-
-    const targetRoom = roomNumber
-      ? rooms.find((r) => getRoomNumber(r).toUpperCase() === roomNumber.trim().toUpperCase())
-      : reservationId
-        ? rooms.find((r) => r.projectedReservation?.id === reservationId)
-        : undefined;
-
-    if (matchingOta && targetRoom) {
-      handledFlowCheckInRef.current = true;
-      handleOtaFastCheckIn(matchingOta, targetRoom);
-    } else if (targetRoom && targetRoom.projectedReservation) {
-      handledFlowCheckInRef.current = true;
-      setSelectedRoom(targetRoom);
-      setActiveReservationCheckIn({
-        reservationId: targetRoom.projectedReservation.id,
-        guestDisplayName: targetRoom.projectedReservation.guestDisplayName,
-      });
-      setCustomCheckInInitialFields({
-        guestDisplayName: targetRoom.projectedReservation.guestDisplayName,
-        plannedCheckOutAt: targetRoom.projectedReservation.plannedCheckOutAt,
-      });
-      setSubmitError(undefined);
-      setIsCheckInOpen(true);
-    } else if (targetRoom) {
-      handledFlowCheckInRef.current = true;
-      openWalkIn(targetRoom);
-    } else {
-      handledFlowCheckInRef.current = true;
-    }
-
-    const url = new URL(window.location.href);
-    url.searchParams.delete("flow");
-    url.searchParams.delete("reservationId");
-    url.searchParams.delete("roomNumber");
-    window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
-  }, [rooms, otaBookings, incomingOtaByRoomNumber]);
 
 
 
@@ -1546,6 +1489,72 @@ export function StaffRoomsClient({
     setIsCheckInOpen(true);
   }
 
+  const handledFlowCheckInRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || handledFlowCheckInRef.current) return;
+    if (!rooms.length && !otaBookings.length) return;
+
+    const search = window.location.search;
+    if (!search.includes("flow=")) return;
+
+    const params = new URLSearchParams(search);
+    const flow = params.get("flow");
+    if (flow !== "check-in") return;
+
+    const reservationId = params.get("reservationId");
+    const roomNumber = params.get("roomNumber");
+
+    const matchingOta = reservationId
+      ? otaBookings.find((b) => b.reservationId === reservationId)
+      : roomNumber
+        ? incomingOtaByRoomNumber.get(roomNumber.trim().toUpperCase())
+        : undefined;
+
+    const targetRoom = roomNumber
+      ? rooms.find((r) => getRoomNumber(r).toUpperCase() === roomNumber.trim().toUpperCase())
+      : reservationId
+        ? rooms.find((r) => r.projectedReservation?.id === reservationId)
+        : undefined;
+
+    const timer = setTimeout(() => {
+      if (matchingOta && targetRoom) {
+        handledFlowCheckInRef.current = true;
+        handleOtaFastCheckIn(matchingOta, targetRoom);
+      } else if (targetRoom && targetRoom.projectedReservation) {
+        handledFlowCheckInRef.current = true;
+        setSelectedRoom(targetRoom);
+        setActiveReservationCheckIn({
+          reservationId: targetRoom.projectedReservation.id,
+          guestDisplayName: targetRoom.projectedReservation.guestDisplayName,
+        });
+        setCustomCheckInInitialFields({
+          guestDisplayName: targetRoom.projectedReservation.guestDisplayName,
+          plannedCheckOutAt: targetRoom.projectedReservation.plannedCheckOutAt,
+        });
+        setSubmitError(undefined);
+        setIsCheckInOpen(true);
+      } else if (targetRoom && isAvailable(targetRoom) && canManageStays) {
+        handledFlowCheckInRef.current = true;
+        setActiveReservationCheckIn(null);
+        setCustomCheckInInitialFields(null);
+        setSelectedRoom(targetRoom);
+        setSubmitError(undefined);
+        setIsCheckInOpen(true);
+      } else {
+        handledFlowCheckInRef.current = true;
+      }
+    }, 0);
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("flow");
+    url.searchParams.delete("reservationId");
+    url.searchParams.delete("roomNumber");
+    window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
+
+    return () => clearTimeout(timer);
+  }, [rooms, otaBookings, incomingOtaByRoomNumber, canManageStays]);
+
   function handleCardClick(room: HotelRoomSummary, triggerEl?: HTMLElement | null) {
     if (isHousekeeping) {
       if (getRoomStatus(room) === "processing") {
@@ -1571,6 +1580,12 @@ export function StaffRoomsClient({
     }
 
     if (isFutureDate) {
+      const physicalStatus = getRoomStatus(room);
+      const isPhysicallyBusy = physicalStatus === "occupied" || physicalStatus === "overdue" || Boolean(room.activeStay);
+      if (isPhysicallyBusy) {
+        openRoomContextPanel(room, triggerEl);
+        return;
+      }
       if (effectiveStatus === "available") {
         setAvailableRoomChoice(room);
       }
@@ -1863,6 +1878,7 @@ export function StaffRoomsClient({
   function renderRoomCard(room: HotelRoomSummary) {
     const effectiveStatus = getEffectiveRoomStatus(room, isFutureDate);
     const physicalStatus = getRoomStatus(room);
+    const isPhysicallyBusy = physicalStatus === "occupied" || physicalStatus === "overdue" || Boolean(room.activeStay);
     const incomingOta = incomingOtaByRoomNumber.get(getRoomNumber(room).toUpperCase());
     const isVip = /suite|vip|premium|penthouse/i.test(room.type ?? "");
     const isReserved =
@@ -2085,7 +2101,7 @@ export function StaffRoomsClient({
                           </div>
                         )
                       ) : isFutureDate ? (
-                        effectiveStatus === "available" ? (
+                        effectiveStatus === "available" && !isPhysicallyBusy ? (
                           <button
                             type="button"
                             onClick={(e) => {
@@ -2108,6 +2124,18 @@ export function StaffRoomsClient({
                           >
                             <VsIcon name="event_available" className="text-base shrink-0" />
                             <span>Chi tiết đặt phòng</span>
+                          </button>
+                        ) : isPhysicallyBusy ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openRoomContextPanel(room, e.currentTarget);
+                            }}
+                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-extrabold text-sm shadow-sm transition active:scale-[0.98] cursor-pointer"
+                          >
+                            <VsIcon name="info" className="text-base shrink-0" />
+                            <span>Chưa check-out · Xem chi tiết</span>
                           </button>
                         ) : (
                           <div className="flex w-full min-h-[44px] items-center justify-center rounded-xl bg-slate-200/80 text-slate-700 text-sm font-bold border border-slate-300">
