@@ -132,6 +132,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     );
   }
 
+  const selectedRoleIsFrontDesk = isFrontDeskRole(form.roleId);
+
   const userRoomAssignmentMap = useMemo(() => {
     const map = new Map<string, { id: string; roomId: string; roomNumber: string; assignedAt: string }>();
     for (const assignment of data?.assignments?.items ?? []) {
@@ -388,9 +390,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
       setFormGeneralError("Vui lòng chọn khách sạn trước khi tạo nhân viên.");
       return;
     }
-    const defaultFrontDeskRoleId =
-      data?.roles.find((r) => isFrontDeskRole(r.code ?? r.id))?.id ?? data?.roles[0]?.id;
-    const activeRoleId = form.roleId || defaultFrontDeskRoleId;
+    const activeRoleId = form.roleId;
 
     if (!activeRoleId) {
       setFormGeneralError("Hệ thống chưa cấu hình vai trò cho nhân viên.");
@@ -403,7 +403,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
         password: form.password,
         roleIds: [activeRoleId],
         hotelId: effectiveHotelId,
-        roomId: form.roomId || undefined,
+        roomId: selectedRoleIsFrontDesk ? form.roomId || undefined : undefined,
       });
       setForm({ fullName: "", email: "", password: "", roleId: "", roomId: "" });
       setFormErrors({});
@@ -661,7 +661,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
             </div>
           ) : null}
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5 items-start">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6 items-start">
             <div className="flex flex-col">
               <input
                 required
@@ -749,26 +749,56 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
             </div>
 
             <div className="flex flex-col">
-              <RoomSearchSelect
-                rooms={data?.rooms ?? []}
-                roomUserAssignmentMap={roomUserAssignmentMap}
-                value={form.roomId}
-                onChange={(roomId) => {
-                  setForm({ ...form, roomId });
-                  if (formErrors.roomId) setFormErrors((prev) => ({ ...prev, roomId: undefined }));
-                }}
+              <select
+                required
+                aria-label="Vai trò nhân viên"
                 disabled={mutations.createUser.isPending}
-                error={formErrors.roomId}
-                required={false}
-                placeholder="Phòng phụ trách (Tùy chọn)"
-              />
-              {formErrors.roomId ? (
-                <span className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
-                  <VsIcon name="error" className="text-sm shrink-0" />
-                  {formErrors.roomId}
-                </span>
-              ) : null}
+                value={form.roleId}
+                onChange={(event) => {
+                  const roleId = event.target.value;
+                  setForm({
+                    ...form,
+                    roleId,
+                    roomId: isFrontDeskRole(roleId) ? form.roomId : "",
+                  });
+                  if (formErrors.roleId) setFormErrors((prev) => ({ ...prev, roleId: undefined }));
+                }}
+                className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] bg-white px-3 text-sm disabled:bg-slate-50"
+              >
+                <option value="">Chọn vai trò</option>
+                {data?.roles.map((role) => (
+                  <option key={role.id} value={role.id}>{role.name}</option>
+                ))}
+              </select>
             </div>
+
+            {selectedRoleIsFrontDesk ? (
+              <div className="flex flex-col">
+                <RoomSearchSelect
+                  rooms={data?.rooms ?? []}
+                  roomUserAssignmentMap={roomUserAssignmentMap}
+                  value={form.roomId}
+                  onChange={(roomId) => {
+                    setForm({ ...form, roomId });
+                    if (formErrors.roomId) setFormErrors((prev) => ({ ...prev, roomId: undefined }));
+                  }}
+                  disabled={mutations.createUser.isPending}
+                  error={formErrors.roomId}
+                  required={false}
+                  placeholder="Phòng phụ trách (Tùy chọn)"
+                />
+                {formErrors.roomId ? (
+                  <span className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
+                    <VsIcon name="error" className="text-sm shrink-0" />
+                    {formErrors.roomId}
+                  </span>
+                ) : null}
+              </div>
+            ) : (
+              <div className="flex min-h-11 items-center rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-3 text-xs text-[var(--on-surface-variant)]">
+                Áp dụng toàn khách sạn
+              </div>
+            )}
 
             <button disabled={mutations.createUser.isPending} className="min-h-11 rounded-xl bg-[var(--secondary-container)] px-4 text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60">
               {mutations.createUser.isPending ? (
