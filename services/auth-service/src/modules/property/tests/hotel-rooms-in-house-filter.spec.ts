@@ -126,4 +126,55 @@ describe("Hotel rooms in-house filter", () => {
       20,
     );
   });
+
+  it("searches guest stays, occupants, reservations, and room numbers when status is omitted", async () => {
+    const listRooms = jest.fn().mockResolvedValue({
+      total: 0,
+      floors: [],
+      types: [],
+      totalAvailable: 0,
+      byStatus: {},
+      items: [],
+    });
+    const service = new HotelRoomsService(
+      { listRooms } as never,
+      {} as never,
+      {
+        resolveRoomScope: jest.fn().mockResolvedValue({
+          hotel: { timezone: "Asia/Ho_Chi_Minh" },
+          allowedRoomId: null,
+          mode: "HOTEL_WIDE",
+        }),
+        loadActorContext: jest.fn().mockResolvedValue({ permissions: new Set(["hotel.stays.view"]) }),
+      } as never,
+      {} as never,
+    );
+
+    await service.listRooms("user-1", "role-1", "hotel-1", {
+      q: "Lan",
+      page: 1,
+      limit: 20,
+    } as never);
+
+    expect(listRooms).toHaveBeenCalledWith(
+      expect.objectContaining({
+        AND: expect.arrayContaining([
+          expect.objectContaining({
+            OR: expect.arrayContaining([
+              { roomNumber: { contains: "Lan", mode: "insensitive" } },
+              expect.objectContaining({
+                guestStays: expect.any(Object),
+              }),
+              expect.objectContaining({
+                reservations: expect.any(Object),
+              }),
+            ]),
+          }),
+        ]),
+      }),
+      0,
+      20,
+    );
+  });
 });
+

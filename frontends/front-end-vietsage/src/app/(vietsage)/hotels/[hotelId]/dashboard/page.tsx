@@ -87,7 +87,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
   const roomCards = [
     { label: "Đang ở", value: dashboard.rooms.byStatus.occupied, icon: "hotel", tone: "text-[var(--primary)]", progress: dashboard.rooms.occupancyRate },
     { label: "Sẵn sàng", value: dashboard.rooms.byStatus.available, icon: "check_circle", tone: "text-[var(--secondary)]", progress: dashboard.rooms.total ? (dashboard.rooms.byStatus.available / dashboard.rooms.total) * 100 : 0 },
-    { label: "Khách đến hôm nay", value: dashboard.stays.todayCheckIns, icon: "event_available", tone: "text-[var(--on-tertiary-container)]", progress: undefined },
+    { label: "Khách đặt trước hôm nay", value: dashboard.stays.todayCheckIns, icon: "event_available", tone: "text-[var(--on-tertiary-container)]", progress: undefined },
     { label: "Đang dọn", value: dashboard.rooms.byStatus.processing, icon: "cleaning_services", tone: "text-[var(--primary)]", progress: undefined },
     { label: "Bảo trì", value: dashboard.rooms.byStatus.maintenance, icon: "build", tone: "text-[var(--error)]", progress: undefined },
   ] as const;
@@ -257,7 +257,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
 
         <article className="flex flex-col justify-between rounded-xl border border-amber-200 bg-amber-50/70 p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-900">Khách đến ngày mai</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-900">Khách đặt trước ngày mai</span>
             <span className="grid size-8 place-items-center rounded-lg bg-amber-100 text-amber-800 shadow-2xs">
               <VsIcon name="next_plan" className="text-lg" />
             </span>
@@ -302,93 +302,94 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
       </section>
 
       {/* Kế hoạch Chuẩn bị đón tiếp ngày mai (Không nhận phòng sớm) */}
-      <section className="rounded-xl border border-amber-200/80 bg-gradient-to-br from-amber-50/60 via-white to-amber-50/30 p-5 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 border-b border-amber-200/50 pb-3">
-          <div className="flex items-center gap-2.5">
-            <span className="grid size-9 place-items-center rounded-lg bg-amber-100 text-amber-900">
-              <VsIcon name="assignment_turned_in" className="text-xl" />
+      <section className="rounded-2xl border-2 border-amber-300/80 bg-gradient-to-br from-amber-50/70 via-white to-amber-50/40 p-6 sm:p-7 md:p-8 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-amber-200/60 pb-5">
+          <div className="flex items-start sm:items-center gap-3.5 sm:gap-4">
+            <span className="grid size-12 sm:size-14 shrink-0 place-items-center rounded-xl bg-amber-100/90 text-amber-900 shadow-xs">
+              <VsIcon name="assignment_turned_in" className="text-2xl sm:text-3xl" />
             </span>
             <div>
-              <h2 className="text-base font-bold text-amber-950">Công tác chuẩn bị đón khách ngày mai</h2>
-              <p className="text-xs text-amber-900/80">
-                Kiểm tra sơ đồ buồng phòng dự kiến và xếp trước phòng cho khách đến ngày mai. Không thực hiện nhận phòng sớm trước ngày nhận phòng.
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-amber-950">Công tác chuẩn bị đón khách ngày mai</h2>
+              <p className="mt-1 text-sm sm:text-base text-amber-900/85 leading-relaxed">
+                Kiểm tra sơ đồ buồng phòng dự kiến và xếp trước phòng cho khách đặt trước ngày mai. Không thực hiện nhận phòng sớm trước ngày nhận phòng.
               </p>
             </div>
           </div>
-          <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-100/90 border border-amber-200 px-2.5 py-1 rounded-md shrink-0">
-            <VsIcon name="event" className="text-sm" />
+          <span className="inline-flex items-center gap-2 self-start sm:self-center text-sm sm:text-base font-bold text-amber-900 bg-amber-100 border border-amber-300 px-4 py-2 rounded-xl shadow-2xs shrink-0">
+            <VsIcon name="event" className="text-base sm:text-lg" />
             <span>Ngày mai: {tomorrowYmd}</span>
           </span>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-3">
           <Link
             href={`/hotels/${hotelId}/rooms?businessDate=${tomorrowYmd}`}
             prefetch={true}
-            className="flex min-h-[52px] items-center gap-3 rounded-xl border border-amber-300 bg-white p-3.5 shadow-2xs transition hover:border-amber-500 hover:shadow-sm active:scale-[0.98]"
+            className="group flex min-h-[96px] items-center gap-4 rounded-xl border-2 border-amber-200/80 bg-white p-4.5 sm:p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-500 hover:shadow-md active:scale-[0.98]"
           >
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-900">
-              <VsIcon name="meeting_room" className="text-lg" />
+            <span className="grid size-12 sm:size-14 shrink-0 place-items-center rounded-xl bg-amber-100/80 text-amber-900 transition-colors group-hover:bg-amber-200/90">
+              <VsIcon name="meeting_room" className="text-2xl sm:text-3xl" />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-amber-950">Sơ đồ phòng ngày mai</p>
-              <p className="text-[11px] text-amber-800/80 truncate">Xem trạng thái dự kiến &amp; gán phòng trước</p>
+              <p className="text-base sm:text-lg font-bold text-amber-950 group-hover:text-amber-900">Sơ đồ phòng ngày mai</p>
+              <p className="mt-1 text-xs sm:text-sm text-amber-800/85 leading-snug">Xem trạng thái dự kiến &amp; gán phòng trước</p>
             </div>
           </Link>
 
           <Link
             href={`/hotels/${hotelId}/rooms?status=processing`}
             prefetch={true}
-            className="flex min-h-[52px] items-center gap-3 rounded-xl border border-amber-300 bg-white p-3.5 shadow-2xs transition hover:border-amber-500 hover:shadow-sm active:scale-[0.98]"
+            className="group flex min-h-[96px] items-center gap-4 rounded-xl border-2 border-amber-200/80 bg-white p-4.5 sm:p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-500 hover:shadow-md active:scale-[0.98]"
           >
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-900">
-              <VsIcon name="cleaning_services" className="text-lg" />
+            <span className="grid size-12 sm:size-14 shrink-0 place-items-center rounded-xl bg-amber-100/80 text-amber-900 transition-colors group-hover:bg-amber-200/90">
+              <VsIcon name="cleaning_services" className="text-2xl sm:text-3xl" />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-amber-950">Phòng chờ dọn ({dashboard.rooms.byStatus.processing})</p>
-              <p className="text-[11px] text-amber-800/80 truncate">Đôn đốc buồng phòng hoàn tất sẵn sàng</p>
+              <p className="text-base sm:text-lg font-bold text-amber-950 group-hover:text-amber-900">Phòng chờ dọn ({dashboard.rooms.byStatus.processing})</p>
+              <p className="mt-1 text-xs sm:text-sm text-amber-800/85 leading-snug">Đôn đốc buồng phòng hoàn tất sẵn sàng</p>
             </div>
           </Link>
 
           <Link
             href={`/hotels/${hotelId}/rooms?flow=reservation`}
             prefetch={true}
-            className="flex min-h-[52px] items-center gap-3 rounded-xl border border-amber-300 bg-white p-3.5 shadow-2xs transition hover:border-amber-500 hover:shadow-sm active:scale-[0.98]"
+            className="group flex min-h-[96px] items-center gap-4 rounded-xl border-2 border-amber-200/80 bg-white p-4.5 sm:p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-500 hover:shadow-md active:scale-[0.98]"
           >
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-900">
-              <VsIcon name="edit_calendar" className="text-lg" />
+            <span className="grid size-12 sm:size-14 shrink-0 place-items-center rounded-xl bg-amber-100/80 text-amber-900 transition-colors group-hover:bg-amber-200/90">
+              <VsIcon name="edit_calendar" className="text-2xl sm:text-3xl" />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-amber-950">Đặt phòng tương lai</p>
-              <p className="text-[11px] text-amber-800/80 truncate">Tạo đặt trước có chọn phòng &amp; giá đêm</p>
+              <p className="text-base sm:text-lg font-bold text-amber-950 group-hover:text-amber-900">Đặt phòng tương lai</p>
+              <p className="mt-1 text-xs sm:text-sm text-amber-800/85 leading-snug">Tạo đặt trước có chọn phòng &amp; giá đêm</p>
             </div>
           </Link>
         </div>
 
         {tomorrowArrivals.length > 0 ? (
-          <div className="mt-4 rounded-xl border border-amber-200/70 bg-white/95 p-3.5">
-            <p className="text-xs font-bold uppercase tracking-wider text-amber-950 mb-2">
-              Danh sách khách đến dự kiến ngày mai ({tomorrowArrivals.length} lượt)
+          <div className="mt-6 rounded-xl border border-amber-200/80 bg-white/95 p-4 sm:p-5 shadow-2xs">
+            <p className="text-sm sm:text-base font-bold uppercase tracking-wider text-amber-950 mb-3 flex items-center gap-2">
+              <VsIcon name="list_alt" className="text-lg text-amber-800" />
+              <span>Danh sách khách đặt trước ngày mai ({tomorrowArrivals.length} lượt)</span>
             </p>
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {tomorrowArrivals.slice(0, 5).map((arrival) => (
                 <div
                   key={arrival.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border border-amber-100 bg-amber-50/40 p-2.5 text-xs text-amber-950"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-amber-100 bg-amber-50/50 p-3 sm:p-3.5 text-amber-950"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold">{arrival.guestDisplayName}</p>
-                    <p className="text-[11px] text-amber-800/80">
-                      Mã: {arrival.reservationCode} · {arrival.roomId ? `Phòng ${arrival.roomId}` : "Chưa gán phòng"}
+                    <p className="text-sm sm:text-base font-bold text-amber-950">{arrival.guestDisplayName}</p>
+                    <p className="mt-0.5 text-xs sm:text-sm text-amber-800/85">
+                      Mã: <span className="font-semibold text-amber-900">{arrival.reservationCode}</span> · {arrival.roomId ? `Phòng ${arrival.roomId}` : "Chưa gán phòng"}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900">
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <span className="rounded-lg bg-amber-100 px-3 py-1 text-xs sm:text-sm font-semibold text-amber-900 border border-amber-200/70">
                       Không nhận phòng sớm
                     </span>
                     <Link
                       href={`/hotels/${hotelId}/rooms?businessDate=${tomorrowYmd}`}
-                      className="inline-flex min-h-[44px] items-center rounded-lg bg-amber-800 px-3 text-xs font-bold text-white shadow-2xs hover:bg-amber-900"
+                      className="inline-flex min-h-[44px] items-center rounded-xl bg-amber-800 px-4 py-2 text-sm font-bold text-white shadow-2xs transition-colors hover:bg-amber-900"
                     >
                       Xem &amp; Gán phòng
                     </Link>
@@ -398,24 +399,6 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
             </div>
           </div>
         ) : null}
-      </section>
-
-      <section>
-        <h2 className="vs-display mb-4 text-2xl font-semibold text-[var(--primary)]">Thao tác nhanh</h2>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <Link href={`/hotels/${hotelId}/rooms?flow=check-in`} prefetch={true} className="flex min-h-36 flex-col items-center justify-center gap-2 rounded-xl bg-[var(--primary)] p-5 text-center font-bold text-white shadow-lg transition hover:-translate-y-1">
-            <VsIcon name="person_add" className="text-4xl" /><span className="text-sm tracking-[0.08em]">LÀM THỦ TỤC ĐẾN</span>
-          </Link>
-          <Link href={`/hotels/${hotelId}/rooms?flow=reservation`} prefetch={true} className="flex min-h-36 flex-col items-center justify-center gap-2 rounded-xl bg-[var(--secondary)] p-5 text-center font-bold text-white shadow-lg transition hover:-translate-y-1">
-            <VsIcon name="calendar_month" className="text-4xl" /><span className="text-sm tracking-[0.08em]">ĐẶT PHÒNG NHANH</span>
-          </Link>
-          <Link href={`/hotels/${hotelId}/billing`} prefetch={true} className="flex min-h-36 flex-col items-center justify-center gap-2 rounded-xl border-2 border-[var(--outline-variant)] bg-white p-5 text-center font-bold text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]">
-            <VsIcon name="logout" className="text-4xl" /><span className="text-sm tracking-[0.08em]">LÀM THỦ TỤC ĐI &amp; THANH TOÁN</span>
-          </Link>
-          <Link href={`/hotels/${hotelId}/rooms`} prefetch={true} className="flex min-h-36 flex-col items-center justify-center gap-2 rounded-xl border-2 border-[var(--outline-variant)] bg-white p-5 text-center font-bold text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]">
-            <VsIcon name="key" className="text-4xl" /><span className="text-sm tracking-[0.08em]">MỞ PHÒNG MỚI</span>
-          </Link>
-        </div>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.6fr_0.8fr]">

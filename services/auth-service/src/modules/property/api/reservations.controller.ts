@@ -121,8 +121,8 @@ export class ReservationsController {
   }
 
   @RequirePermission("hotel.reservations.view")
-  @SuccessMessage("Lấy danh sách khách đến thành công")
-  @ApiDescript("Danh sách khách dự kiến đến theo khoảng thời gian")
+  @SuccessMessage("Lấy danh sách khách đặt trước thành công")
+  @ApiDescript("Danh sách khách đặt trước theo khoảng thời gian")
   @ApiParam({ name: "hotelId", type: String })
   @ApiQuery({ name: "from", required: true, type: String })
   @ApiQuery({ name: "to", required: true, type: String })

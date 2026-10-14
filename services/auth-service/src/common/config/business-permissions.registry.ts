@@ -146,7 +146,7 @@ export const BUSINESS_PERMISSIONS: readonly BusinessPermissionDefinition[] = [
   permission(
     "hotel.reservations.view",
     "hotel-reservations",
-    "Xem đặt phòng và danh sách khách đến",
+    "Xem đặt phòng và danh sách khách đặt trước",
   ),
   permission(
     "hotel.reservations.manage",

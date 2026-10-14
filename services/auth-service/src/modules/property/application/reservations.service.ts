@@ -16,6 +16,7 @@ import type {
   ListArrivalsQueryInput,
 } from "../domain/schemas/reservations.schema";
 import { ReservationsRepository } from "../infrastructure/repositories/reservations.repository";
+import { getBusinessDateRange } from "../infrastructure/repositories/hotel-rooms.repository";
 import { HotelAccessService } from "./hotel-access.service";
 
 @Injectable()
@@ -77,10 +78,18 @@ export class ReservationsService {
     );
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
+    const from = getBusinessDateRange(
+      query.from.toISOString().slice(0, 10),
+      scope.hotel.timezone,
+    ).start;
+    const to = getBusinessDateRange(
+      query.to.toISOString().slice(0, 10),
+      scope.hotel.timezone,
+    ).start;
     const [total, items] = await this.reservationsRepository.listArrivals({
       hotelId,
-      from: query.from,
-      to: query.to,
+      from,
+      to,
       skip: (page - 1) * limit,
       take: limit,
       roomId: scope.allowedRoomId ?? undefined,

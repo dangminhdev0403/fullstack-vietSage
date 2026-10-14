@@ -22,16 +22,16 @@
   --outline: #767684;
   --outline-variant: #c6c5d5;
 
-  --primary: #00003c;
+  --primary: #1b2559;
   --on-primary: #ffffff;
-  --primary-container: #000080;
-  --on-primary-container: #777eea;
-  --primary-fixed: #e0e0ff;
-  --primary-fixed-dim: #bfc2ff;
-  --on-primary-fixed: #00006e;
-  --on-primary-fixed-variant: #3239a3;
-  --inverse-primary: #bfc2ff;
-  --surface-tint: #4b53bc;
+  --primary-container: #2d3a80;
+  --on-primary-container: #a5aef0;
+  --primary-fixed: #e0e3ff;
+  --primary-fixed-dim: #b8bef8;
+  --on-primary-fixed: #0e1747;
+  --on-primary-fixed-variant: #3d49a8;
+  --inverse-primary: #b8bef8;
+  --surface-tint: #5562c7;
 
   --secondary: #735c00;
   --on-secondary: #ffffff;

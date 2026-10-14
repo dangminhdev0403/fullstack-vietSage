@@ -106,7 +106,13 @@ describe("ReservationsService front-desk lifecycle", () => {
     });
 
     expect(repository.listArrivals).toHaveBeenCalledWith(
-      expect.objectContaining({ hotelId: "hotel-1", from, to, skip: 0, take: 20 }),
+      expect.objectContaining({
+        hotelId: "hotel-1",
+        from: new Date("2026-07-31T17:00:00.000Z"),
+        to: new Date("2026-08-01T17:00:00.000Z"),
+        skip: 0,
+        take: 20,
+      }),
     );
   });
 

@@ -477,21 +477,6 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     anyCapabilities: ["hotel.dashboard.view"],
   },
   {
-    key: "staff.front-desk",
-    personas: ["manager", "front_desk"],
-    href: "/hotels/{hotelId}/front-desk",
-    label: "Lễ tân",
-    icon: "concierge",
-    order: 15,
-    section: "OPERATIONS",
-    requiresHotel: true,
-    anyCapabilities: [
-      "hotel.reservations.view",
-      "hotel.reservations.manage",
-      "hotel.rooms.view",
-    ],
-  },
-  {
     key: "staff.rooms",
     personas: ["manager", "front_desk", "housekeeping"],
     href: "/hotels/{hotelId}/rooms",
@@ -510,6 +495,21 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
       "hotel.stays.manage",
       "hotel.reservations.view",
       "hotel.reservations.manage",
+    ],
+  },
+  {
+    key: "staff.front-desk",
+    personas: ["manager", "front_desk"],
+    href: "/hotels/{hotelId}/front-desk",
+    label: "Quản lý khách lưu trú",
+    icon: "concierge",
+    order: 22,
+    section: "OPERATIONS",
+    requiresHotel: true,
+    anyCapabilities: [
+      "hotel.reservations.view",
+      "hotel.reservations.manage",
+      "hotel.rooms.view",
     ],
   },
   {

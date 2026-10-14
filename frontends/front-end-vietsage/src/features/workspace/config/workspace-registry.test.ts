@@ -286,11 +286,16 @@ test("shows front-desk guest operations only to manager and receptionist capabil
       {
         key: "staff.front-desk",
         href: "/hotels/hotel-1/front-desk",
-        label: "Lễ tân",
+        label: "Quản lý khách lưu trú",
         icon: "concierge",
         section: "OPERATIONS",
       },
     );
+
+    const roomsIndex = navigation.findIndex((item) => item.key === "staff.rooms");
+    const frontDeskIndex = navigation.findIndex((item) => item.key === "staff.front-desk");
+    assert.ok(roomsIndex !== -1 && frontDeskIndex !== -1);
+    assert.ok(roomsIndex < frontDeskIndex, "staff.front-desk should appear after staff.rooms");
   }
 
   const withoutCapability = buildWorkspaceNavigation({

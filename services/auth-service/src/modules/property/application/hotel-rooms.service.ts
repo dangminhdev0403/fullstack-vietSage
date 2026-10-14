@@ -6,7 +6,7 @@ import {
   NotFoundException,
   Optional,
 } from "@nestjs/common";
-import { GuestStayStatus, Prisma, RoomQRCodeStatus, RoomStatus } from "@prisma/client";
+import { GuestStayStatus, Prisma, ReservationStatus, RoomQRCodeStatus, RoomStatus } from "@prisma/client";
 import {
   addHours,
   generateOpaqueToken,
@@ -277,8 +277,61 @@ export class HotelRoomsService {
             },
           ],
         });
-      } else {
+      } else if (
+        query.status === "AVAILABLE" ||
+        query.status === "PROCESSING" ||
+        query.status === "MAINTENANCE" ||
+        query.status === "BLOCKED"
+      ) {
         where.roomNumber = { contains: q, mode: "insensitive" };
+      } else {
+        // Universal search: roomNumber, active/checked-in guest stays (with occupants), or confirmed reservations
+        conditions.push({
+          OR: [
+            { roomNumber: { contains: q, mode: "insensitive" } },
+            {
+              guestStays: {
+                some: {
+                  status: {
+                    in: [
+                      GuestStayStatus.ACTIVE,
+                      GuestStayStatus.CHECKED_IN,
+                      GuestStayStatus.CHECKOUT_PENDING,
+                    ],
+                  },
+                  checkedOutAt: null,
+                  OR: [
+                    { guestDisplayName: { contains: q, mode: "insensitive" } },
+                    { guestPhone: { contains: q } },
+                    { reservationCode: { contains: q, mode: "insensitive" } },
+                    {
+                      occupants: {
+                        some: {
+                          OR: [
+                            { fullName: { contains: q, mode: "insensitive" } },
+                            { phone: { contains: q } },
+                          ],
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+            {
+              reservations: {
+                some: {
+                  status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY] },
+                  OR: [
+                    { guestDisplayName: { contains: q, mode: "insensitive" } },
+                    { guestPhone: { contains: q } },
+                    { reservationCode: { contains: q, mode: "insensitive" } },
+                  ],
+                },
+              },
+            },
+          ],
+        });
       }
     }
 

@@ -36,7 +36,7 @@ export async function GET(request: Request, context: Params) {
   const rawQuery = Object.fromEntries(url.searchParams.entries());
   const parsed = listArrivalsQuerySchema.safeParse(rawQuery);
   if (!parsed.success) {
-    return validationErrorResponse(parsed.error.issues[0]?.message || "Tham số truy vấn danh sách khách đến không hợp lệ");
+    return validationErrorResponse(parsed.error.issues[0]?.message || "Tham số truy vấn danh sách khách đặt trước không hợp lệ");
   }
 
   const { from, to, q, page, limit } = parsed.data;
@@ -55,7 +55,7 @@ export async function GET(request: Request, context: Params) {
       }),
     );
     if (data instanceof Response) return data;
-    return successResponse(data, 200, "Lấy danh sách khách đến thành công");
+    return successResponse(data, 200, "Lấy danh sách khách đặt trước thành công");
   } catch (error) {
     return error instanceof HttpError ? hotelOpsHttpErrorResponse(error) : unknownServerErrorResponse();
   }

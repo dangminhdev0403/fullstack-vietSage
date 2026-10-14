@@ -847,14 +847,14 @@ export function StaffBillingWorkspaceClient({
                       </span>
                       <div className="min-w-0">
                         <p className="font-extrabold text-base text-[var(--primary)] truncate">
-                          Tiền phòng - {displayRoom(selectedFolio)}
+                          Tiền phòng
                         </p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="inline-block text-xs font-extrabold text-amber-900 bg-amber-200/70 border border-amber-300/80 rounded-md px-2.5 py-0.5">
-                            Tiền phòng (Tạm tính)
-                          </span>
-                          <span className="text-xs text-[var(--on-surface-variant)]">
-                            {estimatedRoomChargeData?.nights ?? 1} đêm × {formatMoney(estimatedRoomChargeData?.nightlyRate ?? roomChargeTotal, currency)} / đêm
+                        <div className="mt-0.5">
+                          <span
+                            className="inline-flex items-center whitespace-nowrap rounded-md bg-amber-100 text-amber-900 border border-amber-300/80 px-2 py-0.5 text-xs font-bold"
+                            title={`${estimatedRoomChargeData?.nights ?? 1} đêm × ${formatMoney(estimatedRoomChargeData?.nightlyRate ?? roomChargeTotal, currency)}`}
+                          >
+                            Tạm tính
                           </span>
                         </div>
                       </div>
@@ -870,10 +870,7 @@ export function StaffBillingWorkspaceClient({
                     {formatMoney(roomChargeTotal, currency)}
                   </td>
                   <td className="py-4 px-4 text-center">
-                    <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-100/90 text-emerald-900 border border-emerald-300 px-2 py-1 text-xs font-black">
-                      <VsIcon name="auto_awesome" className="text-xs" />
-                      Tự động
-                    </span>
+                    <span className="text-[11px] text-[var(--on-surface-variant)]">—</span>
                   </td>
                 </tr>
               ) : null}
@@ -925,7 +922,7 @@ export function StaffBillingWorkspaceClient({
                             if (isExternal) {
                               return (
                                 <div className="space-y-0.5 mt-0.5">
-                                  <span className="inline-block text-xs font-extrabold text-purple-900 bg-purple-100 border border-purple-300 rounded-md px-2.5 py-0.5 shadow-2xs">
+                                  <span className="inline-block whitespace-nowrap text-xs font-extrabold text-purple-900 bg-purple-100 border border-purple-300 rounded-md px-2.5 py-0.5 shadow-2xs">
                                     Dịch vụ bên ngoài
                                   </span>
                                   {partnerName ? (
@@ -938,7 +935,7 @@ export function StaffBillingWorkspaceClient({
                             }
 
                             return (
-                              <span className="inline-block text-xs font-extrabold text-[var(--secondary)] bg-amber-50 border border-amber-200/80 rounded-md px-2.5 py-0.5 mt-0.5">
+                              <span className="inline-block whitespace-nowrap text-xs font-extrabold text-[var(--secondary)] bg-amber-50 border border-amber-200/80 rounded-md px-2.5 py-0.5 mt-0.5">
                                 {item.itemType === "ROOM_CHARGE"
                                   ? "Tiền phòng"
                                   : item.itemType === "SERVICE"
@@ -1045,7 +1042,7 @@ export function StaffBillingWorkspaceClient({
                         </button>
                       ) : (
                         <span className="text-[11px] text-[var(--on-surface-variant)]">
-                          -
+                          —
                         </span>
                       )}
                     </td>
