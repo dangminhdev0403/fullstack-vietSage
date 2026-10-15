@@ -22,9 +22,9 @@ import { MobileCccdScan } from "./mobile-cccd-scan";
 import { DesktopDocumentOcrUpload } from "./desktop-document-ocr-upload";
 
 const cellInputClass =
-  "h-11 sm:h-12 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-base sm:text-lg font-semibold text-slate-950 shadow-2xs outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-400 placeholder:font-normal";
+  "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm sm:text-base font-semibold text-slate-900 shadow-2xs outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-400 placeholder:font-normal placeholder:text-xs sm:placeholder:text-sm";
 const cellSelectClass =
-  "h-11 sm:h-12 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base sm:text-lg font-semibold text-slate-950 shadow-2xs outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100";
+  "h-10 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm sm:text-base font-semibold text-slate-900 shadow-2xs outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100";
 
 export function toDisplayVnDate(str?: string): string {
   if (!str) return "";
@@ -250,8 +250,8 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
     plannedCheckOutAt: initialStayFields?.plannedCheckOutAt || "",
     guestIdentityNumber: initialStayFields?.guestIdentityNumber || "",
     guestDateOfBirth: initialStayFields?.guestDateOfBirth || "",
-    guestGender: initialStayFields?.guestGender || "",
-    guestNationality: initialStayFields?.guestNationality || "",
+    guestGender: initialStayFields?.guestGender || "Nam",
+    guestNationality: initialStayFields?.guestNationality || "Việt Nam",
     guestResidencePlace: initialStayFields?.guestResidencePlace || "",
   });
   const [capturesByGuest, setCapturesByGuest] = useState<
@@ -291,7 +291,13 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
   const handleAddOccupant = useCallback(() => {
     setOccupants((prev) => [
       ...prev,
-      { fullName: "", phone: "", identityNumber: "" },
+      {
+        fullName: "",
+        phone: "",
+        identityNumber: "",
+        nationality: "Việt Nam",
+        gender: "Nam",
+      },
     ]);
   }, []);
 
@@ -338,14 +344,15 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
     const hasNonEmptyOccupant = occupants.some((occ) =>
       Boolean(
         occ.fullName?.trim() ||
-        occ.phone?.trim() ||
         occ.identityNumber?.trim() ||
+        occ.phone?.trim() ||
         occ.dateOfBirth?.trim() ||
-        occ.gender?.trim() ||
-        occ.nationality?.trim() ||
+        (occ.gender && occ.gender !== "Nam") ||
+        (occ.nationality && occ.nationality !== "Việt Nam") ||
         occ.residencePlace?.trim(),
       ),
     );
+    const isNewCheckIn = !initialStayFields?.guestDisplayName && !initialStayFields?.guestIdentityNumber;
     const dirty = Boolean(
       hasAnyCapture ||
       fields.guestDisplayName !== (initialStayFields?.guestDisplayName || "") ||
@@ -355,8 +362,12 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
       fields.guestIdentityNumber !==
         (initialStayFields?.guestIdentityNumber || "") ||
       fields.guestDateOfBirth !== (initialStayFields?.guestDateOfBirth || "") ||
-      fields.guestGender !== (initialStayFields?.guestGender || "") ||
-      fields.guestNationality !== (initialStayFields?.guestNationality || "") ||
+      (isNewCheckIn
+        ? (fields.guestGender !== "Nam" && fields.guestGender !== (initialStayFields?.guestGender || ""))
+        : fields.guestGender !== (initialStayFields?.guestGender || "")) ||
+      (isNewCheckIn
+        ? (fields.guestNationality !== "Việt Nam" && fields.guestNationality !== (initialStayFields?.guestNationality || ""))
+        : fields.guestNationality !== (initialStayFields?.guestNationality || "")) ||
       fields.guestResidencePlace !==
         (initialStayFields?.guestResidencePlace || "") ||
       hasNonEmptyOccupant,
@@ -1197,7 +1208,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Tìm theo tên, số CCCD / Hộ chiếu..."
-                  className="h-11 min-w-[340px] w-96 sm:w-[440px] md:w-[500px] rounded-lg border border-slate-300 bg-slate-50 px-3.5 text-sm sm:text-base text-slate-900 placeholder-slate-400 outline-none focus:bg-white focus:border-blue-500 font-medium"
+                  className="h-10 min-w-[260px] w-64 sm:w-80 md:w-96 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:bg-white focus:border-blue-500 font-medium"
                 />
                 <button
                   type="button"
@@ -1205,7 +1216,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                     handleAddOccupant();
                     setActiveGuestIndex(occupants.length + 1);
                   }}
-                  className="inline-flex h-11 items-center gap-1.5 rounded-lg border border-blue-600 bg-white px-4 text-base font-bold text-blue-700 hover:bg-blue-50 transition-colors shadow-2xs"
+                  className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-blue-600 bg-white px-3.5 text-sm sm:text-base font-bold text-blue-700 hover:bg-blue-50 transition-colors shadow-2xs"
                 >
                   <span>+ Thêm khách</span>
                 </button>
@@ -1213,7 +1224,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                   <button
                     type="button"
                     onClick={handleDeleteSelected}
-                    className="inline-flex h-11 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3.5 text-base font-bold text-red-700 hover:bg-red-100 transition-colors"
+                    className="inline-flex h-10 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 text-sm sm:text-base font-bold text-red-700 hover:bg-red-100 transition-colors"
                   >
                     <span>Xóa ({selectedOccupants.size})</span>
                   </button>
@@ -1221,49 +1232,51 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
               </div>
             </div>
 
-            {/* Grid Table: Clean, large readable text, No Status Column */}
+            {/* Grid Table: Clean, readable, spacious layout without overflowing or truncating */}
             <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
-              <table className="w-full text-left text-base text-slate-900">
-                <thead className="border-b-2 border-slate-200 bg-slate-100/90 font-black text-slate-900 whitespace-nowrap text-base">
+              <table className="w-full text-left text-sm sm:text-base text-slate-900">
+                <thead className="border-b border-slate-200 bg-slate-100/90 font-bold text-slate-800 text-sm sm:text-base whitespace-nowrap">
                   <tr>
-                    <th className="w-9 px-3.5 py-3.5 text-center">
-                      <input
-                        type="checkbox"
-                        checked={
-                          occupants.length > 0 &&
-                          selectedOccupants.size === occupants.length
-                        }
-                        onChange={(e) =>
-                          handleToggleSelectAll(e.target.checked)
-                        }
-                        className="h-4.5 w-4.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                      />
+                    <th className="w-10 px-2 py-3 text-center">
+                      {occupants.length > 0 ? (
+                        <input
+                          type="checkbox"
+                          title="Chọn tất cả khách đi cùng"
+                          checked={
+                            occupants.length > 0 &&
+                            selectedOccupants.size === occupants.length
+                          }
+                          onChange={(e) =>
+                            handleToggleSelectAll(e.target.checked)
+                          }
+                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                      ) : (
+                        <span className="text-xs font-bold text-slate-400">#</span>
+                      )}
                     </th>
-                    <th className="w-12 px-2.5 py-3.5 font-black text-slate-900">
-                      #
-                    </th>
-                    <th className="min-w-[190px] px-3.5 py-3.5 font-black text-slate-900">
+                    <th className="min-w-[180px] px-2.5 py-3 font-bold text-slate-900">
                       Họ và tên <span className="text-red-600">*</span>
                     </th>
-                    <th className="min-w-[150px] px-3.5 py-3.5 font-black text-slate-900">
+                    <th className="w-44 min-w-[160px] px-2.5 py-3 font-bold text-slate-900">
                       Số CCCD / Hộ chiếu
                     </th>
-                    <th className="min-w-[140px] px-3.5 py-3.5 font-black text-slate-900">
+                    <th className="w-44 min-w-[160px] px-2.5 py-3 font-bold text-slate-900">
                       Quốc tịch
                     </th>
-                    <th className="min-w-[190px] px-3.5 py-3.5 font-black text-slate-900">
+                    <th className="min-w-[190px] px-2.5 py-3 font-bold text-slate-900">
                       Quê quán / Địa chỉ
                     </th>
-                    <th className="w-40 px-3.5 py-3.5 font-black text-slate-900">
+                    <th className="w-38 min-w-[145px] px-2.5 py-3 font-bold text-slate-900">
                       Ngày sinh{" "}
-                      <span className="block text-[11px] font-normal text-slate-400">
-                        ngày/tháng/năm
+                      <span className="text-[11px] font-normal text-slate-500">
+                        (dd/mm/yyyy)
                       </span>
                     </th>
-                    <th className="w-32 px-3.5 py-3.5 font-black text-slate-900">
+                    <th className="w-28 min-w-[100px] px-2.5 py-3 font-bold text-slate-900">
                       Giới tính
                     </th>
-                    <th className="w-14 px-2.5 py-3.5 text-center font-black text-slate-900">
+                    <th className="w-12 px-2 py-3 text-center font-bold text-slate-900">
                       Xóa
                     </th>
                   </tr>
@@ -1271,11 +1284,15 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                 <tbody className="divide-y divide-slate-100">
                   {/* Row 1: Primary Guest */}
                   {showPrimary ? (
-                    <tr className="hover:bg-blue-50/30 transition-colors">
-                      <td className="px-3 py-2 text-center text-slate-400">
-                        —
+                    <tr className="hover:bg-blue-50/20 transition-colors bg-white">
+                      <td className="px-2 py-2 text-center">
+                        <span
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-blue-800 text-xs font-bold"
+                          title="Khách đại diện (Khách 1)"
+                        >
+                          1
+                        </span>
                       </td>
-                      <td className="px-2 py-2 font-bold text-slate-700">1</td>
                       <td className="px-2 py-2">
                         <input
                           id="ciw-name"
@@ -1288,7 +1305,15 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                               guestDisplayName: e.target.value,
                             })
                           }
-                          className={cellInputClass}
+                          onBlur={() => {
+                            if (fields.guestDisplayName.trim()) {
+                              setFields((f) => ({
+                                ...f,
+                                guestDisplayName: f.guestDisplayName.trim().toUpperCase(),
+                              }));
+                            }
+                          }}
+                          className={`${cellInputClass} uppercase`}
                           placeholder="NGUYỄN VĂN A"
                         />
                       </td>
@@ -1303,7 +1328,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                               guestIdentityNumber: e.target.value,
                             })
                           }
-                          className={`${cellInputClass} font-mono uppercase`}
+                          className={`${cellInputClass} font-mono uppercase tracking-wide placeholder:normal-case placeholder:font-sans placeholder:text-xs sm:placeholder:text-sm`}
                           placeholder="Số CCCD / Hộ chiếu"
                         />
                       </td>
@@ -1312,7 +1337,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                           id="ciw-nationality"
                           required
                           value={matchBcaNationalityCode(
-                            fields.guestNationality,
+                            fields.guestNationality || "Việt Nam",
                             nationalities,
                           )}
                           onChange={(e) =>
@@ -1367,7 +1392,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                       <td className="px-2 py-2">
                         <select
                           id="ciw-gender"
-                          value={fields.guestGender || ""}
+                          value={fields.guestGender || "Nam"}
                           onChange={(e) =>
                             setFields({
                               ...fields,
@@ -1376,7 +1401,6 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                           }
                           className={cellSelectClass}
                         >
-                          <option value="">-- Chọn --</option>
                           <option value="Nam">Nam</option>
                           <option value="Nữ">Nữ</option>
                           <option value="Khác">Khác</option>
@@ -1394,13 +1418,13 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                                 guestIdentityNumber:
                                   firstOcc.identityNumber || "",
                                 guestNationality:
-                                  firstOcc.nationality || f.guestNationality,
+                                  firstOcc.nationality || f.guestNationality || "Việt Nam",
                                 guestResidencePlace:
                                   firstOcc.residencePlace ||
                                   f.guestResidencePlace,
                                 guestDateOfBirth:
                                   firstOcc.dateOfBirth || f.guestDateOfBirth,
-                                guestGender: firstOcc.gender || f.guestGender,
+                                guestGender: firstOcc.gender || f.guestGender || "Nam",
                               }));
                               setOccupants(restOccs);
                               setCapturesByGuest((prev) => {
@@ -1420,7 +1444,8 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                                 guestDisplayName: "",
                                 guestIdentityNumber: "",
                                 guestDateOfBirth: "",
-                                guestGender: "",
+                                guestGender: "Nam",
+                                guestNationality: "Việt Nam",
                                 guestResidencePlace: "",
                               }));
                             }
@@ -1464,16 +1489,14 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                         key={slotIdx}
                         className={`hover:bg-slate-50/60 transition-colors ${isChecked ? "bg-blue-50/40" : ""}`}
                       >
-                        <td className="px-3 py-2 text-center">
+                        <td className="px-2 py-2 text-center">
                           <input
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => handleToggleSelectOne(occIdx)}
-                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            title={`Chọn khách ${slotIdx + 1}`}
+                            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                           />
-                        </td>
-                        <td className="px-2 py-2 font-bold text-slate-700">
-                          {slotIdx + 1}
                         </td>
                         <td className="px-2 py-2">
                           <input
@@ -1488,8 +1511,17 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                                 e.target.value,
                               )
                             }
-                            className={cellInputClass}
-                            placeholder="TRẦN THỊ B"
+                            onBlur={() => {
+                              if (occ.fullName?.trim()) {
+                                handleOccupantChange(
+                                  occIdx,
+                                  "fullName",
+                                  occ.fullName.trim().toUpperCase(),
+                                );
+                              }
+                            }}
+                            className={`${cellInputClass} uppercase`}
+                            placeholder={`TRẦN THỊ ${String.fromCharCode(66 + (occIdx % 25))}`}
                           />
                         </td>
                         <td className="px-2 py-2">
@@ -1504,7 +1536,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                                 e.target.value,
                               )
                             }
-                            className={`${cellInputClass} font-mono uppercase`}
+                            className={`${cellInputClass} font-mono uppercase tracking-wide placeholder:normal-case placeholder:font-sans placeholder:text-xs sm:placeholder:text-sm`}
                             placeholder="Số CCCD / Hộ chiếu"
                           />
                         </td>
@@ -1513,7 +1545,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                             id={`occ-nationality-${slotIdx}`}
                             required
                             value={matchBcaNationalityCode(
-                              occ.nationality,
+                              occ.nationality || "Việt Nam",
                               nationalities,
                             )}
                             onChange={(e) =>
@@ -1570,7 +1602,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                         <td className="px-2 py-2">
                           <select
                             id={`occ-gender-${slotIdx}`}
-                            value={occ.gender || ""}
+                            value={occ.gender || "Nam"}
                             onChange={(e) =>
                               handleOccupantChange(
                                 occIdx,
@@ -1580,7 +1612,6 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                             }
                             className={cellSelectClass}
                           >
-                            <option value="">-- Chọn --</option>
                             <option value="Nam">Nam</option>
                             <option value="Nữ">Nữ</option>
                             <option value="Khác">Khác</option>
@@ -1591,7 +1622,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                             type="button"
                             onClick={() => handleRemoveOccupant(occIdx)}
                             className="grid h-8 w-8 place-items-center mx-auto rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                            title="Xóa khách này"
+                            title={`Xóa khách ${slotIdx + 1}`}
                           >
                             <svg
                               className="h-4 w-4"
