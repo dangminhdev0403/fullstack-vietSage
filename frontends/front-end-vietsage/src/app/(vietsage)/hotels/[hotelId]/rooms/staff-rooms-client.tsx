@@ -2511,7 +2511,7 @@ export function StaffRoomsClient({
                         <span
                           className={
                             room.price && Number(room.price) > 0
-                              ? "text-base sm:text-lg font-black text-slate-950 dark:text-slate-100 tracking-tight tabular-nums"
+                              ? "text-base sm:text-lg font-black text-amber-600 dark:text-amber-400 tracking-tight tabular-nums"
                               : "text-xs font-bold text-slate-500 uppercase tracking-wider"
                           }
                           title={
