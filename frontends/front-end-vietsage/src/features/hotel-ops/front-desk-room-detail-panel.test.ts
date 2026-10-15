@@ -119,9 +119,9 @@ test("StaffRoomsClient renders purple reserved styling and collision guard for r
   assert.match(clientSource, /todayArrivalByRoomId/);
   assert.match(clientSource, /getRoomReservationDetails/);
 
-  // Check that effectiveStatus switches to "reserved" when isReservedToday
-  assert.match(clientSource, /const isReservedToday = !hasActiveStay && Boolean\(resDetails\?\.isReservedToday\);/);
-  assert.match(clientSource, /const effectiveStatus: RoomStatusFilter = \(!hasActiveStay && isReservedToday\) \? "reserved" : rawEffectiveStatus;/);
+  // Check that effectiveStatus switches to "reserved" when room has reservation
+  assert.match(clientSource, /const hasReservation = !hasActiveStay && Boolean\(resDetails\);/);
+  assert.match(clientSource, /const effectiveStatus: RoomStatusFilter = hasReservation \? "reserved" : rawEffectiveStatus;/);
 
   // Check that the room card displays "ĐÃ ĐẶT TRƯỚC" in purple
   assert.match(clientSource, /effectiveStatus === "reserved"/);
