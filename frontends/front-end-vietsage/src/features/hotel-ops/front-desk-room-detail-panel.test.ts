@@ -125,8 +125,7 @@ test("StaffRoomsClient renders purple reserved styling and collision guard for r
 
   // Check that the room card displays "ĐÃ ĐẶT TRƯỚC" in purple
   assert.match(clientSource, /effectiveStatus === "reserved"/);
-  assert.match(clientSource, /ĐÃ ĐẶT TRƯỚC/);
-  assert.match(clientSource, /Đã đặt trước · Chờ check-in/);
+  assert.match(clientSource, /<span>Đã đặt trước<\/span>/);
 
   // Check that direct touch action button for reserved guest exists
   assert.match(clientSource, /<span>Nhận phòng<\/span>/);
