@@ -88,15 +88,15 @@ export class ChannexSyncService {
           `Phòng ${room.roomNumber} liên kết loại phòng từ khách sạn khác. Đối soát trước khi đồng bộ`,
         );
       }
-      if (
-        type &&
-        room.roomTypeId &&
-        room.type?.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase() !==
-          type.normalizedKey
-      ) {
-        throw new BadRequestException(
-          `Phòng ${room.roomNumber} có tên và ID loại phòng không khớp. Đối soát trước khi đồng bộ`,
-        );
+      if (type && room.roomTypeId) {
+        const roomNorm = room.type?.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
+        const typeNorm = type.normalizedKey;
+        const typeNameNorm = type.name.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
+        if (roomNorm !== typeNorm && roomNorm !== typeNameNorm) {
+          throw new BadRequestException(
+            `Phòng ${room.roomNumber} có tên và ID loại phòng không khớp. Đối soát trước khi đồng bộ`,
+          );
+        }
       }
       if (
         !type ||
