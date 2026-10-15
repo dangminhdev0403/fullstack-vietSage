@@ -1981,12 +1981,12 @@ export function StaffRoomsClient({
     const effectiveStatus = getEffectiveRoomStatus(room, isFutureDate);
     const hasProjectedStay = Boolean(room.projectedStay || room.activeStay);
     const resDetails = getRoomReservationDetails(room);
-    const isReservedToday = !hasProjectedStay && Boolean(resDetails?.isReservedToday);
+    const hasReservation = !hasProjectedStay && Boolean(resDetails);
     const hasProjectedReservation = Boolean(room.projectedReservation);
     const isReserved =
       (effectiveStatus === "occupied" && !hasProjectedStay && hasProjectedReservation) ||
       (room.projectedStatus === "RESERVED" && hasProjectedReservation) ||
-      isReservedToday;
+      hasReservation;
 
     if (
       effectiveStatus === "overdue" ||
@@ -2657,54 +2657,26 @@ export function StaffRoomsClient({
                         ) : effectiveStatus === "processing" ? (
                           renderRoomStatusHoverMenu(room, "processing")
                         ) : effectiveStatus === "reserved" || isReserved ? (
-                          resDetails?.isUpcoming ? (
-                            <div className="grid grid-cols-2 gap-2">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setAvailableRoomChoice(room);
-                                }}
-                                className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-sm shadow-sm transition active:scale-[0.98] cursor-pointer"
-                                title={`Tùy chọn nhận phòng hoặc xem lịch đặt cho khách ${resDetails?.guestDisplayName || "đặt trước"}`}
-                              >
-                                <VsIcon name="login" className="text-base shrink-0" />
-                                <span>Nhận phòng</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openFutureReservationModal(room);
-                                }}
-                                className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
-                              >
-                                <VsIcon name="event" className="text-base shrink-0" />
-                                <span>Đặt trước</span>
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (resDetails) {
-                                  if (resDetails.arrival) {
-                                    handleCheckInArrival(resDetails.arrival);
-                                  } else {
-                                    handleCheckInReservationGeneric(room, resDetails);
-                                  }
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (resDetails) {
+                                if (resDetails.arrival) {
+                                  handleCheckInArrival(resDetails.arrival);
                                 } else {
-                                  openRoomContextPanel(room, e.currentTarget);
+                                  handleCheckInReservationGeneric(room, resDetails);
                                 }
-                              }}
-                              className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-sm shadow-sm transition active:scale-[0.98] cursor-pointer"
-                              title={`Làm thủ tục nhận phòng cho khách ${resDetails?.guestDisplayName || "đặt trước"}`}
-                            >
-                              <VsIcon name="login" className="text-base shrink-0" />
-                              <span>Nhận phòng</span>
-                            </button>
-                          )
+                              } else {
+                                openRoomContextPanel(room, e.currentTarget);
+                              }
+                            }}
+                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-sm shadow-sm transition active:scale-[0.98] cursor-pointer"
+                            title={`Làm thủ tục nhận phòng cho khách ${resDetails?.guestDisplayName || "đặt trước"}`}
+                          >
+                            <VsIcon name="login" className="text-base shrink-0" />
+                            <span>Nhận phòng</span>
+                          </button>
                         ) : effectiveStatus === "occupied" ? (
                           <button
                             type="button"
