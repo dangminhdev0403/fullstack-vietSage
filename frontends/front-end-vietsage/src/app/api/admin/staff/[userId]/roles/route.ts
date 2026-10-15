@@ -5,7 +5,7 @@ import { HTTP_HEADER_TENANT_ID } from "@/core/http/tenant-scope";
 import { httpErrorResponse, successResponse, unknownServerErrorResponse, validationErrorResponse } from "../../../_utils";
 
 const schema = z.object({
-  roleIds: z.array(z.string().trim().min(1)).min(1),
+  roleIds: z.array(z.string().trim().min(1)).min(1).max(1, "Mỗi nhân viên chỉ được gán duy nhất 1 vai trò"),
 });
 
 export async function POST(request: Request, context: { params: Promise<{ userId: string }> }) {

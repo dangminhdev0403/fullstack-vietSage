@@ -107,7 +107,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
   const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
   const [resetAccountLabel, setResetAccountLabel] = useState("");
   const [editingUser, setEditingUser] = useState<HotelStaffUser | null>(null);
-  const [editForm, setEditForm] = useState({ fullName: "", email: "", roomId: "" });
+  const [editForm, setEditForm] = useState({ fullName: "", email: "", roleId: "", roomId: "" });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -177,6 +177,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     setEditForm({
       fullName: user.fullName,
       email: user.email,
+      roleId: user.roles[0]?.id ?? "",
       roomId: currentRoom?.roomId ?? "",
     });
   }
@@ -191,9 +192,12 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     const isProfileChanged =
       editForm.fullName.trim() !== editingUser.fullName ||
       editForm.email.trim().toLowerCase() !== editingUser.email.toLowerCase();
+    const oldRoleId = editingUser.roles[0]?.id ?? "";
+    const newRoleId = editForm.roleId.trim();
+    const isRoleChanged = Boolean(newRoleId && newRoleId !== oldRoleId);
     const isRoomChanged = oldRoomId !== newRoomId;
 
-    if (!isProfileChanged && !isRoomChanged) {
+    if (!isProfileChanged && !isRoleChanged && !isRoomChanged) {
       setEditingUser(null);
       return;
     }
@@ -221,14 +225,35 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
         );
       }
 
-      if (isRoomChanged && effectiveHotelId) {
-        if (newRoomId) {
-          tasks.push(
-            mutations.assignRoom.mutateAsync({
-              userId: editingUser.id,
-              roomId: newRoomId,
-            }),
-          );
+      if (isRoleChanged) {
+        tasks.push(
+          mutations.assignRole.mutateAsync({
+            userId: editingUser.id,
+            roleId: newRoleId,
+          }),
+        );
+      }
+
+      if (effectiveHotelId) {
+        const targetRoleId = newRoleId || oldRoleId;
+        const targetIsFrontDesk = isFrontDeskRole(targetRoleId);
+        if (targetIsFrontDesk) {
+          if (isRoomChanged) {
+            if (newRoomId) {
+              tasks.push(
+                mutations.assignRoom.mutateAsync({
+                  userId: editingUser.id,
+                  roomId: newRoomId,
+                }),
+              );
+            } else if (oldRoomId) {
+              tasks.push(
+                mutations.unassignRoom.mutateAsync({
+                  userId: editingUser.id,
+                }),
+              );
+            }
+          }
         } else if (oldRoomId) {
           tasks.push(
             mutations.unassignRoom.mutateAsync({
@@ -257,58 +282,6 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     } finally {
       setIsSavingEdit(false);
     }
-  }
-
-  async function handleAddRole(user: { id: string; fullName: string; roles: Array<{ id: string }> }) {
-    const availableRoles = (data?.roles ?? []).filter(
-      (role) => !user.roles.some((current) => current.id === role.id),
-    );
-    if (availableRoles.length === 0) {
-      await SwalVietSage.fire({
-        icon: "info",
-        title: "Đã đủ vai trò",
-        text: `Nhân viên ${user.fullName} đã được gán tất cả các vai trò khả dụng.`,
-        confirmButtonText: "OK",
-      });
-      return;
-    }
-
-    const options = availableRoles
-      .map((r) => `<option value="${r.id}">${r.name}</option>`)
-      .join("");
-
-    const result = await SwalVietSage.fire({
-      title: `Gán vai trò cho ${user.fullName}`,
-      html: `
-        <div class="text-left">
-          <label class="block text-sm font-semibold mb-2 text-slate-700">Chọn vai trò cần gán:</label>
-          <select id="swal-role-select" class="swal2-input !h-11 !w-full !m-0 !text-sm">
-            <option value="">-- Chọn vai trò --</option>
-            ${options}
-          </select>
-        </div>
-      `,
-      showCancelButton: true,
-      confirmButtonText: "Gán vai trò",
-      cancelButtonText: "Hủy",
-      reverseButtons: false,
-      preConfirm: () => {
-        const select = document.getElementById("swal-role-select") as HTMLSelectElement;
-        const val = select?.value?.trim();
-        if (!val) {
-          SwalVietSage.showValidationMessage("Vui lòng chọn vai trò");
-          return false;
-        }
-        return val;
-      },
-    });
-
-    if (!result.isConfirmed || !result.value) return;
-    await runMutation(
-      `assign-${user.id}`,
-      () => mutations.assignRole.mutateAsync({ userId: user.id, roleId: result.value }),
-      "Đã gán vai trò thành công",
-    );
   }
 
   async function resetFrontdesk(user: { id: string; fullName: string }) {
@@ -508,7 +481,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
         index: idx + 1,
         fullName: user.fullName,
         email: user.email,
-        roles: user.roles?.map((r) => r.name).join(", ") || "--",
+        roles: user.roles?.[0]?.name || "--",
         hotelAssignment: user.assignedHotel
           ? `${user.assignedHotel.code} · ${user.assignedHotel.name}`
           : "Chưa phân công",
@@ -916,45 +889,19 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               {
                 key: "roles",
                 header: "Vai trò",
-                className: effectiveHotelId ? "w-[22%]" : "w-[28%]",
-                headerClassName: effectiveHotelId ? "w-[22%]" : "w-[28%]",
-                cell: (user) => {
-                  const availableRoles = (data.roles ?? []).filter(
-                    (role) => !user.roles.some((current) => current.id === role.id),
-                  );
-                  const isAssigning = activeActionKey === `assign-${user.id}`;
-                  return (
-                    <div className="flex min-h-10 flex-wrap items-center gap-1.5 py-1">
-                      {user.roles.map((role) => (
-                        <span
-                          key={role.id}
-                          className="rounded-full bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-semibold text-[var(--on-surface)]"
-                        >
-                          {role.name}
-                        </span>
-                      ))}
-                      {user.roles.length === 0 ? (
-                         <span className="text-xs text-[var(--on-surface-variant)]">Chưa có vai trò</span>
-                      ) : null}
-                      {canManage && availableRoles.length > 0 ? (
-                        <button
-                          type="button"
-                          disabled={isBusy}
-                          onClick={() => handleAddRole(user)}
-                          title="Gán thêm vai trò"
-                          className="inline-flex items-center gap-1 rounded-full border border-dashed border-[var(--outline-variant)] px-2.5 py-0.5 text-xs font-semibold text-[var(--primary)] hover:border-[var(--primary)] hover:bg-slate-50 transition-colors disabled:opacity-40"
-                        >
-                          {isAssigning ? (
-                            <VsIcon name="progress_activity" className="animate-spin text-xs" />
-                          ) : (
-                            <VsIcon name="add" className="text-xs" />
-                          )}
-                          <span>Gán thêm</span>
-                        </button>
-                      ) : null}
-                    </div>
-                  );
-                },
+                className: effectiveHotelId ? "w-[20%]" : "w-[25%]",
+                headerClassName: effectiveHotelId ? "w-[20%]" : "w-[25%]",
+                cell: (user) => (
+                  <div className="flex min-h-10 items-center py-1">
+                    {user.roles[0] ? (
+                      <span className="rounded-full bg-[var(--surface-container)] px-3 py-1 text-xs font-semibold text-[var(--on-surface)]">
+                        {user.roles[0].name}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-[var(--on-surface-variant)]">Chưa có vai trò</span>
+                    )}
+                  </div>
+                ),
               },
               {
                 key: "assignment",
@@ -1002,8 +949,9 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
 
                         if (isUserFrontDesk) {
                           return (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 text-slate-600 px-2 py-0.5 text-xs font-medium">
-                              Chung toàn KS
+                            <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200 text-blue-700 px-2 py-0.5 text-xs font-medium">
+                              <VsIcon name="public" className="text-xs" />
+                              Toàn khách sạn
                             </span>
                           );
                         }
@@ -1112,8 +1060,6 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
           displayedUsers.map((user) => {
             const assigned = assignedUserIds.has(user.id);
             const assignedElsewhere = Boolean(user.assignedHotel && !assigned);
-            const availableRoles = data.roles.filter((role) => !user.roles.some((current) => current.id === role.id));
-            const isAssigning = activeActionKey === `assign-${user.id}`;
             const canResetPassword = (scope.surface === "owner" || scope.surface === "admin") && canResetFrontdeskPassword(user.roles.map((role) => role.code));
             return (
               <article key={user.id} className="rounded-xl border border-[var(--outline-variant)] bg-white p-5 shadow-sm space-y-3">
@@ -1132,31 +1078,15 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                 </div>
 
                 <div className="border-t border-[var(--outline-variant)] pt-3 text-xs space-y-2">
-                  <div>
-                    <span className="font-semibold text-[var(--on-surface-variant)]">Vai trò hiện tại: </span>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                      {user.roles.map((role) => (
-                        <span key={role.id} className="rounded-full bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-semibold">
-                          {role.name}
-                        </span>
-                      ))}
-                      {user.roles.length === 0 ? <span className="text-[var(--on-surface-variant)]">Chưa có vai trò</span> : null}
-                      {canManage && availableRoles.length > 0 ? (
-                        <button
-                          type="button"
-                          disabled={isBusy}
-                          onClick={() => handleAddRole(user)}
-                          className="inline-flex items-center gap-1 rounded-full border border-dashed border-[var(--outline-variant)] px-2.5 py-0.5 text-xs font-semibold text-[var(--primary)] hover:border-[var(--primary)] hover:bg-slate-50 transition-colors disabled:opacity-40"
-                        >
-                          {isAssigning ? (
-                            <VsIcon name="progress_activity" className="animate-spin text-xs" />
-                          ) : (
-                            <VsIcon name="add" className="text-xs" />
-                          )}
-                          <span>Gán thêm</span>
-                        </button>
-                      ) : null}
-                    </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-[var(--on-surface-variant)]">Vai trò: </span>
+                    {user.roles[0] ? (
+                      <span className="rounded-full bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-semibold text-[var(--on-surface)]">
+                        {user.roles[0].name}
+                      </span>
+                    ) : (
+                      <span className="text-[var(--on-surface-variant)]">Chưa có vai trò</span>
+                    )}
                   </div>
 
                   {effectiveHotelId && assigned ? (
@@ -1175,8 +1105,9 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                         }
                         if (isUserFrontDesk) {
                           return (
-                            <span className="inline-flex items-center gap-1 font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md text-[11px]">
-                              Chung toàn KS
+                            <span className="inline-flex items-center gap-1 font-medium text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md text-[11px]">
+                              <VsIcon name="public" className="text-xs" />
+                              Toàn khách sạn
                             </span>
                           );
                         }
@@ -1321,30 +1252,68 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                 />
               </div>
 
+              {/* Vai trò */}
+              <div>
+                <label className="block text-xs font-bold text-[var(--on-surface-variant)] mb-1.5">
+                  Vai trò <span className="text-red-500">*</span>
+                </label>
+                <select
+                  required
+                  value={editForm.roleId}
+                  onChange={(e) => {
+                    const nextRoleId = e.target.value;
+                    setEditForm({
+                      ...editForm,
+                      roleId: nextRoleId,
+                      roomId: isFrontDeskRole(nextRoleId) ? editForm.roomId : "",
+                    });
+                  }}
+                  className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+                >
+                  <option value="">-- Chọn vai trò --</option>
+                  {data?.roles.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {effectiveHotelId ? (
-                <div>
-                  <label className="block text-xs font-bold text-[var(--on-surface-variant)] mb-1.5">
-                    Phòng phụ trách
-                  </label>
-                  <select
-                    value={editForm.roomId}
-                    onChange={(e) => setEditForm({ ...editForm, roomId: e.target.value })}
-                    className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
-                  >
-                    <option value="">-- Không gán phòng --</option>
-                    {availableRoomsForEdit.map((r) => {
-                      const isCurrent = userRoomAssignmentMap.get(editingUser.id)?.roomId === r.id;
-                      return (
-                        <option key={r.id} value={r.id}>
-                          Phòng {r.roomNumber}{r.type ? ` · ${r.type}` : ""}{isCurrent ? " (Đang phụ trách)" : ""}
-                        </option>
-                      );
-                    })}
-                  </select>
-                  <p className="mt-1 text-[11px] text-[var(--on-surface-variant)]">
-                    Chọn phòng riêng để phân công, hoặc để trống nếu nhân viên này phụ trách chung toàn khách sạn.
-                  </p>
-                </div>
+                isFrontDeskRole(editForm.roleId) ? (
+                  <div>
+                    <label className="block text-xs font-bold text-[var(--on-surface-variant)] mb-1.5">
+                      Phòng phụ trách
+                    </label>
+                    <select
+                      value={editForm.roomId}
+                      onChange={(e) => setEditForm({ ...editForm, roomId: e.target.value })}
+                      className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+                    >
+                      <option value="">Áp dụng cho toàn khách sạn (Global)</option>
+                      {availableRoomsForEdit.map((r) => {
+                        const isCurrent = userRoomAssignmentMap.get(editingUser.id)?.roomId === r.id;
+                        return (
+                          <option key={r.id} value={r.id}>
+                            Phòng {r.roomNumber}{r.type ? ` · ${r.type}` : ""}{isCurrent ? " (Đang phụ trách)" : ""}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <p className="mt-1 text-[11px] text-[var(--on-surface-variant)]">
+                      Chọn phòng riêng để phân công, hoặc chọn &ldquo;Áp dụng cho toàn khách sạn (Global)&rdquo; nếu lễ tân phụ trách chung toàn khách sạn.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-bold text-[var(--on-surface-variant)] mb-1.5">
+                      Phạm vi phụ trách
+                    </label>
+                    <div className="flex min-h-11 items-center rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-3 text-xs text-[var(--on-surface-variant)]">
+                      Áp dụng toàn khách sạn
+                    </div>
+                  </div>
+                )
               ) : null}
 
               <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[var(--outline-variant)]">

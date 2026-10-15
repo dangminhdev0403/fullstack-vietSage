@@ -49,4 +49,21 @@ describe("hotel-users.schema", () => {
       "roleIds phải có ít nhất 1 phần tử",
     );
   });
+
+  it("rejects multiple roleIds for assignment", () => {
+    expect(() =>
+      parseWithZod(assignHotelUserRolesBodySchema, { roleIds: ["role-1", "role-2"] }),
+    ).toThrow("Mỗi nhân viên chỉ được gán duy nhất 1 vai trò");
+  });
+
+  it("rejects multiple roleIds for create", () => {
+    expect(() =>
+      parseWithZod(createHotelUserBodySchema, {
+        email: "staff@hotel.local",
+        fullName: "Staff A",
+        password: "StrongPass123",
+        roleIds: ["role-1", "role-2"],
+      }),
+    ).toThrow("Mỗi nhân viên chỉ được gán duy nhất 1 vai trò");
+  });
 });

@@ -345,6 +345,24 @@ export class HotelUsersRepository {
     const assignedAt = new Date();
 
     return this.prisma.$transaction(async (tx) => {
+      await tx.userRole.updateMany({
+        where: {
+          userId,
+          status: UserRoleStatus.ACTIVE,
+          roleId: {
+            notIn: roleIds,
+          },
+          role: {
+            code: { in: ["HOTEL_FRONTDESK", "HOTEL_HOUSEKEEPING"] },
+          },
+        },
+        data: {
+          status: UserRoleStatus.REVOKED,
+          revokedAt: assignedAt,
+          revokedById: assignedById,
+        },
+      });
+
       const created = await tx.userRole.createMany({
         data: roleIds.map((roleId) => ({
           userId,

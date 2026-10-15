@@ -21,7 +21,7 @@ export const createHotelUserBodySchema = z
     roleIds: z
       .array(z.string().max(64, "mỗi giá trị trong roleIds không được vượt quá 64 ký tự"))
       .min(1, "roleIds phải có ít nhất 1 phần tử")
-      .max(20, "roleIds không được có quá 20 phần tử")
+      .max(1, "Mỗi nhân viên chỉ được gán duy nhất 1 vai trò")
       .optional(),
   })
   .strict();
@@ -60,7 +60,7 @@ export const assignHotelUserRolesBodySchema = z
     roleIds: z
       .array(z.string().max(64, "mỗi giá trị trong roleIds không được vượt quá 64 ký tự"))
       .min(1, "roleIds phải có ít nhất 1 phần tử")
-      .max(20, "roleIds không được có quá 20 phần tử"),
+      .max(1, "Mỗi nhân viên chỉ được gán duy nhất 1 vai trò"),
   })
   .strict();
 

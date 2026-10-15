@@ -462,7 +462,7 @@ export const createHotelUserBodySchema = {
     roleIds: {
       type: "array",
       minItems: 1,
-      maxItems: 20,
+      maxItems: 1,
       items: { type: "string", maxLength: 64 },
     },
   },
@@ -483,7 +483,7 @@ export const assignHotelUserRolesBodySchema = {
     roleIds: {
       type: "array",
       minItems: 1,
-      maxItems: 20,
+      maxItems: 1,
       items: { type: "string", maxLength: 64 },
     },
   },

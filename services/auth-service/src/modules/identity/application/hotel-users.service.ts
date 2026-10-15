@@ -75,6 +75,9 @@ export class HotelUsersService {
     await this.assertTenantExists(tenantId);
 
     const roleIds = normalizeIds(dto.roleIds);
+    if (roleIds.length > 1) {
+      throw new BadRequestException("Mỗi nhân viên chỉ được gán duy nhất 1 vai trò");
+    }
     const roles = await this.resolveAssignableRoles(roleIds);
 
     const normalizedEmail = dto.email.trim().toLowerCase();
@@ -219,6 +222,9 @@ export class HotelUsersService {
     await this.assertTargetUserInTenant(tenantId, userId);
 
     const roleIds = normalizeIds(dto.roleIds);
+    if (roleIds.length !== 1) {
+      throw new BadRequestException("Tài khoản nhân viên đơn vị chỉ được gán duy nhất 1 vai trò");
+    }
     const roles = await this.resolveAssignableRoles(roleIds);
 
     if (await this.hotelUsersRepository.hasActiveMarketplaceIdentity(userId)) {

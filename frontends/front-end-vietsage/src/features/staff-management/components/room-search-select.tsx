@@ -35,8 +35,8 @@ export function RoomSearchSelect({
   onChange,
   disabled = false,
   error,
-  required = false,
-  placeholder = "Phòng phụ trách (Tùy chọn)",
+  required: _required = false,
+  placeholder: _placeholder = "Phòng phụ trách (Tùy chọn)",
 }: RoomSearchSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -111,15 +111,13 @@ export function RoomSearchSelect({
     );
   }, [availableRooms, search]);
 
-  const hasNoAvailableRooms = availableRooms.length === 0;
-
   return (
     <div ref={containerRef} className="relative w-full">
       {/* Trigger Button */}
       <button
         id={triggerId}
         type="button"
-        disabled={disabled || hasNoAvailableRooms}
+        disabled={disabled}
         onClick={() => setIsOpen((prev) => !prev)}
         className={`min-h-11 w-full rounded-lg border px-3 py-2 text-left text-sm transition-all flex items-center justify-between gap-2 disabled:cursor-not-allowed disabled:bg-slate-50 ${
           error
@@ -132,12 +130,7 @@ export function RoomSearchSelect({
         aria-expanded={isOpen}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          {hasNoAvailableRooms ? (
-            <span className="flex items-center gap-1.5 text-slate-400 text-xs sm:text-sm">
-              <VsIcon name="block" className="text-base text-slate-400 shrink-0" />
-              <span>Hết phòng khả dụng</span>
-            </span>
-          ) : selectedRoom ? (
+          {selectedRoom ? (
             <>
               <span className="shrink-0 inline-flex items-center rounded-md bg-amber-100 border border-amber-300 px-2 py-0.5 text-xs font-bold text-amber-900">
                 P.{selectedRoom.roomNumber}
@@ -147,11 +140,15 @@ export function RoomSearchSelect({
               </span>
             </>
           ) : (
-            <span className="flex items-center gap-1.5 text-slate-500 text-xs sm:text-sm">
-              <VsIcon name="meeting_room" className="text-base text-slate-400 shrink-0" />
-              <span>{placeholder}</span>
-              {required ? <span className="text-red-500 font-bold">*</span> : null}
-            </span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                <VsIcon name="public" className="text-xs" />
+                Global
+              </span>
+              <span className="truncate text-xs sm:text-sm font-medium text-slate-800">
+                Áp dụng cho toàn khách sạn
+              </span>
+            </div>
           )}
         </div>
 
@@ -161,7 +158,7 @@ export function RoomSearchSelect({
               <span
                 role="button"
                 tabIndex={0}
-                title="Bỏ chọn phòng"
+                title="Bỏ chọn phòng (chuyển về Áp dụng cho toàn khách sạn)"
                 onClick={(e) => {
                   e.stopPropagation();
                   onChange("");
@@ -177,7 +174,7 @@ export function RoomSearchSelect({
                 <VsIcon name="close" className="text-sm" />
               </span>
               <span
-                title="Lễ tân phụ trách phòng này. Để trống nếu nhân viên phụ trách chung toàn khách sạn."
+                title="Lễ tân phụ trách phòng này. Bỏ chọn để áp dụng cho toàn khách sạn (Global)."
                 className="inline-flex h-6 w-6 items-center justify-center text-slate-400"
               >
                 <VsIcon name="info" className="text-sm" />
@@ -227,6 +224,44 @@ export function RoomSearchSelect({
                 <span className="text-slate-500">Khớp {filteredGroups.reduce((acc, [, list]) => acc + list.length, 0)} phòng</span>
               ) : null}
             </div>
+          </div>
+
+          {/* Option: Áp dụng cho toàn khách sạn (Global) */}
+          <div className="p-1 border-b border-slate-100 bg-slate-50/60">
+            <button
+              type="button"
+              onClick={() => {
+                onChange("");
+                setIsOpen(false);
+              }}
+              className={`w-full rounded-lg px-2.5 py-2 text-left transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                !value
+                  ? "bg-blue-50 border border-blue-300 text-blue-950 font-semibold"
+                  : "hover:bg-slate-100 text-slate-800"
+              }`}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span
+                  className={`shrink-0 inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-bold ${
+                    !value ? "bg-blue-200 text-blue-900" : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  <VsIcon name="public" className="text-xs" />
+                  Global
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-semibold">Áp dụng cho toàn khách sạn</p>
+                  <p className="text-[11px] text-slate-500 font-normal">Lễ tân phụ trách chung toàn khách sạn</p>
+                </div>
+              </div>
+
+              {!value ? (
+                <span className="shrink-0 flex items-center gap-1 text-[11px] text-blue-800 font-semibold">
+                  <VsIcon name="check" className="text-sm font-bold text-blue-700" />
+                  Đang chọn
+                </span>
+              ) : null}
+            </button>
           </div>
 
           {/* Rooms Scroll List */}
@@ -300,12 +335,8 @@ export function RoomSearchSelect({
 
           {/* Footer Guidance */}
           <div className="p-2 border-t border-slate-100 bg-slate-50 text-[11px] text-slate-500 flex items-center justify-between">
-            <span>Danh sách chỉ hiển thị các phòng chưa phân công</span>
-            {required ? (
-              <span className="text-red-500 font-medium">* Bắt buộc</span>
-            ) : (
-              <span className="text-slate-500 font-medium">* Tùy chọn</span>
-            )}
+            <span>Chọn phòng riêng hoặc áp dụng chung toàn khách sạn (Global)</span>
+            <span className="text-slate-500 font-medium">Toàn KS / Theo phòng</span>
           </div>
         </div>
       ) : null}

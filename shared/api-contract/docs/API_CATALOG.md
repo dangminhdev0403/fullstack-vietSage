@@ -473,12 +473,12 @@ never implies an active hotel; clients must require an explicit hotel selection.
 
 ```json
 {
-  "roleIds": ["role-id-1", "role-id-2"],
+  "roleIds": ["role-id-1"],
   "confirm_critical": true
 }
 ```
 
-- Validation: `roleIds` required, size 1..20, unique items only; optional `confirm_critical` boolean.
+- Validation: `roleIds` required, size 1..1 (mỗi nhân viên chỉ được gán duy nhất 1 vai trò, tự động thu hồi vai trò quản lý cũ); optional `confirm_critical` boolean.
 - `data` response: `TenantScopedHotelUser`.
 
 ### `DELETE /hotel-users/:id/roles/:roleId` (Protected)

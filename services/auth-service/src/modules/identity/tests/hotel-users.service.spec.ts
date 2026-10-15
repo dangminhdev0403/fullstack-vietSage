@@ -155,6 +155,24 @@ describe("HotelUsersService", () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  it("rejects assigning multiple roleIds to a hotel user", async () => {
+    hotelUsersRepository.findActorById.mockResolvedValue({
+      id: "owner-1",
+      userRoles: [{ role: { code: "TENANT_OWNER" } }],
+      tenantUsers: [{ tenantId: "tenant-1" }],
+    });
+    hotelUsersRepository.findTenantUserMembership.mockResolvedValue({
+      joinedAt: null,
+      user: { userType: UserType.HOTEL_STAFF },
+    });
+
+    await expect(
+      service.assignHotelUserRoles("owner-1", "role-owner", "tenant-1", "target-user", {
+        roleIds: ["role-1", "role-2"],
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it("blocks assigning HOTEL_FRONTDESK to a user active in a SERVICE tenant", async () => {
     hotelUsersRepository.findActorById.mockResolvedValue({
       id: "owner-1",
