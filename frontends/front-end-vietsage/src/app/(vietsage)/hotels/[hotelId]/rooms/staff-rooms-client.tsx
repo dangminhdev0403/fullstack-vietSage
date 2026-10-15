@@ -2681,9 +2681,7 @@ export function StaffRoomsClient({
                               title={`Làm thủ tục nhận phòng cho khách ${resDetails?.guestDisplayName || "đặt trước"}`}
                             >
                               <VsIcon name="login" className="text-base shrink-0" />
-                              <span className="truncate">
-                                Nhận phòng: {resDetails?.guestDisplayName || "Khách đặt"}
-                              </span>
+                              <span>Nhận phòng</span>
                             </button>
                             <button
                               type="button"

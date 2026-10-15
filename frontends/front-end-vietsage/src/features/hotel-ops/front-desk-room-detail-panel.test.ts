@@ -129,7 +129,7 @@ test("StaffRoomsClient renders purple reserved styling and collision guard for r
   assert.match(clientSource, /Đã đặt trước · Chờ check-in/);
 
   // Check that direct touch action button for reserved guest exists
-  assert.match(clientSource, /Nhận phòng:\s*\{resDetails\?\.guestDisplayName/);
+  assert.match(clientSource, /<span>Nhận phòng<\/span>/);
   assert.match(clientSource, /bg-purple-700 hover:bg-purple-800/);
 
   // Check collision guard in openWalkIn

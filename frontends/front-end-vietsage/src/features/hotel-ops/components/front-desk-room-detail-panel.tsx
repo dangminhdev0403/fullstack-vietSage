@@ -862,7 +862,7 @@ export function FrontDeskRoomDetailPanel({
                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 disabled:opacity-50 px-6 py-2.5 text-white font-black text-sm sm:text-base shadow-md transition active:scale-[0.98] cursor-pointer min-h-[46px]"
                   >
                     <VsIcon name="login" className="text-lg" />
-                    <span>{isCheckingIn ? "Đang nhận phòng..." : `Nhận phòng (${reservation.guestDisplayName})`}</span>
+                    <span>{isCheckingIn ? "Đang nhận phòng..." : "Nhận phòng"}</span>
                   </button>
                 ) : (
                   <div className="inline-flex min-h-[46px] items-center justify-center rounded-xl bg-slate-200/80 px-4 py-2 text-slate-800 text-sm font-bold border border-slate-300">
