@@ -34,4 +34,34 @@ describe("RequestRealtimeEmitter", () => {
       expect.objectContaining({ orderId: "order-1" }),
     );
   });
+
+  it("emits room_status.updated to hotel and room channels", () => {
+    const emit = jest.fn();
+    const server = {
+      to: jest.fn(() => ({ emit })),
+    };
+    RequestRealtimeEmitter.bind(server as never);
+
+    RequestRealtimeEmitter.emitRoomStatusUpdated({
+      hotelId: "hotel-1",
+      roomId: "room-101",
+      roomNumber: "101",
+      status: "AVAILABLE",
+      previousStatus: "PROCESSING",
+      updatedAt: "2026-10-15T08:00:00.000Z",
+    });
+
+    expect(server.to).toHaveBeenCalledWith("owner:hotel:hotel-1:requests");
+    expect(server.to).toHaveBeenCalledWith("owner:hotel:hotel-1:room:room-101:requests");
+    expect(emit).toHaveBeenCalledWith(
+      "room_status.updated",
+      expect.objectContaining({
+        hotelId: "hotel-1",
+        roomId: "room-101",
+        roomNumber: "101",
+        status: "AVAILABLE",
+        previousStatus: "PROCESSING",
+      }),
+    );
+  });
 });

@@ -1703,6 +1703,11 @@ export function StaffRoomsClient({
           <button id="swal-btn-available" style="padding:12px 16px;border-radius:12px;background:#059669;color:#fff;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;transition:all 0.15s ease">
             ✅ Đã dọn xong → Chuyển sang TRỐNG
           </button>
+          ${canCheckInStay || canManageStays ? `
+          <button id="swal-btn-ready-checkin" style="padding:12px 16px;border-radius:12px;background:#7c3aed;color:#fff;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;transition:all 0.15s ease">
+            🔑 Xác nhận sạch & Mở nhận phòng ngay
+          </button>
+          ` : ""}
           <button id="swal-btn-maintenance" style="padding:12px 16px;border-radius:12px;background:#475569;color:#fff;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;transition:all 0.15s ease">
             🛠️ Chuyển sang BẢO TRÌ
           </button>
@@ -1718,12 +1723,33 @@ export function StaffRoomsClient({
       cancelButtonText: "Đóng",
       didOpen: () => {
         const btnAvailable = document.getElementById("swal-btn-available");
+        const btnReadyCheckIn = document.getElementById("swal-btn-ready-checkin");
         const btnMaintenance = document.getElementById("swal-btn-maintenance");
         const btnBlocked = document.getElementById("swal-btn-blocked");
 
         btnAvailable?.addEventListener("click", () => {
           SwalVietSage.close();
           void confirmRoomReady(room);
+        });
+        btnReadyCheckIn?.addEventListener("click", async () => {
+          SwalVietSage.close();
+          try {
+            await requestInternalApiEnvelope(
+              `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}/ready`,
+              {
+                method: "PATCH",
+                body: { expectedUpdatedAt: room.updatedAt },
+              },
+            );
+            await invalidateHotelRealtimeQueries(queryClient, hotelId);
+            void refetch();
+            setAvailableRoomChoice({ ...room, status: "AVAILABLE" });
+          } catch (error) {
+            await showErrorAlert(
+              "Không thể cập nhật trạng thái phòng",
+              error instanceof Error ? error.message : "Vui lòng thử lại.",
+            );
+          }
         });
         btnMaintenance?.addEventListener("click", () => {
           SwalVietSage.close();

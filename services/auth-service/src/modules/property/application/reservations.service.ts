@@ -1,5 +1,6 @@
 import { Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { Prisma, RoomStatus } from "@prisma/client";
+import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 import {
   addHours,
   generateOpaqueToken,
@@ -181,6 +182,20 @@ export class ReservationsService {
         stayId: result.stay.id,
         actorUserId,
       });
+
+      if (result.stay?.roomId) {
+        try {
+          RequestRealtimeEmitter.emitRoomStatusUpdated({
+            hotelId,
+            roomId: result.stay.roomId,
+            status: RoomStatus.OCCUPIED,
+            previousStatus: RoomStatus.AVAILABLE,
+            updatedAt: new Date(),
+          });
+        } catch {
+          // Non-blocking realtime emission
+        }
+      }
     }
 
     return {

@@ -381,6 +381,42 @@ export class RequestRealtimeEmitter {
       .emit("channel_booking.cancelled", payload);
   }
 
+  static emitRoomStatusUpdated(input: {
+    hotelId: string;
+    roomId: string;
+    roomNumber?: string | null;
+    status: string;
+    previousStatus?: string | null;
+    updatedAt?: string | Date | null;
+  }) {
+    const eventId = randomUUID();
+    let formattedUpdatedAt: string;
+    if (input.updatedAt instanceof Date) {
+      formattedUpdatedAt = input.updatedAt.toISOString();
+    } else if (typeof input.updatedAt === "string" && input.updatedAt) {
+      formattedUpdatedAt = input.updatedAt;
+    } else {
+      formattedUpdatedAt = new Date().toISOString();
+    }
+
+    const payload = {
+      eventId,
+      hotelId: input.hotelId,
+      roomId: input.roomId,
+      roomNumber: input.roomNumber,
+      status: input.status,
+      previousStatus: input.previousStatus,
+      updatedAt: formattedUpdatedAt,
+    };
+
+    this.serverRef?.to(this.ownerHotelRoom(input.hotelId)).emit("room_status.updated", payload);
+    if (input.roomId) {
+      this.serverRef
+        ?.to(this.ownerRoomChannel(input.hotelId, input.roomId))
+        .emit("room_status.updated", payload);
+    }
+  }
+
   static ownerHotelRoom(hotelId: string): string {
     return `${OWNER_ROOM_PREFIX}${hotelId}:requests`;
   }

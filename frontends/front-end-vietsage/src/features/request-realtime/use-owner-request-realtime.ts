@@ -18,6 +18,7 @@ type Handlers = {
   onPartnerSettlementUpdated?: (event: unknown) => void;
   onChannelBookingCreated?: (event: unknown) => void;
   onChannelBookingCancelled?: (event: unknown) => void;
+  onRoomStatusUpdated?: (event: unknown) => void;
   onReconnect?: () => void;
 };
 
@@ -42,6 +43,7 @@ export function useOwnerRequestRealtime(hotelId: string, handlers: Handlers, opt
       onPartnerSettlementUpdated: (value) => ref.current.onPartnerSettlementUpdated?.(value),
       onChannelBookingCreated: (value) => ref.current.onChannelBookingCreated?.(value),
       onChannelBookingCancelled: (value) => ref.current.onChannelBookingCancelled?.(value),
+      onRoomStatusUpdated: (value) => ref.current.onRoomStatusUpdated?.(value),
       onReconnect: () => ref.current.onReconnect?.(),
       onError: (error) => {
         if (options.showConnectionToasts) {

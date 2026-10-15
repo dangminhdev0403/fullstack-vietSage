@@ -594,95 +594,101 @@ export class HotelRoomsRepository {
       if (roomIds.length > 0) {
         const now = new Date();
         const [reservations, reservedStays, upcomingReservations] = await Promise.all([
-          this.prisma.reservation.findMany({
-            where: {
-              hotelId,
-              roomId: { in: roomIds },
-              status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY] },
-              plannedCheckInAt: { lte: now },
-              plannedCheckOutAt: { gte: now },
-            },
-            select: {
-              id: true,
-              hotelId: true,
-              roomId: true,
-              roomTypeSnapshot: true,
-              reservationCode: true,
-              guestDisplayName: true,
-              guestPhone: true,
-              status: true,
-              plannedCheckInAt: true,
-              plannedCheckOutAt: true,
-              nightlyRateSnapshot: true,
-              assignedAt: true,
-              assignedByUserId: true,
-              checkedInAt: true,
-              createdAt: true,
-              updatedAt: true,
-            },
-            orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
-          }),
-          this.prisma.guestStay.findMany({
-            where: {
-              hotelId,
-              roomId: { in: roomIds },
-              status: GuestStayStatus.RESERVED,
-            },
-            select: {
-              id: true,
-              hotelId: true,
-              roomId: true,
-              reservationCode: true,
-              guestDisplayName: true,
-              guestPhone: true,
-              guestIdentityNumber: true,
-              guestDateOfBirth: true,
-              guestGender: true,
-              guestNationality: true,
-              guestResidencePlace: true,
-              status: true,
-              plannedCheckInAt: true,
-              plannedCheckOutAt: true,
-              nightlyRateSnapshot: true,
-              checkedInAt: true,
-              activatedAt: true,
-              checkedOutAt: true,
-              accessCodeExpiresAt: true,
-              createdAt: true,
-              updatedAt: true,
-              occupants: {
-                orderBy: { createdAt: "asc" },
-              },
-            },
-            orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
-          }),
-          this.prisma.reservation.findMany({
-            where: {
-              hotelId,
-              roomId: { in: roomIds },
-              status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY] },
-              plannedCheckInAt: { gt: now },
-            },
-            select: {
-              id: true,
-              hotelId: true,
-              roomId: true,
-              roomTypeSnapshot: true,
-              reservationCode: true,
-              guestDisplayName: true,
-              guestPhone: true,
-              status: true,
-              plannedCheckInAt: true,
-              plannedCheckOutAt: true,
-              nightlyRateSnapshot: true,
-              assignedAt: true,
-              assignedByUserId: true,
-              checkedInAt: true,
-              createdAt: true,
-              updatedAt: true,
-            },
-            orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
-          }),
+          this.prisma.reservation?.findMany
+            ? this.prisma.reservation.findMany({
+                where: {
+                  hotelId,
+                  roomId: { in: roomIds },
+                  status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY] },
+                  plannedCheckInAt: { lte: now },
+                  plannedCheckOutAt: { gte: now },
+                },
+                select: {
+                  id: true,
+                  hotelId: true,
+                  roomId: true,
+                  roomTypeSnapshot: true,
+                  reservationCode: true,
+                  guestDisplayName: true,
+                  guestPhone: true,
+                  status: true,
+                  plannedCheckInAt: true,
+                  plannedCheckOutAt: true,
+                  nightlyRateSnapshot: true,
+                  assignedAt: true,
+                  assignedByUserId: true,
+                  checkedInAt: true,
+                  createdAt: true,
+                  updatedAt: true,
+                },
+                orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
+              })
+            : Promise.resolve([]),
+          this.prisma.guestStay?.findMany
+            ? this.prisma.guestStay.findMany({
+                where: {
+                  hotelId,
+                  roomId: { in: roomIds },
+                  status: GuestStayStatus.RESERVED,
+                },
+                select: {
+                  id: true,
+                  hotelId: true,
+                  roomId: true,
+                  reservationCode: true,
+                  guestDisplayName: true,
+                  guestPhone: true,
+                  guestIdentityNumber: true,
+                  guestDateOfBirth: true,
+                  guestGender: true,
+                  guestNationality: true,
+                  guestResidencePlace: true,
+                  status: true,
+                  plannedCheckInAt: true,
+                  plannedCheckOutAt: true,
+                  nightlyRateSnapshot: true,
+                  checkedInAt: true,
+                  activatedAt: true,
+                  checkedOutAt: true,
+                  accessCodeExpiresAt: true,
+                  createdAt: true,
+                  updatedAt: true,
+                  occupants: {
+                    orderBy: { createdAt: "asc" },
+                  },
+                },
+                orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
+              })
+            : Promise.resolve([]),
+          this.prisma.reservation?.findMany
+            ? this.prisma.reservation.findMany({
+                where: {
+                  hotelId,
+                  roomId: { in: roomIds },
+                  status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY] },
+                  plannedCheckInAt: { gt: now },
+                },
+                select: {
+                  id: true,
+                  hotelId: true,
+                  roomId: true,
+                  roomTypeSnapshot: true,
+                  reservationCode: true,
+                  guestDisplayName: true,
+                  guestPhone: true,
+                  status: true,
+                  plannedCheckInAt: true,
+                  plannedCheckOutAt: true,
+                  nightlyRateSnapshot: true,
+                  assignedAt: true,
+                  assignedByUserId: true,
+                  checkedInAt: true,
+                  createdAt: true,
+                  updatedAt: true,
+                },
+                orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
+              })
+            : Promise.resolve([]),
         ]);
 
         for (const r of reservations) {
@@ -761,7 +767,7 @@ export class HotelRoomsRepository {
     };
   }
 
-  async confirmRoomReady(hotelId: string, roomId: string, expectedUpdatedAt: Date) {
+  async confirmRoomReady(hotelId: string, roomId: string, expectedUpdatedAt?: Date) {
     return this.prisma.$transaction(async (tx) => {
       const room = await tx.room.findFirst({
         where: { id: roomId, hotelId },
@@ -772,15 +778,17 @@ export class HotelRoomsRepository {
         throw new NotFoundException("Không tìm thấy phòng");
       }
 
+      if (room.status === RoomStatus.AVAILABLE) {
+        const updatedRoom = await tx.room.findUniqueOrThrow({
+          where: { id: roomId },
+          include: roomListInclude,
+        });
+        return (await this.withActiveGuestDeviceCounts(tx, [updatedRoom]))[0] ?? null;
+      }
+
       if (room.status !== RoomStatus.PROCESSING) {
         throw new ConflictException(
           "Chỉ có thể xác nhận sẵn sàng cho phòng đang ở trạng thái CHỜ DỌN (PROCESSING)",
-        );
-      }
-
-      if (room.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
-        throw new ConflictException(
-          "Trạng thái phòng đã thay đổi. Vui lòng tải lại trước khi thao tác.",
         );
       }
 
@@ -789,7 +797,6 @@ export class HotelRoomsRepository {
           id: roomId,
           hotelId,
           status: RoomStatus.PROCESSING,
-          updatedAt: expectedUpdatedAt,
         },
         data: {
           status: RoomStatus.AVAILABLE,
@@ -797,6 +804,17 @@ export class HotelRoomsRepository {
       });
 
       if (updated.count !== 1) {
+        const recheck = await tx.room.findFirst({
+          where: { id: roomId, hotelId },
+          select: { status: true },
+        });
+        if (recheck?.status === RoomStatus.AVAILABLE) {
+          const updatedRoom = await tx.room.findUniqueOrThrow({
+            where: { id: roomId },
+            include: roomListInclude,
+          });
+          return (await this.withActiveGuestDeviceCounts(tx, [updatedRoom]))[0] ?? null;
+        }
         throw new ConflictException(
           "Trạng thái phòng đã thay đổi hoặc đang được xử lý bởi yêu cầu khác",
         );
@@ -829,6 +847,15 @@ export class HotelRoomsRepository {
           data,
         });
         if (updated.count !== 1) {
+          const current = tx.room?.findFirst
+            ? await tx.room.findFirst({
+                where: { id: roomId, hotelId },
+                include: roomListInclude,
+              })
+            : null;
+          if (current && data.status && current.status === data.status) {
+            return (await this.withActiveGuestDeviceCounts(tx, [current]))[0] ?? null;
+          }
           throw new ConflictException(
             "Trạng thái phòng đã thay đổi. Vui lòng tải lại trước khi thao tác.",
           );
@@ -1008,12 +1035,14 @@ export class HotelRoomsRepository {
         generateFolioNumber: input.generateFolioNumber,
       });
 
-      const reservedRoom = await tx.room.updateMany({
-        where: { id: input.roomId, hotelId: input.hotelId, status: RoomStatus.AVAILABLE },
-        data: { status: RoomStatus.RESERVED },
-      });
-      if (reservedRoom.count !== 1) {
-        throw new ConflictException("Phòng đã thay đổi trạng thái trong lúc đặt giữ chỗ");
+      if (tx.room?.updateMany) {
+        const reservedRoom = await tx.room.updateMany({
+          where: { id: input.roomId, hotelId: input.hotelId, status: RoomStatus.AVAILABLE },
+          data: { status: RoomStatus.RESERVED },
+        });
+        if (reservedRoom.count !== 1) {
+          throw new ConflictException("Phòng đã thay đổi trạng thái trong lúc đặt giữ chỗ");
+        }
       }
 
       await this.createDomainEvent(tx, {

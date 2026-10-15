@@ -205,3 +205,41 @@ test("forwards external service order events to subscribers", async () => {
   assert.equal(statusEvents.length, 1);
 });
 
+test("forwards room status updated events to subscribers", async () => {
+  const sockets: any[] = [];
+  const manager = createOwnerConnectionManager({
+    enabled: true,
+    getTicket: async () => ({ ticket: "ticket", expiresAt: "future" }),
+    createSocket: () => {
+      const handlers = new Map<string, Function>();
+      const socket: any = {
+        on: (event: string, handler: Function) => handlers.set(event, handler),
+        connect() {},
+        disconnect() {},
+        trigger: (event: string, value?: unknown) => handlers.get(event)?.(value),
+      };
+      sockets.push(socket);
+      return socket;
+    },
+  });
+  const roomStatusEvents: unknown[] = [];
+  manager.subscribe("hotel-1", {
+    onRoomStatusUpdated: (event) => roomStatusEvents.push(event),
+  });
+  await manager.settled("hotel-1");
+
+  const payload = {
+    eventId: "evt-123",
+    hotelId: "hotel-1",
+    roomId: "room-101",
+    roomNumber: "101",
+    status: "AVAILABLE",
+    previousStatus: "PROCESSING",
+    updatedAt: "2026-10-15T08:00:00.000Z",
+  };
+  sockets[0].trigger("room_status.updated", payload);
+
+  assert.equal(roomStatusEvents.length, 1);
+  assert.deepEqual(roomStatusEvents[0], payload);
+});
+

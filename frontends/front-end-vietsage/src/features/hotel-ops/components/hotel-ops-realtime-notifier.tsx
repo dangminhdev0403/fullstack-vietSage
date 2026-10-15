@@ -241,6 +241,37 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
 
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
       },
+      onRoomStatusUpdated: (event: unknown) => {
+        const raw = event as {
+          hotelId?: string;
+          roomId?: string;
+          roomNumber?: string | null;
+          status?: string;
+          previousStatus?: string | null;
+        } | null;
+
+        if (raw?.hotelId && raw.hotelId !== hotelId) return;
+
+        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+
+        const statusLabels: Record<string, string> = {
+          AVAILABLE: "TRỐNG (sẵn sàng đón khách)",
+          PROCESSING: "CHỜ DỌN DẸP",
+          MAINTENANCE: "BẢO TRÌ",
+          BLOCKED: "ĐÃ KHÓA",
+          OCCUPIED: "ĐANG CÓ KHÁCH",
+          RESERVED: "ĐẶT TRƯỚC",
+        };
+
+        const roomLabel = raw?.roomNumber ? `Phòng ${raw.roomNumber}` : "Phòng";
+        const targetLabel = raw?.status ? (statusLabels[raw.status] ?? raw.status) : "mới";
+
+        toast.info(`${roomLabel} đã cập nhật trạng thái`, {
+          id: `hotel-ops-room-status-${raw?.roomId ?? Date.now()}`,
+          description: `Trạng thái: ${targetLabel}. Sơ đồ phòng đã đồng bộ tự động.`,
+          duration: 4000,
+        });
+      },
       onReconnect: () => {
         void invalidateHotelRequestRealtimeQueries(targetQueryClient, hotelId);
       },

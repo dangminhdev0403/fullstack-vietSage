@@ -38,6 +38,8 @@ import type {
   UpdateStayBodyInput,
 } from "../domain/schemas/rooms.schema";
 
+import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
+
 const MANUAL_ROOM_STATUSES = new Set<RoomStatus>([
   RoomStatus.AVAILABLE,
   RoomStatus.PROCESSING,
@@ -464,6 +466,10 @@ export class HotelRoomsService {
       throw new NotFoundException("Không tìm thấy phòng");
     }
 
+    if (currentRoom.status === dto.status) {
+      return this.toRoomData(currentRoom);
+    }
+
     if (dto.status === RoomStatus.BLOCKED && currentRoom.guestStays.length > 0) {
       throw new ConflictException(
         "Không thể khóa phòng khi khách đang lưu trú. Hãy xử lý hoặc chuyển phòng cho khách trước.",
@@ -495,6 +501,20 @@ export class HotelRoomsService {
       roomId,
       status: room.status,
     });
+
+    try {
+      RequestRealtimeEmitter.emitRoomStatusUpdated({
+        hotelId,
+        roomId: room.id,
+        roomNumber: room.roomNumber,
+        status: room.status,
+        previousStatus: currentRoom.status,
+        updatedAt: room.updatedAt,
+      });
+    } catch (emitErr) {
+      this.logger.warn(`[HotelRoomsService] Realtime room status emit failed: ${emitErr}`);
+    }
+
     return this.toRoomData(room);
   }
 
@@ -527,6 +547,20 @@ export class HotelRoomsService {
       previousStatus: RoomStatus.PROCESSING,
       newStatus: RoomStatus.AVAILABLE,
     });
+
+    try {
+      RequestRealtimeEmitter.emitRoomStatusUpdated({
+        hotelId,
+        roomId: room.id,
+        roomNumber: room.roomNumber,
+        status: room.status,
+        previousStatus: RoomStatus.PROCESSING,
+        updatedAt: room.updatedAt,
+      });
+    } catch (emitErr) {
+      this.logger.warn(`[HotelRoomsService] Realtime room ready emit failed: ${emitErr}`);
+    }
+
     return this.toRoomData(room);
   }
 
@@ -617,6 +651,18 @@ export class HotelRoomsService {
       stayId: result.stay.id,
       actorUserId,
     });
+
+    try {
+      RequestRealtimeEmitter.emitRoomStatusUpdated({
+        hotelId,
+        roomId: stay.roomId,
+        status: RoomStatus.OCCUPIED,
+        previousStatus: room.status,
+        updatedAt: new Date(),
+      });
+    } catch (emitErr) {
+      this.logger.warn(`[HotelRoomsService] Realtime room checkin emit failed: ${emitErr}`);
+    }
 
     return {
       stay: this.toStayData(result.stay),
@@ -709,6 +755,18 @@ export class HotelRoomsService {
       actorUserId,
     });
 
+    try {
+      RequestRealtimeEmitter.emitRoomStatusUpdated({
+        hotelId,
+        roomId: dto.roomId,
+        status: RoomStatus.OCCUPIED,
+        previousStatus: RoomStatus.AVAILABLE,
+        updatedAt: new Date(),
+      });
+    } catch (emitErr) {
+      this.logger.warn(`[HotelRoomsService] Realtime room checkin emit failed: ${emitErr}`);
+    }
+
     return {
       stay: this.toStayData(result.stay),
       roomQrCode: this.toQrData(result.roomQrCode),
@@ -758,6 +816,18 @@ export class HotelRoomsService {
       stayId,
       roomId: stay.roomId,
     });
+
+    try {
+      RequestRealtimeEmitter.emitRoomStatusUpdated({
+        hotelId,
+        roomId: stay.roomId,
+        status: dto.nextRoomStatus ?? RoomStatus.PROCESSING,
+        previousStatus: RoomStatus.OCCUPIED,
+        updatedAt: new Date(),
+      });
+    } catch (emitErr) {
+      this.logger.warn(`[HotelRoomsService] Realtime room checkout emit failed: ${emitErr}`);
+    }
 
     return this.toStayData(checkedOut);
   }
