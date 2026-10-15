@@ -1152,10 +1152,128 @@ export function StaffRoomsClient({
     }
   }
 
+  const { todayArrivalByRoomId, upcomingArrivalByRoomId } = useMemo(() => {
+    const todayMap = new Map<string, HotelArrival>();
+    const upcomingMap = new Map<string, HotelArrival>();
+
+    const sorted = [...arrivalsList].sort(
+      (a, b) => new Date(a.plannedCheckInAt).getTime() - new Date(b.plannedCheckInAt).getTime(),
+    );
+
+    const activeTargetDate = businessDate || todayYmd;
+
+    for (const arr of sorted) {
+      if (!arr.roomId || arr.status === "CHECKED_IN") continue;
+      const checkInYmd = arr.plannedCheckInAt ? arr.plannedCheckInAt.slice(0, 10) : "";
+      const checkOutYmd = arr.plannedCheckOutAt ? arr.plannedCheckOutAt.slice(0, 10) : "";
+
+      const isForActiveDate = Boolean(
+        checkInYmd &&
+        checkOutYmd &&
+        checkInYmd <= activeTargetDate &&
+        checkOutYmd >= activeTargetDate,
+      );
+
+      if (isForActiveDate) {
+        if (!todayMap.has(arr.roomId)) {
+          todayMap.set(arr.roomId, arr);
+        }
+      } else if (checkInYmd && checkInYmd > activeTargetDate) {
+        if (!upcomingMap.has(arr.roomId)) {
+          upcomingMap.set(arr.roomId, arr);
+        }
+      }
+    }
+
+    return {
+      todayArrivalByRoomId: todayMap,
+      upcomingArrivalByRoomId: upcomingMap,
+    };
+  }, [arrivalsList, businessDate, todayYmd]);
+
+  function getRoomReservationDetails(room: HotelRoomSummary) {
+    const todayArrival = todayArrivalByRoomId.get(room.id);
+    const upcomingArrival = upcomingArrivalByRoomId.get(room.id);
+
+    if (todayArrival) {
+      return {
+        isReservedToday: true,
+        isUpcoming: false,
+        arrival: todayArrival,
+        guestDisplayName: todayArrival.guestDisplayName,
+        guestPhone: todayArrival.guestPhone,
+        reservationCode: todayArrival.reservationCode,
+        plannedCheckInAt: todayArrival.plannedCheckInAt,
+        plannedCheckOutAt: todayArrival.plannedCheckOutAt,
+        status: todayArrival.status,
+      };
+    }
+
+    if (room.projectedReservation) {
+      return {
+        isReservedToday: true,
+        isUpcoming: false,
+        arrival: null,
+        guestDisplayName: room.projectedReservation.guestDisplayName,
+        guestPhone: room.projectedReservation.guestPhone,
+        reservationCode: room.projectedReservation.reservationCode,
+        plannedCheckInAt: room.projectedReservation.plannedCheckInAt,
+        plannedCheckOutAt: room.projectedReservation.plannedCheckOutAt,
+        status: room.projectedReservation.status,
+      };
+    }
+
+    if (room.upcomingReservation) {
+      const isUpToday = room.upcomingReservation.plannedCheckInAt?.slice(0, 10) === (businessDate || todayYmd);
+      return {
+        isReservedToday: isUpToday,
+        isUpcoming: !isUpToday,
+        arrival: null,
+        guestDisplayName: room.upcomingReservation.guestDisplayName,
+        guestPhone: room.upcomingReservation.guestPhone,
+        reservationCode: room.upcomingReservation.reservationCode,
+        plannedCheckInAt: room.upcomingReservation.plannedCheckInAt,
+        plannedCheckOutAt: room.upcomingReservation.plannedCheckOutAt,
+        status: room.upcomingReservation.status,
+      };
+    }
+
+    if (upcomingArrival) {
+      return {
+        isReservedToday: false,
+        isUpcoming: true,
+        arrival: upcomingArrival,
+        guestDisplayName: upcomingArrival.guestDisplayName,
+        guestPhone: upcomingArrival.guestPhone,
+        reservationCode: upcomingArrival.reservationCode,
+        plannedCheckInAt: upcomingArrival.plannedCheckInAt,
+        plannedCheckOutAt: upcomingArrival.plannedCheckOutAt,
+        status: upcomingArrival.status,
+      };
+    }
+
+    return null;
+  }
+
   const filteredRooms =
     isFutureDate && status !== "all"
       ? rooms.filter((r) => getEffectiveRoomStatus(r, true) === status)
-      : rooms;
+      : status === "reserved"
+        ? rooms.filter((r) => {
+            const hasActiveStay = Boolean(r.activeStay && !r.activeStay.checkedOutAt);
+            if (hasActiveStay) return false;
+            const res = getRoomReservationDetails(r);
+            return Boolean(res?.isReservedToday) || r.status?.toUpperCase() === "RESERVED";
+          })
+        : status === "available"
+          ? rooms.filter((r) => {
+              const hasActiveStay = Boolean(r.activeStay && !r.activeStay.checkedOutAt);
+              if (hasActiveStay) return false;
+              const res = getRoomReservationDetails(r);
+              if (res?.isReservedToday) return false;
+              return getRoomStatus(r) === "available";
+            })
+          : rooms;
 
   async function confirmRoomReady(room: HotelRoomSummary) {
     const roomNum = getRoomNumber(room);
@@ -1419,8 +1537,59 @@ export function StaffRoomsClient({
   }
 
 
+  function handleCheckInReservationGeneric(
+    room: HotelRoomSummary,
+    res: {
+      guestDisplayName: string;
+      guestPhone?: string | null;
+      plannedCheckOutAt: string;
+      reservationCode?: string;
+      arrival?: HotelArrival | null;
+    },
+  ) {
+    if (!canCheckInStay) return;
+    const reservationId = res.arrival?.id || room.projectedReservation?.id || room.upcomingReservation?.id || "";
+    setSelectedRoom(room);
+    setActiveReservationCheckIn({
+      reservationId,
+      guestDisplayName: res.guestDisplayName,
+    });
+    setCustomCheckInInitialFields({
+      guestDisplayName: res.guestDisplayName,
+      guestPhone: res.guestPhone || "",
+      plannedCheckOutAt: res.plannedCheckOutAt,
+    });
+    setSubmitError(undefined);
+    setIsArrivalsOpen(false);
+    setIsCheckInOpen(true);
+  }
+
   function openWalkIn(room: HotelRoomSummary) {
     if (!isAvailable(room) || !canManageStays) return;
+
+    // Collision Guard: if room is reserved today, alert receptionist immediately
+    const conflictRes = getRoomReservationDetails(room);
+    if (conflictRes?.isReservedToday) {
+      const guestName = conflictRes.guestDisplayName;
+      const checkInTime = formatDateTime(conflictRes.plannedCheckInAt);
+      void showConfirmDialog({
+        icon: "warning",
+        title: `Phòng ${getRoomNumber(room)} đã có khách đặt trước!`,
+        text: `Khách "${guestName}" đã được giữ chỗ phòng này (Nhận phòng: ${checkInTime}). Bạn có muốn làm thủ tục nhận phòng cho khách đặt trước này không?`,
+        confirmText: `Nhận phòng cho ${guestName}`,
+        cancelText: "Hủy bỏ",
+      }).then((confirmation) => {
+        if (confirmation.isConfirmed) {
+          if (conflictRes.arrival) {
+            handleCheckInArrival(conflictRes.arrival);
+          } else {
+            handleCheckInReservationGeneric(room, conflictRes);
+          }
+        }
+      });
+      return;
+    }
+
     setActiveReservationCheckIn(null);
     setCustomCheckInInitialFields(null);
     setSelectedRoom(room);
@@ -1803,10 +1972,13 @@ export function StaffRoomsClient({
 
     const effectiveStatus = getEffectiveRoomStatus(room, isFutureDate);
     const hasProjectedStay = Boolean(room.projectedStay || room.activeStay);
+    const resDetails = getRoomReservationDetails(room);
+    const isReservedToday = !hasProjectedStay && Boolean(resDetails?.isReservedToday);
     const hasProjectedReservation = Boolean(room.projectedReservation);
     const isReserved =
       (effectiveStatus === "occupied" && !hasProjectedStay && hasProjectedReservation) ||
-      (room.projectedStatus === "RESERVED" && hasProjectedReservation);
+      (room.projectedStatus === "RESERVED" && hasProjectedReservation) ||
+      isReservedToday;
 
     if (
       effectiveStatus === "overdue" ||
@@ -2114,14 +2286,19 @@ export function StaffRoomsClient({
   }
 
   function renderRoomCard(room: HotelRoomSummary) {
-    const effectiveStatus = getEffectiveRoomStatus(room, isFutureDate);
+    const rawEffectiveStatus = getEffectiveRoomStatus(room, isFutureDate);
     const physicalStatus = getRoomStatus(room);
-    const isPhysicallyBusy = physicalStatus === "occupied" || physicalStatus === "overdue" || Boolean(room.activeStay);
+    const hasActiveStay = Boolean(room.activeStay || room.projectedStay);
+    const isPhysicallyBusy = physicalStatus === "occupied" || physicalStatus === "overdue" || hasActiveStay;
     const incomingOta = incomingOtaByRoomNumber.get(getRoomNumber(room).toUpperCase());
     const isVip = /suite|vip|premium|penthouse/i.test(room.type ?? "");
+    const resDetails = getRoomReservationDetails(room);
+    const isReservedToday = !hasActiveStay && Boolean(resDetails?.isReservedToday);
     const isReserved =
-      (effectiveStatus === "occupied" && !room.activeStay && !room.projectedStay && Boolean(room.projectedReservation)) ||
-      (room.projectedStatus === "RESERVED" && Boolean(room.projectedReservation));
+      (rawEffectiveStatus === "occupied" && !hasActiveStay && Boolean(room.projectedReservation)) ||
+      (room.projectedStatus === "RESERVED" && Boolean(room.projectedReservation)) ||
+      isReservedToday;
+    const effectiveStatus: RoomStatusFilter = (!hasActiveStay && isReservedToday) ? "reserved" : rawEffectiveStatus;
     const matchedOccupant = inputQuery.trim()
       ? room.activeStay?.occupants?.find((occ) =>
           occ.fullName.toLowerCase().includes(inputQuery.trim().toLowerCase())
@@ -2161,11 +2338,15 @@ export function StaffRoomsClient({
                       className={
                         isVip
                           ? "rounded-full bg-amber-100 text-amber-950 border border-amber-300 px-3 py-1 text-xs font-black tracking-wider shrink-0 whitespace-nowrap"
+                          : effectiveStatus === "reserved"
+                          ? "rounded-full bg-purple-100 text-purple-900 border border-purple-300 px-3 py-1 text-xs font-black tracking-wider shrink-0 whitespace-nowrap"
                           : "rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 px-3 py-1 text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0 whitespace-nowrap"
                       }
                     >
                       {isVip
                         ? "VIP"
+                        : effectiveStatus === "reserved"
+                        ? "ĐÃ ĐẶT TRƯỚC"
                         : room.floor
                           ? `Tầng ${room.floor}`
                           : roomStatusLabel(effectiveStatus)}
@@ -2197,18 +2378,31 @@ export function StaffRoomsClient({
                         ) : null}
                       </div>
                     ) : effectiveStatus === "reserved" || isReserved ? (
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-purple-700">
-                          <VsIcon name="event" className="text-sm text-purple-600 shrink-0" />
-                          <span>Đã đặt trước</span>
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-purple-700">
+                          <VsIcon name="event_available" className="text-sm text-purple-600 shrink-0" />
+                          <span>Đã đặt trước · Chờ check-in</span>
                         </div>
                         <div className="mt-0.5 flex items-center gap-1.5 text-slate-950 font-black text-sm">
                           <VsIcon name="person" className="text-base text-purple-600 shrink-0" />
-                          <span className="truncate">{room.projectedReservation?.guestDisplayName || "Khách đặt trước"}</span>
+                          <span className="truncate">{resDetails?.guestDisplayName || room.projectedReservation?.guestDisplayName || "Khách đặt trước"}</span>
                         </div>
-                        {room.projectedReservation?.plannedCheckInAt ? (
-                          <span className="text-xs font-semibold text-purple-900 bg-purple-100 border border-purple-200 px-2 py-0.5 rounded-md w-fit">
-                            Nhận: {formatDateTime(room.projectedReservation.plannedCheckInAt)}
+                        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                          {resDetails?.reservationCode ? (
+                            <span className="inline-flex items-center font-bold text-purple-950 bg-purple-100/90 border border-purple-200 px-1.5 py-0.5 rounded">
+                              #{resDetails.reservationCode}
+                            </span>
+                          ) : null}
+                          {resDetails?.guestPhone ? (
+                            <span className="inline-flex items-center gap-0.5 font-bold text-slate-700">
+                              <VsIcon name="call" className="text-xs text-purple-600" />
+                              {resDetails.guestPhone}
+                            </span>
+                          ) : null}
+                        </div>
+                        {(resDetails?.plannedCheckInAt || room.projectedReservation?.plannedCheckInAt) ? (
+                          <span className="text-xs font-bold text-purple-950 bg-purple-100 border border-purple-300 px-2 py-0.5 rounded-md w-fit">
+                            Nhận: {formatDateTime(resDetails?.plannedCheckInAt || room.projectedReservation?.plannedCheckInAt)}
                           </span>
                         ) : null}
                       </div>
@@ -2468,17 +2662,41 @@ export function StaffRoomsClient({
                         ) : effectiveStatus === "processing" ? (
                           renderRoomStatusHoverMenu(room, "processing")
                         ) : effectiveStatus === "reserved" || isReserved ? (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openRoomContextPanel(room, e.currentTarget);
-                            }}
-                            className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-sm shadow-sm transition active:scale-[0.98] cursor-pointer"
-                          >
-                            <VsIcon name="event_available" className="text-base shrink-0" />
-                            <span>Chi tiết đặt phòng</span>
-                          </button>
+                          <div className="flex flex-col gap-1.5">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (resDetails) {
+                                  if (resDetails.arrival) {
+                                    handleCheckInArrival(resDetails.arrival);
+                                  } else {
+                                    handleCheckInReservationGeneric(room, resDetails);
+                                  }
+                                } else {
+                                  openRoomContextPanel(room, e.currentTarget);
+                                }
+                              }}
+                              className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-sm shadow-sm transition active:scale-[0.98] cursor-pointer"
+                              title={`Làm thủ tục nhận phòng cho khách ${resDetails?.guestDisplayName || "đặt trước"}`}
+                            >
+                              <VsIcon name="login" className="text-base shrink-0" />
+                              <span className="truncate">
+                                Nhận phòng: {resDetails?.guestDisplayName || "Khách đặt"}
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openRoomContextPanel(room, e.currentTarget);
+                              }}
+                              className="flex w-full min-h-[36px] items-center justify-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50/70 hover:bg-purple-100 text-purple-900 font-bold text-xs transition cursor-pointer"
+                            >
+                              <VsIcon name="info" className="text-sm shrink-0" />
+                              <span>Chi tiết đặt phòng & Đổi phòng</span>
+                            </button>
+                          </div>
                         ) : effectiveStatus === "occupied" ? (
                           <button
                             type="button"
@@ -3960,6 +4178,44 @@ export function StaffRoomsClient({
 
                 {/* Action Choices */}
                 <div className="relative mt-5 space-y-3">
+                  {(() => {
+                    const resDetails = getRoomReservationDetails(availableRoomChoice);
+                    if (!resDetails) return null;
+                    return (
+                      <div className="rounded-2xl border-2 border-purple-300 bg-purple-50/90 p-4 text-left transition-all shadow-xs mb-3">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-700 text-white shadow-xs">
+                            <VsIcon name="event_available" className="text-xl" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-black text-purple-950">
+                              Phòng này đã có khách đặt trước: {resDetails.guestDisplayName}
+                            </h4>
+                            <p className="mt-0.5 text-xs text-purple-800">
+                              Thời gian nhận phòng dự kiến: {formatDateTime(resDetails.plannedCheckInAt)}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const target = availableRoomChoice;
+                                setAvailableRoomChoice(null);
+                                if (resDetails.arrival) {
+                                  handleCheckInArrival(resDetails.arrival);
+                                } else {
+                                  handleCheckInReservationGeneric(target, resDetails);
+                                }
+                              }}
+                              className="mt-3 inline-flex items-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white px-4 py-2 text-xs font-black shadow-xs transition active:scale-[0.98] cursor-pointer"
+                            >
+                              <VsIcon name="login" className="text-base" />
+                              <span>Nhận phòng cho khách đặt trước này ngay</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
                     Chọn thao tác cho phòng này
                   </p>
@@ -4081,6 +4337,7 @@ export function StaffRoomsClient({
         onClose={() => setSelectedContextRoom(null)}
         hotelId={hotelId}
         room={selectedContextRoom}
+        arrival={selectedContextRoom ? todayArrivalByRoomId.get(selectedContextRoom.id) || upcomingArrivalByRoomId.get(selectedContextRoom.id) || null : null}
         businessDate={businessDate}
         isHousekeeping={isHousekeeping}
         canViewBilling={canViewBilling}

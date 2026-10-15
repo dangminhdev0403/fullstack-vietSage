@@ -113,3 +113,31 @@ test("Reserved room projection hides folio services and renders business-date re
   // Folio and stay sections are only rendered when occupied/stay mode is active
   assert.match(panelSource, /isOccupiedMode\s*&&\s*stay\s*&&/);
 });
+
+test("StaffRoomsClient renders purple reserved styling and collision guard for reserved-today rooms", () => {
+  // Check that today arrivals are indexed by roomId
+  assert.match(clientSource, /todayArrivalByRoomId/);
+  assert.match(clientSource, /getRoomReservationDetails/);
+
+  // Check that effectiveStatus switches to "reserved" when isReservedToday
+  assert.match(clientSource, /const isReservedToday = !hasActiveStay && Boolean\(resDetails\?\.isReservedToday\);/);
+  assert.match(clientSource, /const effectiveStatus: RoomStatusFilter = \(!hasActiveStay && isReservedToday\) \? "reserved" : rawEffectiveStatus;/);
+
+  // Check that the room card displays "ĐÃ ĐẶT TRƯỚC" in purple
+  assert.match(clientSource, /effectiveStatus === "reserved"/);
+  assert.match(clientSource, /ĐÃ ĐẶT TRƯỚC/);
+  assert.match(clientSource, /Đã đặt trước · Chờ check-in/);
+
+  // Check that direct touch action button for reserved guest exists
+  assert.match(clientSource, /Nhận phòng:\s*\{resDetails\?\.guestDisplayName/);
+  assert.match(clientSource, /bg-purple-700 hover:bg-purple-800/);
+
+  // Check collision guard in openWalkIn
+  assert.match(clientSource, /const conflictRes = getRoomReservationDetails\(room\);/);
+  assert.match(clientSource, /if \(conflictRes\?\.isReservedToday\)/);
+  assert.match(clientSource, /Phòng \$\{getRoomNumber\(room\)\} đã có khách đặt trước!/);
+
+  // Check arrival prop is passed to FrontDeskRoomDetailPanel
+  assert.match(clientSource, /arrival=\{selectedContextRoom \? todayArrivalByRoomId\.get\(selectedContextRoom\.id\)/);
+});
+

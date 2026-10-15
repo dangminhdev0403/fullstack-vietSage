@@ -9,6 +9,7 @@ import { showSuccessAlert } from "@/libs/swal";
 import { filterExtraOccupants } from "@/features/hotel-ops/utils/hotel-ops-display";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import type {
+  HotelArrival,
   HotelReservationSummary,
   HotelRoomSummary,
   HotelStaySummary,
@@ -30,6 +31,7 @@ export type FrontDeskRoomDetailPanelProps = {
   onOpenQrPreview?: (room: HotelRoomSummary) => void;
   onExtendStay?: (room: HotelRoomSummary) => void;
   onCheckInReservation?: (reservationId: string, arrival?: unknown) => Promise<void>;
+  arrival?: HotelArrival | null;
   triggerElementRef?: React.RefObject<HTMLElement | null>;
 };
 
@@ -82,6 +84,7 @@ export function FrontDeskRoomDetailPanel({
   onOpenQrPreview,
   onExtendStay,
   onCheckInReservation,
+  arrival,
   triggerElementRef,
 }: FrontDeskRoomDetailPanelProps) {
   const router = useRouter();
@@ -112,7 +115,22 @@ export function FrontDeskRoomDetailPanel({
 
   // Determine reservation context
   const reservation: HotelReservationSummary | null =
-    room?.projectedReservation || null;
+    room?.projectedReservation ||
+    (arrival
+      ? {
+          id: arrival.id,
+          sourceType: "RESERVATION",
+          hotelId: arrival.hotelId,
+          roomId: arrival.roomId,
+          reservationCode: arrival.reservationCode,
+          guestDisplayName: arrival.guestDisplayName,
+          guestPhone: arrival.guestPhone,
+          status: arrival.status,
+          plannedCheckInAt: arrival.plannedCheckInAt,
+          plannedCheckOutAt: arrival.plannedCheckOutAt,
+          nightlyRateSnapshot: arrival.nightlyRateSnapshot ?? arrival.rate,
+        }
+      : room?.upcomingReservation || null);
 
   // Determine mode
   const effectiveStatus = (
@@ -306,8 +324,8 @@ export function FrontDeskRoomDetailPanel({
                   Đang ở
                 </span>
               ) : isReservedMode ? (
-                <span className="rounded-lg bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 text-sm font-black uppercase tracking-wider">
-                  Đặt trước
+                <span className="rounded-lg bg-purple-100 text-purple-900 border border-purple-300 px-3 py-1 text-sm font-black uppercase tracking-wider">
+                  Đã đặt trước
                 </span>
               ) : (
                 <span className="rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1 text-sm font-black uppercase tracking-wider">
@@ -821,9 +839,11 @@ export function FrontDeskRoomDetailPanel({
 
           {isReservedMode && reservation && (
             <>
-              <div className="flex items-center gap-2 text-sm text-slate-700 font-medium">
-                <VsIcon name="info" className="text-lg text-blue-600 shrink-0" />
-                <span>Đã khóa phòng theo mã đặt #{reservation.reservationCode}</span>
+              <div className="flex items-center gap-2 text-sm text-purple-950 font-medium">
+                <VsIcon name="event_available" className="text-lg text-purple-700 shrink-0" />
+                <span>
+                  Đã giữ chỗ theo mã đặt <strong>#{reservation.reservationCode}</strong> ({reservation.guestDisplayName})
+                </span>
               </div>
 
               <div className="flex items-center justify-end gap-2.5">
@@ -839,10 +859,10 @@ export function FrontDeskRoomDetailPanel({
                     type="button"
                     disabled={isCheckingIn}
                     onClick={() => void handleExecuteCheckIn()}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 px-6 py-2.5 text-white font-black text-sm sm:text-base shadow-md transition active:scale-[0.98] cursor-pointer min-h-[46px]"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 disabled:opacity-50 px-6 py-2.5 text-white font-black text-sm sm:text-base shadow-md transition active:scale-[0.98] cursor-pointer min-h-[46px]"
                   >
                     <VsIcon name="login" className="text-lg" />
-                    <span>{isCheckingIn ? "Đang nhận phòng..." : "Nhận phòng"}</span>
+                    <span>{isCheckingIn ? "Đang nhận phòng..." : `Nhận phòng (${reservation.guestDisplayName})`}</span>
                   </button>
                 ) : (
                   <div className="inline-flex min-h-[46px] items-center justify-center rounded-xl bg-slate-200/80 px-4 py-2 text-slate-800 text-sm font-bold border border-slate-300">
