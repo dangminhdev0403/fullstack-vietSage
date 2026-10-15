@@ -69,6 +69,26 @@ function calculateNights(start?: string | Date | null, end?: string | Date | nul
   return Math.max(1, nights);
 }
 
+function formatReservationStatus(status?: string | null): { label: string; className: string } {
+  const s = (status || "").toUpperCase();
+  if (s === "ARRIVAL_READY" || s === "READY") {
+    return { label: "Chờ check-in", className: "text-purple-700 bg-purple-50 border border-purple-200" };
+  }
+  if (s === "CONFIRMED") {
+    return { label: "Đã xác nhận", className: "text-blue-700 bg-blue-50 border border-blue-200" };
+  }
+  if (s === "CHECKED_IN") {
+    return { label: "Đã nhận phòng", className: "text-emerald-700 bg-emerald-50 border border-emerald-200" };
+  }
+  if (s === "CANCELLED" || s === "CANCELED") {
+    return { label: "Đã hủy", className: "text-rose-700 bg-rose-50 border border-rose-200" };
+  }
+  if (s === "PENDING") {
+    return { label: "Chờ xác nhận", className: "text-amber-700 bg-amber-50 border border-amber-200" };
+  }
+  return { label: "Đã đặt trước", className: "text-purple-700 bg-purple-50 border border-purple-200" };
+}
+
 export function FrontDeskRoomDetailPanel({
   isOpen,
   onClose,
@@ -684,7 +704,7 @@ export function FrontDeskRoomDetailPanel({
               <section className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5 space-y-3">
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 border-b border-slate-200/80 pb-2.5">
-                    <VsIcon name="event" className="text-blue-600 text-lg" />
+                    <VsIcon name="event" className="text-purple-600 text-lg" />
                     <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">
                       Thông tin Đặt trước
                     </h3>
@@ -702,18 +722,17 @@ export function FrontDeskRoomDetailPanel({
                         <span className="font-medium text-slate-900">{reservation.guestPhone}</span>
                       </div>
                     )}
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-600">Mã đặt phòng:</span>
-                      <span className="font-mono text-sm font-bold text-slate-800 bg-slate-200 px-2.5 py-0.5 rounded">
-                        {reservation.reservationCode}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-600">Trạng thái:</span>
-                      <span className="font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded text-xs">
-                        {reservation.status}
-                      </span>
-                    </div>
+                    {(() => {
+                      const statusInfo = formatReservationStatus(reservation.status);
+                      return (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-600">Trạng thái:</span>
+                          <span className={`font-bold px-2.5 py-0.5 rounded text-xs ${statusInfo.className}`}>
+                            {statusInfo.label}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </section>
@@ -751,7 +770,7 @@ export function FrontDeskRoomDetailPanel({
                     </div>
                     {reservation.nightlyRateSnapshot && (
                       <div className="flex items-center justify-between">
-                        <span className="text-slate-600">Giá phòng snapshot:</span>
+                        <span className="text-slate-600">Giá phòng mỗi đêm:</span>
                         <span className="font-bold text-slate-900">
                           {formatVnd(reservation.nightlyRateSnapshot)} / đêm
                         </span>
@@ -772,16 +791,6 @@ export function FrontDeskRoomDetailPanel({
                       </div>
                     )}
                   </div>
-                </div>
-
-                <div className="mt-3 flex flex-1 flex-col items-center justify-center rounded-xl border border-blue-200/80 bg-blue-50/60 p-5 text-center text-sm font-medium text-blue-900 min-h-[100px]">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-700 mb-1.5">
-                    <VsIcon name="info" className="text-base" />
-                  </div>
-                  <p className="font-bold text-slate-800">Chưa phát sinh dịch vụ</p>
-                  <p className="mt-0.5 text-xs text-slate-600 max-w-xs">
-                    Phòng đang ở trạng thái đặt trước. Chưa có hóa đơn hoặc dịch vụ phát sinh.
-                  </p>
                 </div>
               </section>
             </div>
