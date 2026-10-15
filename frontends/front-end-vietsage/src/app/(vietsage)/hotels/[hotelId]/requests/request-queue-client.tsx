@@ -42,7 +42,7 @@ import {
   statusTone,
 } from "@/features/hotel-ops/utils/hotel-ops-display";
 import { requestQueueResource } from "@/features/hotel-ops/resources/request-queue-resource";
-import { useNearbyServiceProviders } from "@/features/local-partners/queries/use-local-partners";
+import { localPartnersResource } from "@/features/local-partners/resources/local-partners-resource";
 import type { HotelMarketplaceOrder } from "@/features/local-partners/types/local-partners-contract";
 import {
   calculateOrderFinancials,
@@ -441,6 +441,10 @@ export function RequestQueueClient({
 
   function selectInboxTab(nextTab: "HOTEL_REQUESTS" | "EXTERNAL_ORDERS" | "ALL") {
     setInboxTab(nextTab);
+    setFilters((prev) => ({
+      ...prev,
+      tab: nextTab === "HOTEL_REQUESTS" ? "" : nextTab === "EXTERNAL_ORDERS" ? "external" : "all",
+    }));
     const params = new URLSearchParams(window.location.search);
     if (nextTab === "HOTEL_REQUESTS") {
       params.delete("tab");
@@ -490,7 +494,9 @@ export function RequestQueueClient({
     });
   }, [initialFilters]);
 
-  const { orders: externalOrdersQuery } = useNearbyServiceProviders(hotelId);
+  const externalOrdersQuery = useQuery(
+    localPartnersResource.bind({ hotelId }).queries.marketplaceOrders.options(undefined as never),
+  );
   const externalOrders = useMemo(
     () => externalOrdersQuery.data ?? [],
     [externalOrdersQuery.data],
@@ -603,11 +609,7 @@ export function RequestQueueClient({
       );
     }
 
-    let allItems = [...byId.values()];
-
-    if (filters.status) {
-      allItems = allItems.filter((item) => item.status === filters.status);
-    }
+    const allItems = [...byId.values()];
 
     return allItems.sort((leftRequest, rightRequest) => {
       const directionMultiplier = sortState.direction === "asc" ? 1 : -1;
@@ -618,7 +620,7 @@ export function RequestQueueClient({
 
       return result * directionMultiplier;
     });
-  }, [filters.status, liveRequestChanges, requests, sortState]);
+  }, [liveRequestChanges, requests, sortState]);
 
   const activeTabRequests = useMemo(() => {
     let list: StaffRequestListItem[] = [];
@@ -824,6 +826,11 @@ export function RequestQueueClient({
 
   function resetFilters() {
     const nextFilters: Record<string, string> = {};
+    if (inboxTab === "EXTERNAL_ORDERS") {
+      nextFilters.tab = "external";
+    } else if (inboxTab === "ALL") {
+      nextFilters.tab = "all";
+    }
     setFilters(nextFilters);
     pushFilters(nextFilters);
   }
@@ -835,11 +842,25 @@ export function RequestQueueClient({
         params.set(key, value.trim());
       }
     }
+    if (inboxTab === "EXTERNAL_ORDERS" && !params.has("tab")) {
+      params.set("tab", "external");
+    } else if (inboxTab === "ALL" && !params.has("tab")) {
+      params.set("tab", "all");
+    }
     if (pageSize) {
       params.set("limit", String(pageSize));
     }
     router.push(`${basePath}${params.size ? `?${params.toString()}` : ""}`);
   }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if ((filters.q ?? "") !== (initialFilters.q ?? "")) {
+        pushFilters(filters);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [filters.q]);
 
   function getPaginationHref(nextPage: number, nextPageSize = pageSize) {
     const params = new URLSearchParams();
@@ -1634,17 +1655,60 @@ export function RequestQueueClient({
     },
   ];
 
+  const currentTableTotal = useMemo(() => {
+    if (inboxTab === "EXTERNAL_ORDERS") {
+      return filteredExternalOrders.length;
+    }
+    const hasClientFilter = Boolean(
+      filters.status ||
+      filters.roomNumber ||
+      filters.serviceItemId ||
+      filters.priority ||
+      filters.q ||
+      filters.from ||
+      filters.to,
+    );
+    if (
+      inboxTab === "HOTEL_REQUESTS" &&
+      page &&
+      pageSize &&
+      !hasClientFilter &&
+      Object.keys(liveRequestChanges).length === 0
+    ) {
+      return total;
+    }
+    return activeTabRequests.length;
+  }, [
+    inboxTab,
+    filteredExternalOrders.length,
+    activeTabRequests.length,
+    filters,
+    page,
+    pageSize,
+    total,
+    liveRequestChanges,
+  ]);
+
   const requestTableHeader = (
     <div className="flex items-center justify-between border-b border-[color:rgba(198,197,213,0.18)] px-4 py-3">
       <p className="text-sm font-semibold text-[var(--on-surface-variant)]">
-        {total} {mergedLabels.requestCountSuffix}
+        {currentTableTotal} {mergedLabels.requestCountSuffix}
       </p>
-      <Link
-        href={serviceCatalogPath}
-        className="text-sm font-semibold text-[var(--primary)]"
-      >
-        {mergedLabels.manageCatalog}
-      </Link>
+      {inboxTab === "EXTERNAL_ORDERS" ? (
+        <Link
+          href={`/hotels/${hotelId}/partners`}
+          className="text-sm font-semibold text-[var(--primary)] hover:underline"
+        >
+          Quản lý đối tác
+        </Link>
+      ) : (
+        <Link
+          href={serviceCatalogPath}
+          className="text-sm font-semibold text-[var(--primary)] hover:underline"
+        >
+          {mergedLabels.manageCatalog}
+        </Link>
+      )}
     </div>
   );
 
@@ -1715,14 +1779,21 @@ export function RequestQueueClient({
             />
             <input
               value={filters.q ?? ""}
-              onChange={(event) => updateFilter("q", event.target.value)}
+              onChange={(event) => {
+                const nextQ = event.target.value;
+                setFilters((prev) => ({ ...prev, q: nextQ }));
+              }}
               placeholder="Tìm phòng, khách, số điện thoại, booking hoặc dịch vụ..."
               className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-9 text-sm text-slate-800 placeholder:text-slate-400 transition-colors focus:border-[var(--primary)] focus:bg-white focus:outline-none"
             />
             {filters.q ? (
               <button
                 type="button"
-                onClick={() => updateFilter("q", "")}
+                onClick={() => {
+                  const nextFilters = { ...filters, q: "" };
+                  setFilters(nextFilters);
+                  pushFilters(nextFilters);
+                }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                 title="Xóa tìm kiếm"
               >

@@ -50,7 +50,7 @@ export default async function HotelRequestsPage({ params, searchParams }: Reques
 
   const query: ListHotelRequestsQuery = {
     page: 1,
-    limit: 20,
+    limit: 100,
     q: getFirst(resolvedSearchParams.q),
     roomNumber: getFirst(resolvedSearchParams.roomNumber),
     serviceItemId: getFirst(resolvedSearchParams.serviceItemId),
