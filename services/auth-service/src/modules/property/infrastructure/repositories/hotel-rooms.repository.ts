@@ -130,59 +130,96 @@ export class HotelRoomsRepository {
     if (normalized.name.length > 80 || normalized.normalizedKey.length > 80) {
       throw new BadRequestException("Tên loại phòng tối đa 80 ký tự sau chuẩn hóa");
     }
-    const existing = await this.prisma.roomType.findUnique({
-      where: { hotelId_normalizedKey: { hotelId, normalizedKey: normalized.normalizedKey } },
-    });
-    if (existing) return { item: await this.roomTypeItem(existing), created: false };
-    const legacyRooms = await this.prisma.room.findMany({
-      where: { hotelId, roomTypeId: null, type: { not: null } },
-      select: { type: true, price: true },
-    });
-    const legacyPrices = new Set(
-      legacyRooms
+    if (!basePrice || basePrice <= 0) {
+      throw new BadRequestException("Giá gốc loại phòng phải lớn hơn 0");
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      let item = await tx.roomType.findUnique({
+        where: { hotelId_normalizedKey: { hotelId, normalizedKey: normalized.normalizedKey } },
+      });
+      let created = false;
+
+      if (!item) {
+        item = await tx.roomType.create({
+          data: { hotelId, ...normalized, basePrice },
+        });
+        created = true;
+      } else {
+        item = await tx.roomType.update({
+          where: { id: item.id },
+          data: { basePrice },
+        });
+      }
+
+      const legacyRooms = await tx.room.findMany({
+        where: { hotelId, roomTypeId: null, type: { not: null } },
+        select: { id: true, type: true },
+      });
+      const matchingIds = legacyRooms
         .filter(
           (room) =>
             room.type &&
             HotelRoomsRepository.normalizeType(room.type).normalizedKey ===
               normalized.normalizedKey,
         )
-        .map((room) => (room.price === null ? null : Number(room.price))),
-    );
-    if (
-      legacyPrices.size > 1 ||
-      legacyPrices.has(null) ||
-      Array.from(legacyPrices).some(
-        (price) => price !== null && (price <= 0 || price !== basePrice),
-      )
-    ) {
-      throw new ConflictException(
-        "Giá phòng cũ không đồng nhất hoặc thiếu. Đối soát loại phòng trước khi lưu giá gốc",
-      );
-    }
-    try {
-      const item = await this.prisma.roomType.create({
-        data: { hotelId, ...normalized, basePrice },
-      });
-      return { item: await this.roomTypeItem(item), created: true };
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        const winner = await this.prisma.roomType.findUnique({
-          where: { hotelId_normalizedKey: { hotelId, normalizedKey: normalized.normalizedKey } },
+        .map((room) => room.id);
+
+      if (matchingIds.length > 0) {
+        await tx.room.updateMany({
+          where: { id: { in: matchingIds } },
+          data: {
+            roomTypeId: item.id,
+            price: basePrice,
+          },
         });
-        if (winner) return { item: await this.roomTypeItem(winner), created: false };
       }
-      throw error;
-    }
+
+      return { item: await this.roomTypeItem(item), created };
+    });
   }
 
   async updateRoomTypePrice(hotelId: string, roomTypeId: string, basePrice: number) {
-    const updated = await this.prisma.roomType.updateMany({
-      where: { hotelId, id: roomTypeId },
-      data: { basePrice },
+    if (!basePrice || basePrice <= 0) {
+      throw new BadRequestException("Giá gốc loại phòng phải lớn hơn 0");
+    }
+    return await this.prisma.$transaction(async (tx) => {
+      const type = await tx.roomType.findFirst({
+        where: { hotelId, id: roomTypeId },
+      });
+      if (!type) throw new NotFoundException("Không tìm thấy loại phòng trong khách sạn");
+
+      const updatedType = await tx.roomType.update({
+        where: { id: roomTypeId },
+        data: { basePrice },
+      });
+
+      await tx.room.updateMany({
+        where: { hotelId, roomTypeId },
+        data: { price: basePrice },
+      });
+
+      const legacyRooms = await tx.room.findMany({
+        where: { hotelId, roomTypeId: null, type: { not: null } },
+        select: { id: true, type: true },
+      });
+      const matchingIds = legacyRooms
+        .filter(
+          (room) =>
+            room.type &&
+            HotelRoomsRepository.normalizeType(room.type).normalizedKey === type.normalizedKey,
+        )
+        .map((room) => room.id);
+
+      if (matchingIds.length > 0) {
+        await tx.room.updateMany({
+          where: { id: { in: matchingIds } },
+          data: { roomTypeId: type.id, price: basePrice },
+        });
+      }
+
+      return { ...(await this.roomTypeItem(updatedType)), channexSync: "NOT_PUSHED" as const };
     });
-    if (!updated.count) throw new NotFoundException("Không tìm thấy loại phòng trong khách sạn");
-    const type = await this.prisma.roomType.findUniqueOrThrow({ where: { id: roomTypeId } });
-    return { ...(await this.roomTypeItem(type)), channexSync: "NOT_PUSHED" as const };
   }
 
   private async roomTypeItem(type: {

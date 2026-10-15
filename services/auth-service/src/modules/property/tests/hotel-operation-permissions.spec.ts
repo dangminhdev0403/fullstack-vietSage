@@ -430,5 +430,32 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
         }),
       ).rejects.toBeInstanceOf(ConflictException);
     });
+
+    it("allows frontdesk staff to confirm room ready to AVAILABLE", async () => {
+      const repository = createMockRepository();
+      const accessService = createMockAccessService();
+      const service = new HotelRoomsService(repository as any, {} as any, accessService as any);
+
+      const result = await service.confirmRoomReady(
+        "user-frontdesk",
+        "role-frontdesk",
+        "hotel-1",
+        "room-1",
+        { expectedUpdatedAt: new Date("2026-10-15T00:00:00.000Z") },
+      );
+
+      expect(accessService.assertRoomAccess).toHaveBeenCalledWith(
+        "user-frontdesk",
+        "role-frontdesk",
+        "hotel-1",
+        "room-1",
+      );
+      expect(repository.confirmRoomReady).toHaveBeenCalledWith(
+        "hotel-1",
+        "room-1",
+        new Date("2026-10-15T00:00:00.000Z"),
+      );
+      expect(result.status).toBe(RoomStatus.AVAILABLE);
+    });
   });
 });

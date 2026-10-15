@@ -292,5 +292,18 @@ describe("business-permissions.registry capability contract", () => {
       expect(migrationSql).toContain("HOTEL_HOUSEKEEPING");
       expect(migrationSql).toContain("hotel.rooms.view");
     });
+
+    it("includes migration granting hotel.rooms.ready.confirm to HOTEL_FRONTDESK and HOTEL_MANAGER", () => {
+      const frontdeskMigrationPath = resolve(
+        __dirname,
+        "../../../prisma/migrations/20261015094500_grant_frontdesk_room_ready_confirm/migration.sql",
+      );
+      expect(existsSync(frontdeskMigrationPath)).toBe(true);
+      const migrationSql = readFileSync(frontdeskMigrationPath, "utf-8");
+      expect(migrationSql).toContain("hotel.rooms.ready.confirm");
+      expect(migrationSql).toContain("HOTEL_FRONTDESK");
+      expect(migrationSql).toContain("HOTEL_MANAGER");
+    });
   });
 });
+

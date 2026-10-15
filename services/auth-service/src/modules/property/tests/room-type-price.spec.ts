@@ -68,21 +68,49 @@ describe("hotel room type price boundary", () => {
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
   });
 
-  it("does not register a conflicting legacy type price before explicit reconciliation", async () => {
-    const prisma = {
-      roomType: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn() },
+  it("registers a legacy type price, establishes basePrice standard, and links unlinked rooms", async () => {
+    const tx = {
+      roomType: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({
+          id: "type-suite-1",
+          hotelId: "hotel-a",
+          name: "Suite",
+          normalizedKey: "suite",
+          basePrice: 2_000_000,
+        }),
+      },
       room: {
         findMany: jest.fn().mockResolvedValue([
-          { type: "Suite", price: 2_200_000 },
-          { type: " suite ", price: 5_000_000 },
+          { id: "room-1", type: "Suite" },
+          { id: "room-2", type: " suite " },
         ]),
+        updateMany: jest.fn().mockResolvedValue({ count: 2 }),
       },
     };
+    const prisma = {
+      $transaction: jest.fn(async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx)),
+      room: { count: jest.fn().mockResolvedValue(2) },
+    };
     const repository = new HotelRoomsRepository(prisma as never);
-    await expect(repository.createRoomType("hotel-a", "Suite", 2_000_000)).rejects.toThrow(
-      "Đối soát",
+    const result = await repository.createRoomType("hotel-a", "Suite", 2_000_000);
+
+    expect(result.created).toBe(true);
+    expect(result.item.basePrice).toBe(2_000_000);
+    expect(tx.roomType.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          hotelId: "hotel-a",
+          name: "Suite",
+          normalizedKey: "suite",
+          basePrice: 2_000_000,
+        }),
+      }),
     );
-    expect(prisma.roomType.create).not.toHaveBeenCalled();
+    expect(tx.room.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["room-1", "room-2"] } },
+      data: { roomTypeId: "type-suite-1", price: 2_000_000 },
+    });
   });
 
   it("rejects an unpriced legacy Suite before any Channex write", async () => {

@@ -162,17 +162,28 @@ export const channexPollFeedSchema = z
 
 export const channexWebhookSchema = z
   .object({
-    event: z.enum(["booking", "booking_new", "booking_modification", "booking_cancellation"]),
-    payload: z.object({
-      booking_id: z.string().uuid(),
-      property_id: z.string().uuid(),
-      revision_id: z.string().uuid(),
-    }),
-    property_id: z.string().uuid().optional(),
-    user_id: z.string().uuid().nullable().optional(),
-    timestamp: z.string().datetime(),
+    event: z.string().min(1),
+    payload: z
+      .object({
+        booking_id: z.string().min(1).optional(),
+        property_id: z.string().min(1).optional(),
+        revision_id: z.string().min(1).optional(),
+        booking_revision_id: z.string().min(1).optional(),
+      })
+      .passthrough()
+      .refine((data) => Boolean(data.revision_id || data.booking_revision_id), {
+        message: "revision_id hoặc booking_revision_id bắt buộc phải có trong payload",
+        path: ["revision_id"],
+      })
+      .transform((data) => ({
+        ...data,
+        revision_id: (data.revision_id ?? data.booking_revision_id)!,
+      })),
+    property_id: z.string().min(1).optional(),
+    user_id: z.string().nullable().optional(),
+    timestamp: z.string().optional(),
   })
-  .strict();
+  .passthrough();
 
 export const channexRecoverSchema = z
   .object({

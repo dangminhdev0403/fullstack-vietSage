@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { Cron } from "@nestjs/schedule";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { ChannexBookingIngestionService } from "./channex-booking-ingestion.service";
 
 @Injectable()
@@ -9,7 +9,7 @@ export class ChannexFeedScheduler {
 
   constructor(private readonly ingestion: ChannexBookingIngestionService) {}
 
-  @Cron("*/10 * * * * *", { name: "channex-booking-feed" })
+  @Cron(CronExpression.EVERY_MINUTE, { name: "channex-booking-feed" })
   async poll(): Promise<unknown> {
     if (!process.env.CHANNEX_API_KEY?.trim()) {
       return { skipped: true, reason: "not_configured" };

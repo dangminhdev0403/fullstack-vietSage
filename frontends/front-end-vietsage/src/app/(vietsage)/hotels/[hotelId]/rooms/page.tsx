@@ -44,7 +44,8 @@ export default async function StaffRoomsPage({
   const isHousekeeping = userPersona === "housekeeping";
   const canViewRooms =
     context.permissions.includes("hotel.rooms.view") ||
-    context.permissions.includes("hotel.rooms.status.manage");
+    context.permissions.includes("hotel.rooms.status.manage") ||
+    context.permissions.includes("hotel.rooms.ready.confirm");
   const canViewReservations =
     context.permissions.includes("hotel.reservations.view") ||
     context.permissions.includes("hotel.reservations.manage");

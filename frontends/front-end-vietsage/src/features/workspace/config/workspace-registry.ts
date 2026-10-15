@@ -491,6 +491,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     anyCapabilities: [
       "hotel.rooms.view",
       "hotel.rooms.status.manage",
+      "hotel.rooms.ready.confirm",
       "hotel.stays.check-in",
       "hotel.stays.manage",
       "hotel.reservations.view",

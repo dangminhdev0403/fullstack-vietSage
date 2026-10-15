@@ -196,6 +196,9 @@ export class HotelAccessService {
     const isHousekeeping =
       actor.roleCodes.has("HOTEL_HOUSEKEEPING") ||
       actor.baseRoleCodes?.has("HOTEL_HOUSEKEEPING");
+    const isFrontDesk =
+      actor.roleCodes.has("HOTEL_FRONTDESK") ||
+      actor.baseRoleCodes?.has("HOTEL_FRONTDESK");
 
     if (
       actor.isSuperAdmin ||
@@ -203,6 +206,7 @@ export class HotelAccessService {
       isHotelOwner ||
       isHotelManager ||
       isHousekeeping ||
+      isFrontDesk ||
       actor.hotelWideRoomScopeIds?.has(hotelId)
     ) {
       return { hotel, allowedRoomId: null, mode: "HOTEL_WIDE" };

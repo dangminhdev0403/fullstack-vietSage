@@ -43,6 +43,7 @@ import {
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import { RoomDetailDrawer } from "@/features/hotel-ops/components/room-detail-drawer";
+import { RoomTypesCatalogModal } from "@/features/hotel-ops/components/room-types-catalog-modal";
 
 type Props = {
   hotelId: string;
@@ -398,6 +399,7 @@ export function OwnerRoomsClient({
   const [detailDrawerInitialMode, setDetailDrawerInitialMode] = useState<"view" | "edit">("view");
   const [isSaving, setIsSaving] = useState(false);
   const [isBulkQrBusy, setIsBulkQrBusy] = useState(false);
+  const [isRoomTypesModalOpen, setIsRoomTypesModalOpen] = useState(false);
   const clientOrigin = useClientOrigin();
 
   const queryInput = useMemo(
@@ -1419,6 +1421,21 @@ export function OwnerRoomsClient({
           </button>
           <button
             type="button"
+            onClick={() => setIsRoomTypesModalOpen(true)}
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[var(--outline-variant)] bg-white px-5 text-sm font-bold text-[var(--primary)] shadow-sm transition-all hover:bg-[var(--surface-container-low)] hover:border-[var(--primary)] active:scale-[0.98]"
+            title="Quản lý danh mục loại phòng và giá gốc để đồng bộ OTA / Channex"
+          >
+            <VsIcon name="tune" className="text-lg text-[var(--secondary)]" />
+            <span>Danh mục loại phòng</span>
+            {catalog.some((item) => item.readiness === "MISSING_PRICE") && (
+              <span
+                className="h-2 w-2 rounded-full bg-amber-500 animate-pulse"
+                title="Có loại phòng chưa có giá gốc"
+              />
+            )}
+          </button>
+          <button
+            type="button"
             onClick={() => void handleOperationalReset()}
             disabled={isResetting || isBulkQrBusy}
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50/90 px-5 text-sm font-bold text-amber-900 shadow-sm transition-all hover:bg-amber-100 hover:border-amber-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
@@ -2049,6 +2066,16 @@ export function OwnerRoomsClient({
           </div>
         </div>
       ) : null}
+
+      <RoomTypesCatalogModal
+        hotelId={hotelId}
+        isOpen={isRoomTypesModalOpen}
+        onClose={() => setIsRoomTypesModalOpen(false)}
+        onUpdated={() => {
+          void refetchRoomTypes();
+          void refetchRooms();
+        }}
+      />
     </section>
   );
 }
