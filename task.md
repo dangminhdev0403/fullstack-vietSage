@@ -47,4 +47,22 @@
 - **Unit & Integration Tests**:
   - `node --test frontends/front-end-vietsage/src/features/hotel-ops/components/room-detail-drawer-state.test.mjs` -> **PASS (1/1)**.
   - `npx tsx --test frontends/front-end-vietsage/src/features/hotel-ops/room-table-drawer.test.ts frontends/front-end-vietsage/src/features/channel-manager/components/channex-channel-wizard.utils.test.ts` -> **PASS (9/9)**.
-- **Dependency Guardrail**: Không chỉnh sửa bất kỳ tệp `package.json` nào.
+## 3. Kết quả Triển khai VPS (Production Deployment Results)
+
+- **Máy chủ VPS**: `72.62.69.172` (`srv1789188`), thư mục `/var/www/fullstack-vietSage`.
+- **Commit triển khai**: `c064808e` (`origin/master`).
+- **Prisma Migrations**:
+  - `20261014113000_reactivate_housekeeping_role` (Đã áp dụng thành công)
+  - `20261014113000_reservation_rate_snapshot` (Đã áp dụng thành công)
+- **Database Seed**: `node prisma/seed.js` hoàn thành thành công.
+- **Docker Compose Stack**:
+  - `vietsage-auth-service`: `Up (healthy)` - Image: `vietsage-auth-service:c064808e4e6049e4cffc2a06303ef9ef87daf392`
+  - `vietsage-frontend`: `Up (healthy)` - Image: `vietsage-frontend:c064808e4e6049e4cffc2a06303ef9ef87daf392`
+  - `vietsage-nginx`: `Up (healthy)`
+  - `vietsage-open-mrz`: `Up (healthy)`
+  - `vietsage-postgres`: `Up (healthy)`
+  - `vietsage-n8n`: `Up (healthy)`
+- **Kiểm tra Endpoints Live**:
+  - `https://vietsage.com/api/health` -> `HTTP 200 OK` (`"Kiểm tra hệ thống thành công"`)
+  - `https://stay.vietsage.com/login` -> `HTTP 200 OK` (Next.js server-rendered HTML sẵn sàng)
+
