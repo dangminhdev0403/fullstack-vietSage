@@ -10,6 +10,7 @@ import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import type { HotelArrival } from "@/features/hotel-ops/types/hotel-ops-contract";
+import { getArrivalStatusDisplay } from "@/features/hotel-ops/utils/hotel-ops-display";
 import { CheckInWorkspace } from "@/features/local-biometric/components/check-in-workspace";
 import type { CheckInStayFields } from "@/features/local-biometric/types/check-in-workspace";
 import {
@@ -416,13 +417,17 @@ export function FrontDeskArrivalDetailPanel({
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-semibold text-slate-600">Trạng thái:</span>
-                    <span className="font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded text-xs">
-                      {arrival.status === "CONFIRMED"
-                        ? "Đã xác nhận"
-                        : arrival.status === "ARRIVAL_READY"
-                          ? "Sẵn sàng đón khách"
-                          : arrival.status}
-                    </span>
+                    {(() => {
+                      const statusDisplay = getArrivalStatusDisplay(arrival, todayYmd);
+                      return (
+                        <span
+                          className={`inline-flex items-center gap-1.5 font-bold px-2.5 py-1 rounded text-xs border ${statusDisplay.badgeClass}`}
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${statusDisplay.dotClass}`} />
+                          <span>{statusDisplay.label}</span>
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>

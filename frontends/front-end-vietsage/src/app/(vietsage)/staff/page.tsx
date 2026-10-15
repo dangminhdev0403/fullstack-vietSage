@@ -16,6 +16,9 @@ export default async function StaffEntryPage() {
 
   if (persona && persona !== "platform_admin" && persona !== "owner") {
     if (assignedHotel) {
+      if (persona === "housekeeping") {
+        redirect(`/hotels/${encodeURIComponent(assignedHotel.id)}/rooms?status=processing`);
+      }
       redirect(`/hotels/${encodeURIComponent(assignedHotel.id)}/dashboard`);
     }
   }

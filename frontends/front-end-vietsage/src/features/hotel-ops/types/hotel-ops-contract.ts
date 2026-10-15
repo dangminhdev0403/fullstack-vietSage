@@ -101,6 +101,7 @@ export type HotelRoomSummary = {
   activeStay?: HotelStaySummary | null;
   projectedStay?: HotelStaySummary | null;
   projectedReservation?: HotelReservationSummary | null;
+  upcomingReservation?: HotelReservationSummary | null;
   businessDate?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;

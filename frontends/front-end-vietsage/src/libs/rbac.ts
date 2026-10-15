@@ -146,6 +146,24 @@ export function canAccessPathByRoles(
       }
     }
 
+    if (persona === "housekeeping") {
+      if (matchesPrefix(pathname, "/hotels")) {
+        const hotelSubpath = pathname.replace(/^\/hotels\/[^/]+/, "");
+        if (
+          matchesPrefix(hotelSubpath, "/front-desk") ||
+          matchesPrefix(hotelSubpath, "/dashboard") ||
+          matchesPrefix(hotelSubpath, "/billing") ||
+          matchesPrefix(hotelSubpath, "/channel-manager") ||
+          matchesPrefix(hotelSubpath, "/kbtt") ||
+          matchesPrefix(hotelSubpath, "/biometric") ||
+          matchesPrefix(hotelSubpath, "/services") ||
+          matchesPrefix(hotelSubpath, "/partners")
+        ) {
+          return false;
+        }
+      }
+    }
+
     if (persona === "owner") {
       if (
         matchesPrefix(pathname, "/staff") ||

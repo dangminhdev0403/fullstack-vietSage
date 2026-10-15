@@ -5,6 +5,7 @@ import React, { useRef, useState } from "react";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { FrontDeskArrivalDetailPanel } from "@/features/hotel-ops/components/front-desk-arrival-detail-panel";
 import type { HotelArrival } from "@/features/hotel-ops/types/hotel-ops-contract";
+import { getArrivalStatusDisplay } from "@/features/hotel-ops/utils/hotel-ops-display";
 
 export type FrontDeskArrivalsTableProps = {
   hotelId: string;
@@ -68,8 +69,6 @@ export function FrontDeskArrivalsTable({
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
               {arrivals.map((arrival) => {
-                const isToday = arrival.plannedCheckInAt.slice(0, 10) === todayYmd;
-
                 return (
                   <tr
                     key={arrival.id}
@@ -133,16 +132,17 @@ export function FrontDeskArrivalsTable({
 
                     {/* Trạng thái */}
                     <td className="px-4 py-3 align-middle whitespace-nowrap">
-                      {isToday ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                          <span>Nhận phòng ngay</span>
-                        </span>
-                      ) : (
-                        <span className="text-xs text-slate-500">
-                          Đến ngày mới mở
-                        </span>
-                      )}
+                      {(() => {
+                        const statusDisplay = getArrivalStatusDisplay(arrival, todayYmd);
+                        return (
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusDisplay.badgeClass}`}
+                          >
+                            <span className={`h-1.5 w-1.5 rounded-full ${statusDisplay.dotClass}`} />
+                            <span>{statusDisplay.label}</span>
+                          </span>
+                        );
+                      })()}
                     </td>
 
                     {/* Chỉ báo xem chi tiết */}

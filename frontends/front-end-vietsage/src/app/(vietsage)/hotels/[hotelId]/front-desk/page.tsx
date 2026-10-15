@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+
+import { resolveWorkspacePersona } from "@/features/workspace/config/workspace-registry";
 
 import { auth } from "@/auth";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
@@ -119,6 +121,10 @@ export default async function FrontDeskPage({ params, searchParams }: PageProps)
   assertCanAccessHotelOps(session, callbackUrl);
   const tokens = await requireHotelOpsServerTokens(callbackUrl);
   const context = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
+  const userPersona = resolveWorkspacePersona(context.activeRole.code);
+  if (userPersona === "housekeeping") {
+    redirect(`/hotels/${encodeURIComponent(hotelId)}/rooms?status=processing`);
+  }
 
   const canViewArrivals = context.permissions.includes("hotel.reservations.view");
   const canViewInHouse = context.permissions.includes("hotel.rooms.view");

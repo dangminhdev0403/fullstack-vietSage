@@ -1,5 +1,14 @@
-import type { GuestRequestStatus, GuestRequestType } from "@/features/guest-os/types/guest-os-contract";
-import type { HotelGuestRequest, HotelServiceItem, HotelServiceStatus, StaffRequestPriority } from "@/features/hotel-ops/types/hotel-ops-contract";
+import type {
+  GuestRequestStatus,
+  GuestRequestType,
+} from "@/features/guest-os/types/guest-os-contract";
+import type {
+  HotelArrival,
+  HotelGuestRequest,
+  HotelServiceItem,
+  HotelServiceStatus,
+  StaffRequestPriority,
+} from "@/features/hotel-ops/types/hotel-ops-contract";
 
 export const requestTypeLabelMap: Record<GuestRequestType, string> = {
   HOUSEKEEPING: "Dọn phòng",
@@ -146,3 +155,58 @@ export function filterExtraOccupants<
     return true;
   });
 }
+
+export type ArrivalStatusDisplay = {
+  label: string;
+  badgeClass: string;
+  dotClass: string;
+};
+
+export function getArrivalStatusDisplay(
+  arrival: Pick<HotelArrival, "status"> & {
+    roomId?: string | null;
+    plannedCheckInAt?: string | null;
+  },
+  todayYmd?: string,
+): ArrivalStatusDisplay {
+  if (arrival.status === "CHECKED_IN") {
+    return {
+      label: "Đã nhận phòng",
+      badgeClass: "bg-slate-100 text-slate-700 border-slate-200",
+      dotClass: "bg-slate-400",
+    };
+  }
+
+  // Khách chưa được phân bổ phòng cụ thể
+  if (!arrival.roomId) {
+    return {
+      label: "Chờ gán phòng",
+      badgeClass: "bg-amber-50 text-amber-800 border-amber-200",
+      dotClass: "bg-amber-500",
+    };
+  }
+
+  const checkInYmd = arrival.plannedCheckInAt?.slice(0, 10);
+  if (!checkInYmd || !todayYmd || checkInYmd === todayYmd) {
+    return {
+      label: "Sẵn sàng đón khách",
+      badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      dotClass: "bg-emerald-500",
+    };
+  }
+
+  if (checkInYmd > todayYmd) {
+    return {
+      label: "Đã xác nhận",
+      badgeClass: "bg-blue-50 text-blue-700 border-blue-200",
+      dotClass: "bg-blue-500",
+    };
+  }
+
+  return {
+    label: "Quá hạn nhận phòng",
+    badgeClass: "bg-rose-50 text-rose-700 border-rose-200",
+    dotClass: "bg-rose-500 animate-pulse",
+  };
+}
+

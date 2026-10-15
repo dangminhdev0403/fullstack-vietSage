@@ -42,6 +42,7 @@ export type RoomListRow = Prisma.RoomGetPayload<{ include: typeof roomListInclud
   activeGuestDeviceCount: number;
   projectedStay?: any;
   projectedReservation?: any;
+  upcomingReservation?: any;
   projectedStatus?: RoomStatus;
   businessDate?: string | null;
 };

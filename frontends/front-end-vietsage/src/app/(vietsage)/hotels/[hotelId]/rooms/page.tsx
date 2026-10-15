@@ -31,6 +31,7 @@ export default async function StaffRoomsPage({
   const initialBusinessDate = getFirst(resolvedSearchParams.businessDate);
   const initialArrivalRange = getFirst(resolvedSearchParams.range);
   const initialQuery = getFirst(resolvedSearchParams.q);
+  const initialStatus = getFirst(resolvedSearchParams.status);
   const callbackUrl = `/hotels/${hotelId}/rooms` as const;
   const session = await auth();
   assertCanAccessHotelOps(session, callbackUrl);
@@ -59,11 +60,15 @@ export default async function StaffRoomsPage({
 
   try {
     const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
+    const effectiveInitialStatus = initialStatus ?? (isHousekeeping ? "processing" : undefined);
     roomsPage = await authorizedApi("list staff rooms", (accessToken) =>
       hotelOpsService.listRooms(hotelId, {
         query: {
           page: 1,
           limit: 100,
+          ...(effectiveInitialStatus
+            ? { status: effectiveInitialStatus.toUpperCase() }
+            : {}),
           ...(!isHousekeeping && initialBusinessDate
             ? { businessDate: initialBusinessDate }
             : {}),
@@ -177,6 +182,7 @@ export default async function StaffRoomsPage({
           initialBusinessDate={initialBusinessDate}
           initialArrivalRange={initialArrivalRange}
           initialQuery={initialQuery}
+          initialStatus={initialStatus}
           isHousekeeping={isHousekeeping}
           enabledFeatures={
             context.accessibleHotels.find((hotel) => hotel.id === hotelId)

@@ -874,6 +874,7 @@ export class HotelRoomsService {
     const activeStay = row.guestStays[0] ?? null;
     const projectedStay = row.projectedStay ?? null;
     const projectedReservation = row.projectedReservation ?? null;
+    const upcomingReservation = row.upcomingReservation ?? null;
 
     return {
       id: row.id,
@@ -901,6 +902,9 @@ export class HotelRoomsService {
         visibility.canViewStayContext && projectedStay ? this.toStayData(projectedStay) : null,
       projectedReservation: visibility.canViewReservationContext && projectedReservation
         ? this.toReservationData(projectedReservation)
+        : null,
+      upcomingReservation: visibility.canViewReservationContext && upcomingReservation
+        ? this.toReservationData(upcomingReservation)
         : null,
     };
   }

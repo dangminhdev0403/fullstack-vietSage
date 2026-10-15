@@ -586,16 +586,21 @@ export class HotelRoomsRepository {
         item.businessDate = projectionOptions.businessDate;
       }
     } else {
-      const reservedRoomIds = items.filter((i) => i.status === RoomStatus.RESERVED).map((i) => i.id);
+      const roomIds = items.map((i) => i.id);
       const reservationsByRoomId = new Map<string, any>();
       const reservedStaysByRoomId = new Map<string, any>();
-      if (reservedRoomIds.length > 0) {
-        const [reservations, reservedStays] = await Promise.all([
+      const upcomingByRoomId = new Map<string, any>();
+
+      if (roomIds.length > 0) {
+        const now = new Date();
+        const [reservations, reservedStays, upcomingReservations] = await Promise.all([
           this.prisma.reservation.findMany({
             where: {
               hotelId,
-              roomId: { in: reservedRoomIds },
+              roomId: { in: roomIds },
               status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY] },
+              plannedCheckInAt: { lte: now },
+              plannedCheckOutAt: { gte: now },
             },
             select: {
               id: true,
@@ -620,7 +625,7 @@ export class HotelRoomsRepository {
           this.prisma.guestStay.findMany({
             where: {
               hotelId,
-              roomId: { in: reservedRoomIds },
+              roomId: { in: roomIds },
               status: GuestStayStatus.RESERVED,
             },
             select: {
@@ -651,7 +656,35 @@ export class HotelRoomsRepository {
             },
             orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
           }),
+          this.prisma.reservation.findMany({
+            where: {
+              hotelId,
+              roomId: { in: roomIds },
+              status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY] },
+              plannedCheckInAt: { gt: now },
+            },
+            select: {
+              id: true,
+              hotelId: true,
+              roomId: true,
+              roomTypeSnapshot: true,
+              reservationCode: true,
+              guestDisplayName: true,
+              guestPhone: true,
+              status: true,
+              plannedCheckInAt: true,
+              plannedCheckOutAt: true,
+              nightlyRateSnapshot: true,
+              assignedAt: true,
+              assignedByUserId: true,
+              checkedInAt: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+            orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
+          }),
         ]);
+
         for (const r of reservations) {
           if (r.roomId && !reservationsByRoomId.has(r.roomId)) {
             reservationsByRoomId.set(r.roomId, r);
@@ -662,23 +695,39 @@ export class HotelRoomsRepository {
             reservedStaysByRoomId.set(s.roomId, s);
           }
         }
+        for (const u of upcomingReservations) {
+          if (u.roomId && !upcomingByRoomId.has(u.roomId)) {
+            upcomingByRoomId.set(u.roomId, u);
+          }
+        }
       }
 
       for (const item of items) {
         item.projectedStatus = item.status;
         item.businessDate = null;
-        if (item.status === RoomStatus.RESERVED) {
-          if (reservationsByRoomId.has(item.id)) {
-            item.projectedReservation = {
-              ...reservationsByRoomId.get(item.id),
-              sourceType: "RESERVATION",
-            };
-          } else if (reservedStaysByRoomId.has(item.id)) {
-            item.projectedReservation = {
-              ...reservedStaysByRoomId.get(item.id),
-              sourceType: "STAY",
-            };
+        if (reservationsByRoomId.has(item.id)) {
+          item.projectedReservation = {
+            ...reservationsByRoomId.get(item.id),
+            sourceType: "RESERVATION",
+          };
+          if (item.status === RoomStatus.AVAILABLE) {
+            item.projectedStatus = RoomStatus.RESERVED;
           }
+        } else if (reservedStaysByRoomId.has(item.id)) {
+          item.projectedReservation = {
+            ...reservedStaysByRoomId.get(item.id),
+            sourceType: "STAY",
+          };
+          if (item.status === RoomStatus.AVAILABLE) {
+            item.projectedStatus = RoomStatus.RESERVED;
+          }
+        }
+
+        if (upcomingByRoomId.has(item.id)) {
+          item.upcomingReservation = {
+            ...upcomingByRoomId.get(item.id),
+            sourceType: "RESERVATION",
+          };
         }
       }
     }

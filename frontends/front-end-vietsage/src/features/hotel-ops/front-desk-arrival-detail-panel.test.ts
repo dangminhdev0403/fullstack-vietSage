@@ -89,3 +89,105 @@ test("FrontDeskArrivalDetailPanel check-in and room assignment API isolation", (
   // Timezone standard
   assert.match(panelSource, /timeZone:\s*"Asia\/Ho_Chi_Minh"/);
 });
+
+test("FrontDeskArrivalsTable does not use misleading action labels as status and uses getArrivalStatusDisplay", () => {
+  // Uses getArrivalStatusDisplay
+  assert.match(arrivalsTableSource, /getArrivalStatusDisplay/);
+
+  // Does not use hardcoded action button label "Nhận phòng ngay" or informal "Đến ngày mới mở" in status column
+  assert.doesNotMatch(arrivalsTableSource, /<span>Nhận phòng ngay<\/span>/);
+  assert.doesNotMatch(arrivalsTableSource, /Đến ngày mới mở/);
+});
+
+test("getArrivalStatusDisplay accurately determines hospitality statuses", async () => {
+  // @ts-expect-error Node's strip-types runner requires explicit extension
+  const { getArrivalStatusDisplay } = await import("./utils/hotel-ops-display.ts");
+
+  const today = "2026-10-15";
+
+  // Case 1: Room not yet assigned -> "Chờ gán phòng" regardless of date
+  assert.deepEqual(
+    getArrivalStatusDisplay(
+      {
+        status: "CONFIRMED",
+        roomId: null,
+        plannedCheckInAt: "2026-10-15T14:00:00.000Z",
+      },
+      today,
+    ),
+    {
+      label: "Chờ gán phòng",
+      badgeClass: "bg-amber-50 text-amber-800 border-amber-200",
+      dotClass: "bg-amber-500",
+    },
+  );
+
+  // Case 2: Room assigned and check-in date is today -> "Sẵn sàng đón khách"
+  assert.deepEqual(
+    getArrivalStatusDisplay(
+      {
+        status: "ARRIVAL_READY",
+        roomId: "room-1009",
+        plannedCheckInAt: "2026-10-15T14:00:00.000Z",
+      },
+      today,
+    ),
+    {
+      label: "Sẵn sàng đón khách",
+      badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      dotClass: "bg-emerald-500",
+    },
+  );
+
+  // Case 3: Room assigned and check-in date is future -> "Đã xác nhận"
+  assert.deepEqual(
+    getArrivalStatusDisplay(
+      {
+        status: "ARRIVAL_READY",
+        roomId: "room-1007",
+        plannedCheckInAt: "2026-10-16T14:00:00.000Z",
+      },
+      today,
+    ),
+    {
+      label: "Đã xác nhận",
+      badgeClass: "bg-blue-50 text-blue-700 border-blue-200",
+      dotClass: "bg-blue-500",
+    },
+  );
+
+  // Case 4: Room assigned and check-in date is in the past -> "Quá hạn nhận phòng"
+  assert.deepEqual(
+    getArrivalStatusDisplay(
+      {
+        status: "ARRIVAL_READY",
+        roomId: "room-1007",
+        plannedCheckInAt: "2026-10-14T14:00:00.000Z",
+      },
+      today,
+    ),
+    {
+      label: "Quá hạn nhận phòng",
+      badgeClass: "bg-rose-50 text-rose-700 border-rose-200",
+      dotClass: "bg-rose-500 animate-pulse",
+    },
+  );
+
+  // Case 5: Already checked in -> "Đã nhận phòng"
+  assert.deepEqual(
+    getArrivalStatusDisplay(
+      {
+        status: "CHECKED_IN",
+        roomId: "room-1007",
+        plannedCheckInAt: "2026-10-15T14:00:00.000Z",
+      },
+      today,
+    ),
+    {
+      label: "Đã nhận phòng",
+      badgeClass: "bg-slate-100 text-slate-700 border-slate-200",
+      dotClass: "bg-slate-400",
+    },
+  );
+});
+
