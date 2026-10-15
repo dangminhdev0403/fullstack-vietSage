@@ -131,8 +131,11 @@ describe("RequestRealtimeController authorization boundary", () => {
       "issue",
     )?.value;
     expect(issue).toBeDefined();
-    expect(Reflect.getMetadata(REQUIRED_PERMISSION_KEY, issue as object)).toBe(
+    expect(Reflect.getMetadata(REQUIRED_PERMISSION_KEY, issue as object)).toEqual([
       "hotel.requests.view",
-    );
+      "hotel.rooms.view",
+      "hotel.dashboard.view",
+      "hotel.stays.view",
+    ]);
   });
 });

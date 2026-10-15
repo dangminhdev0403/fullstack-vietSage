@@ -59,6 +59,7 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
   const handlers = useMemo(
     () => ({
       onReady: () => {
+        toast.dismiss(`owner-realtime-error-${hotelId}`);
         toast.success("Realtime đã kết nối", {
           id: "owner-realtime-ready",
           description: "Thông báo yêu cầu mới sẽ xuất hiện tự động.",

@@ -30,6 +30,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
   const handlers = useMemo(
     () => ({
       onReady: () => {
+        toast.dismiss(`owner-realtime-error-${hotelId}`);
         toast.success("Realtime đã kết nối", {
           id: `hotel-ops-realtime-ready-${hotelId}`,
           description: "Yêu cầu và tin nhắn mới sẽ cập nhật tự động.",

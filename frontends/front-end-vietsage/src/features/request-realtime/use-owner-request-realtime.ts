@@ -47,11 +47,22 @@ export function useOwnerRequestRealtime(hotelId: string, handlers: Handlers, opt
       onReconnect: () => ref.current.onReconnect?.(),
       onError: (error) => {
         if (options.showConnectionToasts) {
-          const code = typeof error === "object" && error !== null && "code" in error
-            ? String(error.code)
-            : "CONNECTION_FAILED";
+          let description = "Không thể kết nối đến máy chủ thời gian thực. Đang tự động kết nối lại...";
+          if (typeof error === "object" && error !== null) {
+            const errObj = error as Record<string, unknown>;
+            const code = typeof errObj.code === "string" ? errObj.code : "";
+            if (code === "REALTIME_DISABLED") {
+              description = "Tính năng cập nhật thời gian thực hiện đang tạm dừng.";
+            } else if (code === "AUTH_REQUIRED") {
+              description = "Cần đăng nhập lại để kết nối dữ liệu trực tiếp.";
+            } else if (code === "TICKET_INVALID" || code === "TICKET_EXPIRED") {
+              description = "Phiên kết nối đã hết hạn. Đang thử kết nối lại...";
+            } else if (typeof errObj.message === "string" && errObj.message && !/^[A-Z0-9_ -]+$/.test(errObj.message)) {
+              description = errObj.message;
+            }
+          }
           void import("sonner").then(({ toast }) =>
-            toast.error("Realtime chưa thể kết nối", { id: `owner-realtime-error-${hotelId}`, description: code }),
+            toast.error("Realtime chưa thể kết nối", { id: `owner-realtime-error-${hotelId}`, description }),
           );
         }
       },

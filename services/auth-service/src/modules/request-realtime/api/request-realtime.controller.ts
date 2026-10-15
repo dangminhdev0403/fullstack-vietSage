@@ -17,7 +17,12 @@ interface RequestWithUser extends Request {
 export class RequestRealtimeController {
   constructor(private readonly tickets: RequestRealtimeTicketService) {}
 
-  @RequirePermission("hotel.requests.view")
+  @RequirePermission([
+    "hotel.requests.view",
+    "hotel.rooms.view",
+    "hotel.dashboard.view",
+    "hotel.stays.view",
+  ])
   @ApiDescript("Phát hành ticket realtime yêu cầu dịch vụ theo khách sạn")
   @ApiParam({ name: "hotelId", type: String })
   @ApiOkResponse({
