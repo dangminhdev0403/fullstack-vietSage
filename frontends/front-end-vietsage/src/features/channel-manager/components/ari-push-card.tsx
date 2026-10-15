@@ -4,6 +4,7 @@ import { useId, useMemo, useState } from "react";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import {
   escapeHtml,
+  showConfirmDialog,
   showErrorAlert,
   showSuccessAlert,
   trustedAlertHtml,
@@ -100,6 +101,22 @@ export function AriPushCard({
         "Khoảng ngày không hợp lệ",
         "Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.",
       );
+      return;
+    }
+
+    const startVn = formatVnDate(startDate);
+    const endVn = endDate ? formatVnDate(endDate) : "";
+    const rangeText = endVn && endVn !== startVn ? `${startVn} đến ${endVn}` : startVn;
+
+    const confirmResult = await showConfirmDialog({
+      title: "Xác nhận đồng bộ ARI",
+      text: `Bạn có chắc chắn muốn đẩy quỹ phòng và biểu giá sang các kênh OTA cho khoảng thời gian ${rangeText}?`,
+      confirmText: "Đẩy sang OTA",
+      cancelText: "Hủy bỏ",
+      icon: "warning",
+    });
+
+    if (!confirmResult.isConfirmed) {
       return;
     }
 

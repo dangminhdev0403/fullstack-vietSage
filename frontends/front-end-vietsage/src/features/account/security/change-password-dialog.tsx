@@ -4,6 +4,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { showConfirmDialog, showErrorAlert } from "@/libs/swal";
 import { useChangePassword } from "@/features/auth/hooks/use-change-password";
 import { validatePasswordChange } from "./password-security";
 
@@ -80,10 +81,24 @@ export function ChangePasswordDialog() {
     const validationError = validatePasswordChange(form);
     if (validationError) return setError(validationError);
     setError(null);
+
+    const confirmResult = await showConfirmDialog({
+      title: "Xác nhận đổi mật khẩu?",
+      text: "Sau khi đổi mật khẩu thành công, bạn sẽ được đăng xuất khỏi hệ thống để đăng nhập lại với mật khẩu mới.",
+      confirmText: "Đổi mật khẩu",
+      cancelText: "Hủy bỏ",
+      icon: "warning",
+      reverseButtons: false,
+    });
+
+    if (!confirmResult.isConfirmed) return;
+
     try {
       await changePassword({ currentPassword: form.currentPassword, newPassword: form.newPassword });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Không thể đổi mật khẩu.");
+      const errorMessage = cause instanceof Error ? cause.message : "Không thể đổi mật khẩu.";
+      setError(errorMessage);
+      await showErrorAlert("Đổi mật khẩu thất bại", errorMessage);
     }
   }
 

@@ -202,6 +202,14 @@ export function ChannexChannelWizard({
       return;
     }
 
+    const confirmResult = await showConfirmDialog({
+      title: "Xác nhận tạo kênh OTA?",
+      text: `Bạn có chắc chắn muốn tạo kết nối kênh ${provider.title} với các gói giá đã ánh xạ? Kênh sẽ được khởi tạo ở trạng thái tắt để kiểm tra trước khi kích hoạt.`,
+      confirmText: "Tạo kênh OTA",
+      cancelText: "Hủy bỏ",
+    });
+    if (!confirmResult.isConfirmed) return;
+
     try {
       const submittedSettings = Object.fromEntries(
         Object.entries(settings).filter(([, value]) => value !== ""),
@@ -217,7 +225,7 @@ export function ChannexChannelWizard({
       await showSuccessAlert(
         "Đã tạo kênh ở trạng thái tắt",
         result.ready
-          ? "Readiness check đã đạt. Hãy kiểm tra lần cuối trước khi kích hoạt."
+          ? "Kiểm tra tính sẵn sàng thành công. Hãy kiểm tra lần cuối trước khi kích hoạt."
           : `Còn ${result.issues.length} vấn đề cần xử lý trước khi kích hoạt.`,
       );
     } catch (error: unknown) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { showErrorAlert, showSuccessAlert } from "@/libs/swal";
+import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
 import { useBulkUpdateRestrictions } from "../hooks/use-channel-manager";
 import type { RoomTypeInventory } from "../types/channel-manager.types";
 
@@ -174,6 +174,18 @@ export function BulkUpdateModal({
         : stopSellAction === "open"
           ? false
           : undefined;
+
+    const confirmResult = await showConfirmDialog({
+      title: "Xác nhận cập nhật hàng loạt",
+      text: `Bạn có chắc chắn muốn cập nhật giá/điều kiện bán cho các hạng phòng đã chọn từ ${dateFrom} đến ${dateTo}?`,
+      confirmText: "Cập nhật ngay",
+      cancelText: "Hủy bỏ",
+      icon: "warning",
+    });
+
+    if (!confirmResult.isConfirmed) {
+      return;
+    }
 
     try {
       const res = await bulkUpdate({

@@ -643,8 +643,19 @@ export function OwnerRoomsClient({
       roomTypeId?: string;
       price?: number;
       maxActiveGuestDevices?: number | null;
+      confirmed?: boolean;
     },
   ) {
+    if (!data.confirmed) {
+      const confirmResult = await showConfirmDialog({
+        title: "Xác nhận cập nhật thông tin phòng?",
+        text: `Bạn có chắc chắn muốn lưu các thay đổi cho phòng ${data.roomNumber}?`,
+        confirmText: "Lưu thay đổi",
+        cancelText: "Hủy bỏ",
+      });
+      if (!confirmResult.isConfirmed) return;
+    }
+
     setIsSaving(true);
     try {
       showLoading("Đang lưu phòng");
@@ -660,7 +671,7 @@ export function OwnerRoomsClient({
       );
       await toast.fire({
         icon: "success",
-        title: "Đã lưu phòng tại VietSage",
+        title: "Đã lưu thông tin phòng",
       });
     } catch (error) {
       await SwalVietSage.fire({
@@ -714,6 +725,16 @@ export function OwnerRoomsClient({
     const price = roomForm.price ? Number(roomForm.price) : undefined;
     const isEditing = Boolean(roomForm.id);
 
+    const confirmResult = await showConfirmDialog({
+      title: isEditing ? "Xác nhận cập nhật phòng?" : "Xác nhận tạo phòng mới?",
+      text: isEditing
+        ? `Bạn có chắc chắn muốn lưu thông tin cho phòng ${roomForm.roomNumber.trim()}?`
+        : `Bạn có chắc chắn muốn tạo phòng mới ${roomForm.roomNumber.trim()}?`,
+      confirmText: isEditing ? "Lưu cập nhật" : "Tạo phòng",
+      cancelText: "Hủy bỏ",
+    });
+    if (!confirmResult.isConfirmed) return;
+
     setIsSaving(true);
     try {
       showLoading(isEditing ? "Đang lưu phòng" : "Đang tạo phòng");
@@ -746,7 +767,7 @@ export function OwnerRoomsClient({
       await refetchRoomTypes();
       await toast.fire({
         icon: "success",
-        title: isEditing ? "Đã lưu phòng tại VietSage" : "Đã tạo phòng tại VietSage",
+        title: isEditing ? "Đã lưu thông tin phòng" : "Đã tạo phòng mới",
       });
     } catch (error) {
       await showErrorAlert(
@@ -1872,7 +1893,7 @@ export function OwnerRoomsClient({
                         updateRoomFormField("roomTypeId", saved.id);
                         updateRoomFormField("price", "");
                         await refetchRoomTypes();
-                        await toast.fire({ icon: "success", title: "Đã lưu giá gốc tại VietSage. Chưa đẩy Channex." });
+                        await toast.fire({ icon: "success", title: "Đã lưu giá gốc hạng phòng thành công." });
                       } catch (error) {
                         await SwalVietSage.fire({ icon: "error", title: "Không thể lưu giá gốc", text: getBusinessErrorMessage(error, "Vui lòng thử lại."), confirmButtonText: "OK" });
                       }

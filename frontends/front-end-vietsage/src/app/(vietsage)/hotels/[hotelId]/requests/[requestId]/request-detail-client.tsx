@@ -1,10 +1,11 @@
 "use client";
 
-import { type FormEvent, startTransition, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { requestInternalApi, requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
 import type { HotelGuestRequest } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { validNextRequestStatuses } from "@/features/hotel-ops/types/hotel-ops-contract";
 import {
@@ -20,6 +21,12 @@ import {
   statusTone,
 } from "@/features/hotel-ops/utils/hotel-ops-display";
 import type { GuestRequestStatus } from "@/features/guest-os/types/guest-os-contract";
+
+export type StaffOption = {
+  id: string;
+  name: string;
+  role?: string;
+};
 
 type RequestDetailLabels = {
   statusActions: string;
@@ -53,31 +60,32 @@ type RequestDetailClientProps = {
   labels?: RequestDetailLabels;
   apiBasePath?: string;
   readOnly?: boolean;
+  staffOptions?: StaffOption[];
 };
 
 const defaultLabels: RequestDetailLabels = {
-  statusActions: "Status actions",
-  optionalTransitionNote: "Optional transition note",
-  terminalState: "This request is in a terminal state.",
-  timeline: "Timeline",
-  noTimeline: "No timeline events yet.",
-  assignment: "Assignment",
-  assignedUserId: "Assigned user ID",
-  assignedUserIdPlaceholder: "Paste staff user ID",
-  optionalAssignmentNote: "Optional assignment note",
-  saveAssignment: "Save assignment",
-  internalNote: "Internal note",
-  internalNotePlaceholder: "Add an internal note",
-  addNote: "Add note",
-  reservation: "Reservation",
-  serviceItem: "Service item",
-  rawRequest: "Raw request",
-  price: "Price",
-  created: "Created",
-  note: "Note",
-  updateStatusError: "Could not update request status.",
-  updateAssignmentError: "Could not update assignment.",
-  addNoteError: "Could not add note.",
+  statusActions: "Thao tác trạng thái",
+  optionalTransitionNote: "Ghi chú cập nhật trạng thái (không bắt buộc)",
+  terminalState: "Yêu cầu này đã ở trạng thái kết thúc.",
+  timeline: "Lịch sử xử lý",
+  noTimeline: "Chưa có sự kiện xử lý nào.",
+  assignment: "Phân công nhân sự",
+  assignedUserId: "Nhân sự phụ trách",
+  assignedUserIdPlaceholder: "Chọn nhân sự xử lý",
+  optionalAssignmentNote: "Ghi chú phân công (không bắt buộc)",
+  saveAssignment: "Lưu phân công",
+  internalNote: "Ghi chú nội bộ",
+  internalNotePlaceholder: "Thêm ghi chú nội bộ cho ca trực...",
+  addNote: "Thêm ghi chú",
+  reservation: "Lượt đặt phòng",
+  serviceItem: "Dịch vụ yêu cầu",
+  rawRequest: "Yêu cầu tùy biến",
+  price: "Giá dịch vụ",
+  created: "Tạo lúc",
+  note: "Ghi chú",
+  updateStatusError: "Không thể cập nhật trạng thái yêu cầu.",
+  updateAssignmentError: "Không thể cập nhật phân công nhân sự.",
+  addNoteError: "Không thể thêm ghi chú.",
   statusActionLabel: {
     PENDING: "Chờ tiếp nhận",
     ACKNOWLEDGED: "Tiếp nhận",
@@ -97,6 +105,7 @@ export function RequestDetailClient({
   labels = defaultLabels,
   apiBasePath = `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/requests`,
   readOnly = false,
+  staffOptions,
 }: RequestDetailClientProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -107,6 +116,47 @@ export function RequestDetailClient({
   const [statusNote, setStatusNote] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fetchedStaff, setFetchedStaff] = useState<StaffOption[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    async function fetchStaff() {
+      try {
+        const res = await requestInternalApiEnvelope<{
+          items?: Array<{ id: string; fullName?: string; name?: string; role?: string; roles?: Array<{ name: string }> }>;
+        }>(`/api/owner/staff?hotelId=${encodeURIComponent(hotelId)}&limit=100`, {
+          method: "GET",
+        });
+        if (active && res?.data?.items) {
+          const list = res.data.items.map((u) => ({
+            id: u.id,
+            name: u.fullName || u.name || "Nhân viên",
+            role: u.roles?.[0]?.name || u.role,
+          }));
+          setFetchedStaff(list);
+        }
+      } catch {
+        // Fallback gracefully
+      }
+    }
+    void fetchStaff();
+    return () => {
+      active = false;
+    };
+  }, [hotelId]);
+
+  const combinedStaff = useMemo(() => {
+    const map = new Map<string, StaffOption>();
+    (staffOptions ?? []).forEach((s) => map.set(s.id, s));
+    fetchedStaff.forEach((s) => map.set(s.id, s));
+    if (request.assignedToUser?.id) {
+      map.set(request.assignedToUser.id, {
+        id: request.assignedToUser.id,
+        name: request.assignedToUser.name || "Nhân viên phụ trách",
+      });
+    }
+    return Array.from(map.values());
+  }, [staffOptions, fetchedStaff, request.assignedToUser]);
 
   async function reload() {
     const fresh = await requestInternalApi<HotelGuestRequest>(
@@ -118,9 +168,19 @@ export function RequestDetailClient({
     queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
     queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }).catch(() => {});
     queryClient.invalidateQueries({ queryKey: ["owner-requests", hotelId] }).catch(() => {});
+    router.refresh();
   }
 
   async function transition(status: GuestRequestStatus) {
+    const actionLabel = labels.statusActionLabel[status] || status;
+    const confirmResult = await showConfirmDialog({
+      title: "Xác nhận chuyển trạng thái?",
+      text: `Bạn có chắc chắn muốn chuyển yêu cầu sang trạng thái "${actionLabel}"?`,
+      confirmText: actionLabel,
+      cancelText: "Hủy bỏ",
+    });
+    if (!confirmResult.isConfirmed) return;
+
     setIsSaving(true);
     setError(null);
     try {
@@ -131,8 +191,13 @@ export function RequestDetailClient({
       setRequest(updated);
       setStatusNote("");
       await reload();
+      await showSuccessAlert(
+        "Cập nhật thành công",
+        `Đã chuyển trạng thái yêu cầu sang "${actionLabel}".`,
+      );
     } catch {
       setError(labels.updateStatusError);
+      await showErrorAlert("Lỗi cập nhật trạng thái", labels.updateStatusError);
     } finally {
       setIsSaving(false);
     }
@@ -140,6 +205,18 @@ export function RequestDetailClient({
 
   async function saveAssignment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const assignedStaff = combinedStaff.find((s) => s.id === assignment);
+    const assignedName = assignedStaff ? assignedStaff.name : (assignment ? "nhân sự đã chọn" : "chưa phân công");
+    const confirmResult = await showConfirmDialog({
+      title: "Xác nhận phân công nhân sự?",
+      text: assignment
+        ? `Bạn có chắc chắn muốn phân công yêu cầu này cho ${assignedName}?`
+        : "Bạn có chắc chắn muốn hủy phân công nhân sự cho yêu cầu này?",
+      confirmText: "Lưu phân công",
+      cancelText: "Hủy bỏ",
+    });
+    if (!confirmResult.isConfirmed) return;
+
     setIsSaving(true);
     setError(null);
     try {
@@ -156,8 +233,13 @@ export function RequestDetailClient({
       setRequest(updated);
       setAssignmentNote("");
       await reload();
+      await showSuccessAlert(
+        "Phân công thành công",
+        assignment ? `Đã phân công yêu cầu cho ${assignedName}.` : "Đã hủy phân công nhân sự.",
+      );
     } catch {
       setError(labels.updateAssignmentError);
+      await showErrorAlert("Lỗi phân công", labels.updateAssignmentError);
     } finally {
       setIsSaving(false);
     }
@@ -168,6 +250,14 @@ export function RequestDetailClient({
     if (!note.trim()) {
       return;
     }
+    const confirmResult = await showConfirmDialog({
+      title: "Xác nhận thêm ghi chú?",
+      text: "Bạn có chắc chắn muốn thêm ghi chú nội bộ này vào nhật ký yêu cầu?",
+      confirmText: "Thêm ghi chú",
+      cancelText: "Hủy bỏ",
+    });
+    if (!confirmResult.isConfirmed) return;
+
     setIsSaving(true);
     setError(null);
     try {
@@ -177,8 +267,13 @@ export function RequestDetailClient({
       );
       setNote("");
       await reload();
+      await showSuccessAlert(
+        "Thêm ghi chú thành công",
+        "Ghi chú nội bộ đã được lưu vào nhật ký tiến trình.",
+      );
     } catch {
       setError(labels.addNoteError);
+      await showErrorAlert("Lỗi thêm ghi chú", labels.addNoteError);
     } finally {
       setIsSaving(false);
     }
@@ -248,7 +343,26 @@ export function RequestDetailClient({
           <form onSubmit={saveAssignment} className="rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white p-6">
             <h3 className="mb-4 text-lg font-semibold text-[var(--primary)]">{labels.assignment}</h3>
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]" htmlFor="assignedToUserId">{labels.assignedUserId}</label>
-            <input id="assignedToUserId" value={assignment} onChange={(event) => setAssignment(event.target.value)} placeholder={labels.assignedUserIdPlaceholder} className="mb-3 w-full rounded-lg border px-3 py-2 text-sm" />
+            <select
+              id="assignedToUserId"
+              value={assignment}
+              onChange={(event) => setAssignment(event.target.value)}
+              className="mb-3 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-800 shadow-2xs focus:border-[#25483f] focus:outline-none focus:ring-2 focus:ring-[#25483f]/20 transition cursor-pointer"
+            >
+              <option value="">-- Chưa phân công nhân sự --</option>
+              {combinedStaff.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} {s.role ? `• ${s.role}` : ""}
+                </option>
+              ))}
+              {assignment && !combinedStaff.some((s) => s.id === assignment) ? (
+                <option value={assignment}>
+                  {request.assignedToUser?.name
+                    ? `${request.assignedToUser.name} (${assignment.slice(0, 8)}...)`
+                    : `Nhân sự (${assignment.slice(0, 8)}...)`}
+                </option>
+              ) : null}
+            </select>
             <textarea value={assignmentNote} onChange={(event) => setAssignmentNote(event.target.value)} placeholder={labels.optionalAssignmentNote} className="mb-4 min-h-20 w-full rounded-lg border px-3 py-2 text-sm" />
             <button disabled={isSaving} className="w-full rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)] disabled:opacity-60">{labels.saveAssignment}</button>
           </form>

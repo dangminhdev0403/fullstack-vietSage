@@ -475,7 +475,7 @@ export function RolePermissionsBrowser({
       if (!/^[A-Z0-9_]{2,80}$/.test(trimmedCode)) {
         setModalState((prev) => ({
           ...prev,
-          error: "Mã vai trò chỉ bao gồm 2-80 ký tự chữ hoa, số và dấu gạch dưới (VD: STAFF_SERVICE)",
+          error: "Mã vai trò chỉ bao gồm 2-80 ký tự chữ hoa, số và dấu gạch dưới (ví dụ: FRONTDESK_NIGHT)",
         }));
         return;
       }
@@ -491,9 +491,20 @@ export function RolePermissionsBrowser({
       return;
     }
 
-    setModalState((prev) => ({ ...prev, submitting: true }));
-
     const selectedIds = Array.from(modalState.selectedPermissionIds);
+
+    const confirmResult = await showConfirmDialog({
+      title: modalState.mode === "create" ? "Xác nhận tạo vai trò" : "Xác nhận cập nhật vai trò",
+      text: `Bạn có chắc muốn lưu vai trò "${trimmedName}" với ${selectedIds.length} quyền hạn được gán?`,
+      confirmText: modalState.mode === "create" ? "Tạo vai trò" : "Cập nhật vai trò",
+      cancelText: "Hủy bỏ",
+      icon: "question",
+    });
+    if (!confirmResult.isConfirmed) {
+      return;
+    }
+
+    setModalState((prev) => ({ ...prev, submitting: true }));
 
     try {
       if (modalState.mode === "create") {
@@ -580,6 +591,7 @@ export function RolePermissionsBrowser({
         submitting: false,
         error: errorMessage,
       }));
+      void showErrorAlert("Không thể lưu vai trò", errorMessage);
     }
   };
 

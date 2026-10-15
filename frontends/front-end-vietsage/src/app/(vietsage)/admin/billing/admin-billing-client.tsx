@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { SwalVietSage, showSuccessAlert } from "@/libs/swal";
+import { SwalVietSage, showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { runtimeConsole } from "@/core/logging/runtime-console";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
@@ -492,6 +492,15 @@ export function AdminBillingClient({
       return;
     }
 
+    const confirmResult = await showConfirmDialog({
+      title: "Xác nhận quyết toán",
+      text: `Xác nhận ghi nhận thanh toán số tiền ${numAmount.toLocaleString("vi-VN")} VND cho kỳ hóa đơn này?`,
+      confirmText: "Ghi nhận thanh toán",
+      cancelText: "Hủy bỏ",
+      icon: "warning",
+    });
+    if (!confirmResult.isConfirmed) return;
+
     try {
       await requestInternalApiEnvelope(
         `/api/admin/platform-billing/periods/${selectedPeriod?.id}/settlement`,
@@ -601,6 +610,15 @@ export function AdminBillingClient({
     const { periodStart, periodEnd } = getMonthRange(finalizeMonth);
     const [y, m] = finalizeMonth.split("-");
 
+    const confirmResult = await showConfirmDialog({
+      title: `Chốt kỳ Tháng ${m}/${y}?`,
+      text: `Hệ thống sẽ chốt doanh thu và tạo hóa đơn cho khách sạn "${hotelName}" trong kỳ từ ${periodStart} đến ${periodEnd}.`,
+      confirmText: "Xác nhận chốt kỳ",
+      cancelText: "Hủy bỏ",
+      icon: "warning",
+    });
+    if (!confirmResult.isConfirmed) return;
+
     try {
       await requestInternalApiEnvelope(
         `/api/admin/platform-billing/contracts/${contractId}/finalize`,
@@ -616,18 +634,21 @@ export function AdminBillingClient({
       void refreshData();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Không thể chốt hóa đơn";
-      await SwalVietSage.fire({
-        icon: "error",
-        title: "Lỗi",
-        text: msg,
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showErrorAlert("Lỗi", msg);
     }
   };
 
   const handleFinalizePeriod = async (e: FormEvent) => {
     e.preventDefault();
+    const confirmResult = await showConfirmDialog({
+      title: "Xác nhận chốt kỳ hóa đơn",
+      text: `Bạn có chắc chắn muốn chốt hóa đơn cho kỳ từ ${finalizeForm.periodStart} đến ${finalizeForm.periodEnd}?`,
+      confirmText: "Xác nhận chốt",
+      cancelText: "Hủy bỏ",
+      icon: "warning",
+    });
+    if (!confirmResult.isConfirmed) return;
+
     try {
       await requestInternalApiEnvelope(
         `/api/admin/platform-billing/contracts/${selectedContractId}/finalize`,
@@ -641,13 +662,7 @@ export function AdminBillingClient({
       void refreshData();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Không thể chốt hóa đơn";
-      await SwalVietSage.fire({
-        icon: "error",
-        title: "Lỗi",
-        text: msg,
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showErrorAlert("Lỗi", msg);
     }
   };
 
@@ -698,6 +713,15 @@ export function AdminBillingClient({
       });
       return;
     }
+
+    const confirmResult = await showConfirmDialog({
+      title: "Xác nhận tạo hợp đồng",
+      text: "Bạn có chắc chắn muốn khởi tạo hợp đồng tính phí SaaS cho khách sạn này?",
+      confirmText: "Tạo hợp đồng",
+      cancelText: "Hủy bỏ",
+      icon: "question",
+    });
+    if (!confirmResult.isConfirmed) return;
 
     setSubmittingContract(true);
     try {
@@ -751,6 +775,15 @@ export function AdminBillingClient({
       });
       return;
     }
+
+    const confirmResult = await showConfirmDialog({
+      title: "Xác nhận cập nhật biểu phí",
+      text: "Bạn có chắc chắn muốn thêm kỳ điều chỉnh biểu phí mới cho hợp đồng này?",
+      confirmText: "Cập nhật biểu phí",
+      cancelText: "Hủy bỏ",
+      icon: "question",
+    });
+    if (!confirmResult.isConfirmed) return;
 
     setSubmittingRevision(true);
     try {

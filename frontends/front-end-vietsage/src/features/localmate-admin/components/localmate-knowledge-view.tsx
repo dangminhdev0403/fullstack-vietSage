@@ -4,7 +4,13 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
-import { SwalVietSage } from "@/libs/swal";
+import {
+  showConfirmDialog,
+  showErrorAlert,
+  showSuccessAlert,
+  showWarningAlert,
+  SwalVietSage,
+} from "@/libs/swal";
 import { localMateAdminResource } from "../resource";
 import {
   PROVINCE_MAP,
@@ -446,13 +452,10 @@ export function LocalMateKnowledgeView() {
       !tourFormData.duration.trim() ||
       !tourFormData.content.trim()
     ) {
-      await SwalVietSage.fire({
-        title: "Thiếu thông tin",
-        text: "Vui lòng nhập đầy đủ Tên tour, Thời lượng và Nội dung chi tiết.",
-        icon: "warning",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showWarningAlert(
+        "Thiếu thông tin",
+        "Vui lòng nhập đầy đủ Tên tour, Thời lượng và Nội dung chi tiết."
+      );
       return;
     }
 
@@ -482,15 +485,25 @@ export function LocalMateKnowledgeView() {
           longitude < -180 ||
           longitude > 180))
     ) {
-      await SwalVietSage.fire({
-        title: "Tọa độ chưa hợp lệ",
-        text: "Vui lòng nhập đủ vĩ độ (-90 đến 90) và kinh độ (-180 đến 180).",
-        icon: "warning",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showWarningAlert(
+        "Tọa độ chưa hợp lệ",
+        "Vui lòng nhập đủ vĩ độ (-90 đến 90) và kinh độ (-180 đến 180)."
+      );
       return;
     }
+
+    const confirmResult = await showConfirmDialog({
+      title: editingTourId ? "Cập nhật lịch trình tour?" : "Tạo lịch trình tour mới?",
+      text: editingTourId
+        ? `Lưu các thay đổi cho lịch trình tour "${tourFormData.title.trim()}"?`
+        : `Tạo mới lịch trình tour "${tourFormData.title.trim()}" vào kho tri thức LocalMate?`,
+      confirmText: editingTourId ? "Lưu thay đổi" : "Tạo lịch trình",
+      cancelText: "Hủy",
+      reverseButtons: false,
+    });
+
+    if (!confirmResult.isConfirmed) return;
+
     const coordinates = hasLatitude
       ? { latitude, longitude }
       : editingTourId
@@ -518,13 +531,10 @@ export function LocalMateKnowledgeView() {
           input: payload,
         });
 
-        await SwalVietSage.fire({
-          title: "Cập nhật thành công!",
-          text: `Đã cập nhật lịch trình tour "${tourFormData.title.trim()}".`,
-          icon: "success",
-          showConfirmButton: true,
-          confirmButtonText: "OK",
-        });
+        await showSuccessAlert(
+          "Cập nhật thành công!",
+          `Đã cập nhật lịch trình tour "${tourFormData.title.trim()}".`
+        );
       } else {
         const payload: CreateLocalMateTourInput = {
           tourCode: tourFormData.tourCode.trim() || undefined,
@@ -540,27 +550,20 @@ export function LocalMateKnowledgeView() {
 
         await createTourMutation.mutateAsync({ input: payload });
 
-        await SwalVietSage.fire({
-          title: "Thêm thành công!",
-          text: `Đã thêm mới lịch trình tour "${tourFormData.title.trim()}".`,
-          icon: "success",
-          showConfirmButton: true,
-          confirmButtonText: "OK",
-        });
+        await showSuccessAlert(
+          "Thêm thành công!",
+          `Đã thêm mới lịch trình tour "${tourFormData.title.trim()}".`
+        );
       }
 
       setIsTourModalOpen(false);
       setEditingTourId(null);
       setTourFormData(initialFormData);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Có lỗi xảy ra khi lưu lịch trình tour.";
-      await SwalVietSage.fire({
-        title: "Lưu thất bại",
-        text: msg,
-        icon: "error",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showErrorAlert(
+        "Lưu thất bại",
+        err instanceof Error ? err.message : "Có lỗi xảy ra khi lưu lịch trình tour."
+      );
     }
   };
 
@@ -1054,15 +1057,15 @@ export function LocalMateKnowledgeView() {
       {/* Tour Create/Edit Form Modal */}
       {isTourModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 p-4 backdrop-blur-xs sm:p-6">
-          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 sm:p-7 shadow-xl border border-stone-200">
+          <div className="flex flex-col max-h-[90vh] w-full max-w-3xl rounded-2xl bg-white shadow-2xl border border-stone-200 overflow-hidden">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-stone-100 pb-4">
+            <div className="flex items-center justify-between border-b border-stone-100 px-6 py-4 shrink-0 bg-white">
               <div>
                 <h3 className="text-lg font-bold text-stone-900">
                   {editingTourId ? "Chỉnh sửa lịch trình tour" : "Thêm lịch trình tour mới"}
                 </h3>
                 <p className="mt-0.5 text-xs text-stone-500">
-                  Nạp dữ liệu vào kho tri thức LocalMate AI phục vụ phân vùng gợi ý và tư vấn tự động.
+                  Nạp dữ liệu vào kho tri thức LocalMate phục vụ tư vấn và gợi ý tour.
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -1091,354 +1094,353 @@ export function LocalMateKnowledgeView() {
               </div>
             </div>
 
-            <form onSubmit={handleSaveTour} className="mt-5 space-y-4.5">
-              {/* Row 1: Tỉnh/Thành & Phạm vi & Thời lượng (Nhập số ngày, số đêm) */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-12">
-                {/* Tỉnh / Thành phố */}
-                <div className="sm:col-span-4">
-                  <label className="block text-sm font-medium text-stone-700 mb-1.5">
-                    Tỉnh / Thành phố
-                  </label>
-                  <select
-                    value={tourFormData.provinceCode}
-                    onChange={(e) => {
-                      const code = e.target.value;
-                      const prov = PROVINCE_MAP[code];
-                      setTourFormData((prev) => ({
-                        ...prev,
-                        provinceCode: code,
-                        province: prov ? prov.name : "",
-                      }));
-                    }}
-                    className="h-10.5 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-800 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 cursor-pointer transition-colors"
-                  >
-                    <option value="">-- Chọn Tỉnh / TP --</option>
-                    {PROVINCES.map((p) => (
-                      <option key={p.code} value={p.code}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Phạm vi tour (Scope) */}
-                <div className="sm:col-span-3">
-                  <label className="block text-sm font-medium text-stone-700 mb-1.5">
-                    Phạm vi tour (Scope)
-                  </label>
-                  <select
-                    value={tourFormData.tourScope}
-                    onChange={(e) =>
-                      setTourFormData({
-                        ...tourFormData,
-                        tourScope: e.target.value as LocalMateTourScope,
-                      })
-                    }
-                    className="h-10.5 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-800 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 cursor-pointer transition-colors"
-                  >
-                    <option value="">-- Chọn phạm vi --</option>
-                    {TOUR_SCOPES.map((scope) => (
-                      <option key={scope.value} value={scope.value}>
-                        {scope.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Thời lượng: Nhập số ngày, số đêm */}
-                <div className="sm:col-span-5">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-sm font-medium text-stone-700">
-                      Thời lượng <span className="text-rose-500">*</span>
+            <form onSubmit={handleSaveTour} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 custom-scrollbar min-h-0">
+                {/* Row 1: Tỉnh/Thành & Phạm vi & Thời lượng (Nhập số ngày, số đêm) */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-12">
+                  {/* Tỉnh / Thành phố */}
+                  <div className="sm:col-span-4">
+                    <label className="block text-sm font-medium text-stone-700 mb-1.5">
+                      Tỉnh / Thành phố
                     </label>
-                    {tourFormData.duration && (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200/90 px-2 py-0.5 text-xs font-semibold text-amber-900 shadow-2xs">
-                        <VsIcon name="schedule" className="text-xs text-amber-700" />
-                        <span>{tourFormData.duration}</span>
+                    <select
+                      value={tourFormData.provinceCode}
+                      onChange={(e) => {
+                        const code = e.target.value;
+                        const prov = PROVINCE_MAP[code];
+                        setTourFormData((prev) => ({
+                          ...prev,
+                          provinceCode: code,
+                          province: prov ? prov.name : "",
+                        }));
+                      }}
+                      className="h-10 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-800 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 cursor-pointer transition-colors"
+                    >
+                      <option value="">-- Chọn Tỉnh / TP --</option>
+                      {PROVINCES.map((p) => (
+                        <option key={p.code} value={p.code}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Phạm vi tour (Scope) */}
+                  <div className="sm:col-span-3">
+                    <label className="block text-sm font-medium text-stone-700 mb-1.5">
+                      Phạm vi tour (Scope)
+                    </label>
+                    <select
+                      value={tourFormData.tourScope}
+                      onChange={(e) =>
+                        setTourFormData({
+                          ...tourFormData,
+                          tourScope: e.target.value as LocalMateTourScope,
+                        })
+                      }
+                      className="h-10 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-800 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 cursor-pointer transition-colors"
+                    >
+                      <option value="">-- Chọn phạm vi --</option>
+                      {TOUR_SCOPES.map((scope) => (
+                        <option key={scope.value} value={scope.value}>
+                          {scope.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Thời lượng: Nhập số ngày, số đêm */}
+                  <div className="sm:col-span-5">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-sm font-medium text-stone-700">
+                        Thời lượng <span className="text-rose-500">*</span>
+                      </label>
+                      {tourFormData.duration && (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200/90 px-2 py-0.5 text-xs font-semibold text-amber-900 shadow-2xs">
+                          <VsIcon name="schedule" className="text-xs text-amber-700" />
+                          <span>{tourFormData.duration}</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      {/* Input Số ngày */}
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="0"
+                          max="60"
+                          step="any"
+                          required
+                          value={durationDays}
+                          onChange={(e) => handleDaysChange(e.target.value)}
+                          placeholder="Số ngày"
+                          className="h-10 w-full rounded-xl border border-stone-200 bg-white pl-3 pr-12 text-sm text-stone-800 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
+                        />
+                        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-stone-500">
+                          Ngày
+                        </span>
+                      </div>
+
+                      {/* Input Số đêm */}
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="0"
+                          max="60"
+                          step="1"
+                          value={durationNights}
+                          onChange={(e) => handleNightsChange(e.target.value)}
+                          placeholder="Số đêm"
+                          className="h-10 w-full rounded-xl border border-stone-200 bg-white pl-3 pr-12 text-sm text-stone-800 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
+                        />
+                        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-stone-500">
+                          Đêm
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Nút chọn nhanh (Presets) */}
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      {TOUR_DURATION_PRESETS.map((preset) => {
+                        const isActive =
+                          Number(durationDays) === preset.d && Number(durationNights) === preset.n;
+                        return (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => handleSelectPreset(preset.d, preset.n)}
+                            className={`rounded-md border px-2 py-0.5 text-xs transition-colors cursor-pointer ${
+                              isActive
+                                ? "bg-amber-100 text-amber-900 border-amber-300 font-bold"
+                                : "bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100 hover:text-stone-800 font-medium"
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 2: Tên Lịch trình Tour */}
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1.5">
+                    Tên lịch trình tour <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={tourFormData.title}
+                    onChange={(e) =>
+                      setTourFormData({ ...tourFormData, title: e.target.value })
+                    }
+                    placeholder="Ví dụ: Hà Nội → Mù Cang Chải – La Pán Tẩn – Tú Lệ"
+                    className="h-10 w-full rounded-xl border border-stone-200 bg-white px-3.5 text-sm font-medium text-stone-800 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
+                  />
+                </div>
+
+                {/* Row 3: Tọa độ điểm đến trọng điểm & Google Maps Converter / Preview Minimap */}
+                <div className="rounded-2xl border border-stone-200/90 bg-stone-50/60 p-3.5 sm:p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100/80 text-emerald-800">
+                        <VsIcon name="location_on" className="text-base" />
+                      </span>
+                      <div>
+                        <h4 className="text-sm font-semibold text-stone-800">
+                          Tọa độ & Bản đồ vị trí (Google Maps)
+                        </h4>
+                        <p className="text-xs text-stone-500">
+                          Dán link Google Maps để tự động trích xuất Vĩ độ & Kinh độ, hoặc nhập số trực tiếp.
+                        </p>
+                      </div>
+                    </div>
+                    {hasValidCoordinates && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+                        <VsIcon name="check_circle" className="text-xs" />
+                        Đã có GPS
                       </span>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    {/* Input Số ngày */}
+                  {/* Google Maps Link Converter Input */}
+                  <div className="mt-2.5">
+                    <label className="block text-xs font-medium text-stone-600 mb-1">
+                      Dán link Google Maps (URL / Tọa độ)
+                    </label>
                     <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
+                        <VsIcon name="link" className="text-base" />
+                      </div>
                       <input
-                        type="number"
-                        min="0"
-                        max="60"
-                        step="any"
-                        required
-                        value={durationDays}
-                        onChange={(e) => handleDaysChange(e.target.value)}
-                        placeholder="Số ngày"
-                        className="h-10.5 w-full rounded-xl border border-stone-200 bg-white pl-3 pr-12 text-sm text-stone-800 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
+                        type="text"
+                        value={mapsUrlInput}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setMapsUrlInput(val);
+                          const coords = extractLatLngFromGoogleMapsUrl(val);
+                          if (coords) {
+                            setTourFormData((prev) => ({
+                              ...prev,
+                              latitude: coords.lat,
+                              longitude: coords.lng,
+                            }));
+                          }
+                        }}
+                        placeholder="Dán link Google Maps (VD: https://www.google.com/maps/place/.../@21.0333,104.8833... hoặc 21.0333, 104.8833)"
+                        className="h-10 w-full rounded-xl border border-stone-200 bg-white pl-9.5 pr-24 text-xs sm:text-sm text-stone-800 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
                       />
-                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-stone-500">
-                        Ngày
-                      </span>
-                    </div>
-
-                    {/* Input Số đêm */}
-                    <div className="relative">
-                      <input
-                        type="number"
-                        min="0"
-                        max="60"
-                        step="1"
-                        value={durationNights}
-                        onChange={(e) => handleNightsChange(e.target.value)}
-                        placeholder="Số đêm"
-                        className="h-10.5 w-full rounded-xl border border-stone-200 bg-white pl-3 pr-12 text-sm text-stone-800 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
-                      />
-                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-stone-500">
-                        Đêm
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!mapsUrlInput.trim()) return;
+                          const coords = extractLatLngFromGoogleMapsUrl(mapsUrlInput);
+                          if (coords) {
+                            setTourFormData((prev) => ({
+                              ...prev,
+                              latitude: coords.lat,
+                              longitude: coords.lng,
+                            }));
+                          } else {
+                            showWarningAlert(
+                              "Không tìm thấy tọa độ",
+                              "Vui lòng kiểm tra lại link Google Maps. Bạn có thể copy link từ thanh địa chỉ trình duyệt hoặc copy trực tiếp tọa độ (ví dụ: 21.033333, 104.883333)."
+                            );
+                          }
+                        }}
+                        className="absolute right-1.5 top-1.5 bottom-1.5 px-3 rounded-lg bg-stone-100 hover:bg-emerald-50 hover:text-emerald-800 text-stone-700 text-xs font-medium transition-colors cursor-pointer"
+                      >
+                        Trích xuất
+                      </button>
                     </div>
                   </div>
 
-                  {/* Nút chọn nhanh (Presets) */}
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    {TOUR_DURATION_PRESETS.map((preset) => {
-                      const isActive =
-                        Number(durationDays) === preset.d && Number(durationNights) === preset.n;
-                      return (
-                        <button
-                          key={preset.label}
-                          type="button"
-                          onClick={() => handleSelectPreset(preset.d, preset.n)}
-                          className={`rounded-md border px-2 py-0.5 text-xs transition-colors cursor-pointer ${
-                            isActive
-                              ? "bg-amber-100 text-amber-900 border-amber-300 font-bold"
-                              : "bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100 hover:text-stone-800 font-medium"
-                          }`}
-                        >
-                          {preset.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Row 2: Tên Lịch trình Tour */}
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1.5">
-                  Tên lịch trình tour <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={tourFormData.title}
-                  onChange={(e) =>
-                    setTourFormData({ ...tourFormData, title: e.target.value })
-                  }
-                  placeholder="Ví dụ: Hà Nội → Mù Cang Chải – La Pán Tẩn – Tú Lệ"
-                  className="h-10.5 w-full rounded-xl border border-stone-200 bg-white px-3.5 text-sm font-medium text-stone-800 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
-                />
-              </div>
-
-              {/* Row 3: Tọa độ điểm đến trọng điểm & Google Maps Converter / Preview Minimap */}
-              <div className="rounded-2xl border border-stone-200/90 bg-stone-50/60 p-4 sm:p-5">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100/80 text-emerald-800">
-                      <VsIcon name="location_on" className="text-base" />
-                    </span>
+                  {/* 2 Inputs for Latitude & Longitude */}
+                  <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
-                      <h4 className="text-sm font-semibold text-stone-800">
-                        Tọa độ & Bản đồ vị trí (Google Maps)
-                      </h4>
-                      <p className="text-xs text-stone-500">
-                        Dán link Google Maps để tự động trích xuất Vĩ độ & Kinh độ, hoặc nhập số trực tiếp.
-                      </p>
+                      <label htmlFor="tour-latitude" className="mb-1 block text-xs font-medium text-stone-600">
+                        Vĩ độ (Latitude)
+                      </label>
+                      <input
+                        id="tour-latitude"
+                        type="number"
+                        step="any"
+                        min={-90}
+                        max={90}
+                        value={tourFormData.latitude}
+                        onChange={(e) => setTourFormData({ ...tourFormData, latitude: e.target.value })}
+                        placeholder="Ví dụ: 21.033333"
+                        className="h-9.5 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm font-mono text-stone-800 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="tour-longitude" className="mb-1 block text-xs font-medium text-stone-600">
+                        Kinh độ (Longitude)
+                      </label>
+                      <input
+                        id="tour-longitude"
+                        type="number"
+                        step="any"
+                        min={-180}
+                        max={180}
+                        value={tourFormData.longitude}
+                        onChange={(e) => setTourFormData({ ...tourFormData, longitude: e.target.value })}
+                        placeholder="Ví dụ: 104.883333"
+                        className="h-9.5 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm font-mono text-stone-800 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
+                      />
                     </div>
                   </div>
-                  {hasValidCoordinates && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
-                      <VsIcon name="check_circle" className="text-xs" />
-                      Đã có GPS
-                    </span>
+
+                  {/* Minimap Preview Container */}
+                  {hasValidCoordinates ? (
+                    <div className="mt-3 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-2xs">
+                      <div className="flex items-center justify-between px-3 py-1.5 bg-stone-50 border-b border-stone-200 text-xs">
+                        <span className="flex items-center gap-1.5 font-medium text-stone-700">
+                          <VsIcon name="map" className="text-emerald-700 text-sm" />
+                          <span>Xem trước trên Google Maps:</span>
+                          <strong className="font-mono text-emerald-800">
+                            {Number(tourFormData.latitude).toFixed(6)}, {Number(tourFormData.longitude).toFixed(6)}
+                          </strong>
+                        </span>
+                        <a
+                          href={`https://www.google.com/maps?q=${tourFormData.latitude},${tourFormData.longitude}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+                        >
+                          <span>Mở bản đồ lớn</span>
+                          <VsIcon name="open_in_new" className="text-xs" />
+                        </a>
+                      </div>
+                      <iframe
+                        title="Google Maps Minimap Preview"
+                        src={`https://maps.google.com/maps?q=${tourFormData.latitude},${tourFormData.longitude}&hl=vi&z=13&output=embed`}
+                        className="w-full h-36 sm:h-40 border-0"
+                        loading="lazy"
+                      />
+                    </div>
+                  ) : (
+                    <div className="mt-2.5 flex items-center gap-2.5 rounded-xl border border-dashed border-stone-200 bg-white/70 px-3.5 py-2.5 text-xs text-stone-500">
+                      <VsIcon name="info" className="text-base text-stone-400 shrink-0" />
+                      <span>
+                        Chưa có tọa độ bản đồ. Bạn có thể dán link Google Maps ở trên hoặc nhập Vĩ độ / Kinh độ để xem trước vị trí trực tiếp.
+                      </span>
+                    </div>
                   )}
                 </div>
 
-                {/* Google Maps Link Converter Input */}
-                <div className="mt-3">
-                  <label className="block text-xs font-medium text-stone-600 mb-1">
-                    Dán link Google Maps (URL / Tọa độ)
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
-                      <VsIcon name="link" className="text-base" />
-                    </div>
-                    <input
-                      type="text"
-                      value={mapsUrlInput}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setMapsUrlInput(val);
-                        const coords = extractLatLngFromGoogleMapsUrl(val);
-                        if (coords) {
-                          setTourFormData((prev) => ({
-                            ...prev,
-                            latitude: coords.lat,
-                            longitude: coords.lng,
-                          }));
-                        }
-                      }}
-                      placeholder="Dán link Google Maps (VD: https://www.google.com/maps/place/.../@21.0333,104.8833... hoặc 21.0333, 104.8833)"
-                      className="h-10.5 w-full rounded-xl border border-stone-200 bg-white pl-9.5 pr-24 text-xs sm:text-sm text-stone-800 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!mapsUrlInput.trim()) return;
-                        const coords = extractLatLngFromGoogleMapsUrl(mapsUrlInput);
-                        if (coords) {
-                          setTourFormData((prev) => ({
-                            ...prev,
-                            latitude: coords.lat,
-                            longitude: coords.lng,
-                          }));
-                        } else {
-                          SwalVietSage.fire({
-                            title: "Không tìm thấy tọa độ",
-                            text: "Vui lòng kiểm tra lại link Google Maps. Bạn có thể copy link từ thanh địa chỉ trình duyệt hoặc copy trực tiếp tọa độ (ví dụ: 21.033333, 104.883333).",
-                            icon: "info",
-                            showConfirmButton: true,
-                            confirmButtonText: "OK",
-                          });
-                        }
-                      }}
-                      className="absolute right-1.5 top-1.5 bottom-1.5 px-3 rounded-lg bg-stone-100 hover:bg-emerald-50 hover:text-emerald-800 text-stone-700 text-xs font-medium transition-colors cursor-pointer"
-                    >
-                      Trích xuất
-                    </button>
-                  </div>
-                </div>
-
-                {/* 2 Inputs for Latitude & Longitude */}
-                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div>
-                    <label htmlFor="tour-latitude" className="mb-1 block text-xs font-medium text-stone-600">
-                      Vĩ độ (Latitude)
+                {/* Row 4: Điểm nổi bật (Highlights) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-sm font-medium text-stone-700">
+                      Điểm nổi bật
                     </label>
-                    <input
-                      id="tour-latitude"
-                      type="number"
-                      step="any"
-                      min={-90}
-                      max={90}
-                      value={tourFormData.latitude}
-                      onChange={(e) => setTourFormData({ ...tourFormData, latitude: e.target.value })}
-                      placeholder="Ví dụ: 21.033333"
-                      className="h-10 w-full rounded-xl border border-stone-200 bg-white px-3.5 text-sm font-mono text-stone-800 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
-                    />
+                    <span className="text-xs text-stone-400">Phân cách bởi dấu phẩy</span>
                   </div>
-                  <div>
-                    <label htmlFor="tour-longitude" className="mb-1 block text-xs font-medium text-stone-600">
-                      Kinh độ (Longitude)
-                    </label>
-                    <input
-                      id="tour-longitude"
-                      type="number"
-                      step="any"
-                      min={-180}
-                      max={180}
-                      value={tourFormData.longitude}
-                      onChange={(e) => setTourFormData({ ...tourFormData, longitude: e.target.value })}
-                      placeholder="Ví dụ: 104.883333"
-                      className="h-10 w-full rounded-xl border border-stone-200 bg-white px-3.5 text-sm font-mono text-stone-800 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
-                    />
-                  </div>
+                  <input
+                    type="text"
+                    value={tourFormData.highlights}
+                    onChange={(e) =>
+                      setTourFormData({ ...tourFormData, highlights: e.target.value })
+                    }
+                    placeholder="Ví dụ: Đèo Khau Phạ, Ruộng bậc thang Mâm Xôi, Tắm khoáng nóng Trạm Tấu..."
+                    className="h-10 w-full rounded-xl border border-stone-200 bg-white px-3.5 text-sm text-stone-800 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
+                  />
                 </div>
 
-                {/* Minimap Preview Container */}
-                {hasValidCoordinates ? (
-                  <div className="mt-3.5 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-2xs">
-                    <div className="flex items-center justify-between px-3.5 py-2 bg-stone-50 border-b border-stone-200 text-xs">
-                      <span className="flex items-center gap-1.5 font-medium text-stone-700">
-                        <VsIcon name="map" className="text-emerald-700 text-sm" />
-                        <span>Xem trước trên Google Maps:</span>
-                        <strong className="font-mono text-emerald-800">
-                          {Number(tourFormData.latitude).toFixed(6)}, {Number(tourFormData.longitude).toFixed(6)}
-                        </strong>
-                      </span>
-                      <a
-                        href={`https://www.google.com/maps?q=${tourFormData.latitude},${tourFormData.longitude}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
-                      >
-                        <span>Mở bản đồ lớn</span>
-                        <VsIcon name="open_in_new" className="text-xs" />
-                      </a>
-                    </div>
-                    <iframe
-                      title="Google Maps Minimap Preview"
-                      src={`https://maps.google.com/maps?q=${tourFormData.latitude},${tourFormData.longitude}&hl=vi&z=13&output=embed`}
-                      className="w-full h-44 sm:h-52 border-0"
-                      loading="lazy"
-                    />
-                  </div>
-                ) : (
-                  <div className="mt-3 flex items-center gap-2.5 rounded-xl border border-dashed border-stone-200 bg-white/70 px-3.5 py-3 text-xs text-stone-500">
-                    <VsIcon name="info" className="text-base text-stone-400 shrink-0" />
-                    <span>
-                      Chưa có tọa độ bản đồ. Bạn có thể dán link Google Maps ở trên hoặc nhập Vĩ độ / Kinh độ để xem trước vị trí trực tiếp.
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Row 4: Điểm nổi bật (Highlights) */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-sm font-medium text-stone-700">
-                    Điểm nổi bật
+                {/* Row 5: Nội dung chi tiết */}
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1.5">
+                    Nội dung chi tiết lịch trình <span className="text-rose-500">*</span>
                   </label>
-                  <span className="text-xs text-stone-400">Phân cách bởi dấu phẩy</span>
+                  <textarea
+                    rows={4}
+                    required
+                    value={tourFormData.content}
+                    onChange={(e) =>
+                      setTourFormData({ ...tourFormData, content: e.target.value })
+                    }
+                    placeholder="Chi tiết từng ngày, hoạt động trải nghiệm, địa điểm ăn uống, thông tin văn hóa..."
+                    className="w-full rounded-xl border border-stone-200 bg-white p-3 text-sm leading-relaxed text-stone-800 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors resize-y"
+                  />
                 </div>
-                <input
-                  type="text"
-                  value={tourFormData.highlights}
-                  onChange={(e) =>
-                    setTourFormData({ ...tourFormData, highlights: e.target.value })
-                  }
-                  placeholder="Ví dụ: Đèo Khau Phạ, Ruộng bậc thang Mâm Xôi, Tắm khoáng nóng Trạm Tấu..."
-                  className="h-10.5 w-full rounded-xl border border-stone-200 bg-white px-3.5 text-sm text-stone-800 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
-                />
-              </div>
-
-              {/* Row 7: Nội dung chi tiết */}
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1.5">
-                  Nội dung chi tiết lịch trình <span className="text-rose-500">*</span>
-                </label>
-                <textarea
-                  rows={6}
-                  required
-                  value={tourFormData.content}
-                  onChange={(e) =>
-                    setTourFormData({ ...tourFormData, content: e.target.value })
-                  }
-                  placeholder="Chi tiết từng ngày, hoạt động trải nghiệm, địa điểm ăn uống, thông tin văn hóa..."
-                  className="w-full rounded-xl border border-stone-200 bg-white p-3.5 text-sm leading-relaxed text-stone-800 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors resize-y"
-                />
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-3 border-t border-stone-100 pt-4">
+              <div className="flex items-center justify-end gap-3 border-t border-stone-100 px-6 py-3.5 shrink-0 bg-white">
                 <button
                   type="button"
                   onClick={() => setIsTourModalOpen(false)}
-                  className="rounded-xl border border-stone-200 bg-white px-5 py-2.5 text-sm font-medium text-stone-600 hover:bg-stone-50 hover:text-stone-900 transition-colors cursor-pointer"
+                  className="rounded-xl border border-stone-200 bg-white px-5 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50 hover:text-stone-900 transition-colors cursor-pointer"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-6 py-2.5 text-sm font-medium text-white shadow-xs hover:shadow-sm disabled:opacity-50 transition-all cursor-pointer"
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-6 py-2 text-sm font-medium text-white shadow-xs hover:shadow-sm disabled:opacity-50 transition-all cursor-pointer"
                 >
                   <VsIcon name={editingTourId ? "save" : "check"} className="text-base" />
                   <span>{isSaving ? "Đang lưu..." : editingTourId ? "Lưu thay đổi" : "Tạo lịch trình"}</span>

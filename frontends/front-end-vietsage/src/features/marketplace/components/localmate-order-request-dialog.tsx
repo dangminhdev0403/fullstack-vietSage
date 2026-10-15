@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { showConfirmDialog, showErrorAlert } from "@/libs/swal";
 import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
 import {
   useGuestMarketplace,
@@ -353,6 +354,35 @@ export function LocalMateOrderRequestDialog({
     e.preventDefault();
     setErrorMsg(null);
 
+    const confirmTitle =
+      locale === "en"
+        ? "Confirm Tour Booking?"
+        : locale === "ru"
+          ? "Подтвердить бронирование тура?"
+          : "Xác nhận đặt lịch tour?";
+
+    const confirmText =
+      locale === "en"
+        ? `Request booking for "${action.service.name}" with guide ${action.localMate.fullName}?`
+        : locale === "ru"
+          ? `Отправить заявку на бронирование "${action.service.name}" с гидом ${action.localMate.fullName}?`
+          : `Xác nhận gửi yêu cầu đặt tour "${action.service.name}" cùng hướng dẫn viên ${action.localMate.fullName}?`;
+
+    const confirmBtn =
+      locale === "en" ? "Confirm Booking" : locale === "ru" ? "Подтвердить" : "Xác nhận đặt lịch";
+
+    const cancelBtn = locale === "en" ? "Cancel" : locale === "ru" ? "Отмена" : "Hủy";
+
+    const confirmResult = await showConfirmDialog({
+      title: confirmTitle,
+      text: confirmText,
+      confirmText: confirmBtn,
+      cancelText: cancelBtn,
+      reverseButtons: false,
+    });
+
+    if (!confirmResult.isConfirmed) return;
+
     const startIso = new Date(requestedStartAt).toISOString();
     try {
       const order = await createOrderMutation.mutateAsync({
@@ -364,8 +394,12 @@ export function LocalMateOrderRequestDialog({
         idempotencyKey: `idem_lm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       });
       setCreatedOrder(order);
-    } catch {
+    } catch (err) {
       setErrorMsg(copy.providerUnavailable);
+      await showErrorAlert(
+        locale === "en" ? "Booking Request Failed" : locale === "ru" ? "Ошибка бронирования" : "Đặt lịch thất bại",
+        err || copy.providerUnavailable
+      );
     }
   };
 
@@ -398,10 +432,52 @@ export function LocalMateOrderRequestDialog({
 
   const handleCancelOrder = async () => {
     if (!currentOrder?.id) return;
+
+    const confirmTitle =
+      locale === "en"
+        ? "Cancel Tour Booking?"
+        : locale === "ru"
+          ? "Отменить бронирование?"
+          : "Huỷ yêu cầu đặt tour?";
+
+    const confirmText =
+      locale === "en"
+        ? "Are you sure you want to cancel this booking request? If already paid, your deposit will be refunded."
+        : locale === "ru"
+          ? "Вы уверены, что хотите отменить эту заявку? Внесенный депозит будет возвращен."
+          : "Quý khách có chắc chắn muốn huỷ yêu cầu đặt tour này? Nếu đã đặt cọc, khoản tiền sẽ được hoàn trả 100%.";
+
+    const confirmBtn =
+      locale === "en" ? "Yes, Cancel" : locale === "ru" ? "Да, отменить" : "Xác nhận huỷ";
+
+    const cancelBtn =
+      locale === "en" ? "Keep Booking" : locale === "ru" ? "Оставить" : "Giữ lại";
+
+    const confirmResult = await showConfirmDialog({
+      title: confirmTitle,
+      text: confirmText,
+      confirmText: confirmBtn,
+      cancelText: cancelBtn,
+      icon: "warning",
+      reverseButtons: false,
+    });
+
+    if (!confirmResult.isConfirmed) return;
+
     try {
       await cancelOrderMutation.mutateAsync({ orderId: currentOrder.id });
-    } catch {
-      setErrorMsg("Không thể huỷ yêu cầu.");
+    } catch (err) {
+      const failMsg =
+        locale === "en"
+          ? "Could not cancel request."
+          : locale === "ru"
+            ? "Не удалось отменить заявку."
+            : "Không thể huỷ yêu cầu.";
+      setErrorMsg(failMsg);
+      await showErrorAlert(
+        locale === "en" ? "Cancellation Failed" : locale === "ru" ? "Ошибка отмены" : "Huỷ yêu cầu thất bại",
+        err || failMsg
+      );
     }
   };
 

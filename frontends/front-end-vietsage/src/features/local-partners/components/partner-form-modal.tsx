@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { showConfirmDialog } from "@/libs/swal";
 import type { LocalPartner, LocalPartnerCategory, LocalPartnerInput } from "../types/local-partners-contract";
 
 interface PartnerFormModalProps {
@@ -37,6 +38,17 @@ export function PartnerFormModal({ partner, categories, onSave, onClose }: Partn
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !address || !categoryId) return;
+
+    const confirm = await showConfirmDialog({
+      title: partner ? "Xác nhận cập nhật đối tác?" : "Xác nhận thêm mới đối tác?",
+      text: partner
+        ? `Lưu các thay đổi cho đối tác "${name}"?`
+        : `Thêm đối tác "${name}" vào danh sách đối tác lân cận?`,
+      confirmText: partner ? "Cập nhật" : "Thêm mới",
+      cancelText: "Hủy bỏ",
+      reverseButtons: false,
+    });
+    if (!confirm.isConfirmed) return;
 
     setError(undefined);
     setIsSubmitting(true);
@@ -83,7 +95,7 @@ export function PartnerFormModal({ partner, categories, onSave, onClose }: Partn
                   <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                QUẢN LÝ ĐỐI TÁC
+                Quản lý đối tác
               </span>
             </div>
             <h3 id="modal-partner-title" className="mt-1 font-bold text-xl sm:text-2xl text-slate-900 tracking-tight">
@@ -122,8 +134,22 @@ export function PartnerFormModal({ partner, categories, onSave, onClose }: Partn
               <h4 className="font-bold text-sm text-slate-800 uppercase tracking-wider">Thông tin cơ bản</h4>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="sm:col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+                  Tên đối tác / Điểm dịch vụ <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Ví dụ: Nhà hàng Phở Gìn / Spa Thảo Mộc"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 shadow-sm transition-all"
+                />
+              </div>
+
+              <div>
                 <label className="block text-sm font-semibold text-slate-800 mb-1.5">
                   Danh mục đối tác <span className="text-red-500">*</span>
                 </label>
@@ -148,6 +174,20 @@ export function PartnerFormModal({ partner, categories, onSave, onClose }: Partn
               </div>
 
               <div>
+                <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+                  Địa chỉ chi tiết <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Ví dụ: 123 Phố Huế, Hai Bà Trưng, Hà Nội"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 shadow-sm transition-all"
+                />
+              </div>
+
+              <div>
                 <label className="block text-sm font-semibold text-slate-800 mb-1.5">Khoảng cách (m)</label>
                 <input
                   type="number"
@@ -158,34 +198,6 @@ export function PartnerFormModal({ partner, categories, onSave, onClose }: Partn
                   className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 shadow-sm transition-all"
                 />
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                Tên đối tác / Điểm dịch vụ <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ví dụ: Nhà hàng Phở Gìn / Spa Thảo Mộc"
-                className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 shadow-sm transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                Địa chỉ chi tiết <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Ví dụ: 123 Phố Huế, Hai Bà Trưng, Hà Nội"
-                className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 shadow-sm transition-all"
-              />
             </div>
           </div>
 
@@ -220,9 +232,7 @@ export function PartnerFormModal({ partner, categories, onSave, onClose }: Partn
                   className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 shadow-sm transition-all"
                 />
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-slate-800 mb-1.5">Link Zalo / Fanpage</label>
                 <input
@@ -256,41 +266,43 @@ export function PartnerFormModal({ partner, categories, onSave, onClose }: Partn
               <h4 className="font-bold text-sm text-slate-800 uppercase tracking-wider">Hình ảnh & Chi tiết</h4>
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-slate-800 mb-1.5">URL Ảnh bìa / Cover Image</label>
-              <input
-                type="url"
-                value={coverImageUrl}
-                onChange={(e) => setCoverImageUrl(e.target.value)}
-                placeholder="https://images.unsplash.com/..."
-                className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 shadow-sm transition-all"
-              />
-              {coverImageUrl ? (
-                <div className="mt-2.5 relative aspect-video w-full max-w-sm rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-inner">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={coverImageUrl}
-                    alt="Preview"
-                    width={384}
-                    height={216}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = "none";
-                    }}
-                  />
-                </div>
-              ) : null}
-            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-800 mb-1.5">Đường dẫn ảnh bìa</label>
+                <input
+                  type="url"
+                  value={coverImageUrl}
+                  onChange={(e) => setCoverImageUrl(e.target.value)}
+                  placeholder="https://images.unsplash.com/..."
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 shadow-sm transition-all"
+                />
+                {coverImageUrl ? (
+                  <div className="relative aspect-video w-full rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-inner">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={coverImageUrl}
+                      alt="Preview"
+                      width={384}
+                      height={216}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
+                      }}
+                    />
+                  </div>
+                ) : null}
+              </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-slate-800 mb-1.5">Mô tả ngắn</label>
-              <textarea
-                rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Giới thiệu món ăn đặc sắc, dịch vụ cao cấp..."
-                className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 shadow-sm transition-all"
-              />
+              <div>
+                <label className="block text-sm font-semibold text-slate-800 mb-1.5">Mô tả ngắn</label>
+                <textarea
+                  rows={coverImageUrl ? 7 : 4}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Giới thiệu món ăn đặc sắc, dịch vụ cao cấp..."
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 shadow-sm transition-all resize-y"
+                />
+              </div>
             </div>
 
             {/* Featured Switch Card */}

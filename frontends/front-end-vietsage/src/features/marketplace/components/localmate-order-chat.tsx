@@ -72,10 +72,32 @@ export function LocalMateOrderChat({
           sending: "Sending...",
           delivery: {
             PENDING: "Sending...",
-            SENT: "Forwarded to Telegram",
+            SENT: "Forwarded to guide",
             FAILED: "Not sent — Tap to retry",
             RECEIVED: "Delivered",
           },
+          bridgeStatus: "Guide connected",
+          emptyNotice:
+            "Direct chat with your guide is open. You can coordinate pickup locations, timing, and tour details.",
+        };
+      case "ru":
+        return {
+          headerTitle: "Чат с гидом LocalMate",
+          backToAi: "К AI-консьержу",
+          orderLabel: "Заказ",
+          terminalNotice: "Этот тур завершен. История переписки сохранена.",
+          inputPlaceholder: "Введите сообщение для гида...",
+          send: "Отправить",
+          sending: "Отправка...",
+          delivery: {
+            PENDING: "Отправка...",
+            SENT: "Передано гиду",
+            FAILED: "Не отправлено — Нажмите для повтора",
+            RECEIVED: "Доставлено",
+          },
+          bridgeStatus: "Связь с гидом активна",
+          emptyNotice:
+            "Прямой чат с гидом открыт. Вы можете обсудить место встречи, время и программу тура.",
         };
       default:
         return {
@@ -88,10 +110,13 @@ export function LocalMateOrderChat({
           sending: "Đang gửi...",
           delivery: {
             PENDING: "Đang gửi...",
-            SENT: "Đã chuyển tiếp tới Telegram",
+            SENT: "Đã chuyển tiếp tới hướng dẫn viên",
             FAILED: "Không gửi được — Bấm để thử lại",
             RECEIVED: "Đã nhận",
           },
+          bridgeStatus: "Đã kết nối hướng dẫn viên",
+          emptyNotice:
+            "Kết nối trực tiếp tới hướng dẫn viên đã mở. Quý khách có thể trao đổi về điểm hẹn, giờ giấc và lịch trình tour.",
         };
     }
   }, [locale]);
@@ -175,7 +200,7 @@ export function LocalMateOrderChat({
               <span>•</span>
               <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                Telegram Bridge
+                {copy.bridgeStatus}
               </span>
             </div>
           </div>
@@ -198,7 +223,7 @@ export function LocalMateOrderChat({
               <VsIcon name="message-square" className="h-6 w-6" />
             </div>
             <p className="mt-3 max-w-xs text-xs">
-              Kết nối trực tiếp tới Telegram của hướng dẫn viên đã mở. Bạn có thể trao đổi về điểm hẹn, giờ giấc và lịch trình tour.
+              {copy.emptyNotice}
             </p>
           </div>
         )}

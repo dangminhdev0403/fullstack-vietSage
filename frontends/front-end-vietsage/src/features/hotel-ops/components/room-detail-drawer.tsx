@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { showConfirmDialog } from "@/libs/swal";
 import { BrandedRoomQr } from "@/features/hotel-ops/components/branded-room-qr";
 import type { HotelRoomSummary } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { filterExtraOccupants } from "@/features/hotel-ops/utils/hotel-ops-display";
@@ -29,6 +30,7 @@ type RoomDetailDrawerProps = {
       roomTypeId?: string;
       price?: number;
       maxActiveGuestDevices?: number | null;
+      confirmed?: boolean;
     },
   ) => Promise<void>;
   onEditRoom?: (room: HotelRoomSummary) => void;
@@ -226,6 +228,14 @@ function RoomDetailDialog({
       return;
     }
 
+    const confirmResult = await showConfirmDialog({
+      title: "Xác nhận cập nhật thông tin phòng?",
+      text: `Bạn có chắc chắn muốn lưu các thay đổi cho phòng ${trimmedNumber}?`,
+      confirmText: "Lưu thay đổi",
+      cancelText: "Hủy bỏ",
+    });
+    if (!confirmResult.isConfirmed) return;
+
     setIsSaving(true);
     try {
       await onSaveRoom(room.id, {
@@ -236,6 +246,7 @@ function RoomDetailDialog({
         maxActiveGuestDevices: formMaxDevices.trim()
           ? Number(formMaxDevices.replace(/\D/g, ""))
           : null,
+        confirmed: true,
       });
       setIsEditing(false);
     } catch {
@@ -243,6 +254,30 @@ function RoomDetailDialog({
     } finally {
       setIsSaving(false);
     }
+  }
+
+  async function handleQrActionClick(action: "rotate" | "activate" | "deactivate") {
+    if (!onQrAction) return;
+    const actionTitle =
+      action === "rotate"
+        ? "Xác nhận xoay mã QR"
+        : action === "deactivate"
+        ? "Xác nhận tạm tắt mã QR"
+        : "Xác nhận kích hoạt mã QR";
+    const actionText =
+      action === "rotate"
+        ? `Bạn có chắc chắn muốn xoay mã QR của phòng ${roomNumber}? Mã quét cũ sẽ bị thu hồi và không thể truy cập.`
+        : action === "deactivate"
+        ? `Bạn có chắc chắn muốn tạm tắt mã QR của phòng ${roomNumber}? Khách sẽ không thể quét để vào GuestOS.`
+        : `Bạn có chắc chắn muốn kích hoạt mã QR thông minh cho phòng ${roomNumber}?`;
+    const confirmResult = await showConfirmDialog({
+      title: actionTitle,
+      text: actionText,
+      confirmText: action === "deactivate" ? "Tạm tắt QR" : "Kích hoạt QR",
+      cancelText: "Hủy bỏ",
+    });
+    if (!confirmResult.isConfirmed) return;
+    onQrAction(room, action);
   }
 
   const isBlocked = currentRoomStatus === "BLOCKED";
@@ -650,7 +685,7 @@ function RoomDetailDialog({
                         <>
                           <button
                             type="button"
-                            onClick={() => onQrAction(room, "rotate")}
+                            onClick={() => void handleQrActionClick("rotate")}
                             className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs sm:text-sm font-bold text-blue-800 transition hover:bg-blue-100 shadow-2xs"
                             title="Đổi / xoay mã QR"
                           >
@@ -659,7 +694,7 @@ function RoomDetailDialog({
                           </button>
                           <button
                             type="button"
-                            onClick={() => onQrAction(room, "deactivate")}
+                            onClick={() => void handleQrActionClick("deactivate")}
                             className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs sm:text-sm font-bold text-amber-800 transition hover:bg-amber-100 shadow-2xs"
                             title="Tạm tắt QR"
                           >
@@ -670,7 +705,7 @@ function RoomDetailDialog({
                       ) : onQrAction ? (
                         <button
                           type="button"
-                          onClick={() => onQrAction(room, "activate")}
+                          onClick={() => void handleQrActionClick("activate")}
                           className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs sm:text-sm font-bold text-emerald-800 transition hover:bg-emerald-100 shadow-2xs"
                           title="Kích hoạt QR"
                         >
@@ -755,7 +790,7 @@ function RoomDetailDialog({
                   {onQrAction ? (
                     <button
                       type="button"
-                      onClick={() => onQrAction(room, "activate")}
+                      onClick={() => void handleQrActionClick("activate")}
                       className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-emerald-800 transition shadow-md"
                     >
                       <VsIcon name="verified" className="text-sm" />
@@ -772,7 +807,7 @@ function RoomDetailDialog({
         <div className="border-t border-[#1f3d35]/15 bg-white px-6 py-3.5 flex justify-between items-center">
           <span className="text-xs text-slate-500 font-medium flex items-center gap-2">
             <VsIcon name="apartment" className="text-sm text-[#8a6a13]" />
-            VietSage Hospitality SaaS · Quản trị phòng
+            Quản trị buồng phòng
           </span>
           <div className="flex items-center gap-2">
             {isEditing ? (

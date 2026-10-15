@@ -6,7 +6,13 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
-import { SwalVietSage } from "@/libs/swal";
+import {
+  showConfirmDialog,
+  showErrorAlert,
+  showSuccessAlert,
+  showWarningAlert,
+  SwalVietSage,
+} from "@/libs/swal";
 import { localMateAdminResource } from "../resource";
 import type {
   CreateLocalMateGuideInput,
@@ -238,13 +244,10 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
     e.preventDefault();
 
     if (!formData.fullName.trim() || !formData.phone.trim() || !formData.avatarUrl.trim()) {
-      await SwalVietSage.fire({
-        title: "Thiếu thông tin",
-        text: "Họ và tên, số điện thoại và ảnh đại diện là bắt buộc.",
-        icon: "warning",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showWarningAlert(
+        "Thiếu thông tin",
+        "Họ và tên, số điện thoại và ảnh đại diện là bắt buộc."
+      );
       return;
     }
 
@@ -262,13 +265,10 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
       .filter(Boolean);
 
     if (languages.length === 0 || operatingRegions.length === 0) {
-      await SwalVietSage.fire({
-        title: "Thiếu dữ liệu",
-        text: "Vui lòng nhập ít nhất một ngôn ngữ và một khu vực hoạt động.",
-        icon: "warning",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showWarningAlert(
+        "Thiếu dữ liệu",
+        "Vui lòng nhập ít nhất một ngôn ngữ và một khu vực hoạt động."
+      );
       return;
     }
 
@@ -286,15 +286,24 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
           serviceLongitude < -180 ||
           serviceLongitude > 180))
     ) {
-      await SwalVietSage.fire({
-        title: "Tọa độ chưa hợp lệ",
-        text: "Vui lòng nhập đủ vĩ độ (-90 đến 90) và kinh độ (-180 đến 180).",
-        icon: "warning",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showWarningAlert(
+        "Tọa độ chưa hợp lệ",
+        "Vui lòng nhập đủ vĩ độ (-90 đến 90) và kinh độ (-180 đến 180)."
+      );
       return;
     }
+
+    const confirmResult = await showConfirmDialog({
+      title: isEditing ? "Xác nhận cập nhật hồ sơ?" : "Xác nhận thêm hướng dẫn viên?",
+      text: isEditing
+        ? `Lưu các thay đổi hồ sơ cho hướng dẫn viên ${formData.fullName.trim()}?`
+        : `Thêm mới hướng dẫn viên ${formData.fullName.trim()} vào mạng lưới LocalMate?`,
+      confirmText: isEditing ? "Lưu thay đổi" : "Thêm mới",
+      cancelText: "Hủy",
+      reverseButtons: false,
+    });
+
+    if (!confirmResult.isConfirmed) return;
 
     const coordinates = hasLatitude
       ? { serviceLatitude, serviceLongitude }
@@ -324,13 +333,10 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
           input: updatePayload,
         });
 
-        await SwalVietSage.fire({
-          title: "Thành công!",
-          text: `Đã cập nhật hồ sơ LocalMate ${formData.fullName}.`,
-          icon: "success",
-          showConfirmButton: true,
-          confirmButtonText: "OK",
-        });
+        await showSuccessAlert(
+          "Thành công!",
+          `Đã cập nhật hồ sơ LocalMate ${formData.fullName}.`
+        );
       } else {
         const createPayload: CreateLocalMateGuideInput = {
           guideCode: formData.guideCode.trim() || undefined,
@@ -352,25 +358,18 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
           input: createPayload,
         });
 
-        await SwalVietSage.fire({
-          title: "Thành công!",
-          text: `Đã thêm mới hướng dẫn viên ${formData.fullName} vào mạng lưới.`,
-          icon: "success",
-          showConfirmButton: true,
-          confirmButtonText: "OK",
-        });
+        await showSuccessAlert(
+          "Thành công!",
+          `Đã thêm mới hướng dẫn viên ${formData.fullName} vào mạng lưới.`
+        );
       }
 
       setModalOpen(false);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Đã xảy ra lỗi khi lưu thông tin.";
-      await SwalVietSage.fire({
-        title: "Lưu thất bại",
-        text: msg,
-        icon: "error",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showErrorAlert(
+        "Lưu thất bại",
+        err instanceof Error ? err.message : "Đã xảy ra lỗi khi lưu thông tin."
+      );
     }
   };
 
@@ -523,28 +522,30 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
       return;
     }
     setPricingError(null);
+
+    const confirmResult = await showConfirmDialog({
+      title: "Cập nhật biểu phí LocalMate?",
+      text: `Xác nhận điều chỉnh tỷ lệ phí nền tảng thành ${feeRateInput}%? Biểu phí mới sẽ áp dụng cho tất cả các đơn đặt tour mới.`,
+      confirmText: "Cập nhật",
+      cancelText: "Hủy",
+      reverseButtons: false,
+    });
+    if (!confirmResult.isConfirmed) return;
+
     setIsUpdatingPricing(true);
     try {
       await updatePricingConfigMutation.mutateAsync({
         localMatePlatformFeeRate: feeRateInput,
       });
       setPricingModalOpen(false);
-      await SwalVietSage.fire({
-        icon: "success",
-        title: "Cập nhật biểu phí thành công",
-        text: `Đã thiết lập phí nền tảng LocalMate thành ${feeRateInput}%. Thay đổi chỉ áp dụng cho các đơn đặt tour mới.`,
-        confirmButtonText: "OK",
-        showConfirmButton: true,
-      });
+      await showSuccessAlert(
+        "Cập nhật biểu phí thành công",
+        `Đã thiết lập phí nền tảng LocalMate thành ${feeRateInput}%. Thay đổi chỉ áp dụng cho các đơn đặt tour mới.`
+      );
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : "Có lỗi xảy ra khi cập nhật biểu phí";
       setPricingError(errorMsg);
-      await SwalVietSage.fire({
-        icon: "error",
-        title: "Cập nhật thất bại",
-        text: errorMsg,
-        confirmButtonText: "Đóng",
-      });
+      await showErrorAlert("Cập nhật thất bại", errorMsg);
     } finally {
       setIsUpdatingPricing(false);
     }
@@ -1143,261 +1144,270 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
       {/* Guide Create/Edit Form Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-fade-in">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-7 shadow-2xl border border-[#25483F]/12">
-            <div className="flex items-center justify-between border-b border-[#25483F]/12 pb-4">
-              <h3 className="text-2xl font-black text-[#142823] tracking-tight">
+          <div className="flex flex-col max-h-[90vh] w-full max-w-2xl rounded-2xl bg-white shadow-2xl border border-[#25483F]/12 overflow-hidden">
+            <div className="flex items-center justify-between border-b border-[#25483F]/12 px-6 py-4 shrink-0 bg-white">
+              <h3 className="text-xl sm:text-2xl font-black text-[#142823] tracking-tight">
                 {isEditing ? "Chỉnh sửa hồ sơ LocalMate" : "Thêm mới Hướng dẫn viên LocalMate"}
               </h3>
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
-                className="rounded-xl p-2 text-[#52635A] hover:bg-[#FAF7F0] hover:text-[#142823] transition-colors cursor-pointer"
+                className="rounded-xl p-1.5 text-[#52635A] hover:bg-[#FAF7F0] hover:text-[#142823] transition-colors cursor-pointer"
               >
                 <VsIcon name="close" className="text-xl" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveGuide} className="mt-6 space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <form onSubmit={handleSaveGuide} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 custom-scrollbar min-h-0">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1">
+                      Mã HDV
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.guideCode}
+                      onChange={(e) => setFormData({ ...formData, guideCode: e.target.value })}
+                      disabled={isEditing}
+                      placeholder="LM-001"
+                      className="h-10 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3 text-sm font-mono font-bold text-[#142823] disabled:bg-slate-100 disabled:text-[#788880]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1">
+                      Vị trí
+                    </label>
+                    <select
+                      value={formData.position}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          position: e.target.value,
+                        })
+                      }
+                      className="h-10 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3 text-sm font-bold text-[#142823] cursor-pointer focus:bg-white focus:border-[#173F35] disabled:bg-slate-100 disabled:text-[#788880]"
+                    >
+                      <option value="GUIDE">HDV Bản địa</option>
+                      <option value="COORDINATOR">Điều phối vùng</option>
+                      <option value="LEADER">Trưởng nhóm</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1">
+                      Trạng thái
+                    </label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          status: e.target.value as LocalMateStatus,
+                        })
+                      }
+                      className="h-10 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3 text-sm font-bold text-[#142823] cursor-pointer focus:bg-white focus:border-[#173F35] disabled:bg-slate-100 disabled:text-[#788880]"
+                    >
+                      <option value="QUALIFIED">Đạt chuẩn (Đã duyệt thẩm định)</option>
+                      <option value="PENDING">Chờ duyệt thẩm định</option>
+                      <option value="SUSPENDED">Tạm dừng hoạt động</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1.5">
-                    Mã HDV
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1">
+                    Họ và tên *
                   </label>
                   <input
                     type="text"
-                    value={formData.guideCode}
-                    onChange={(e) => setFormData({ ...formData, guideCode: e.target.value })}
-                    disabled={isEditing}
-                    placeholder="LM-001"
-                    className="h-11 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3.5 text-sm font-mono font-bold text-[#142823] disabled:bg-slate-100 disabled:text-[#788880]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1.5">
-                    Vị trí
-                  </label>
-                  <select
-                    value={formData.position}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        position: e.target.value,
-                      })
-                    }
-                    className="h-11 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3.5 text-sm font-bold text-[#142823] cursor-pointer focus:bg-white focus:border-[#173F35] disabled:bg-slate-100 disabled:text-[#788880]"
-                  >
-                    <option value="GUIDE">HDV Bản địa</option>
-                    <option value="COORDINATOR">Điều phối vùng</option>
-                    <option value="LEADER">Trưởng nhóm</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1.5">
-                    Trạng thái
-                  </label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        status: e.target.value as LocalMateStatus,
-                      })
-                    }
-                    className="h-11 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3.5 text-sm font-bold text-[#142823] cursor-pointer focus:bg-white focus:border-[#173F35] disabled:bg-slate-100 disabled:text-[#788880]"
-                  >
-                    <option value="QUALIFIED">Đạt chuẩn (Đã duyệt thẩm định)</option>
-                    <option value="PENDING">Chờ duyệt thẩm định</option>
-                    <option value="SUSPENDED">Tạm dừng hoạt động</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1.5">
-                  Họ và tên *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                  placeholder="Ví dụ: Giàng A Pháo"
-                  className="h-11 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-4 text-sm font-bold text-[#142823] focus:bg-white focus:border-[#173F35]"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1.5">
-                    Số điện thoại *
-                  </label>
-                  <input
-                    type="tel"
                     required
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="0912345678"
-                    className="h-11 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-4 text-sm font-semibold text-[#142823] focus:bg-white focus:border-[#173F35]"
+                    value={formData.fullName}
+                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                    placeholder="Ví dụ: Giàng A Pháo"
+                    className="h-10 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3.5 text-sm font-bold text-[#142823] focus:bg-white focus:border-[#173F35]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1">
+                      Số điện thoại *
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      placeholder="0912345678"
+                      className="h-10 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3.5 text-sm font-semibold text-[#142823] focus:bg-white focus:border-[#173F35]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1">
+                      Email liên hệ (Không bắt buộc)
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="guide@gmail.com (Nếu có)"
+                      className="h-10 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3.5 text-sm font-semibold text-[#142823] focus:bg-white focus:border-[#173F35]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1">
+                      Đường dẫn ảnh đại diện *
+                    </label>
+                    <input
+                      type="url"
+                      required
+                      value={formData.avatarUrl}
+                      onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
+                      placeholder="https://images.unsplash.com/..."
+                      className="h-10 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3.5 text-xs font-mono text-[#142823] focus:bg-white focus:border-[#173F35]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1">
+                      Mức phí dịch vụ / ngày (đ)
+                    </label>
+                    <input
+                      type="number"
+                      step={50000}
+                      min={0}
+                      value={formData.dailyRateVnd}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dailyRateVnd: Number(e.target.value) })
+                      }
+                      className="h-10 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3.5 text-sm font-bold text-[#173F35] focus:bg-white focus:border-[#173F35]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1">
+                      Ngôn ngữ (phân cách bằng dấu phẩy) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.languages}
+                      onChange={(e) => setFormData({ ...formData, languages: e.target.value })}
+                      placeholder="English, Tiếng Việt, H'Mông"
+                      className="h-10 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3.5 text-sm font-medium text-[#142823] focus:bg-white focus:border-[#173F35]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1">
+                      Khu vực hoạt động (phân cách bằng dấu phẩy) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.operatingRegions}
+                      onChange={(e) =>
+                        setFormData({ ...formData, operatingRegions: e.target.value })
+                      }
+                      placeholder="Mù Cang Chải, Trạm Tấu, Yên Bái"
+                      className="h-10 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3.5 text-sm font-medium text-[#142823] focus:bg-white focus:border-[#173F35]"
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-[#25483F]/12 bg-[#FBF9F5] p-3.5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#173F35] flex items-center gap-1.5">
+                      <VsIcon name="location_on" className="text-sm text-[#173F35]" />
+                      Mốc vị trí phục vụ LocalMate (Tọa độ GPS)
+                    </span>
+                    <span className="text-[11px] text-[#52635A]">
+                      Tính khoảng cách tới khách sạn
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="localmate-service-latitude" className="mb-1 block text-xs font-semibold text-[#485951]">
+                        Vĩ độ (-90 đến 90)
+                      </label>
+                      <input
+                        id="localmate-service-latitude"
+                        type="number"
+                        step="any"
+                        min={-90}
+                        max={90}
+                        value={formData.serviceLatitude}
+                        onChange={(e) => setFormData({ ...formData, serviceLatitude: e.target.value })}
+                        placeholder="21.033333"
+                        className="h-10 w-full rounded-lg border border-[#25483F]/15 bg-white px-3 text-sm font-mono text-[#142823] focus:border-[#173F35] focus:outline-none focus:ring-1 focus:ring-[#173F35]"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="localmate-service-longitude" className="mb-1 block text-xs font-semibold text-[#485951]">
+                        Kinh độ (-180 đến 180)
+                      </label>
+                      <input
+                        id="localmate-service-longitude"
+                        type="number"
+                        step="any"
+                        min={-180}
+                        max={180}
+                        value={formData.serviceLongitude}
+                        onChange={(e) => setFormData({ ...formData, serviceLongitude: e.target.value })}
+                        placeholder="104.883333"
+                        className="h-10 w-full rounded-lg border border-[#25483F]/15 bg-white px-3 text-sm font-mono text-[#142823] focus:border-[#173F35] focus:outline-none focus:ring-1 focus:ring-[#173F35]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1">
+                    Thế mạnh &amp; Chuyên môn (phân cách bằng dấu phẩy)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.specialties}
+                    onChange={(e) => setFormData({ ...formData, specialties: e.target.value })}
+                    placeholder="Trekking, Chè Shan Tuyết, Ẩm thực dân tộc"
+                    className="h-10 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3.5 text-sm font-medium text-[#142823] focus:bg-white focus:border-[#173F35]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1.5">
-                    Email liên hệ (Không bắt buộc)
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1">
+                    Tiểu sử &amp; Giới thiệu ngắn
                   </label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="guide@gmail.com (Nếu có)"
-                    className="h-11 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-4 text-sm font-semibold text-[#142823] focus:bg-white focus:border-[#173F35]"
+                  <textarea
+                    rows={2.5}
+                    value={formData.bio}
+                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                    placeholder="Kinh nghiệm 8 năm dẫn tour trải nghiệm cho khách quốc tế..."
+                    className="w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] p-3 text-sm font-medium text-[#142823] focus:bg-white focus:border-[#173F35]"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1.5">
-                  Đường dẫn ảnh đại diện *
-                </label>
-                <input
-                  type="url"
-                  required
-                  value={formData.avatarUrl}
-                  onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
-                  placeholder="https://images.unsplash.com/..."
-                  className="h-11 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-4 text-xs font-mono text-[#142823] focus:bg-white focus:border-[#173F35]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1.5">
-                  Mức phí dịch vụ / ngày (đ)
-                </label>
-                <input
-                  type="number"
-                  step={50000}
-                  min={0}
-                  value={formData.dailyRateVnd}
-                  onChange={(e) =>
-                    setFormData({ ...formData, dailyRateVnd: Number(e.target.value) })
-                  }
-                  className="h-11 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-4 text-base font-black text-[#173F35] focus:bg-white focus:border-[#173F35]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1.5">
-                  Ngôn ngữ thành thạo (cách nhau bởi dấu phẩy) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.languages}
-                  onChange={(e) => setFormData({ ...formData, languages: e.target.value })}
-                  placeholder="English, Vietnamese, H'Mông"
-                  className="h-11 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-4 text-sm font-medium text-[#142823] focus:bg-white focus:border-[#173F35]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1.5">
-                  Khu vực hoạt động (cách nhau bởi dấu phẩy) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.operatingRegions}
-                  onChange={(e) =>
-                    setFormData({ ...formData, operatingRegions: e.target.value })
-                  }
-                  placeholder="Mù Cang Chải, Trạm Tấu, Yên Bái"
-                  className="h-11 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-4 text-sm font-medium text-[#142823] focus:bg-white focus:border-[#173F35]"
-                />
-              </div>
-
-              <fieldset className="rounded-2xl border border-[#25483F]/12 bg-[#FBF9F5] p-4">
-                <legend className="px-1 text-sm font-bold text-[#173F35]">
-                  Mốc vị trí phục vụ LocalMate
-                </legend>
-                <p className="mb-3 text-sm text-[#52635A]">
-                  Dùng để tính khoảng cách tới khách sạn. Đây là điểm phục vụ đại diện, không phải địa chỉ nhà riêng.
-                </p>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label htmlFor="localmate-service-latitude" className="mb-1.5 block text-sm font-semibold text-[#485951]">
-                      Vĩ độ
-                    </label>
-                    <input
-                      id="localmate-service-latitude"
-                      type="number"
-                      step="any"
-                      min={-90}
-                      max={90}
-                      value={formData.serviceLatitude}
-                      onChange={(e) => setFormData({ ...formData, serviceLatitude: e.target.value })}
-                      placeholder="21.033333"
-                      className="h-12 w-full rounded-xl border border-[#25483F]/15 bg-white px-4 text-base font-medium text-[#142823] focus:border-[#173F35] focus:outline-none focus:ring-2 focus:ring-[#173F35]/15"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="localmate-service-longitude" className="mb-1.5 block text-sm font-semibold text-[#485951]">
-                      Kinh độ
-                    </label>
-                    <input
-                      id="localmate-service-longitude"
-                      type="number"
-                      step="any"
-                      min={-180}
-                      max={180}
-                      value={formData.serviceLongitude}
-                      onChange={(e) => setFormData({ ...formData, serviceLongitude: e.target.value })}
-                      placeholder="104.883333"
-                      className="h-12 w-full rounded-xl border border-[#25483F]/15 bg-white px-4 text-base font-medium text-[#142823] focus:border-[#173F35] focus:outline-none focus:ring-2 focus:ring-[#173F35]/15"
-                    />
-                  </div>
-                </div>
-              </fieldset>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1.5">
-                  Thế mạnh &amp; Chuyên môn (cách nhau bởi dấu phẩy)
-                </label>
-                <input
-                  type="text"
-                  value={formData.specialties}
-                  onChange={(e) => setFormData({ ...formData, specialties: e.target.value })}
-                  placeholder="Trekking, Chè Shan Tuyết, Ẩm thực dân tộc"
-                  className="h-11 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-4 text-sm font-medium text-[#142823] focus:bg-white focus:border-[#173F35]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1.5">
-                  Tiểu sử &amp; Giới thiệu ngắn
-                </label>
-                <textarea
-                  rows={3}
-                  value={formData.bio}
-                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                  placeholder="Kinh nghiệm 8 năm dẫn tour trải nghiệm cho khách quốc tế..."
-                  className="w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] p-3.5 text-sm font-medium text-[#142823] focus:bg-white focus:border-[#173F35]"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 border-t border-[#25483F]/12 pt-5">
+              <div className="flex items-center justify-end gap-3 border-t border-[#25483F]/12 px-6 py-3.5 shrink-0 bg-white">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="h-11 rounded-xl border border-[#25483F]/15 px-5 text-sm font-bold text-[#52635A] hover:bg-[#FAF7F0] cursor-pointer transition-colors"
+                  className="h-10 rounded-xl border border-[#25483F]/15 px-5 text-sm font-bold text-[#52635A] hover:bg-[#FAF7F0] cursor-pointer transition-colors"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="h-11 rounded-xl bg-[#173F35] px-6 text-sm font-bold text-white shadow-md hover:bg-[#12322a] disabled:opacity-50 cursor-pointer transition-all"
+                  className="h-10 rounded-xl bg-[#173F35] px-6 text-sm font-bold text-white shadow-md hover:bg-[#12322a] disabled:opacity-50 cursor-pointer transition-all"
                 >
                   {isSaving ? "Đang lưu..." : isEditing ? "Lưu thay đổi" : "Tạo LocalMate"}
                 </button>

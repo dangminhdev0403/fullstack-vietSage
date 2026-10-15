@@ -188,7 +188,8 @@ export function FrontDeskArrivalDetailPanel({
       title: "Xác nhận gán phòng?",
       text: `Khách hàng: ${arrival.guestDisplayName}\n${roomName}`,
       confirmText: "Gán phòng",
-      cancelText: "Hủy",
+      cancelText: "Hủy bỏ",
+      reverseButtons: false,
     });
 
     if (!confirm.isConfirmed) return;
@@ -237,6 +238,17 @@ export function FrontDeskArrivalDetailPanel({
 
   async function handleCheckInWorkspaceSubmit(fields: CheckInStayFields) {
     if (!arrival) return;
+
+    const confirmation = await showConfirmDialog({
+      icon: "question",
+      title: "Xác nhận nhận phòng?",
+      text: `Nhận phòng ${arrival.room?.roomNumber ? `Phòng ${arrival.room.roomNumber}` : ""} cho khách "${fields.guestDisplayName || arrival.guestDisplayName}". Hệ thống sẽ kích hoạt QR và mã GuestOS ngay.`,
+      confirmText: "Nhận phòng",
+      cancelText: "Hủy bỏ",
+      reverseButtons: false,
+    });
+
+    if (!confirmation.isConfirmed) return;
 
     setIsCheckingIn(true);
     setCheckInError(undefined);

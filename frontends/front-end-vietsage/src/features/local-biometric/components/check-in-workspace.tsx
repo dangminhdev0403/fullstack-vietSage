@@ -378,7 +378,8 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
         title: "Xác nhận hủy check-in?",
         text: "Hủy check-in và bỏ thông tin đang nhập?",
         confirmText: "Đồng ý hủy",
-        cancelText: "Hủy",
+        cancelText: "Hủy bỏ",
+        reverseButtons: false,
       });
       if (!confirmed.isConfirmed) return;
     }
@@ -1108,7 +1109,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
           <form
             data-ui="stay-form"
             id="ciw-form"
-            onSubmit={(event) => {
+            onSubmit={async (event) => {
               event.preventDefault();
 
               // Fallback extraction directly from DOM in case of race condition or pending blur
@@ -1172,6 +1173,15 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                 });
                 return;
               }
+
+              const confirmed = await showConfirmDialog({
+                title: "Xác nhận nhận phòng?",
+                text: `Làm thủ tục nhận phòng ${room.roomNumber} cho ${fields.guestDisplayName || "khách lưu trú"}${normalizedOccupants.length > 0 ? ` cùng ${normalizedOccupants.length} khách đi cùng` : ""} và gửi thông tin lên hệ thống?`,
+                confirmText: "Hoàn tất nhận phòng",
+                cancelText: "Hủy bỏ",
+                reverseButtons: false,
+              });
+              if (!confirmed.isConfirmed) return;
 
               onSubmit({
                 ...fields,

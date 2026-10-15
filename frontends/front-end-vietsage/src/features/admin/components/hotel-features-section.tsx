@@ -2,7 +2,7 @@
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { useHotelFeatures } from "@/features/admin/hooks/use-hotel-features";
-import { SwalVietSage, showErrorAlert } from "@/libs/swal";
+import { SwalVietSage, showErrorAlert, showSuccessAlert } from "@/libs/swal";
 
 export function HotelFeaturesSection({
   hotelId,
@@ -104,6 +104,10 @@ export function HotelFeaturesSection({
                     if (!confirmation.isConfirmed) return;
                     try {
                       await updateStatus(feature.key, nextStatus);
+                      await showSuccessAlert(
+                        "Cập nhật thành công",
+                        `Đã ${nextStatus === "ENABLED" ? "bật" : "tắt"} tính năng “${feature.label}” cho khách sạn “${hotelName}”.`,
+                      );
                     } catch (mutationError) {
                       await showErrorAlert(
                         "Không thể cập nhật tính năng",

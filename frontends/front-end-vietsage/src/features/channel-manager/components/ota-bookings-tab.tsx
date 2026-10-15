@@ -228,6 +228,14 @@ export function OtaBookingsTab({
     const chosenRoom = availableRooms.find((r) => r.id === selectedRoomIdToAssign);
     const roomNumber = chosenRoom?.roomNumber || chosenRoom?.id || "mới";
 
+    const confirmResult = await showConfirmDialog({
+      title: "Xác nhận gán phòng cho khách OTA?",
+      text: `Bạn có chắc chắn muốn gán phòng ${roomNumber} cho đặt phòng ${assigningBooking.guestName || "khách"} (${assigningBooking.otaName})?`,
+      confirmText: "Gán phòng",
+      cancelText: "Hủy bỏ",
+    });
+    if (!confirmResult.isConfirmed) return;
+
     setIsProcessing(true);
     try {
       await requestInternalApiEnvelope(

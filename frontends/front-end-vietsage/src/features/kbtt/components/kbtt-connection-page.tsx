@@ -95,6 +95,16 @@ export function KbttConnectionPage({
       await showErrorAlert("Thông tin chưa hợp lệ", "Nhập tài khoản tối đa 120 ký tự và mật khẩu tối đa 256 ký tự.");
       return;
     }
+
+    const confirmResult = await showConfirmDialog({
+      title: "Xác nhận kết nối tài khoản Cổng BCA?",
+      text: `Kết nối tài khoản "${parsed.data.username}" với Cổng dịch vụ công Bộ Công an để đồng bộ khai báo lưu trú tự động?`,
+      confirmText: "Kết nối tài khoản",
+      cancelText: "Hủy bỏ",
+      reverseButtons: false,
+    });
+    if (!confirmResult.isConfirmed) return;
+
     setPassword("");
     await run(() => connect(parsed.data), "Đã kết nối tài khoản khai báo tạm trú của khách sạn.");
   }
@@ -108,6 +118,7 @@ export function KbttConnectionPage({
         text: "Tài khoản đã lưu của khách sạn sẽ bị xóa. Bạn cần nhập lại tài khoản và mật khẩu để kết nối lại.",
         confirmText: "Ngắt kết nối",
         cancelText: "Hủy bỏ",
+        reverseButtons: false,
       });
       if (!result.isConfirmed) return;
       setUsernameEdit("");
@@ -538,8 +549,9 @@ function KbttAutoSubmitSection({
         title: "Hẹn chạy Live + Telegram?",
         text: "Sau 15 giây hệ thống sẽ gửi hồ sơ thật tới C06 và gửi báo cáo Telegram.",
         confirmText: "Hẹn Live",
-        cancelText: "Hủy",
+        cancelText: "Hủy bỏ",
         icon: "warning",
+        reverseButtons: false,
       });
       if (!confirmed.isConfirmed) return;
     }

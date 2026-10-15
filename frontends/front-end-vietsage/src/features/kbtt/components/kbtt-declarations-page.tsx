@@ -949,7 +949,8 @@ export function KbttDeclarationsPage({
         confirmText: generateNewIdentityNumbers
           ? "Tạo mới & Đặt lại"
           : "Chuyển về Chưa gửi",
-        cancelText: "Hủy",
+        cancelText: "Hủy bỏ",
+        reverseButtons: false,
       });
       if (!confirm.isConfirmed) return;
 
@@ -980,7 +981,8 @@ export function KbttDeclarationsPage({
         title: "Đặt lại hồ sơ khách về Chưa gửi",
         text: `Đổi trạng thái hồ sơ của khách ${row.fullName} (Phòng ${row.roomNumber ?? "—"}) về Chưa gửi để gửi lại?`,
         confirmText: "Đặt lại về Chưa gửi",
-        cancelText: "Hủy",
+        cancelText: "Hủy bỏ",
+        reverseButtons: false,
       });
       if (!confirm.isConfirmed) return;
 
@@ -1098,7 +1100,8 @@ export function KbttDeclarationsPage({
       title: "Upload tất cả lên BCA",
       text: `Bạn có chắc muốn gửi khai báo tạm trú cho toàn bộ ${unsubmittedRows.length} khách chưa gửi lên Cổng dịch vụ công Bộ Công an không?`,
       confirmText: "Gửi toàn bộ",
-      cancelText: "Hủy",
+      cancelText: "Hủy bỏ",
+      reverseButtons: false,
     });
     if (!confirmResult.isConfirmed) return;
 
@@ -1314,7 +1317,8 @@ export function KbttDeclarationsPage({
         title: "Gửi khai báo BCA",
         text: `Gửi khai báo tạm trú cho khách ${row.fullName} (Phòng ${row.roomNumber ?? "—"}) lên Cổng dịch vụ công Bộ Công an?`,
         confirmText: "Gửi ngay",
-        cancelText: "Hủy",
+        cancelText: "Hủy bỏ",
+        reverseButtons: false,
       });
       if (!confirmResult.isConfirmed) return;
 
@@ -2441,6 +2445,16 @@ function DeclarationModal({
       );
       return;
     }
+
+    const confirmResult = await showConfirmDialog({
+      title: "Xác nhận gửi khai báo lên Bộ Công an?",
+      text: `Gửi hồ sơ khai báo lưu trú của khách "${formData.hoVaTen || "khách lưu trú"}" lên Cổng dịch vụ công Bộ Công an?`,
+      confirmText: "Lưu & Khai báo BCA",
+      cancelText: "Hủy bỏ",
+      reverseButtons: false,
+    });
+    if (!confirmResult.isConfirmed) return;
+
     try {
       await saveMutation.mutateAsync({
         occupantId,
@@ -2605,8 +2619,8 @@ function DeclarationModal({
                   </p>
                   <p className="mt-1 text-sm text-emerald-800">
                     {citizenshipKind === "VIETNAMESE"
-                      ? "Người Việt Nam · API 5"
-                      : "Người nước ngoài · API 4"}
+                      ? "Báo cáo lưu trú công dân Việt Nam"
+                      : "Báo cáo tạm trú người nước ngoài"}
                   </p>
                 </div>
                 {canManage && !isReadOnly ? (
@@ -2639,10 +2653,10 @@ function DeclarationModal({
                 >
                   <option value="">-- Chọn thủ công --</option>
                   <option value="VIETNAMESE">
-                    Người Việt Nam (API 5 - Báo cáo lưu trú nội địa)
+                    Báo cáo lưu trú công dân Việt Nam
                   </option>
                   <option value="FOREIGN">
-                    Người nước ngoài (API 4 - Báo cáo tạm trú người nước ngoài)
+                    Báo cáo tạm trú người nước ngoài
                   </option>
                 </select>
               </div>
@@ -3317,7 +3331,7 @@ function DeclarationModal({
                     onClick={() => void handleSaveDraft()}
                     className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-emerald-600 bg-white px-5 py-3 text-base font-bold text-emerald-800 shadow-xs transition-all hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:opacity-50"
                   >
-                    {isSavingDraft ? "Đang lưu CSDL…" : "💾 Lưu vào DB"}
+                    {isSavingDraft ? "Đang lưu thông tin…" : "Lưu thông tin"}
                   </button>
                 )}
 
@@ -3327,7 +3341,7 @@ function DeclarationModal({
                     disabled={isBusy}
                     className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#064e3b] px-6 py-3 text-base font-bold text-white shadow-md transition-all hover:bg-[#043327] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b] disabled:opacity-50"
                   >
-                    {submitMutation.isPending ? "Đang gửi…" : "Gửi lên Bộ Công an"}
+                    {submitMutation.isPending ? "Đang gửi…" : "Lưu & Khai báo BCA"}
                   </button>
                 ) : isActuallySubmitted ? (
                   <span className="inline-flex min-h-12 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-base font-semibold text-emerald-800">

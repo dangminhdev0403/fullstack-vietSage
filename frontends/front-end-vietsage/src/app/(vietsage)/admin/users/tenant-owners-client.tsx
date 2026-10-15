@@ -2,7 +2,7 @@
 
 import { type FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SwalVietSage } from "@/libs/swal";
+import { SwalVietSage, showSuccessAlert } from "@/libs/swal";
 import { z } from "zod";
 
 import { HttpError } from "@/core/http/http-error";
@@ -117,7 +117,7 @@ async function requestJson<TData>(path: string, options: { method: "POST" | "PAT
 async function confirmOwnerSave(mode: FormMode, ownerName: string, tenantName: string): Promise<boolean> {
   const result = await SwalVietSage.fire({
     icon: "question",
-    title: mode === "create" ? "Tạo đối tác khách sạn?" : "Lưu thay đổi đối tác?",
+    title: mode === "create" ? "Tạo đối tác mới?" : "Lưu thay đổi đối tác?",
     text:
       mode === "create"
         ? `Tạo tài khoản cho ${ownerName} và tổ chức ${tenantName}.`
@@ -269,13 +269,10 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
         return exists ? current.map((owner) => (owner.id === saved.id ? saved : owner)) : [saved, ...current];
       });
       closeDialog();
-      await SwalVietSage.fire({
-        icon: "success",
-        title: formMode === "create" ? "Đã tạo đối tác khách sạn" : "Đã cập nhật đối tác khách sạn",
-        timer: 1400,
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showSuccessAlert(
+        "Thành công",
+        formMode === "create" ? "Đã tạo đối tác mới" : "Đã cập nhật đối tác",
+      );
     } catch (error) {
       if (error instanceof Error && error.message === "UNAUTHORIZED") {
         return;
@@ -392,7 +389,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
             </button>
             <button type="button" onClick={openCreateDialog} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#24473d] px-5 py-3 text-sm font-semibold text-[#fff8e8] shadow-md shadow-[#24473d]/20 transition-all hover:bg-[#1a352d] active:scale-98">
               <VsIcon name="person_add" className="text-lg text-[#e8b363]" />
-              Tạo đối tác khách sạn
+              Tạo đối tác mới
             </button>
           </div>
         </div>
@@ -548,7 +545,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
           <form onSubmit={submitForm} className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-2xl">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-semibold text-[var(--primary)]">{formMode === "create" ? "Tạo đối tác khách sạn" : "Cập nhật đối tác khách sạn"}</h2>
+                <h2 className="text-2xl font-semibold text-[var(--primary)]">{formMode === "create" ? "Tạo đối tác mới" : "Cập nhật thông tin đối tác"}</h2>
                 <p className="mt-1 text-sm text-[var(--on-surface-variant)]">Tạo tài khoản đại diện và tổ chức quản lý khách sạn.</p>
               </div>
               <button type="button" onClick={closeDialog} className="rounded-lg p-2 text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)]" aria-label="Đóng">

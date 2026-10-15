@@ -2,7 +2,12 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { SwalVietSage } from "@/libs/swal";
+import {
+  showConfirmDialog,
+  showErrorAlert,
+  showSuccessAlert,
+  SwalVietSage,
+} from "@/libs/swal";
 import {
   useLocalPartners,
   useNearbyServiceProviders,
@@ -122,6 +127,7 @@ export function OwnerNearbyProvidersClient({
         </div>
       `,
       showCancelButton: canManage,
+      reverseButtons: false,
       confirmButtonText: canManage
         ? (provider.linked ? "Ngắt kết nối" : "Kết nối đối tác")
         : "Đóng",
@@ -144,46 +150,38 @@ export function OwnerNearbyProvidersClient({
     const isConnecting = !provider.linked;
     const displayName = provider.serviceProfile?.displayName ?? provider.name;
 
-    const result = await SwalVietSage.fire({
-      icon: isConnecting ? "question" : "warning",
+    const confirmed = await showConfirmDialog({
       title: isConnecting
         ? "Xác nhận kết nối đối tác?"
         : "Xác nhận ngắt kết nối?",
-      html: isConnecting
-        ? `Bạn có chắc chắn muốn kết nối với đối tác <b>${displayName}</b>? Dịch vụ từ đối tác này sẽ hiển thị cho khách lưu trú của khách sạn.`
-        : `Bạn có chắc chắn muốn ngắt kết nối với đối tác <b>${displayName}</b>? Khách lưu trú sẽ không còn nhìn thấy dịch vụ này.`,
-      showCancelButton: true,
-      confirmButtonText: isConnecting ? "Kết nối đối tác" : "Ngắt kết nối",
-      cancelButtonText: "Hủy bỏ",
+      text: isConnecting
+        ? `Bạn có chắc chắn muốn kết nối với đối tác "${displayName}"? Dịch vụ từ đối tác này sẽ hiển thị cho khách lưu trú của khách sạn.`
+        : `Bạn có chắc chắn muốn ngắt kết nối với đối tác "${displayName}"? Khách lưu trú sẽ không còn nhìn thấy dịch vụ này.`,
+      confirmText: isConnecting ? "Kết nối đối tác" : "Ngắt kết nối",
+      cancelText: "Hủy bỏ",
+      reverseButtons: false,
     });
 
-    if (!result.isConfirmed) return;
+    if (!confirmed) return;
 
     try {
       await setProviderLink.mutateAsync({
         providerId: provider.id,
         linked: isConnecting,
       });
-      await SwalVietSage.fire({
-        icon: "success",
-        title: isConnecting
+      await showSuccessAlert(
+        isConnecting
           ? "Đã kết nối đối tác thành công!"
           : "Đã ngắt kết nối đối tác!",
-        text: isConnecting
+        isConnecting
           ? `Đã hoàn tất kết nối khách sạn với đối tác ${displayName}.`
-          : `Đã ngắt kết nối khách sạn với đối tác ${displayName}.`,
-        timer: 1800,
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+          : `Đã ngắt kết nối khách sạn với đối tác ${displayName}.`
+      );
     } catch {
-      await SwalVietSage.fire({
-        icon: "error",
-        title: "Cập nhật thất bại",
-        text: "Không thể cập nhật trạng thái kết nối đối tác. Vui lòng thử lại sau.",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showErrorAlert(
+        "Cập nhật thất bại",
+        "Không thể cập nhật trạng thái kết nối đối tác. Vui lòng thử lại sau."
+      );
     }
   }
 
@@ -240,7 +238,7 @@ export function OwnerNearbyProvidersClient({
                     d="M13 10V3L4 14h7v7l9-11h-7z"
                   />
                 </svg>
-                MẠNG LƯỚI ĐỐI TÁC B2B
+                Mạng lưới đối tác lân cận
               </span>
             </div>
             <h1 className="mt-2 text-2xl font-extrabold text-slate-900 tracking-tight">
@@ -775,15 +773,18 @@ export function StaffLocalPartnersClient({
       if (editing) await update.mutateAsync({ partnerId: editing.id, input });
       else await create.mutateAsync(input);
       setFormOpen(false);
-      await SwalVietSage.fire({
-        icon: "success",
-        title: editing ? "Đã cập nhật đối tác" : "Đã thêm đối tác mới",
-        timer: 1500,
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showSuccessAlert(
+        editing ? "Đã cập nhật đối tác" : "Đã thêm đối tác mới",
+        editing
+          ? `Thông tin đối tác "${input.name}" đã được cập nhật thành công.`
+          : `Đối tác "${input.name}" đã được thêm vào danh bạ thành công.`
+      );
     } catch (cause) {
       setError("Không thể lưu đối tác. Kiểm tra thông tin rồi thử lại.");
+      await showErrorAlert(
+        "Lưu đối tác thất bại",
+        "Không thể lưu thông tin đối tác. Vui lòng kiểm tra lại thông tin và thử lại."
+      );
       throw cause;
     }
   }
@@ -791,20 +792,19 @@ export function StaffLocalPartnersClient({
   async function toggle(partner: LocalPartner) {
     if (!canManage) return;
     const isDisabling = partner.status === "ACTIVE";
-    const result = await SwalVietSage.fire({
-      icon: isDisabling ? "warning" : "question",
+    const confirmed = await showConfirmDialog({
       title: isDisabling
         ? "Ẩn đối tác địa phương?"
         : "Hiển thị đối tác địa phương?",
-      html: isDisabling
-        ? `Bạn có chắc muốn ẩn đối tác <b>${partner.name}</b> khỏi ứng dụng khách hàng?`
-        : `Cho phép hiển thị lại đối tác <b>${partner.name}</b> trên ứng dụng khách hàng?`,
-      showCancelButton: true,
-      confirmButtonText: isDisabling ? "Ẩn đối tác" : "Hiển thị đối tác",
-      cancelButtonText: "Hủy bỏ",
+      text: isDisabling
+        ? `Bạn có chắc muốn ẩn đối tác "${partner.name}" khỏi ứng dụng khách hàng?`
+        : `Cho phép hiển thị lại đối tác "${partner.name}" trên ứng dụng khách hàng?`,
+      confirmText: isDisabling ? "Ẩn đối tác" : "Hiển thị đối tác",
+      cancelText: "Hủy bỏ",
+      reverseButtons: false,
     });
 
-    if (!result.isConfirmed) return;
+    if (!confirmed) return;
 
     setError(undefined);
     try {
@@ -812,21 +812,17 @@ export function StaffLocalPartnersClient({
         partnerId: partner.id,
         status: isDisabling ? "DISABLED" : "ACTIVE",
       });
-      await SwalVietSage.fire({
-        icon: "success",
-        title: isDisabling ? "Đã ẩn đối tác" : "Đã bật hiển thị",
-        timer: 1500,
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showSuccessAlert(
+        isDisabling ? "Đã ẩn đối tác" : "Đã bật hiển thị",
+        isDisabling
+          ? `Đối tác "${partner.name}" đã được ẩn khỏi ứng dụng khách hàng.`
+          : `Đối tác "${partner.name}" đã sẵn sàng hiển thị trên ứng dụng khách hàng.`
+      );
     } catch {
-      await SwalVietSage.fire({
-        icon: "error",
-        title: "Cập nhật thất bại",
-        text: "Không thể cập nhật trạng thái đối tác. Vui lòng thử lại.",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showErrorAlert(
+        "Cập nhật thất bại",
+        "Không thể cập nhật trạng thái đối tác. Vui lòng thử lại."
+      );
     }
   }
 
@@ -854,7 +850,7 @@ export function StaffLocalPartnersClient({
                   d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                 />
               </svg>
-              DANH BẠ KHÁCH SẠN
+              Danh bạ đối tác
             </span>
           </div>
           <h1

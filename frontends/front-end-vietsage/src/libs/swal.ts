@@ -567,6 +567,7 @@ export function showConfirmDialog(options: {
   confirmText?: string;
   cancelText?: string;
   icon?: "warning" | "question" | "error" | "info";
+  reverseButtons?: boolean;
 }) {
   return SwalVietSage.fire({
     titleText: preventOrphans(options.title),
@@ -575,6 +576,7 @@ export function showConfirmDialog(options: {
     showCancelButton: true,
     confirmButtonText: options.confirmText ?? "Xác nhận",
     cancelButtonText: options.cancelText ?? "Hủy bỏ",
+    reverseButtons: options.reverseButtons ?? false,
   });
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { SwalVietSage } from "@/libs/swal";
+import { SwalVietSage, showConfirmDialog, showSuccessAlert } from "@/libs/swal";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { DataTable } from "@/components/ui/data-table";
 import { OneTimePasswordDialog } from "@/features/account/security/one-time-password-dialog";
@@ -198,6 +198,15 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
       return;
     }
 
+    const confirmResult = await showConfirmDialog({
+      title: "Xác nhận cập nhật thông tin",
+      text: `Bạn có chắc muốn lưu thay đổi cho nhân viên "${editingUser.fullName}"?`,
+      confirmText: "Lưu thay đổi",
+      cancelText: "Hủy bỏ",
+      icon: "question",
+    });
+    if (!confirmResult.isConfirmed) return;
+
     setIsSavingEdit(true);
     try {
       const tasks: Promise<unknown>[] = [];
@@ -232,13 +241,10 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
       await Promise.all(tasks);
 
       setEditingUser(null);
-      await SwalVietSage.fire({
-        icon: "success",
-        title: "Đã cập nhật thông tin nhân viên",
-        timer: 1500,
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showSuccessAlert(
+        "Cập nhật thành công",
+        "Đã cập nhật thông tin nhân viên.",
+      );
     } catch (error) {
       const { message } = extractApiErrorMessage(error);
       await SwalVietSage.fire({
@@ -396,6 +402,15 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
       setFormGeneralError("Hệ thống chưa cấu hình vai trò cho nhân viên.");
       return;
     }
+    const confirmResult = await showConfirmDialog({
+      title: "Xác nhận tạo nhân viên",
+      text: `Bạn có chắc chắn muốn tạo tài khoản nhân viên "${form.fullName.trim()}"?`,
+      confirmText: "Tạo nhân viên",
+      cancelText: "Hủy bỏ",
+      icon: "question",
+    });
+    if (!confirmResult.isConfirmed) return;
+
     try {
       await mutations.createUser.mutateAsync({
         fullName: form.fullName.trim(),
@@ -410,7 +425,10 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
       setFormGeneralError(null);
       setShowPassword(false);
       setFormOpen(false);
-      await SwalVietSage.fire({ icon: "success", title: "Đã tạo và phân công nhân viên", timer: 1500, showConfirmButton: true, confirmButtonText: "OK" });
+      await showSuccessAlert(
+        "Tạo nhân viên thành công",
+        "Đã tạo và phân công nhân viên mới vào hệ thống.",
+      );
     } catch (error) {
       const { message, field } = extractApiErrorMessage(error);
       if (field) {
@@ -425,7 +443,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     setActiveActionKey(actionKey);
     try {
       await action();
-      await SwalVietSage.fire({ icon: "success", title: successTitle, timer: 1500, showConfirmButton: true, confirmButtonText: "OK" });
+      await showSuccessAlert("Thành công", successTitle);
     } catch (error) {
       const { message } = extractApiErrorMessage(error);
       await SwalVietSage.fire({ icon: "error", title: "Không thể cập nhật", text: message, showConfirmButton: true, confirmButtonText: "OK" });

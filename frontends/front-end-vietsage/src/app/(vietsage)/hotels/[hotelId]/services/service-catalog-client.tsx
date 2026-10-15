@@ -1,7 +1,6 @@
 "use client";
 
 import { type FormEvent, useCallback, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
 
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
@@ -29,7 +28,7 @@ type CategoryFormState = {
   id?: string;
   name: string;
   description: string;
-  id_group: string;
+  id_group?: string;
   sortOrder: string;
   status: HotelServiceStatus;
 };
@@ -56,7 +55,6 @@ export function ServiceCatalogClient({
   initialCategories,
   initialItems,
 }: ServiceCatalogClientProps) {
-  const router = useRouter();
   const [tab, setTab] = useState<"categories" | "items">("categories");
   const [categories, setCategories] = useState(initialCategories);
   const [items, setItems] = useState(initialItems);
@@ -95,13 +93,25 @@ export function ServiceCatalogClient({
       return;
     }
 
+    const isEdit = Boolean(categoryForm.id);
+    const confirmResult = await showConfirmDialog({
+      title: isEdit ? "Xác nhận cập nhật nhóm dịch vụ?" : "Xác nhận thêm nhóm dịch vụ?",
+      text: isEdit
+        ? `Bạn có chắc chắn muốn lưu các thay đổi cho nhóm dịch vụ "${categoryForm.name}"?`
+        : `Bạn có chắc chắn muốn tạo nhóm dịch vụ mới "${categoryForm.name}"?`,
+      confirmText: isEdit ? "Cập nhật" : "Tạo nhóm dịch vụ",
+      cancelText: "Hủy bỏ",
+      reverseButtons: false,
+    });
+    if (!confirmResult.isConfirmed) return;
+
     setIsSaving(true);
     setError(null);
     try {
       const payload = {
         name: categoryForm.name.trim(),
         description: categoryForm.description.trim() || undefined,
-        id_group: categoryForm.id_group.trim() || null,
+        id_group: categoryForm.id_group?.trim() || null,
         defaultPrice: 0,
         currency: "USD",
         sortOrder: toNumber(categoryForm.sortOrder) ?? 0,
@@ -119,8 +129,13 @@ export function ServiceCatalogClient({
         return exists ? current.map((category) => (category.id === saved.id ? saved : category)) : [saved, ...current];
       });
       setCategoryForm(null);
+      await showSuccessAlert(
+        isEdit ? "Cập nhật thành công!" : "Tạo nhóm dịch vụ thành công!",
+        `Nhóm dịch vụ "${saved.name}" đã được lưu.`
+      );
     } catch {
       setError("Không thể lưu nhóm dịch vụ. Vui lòng thử lại.");
+      await showErrorAlert("Lưu thất bại", "Không thể lưu nhóm dịch vụ. Vui lòng thử lại sau.");
     } finally {
       setIsSaving(false);
     }
@@ -131,6 +146,18 @@ export function ServiceCatalogClient({
     if (!canManage || !itemForm) {
       return;
     }
+
+    const isEdit = Boolean(itemForm.id);
+    const confirmResult = await showConfirmDialog({
+      title: isEdit ? "Xác nhận cập nhật dịch vụ?" : "Xác nhận thêm dịch vụ?",
+      text: isEdit
+        ? `Bạn có chắc chắn muốn lưu các thay đổi cho dịch vụ "${itemForm.name}"?`
+        : `Bạn có chắc chắn muốn tạo dịch vụ mới "${itemForm.name}"?`,
+      confirmText: isEdit ? "Cập nhật" : "Tạo dịch vụ",
+      cancelText: "Hủy bỏ",
+      reverseButtons: false,
+    });
+    if (!confirmResult.isConfirmed) return;
 
     setIsSaving(true);
     setError(null);
@@ -156,8 +183,13 @@ export function ServiceCatalogClient({
         return exists ? current.map((item) => (item.id === saved.id ? saved : item)) : [saved, ...current];
       });
       setItemForm(null);
+      await showSuccessAlert(
+        isEdit ? "Cập nhật thành công!" : "Tạo dịch vụ thành công!",
+        `Dịch vụ "${saved.name}" đã được lưu.`
+      );
     } catch {
       setError("Không thể lưu dịch vụ. Vui lòng thử lại.");
+      await showErrorAlert("Lưu thất bại", "Không thể lưu dịch vụ. Vui lòng thử lại sau.");
     } finally {
       setIsSaving(false);
     }
@@ -178,7 +210,8 @@ export function ServiceCatalogClient({
         text: `Bạn có chắc chắn muốn ${actionText} nhóm dịch vụ "${category.name}" không?`,
         icon: "warning",
         confirmText: isDeactivating ? "Vô hiệu hóa" : "Kích hoạt",
-        cancelText: "Hủy",
+        cancelText: "Hủy bỏ",
+        reverseButtons: false,
       });
 
       if (!result.isConfirmed) return;
@@ -200,7 +233,7 @@ export function ServiceCatalogClient({
         await showErrorAlert("Không thể cập nhật trạng thái", error);
       }
     },
-    [canManage, hotelId, router],
+    [canManage, hotelId],
   );
 
   const toggleItem = useCallback(
@@ -218,7 +251,8 @@ export function ServiceCatalogClient({
         text: `Bạn có chắc chắn muốn ${actionText} dịch vụ "${item.name}" không?`,
         icon: "warning",
         confirmText: isDeactivating ? "Vô hiệu hóa" : "Kích hoạt",
-        cancelText: "Hủy",
+        cancelText: "Hủy bỏ",
+        reverseButtons: false,
       });
 
       if (!result.isConfirmed) return;
@@ -240,7 +274,7 @@ export function ServiceCatalogClient({
         await showErrorAlert("Không thể cập nhật trạng thái", error);
       }
     },
-    [canManage, hotelId, router],
+    [canManage, hotelId],
   );
 
   const categoryColumns = useMemo<DataTableColumn<HotelServiceCategory>[]>(() => {
@@ -254,20 +288,6 @@ export function ServiceCatalogClient({
         key: "description",
         header: "Mô tả",
         cell: (category) => <span className="text-sm text-[var(--on-surface-variant)]">{category.description ?? "-"}</span>,
-      },
-      {
-        key: "telegram",
-        header: "Telegram Group ID",
-        headerClassName: "text-center",
-        className: "text-center",
-        cell: (category) =>
-          category.id_group ? (
-            <span className="inline-block rounded-full bg-[var(--primary-fixed)] px-3 py-1 text-xs font-bold text-[var(--on-primary-fixed-variant)]">
-              {category.id_group}
-            </span>
-          ) : (
-            <span className="text-sm text-[var(--on-surface-variant)]">Tùy chọn</span>
-          ),
       },
       {
         key: "sort",
@@ -292,11 +312,27 @@ export function ServiceCatalogClient({
     if (canManage) {
       base.push({
         key: "actions",
-        header: "Thao tác (Bật/Tắt)",
+        header: "Thao tác",
         headerClassName: "text-right",
         className: "text-right",
         cell: (category) => (
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                setCategoryForm({
+                  id: category.id,
+                  name: category.name,
+                  description: category.description ?? "",
+                  id_group: category.id_group ?? "",
+                  sortOrder: String(category.sortOrder ?? 0),
+                  status: category.status,
+                })
+              }
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              Sửa
+            </button>
             <button
               type="button"
               onClick={() => void toggleCategory(category)}
@@ -363,11 +399,29 @@ export function ServiceCatalogClient({
     if (canManage) {
       base.push({
         key: "actions",
-        header: "Thao tác (Bật/Tắt)",
+        header: "Thao tác",
         headerClassName: "text-right",
         className: "text-right",
         cell: (item) => (
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                setItemForm({
+                  id: item.id,
+                  categoryId: item.categoryId,
+                  name: item.name,
+                  description: item.description ?? "",
+                  price: item.priceOverride != null ? String(item.priceOverride) : "",
+                  currency: "USD",
+                  sortOrder: String(item.sortOrder ?? 0),
+                  status: item.status,
+                })
+              }
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              Sửa
+            </button>
             <button
               type="button"
               onClick={() => void toggleItem(item)}
@@ -407,6 +461,42 @@ export function ServiceCatalogClient({
             <option value="">Tất cả trạng thái</option>
             {hotelServiceStatuses.map((status) => <option key={status} value={status}>{serviceStatusLabelMap[status]}</option>)}
           </select>
+          {canManage ? (
+            tab === "categories" ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setCategoryForm({
+                    name: "",
+                    description: "",
+                    sortOrder: "0",
+                    status: "ACTIVE",
+                  })
+                }
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-[var(--primary)] px-4 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition hover:opacity-95"
+              >
+                + Thêm nhóm dịch vụ
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() =>
+                  setItemForm({
+                    categoryId: categories[0]?.id ?? "",
+                    name: "",
+                    description: "",
+                    price: "",
+                    currency: "USD",
+                    sortOrder: "0",
+                    status: "ACTIVE",
+                  })
+                }
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-[var(--primary)] px-4 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition hover:opacity-95"
+              >
+                + Thêm dịch vụ
+              </button>
+            )
+          ) : null}
         </div>
       </div>
 
@@ -439,8 +529,6 @@ export function ServiceCatalogClient({
             <div className="space-y-4">
               <input required value={categoryForm.name} onChange={(event) => setCategoryForm({ ...categoryForm, name: event.target.value })} placeholder="Tên nhóm" className="w-full rounded-lg border px-3 py-2" />
               <textarea value={categoryForm.description} onChange={(event) => setCategoryForm({ ...categoryForm, description: event.target.value })} placeholder="Mô tả" className="w-full rounded-lg border px-3 py-2" />
-              <input value={categoryForm.id_group} onChange={(event) => setCategoryForm({ ...categoryForm, id_group: event.target.value })} placeholder="Mã nhóm Telegram (tùy chọn)" className="w-full rounded-lg border px-3 py-2" />
-              <p className="text-xs text-[var(--on-surface-variant)]">Chỉ điền khi nhóm dịch vụ này cần gửi thông báo Telegram riêng.</p>
               <input type="number" value={categoryForm.sortOrder} onChange={(event) => setCategoryForm({ ...categoryForm, sortOrder: event.target.value })} placeholder="Thứ tự sắp xếp" className="w-full rounded-lg border px-3 py-2" />
               <select value={categoryForm.status} onChange={(event) => setCategoryForm({ ...categoryForm, status: event.target.value as HotelServiceStatus })} className="w-full rounded-lg border px-3 py-2">
                 {hotelServiceStatuses.map((status) => <option key={status} value={status}>{serviceStatusLabelMap[status]}</option>)}
