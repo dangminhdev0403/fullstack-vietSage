@@ -1,5 +1,7 @@
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import type {
+  BulkReservationInput,
+  BulkReservationResult,
   HotelOpsPage,
   HotelRoomSummary,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
@@ -37,14 +39,19 @@ export const staffRoomsRepository = {
     if (input?.page) params.set("page", String(input.page));
     if (input?.limit) params.set("limit", String(input.limit));
     if (input?.q?.trim()) params.set("q", input.q.trim());
-    if (input?.status && input.status !== "all") params.set("status", input.status.toUpperCase());
-    if (input?.floor && input.floor !== "all") params.set("floor", input.floor.trim());
-    if (input?.type && input.type !== "all") params.set("type", input.type.trim());
+    if (input?.status && input.status !== "all")
+      params.set("status", input.status.toUpperCase());
+    if (input?.floor && input.floor !== "all")
+      params.set("floor", input.floor.trim());
+    if (input?.type && input.type !== "all")
+      params.set("type", input.type.trim());
     if (input?.vipOnly) params.set("vipOnly", "true");
     if (input?.businessDate) params.set("businessDate", input.businessDate);
 
     const qs = params.toString();
-    const response = await requestInternalApiEnvelope<HotelOpsPage<HotelRoomSummary>>(
+    const response = await requestInternalApiEnvelope<
+      HotelOpsPage<HotelRoomSummary>
+    >(
       `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/rooms${qs ? `?${qs}` : ""}`,
       { method: "GET", signal },
     );
@@ -113,5 +120,21 @@ export const staffRoomsRepository = {
       summary,
       items,
     };
+  },
+
+  async createBulkReservations(
+    hotelId: string,
+    input: BulkReservationInput,
+    signal?: AbortSignal,
+  ): Promise<BulkReservationResult> {
+    const response = await requestInternalApiEnvelope<BulkReservationResult>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/bulk`,
+      {
+        method: "POST",
+        body: input,
+        signal,
+      },
+    );
+    return response.data;
   },
 };

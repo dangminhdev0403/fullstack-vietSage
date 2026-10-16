@@ -26,6 +26,7 @@ import { HotelStaffAssignmentsController } from "./api/hotel-staff-assignments.c
 import { HotelStaffAssignmentsService } from "./application/hotel-staff-assignments.service";
 import { HotelStaffAssignmentsRepository } from "./infrastructure/repositories/hotel-staff-assignments.repository";
 import { HotelStayOccupantsReadService } from "./application/hotel-stay-occupants-read.service";
+import { ReservationRoomAllocationService } from "./application/reservation-room-allocation.service";
 
 @Module({
   imports: [PrismaModule, ImportModule, IdentityModule, GuestRequestEventsModule],
@@ -55,7 +56,17 @@ import { HotelStayOccupantsReadService } from "./application/hotel-stay-occupant
     HotelStaffAssignmentsRepository,
     HotelStayOccupantsReadService,
     HotelFeatureEntitlementsService,
+    ReservationRoomAllocationService,
+    {
+      provide: "RESERVATION_ROOM_ALLOCATION_SERVICE",
+      useExisting: ReservationRoomAllocationService,
+    },
   ],
-  exports: [HotelAccessService, HotelStayOccupantsReadService, HotelFeatureEntitlementsService],
+  exports: [
+    HotelAccessService,
+    HotelStayOccupantsReadService,
+    HotelFeatureEntitlementsService,
+    "RESERVATION_ROOM_ALLOCATION_SERVICE",
+  ],
 })
 export class PropertyModule {}

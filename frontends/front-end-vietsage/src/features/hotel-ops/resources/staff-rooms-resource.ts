@@ -1,6 +1,8 @@
 import {
   createResource,
+  defineMutation,
   defineQuery,
+  type ResourceMutationContext,
   type ResourceQueryContext,
 } from "@dangminhdev04032005/query-resource";
 
@@ -10,6 +12,8 @@ import {
   type StayFolioContext,
 } from "@/features/hotel-ops/repositories/staff-rooms-repository";
 import type {
+  BulkReservationInput,
+  BulkReservationResult,
   HotelOpsPage,
   HotelRoomSummary,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
@@ -46,8 +50,24 @@ export const staffRoomsResource = createResource<{ hotelId: string }>()({
         scope,
         input,
         signal,
-      }: ResourceQueryContext<{ hotelId: string }, string>): Promise<StayFolioContext> =>
+      }: ResourceQueryContext<
+        { hotelId: string },
+        string
+      >): Promise<StayFolioContext> =>
         staffRoomsRepository.getStayFolioContext(scope.hotelId, input, signal),
+    }),
+  },
+  mutations: {
+    createBulkReservations: defineMutation({
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<
+        { hotelId: string },
+        BulkReservationInput
+      >): Promise<BulkReservationResult> =>
+        staffRoomsRepository.createBulkReservations(scope.hotelId, variables),
+      invalidates: [{ type: "query", operation: "list" }],
     }),
   },
 });

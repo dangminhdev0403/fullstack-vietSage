@@ -5,6 +5,10 @@ import {
   BulkUpdateRestrictionsDto,
   RestrictionItemDto,
 } from "../domain/schemas/channel-manager.schema";
+import {
+  ChannexMappingBlocker,
+  ChannexMappingReadinessService,
+} from "./channex-mapping-readiness.service";
 
 export interface DateRangeCollapsed<T> {
   startDate: string;
@@ -33,6 +37,7 @@ export interface InventoryGridRoomType {
   roomType: string;
   totalInventoryRooms: number;
   days: InventoryGridDay[];
+  channexMappingBlockers: ChannexMappingBlocker[];
 }
 
 export interface InventoryGridResult {
@@ -44,7 +49,14 @@ export interface InventoryGridResult {
 
 @Injectable()
 export class AriCoreService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly readinessService: ChannexMappingReadinessService;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    readinessService?: ChannexMappingReadinessService,
+  ) {
+    this.readinessService = readinessService ?? new ChannexMappingReadinessService(this.prisma);
+  }
 
   /**
    * Sinh danh sách các ngày liên tiếp dạng YYYY-MM-DD
@@ -206,6 +218,12 @@ export class AriCoreService {
       targetTypes = targetTypes.filter((t) => t === roomTypeFilter);
     }
 
+    const readiness = await this.readinessService.resolveReadiness(hotelId, targetTypes);
+    const blockersByRoomType = new Map<string, ChannexMappingBlocker[]>();
+    for (const item of readiness.roomTypes) {
+      blockersByRoomType.set(item.roomType, item.blockers);
+    }
+
     // 4. Xây dựng grid cho từng hạng phòng
     const roomTypeGrids: InventoryGridRoomType[] = [];
 
@@ -260,6 +278,7 @@ export class AriCoreService {
         roomType,
         totalInventoryRooms: stats.total,
         days,
+        channexMappingBlockers: blockersByRoomType.get(roomType) ?? readiness.propertyBlockers,
       });
     }
 
@@ -278,6 +297,9 @@ export class AriCoreService {
     hotelId: string,
     items: AvailabilityItemDto[],
   ): Promise<{ success: boolean; count: number }> {
+    const targetRoomTypes = Array.from(new Set(items.map((i) => i.roomType.trim())));
+    await this.readinessService.assertReady(hotelId, targetRoomTypes);
+
     for (const item of items) {
       const date = new Date(`${item.date}T00:00:00.000Z`);
       const override = item.overrideAvailable ?? null;
@@ -330,6 +352,9 @@ export class AriCoreService {
     hotelId: string,
     items: RestrictionItemDto[],
   ): Promise<{ success: boolean; count: number }> {
+    const targetRoomTypes = Array.from(new Set(items.map((i) => i.roomType.trim())));
+    await this.readinessService.assertReady(hotelId, targetRoomTypes);
+
     for (const item of items) {
       const date = new Date(`${item.date}T00:00:00.000Z`);
       const ratePlanCode = item.ratePlanCode || "STANDARD";
@@ -387,6 +412,11 @@ export class AriCoreService {
     updatedDatesCount: number;
     updatedTotalCount: number;
   }> {
+    const targetRoomTypes = Array.from(new Set(payload.roomTypes.map((rt) => rt.trim())));
+    await this.readinessService.assertReady(hotelId, targetRoomTypes, {
+      ratePlanCode: payload.ratePlanCode,
+    });
+
     const dates = this.generateDateList(payload.startDate, payload.endDate);
     const allowedDays = new Set(payload.daysOfWeek ?? [0, 1, 2, 3, 4, 5, 6]);
 

@@ -13,8 +13,9 @@ import {
   Req,
   Res,
 } from "@nestjs/common";
-import { ApiHeader, ApiTags } from "@nestjs/swagger";
+import { ApiConflictResponse, ApiHeader, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import type { Response } from "express";
+import { successEnvelopeSchema } from "../../../common/openapi/contract-schemas";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
@@ -56,6 +57,108 @@ import { ChannexDoctorService } from "../services/channex-doctor.service";
 import { ChannexSyncService } from "../services/channex-sync.service";
 import { assertChannexWebhookSecret } from "../services/channex-webhook-auth";
 import { IcalService } from "../services/ical.service";
+
+const channexMappingBlockerSchema = {
+  type: "string",
+  enum: [
+    "PROPERTY_MAPPING_MISSING",
+    "ROOM_TYPE_MAPPING_MISSING",
+    "RATE_PLAN_MAPPING_MISSING",
+    "MAPPING_CONFLICT",
+  ],
+};
+
+const inventoryGridDataSchema = {
+  type: "object",
+  properties: {
+    hotelId: { type: "string" },
+    startDate: { type: "string", format: "date" },
+    endDate: { type: "string", format: "date" },
+    roomTypes: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          roomType: { type: "string" },
+          totalInventoryRooms: { type: "integer", minimum: 0 },
+          channexMappingBlockers: {
+            type: "array",
+            items: channexMappingBlockerSchema,
+          },
+          days: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                date: { type: "string", format: "date" },
+                totalRooms: { type: "integer", minimum: 0 },
+                bookedRooms: { type: "integer", minimum: 0 },
+                blockedRooms: { type: "integer", minimum: 0 },
+                availableRooms: { type: "integer", minimum: 0 },
+                overrideAvailable: { type: "integer", minimum: 0, nullable: true },
+                rate: { type: "number", minimum: 0, nullable: true },
+                ratePlanCode: { type: "string" },
+                minStayArrival: { type: "integer", minimum: 1 },
+                minStayThrough: { type: "integer", minimum: 1 },
+                maxStay: { type: "integer", minimum: 0 },
+                stopSell: { type: "boolean" },
+                closedToArrival: { type: "boolean" },
+                closedToDeparture: { type: "boolean" },
+              },
+              required: [
+                "date",
+                "totalRooms",
+                "bookedRooms",
+                "blockedRooms",
+                "availableRooms",
+                "overrideAvailable",
+                "rate",
+                "ratePlanCode",
+                "minStayArrival",
+                "minStayThrough",
+                "maxStay",
+                "stopSell",
+                "closedToArrival",
+                "closedToDeparture",
+              ],
+            },
+          },
+        },
+        required: ["roomType", "totalInventoryRooms", "channexMappingBlockers", "days"],
+      },
+    },
+  },
+  required: ["hotelId", "startDate", "endDate", "roomTypes"],
+};
+
+const channexMappingConflictSchema = {
+  type: "object",
+  properties: {
+    status: { type: "integer", enum: [409] },
+    message: { type: "string", enum: ["CHANNEX_MAPPING_REQUIRED"] },
+    data: {
+      type: "object",
+      properties: {
+        code: { type: "string", enum: ["CHANNEX_MAPPING_REQUIRED"] },
+        detail: { type: "string" },
+        blockedRoomTypes: {
+          type: "array",
+          maxItems: 50,
+          items: {
+            type: "object",
+            properties: {
+              roomType: { type: "string" },
+              blockers: { type: "array", items: channexMappingBlockerSchema },
+            },
+            required: ["roomType", "blockers"],
+          },
+        },
+      },
+      required: ["code", "detail", "blockedRoomTypes"],
+    },
+  },
+  required: ["status", "message", "data"],
+};
 
 @ApiTags("channel-manager")
 @Controller("api/v1/channel-manager")
@@ -146,6 +249,14 @@ export class ChannelManagerController {
   }
 
   @ApiDescript("Xem bảng ma trận kho phòng (ARI Grid): tồn phòng, giá và hạn chế bán")
+  @ApiOkResponse({
+    description: "Bảng ARI kèm nguồn readiness Channex duy nhất cho từng hạng phòng",
+    schema: successEnvelopeSchema(
+      inventoryGridDataSchema,
+      200,
+      "Lấy bảng tồn kho phòng thành công",
+    ),
+  })
   @RequirePermission("hotel.rooms.view")
   @SuccessMessage("Lấy bảng tồn kho phòng thành công")
   @Get("hotels/:hotelId/inventory")
@@ -161,6 +272,10 @@ export class ChannelManagerController {
   }
 
   @ApiDescript("Cập nhật giá và hạn chế bán (minStay, maxStay, stopSell, CTA, CTD) cho các ngày")
+  @ApiConflictResponse({
+    description: "Ít nhất một hạng phòng chưa sẵn sàng cho Channex; không ghi dữ liệu",
+    schema: channexMappingConflictSchema,
+  })
   @RequirePermission("hotel.rooms.manage")
   @SuccessMessage("Cập nhật giá và hạn chế bán thành công")
   @Post("hotels/:hotelId/inventory/restrictions")
@@ -178,6 +293,10 @@ export class ChannelManagerController {
   }
 
   @ApiDescript("Cập nhật số lượng phòng trống và phòng chặn cho các ngày")
+  @ApiConflictResponse({
+    description: "Ít nhất một hạng phòng chưa sẵn sàng cho Channex; không ghi dữ liệu",
+    schema: channexMappingConflictSchema,
+  })
   @RequirePermission("hotel.rooms.manage")
   @SuccessMessage("Cập nhật phòng trống thành công")
   @Post("hotels/:hotelId/inventory/availability")
@@ -195,6 +314,10 @@ export class ChannelManagerController {
   }
 
   @ApiDescript("Áp dụng giá và hạn chế hàng loạt theo dải ngày và các thứ trong tuần")
+  @ApiConflictResponse({
+    description: "Một target bị chặn làm toàn bộ bulk request bị từ chối trước khi ghi",
+    schema: channexMappingConflictSchema,
+  })
   @RequirePermission("hotel.rooms.manage")
   @SuccessMessage("Áp dụng hạn chế hàng loạt thành công")
   @Post("hotels/:hotelId/inventory/bulk-update")
@@ -271,6 +394,10 @@ export class ChannelManagerController {
   @ApiDescript(
     "Đẩy kho phòng trống và giá/hạn chế sang Channex (ARI Delta Push with Range Compression)",
   )
+  @ApiConflictResponse({
+    description: "Ít nhất một hạng phòng chưa sẵn sàng; không gửi dữ liệu sang Channex",
+    schema: channexMappingConflictSchema,
+  })
   @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Đẩy ARI sang Channex thành công")
   @Post("hotels/:hotelId/channex/push-ari")

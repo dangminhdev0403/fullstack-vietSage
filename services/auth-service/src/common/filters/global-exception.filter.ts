@@ -26,6 +26,11 @@ interface GuestRoomErrorMeta {
   type?: string;
 }
 
+export interface BlockedRoomTypeMeta {
+  roomType: string;
+  blockers: string[];
+}
+
 interface ErrorResponseBody {
   status: number;
   message: string;
@@ -40,6 +45,7 @@ interface ErrorResponseBody {
     maxDistinctDevices?: number;
     currentRoom?: GuestRoomErrorMeta;
     targetRoom?: GuestRoomErrorMeta;
+    blockedRoomTypes?: BlockedRoomTypeMeta[];
   };
 }
 
@@ -456,9 +462,53 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       ) {
         meta.maxDistinctDevices = body.maxDistinctDevices;
       }
+    } else if (code === "CHANNEX_MAPPING_REQUIRED") {
+      const blockedRoomTypes = this.extractBlockedRoomTypes(body.blockedRoomTypes);
+      if (blockedRoomTypes) {
+        meta.blockedRoomTypes = blockedRoomTypes;
+      }
     }
 
     return meta;
+  }
+
+  private extractBlockedRoomTypes(value: unknown): BlockedRoomTypeMeta[] | undefined {
+    if (!Array.isArray(value)) return undefined;
+
+    const MAX_ITEMS = 50;
+    const MAX_BLOCKERS = 10;
+    const result: BlockedRoomTypeMeta[] = [];
+
+    for (const item of value.slice(0, MAX_ITEMS)) {
+      if (!this.isRecord(item)) continue;
+      const roomType = this.fieldValueToString(item.roomType);
+      if (!roomType) continue;
+
+      const rawBlockers = Array.isArray(item.blockers) ? item.blockers : [];
+      const blockers: string[] = [];
+      for (const b of rawBlockers.slice(0, MAX_BLOCKERS)) {
+        const str = this.fieldValueToString(b);
+        if (
+          str &&
+          [
+            "PROPERTY_MAPPING_MISSING",
+            "ROOM_TYPE_MAPPING_MISSING",
+            "RATE_PLAN_MAPPING_MISSING",
+            "MAPPING_CONFLICT",
+          ].includes(str) &&
+          !blockers.includes(str)
+        ) {
+          blockers.push(str);
+        }
+      }
+
+      result.push({
+        roomType,
+        blockers,
+      });
+    }
+
+    return result.length > 0 ? result : undefined;
   }
 
   private guestRoomErrorMeta(value: unknown): GuestRoomErrorMeta | undefined {

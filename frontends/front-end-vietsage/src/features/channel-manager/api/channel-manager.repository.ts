@@ -2,8 +2,10 @@ import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import {
   mapChannelConnection,
   mapInventoryGrid,
+  mapSimulatedBookings,
   type BackendConnection,
   type BackendInventoryGrid,
+  type BackendSimulatedBooking,
 } from "./channel-manager.mapper";
 import type {
   AvailabilityUpdateItem,
@@ -542,10 +544,11 @@ export const channelManagerRepository = {
     hotelId: string,
     scope: ChannelManagerRoleScope = "owner",
   ): Promise<SimulatedBookingItem[]> {
-    const response = await requestInternalApiEnvelope<SimulatedBookingItem[]>(
-      `${basePath(hotelId, scope)}/channex/simulated-bookings`,
-      { method: "GET" },
-    );
-    return response.data;
+    const response = await requestInternalApiEnvelope<
+      BackendSimulatedBooking[]
+    >(`${basePath(hotelId, scope)}/channex/simulated-bookings`, {
+      method: "GET",
+    });
+    return mapSimulatedBookings(response.data);
   },
 };

@@ -16,6 +16,7 @@ describe("PropertyModule public boundary", () => {
       HotelAccessService,
       HotelStayOccupantsReadService,
       HotelFeatureEntitlementsService,
+      "RESERVATION_ROOM_ALLOCATION_SERVICE",
     ]);
     expect(moduleExports).not.toContain(HotelsRepository);
     expect(moduleExports).not.toContain(HotelCoreRepository);

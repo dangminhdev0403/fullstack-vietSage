@@ -17,6 +17,7 @@ import { ReservationsService } from "../application/reservations.service";
 import {
   assignReservationRoomBodySchema,
   checkInReservationBodySchema,
+  createBulkReservationsBodySchema,
   createReservationBodySchema,
   listArrivalsQuerySchema,
 } from "../domain/schemas/reservations.schema";
@@ -241,5 +242,70 @@ export class ReservationsController {
       reservationId,
       dto,
     );
+  }
+
+  @RequirePermission("hotel.reservations.manage")
+  @SuccessMessage("Tạo đặt phòng theo đoàn thành công")
+  @ApiDescript(
+    "Tạo danh sách đặt phòng theo đoàn (2–50 phòng) với 1 groupCode chung và các reservation riêng biệt",
+  )
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["leadGuestName", "checkInDate", "checkOutDate", "roomIds"],
+      properties: {
+        leadGuestName: { type: "string" },
+        leadGuestPhone: { type: "string" },
+        checkInDate: { type: "string", format: "date-time" },
+        checkOutDate: { type: "string", format: "date-time" },
+        roomIds: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 50 },
+        groupCode: { type: "string" },
+        idempotencyKey: { type: "string" },
+        rate: { type: "string", nullable: true },
+        nightlyRateSnapshot: { type: "string", nullable: true },
+      },
+    },
+  })
+  @ApiCreatedResponse({
+    description: "Đã tạo nhóm đặt phòng với groupCode và danh sách reservation",
+    schema: {
+      type: "object",
+      required: ["groupCode", "reservations"],
+      properties: {
+        groupCode: { type: "string" },
+        reservations: { type: "array", items: reservationResponseSchema },
+      },
+    },
+  })
+  @Post(":hotelId/reservations/bulk")
+  async createBulkReservations(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const dto = parseWithZod(createBulkReservationsBodySchema, body);
+    return this.reservationsService.createBulkReservations(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      dto,
+    );
+  }
+
+  @RequirePermission("hotel.reservations.manage")
+  @SuccessMessage("Tạo đặt phòng theo đoàn thành công")
+  @ApiDescript(
+    "Tạo danh sách đặt phòng theo đoàn (2–50 phòng) với 1 groupCode chung và các reservation riêng biệt",
+  )
+  @ApiParam({ name: "hotelId", type: String })
+  @Post(":hotelId/reservations/group")
+  async createGroupReservations(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+  ) {
+    return this.createBulkReservations(request, hotelIdParam, body);
   }
 }

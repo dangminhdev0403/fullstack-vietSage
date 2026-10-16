@@ -7,6 +7,7 @@ import {
   ChannexRestrictionValue,
 } from "./channex-api-client.service";
 import { channexMinorUnitScale, resolveChannexRateMultiplier } from "./channex-currency";
+import { ChannexMappingReadinessService } from "./channex-mapping-readiness.service";
 
 export interface AriPushResult {
   success: boolean;
@@ -30,12 +31,16 @@ export interface AriPushResult {
 @Injectable()
 export class ChannexAriSyncService {
   private readonly logger = new Logger(ChannexAriSyncService.name);
+  private readonly readinessService: ChannexMappingReadinessService;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly ariCoreService: AriCoreService,
     private readonly channexClient: ChannexApiClient,
-  ) {}
+    readinessService?: ChannexMappingReadinessService,
+  ) {
+    this.readinessService = readinessService ?? new ChannexMappingReadinessService(this.prisma);
+  }
 
   /**
    * Lấy ngày hôm nay theo múi giờ chuẩn Việt Nam (Asia/Ho_Chi_Minh) dạng YYYY-MM-DD
@@ -133,23 +138,22 @@ export class ChannexAriSyncService {
       );
     }
 
-    // 1. Kiểm tra mapping Property
-    const propertyMapping = await this.prisma.channexMapping.findUnique({
-      where: {
-        hotelId_kind_localId: {
-          hotelId,
-          kind: "property",
-          localId: hotelId,
-        },
-      },
+    // 1. Lấy ma trận dữ liệu Inventory Grid từ AriCoreService
+    const grid = await this.ariCoreService.getInventoryGrid(
+      hotelId,
+      effectiveStart,
+      effectiveEnd,
+      options.roomType,
+    );
+
+    const targetTypes = grid.roomTypes.map((rt) => rt.roomType);
+
+    // 2. Resolve mapping readiness for all targets before first provider post
+    const readiness = await this.readinessService.assertReady(hotelId, targetTypes, {
+      ratePlanCode: options.ratePlanCode,
     });
 
-    if (!propertyMapping) {
-      throw new BadRequestException(
-        "Khách sạn chưa được đồng bộ thông tin sang Channex. Hãy thực hiện Content Sync trước.",
-      );
-    }
-    const channexPropertyId = propertyMapping.channexId;
+    const channexPropertyId = readiness.propertyChannexId!;
     const remoteProperty = options.availabilityOnly
       ? null
       : await this.channexClient.getProperty(channexPropertyId, options.apiKey);
@@ -162,39 +166,6 @@ export class ChannexAriSyncService {
     const rateConversionMultiplier = options.availabilityOnly
       ? 1
       : resolveChannexRateMultiplier(this.channexClient.getBaseUrl(), targetCurrency);
-
-    // 2. Lấy toàn bộ room_type mappings và rate_plan mappings
-    const allMappings = await this.prisma.channexMapping.findMany({
-      where: { hotelId },
-    });
-
-    const roomTypeMappingMap = new Map<string, string>();
-    const ratePlanMappingMap = new Map<string, string>();
-
-    for (const m of allMappings) {
-      if (m.kind === "room_type") {
-        roomTypeMappingMap.set(m.localId, m.channexId);
-      } else if (m.kind === "rate_plan") {
-        ratePlanMappingMap.set(m.localId, m.channexId);
-      }
-    }
-
-    if (
-      roomTypeMappingMap.size === 0 ||
-      (!options.availabilityOnly && ratePlanMappingMap.size === 0)
-    ) {
-      throw new BadRequestException(
-        "Chưa có Room Type hoặc Rate Plan mapping cho Channex. Vui lòng chạy Content Sync trước.",
-      );
-    }
-
-    // 3. Lấy ma trận dữ liệu Inventory Grid từ AriCoreService
-    const grid = await this.ariCoreService.getInventoryGrid(
-      hotelId,
-      effectiveStart,
-      effectiveEnd,
-      options.roomType,
-    );
 
     const availabilityValues: ChannexAvailabilityValue[] = [];
     const restrictionValues: ChannexRestrictionValue[] = [];
@@ -212,24 +183,8 @@ export class ChannexAriSyncService {
         );
       }
       seenGridTypes.add(key);
-      const type = catalog.find((item) => item.normalizedKey === key);
-      if (type) {
-        const mappingIds = new Set(
-          Array.from(roomTypeMappingMap.entries())
-            .filter(
-              ([mappingKey]) =>
-                mappingKey === type.id ||
-                mappingKey.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase() === key,
-            )
-            .map(([, remoteId]) => remoteId),
-        );
-        if (mappingIds.size > 1) {
-          throw new BadRequestException(
-            `Mapping Channex hạng phòng "${rt.roomType}" bị xung đột. Đối soát trước khi đẩy ARI`,
-          );
-        }
-      }
       if (options.availabilityOnly) continue;
+      const type = catalog.find((item) => item.normalizedKey === key);
       if (
         !type ||
         type.basePrice === null ||
@@ -243,60 +198,14 @@ export class ChannexAriSyncService {
           `Hạng phòng "${rt.roomType}" chưa có giá gốc hợp lệ. Cập nhật danh mục loại phòng trước khi đẩy ARI`,
         );
       }
-      const legacyRates = Array.from(ratePlanMappingMap.entries()).filter(
-        ([key]) =>
-          key.endsWith(":STANDARD") &&
-          key.slice(0, -9).normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase() ===
-            type.normalizedKey,
-      );
-      const catalogRate = ratePlanMappingMap.get(`${type.id}:STANDARD`);
-      if (
-        legacyRates.length > 1 ||
-        (legacyRates.length && catalogRate && legacyRates[0][1] !== catalogRate)
-      ) {
-        throw new BadRequestException(
-          `Mapping gói giá Channex "${rt.roomType}" bị xung đột. Đối soát trước khi đẩy ARI`,
-        );
-      }
     }
 
-    // Resolve every mapping before sending availability; a later missing rate plan must not leave a partial push.
     const mappingsByType = new Map<string, { roomTypeId: string; ratePlanId?: string }>();
-    for (const rt of grid.roomTypes) {
-      const normalizedKey = rt.roomType.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
-      const catalogType = catalog.find((item) => item.normalizedKey === normalizedKey);
-      const legacyKey = Array.from(roomTypeMappingMap.keys()).find(
-        (key) => key.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase() === normalizedKey,
-      );
-      const mappingKey = legacyKey ?? catalogType?.id ?? rt.roomType;
-      const roomTypeId = roomTypeMappingMap.get(mappingKey);
-      if (!roomTypeId) {
-        throw new BadRequestException(
-          `Hạng phòng ${rt.roomType} chưa có mapping Channex. Đồng bộ nội dung trước`,
-        );
-      }
-      let ratePlanId: string | undefined;
-      if (!options.availabilityOnly) {
-        const code = options.ratePlanCode || "STANDARD";
-        ratePlanId =
-          ratePlanMappingMap.get(`${mappingKey}:${code}`) ||
-          ratePlanMappingMap.get(`${mappingKey}:STANDARD`) ||
-          ratePlanMappingMap.get(`${catalogType?.id}:STANDARD`) ||
-          ratePlanMappingMap.get(
-            Array.from(ratePlanMappingMap.keys()).find(
-              (key) =>
-                key.endsWith(":STANDARD") &&
-                key.slice(0, -9).normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase() ===
-                  normalizedKey,
-            ) ?? "",
-          );
-        if (!ratePlanId) {
-          throw new BadRequestException(
-            `Hạng phòng ${rt.roomType} chưa có mapping gói giá Channex. Đồng bộ nội dung trước`,
-          );
-        }
-      }
-      mappingsByType.set(rt.roomType, { roomTypeId, ratePlanId });
+    for (const item of readiness.roomTypes) {
+      mappingsByType.set(item.roomType, {
+        roomTypeId: item.channexRoomTypeId!,
+        ratePlanId: item.channexRatePlanId,
+      });
     }
 
     // 4. Xử lý từng hạng phòng: nén khoảng ngày liên tiếp (Run-length encoding)

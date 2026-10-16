@@ -71,9 +71,16 @@ A service that owns tables owns:
   links existing rooms, and rekeys local room/rate mappings without changing
   Channex IDs or dated overrides. Repeating the dry-run must report zero changes.
   Catalog creation rejects conflicting, missing, or mismatched legacy room prices;
-  resolve these explicitly before setting a publishable base price. Rate-writing
-  ARI validates every target rate-plan mapping before any availability/provider write.
-  Staging and production need separate migration, backup, and cutover approval.
+  resolve these explicitly before setting a publishable base price.
+- ARI validates every target rate-plan mapping before any PMS or provider write.
+  Inventory rows expose one readiness source, `channexMappingBlockers`, using
+  `PROPERTY_MAPPING_MISSING`, `ROOM_TYPE_MAPPING_MISSING`,
+  `RATE_PLAN_MAPPING_MISSING`, or `MAPPING_CONFLICT`. Any blocker rejects every
+  ARI mutation for that room type before the first PMS upsert. Mixed bulk requests
+  fail wholly with HTTP `409` / `CHANNEX_MAPPING_REQUIRED`; the bounded public
+  error metadata is `data.blockedRoomTypes`. ID-keyed mappings and compatible
+  normalized-name legacy mappings are resolved together; disagreement fails closed.
+- Staging and production need separate migration, backup, and cutover approval.
 - The backend is the only holder of `CHANNEX_API_KEY`; frontend and BFF payloads never accept provider credentials.
 - Content sync is idempotent through durable property, room-type, and rate-plan mappings. ARI sends availability and restrictions separately, filters past dates, compresses equal date ranges, and compares sampled live readback values.
 - Incoming bookings use apply-then-ack. New multi-room bookings create one reservation segment per provider room inside one transaction; duplicate provider booking IDs are idempotent. Cancellations update all non-checked-in segments. Modifications are recorded as `RECONCILIATION_REQUIRED` instead of blindly rewriting live stays.

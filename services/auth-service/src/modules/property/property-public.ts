@@ -9,4 +9,8 @@ export {
   type CitizenshipKind,
 } from "./application/hotel-stay-occupants-read.service";
 export { hotelIdParamSchema } from "./domain/schemas/shared.schema";
+export {
+  createBulkReservationsBodySchema,
+  type CreateBulkReservationsBodyInput,
+} from "./domain/schemas/reservations.schema";
 export { HotelFeatureEntitlementsService } from "./application/hotel-feature-entitlements.service";

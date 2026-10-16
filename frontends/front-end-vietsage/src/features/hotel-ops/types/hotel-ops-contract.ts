@@ -118,6 +118,7 @@ export type HotelRoomType = {
 export type HotelReservationSummary = {
   id: string;
   sourceType: "RESERVATION" | "STAY";
+  groupCode?: string | null;
   hotelId?: string;
   roomId?: string | null;
   roomTypeSnapshot?: string | null;
@@ -192,6 +193,26 @@ export type HotelReservationCheckInResult = {
   roomQrCode: HotelRoomSummary["qr"];
 };
 
+export type BulkReservationInput = {
+  leadGuestName: string;
+  checkInDate: string;
+  checkOutDate: string;
+  roomIds: string[];
+};
+
+export type BulkReservationResult = {
+  groupCode: string;
+  reservations: HotelArrival[];
+};
+
+export type BulkReservationConflictData = {
+  code?: string;
+  detail?: string;
+  unavailableRoomIds?: string[];
+  conflictRoomIds?: string[];
+  [key: string]: unknown;
+};
+
 export type HotelDashboard = {
   hotelId: string;
   generatedAt: string;
@@ -199,7 +220,12 @@ export type HotelDashboard = {
     total: number;
     occupied: number;
     occupancyRate: number;
-    byStatus: { available: number; occupied: number; processing: number; maintenance: number };
+    byStatus: {
+      available: number;
+      occupied: number;
+      processing: number;
+      maintenance: number;
+    };
   };
   guests?: {
     inHouse: number;
@@ -216,7 +242,12 @@ export type HotelDashboard = {
   requests: {
     unprocessed: number;
     urgentUnprocessed: number;
-    byStatus: { sent: number; processing: number; completed: number; cancelled: number };
+    byStatus: {
+      sent: number;
+      processing: number;
+      completed: number;
+      cancelled: number;
+    };
     topServices: Array<{ serviceName: string; count: number }>;
   };
   revenue: {
@@ -231,7 +262,12 @@ export type HotelDashboard = {
     score: number;
     status: "excellent" | "good" | "warning" | "critical";
     title: string;
-    factors: Array<{ type: string; label: string; impact: string; message: string }>;
+    factors: Array<{
+      type: string;
+      label: string;
+      impact: string;
+      message: string;
+    }>;
   };
   attention: Array<{
     id: string;
@@ -273,6 +309,7 @@ export type HotelArrival = {
   roomId: string | null;
   room?: Pick<HotelRoomSummary, "id" | "roomNumber"> | null;
   reservationCode: string;
+  groupCode?: string | null;
   guestDisplayName: string;
   guestPhone: string | null;
   status: "CONFIRMED" | "ARRIVAL_READY" | "CHECKED_IN";
@@ -319,7 +356,11 @@ export type HotelGuestRequest = {
   details: string | null;
   metadata: Record<string, unknown> | null;
   assignedToUserId: string | null;
-  assignedToUser?: { id?: string; name?: string | null; email?: string | null } | null;
+  assignedToUser?: {
+    id?: string;
+    name?: string | null;
+    email?: string | null;
+  } | null;
   events?: HotelRequestEvent[];
   createdAt: string;
   updatedAt: string;
@@ -394,9 +435,9 @@ export type ListHotelRoomsQuery = {
 export type CreateHotelRoomInput = {
   roomNumber: string;
   floor?: string;
-    type?: string;
-    roomTypeId?: string;
-    newRoomType?: { name: string; basePrice: number };
+  type?: string;
+  roomTypeId?: string;
+  newRoomType?: { name: string; basePrice: number };
   price?: number;
   maxActiveGuestDevices?: number;
 };
@@ -433,7 +474,12 @@ export type CreateHotelStayInput = {
   }>;
 };
 
-export type ServiceCatalogTranslationsInput = Partial<Record<"en" | "zh" | "ko" | "ru" | "hi", { name: string; description?: string | null }>>;
+export type ServiceCatalogTranslationsInput = Partial<
+  Record<
+    "en" | "zh" | "ko" | "ru" | "hi",
+    { name: string; description?: string | null }
+  >
+>;
 
 export type CreateServiceCategoryInput = {
   name: string;
@@ -503,7 +549,10 @@ export type CreateHotelRequestEventInput = {
   metadata?: Record<string, unknown>;
 };
 
-export const hotelServiceStatuses: HotelServiceStatus[] = ["ACTIVE", "DISABLED"];
+export const hotelServiceStatuses: HotelServiceStatus[] = [
+  "ACTIVE",
+  "DISABLED",
+];
 
 export const hotelRequestTypes: GuestRequestType[] = [
   "HOUSEKEEPING",
@@ -525,9 +574,15 @@ export const hotelRequestStatuses: GuestRequestStatus[] = [
   "REJECTED",
 ];
 
-export const hotelRequestPriorities: StaffRequestPriority[] = ["NORMAL", "URGENT"];
+export const hotelRequestPriorities: StaffRequestPriority[] = [
+  "NORMAL",
+  "URGENT",
+];
 
-export const validNextRequestStatuses: Record<GuestRequestStatus, GuestRequestStatus[]> = {
+export const validNextRequestStatuses: Record<
+  GuestRequestStatus,
+  GuestRequestStatus[]
+> = {
   PENDING: ["ACKNOWLEDGED", "CANCELLED", "REJECTED"],
   ACKNOWLEDGED: ["COMPLETED", "CANCELLED", "REJECTED"],
   COMPLETED: [],

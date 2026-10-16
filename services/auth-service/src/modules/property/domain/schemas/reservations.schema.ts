@@ -80,7 +80,70 @@ export const checkInReservationBodySchema = z
   })
   .strict();
 
+export const createBulkReservationsBodySchema = z
+  .object({
+    leadGuestName: z
+      .string()
+      .trim()
+      .min(2, "Tên khách đại diện tối thiểu 2 ký tự")
+      .max(120, "Tên khách đại diện tối đa 120 ký tự")
+      .optional(),
+    guestDisplayName: z.string().trim().min(2).max(120).optional(),
+    leadGuestPhone: z.string().trim().max(40).optional(),
+    guestPhone: z.string().trim().max(40).optional(),
+    checkInDate: z.coerce.date().optional(),
+    checkOutDate: z.coerce.date().optional(),
+    plannedCheckInAt: z.coerce.date().optional(),
+    plannedCheckOutAt: z.coerce.date().optional(),
+    roomIds: z
+      .array(z.string().trim().min(1, "roomId không được để trống"))
+      .min(2, "Số lượng phòng đặt theo đoàn tối thiểu là 2")
+      .max(50, "Số lượng phòng đặt theo đoàn tối đa là 50")
+      .refine((arr) => new Set(arr).size === arr.length, {
+        message: "Danh sách roomIds không được chứa phòng trùng lặp",
+      }),
+    groupCode: z.string().trim().max(80).optional(),
+    idempotencyKey: z.string().trim().max(120).optional(),
+    rate: nightlyRateSnapshotSchema,
+    nightlyRateSnapshot: nightlyRateSnapshotSchema,
+  })
+  .strict()
+  .refine(
+    (data) =>
+      Boolean(
+        (data.leadGuestName && data.leadGuestName.length >= 2) ||
+        (data.guestDisplayName && data.guestDisplayName.length >= 2),
+      ),
+    {
+      message: "leadGuestName hoặc guestDisplayName là bắt buộc và tối thiểu 2 ký tự",
+      path: ["leadGuestName"],
+    },
+  )
+  .refine((data) => Boolean(data.checkInDate || data.plannedCheckInAt), {
+    message: "checkInDate hoặc plannedCheckInAt là bắt buộc",
+    path: ["checkInDate"],
+  })
+  .refine((data) => Boolean(data.checkOutDate || data.plannedCheckOutAt), {
+    message: "checkOutDate hoặc plannedCheckOutAt là bắt buộc",
+    path: ["checkOutDate"],
+  })
+  .refine(
+    (data) => {
+      const checkIn = data.checkInDate ?? data.plannedCheckInAt;
+      const checkOut = data.checkOutDate ?? data.plannedCheckOutAt;
+      if (!checkIn || !checkOut) return false;
+      return checkOut.getTime() > checkIn.getTime();
+    },
+    {
+      message: "Ngày trả phòng phải sau ngày nhận phòng",
+      path: ["checkOutDate"],
+    },
+  );
+
 export type CreateReservationBodyInput = z.infer<typeof createReservationBodySchema>;
 export type ListArrivalsQueryInput = z.infer<typeof listArrivalsQuerySchema>;
 export type AssignReservationRoomBodyInput = z.infer<typeof assignReservationRoomBodySchema>;
 export type CheckInReservationBodyInput = z.infer<typeof checkInReservationBodySchema>;
+export type CreateBulkReservationsBodyInput = z.infer<typeof createBulkReservationsBodySchema>;
+export const createGroupReservationsBodySchema = createBulkReservationsBodySchema;
+export type CreateGroupReservationsBodyInput = CreateBulkReservationsBodyInput;

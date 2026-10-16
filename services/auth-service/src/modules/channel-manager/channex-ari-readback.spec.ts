@@ -21,6 +21,19 @@ describe("ChannexAriSyncService - ARI Readback Verification & Honest Status (Foc
   const roomTypeId = "rt_deluxe_chx";
   const ratePlanId = "rp_deluxe_chx";
 
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+
+  const addDays = (baseIso: string, days: number): string => {
+    const d = new Date(`${baseIso}T00:00:00.000Z`);
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().split("T")[0];
+  };
+
   beforeEach(() => {
     mockPrisma = {
       hotel: {
@@ -92,18 +105,20 @@ describe("ChannexAriSyncService - ARI Readback Verification & Honest Status (Foc
 
   // TDD 1: Regression test for multi-day readback verification (entire effective range)
   it("fails verification and returns success:false when provider readback is missing subsequent days in range", async () => {
-    // 3 days range: 2026-10-15 to 2026-10-17
+    const d0 = today;
+    const d1 = addDays(today, 1);
+    const d2 = addDays(today, 2);
     mockApiClient.getAvailability.mockResolvedValue({
       data: {
         [roomTypeId]: {
-          "2026-10-15": 2, // Only day 1 present; day 2 and day 3 missing!
+          [d0]: 2, // Only day 1 present; day 2 and day 3 missing!
         },
       },
     });
     mockApiClient.getRestrictions.mockResolvedValue({
       data: {
         [ratePlanId]: {
-          "2026-10-15": {
+          [d0]: {
             rate: "1500000.00",
             min_stay_arrival: 1,
             stop_sell: false,
@@ -116,8 +131,8 @@ describe("ChannexAriSyncService - ARI Readback Verification & Honest Status (Foc
     });
 
     const result = await ariSyncService.pushAri(hotelId, {
-      startDate: "2026-10-15",
-      endDate: "2026-10-17",
+      startDate: d0,
+      endDate: d2,
     });
 
     expect(result.success).toBe(false);
@@ -140,7 +155,7 @@ describe("ChannexAriSyncService - ARI Readback Verification & Honest Status (Foc
     mockPrisma.channelDailyRestriction.findMany.mockResolvedValue([
       {
         roomType: "DELUXE",
-        date: new Date("2026-10-15T00:00:00.000Z"),
+        date: new Date(`${today}T00:00:00.000Z`),
         ratePlanCode: "STANDARD",
         rate: 1500000,
         minStayArrival: 1,
@@ -153,13 +168,13 @@ describe("ChannexAriSyncService - ARI Readback Verification & Honest Status (Foc
     ]);
 
     mockApiClient.getAvailability.mockResolvedValue({
-      data: { [roomTypeId]: { "2026-10-15": 2 } },
+      data: { [roomTypeId]: { [today]: 2 } },
     });
     // Provider returns closed_to_arrival: false (mismatch!)
     mockApiClient.getRestrictions.mockResolvedValue({
       data: {
         [ratePlanId]: {
-          "2026-10-15": {
+          [today]: {
             rate: "1500000.00",
             min_stay_arrival: 1,
             stop_sell: false,
@@ -171,8 +186,8 @@ describe("ChannexAriSyncService - ARI Readback Verification & Honest Status (Foc
     });
 
     const result = await ariSyncService.pushAri(hotelId, {
-      startDate: "2026-10-15",
-      endDate: "2026-10-15",
+      startDate: today,
+      endDate: today,
     });
 
     expect(result.success).toBe(false);
@@ -193,8 +208,8 @@ describe("ChannexAriSyncService - ARI Readback Verification & Honest Status (Foc
     mockApiClient.getRestrictions.mockResolvedValue({ data: {} });
 
     const result = await ariSyncService.pushAri(hotelId, {
-      startDate: "2026-10-15",
-      endDate: "2026-10-15",
+      startDate: today,
+      endDate: today,
     });
 
     expect(result.success).toBe(false);
@@ -216,8 +231,8 @@ describe("ChannexAriSyncService - ARI Readback Verification & Honest Status (Foc
     );
 
     const result = await ariSyncService.pushAri(hotelId, {
-      startDate: "2026-10-15",
-      endDate: "2026-10-15",
+      startDate: today,
+      endDate: today,
     });
 
     expect(result.success).toBe(false);
@@ -240,8 +255,8 @@ describe("ChannexAriSyncService - ARI Readback Verification & Honest Status (Foc
     );
 
     const result = await ariSyncService.pushAri(hotelId, {
-      startDate: "2026-10-15",
-      endDate: "2026-10-15",
+      startDate: today,
+      endDate: today,
     });
 
     expect(result.success).toBe(false);
@@ -261,20 +276,23 @@ describe("ChannexAriSyncService - ARI Readback Verification & Honest Status (Foc
   it("rejects date range exceeding explicit limit of 365 days with BadRequestException", async () => {
     await expect(
       ariSyncService.pushAri(hotelId, {
-        startDate: "2026-10-01",
-        endDate: "2027-10-10", // 375 days
+        startDate: today,
+        endDate: addDays(today, 370), // 371 days
       }),
     ).rejects.toThrow(BadRequestException);
   });
 
   // TDD 7: Successful multi-day availability-only push and readback across all days
   it("verifies multi-day availability-only push across entire range and triggers OTA full_sync on match", async () => {
+    const d0 = today;
+    const d1 = addDays(today, 1);
+    const d2 = addDays(today, 2);
     mockApiClient.getAvailability.mockResolvedValue({
       data: {
         [roomTypeId]: {
-          "2026-10-15": 2,
-          "2026-10-16": 2,
-          "2026-10-17": 2,
+          [d0]: 2,
+          [d1]: 2,
+          [d2]: 2,
         },
       },
     });
@@ -283,8 +301,8 @@ describe("ChannexAriSyncService - ARI Readback Verification & Honest Status (Foc
     });
 
     const result = await ariSyncService.pushAri(hotelId, {
-      startDate: "2026-10-15",
-      endDate: "2026-10-17",
+      startDate: d0,
+      endDate: d2,
       availabilityOnly: true,
     });
 
@@ -305,7 +323,11 @@ describe("ChannexAriSyncService - ARI Readback Verification & Honest Status (Foc
 
   // TDD 8: Paged bounded GET requests for 45-day range
   it("pages bounded provider GET requests in chunks of at most 30 days without unbounded memory expansion", async () => {
-    // 45 future days: 2026-10-15 to 2026-11-28
+    const startDate = today;
+    const endDate = addDays(today, 44); // 45 future days
+    const page1End = addDays(today, 29); // 30 days
+    const page2Start = addDays(today, 30); // 15 days
+
     mockApiClient.getAvailability.mockImplementation((propId: string, from: string, to: string) => {
       const data: Record<string, Record<string, number>> = { [roomTypeId]: {} };
       const cur = new Date(`${from}T00:00:00.000Z`);
@@ -318,29 +340,27 @@ describe("ChannexAriSyncService - ARI Readback Verification & Honest Status (Foc
     });
 
     const result = await ariSyncService.pushAri(hotelId, {
-      startDate: "2026-10-15",
-      endDate: "2026-11-28",
+      startDate,
+      endDate,
       availabilityOnly: true,
     });
 
     expect(result.success).toBe(true);
     expect(result.readbackVerified.availabilityMatch).toBe(true);
 
-    // Page 1: 2026-10-15 to 2026-11-13 (30 days)
-    // Page 2: 2026-11-14 to 2026-11-28 (15 days)
     expect(mockApiClient.getAvailability).toHaveBeenCalledTimes(2);
     expect(mockApiClient.getAvailability).toHaveBeenNthCalledWith(
       1,
       propertyId,
-      "2026-10-15",
-      "2026-11-13",
+      startDate,
+      page1End,
       undefined,
     );
     expect(mockApiClient.getAvailability).toHaveBeenNthCalledWith(
       2,
       propertyId,
-      "2026-11-14",
-      "2026-11-28",
+      page2Start,
+      endDate,
       undefined,
     );
   });

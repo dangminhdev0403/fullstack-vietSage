@@ -1133,6 +1133,7 @@ model Reservation {
   roomId            String?
   roomTypeSnapshot  String?           @db.VarChar(80)
   reservationCode   String            @db.VarChar(80)
+  groupCode         String?           @db.VarChar(80)
   guestDisplayName  String            @db.VarChar(120)
   guestPhone        String?           @db.VarChar(40)
   status            ReservationStatus @default(CONFIRMED)
@@ -1153,6 +1154,7 @@ model Reservation {
   @@unique([hotelId, reservationCode])
   @@index([hotelId, status, plannedCheckInAt])
   @@index([roomId, status, plannedCheckInAt, plannedCheckOutAt])
+  @@index([hotelId, groupCode])
 }
 
 model GuestStay {

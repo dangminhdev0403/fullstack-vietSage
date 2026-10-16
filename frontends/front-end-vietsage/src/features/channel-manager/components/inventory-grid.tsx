@@ -10,7 +10,9 @@ import {
 } from "../hooks/use-channel-manager";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import type { DayInventory } from "../types/channel-manager.types";
+import { formatChannexBlockersExplanation } from "../types/channel-manager.types";
 import { BulkUpdateModal } from "./bulk-update-modal";
+import { RoomTypeRoomsModal } from "./room-type-rooms-modal";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 
 interface InventoryGridProps {
@@ -129,13 +131,19 @@ export function InventoryGrid({
 
   // Bulk update modal state
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [inspectingRoomType, setInspectingRoomType] = useState<{
+    roomTypeId: string;
+    roomTypeName: string;
+    roomTypeCode: string;
+    totalRooms: number;
+    basePrice?: number | null;
+    selectedDate: string;
+  } | null>(null);
 
   // Expanded room types
   const [collapsedRoomTypes, setCollapsedRoomTypes] = useState<Set<string>>(
     new Set(),
   );
-
-
 
   useEffect(() => {
     if (editingCellKey && inputRef.current) {
@@ -177,7 +185,9 @@ export function InventoryGrid({
     field: "rate" | "available",
     initialVal: number | null,
   ) => {
-    if (!canManage) return;
+    const roomType = roomTypes.find((item) => item.roomTypeId === rtId);
+    if (!canManage || (roomType?.channexMappingBlockers?.length ?? 0) > 0)
+      return;
     if (date < todayStr) {
       toast.error("Không thể chỉnh sửa dữ liệu của những ngày đã qua.", {
         id: "past-date-blocked",
@@ -188,7 +198,9 @@ export function InventoryGrid({
     const key = `${rtId}_${date}_${field}`;
     setEditingCellKey(key);
     if (field === "rate") {
-      setEditingValue(initialVal === null ? "" : formatNumberWithDots(initialVal));
+      setEditingValue(
+        initialVal === null ? "" : formatNumberWithDots(initialVal),
+      );
     } else {
       setEditingValue(initialVal === null ? "" : String(initialVal));
     }
@@ -201,7 +213,13 @@ export function InventoryGrid({
     field: "rate" | "available",
     currentVal: number | null,
   ) => {
-    if (!canManage || !editingCellKey) return;
+    const roomType = roomTypes.find((item) => item.roomTypeId === rtId);
+    if (
+      !canManage ||
+      !editingCellKey ||
+      (roomType?.channexMappingBlockers?.length ?? 0) > 0
+    )
+      return;
     if (date < todayStr) {
       setEditingCellKey(null);
       return;
@@ -228,7 +246,6 @@ export function InventoryGrid({
       return;
     }
 
-    const roomType = roomTypes.find((item) => item.roomTypeId === rtId);
     const day = roomType?.days.find((item) => item.date === date);
     if (!roomType || !day) {
       setEditingCellKey(null);
@@ -286,15 +303,14 @@ export function InventoryGrid({
   // Toggle Stop Sell (auto-save directly)
   const toggleStopSell = async (rtId: string, day: DayInventory) => {
     if (!canManage || isSavingChanges || isFetching) return;
+    const roomType = roomTypes.find((item) => item.roomTypeId === rtId);
+    if (!roomType || (roomType.channexMappingBlockers?.length ?? 0) > 0) return;
     if (day.date < todayStr) {
       toast.error("Không thể thay đổi trạng thái bán của những ngày đã qua.", {
         id: "past-date-blocked",
       });
       return;
     }
-
-    const roomType = roomTypes.find((item) => item.roomTypeId === rtId);
-    if (!roomType) return;
 
     const cellKey = `${rtId}_${day.date}_stopsell`;
     setSavingCellKey(cellKey);
@@ -329,7 +345,8 @@ export function InventoryGrid({
       );
       await refetch();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Không thể cập nhật đóng/mở bán";
+      const msg =
+        err instanceof Error ? err.message : "Không thể cập nhật đóng/mở bán";
       toast.error(msg, { id: `stopsell-err-${rtId}-${day.date}` });
     } finally {
       setSavingCellKey(null);
@@ -344,7 +361,7 @@ export function InventoryGrid({
     if (!canManage || isSavingChanges || isFetching) return;
 
     const roomType = roomTypes.find((item) => item.roomTypeId === rtId);
-    if (!roomType) return;
+    if (!roomType || (roomType.channexMappingBlockers?.length ?? 0) > 0) return;
 
     // Filter only visible future/today dates
     const eligibleDays = roomType.days.filter((d) => d.date >= todayStr);
@@ -404,7 +421,8 @@ export function InventoryGrid({
       );
       await refetch();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Không thể cập nhật nhanh";
+      const msg =
+        err instanceof Error ? err.message : "Không thể cập nhật nhanh";
       toast.error(msg, { id: `quick-err-${rtId}` });
     } finally {
       setSavingCellKey(null);
@@ -445,7 +463,14 @@ export function InventoryGrid({
               ) : null}
             </div>
             <p className="mt-0.5 text-sm text-slate-500">
-              Khoảng thời gian: <strong className="font-semibold text-slate-800">{startDate.split("-").reverse().join("/")}</strong> đến <strong className="font-semibold text-slate-800">{endDate.split("-").reverse().join("/")}</strong>
+              Khoảng thời gian:{" "}
+              <strong className="font-semibold text-slate-800">
+                {startDate.split("-").reverse().join("/")}
+              </strong>{" "}
+              đến{" "}
+              <strong className="font-semibold text-slate-800">
+                {endDate.split("-").reverse().join("/")}
+              </strong>
             </p>
           </div>
 
@@ -453,7 +478,15 @@ export function InventoryGrid({
             <button
               type="button"
               onClick={() => setIsBulkModalOpen(true)}
-              disabled={isSavingChanges || isLoading || isError || roomTypes.length === 0}
+              disabled={
+                isSavingChanges ||
+                isLoading ||
+                isError ||
+                roomTypes.length === 0 ||
+                !roomTypes.some(
+                  (rt) => (rt.channexMappingBlockers?.length ?? 0) === 0,
+                )
+              }
               className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-emerald-800 px-4 text-sm font-bold text-white hover:bg-emerald-900 transition shadow-xs cursor-pointer disabled:opacity-50"
             >
               <VsIcon name="tune" className="text-base" />
@@ -472,7 +505,7 @@ export function InventoryGrid({
                 onClick={handlePrevWeek}
                 aria-label="7 ngày trước"
                 title="7 ngày trước"
-                disabled={isSavingChanges}
+                disabled={isSavingChanges || isLoading}
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-white hover:text-slate-900 transition cursor-pointer disabled:opacity-50"
               >
                 <VsIcon name="chevron_left" className="text-lg" />
@@ -480,7 +513,7 @@ export function InventoryGrid({
               <button
                 type="button"
                 onClick={handleGoToday}
-                disabled={isSavingChanges}
+                disabled={isSavingChanges || isLoading}
                 className="h-9 px-3 text-xs font-bold text-slate-700 hover:bg-white hover:text-slate-900 rounded-lg transition cursor-pointer disabled:opacity-50"
               >
                 Hôm nay
@@ -490,7 +523,7 @@ export function InventoryGrid({
                 onClick={handleNextWeek}
                 aria-label="7 ngày tới"
                 title="7 ngày tới"
-                disabled={isSavingChanges}
+                disabled={isSavingChanges || isLoading}
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-white hover:text-slate-900 transition cursor-pointer disabled:opacity-50"
               >
                 <VsIcon name="chevron_right" className="text-lg" />
@@ -499,11 +532,13 @@ export function InventoryGrid({
 
             {/* Custom Date Input */}
             <div className="flex items-center gap-1.5 pl-1">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Từ:</span>
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Từ:
+              </span>
               <input
                 type="date"
                 value={startDate}
-                disabled={isSavingChanges}
+                disabled={isSavingChanges || isLoading}
                 onChange={(event) => {
                   if (event.target.value) setStartDate(event.target.value);
                 }}
@@ -514,13 +549,17 @@ export function InventoryGrid({
 
           <div className="flex items-center gap-2">
             {/* 7 / 14 Days Toggle */}
-            <div role="group" aria-label="Số ngày hiển thị" className="inline-flex rounded-xl border border-slate-200 bg-slate-50/80 p-0.5 shadow-2xs">
+            <div
+              role="group"
+              aria-label="Số ngày hiển thị"
+              className="inline-flex rounded-xl border border-slate-200 bg-slate-50/80 p-0.5 shadow-2xs"
+            >
               {([7, 14] as const).map((dayCount) => (
                 <button
                   key={dayCount}
                   type="button"
                   aria-pressed={visibleDays === dayCount}
-                  disabled={isSavingChanges}
+                  disabled={isSavingChanges || isLoading}
                   onClick={() => setVisibleDays(dayCount)}
                   className={`h-9 px-3.5 text-xs font-bold rounded-lg transition cursor-pointer ${
                     visibleDays === dayCount
@@ -537,7 +576,7 @@ export function InventoryGrid({
             <button
               type="button"
               onClick={() => void refetch()}
-              disabled={isFetching || isSavingChanges}
+              disabled={isFetching || isSavingChanges || isLoading}
               className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs cursor-pointer disabled:opacity-50"
             >
               <VsIcon
@@ -555,8 +594,12 @@ export function InventoryGrid({
         <div className="flex flex-wrap items-center gap-3">
           {canManage ? (
             <>
-              <span className="font-semibold text-slate-700">💡 Thao tác nhanh:</span>
-              <span>Nhấp trực tiếp vào ô số phòng hoặc giá để sửa (tự động lưu).</span>
+              <span className="font-semibold text-slate-700">
+                💡 Thao tác nhanh:
+              </span>
+              <span>
+                Nhấp trực tiếp vào ô số phòng hoặc giá để sửa (tự động lưu).
+              </span>
               <span className="hidden sm:inline text-slate-300">•</span>
             </>
           ) : (
@@ -581,20 +624,35 @@ export function InventoryGrid({
             </span>
           </div>
         </div>
-        <p className="sm:hidden text-slate-400">Vuốt ngang bảng để xem các ngày tiếp theo.</p>
+        <p className="sm:hidden text-slate-400">
+          Vuốt ngang bảng để xem các ngày tiếp theo.
+        </p>
       </div>
 
       {/* Grid Table Container */}
       <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
         {isLoading ? (
-          <div role="status" className="flex min-h-80 items-center justify-center p-6 text-sm font-semibold text-slate-600">
-            <VsIcon name="refresh" className="mr-2 animate-spin text-emerald-700 text-lg" />
+          <div
+            role="status"
+            className="flex min-h-80 items-center justify-center p-6 text-sm font-semibold text-slate-600"
+          >
+            <VsIcon
+              name="refresh"
+              className="mr-2 animate-spin text-emerald-700 text-lg"
+            />
             Đang tải phòng và giá {visibleDays} ngày…
           </div>
         ) : isError ? (
-          <div role="alert" className="space-y-3 bg-rose-50 p-6 text-center sm:p-12">
-            <h3 className="text-lg font-bold text-rose-900">Không thể tải phòng và giá</h3>
-            <p className="text-sm text-rose-800">Vui lòng kiểm tra kết nối mạng và thử lại.</p>
+          <div
+            role="alert"
+            className="space-y-3 bg-rose-50 p-6 text-center sm:p-12"
+          >
+            <h3 className="text-lg font-bold text-rose-900">
+              Không thể tải phòng và giá
+            </h3>
+            <p className="text-sm text-rose-800">
+              Vui lòng kiểm tra kết nối mạng và thử lại.
+            </p>
             <button
               type="button"
               onClick={() => void refetch()}
@@ -606,8 +664,12 @@ export function InventoryGrid({
           </div>
         ) : roomTypes.length === 0 ? (
           <div className="space-y-2 p-6 text-center sm:p-12">
-            <h3 className="text-lg font-bold text-slate-900">Chưa có hạng phòng nào</h3>
-            <p className="text-sm text-slate-500">Thêm hạng phòng tại mục Quản lý phòng để bắt đầu vận hành.</p>
+            <h3 className="text-lg font-bold text-slate-900">
+              Chưa có hạng phòng nào
+            </h3>
+            <p className="text-sm text-slate-500">
+              Thêm hạng phòng tại mục Quản lý phòng để bắt đầu vận hành.
+            </p>
           </div>
         ) : (
           <div
@@ -618,7 +680,8 @@ export function InventoryGrid({
           >
             <table className="w-full border-collapse text-left text-sm tabular-nums">
               <caption className="sr-only">
-                Lịch phòng trống, giá mỗi đêm và trạng thái bán trong {visibleDays} ngày.
+                Lịch phòng trống, giá mỗi đêm và trạng thái bán trong{" "}
+                {visibleDays} ngày.
               </caption>
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-700">
@@ -654,22 +717,28 @@ export function InventoryGrid({
                             Đã qua
                           </span>
                         ) : (
-                          <span className={`text-xs uppercase tracking-wider ${
-                            day.isWeekend ? "font-bold text-amber-900" : "font-semibold text-slate-600"
-                          }`}>
+                          <span
+                            className={`text-xs uppercase tracking-wider ${
+                              day.isWeekend
+                                ? "font-bold text-amber-900"
+                                : "font-semibold text-slate-600"
+                            }`}
+                          >
                             {day.dow}
                           </span>
                         )}
                       </div>
-                      <div className={`mt-0.5 text-sm ${
-                        day.isToday
-                          ? "font-black text-emerald-950"
-                          : day.isPast
-                            ? "font-bold text-slate-400 line-through decoration-slate-300"
-                            : day.isWeekend
-                              ? "font-extrabold text-amber-950"
-                              : "font-black text-slate-900"
-                      }`}>
+                      <div
+                        className={`mt-0.5 text-sm ${
+                          day.isToday
+                            ? "font-black text-emerald-950"
+                            : day.isPast
+                              ? "font-bold text-slate-400 line-through decoration-slate-300"
+                              : day.isWeekend
+                                ? "font-extrabold text-amber-950"
+                                : "font-black text-slate-900"
+                        }`}
+                      >
                         {day.dayNum}
                       </div>
                     </th>
@@ -678,18 +747,31 @@ export function InventoryGrid({
               </thead>
               {roomTypes.map((rt) => {
                 const isCollapsed = collapsedRoomTypes.has(rt.roomTypeId);
+                const blockers = rt.channexMappingBlockers ?? [];
+                const isBlocked = blockers.length > 0;
+                const blockerExplanation =
+                  formatChannexBlockersExplanation(blockers);
 
                 return (
                   <tbody key={rt.roomTypeId}>
                     {/* Room Type Group Header Banner */}
                     <tr className="border-y border-slate-300 bg-slate-100 hover:bg-slate-200/70 transition-colors">
-                      <th scope="rowgroup" colSpan={visibleDays + 1} className="p-0 text-left">
+                      <th
+                        scope="rowgroup"
+                        colSpan={visibleDays + 1}
+                        className="p-0 text-left"
+                      >
                         <div className="sticky left-0 flex w-fit max-w-[calc(100vw-4rem)] flex-wrap items-center gap-x-3 gap-y-1 px-3.5 py-2 sm:max-w-none">
                           <button
                             type="button"
-                            onClick={() => toggleRoomTypeCollapse(rt.roomTypeId)}
+                            onClick={() =>
+                              toggleRoomTypeCollapse(rt.roomTypeId)
+                            }
                             aria-expanded={!isCollapsed}
-                            aria-label={(isCollapsed ? "Hiện chi tiết " : "Thu gọn ") + rt.roomTypeName}
+                            aria-label={
+                              (isCollapsed ? "Hiện chi tiết " : "Thu gọn ") +
+                              rt.roomTypeName
+                            }
                             className="flex min-h-9 items-center gap-1.5 rounded-lg text-left text-sm font-extrabold text-slate-950 hover:text-emerald-800 transition cursor-pointer"
                           >
                             <VsIcon
@@ -701,12 +783,51 @@ export function InventoryGrid({
                           <span className="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs font-bold text-slate-800 shadow-2xs">
                             {rt.totalRooms} phòng
                           </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setInspectingRoomType({
+                                roomTypeId: rt.roomTypeId,
+                                roomTypeName: rt.roomTypeName,
+                                roomTypeCode: rt.roomTypeCode,
+                                totalRooms: rt.totalRooms,
+                                basePrice: rt.basePrice,
+                                selectedDate: startDate,
+                              })
+                            }
+                            aria-label={`Xem phòng vật lý ${rt.roomTypeName}`}
+                            className="inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-700 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 transition cursor-pointer"
+                          >
+                            <VsIcon name="meeting_room" className="text-xs" />
+                            <span>Chi tiết phòng</span>
+                          </button>
                           <span className="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs font-semibold text-slate-700 shadow-2xs">
-                            Giá gốc: {rt.basePrice === null ? "Chưa có" : formatCurrencyFull(rt.basePrice)}
+                            Giá gốc:{" "}
+                            {rt.basePrice === null
+                              ? "Chưa có"
+                              : formatCurrencyFull(rt.basePrice)}
                           </span>
                           {rt.roomTypeCode !== rt.roomTypeName && (
                             <span className="font-mono text-xs font-bold text-slate-500">
                               #{rt.roomTypeCode}
+                            </span>
+                          )}
+
+                          {isBlocked && (
+                            <span
+                              role="status"
+                              aria-label={`Chưa liên kết OTA: ${blockerExplanation}`}
+                              title={`Chưa liên kết OTA: ${blockerExplanation}`}
+                              className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-900 shadow-2xs"
+                            >
+                              <VsIcon
+                                name="link_off"
+                                className="text-xs text-amber-700"
+                              />
+                              <span>Chưa liên kết OTA</span>
+                              <span className="font-medium text-amber-800">
+                                ({blockerExplanation})
+                              </span>
                             </span>
                           )}
 
@@ -715,29 +836,78 @@ export function InventoryGrid({
                             <div className="inline-flex items-center gap-1.5 pl-2 sm:ml-2">
                               <button
                                 type="button"
-                                disabled={isSavingChanges || isFetching}
+                                disabled={
+                                  isBlocked || isSavingChanges || isFetching
+                                }
+                                aria-disabled={
+                                  isBlocked || isSavingChanges || isFetching
+                                }
+                                tabIndex={isBlocked ? -1 : 0}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  void handleQuickBatchStopSell(rt.roomTypeId, true);
+                                  if (isBlocked) return;
+                                  void handleQuickBatchStopSell(
+                                    rt.roomTypeId,
+                                    true,
+                                  );
                                 }}
-                                title={`Đóng bán toàn bộ ${visibleDays} ngày của ${rt.roomTypeName}`}
-                                className="inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-rose-200 bg-white px-2 py-0.5 text-[11px] font-bold text-rose-700 hover:bg-rose-50 hover:border-rose-300 active:scale-95 transition shadow-2xs cursor-pointer disabled:opacity-50"
+                                title={
+                                  isBlocked
+                                    ? `Chưa liên kết OTA: ${blockerExplanation}`
+                                    : `Đóng bán toàn bộ ${visibleDays} ngày của ${rt.roomTypeName}`
+                                }
+                                className={`inline-flex min-h-7 items-center justify-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold transition shadow-2xs ${
+                                  isBlocked
+                                    ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed select-none pointer-events-none opacity-50"
+                                    : "border-rose-200 bg-white text-rose-700 hover:bg-rose-50 hover:border-rose-300 active:scale-95 cursor-pointer disabled:opacity-50"
+                                }`}
                               >
                                 <VsIcon name="block" className="text-xs" />
-                                <span>{savingCellKey === `${rt.roomTypeId}_batch_stopsell` ? "Đang xử lý..." : "Đóng nhanh"}</span>
+                                <span>
+                                  {savingCellKey ===
+                                  `${rt.roomTypeId}_batch_stopsell`
+                                    ? "Đang xử lý..."
+                                    : "Đóng nhanh"}
+                                </span>
                               </button>
                               <button
                                 type="button"
-                                disabled={isSavingChanges || isFetching}
+                                disabled={
+                                  isBlocked || isSavingChanges || isFetching
+                                }
+                                aria-disabled={
+                                  isBlocked || isSavingChanges || isFetching
+                                }
+                                tabIndex={isBlocked ? -1 : 0}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  void handleQuickBatchStopSell(rt.roomTypeId, false);
+                                  if (isBlocked) return;
+                                  void handleQuickBatchStopSell(
+                                    rt.roomTypeId,
+                                    false,
+                                  );
                                 }}
-                                title={`Mở bán toàn bộ ${visibleDays} ngày của ${rt.roomTypeName}`}
-                                className="inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-emerald-200 bg-white px-2 py-0.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 active:scale-95 transition shadow-2xs cursor-pointer disabled:opacity-50"
+                                title={
+                                  isBlocked
+                                    ? `Chưa liên kết OTA: ${blockerExplanation}`
+                                    : `Mở bán toàn bộ ${visibleDays} ngày của ${rt.roomTypeName}`
+                                }
+                                className={`inline-flex min-h-7 items-center justify-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold transition shadow-2xs ${
+                                  isBlocked
+                                    ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed select-none pointer-events-none opacity-50"
+                                    : "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 active:scale-95 cursor-pointer disabled:opacity-50"
+                                }`}
                               >
-                                <VsIcon name="check_circle" className="text-xs" />
-                                <span>{savingCellKey === `${rt.roomTypeId}_batch_stopsell` ? "Đang xử lý..." : "Mở nhanh"}</span>
+                                <VsIcon
+                                  name="check_circle"
+                                  className="text-xs"
+                                />
+                                <span>
+                                  {savingCellKey ===
+                                  `${rt.roomTypeId}_batch_stopsell`
+                                    ? "Đang xử lý..."
+                                    : "Mở nhanh"}
+                                </span>
                               </button>
                             </div>
                           )}
@@ -760,21 +930,30 @@ export function InventoryGrid({
                           </th>
                           {rt.days.map((day) => {
                             const isPast = day.date < todayStr;
-                            const cellKey = rt.roomTypeId + "_" + day.date + "_available";
+                            const cellKey =
+                              rt.roomTypeId + "_" + day.date + "_available";
                             const isEditing = editingCellKey === cellKey;
                             const isSaving = savingCellKey === cellKey;
                             const value = day.available;
 
                             if (isPast) {
                               return (
-                                <td key={day.date} className="border-r border-slate-200 px-2 py-1.5 text-center bg-slate-50/70 last:border-r-0">
+                                <td
+                                  key={day.date}
+                                  className="border-r border-slate-200 px-2 py-1.5 text-center bg-slate-50/70 last:border-r-0"
+                                >
                                   <div
                                     title="Ngày đã qua — Đã khóa, không cho chỉnh sửa"
                                     className="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-100/70 px-2 py-1.5 text-sm font-semibold text-slate-400 cursor-not-allowed select-none"
                                   >
-                                    <VsIcon name="lock" className="text-xs text-slate-400" />
+                                    <VsIcon
+                                      name="lock"
+                                      className="text-xs text-slate-400"
+                                    />
                                     <span>{value}</span>
-                                    <span className="text-xs text-slate-400">/ {rt.totalRooms}</span>
+                                    <span className="text-xs text-slate-400">
+                                      / {rt.totalRooms}
+                                    </span>
                                   </div>
                                 </td>
                               );
@@ -782,7 +961,10 @@ export function InventoryGrid({
 
                             if (!canManage) {
                               return (
-                                <td key={day.date} className="border-r border-slate-200 px-2 py-1.5 text-center last:border-r-0">
+                                <td
+                                  key={day.date}
+                                  className="border-r border-slate-200 px-2 py-1.5 text-center last:border-r-0"
+                                >
                                   <div
                                     className={`flex min-h-10 w-full items-center justify-center rounded-xl px-2 py-1.5 text-sm font-bold border select-none ${
                                       value === 0
@@ -796,8 +978,12 @@ export function InventoryGrid({
                                       </span>
                                     ) : (
                                       <span className="flex items-center justify-center gap-1">
-                                        <span className="text-slate-950 font-black text-base">{value}</span>
-                                        <span className="text-xs font-semibold text-slate-500">/ {rt.totalRooms}</span>
+                                        <span className="text-slate-950 font-black text-base">
+                                          {value}
+                                        </span>
+                                        <span className="text-xs font-semibold text-slate-500">
+                                          / {rt.totalRooms}
+                                        </span>
                                       </span>
                                     )}
                                   </div>
@@ -805,8 +991,38 @@ export function InventoryGrid({
                               );
                             }
 
+                            if (isBlocked) {
+                              return (
+                                <td
+                                  key={day.date}
+                                  className="border-r border-slate-200 px-2 py-1.5 text-center last:border-r-0"
+                                >
+                                  <button
+                                    type="button"
+                                    disabled={true}
+                                    aria-disabled={true}
+                                    tabIndex={-1}
+                                    title={`Chưa liên kết OTA: ${blockerExplanation}`}
+                                    className="group relative min-h-10 w-full whitespace-nowrap rounded-xl px-2 py-1.5 text-sm font-bold border border-slate-200 bg-slate-50/70 text-slate-400 cursor-not-allowed select-none pointer-events-none"
+                                  >
+                                    <span className="flex items-center justify-center gap-1">
+                                      <span className="text-slate-500 font-bold text-base">
+                                        {value}
+                                      </span>
+                                      <span className="text-xs font-semibold text-slate-400">
+                                        / {rt.totalRooms}
+                                      </span>
+                                    </span>
+                                  </button>
+                                </td>
+                              );
+                            }
+
                             return (
-                              <td key={day.date} className="border-r border-slate-200 px-2 py-1.5 text-center last:border-r-0">
+                              <td
+                                key={day.date}
+                                className="border-r border-slate-200 px-2 py-1.5 text-center last:border-r-0"
+                              >
                                 {isEditing ? (
                                   <input
                                     ref={inputRef}
@@ -814,23 +1030,44 @@ export function InventoryGrid({
                                     inputMode="numeric"
                                     value={editingValue}
                                     onChange={(event) =>
-                                      setEditingValue(event.target.value.replace(/\D/g, ""))
+                                      setEditingValue(
+                                        event.target.value.replace(/\D/g, ""),
+                                      )
                                     }
                                     onKeyDown={(event) => {
                                       if (event.key === "Enter") {
-                                        void commitEditing(rt.roomTypeId, day.date, "available", value);
+                                        void commitEditing(
+                                          rt.roomTypeId,
+                                          day.date,
+                                          "available",
+                                          value,
+                                        );
                                       } else if (event.key === "Escape") {
                                         cancelEditing();
                                       }
                                     }}
-                                    onBlur={() => void commitEditing(rt.roomTypeId, day.date, "available", value)}
+                                    onBlur={() =>
+                                      void commitEditing(
+                                        rt.roomTypeId,
+                                        day.date,
+                                        "available",
+                                        value,
+                                      )
+                                    }
                                     className="h-10 w-full min-w-0 rounded-xl border-2 border-emerald-600 bg-white text-center text-sm font-black text-slate-950 shadow-sm outline-none focus:ring-2 focus:ring-emerald-300"
                                   />
                                 ) : (
                                   <button
                                     type="button"
                                     disabled={isSavingChanges || isFetching}
-                                    onClick={() => startEditing(rt.roomTypeId, day.date, "available", value)}
+                                    onClick={() =>
+                                      startEditing(
+                                        rt.roomTypeId,
+                                        day.date,
+                                        "available",
+                                        value,
+                                      )
+                                    }
                                     title="Nhấp để sửa số phòng trống (tự động lưu)"
                                     className={`group relative min-h-10 w-full whitespace-nowrap rounded-xl px-2 py-1.5 text-sm font-bold transition-all border cursor-pointer ${
                                       isSaving
@@ -841,15 +1078,21 @@ export function InventoryGrid({
                                     }`}
                                   >
                                     {isSaving ? (
-                                      <span className="text-xs font-semibold">Đang lưu...</span>
+                                      <span className="text-xs font-semibold">
+                                        Đang lưu...
+                                      </span>
                                     ) : value === 0 ? (
                                       <span className="inline-flex items-center gap-1 font-black text-xs text-rose-700">
                                         <span>⛔</span> Hết phòng (0)
                                       </span>
                                     ) : (
                                       <span className="flex items-center justify-center gap-1">
-                                        <span className="text-slate-950 font-black text-base">{value}</span>
-                                        <span className="text-xs font-semibold text-slate-500">/ {rt.totalRooms}</span>
+                                        <span className="text-slate-950 font-black text-base">
+                                          {value}
+                                        </span>
+                                        <span className="text-xs font-semibold text-slate-500">
+                                          / {rt.totalRooms}
+                                        </span>
                                       </span>
                                     )}
                                   </button>
@@ -872,20 +1115,31 @@ export function InventoryGrid({
                           </th>
                           {rt.days.map((day) => {
                             const isPast = day.date < todayStr;
-                            const cellKey = rt.roomTypeId + "_" + day.date + "_rate";
+                            const cellKey =
+                              rt.roomTypeId + "_" + day.date + "_rate";
                             const isEditing = editingCellKey === cellKey;
                             const isSaving = savingCellKey === cellKey;
                             const value = day.rate;
 
                             if (isPast) {
                               return (
-                                <td key={day.date} className="border-r border-slate-200 px-2 py-1.5 text-center bg-slate-50/70 last:border-r-0">
+                                <td
+                                  key={day.date}
+                                  className="border-r border-slate-200 px-2 py-1.5 text-center bg-slate-50/70 last:border-r-0"
+                                >
                                   <div
                                     title="Ngày đã qua — Đã khóa, không cho chỉnh sửa"
                                     className="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-100/70 px-2 py-1.5 text-sm font-semibold text-slate-400 cursor-not-allowed select-none"
                                   >
-                                    <VsIcon name="lock" className="text-xs text-slate-400" />
-                                    <span>{value === null ? "—" : formatCurrencyFull(value)}</span>
+                                    <VsIcon
+                                      name="lock"
+                                      className="text-xs text-slate-400"
+                                    />
+                                    <span>
+                                      {value === null
+                                        ? "—"
+                                        : formatCurrencyFull(value)}
+                                    </span>
                                   </div>
                                 </td>
                               );
@@ -893,12 +1147,15 @@ export function InventoryGrid({
 
                             if (!canManage) {
                               return (
-                                <td key={day.date} className="border-r border-slate-200 px-2 py-1.5 text-center last:border-r-0">
-                                  <div
-                                    className="flex min-h-10 w-full items-center justify-center rounded-xl border border-slate-200/80 bg-slate-50/70 px-2 py-1.5 text-sm font-bold select-none"
-                                  >
+                                <td
+                                  key={day.date}
+                                  className="border-r border-slate-200 px-2 py-1.5 text-center last:border-r-0"
+                                >
+                                  <div className="flex min-h-10 w-full items-center justify-center rounded-xl border border-slate-200/80 bg-slate-50/70 px-2 py-1.5 text-sm font-bold select-none">
                                     {value === null ? (
-                                      <span className="text-xs italic font-semibold text-slate-400">Chưa đặt giá</span>
+                                      <span className="text-xs italic font-semibold text-slate-400">
+                                        Chưa đặt giá
+                                      </span>
                                     ) : (
                                       <span className="font-black text-indigo-950 tracking-tight text-sm">
                                         {formatCurrencyFull(value)}
@@ -909,8 +1166,39 @@ export function InventoryGrid({
                               );
                             }
 
+                            if (isBlocked) {
+                              return (
+                                <td
+                                  key={day.date}
+                                  className="border-r border-slate-200 px-2 py-1.5 text-center last:border-r-0"
+                                >
+                                  <button
+                                    type="button"
+                                    disabled={true}
+                                    aria-disabled={true}
+                                    tabIndex={-1}
+                                    title={`Chưa liên kết OTA: ${blockerExplanation}`}
+                                    className="group relative min-h-10 w-full whitespace-nowrap rounded-xl px-2 py-1.5 text-sm font-bold border border-slate-200 bg-slate-50/70 text-slate-400 cursor-not-allowed select-none pointer-events-none"
+                                  >
+                                    {value === null ? (
+                                      <span className="text-xs italic font-semibold text-slate-400">
+                                        Chưa đặt giá
+                                      </span>
+                                    ) : (
+                                      <span className="font-bold text-slate-500 tracking-tight text-sm">
+                                        {formatCurrencyFull(value)}
+                                      </span>
+                                    )}
+                                  </button>
+                                </td>
+                              );
+                            }
+
                             return (
-                              <td key={day.date} className="border-r border-slate-200 px-2 py-1.5 text-center last:border-r-0">
+                              <td
+                                key={day.date}
+                                className="border-r border-slate-200 px-2 py-1.5 text-center last:border-r-0"
+                              >
                                 {isEditing ? (
                                   <input
                                     ref={inputRef}
@@ -919,23 +1207,46 @@ export function InventoryGrid({
                                     value={editingValue}
                                     placeholder="0"
                                     onChange={(event) =>
-                                      setEditingValue(formatNumberWithDots(event.target.value))
+                                      setEditingValue(
+                                        formatNumberWithDots(
+                                          event.target.value,
+                                        ),
+                                      )
                                     }
                                     onKeyDown={(event) => {
                                       if (event.key === "Enter") {
-                                        void commitEditing(rt.roomTypeId, day.date, "rate", value);
+                                        void commitEditing(
+                                          rt.roomTypeId,
+                                          day.date,
+                                          "rate",
+                                          value,
+                                        );
                                       } else if (event.key === "Escape") {
                                         cancelEditing();
                                       }
                                     }}
-                                    onBlur={() => void commitEditing(rt.roomTypeId, day.date, "rate", value)}
+                                    onBlur={() =>
+                                      void commitEditing(
+                                        rt.roomTypeId,
+                                        day.date,
+                                        "rate",
+                                        value,
+                                      )
+                                    }
                                     className="h-10 w-full min-w-0 rounded-xl border-2 border-indigo-600 bg-white text-center text-sm font-black text-indigo-950 shadow-sm outline-none focus:ring-2 focus:ring-indigo-300"
                                   />
                                 ) : (
                                   <button
                                     type="button"
                                     disabled={isSavingChanges || isFetching}
-                                    onClick={() => startEditing(rt.roomTypeId, day.date, "rate", value)}
+                                    onClick={() =>
+                                      startEditing(
+                                        rt.roomTypeId,
+                                        day.date,
+                                        "rate",
+                                        value,
+                                      )
+                                    }
                                     title="Nhấp để sửa giá bán (tự động lưu)"
                                     className={`group relative min-h-10 w-full whitespace-nowrap rounded-xl px-2 py-1.5 text-sm font-bold transition-all border cursor-pointer ${
                                       isSaving
@@ -946,9 +1257,13 @@ export function InventoryGrid({
                                     }`}
                                   >
                                     {isSaving ? (
-                                      <span className="text-xs font-semibold">Đang lưu...</span>
+                                      <span className="text-xs font-semibold">
+                                        Đang lưu...
+                                      </span>
                                     ) : value === null ? (
-                                      <span className="text-xs italic font-semibold">Chưa đặt giá</span>
+                                      <span className="text-xs italic font-semibold">
+                                        Chưa đặt giá
+                                      </span>
                                     ) : (
                                       <span className="font-black text-indigo-950 tracking-tight text-sm">
                                         {formatCurrencyFull(value)}
@@ -976,23 +1291,76 @@ export function InventoryGrid({
                                 <div className="flex items-center gap-1.5 pt-0.5">
                                   <button
                                     type="button"
-                                    disabled={isSavingChanges || isFetching}
-                                    onClick={() => void handleQuickBatchStopSell(rt.roomTypeId, true)}
-                                    title={`Đóng bán toàn bộ các ngày hiển thị của ${rt.roomTypeName}`}
-                                    className="inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-700 hover:bg-rose-100 hover:border-rose-300 active:scale-95 transition shadow-2xs cursor-pointer disabled:opacity-50"
+                                    disabled={
+                                      isBlocked || isSavingChanges || isFetching
+                                    }
+                                    aria-disabled={
+                                      isBlocked || isSavingChanges || isFetching
+                                    }
+                                    tabIndex={isBlocked ? -1 : 0}
+                                    onClick={() => {
+                                      if (isBlocked) return;
+                                      void handleQuickBatchStopSell(
+                                        rt.roomTypeId,
+                                        true,
+                                      );
+                                    }}
+                                    title={
+                                      isBlocked
+                                        ? `Chưa liên kết OTA: ${blockerExplanation}`
+                                        : `Đóng bán toàn bộ các ngày hiển thị của ${rt.roomTypeName}`
+                                    }
+                                    className={`inline-flex min-h-7 items-center justify-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold transition shadow-2xs ${
+                                      isBlocked
+                                        ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed select-none pointer-events-none opacity-50"
+                                        : "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:border-rose-300 active:scale-95 cursor-pointer disabled:opacity-50"
+                                    }`}
                                   >
                                     <VsIcon name="block" className="text-xs" />
-                                    <span>{savingCellKey === `${rt.roomTypeId}_batch_stopsell` ? "Đang xử lý..." : "Đóng nhanh"}</span>
+                                    <span>
+                                      {savingCellKey ===
+                                      `${rt.roomTypeId}_batch_stopsell`
+                                        ? "Đang xử lý..."
+                                        : "Đóng nhanh"}
+                                    </span>
                                   </button>
                                   <button
                                     type="button"
-                                    disabled={isSavingChanges || isFetching}
-                                    onClick={() => void handleQuickBatchStopSell(rt.roomTypeId, false)}
-                                    title={`Mở bán toàn bộ các ngày hiển thị của ${rt.roomTypeName}`}
-                                    className="inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 active:scale-95 transition shadow-2xs cursor-pointer disabled:opacity-50"
+                                    disabled={
+                                      isBlocked || isSavingChanges || isFetching
+                                    }
+                                    aria-disabled={
+                                      isBlocked || isSavingChanges || isFetching
+                                    }
+                                    tabIndex={isBlocked ? -1 : 0}
+                                    onClick={() => {
+                                      if (isBlocked) return;
+                                      void handleQuickBatchStopSell(
+                                        rt.roomTypeId,
+                                        false,
+                                      );
+                                    }}
+                                    title={
+                                      isBlocked
+                                        ? `Chưa liên kết OTA: ${blockerExplanation}`
+                                        : `Mở bán toàn bộ các ngày hiển thị của ${rt.roomTypeName}`
+                                    }
+                                    className={`inline-flex min-h-7 items-center justify-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold transition shadow-2xs ${
+                                      isBlocked
+                                        ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed select-none pointer-events-none opacity-50"
+                                        : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 active:scale-95 cursor-pointer disabled:opacity-50"
+                                    }`}
                                   >
-                                    <VsIcon name="check_circle" className="text-xs" />
-                                    <span>{savingCellKey === `${rt.roomTypeId}_batch_stopsell` ? "Đang xử lý..." : "Mở nhanh"}</span>
+                                    <VsIcon
+                                      name="check_circle"
+                                      className="text-xs"
+                                    />
+                                    <span>
+                                      {savingCellKey ===
+                                      `${rt.roomTypeId}_batch_stopsell`
+                                        ? "Đang xử lý..."
+                                        : "Mở nhanh"}
+                                    </span>
                                   </button>
                                 </div>
                               )}
@@ -1000,7 +1368,9 @@ export function InventoryGrid({
                           </th>
                           {rt.days.map((day) => {
                             const isPast = day.date < todayStr;
-                            const isSaving = savingCellKey === rt.roomTypeId + "_" + day.date + "_stopsell";
+                            const isSaving =
+                              savingCellKey ===
+                              rt.roomTypeId + "_" + day.date + "_stopsell";
 
                             if (isPast) {
                               return (
@@ -1010,13 +1380,18 @@ export function InventoryGrid({
                                 >
                                   <div className="mb-1.5 whitespace-nowrap text-xs font-semibold text-slate-400 inline-flex items-center gap-1">
                                     <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                                    <span>{day.stopSell ? "Đã đóng" : "Mở"}</span>
+                                    <span>
+                                      {day.stopSell ? "Đã đóng" : "Mở"}
+                                    </span>
                                   </div>
                                   <div
                                     title="Ngày đã qua — Đã khóa, không cho chỉnh sửa"
                                     className="inline-flex min-h-8 w-full items-center justify-center gap-1 rounded-lg border border-slate-200 bg-slate-100/80 px-2 text-xs font-semibold text-slate-400 cursor-not-allowed select-none"
                                   >
-                                    <VsIcon name="lock" className="text-xs text-slate-400" />
+                                    <VsIcon
+                                      name="lock"
+                                      className="text-xs text-slate-400"
+                                    />
                                     <span>Khóa</span>
                                   </div>
                                 </td>
@@ -1031,14 +1406,65 @@ export function InventoryGrid({
                                     day.stopSell ? "bg-rose-50/50" : ""
                                   }`}
                                 >
-                                  <div className={`whitespace-nowrap text-xs font-bold inline-flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg border select-none ${
-                                    day.stopSell
-                                      ? "border-rose-200 bg-rose-50 text-rose-800"
-                                      : "border-emerald-200 bg-emerald-50 text-emerald-800"
-                                  }`}>
-                                    <span className={`h-2 w-2 rounded-full ${day.stopSell ? "bg-rose-600" : "bg-emerald-600"}`} />
-                                    <span>{day.stopSell ? "Đang đóng bán" : "Đang mở bán"}</span>
+                                  <div
+                                    className={`whitespace-nowrap text-xs font-bold inline-flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg border select-none ${
+                                      day.stopSell
+                                        ? "border-rose-200 bg-rose-50 text-rose-800"
+                                        : "border-emerald-200 bg-emerald-50 text-emerald-800"
+                                    }`}
+                                  >
+                                    <span
+                                      className={`h-2 w-2 rounded-full ${day.stopSell ? "bg-rose-600" : "bg-emerald-600"}`}
+                                    />
+                                    <span>
+                                      {day.stopSell
+                                        ? "Đang đóng bán"
+                                        : "Đang mở bán"}
+                                    </span>
                                   </div>
+                                </td>
+                              );
+                            }
+
+                            if (isBlocked) {
+                              return (
+                                <td
+                                  key={day.date}
+                                  className={`border-r border-slate-200 px-2 py-2 text-center last:border-r-0 ${
+                                    day.stopSell ? "bg-rose-50/50" : ""
+                                  }`}
+                                >
+                                  <div
+                                    className={`mb-1.5 whitespace-nowrap text-xs font-bold inline-flex items-center gap-1 ${
+                                      day.stopSell
+                                        ? "text-rose-700"
+                                        : "text-emerald-700"
+                                    }`}
+                                  >
+                                    <span
+                                      className={`h-1.5 w-1.5 rounded-full ${
+                                        day.stopSell
+                                          ? "bg-rose-600"
+                                          : "bg-emerald-600"
+                                      }`}
+                                    />
+                                    <span>
+                                      {day.stopSell
+                                        ? "Đang đóng bán"
+                                        : "Đang mở bán"}
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    disabled={true}
+                                    aria-disabled={true}
+                                    tabIndex={-1}
+                                    aria-label={`${day.stopSell ? "Mở bán " : "Đóng bán "}${rt.roomTypeName}, ngày ${formatDayOfWeek(day.date).dayNum} (Đã khóa do chưa liên kết OTA)`}
+                                    title={`Chưa liên kết OTA: ${blockerExplanation}`}
+                                    className="inline-flex min-h-8 w-full items-center justify-center rounded-lg border border-slate-200 bg-slate-100 px-2 text-xs font-semibold text-slate-400 cursor-not-allowed select-none pointer-events-none opacity-60"
+                                  >
+                                    {day.stopSell ? "Mở bán" : "Đóng bán"}
+                                  </button>
                                 </td>
                               );
                             }
@@ -1050,19 +1476,40 @@ export function InventoryGrid({
                                   day.stopSell ? "bg-rose-50/50" : ""
                                 }`}
                               >
-                                <div className={`mb-1.5 whitespace-nowrap text-xs font-bold inline-flex items-center gap-1 ${
-                                  day.stopSell ? "text-rose-700" : "text-emerald-700"
-                                }`}>
-                                  <span className={`h-1.5 w-1.5 rounded-full ${day.stopSell ? "bg-rose-600" : "bg-emerald-600"}`} />
-                                  <span>{day.stopSell ? "Đang đóng bán" : "Đang mở bán"}</span>
+                                <div
+                                  className={`mb-1.5 whitespace-nowrap text-xs font-bold inline-flex items-center gap-1 ${
+                                    day.stopSell
+                                      ? "text-rose-700"
+                                      : "text-emerald-700"
+                                  }`}
+                                >
+                                  <span
+                                    className={`h-1.5 w-1.5 rounded-full ${day.stopSell ? "bg-rose-600" : "bg-emerald-600"}`}
+                                  />
+                                  <span>
+                                    {day.stopSell
+                                      ? "Đang đóng bán"
+                                      : "Đang mở bán"}
+                                  </span>
                                 </div>
                                 <button
                                   type="button"
                                   disabled={isSavingChanges || isFetching}
                                   aria-busy={isSaving}
-                                  aria-label={(day.stopSell ? "Mở bán " : "Đóng bán ") + rt.roomTypeName + ", ngày " + formatDayOfWeek(day.date).dayNum}
-                                  onClick={() => void toggleStopSell(rt.roomTypeId, day)}
-                                  title={day.stopSell ? "Đang đóng bán - Nhấp để mở bán" : "Đang mở bán - Nhấp để đóng bán"}
+                                  aria-label={
+                                    (day.stopSell ? "Mở bán " : "Đóng bán ") +
+                                    rt.roomTypeName +
+                                    ", ngày " +
+                                    formatDayOfWeek(day.date).dayNum
+                                  }
+                                  onClick={() =>
+                                    void toggleStopSell(rt.roomTypeId, day)
+                                  }
+                                  title={
+                                    day.stopSell
+                                      ? "Đang đóng bán - Nhấp để mở bán"
+                                      : "Đang mở bán - Nhấp để đóng bán"
+                                  }
                                   className={`inline-flex min-h-8 w-full items-center justify-center rounded-lg px-2 text-xs font-bold transition-all shadow-2xs cursor-pointer border hover:scale-[1.02] active:scale-[0.98] ${
                                     isSaving
                                       ? "bg-slate-100 text-slate-500 border-slate-200 animate-pulse"
@@ -1071,7 +1518,11 @@ export function InventoryGrid({
                                         : "border-slate-300 bg-white text-slate-800 hover:border-rose-400 hover:bg-rose-50 hover:text-rose-900"
                                   }`}
                                 >
-                                  {isSaving ? "Đang lưu…" : day.stopSell ? "Mở bán" : "Đóng bán"}
+                                  {isSaving
+                                    ? "Đang lưu…"
+                                    : day.stopSell
+                                      ? "Mở bán"
+                                      : "Đóng bán"}
                                 </button>
                               </td>
                             );
@@ -1099,6 +1550,19 @@ export function InventoryGrid({
           defaultDateFrom={startDate}
           defaultDateTo={endDate}
           roleScope={roleScope}
+        />
+      )}
+
+      {inspectingRoomType && (
+        <RoomTypeRoomsModal
+          isOpen
+          onClose={() => setInspectingRoomType(null)}
+          hotelId={hotelId}
+          roomType={inspectingRoomType}
+          selectedDate={inspectingRoomType.selectedDate}
+          canManage={canManage}
+          roleScope={roleScope}
+          onRoomCreated={() => void refetch()}
         />
       )}
     </div>

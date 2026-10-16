@@ -1,6 +1,30 @@
 {
   "openapi": "3.0.0",
   "paths": {
+    "/integrations/telegram/webhook": {
+      "post": {
+        "operationId": "TelegramWebhookController_handleWebhook",
+        "parameters": [
+          {
+            "name": "X-Telegram-Bot-Api-Secret-Token",
+            "in": "header",
+            "description": "Telegram webhook secret token configured via setWebhook secret_token.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "TelegramWebhook"
+        ]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "HealthController_getHealth",
@@ -2430,7 +2454,7 @@
                   "roleIds": {
                     "type": "array",
                     "minItems": 1,
-                    "maxItems": 20,
+                    "maxItems": 1,
                     "items": {
                       "type": "string",
                       "maxLength": 64
@@ -3292,7 +3316,7 @@
                   "roleIds": {
                     "type": "array",
                     "minItems": 1,
-                    "maxItems": 20,
+                    "maxItems": 1,
                     "items": {
                       "type": "string",
                       "maxLength": 64
@@ -5513,6 +5537,14 @@
             }
           },
           {
+            "name": "businessDate",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "unassignedOnly",
             "required": false,
             "in": "query",
@@ -5671,6 +5703,50 @@
         "responses": {
           "200": {
             "description": "Đã cập nhật trạng thái phòng"
+          }
+        },
+        "tags": [
+          "hotel-rooms"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/rooms/{roomId}/ready": {
+      "patch": {
+        "operationId": "HotelRoomsController_confirmRoomReady",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "roomId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "expectedUpdatedAt"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Đã xác nhận phòng sẵn sàng đón khách"
           }
         },
         "tags": [
@@ -6885,6 +6961,18 @@
                   "plannedCheckOutAt": {
                     "type": "string",
                     "format": "date-time"
+                  },
+                  "roomId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "rate": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "nightlyRateSnapshot": {
+                    "type": "string",
+                    "nullable": true
                   }
                 }
               }
@@ -6913,6 +7001,10 @@
                       "type": "string"
                     },
                     "roomId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "nightlyRateSnapshot": {
                       "type": "string",
                       "nullable": true
                     },
@@ -6961,6 +7053,14 @@
             "name": "hotelId",
             "required": true,
             "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -7043,6 +7143,10 @@
                             "type": "string",
                             "nullable": true
                           },
+                          "nightlyRateSnapshot": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "reservationCode": {
                             "type": "string"
                           },
@@ -7116,6 +7220,14 @@
                 "properties": {
                   "roomId": {
                     "type": "string"
+                  },
+                  "rate": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "nightlyRateSnapshot": {
+                    "type": "string",
+                    "nullable": true
                   }
                 }
               }
@@ -7144,6 +7256,10 @@
                       "type": "string"
                     },
                     "roomId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "nightlyRateSnapshot": {
                       "type": "string",
                       "nullable": true
                     },
@@ -7205,6 +7321,49 @@
             }
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "guestDisplayName": {
+                    "type": "string"
+                  },
+                  "guestPhone": {
+                    "type": "string"
+                  },
+                  "guestIdentityNumber": {
+                    "type": "string"
+                  },
+                  "guestDateOfBirth": {
+                    "type": "string"
+                  },
+                  "guestGender": {
+                    "type": "string"
+                  },
+                  "guestNationality": {
+                    "type": "string"
+                  },
+                  "guestResidencePlace": {
+                    "type": "string"
+                  },
+                  "plannedCheckOutAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "occupants": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Đặt phòng đã được check-in",
@@ -7306,6 +7465,177 @@
                 }
               }
             }
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/reservations/bulk": {
+      "post": {
+        "operationId": "ReservationsController_createBulkReservations",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "leadGuestName",
+                  "checkInDate",
+                  "checkOutDate",
+                  "roomIds"
+                ],
+                "properties": {
+                  "leadGuestName": {
+                    "type": "string"
+                  },
+                  "leadGuestPhone": {
+                    "type": "string"
+                  },
+                  "checkInDate": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "checkOutDate": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "roomIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 2,
+                    "maxItems": 50
+                  },
+                  "groupCode": {
+                    "type": "string"
+                  },
+                  "idempotencyKey": {
+                    "type": "string"
+                  },
+                  "rate": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "nightlyRateSnapshot": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Đã tạo nhóm đặt phòng với groupCode và danh sách reservation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "groupCode",
+                    "reservations"
+                  ],
+                  "properties": {
+                    "groupCode": {
+                      "type": "string"
+                    },
+                    "reservations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "hotelId",
+                          "reservationCode",
+                          "guestDisplayName",
+                          "status"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "hotelId": {
+                            "type": "string"
+                          },
+                          "roomId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "nightlyRateSnapshot": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "reservationCode": {
+                            "type": "string"
+                          },
+                          "guestDisplayName": {
+                            "type": "string"
+                          },
+                          "guestPhone": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "CONFIRMED",
+                              "ARRIVAL_READY",
+                              "CHECKED_IN"
+                            ]
+                          },
+                          "plannedCheckInAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "plannedCheckOutAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/reservations/group": {
+      "post": {
+        "operationId": "ReservationsController_createGroupReservations",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
           }
         },
         "tags": [
@@ -9723,30 +10053,6 @@
         ]
       }
     },
-    "/integrations/telegram/webhook": {
-      "post": {
-        "operationId": "TelegramWebhookController_handleWebhook",
-        "parameters": [
-          {
-            "name": "X-Telegram-Bot-Api-Secret-Token",
-            "in": "header",
-            "description": "Telegram webhook secret token configured via setWebhook secret_token.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "TelegramWebhook"
-        ]
-      }
-    },
     "/hotels/{hotelId}/notification-routes": {
       "get": {
         "operationId": "HotelNotificationRoutesController_list",
@@ -9819,34 +10125,6 @@
         },
         "tags": [
           "hotel-notification-routes"
-        ]
-      }
-    },
-    "/webhooks/stripe": {
-      "post": {
-        "operationId": "StripeWebhookController_handleWebhook[0]",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "StripeWebhook"
-        ]
-      }
-    },
-    "/payments/webhook/stripe": {
-      "post": {
-        "operationId": "StripeWebhookController_handleWebhook[1]",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "StripeWebhook"
         ]
       }
     },
@@ -11974,6 +12252,34 @@
         },
         "tags": [
           "PublicLocalMate"
+        ]
+      }
+    },
+    "/webhooks/stripe": {
+      "post": {
+        "operationId": "StripeWebhookController_handleWebhook[0]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "StripeWebhook"
+        ]
+      }
+    },
+    "/payments/webhook/stripe": {
+      "post": {
+        "operationId": "StripeWebhookController_handleWebhook[1]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "StripeWebhook"
         ]
       }
     },
@@ -14370,7 +14676,169 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Bảng ARI kèm nguồn readiness Channex duy nhất cho từng hạng phòng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy bảng tồn kho phòng thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "hotelId": {
+                          "type": "string"
+                        },
+                        "startDate": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "endDate": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "roomTypes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "roomType": {
+                                "type": "string"
+                              },
+                              "totalInventoryRooms": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "channexMappingBlockers": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "PROPERTY_MAPPING_MISSING",
+                                    "ROOM_TYPE_MAPPING_MISSING",
+                                    "RATE_PLAN_MAPPING_MISSING",
+                                    "MAPPING_CONFLICT"
+                                  ]
+                                }
+                              },
+                              "days": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "date": {
+                                      "type": "string",
+                                      "format": "date"
+                                    },
+                                    "totalRooms": {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    "bookedRooms": {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    "blockedRooms": {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    "availableRooms": {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    "overrideAvailable": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "nullable": true
+                                    },
+                                    "rate": {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "nullable": true
+                                    },
+                                    "ratePlanCode": {
+                                      "type": "string"
+                                    },
+                                    "minStayArrival": {
+                                      "type": "integer",
+                                      "minimum": 1
+                                    },
+                                    "minStayThrough": {
+                                      "type": "integer",
+                                      "minimum": 1
+                                    },
+                                    "maxStay": {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    "stopSell": {
+                                      "type": "boolean"
+                                    },
+                                    "closedToArrival": {
+                                      "type": "boolean"
+                                    },
+                                    "closedToDeparture": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": [
+                                    "date",
+                                    "totalRooms",
+                                    "bookedRooms",
+                                    "blockedRooms",
+                                    "availableRooms",
+                                    "overrideAvailable",
+                                    "rate",
+                                    "ratePlanCode",
+                                    "minStayArrival",
+                                    "minStayThrough",
+                                    "maxStay",
+                                    "stopSell",
+                                    "closedToArrival",
+                                    "closedToDeparture"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "roomType",
+                              "totalInventoryRooms",
+                              "channexMappingBlockers",
+                              "days"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "hotelId",
+                        "startDate",
+                        "endDate",
+                        "roomTypes"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -14392,8 +14860,81 @@
           }
         ],
         "responses": {
-          "201": {
-            "description": ""
+          "409": {
+            "description": "Ít nhất một hạng phòng chưa sẵn sàng cho Channex; không ghi dữ liệu",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "integer",
+                      "enum": [
+                        409
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "enum": [
+                        "CHANNEX_MAPPING_REQUIRED"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "CHANNEX_MAPPING_REQUIRED"
+                          ]
+                        },
+                        "detail": {
+                          "type": "string"
+                        },
+                        "blockedRoomTypes": {
+                          "type": "array",
+                          "maxItems": 50,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "roomType": {
+                                "type": "string"
+                              },
+                              "blockers": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "PROPERTY_MAPPING_MISSING",
+                                    "ROOM_TYPE_MAPPING_MISSING",
+                                    "RATE_PLAN_MAPPING_MISSING",
+                                    "MAPPING_CONFLICT"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "roomType",
+                              "blockers"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "detail",
+                        "blockedRoomTypes"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -14415,8 +14956,81 @@
           }
         ],
         "responses": {
-          "201": {
-            "description": ""
+          "409": {
+            "description": "Ít nhất một hạng phòng chưa sẵn sàng cho Channex; không ghi dữ liệu",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "integer",
+                      "enum": [
+                        409
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "enum": [
+                        "CHANNEX_MAPPING_REQUIRED"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "CHANNEX_MAPPING_REQUIRED"
+                          ]
+                        },
+                        "detail": {
+                          "type": "string"
+                        },
+                        "blockedRoomTypes": {
+                          "type": "array",
+                          "maxItems": 50,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "roomType": {
+                                "type": "string"
+                              },
+                              "blockers": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "PROPERTY_MAPPING_MISSING",
+                                    "ROOM_TYPE_MAPPING_MISSING",
+                                    "RATE_PLAN_MAPPING_MISSING",
+                                    "MAPPING_CONFLICT"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "roomType",
+                              "blockers"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "detail",
+                        "blockedRoomTypes"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -14438,8 +15052,81 @@
           }
         ],
         "responses": {
-          "201": {
-            "description": ""
+          "409": {
+            "description": "Một target bị chặn làm toàn bộ bulk request bị từ chối trước khi ghi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "integer",
+                      "enum": [
+                        409
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "enum": [
+                        "CHANNEX_MAPPING_REQUIRED"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "CHANNEX_MAPPING_REQUIRED"
+                          ]
+                        },
+                        "detail": {
+                          "type": "string"
+                        },
+                        "blockedRoomTypes": {
+                          "type": "array",
+                          "maxItems": 50,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "roomType": {
+                                "type": "string"
+                              },
+                              "blockers": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "PROPERTY_MAPPING_MISSING",
+                                    "ROOM_TYPE_MAPPING_MISSING",
+                                    "RATE_PLAN_MAPPING_MISSING",
+                                    "MAPPING_CONFLICT"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "roomType",
+                              "blockers"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "detail",
+                        "blockedRoomTypes"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -14561,8 +15248,81 @@
           }
         ],
         "responses": {
-          "201": {
-            "description": ""
+          "409": {
+            "description": "Ít nhất một hạng phòng chưa sẵn sàng; không gửi dữ liệu sang Channex",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "integer",
+                      "enum": [
+                        409
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "enum": [
+                        "CHANNEX_MAPPING_REQUIRED"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "CHANNEX_MAPPING_REQUIRED"
+                          ]
+                        },
+                        "detail": {
+                          "type": "string"
+                        },
+                        "blockedRoomTypes": {
+                          "type": "array",
+                          "maxItems": 50,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "roomType": {
+                                "type": "string"
+                              },
+                              "blockers": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "PROPERTY_MAPPING_MISSING",
+                                    "ROOM_TYPE_MAPPING_MISSING",
+                                    "RATE_PLAN_MAPPING_MISSING",
+                                    "MAPPING_CONFLICT"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "roomType",
+                              "blockers"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "detail",
+                        "blockedRoomTypes"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
           }
         },
         "tags": [

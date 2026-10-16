@@ -38,6 +38,144 @@ const NON_SELLABLE_ROOM_STATUSES: RoomStatus[] = [
 export class ReservationsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  async createBulkReservations(input: {
+    hotelId: string;
+    groupCode: string;
+    leadGuestName: string;
+    leadGuestPhone?: string;
+    checkInDate: Date;
+    checkOutDate: Date;
+    roomIds: string[];
+    createdByUserId: string;
+    nightlyRateSnapshot?: Prisma.Decimal | number | string | null;
+    idempotencyKey?: string;
+    generateReservationCode: (tx: Prisma.TransactionClient) => Promise<string>;
+    roomAllocationService?: any;
+  }) {
+    const uniqueRoomIds = Array.from(new Set(input.roomIds));
+    if (uniqueRoomIds.length < 2 || uniqueRoomIds.length > 50) {
+      throw new BadRequestException("Số lượng phòng đặt theo đoàn phải từ 2 đến 50 phòng");
+    }
+
+    // Sorted locking to eliminate deadlock risks across concurrent transactions
+    const sortedRoomIds = [...uniqueRoomIds].sort();
+
+    return this.runSerializable(async (tx) => {
+      for (const roomId of sortedRoomIds) {
+        await tx.$queryRawUnsafe(
+          'SELECT id FROM "Room" WHERE id = $1 AND "hotelId" = $2 FOR UPDATE',
+          roomId,
+          input.hotelId,
+        );
+      }
+
+      const rooms = await tx.room.findMany({
+        where: { id: { in: sortedRoomIds }, hotelId: input.hotelId },
+        select: { id: true, status: true, price: true },
+      });
+
+      if (rooms.length !== sortedRoomIds.length) {
+        throw new NotFoundException("Một hoặc nhiều phòng không tồn tại trong khách sạn");
+      }
+
+      for (const room of rooms) {
+        if (NON_SELLABLE_ROOM_STATUSES.includes(room.status)) {
+          throw new ConflictException("ROOM_NOT_AVAILABLE");
+        }
+      }
+
+      // Check overlapping active reservations [checkInDate, checkOutDate)
+      // Cancelled reservations release inventory and are not in ACTIVE_RESERVATION_STATUSES
+      const resOverlap = await tx.reservation.findFirst({
+        where: {
+          hotelId: input.hotelId,
+          roomId: { in: sortedRoomIds },
+          status: { in: ACTIVE_RESERVATION_STATUSES },
+          plannedCheckInAt: { lt: input.checkOutDate },
+          plannedCheckOutAt: { gt: input.checkInDate },
+        },
+        select: { id: true, roomId: true },
+      });
+      if (resOverlap) {
+        throw new ConflictException("ROOM_RESERVATION_OVERLAP");
+      }
+
+      // Check overlapping active stays [checkInDate, checkOutDate)
+      if (tx.guestStay?.findFirst) {
+        const stayOverlap = await tx.guestStay.findFirst({
+          where: {
+            hotelId: input.hotelId,
+            roomId: { in: sortedRoomIds },
+            status: { in: ACTIVE_STAY_STATUSES },
+            plannedCheckInAt: { lt: input.checkOutDate },
+            plannedCheckOutAt: { gt: input.checkInDate },
+          },
+          select: { id: true, roomId: true },
+        });
+        if (stayOverlap) {
+          throw new ConflictException("ROOM_RESERVATION_OVERLAP");
+        }
+
+        const now = new Date();
+        if (input.checkInDate <= now) {
+          const overdueStay = await tx.guestStay.findFirst({
+            where: {
+              hotelId: input.hotelId,
+              roomId: { in: sortedRoomIds },
+              status: {
+                in: [
+                  GuestStayStatus.ACTIVE,
+                  GuestStayStatus.CHECKED_IN,
+                  GuestStayStatus.CHECKOUT_PENDING,
+                ],
+              },
+              checkedOutAt: null,
+              plannedCheckOutAt: { lt: now },
+            },
+            select: { id: true, roomId: true },
+          });
+          if (overdueStay) {
+            throw new ConflictException("ROOM_RESERVATION_OVERLAP");
+          }
+        }
+      }
+
+      const reservations: any[] = [];
+      const now = new Date();
+
+      for (const roomId of input.roomIds) {
+        const reservationCode = await input.generateReservationCode(tx);
+        const reservationData: any = {
+          hotelId: input.hotelId,
+          roomId,
+          reservationCode,
+          groupCode: input.groupCode,
+          guestDisplayName: input.leadGuestName,
+          guestPhone: input.leadGuestPhone,
+          plannedCheckInAt: input.checkInDate,
+          plannedCheckOutAt: input.checkOutDate,
+          createdByUserId: input.createdByUserId,
+          status: ReservationStatus.ARRIVAL_READY,
+          assignedAt: now,
+          assignedByUserId: input.createdByUserId,
+          nightlyRateSnapshot:
+            input.nightlyRateSnapshot !== undefined ? input.nightlyRateSnapshot : null,
+        };
+
+        const reservation = await (tx.reservation.create as any)({
+          data: reservationData,
+          include: { room: true },
+        });
+        reservations.push(reservation);
+      }
+
+      return {
+        groupCode: input.groupCode,
+        reservations,
+      };
+    }, "RESERVATION_ROOM_ASSIGNMENT_CONCURRENCY_CONFLICT");
+  }
+
   async createReservation(input: {
     hotelId: string;
     reservationCode: string;
@@ -408,10 +546,8 @@ export class ReservationsRepository {
 
       const primaryName =
         input.dto?.guestDisplayName?.trim() || reservation.guestDisplayName.trim();
-      const primaryPhone =
-        input.dto?.guestPhone?.trim() || reservation.guestPhone?.trim() || null;
-      const plannedCheckOutAt =
-        input.dto?.plannedCheckOutAt || reservation.plannedCheckOutAt;
+      const primaryPhone = input.dto?.guestPhone?.trim() || reservation.guestPhone?.trim() || null;
+      const plannedCheckOutAt = input.dto?.plannedCheckOutAt || reservation.plannedCheckOutAt;
 
       const primaryOccupant = {
         hotelId: input.hotelId,

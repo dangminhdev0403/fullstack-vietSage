@@ -12,6 +12,7 @@ import { ChannexDoctorService } from "./services/channex-doctor.service";
 import { ChannexFeedScheduler } from "./services/channex-feed-scheduler.service";
 import { ChannelManagerAdminOverviewService } from "./services/channel-manager-admin-overview.service";
 import { ChannelManagerAuditService } from "./services/channel-manager-audit.service";
+import { ChannexMappingReadinessService } from "./services/channex-mapping-readiness.service";
 import { ChannexSyncService } from "./services/channex-sync.service";
 import { IcalService } from "./services/ical.service";
 
@@ -31,6 +32,7 @@ import { IcalService } from "./services/ical.service";
     ChannexChannelSessionService,
     ChannelManagerAdminOverviewService,
     ChannelManagerAuditService,
+    ChannexMappingReadinessService,
   ],
   exports: [
     ChannelManagerService,
@@ -43,6 +45,7 @@ import { IcalService } from "./services/ical.service";
     ChannexDoctorService,
     ChannelManagerAdminOverviewService,
     ChannelManagerAuditService,
+    ChannexMappingReadinessService,
   ],
 })
 export class ChannelManagerModule {}

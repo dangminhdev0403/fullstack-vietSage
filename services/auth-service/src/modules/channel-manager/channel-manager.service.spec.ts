@@ -1,3 +1,11 @@
+process.env.DATABASE_URL = "postgresql://mock:mock@localhost:5432/mock";
+process.env.NODE_ENV = "test";
+process.env.PORT = "3000";
+process.env.JWT_ACCESS_SECRET = "mock_jwt_access_secret_32_chars_long!!";
+process.env.JWT_REFRESH_SECRET = "mock_jwt_refresh_secret_32_chars_long!";
+process.env.JWT_ACCESS_TTL = "15m";
+process.env.JWT_REFRESH_TTL = "7d";
+
 import { ChannelManagerService } from "./services/channel-manager.service";
 import { AriCoreService } from "./services/ari-core.service";
 import { IcalService } from "./services/ical.service";
@@ -93,11 +101,34 @@ describe("ChannelManager Module Core Services", () => {
 
     beforeEach(() => {
       mockPrisma = {
-        room: { findMany: jest.fn() },
+        room: { findMany: jest.fn().mockResolvedValue([]) },
         roomType: { findMany: jest.fn().mockResolvedValue([]) },
-        reservation: { findMany: jest.fn() },
+        reservation: { findMany: jest.fn().mockResolvedValue([]) },
         channelDailyAvailability: { findMany: jest.fn(), upsert: jest.fn() },
         channelDailyRestriction: { findMany: jest.fn(), findUnique: jest.fn(), upsert: jest.fn() },
+        channexMapping: {
+          findMany: jest.fn().mockResolvedValue([
+            {
+              hotelId: "hotel_1",
+              kind: "property",
+              localId: "hotel_1",
+              channexId: "prop_channex_1",
+            },
+            {
+              hotelId: "hotel_1",
+              kind: "room_type",
+              localId: "DELUXE",
+              channexId: "rt_channex_deluxe",
+            },
+            {
+              hotelId: "hotel_1",
+              kind: "rate_plan",
+              localId: "DELUXE:STANDARD",
+              channexId: "rp_channex_deluxe",
+            },
+          ]),
+          findUnique: jest.fn().mockResolvedValue(null),
+        },
       };
       service = new AriCoreService(mockPrisma);
     });
@@ -136,7 +167,41 @@ describe("ChannelManager Module Core Services", () => {
       });
     });
 
-    it("updateAvailability cập nhật và tính toán availableRooms chính xác", async () => {
+    it("getInventoryGrid gắn channexMappingBlockers cho từng hạng phòng và không có status/capability thừa", async () => {
+      mockPrisma.room.findMany.mockResolvedValue([
+        { id: "r1", type: "DELUXE", roomTypeId: "rt_1" },
+        { id: "r2", type: "UNMAPPED_SUITE", roomTypeId: null },
+      ]);
+      mockPrisma.roomType.findMany.mockResolvedValue([
+        { id: "rt_1", name: "DELUXE", normalizedKey: "deluxe", basePrice: 1000000 },
+      ]);
+      mockPrisma.reservation.findMany.mockResolvedValue([]);
+      mockPrisma.channelDailyAvailability.findMany.mockResolvedValue([]);
+      mockPrisma.channelDailyRestriction.findMany.mockResolvedValue([]);
+      mockPrisma.channexMapping.findMany.mockResolvedValue([
+        { hotelId: "hotel_1", kind: "property", localId: "hotel_1", channexId: "prop_1" },
+        { hotelId: "hotel_1", kind: "room_type", localId: "rt_1", channexId: "cx_rt_1" },
+        { hotelId: "hotel_1", kind: "rate_plan", localId: "rt_1:STANDARD", channexId: "cx_rp_1" },
+      ]);
+
+      const result = await service.getInventoryGrid("hotel_1", "2026-10-01", "2026-10-02");
+
+      expect(result.roomTypes).toHaveLength(2);
+      const deluxe = result.roomTypes.find((r) => r.roomType === "DELUXE");
+      const unmapped = result.roomTypes.find((r) => r.roomType === "UNMAPPED_SUITE");
+
+      expect(deluxe?.channexMappingBlockers).toEqual([]);
+      expect(unmapped?.channexMappingBlockers).toContain("ROOM_TYPE_MAPPING_MISSING");
+
+      // Verify no status/capability fields are exposed on room type
+      expect((deluxe as any).status).toBeUndefined();
+      expect((deluxe as any).capability).toBeUndefined();
+      expect((deluxe as any).syncStatus).toBeUndefined();
+      expect((unmapped as any).status).toBeUndefined();
+      expect((unmapped as any).capability).toBeUndefined();
+    });
+
+    it("updateAvailability cập nhật và tính toán availableRooms chính xác khi đã map", async () => {
       mockPrisma.channelDailyAvailability.upsert.mockResolvedValue({});
 
       const result = await service.updateAvailability("hotel_1", [
@@ -156,6 +221,53 @@ describe("ChannelManager Module Core Services", () => {
       expect(result.count).toBe(1);
     });
 
+    it("updateAvailability chặn ghi và ném ConflictException CHANNEX_MAPPING_REQUIRED khi phòng chưa map", async () => {
+      mockPrisma.channexMapping.findMany.mockResolvedValue([]); // unmapped property & room types
+
+      let error: any;
+      try {
+        await service.updateAvailability("hotel_1", [
+          {
+            roomType: "UNMAPPED_ROOM",
+            date: "2026-10-01",
+            totalRooms: 5,
+            bookedRooms: 1,
+            blockedRooms: 0,
+          },
+        ]);
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toBeDefined();
+      expect(error.getStatus()).toBe(409);
+      expect(error.getResponse().code).toBe("CHANNEX_MAPPING_REQUIRED");
+      expect(error.getResponse().blockedRoomTypes).toBeDefined();
+      expect(mockPrisma.channelDailyAvailability.upsert).not.toHaveBeenCalled();
+    });
+
+    it("updateRestrictions chặn ghi và ném ConflictException CHANNEX_MAPPING_REQUIRED khi phòng chưa map", async () => {
+      mockPrisma.channexMapping.findMany.mockResolvedValue([]);
+
+      let error: any;
+      try {
+        await service.updateRestrictions("hotel_1", [
+          {
+            roomType: "UNMAPPED_ROOM",
+            date: "2026-10-01",
+            rate: 1000000,
+          },
+        ]);
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toBeDefined();
+      expect(error.getStatus()).toBe(409);
+      expect(error.getResponse().code).toBe("CHANNEX_MAPPING_REQUIRED");
+      expect(mockPrisma.channelDailyRestriction.upsert).not.toHaveBeenCalled();
+    });
+
     it("bulkUpdateRestrictions chỉ cập nhật các ngày thuộc thứ trong tuần được chọn", async () => {
       mockPrisma.channelDailyRestriction.upsert.mockResolvedValue({});
       mockPrisma.channelDailyRestriction.findUnique.mockResolvedValue(null);
@@ -173,6 +285,40 @@ describe("ChannelManager Module Core Services", () => {
       expect(result.success).toBe(true);
       expect(result.updatedDatesCount).toBe(1);
       expect(mockPrisma.channelDailyRestriction.upsert).toHaveBeenCalledTimes(1);
+    });
+
+    it("bulkUpdateRestrictions atomic 409: từ chối toàn bộ và không ghi bản ghi nào khi 1 trong các phòng bị chặn", async () => {
+      // DELUXE is mapped, but PENTHOUSE is unmapped
+      mockPrisma.channexMapping.findMany.mockResolvedValue([
+        { hotelId: "hotel_1", kind: "property", localId: "hotel_1", channexId: "prop_1" },
+        { hotelId: "hotel_1", kind: "room_type", localId: "DELUXE", channexId: "cx_deluxe" },
+        {
+          hotelId: "hotel_1",
+          kind: "rate_plan",
+          localId: "DELUXE:STANDARD",
+          channexId: "cx_rp_deluxe",
+        },
+      ]);
+
+      let error: any;
+      try {
+        await service.bulkUpdateRestrictions("hotel_1", {
+          startDate: "2026-10-01",
+          endDate: "2026-10-03",
+          roomTypes: ["DELUXE", "PENTHOUSE"],
+          daysOfWeek: [1, 2, 3, 4, 5, 6, 0],
+          rate: 2000000,
+        });
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toBeDefined();
+      expect(error.getStatus()).toBe(409);
+      expect(error.getResponse().code).toBe("CHANNEX_MAPPING_REQUIRED");
+      expect(error.getResponse().blockedRoomTypes).toHaveLength(1);
+      expect(error.getResponse().blockedRoomTypes[0].roomType).toBe("PENTHOUSE");
+      expect(mockPrisma.channelDailyRestriction.upsert).not.toHaveBeenCalled();
     });
   });
 

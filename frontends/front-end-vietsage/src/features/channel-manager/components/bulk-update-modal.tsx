@@ -1,9 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
+import {
+  showConfirmDialog,
+  showErrorAlert,
+  showSuccessAlert,
+} from "@/libs/swal";
 import { useBulkUpdateRestrictions } from "../hooks/use-channel-manager";
 import type { RoomTypeInventory } from "../types/channel-manager.types";
+import { formatChannexBlockersExplanation } from "../types/channel-manager.types";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 
 interface BulkUpdateModalProps {
   isOpen: boolean;
@@ -49,11 +55,13 @@ export function BulkUpdateModal({
   });
 
   const todayStr = getTodayInVietnam();
-  const [dateFrom, setDateFrom] = useState(
-    () => (defaultDateFrom && defaultDateFrom >= todayStr ? defaultDateFrom : todayStr),
+  const [dateFrom, setDateFrom] = useState(() =>
+    defaultDateFrom && defaultDateFrom >= todayStr ? defaultDateFrom : todayStr,
   );
-  const [dateTo, setDateTo] = useState(
-    () => (defaultDateTo && defaultDateTo >= todayStr ? defaultDateTo : defaultDateTo || todayStr),
+  const [dateTo, setDateTo] = useState(() =>
+    defaultDateTo && defaultDateTo >= todayStr
+      ? defaultDateTo
+      : defaultDateTo || todayStr,
   );
 
   const [selectedRoomTypes, setSelectedRoomTypes] = useState<string[]>([]);
@@ -66,6 +74,15 @@ export function BulkUpdateModal({
   const [stopSellAction, setStopSellAction] = useState<
     "keep" | "open" | "close"
   >("keep");
+
+  const isRoomTypeBlocked = (rt: RoomTypeInventory): boolean => {
+    return (rt.channexMappingBlockers?.length ?? 0) > 0;
+  };
+  const eligibleRoomTypes = roomTypes.filter((rt) => !isRoomTypeBlocked(rt));
+  const eligibleIds = eligibleRoomTypes.map((rt) => rt.roomTypeId);
+  const areAllEligibleSelected =
+    eligibleIds.length > 0 &&
+    eligibleIds.every((id) => selectedRoomTypes.includes(id));
 
   if (!isOpen) return null;
 
@@ -88,6 +105,8 @@ export function BulkUpdateModal({
   };
 
   const toggleRoomType = (rtId: string) => {
+    const target = roomTypes.find((r) => r.roomTypeId === rtId);
+    if (!target || isRoomTypeBlocked(target)) return;
     if (selectedRoomTypes.includes(rtId)) {
       setSelectedRoomTypes(selectedRoomTypes.filter((id) => id !== rtId));
     } else {
@@ -96,15 +115,39 @@ export function BulkUpdateModal({
   };
 
   const selectAllRoomTypes = () => {
-    if (selectedRoomTypes.length === roomTypes.length) {
-      setSelectedRoomTypes([]);
+    if (eligibleIds.length === 0) return;
+    if (areAllEligibleSelected) {
+      setSelectedRoomTypes(
+        selectedRoomTypes.filter((id) => !eligibleIds.includes(id)),
+      );
     } else {
-      setSelectedRoomTypes(roomTypes.map((rt) => rt.roomTypeId));
+      setSelectedRoomTypes(
+        Array.from(new Set([...selectedRoomTypes, ...eligibleIds])),
+      );
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (selectedRoomTypes.length === 0) {
+      await showErrorAlert(
+        "Chưa chọn hạng phòng",
+        "Vui lòng chọn ít nhất một hạng phòng để cập nhật.",
+      );
+      return;
+    }
+
+    const validRoomTypeIds = selectedRoomTypes.filter((id) =>
+      eligibleIds.includes(id),
+    );
+    if (validRoomTypeIds.length === 0) {
+      await showErrorAlert(
+        "Hạng phòng không hợp lệ",
+        "Các hạng phòng đã chọn chưa liên kết OTA và không thể cập nhật.",
+      );
+      return;
+    }
 
     if (!dateFrom || !dateTo) {
       await showErrorAlert(
@@ -189,10 +232,7 @@ export function BulkUpdateModal({
 
     try {
       const res = await bulkUpdate({
-        roomTypeIds:
-          selectedRoomTypes.length > 0
-            ? selectedRoomTypes
-            : roomTypes.map((roomType) => roomType.roomTypeId),
+        roomTypeIds: validRoomTypeIds,
         dateFrom,
         dateTo,
         daysOfWeek: selectedDays,
@@ -269,23 +309,62 @@ export function BulkUpdateModal({
               </label>
               <button
                 type="button"
+                disabled={eligibleIds.length === 0}
                 onClick={selectAllRoomTypes}
-                className="text-sm font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer"
+                className="text-sm font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed"
               >
-                {selectedRoomTypes.length === roomTypes.length
+                {areAllEligibleSelected
                   ? "Bỏ chọn tất cả"
-                  : "Chọn tất cả hạng phòng"}
+                  : "Chọn tất cả hạng phòng hợp lệ"}
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
               {roomTypes.map((rt) => {
-                const isChecked = selectedRoomTypes.includes(rt.roomTypeId);
+                const blocked = isRoomTypeBlocked(rt);
+                const isChecked =
+                  !blocked && selectedRoomTypes.includes(rt.roomTypeId);
+                const blockers = rt.channexMappingBlockers ?? [];
+                const explanation = blocked
+                  ? formatChannexBlockersExplanation(blockers)
+                  : "";
+
+                if (blocked) {
+                  return (
+                    <div
+                      key={rt.roomTypeId}
+                      aria-disabled={true}
+                      tabIndex={-1}
+                      title={`Chưa liên kết OTA: ${explanation}`}
+                      className="flex items-center justify-between p-3 rounded-2xl border border-slate-200 bg-slate-50 text-slate-400 opacity-60 cursor-not-allowed select-none pointer-events-none"
+                    >
+                      <div>
+                        <div className="text-sm font-semibold text-slate-600">
+                          {rt.roomTypeName}
+                        </div>
+                        <div className="text-xs text-slate-400 font-mono">
+                          Mã: {rt.roomTypeCode} ({rt.totalRooms} phòng)
+                        </div>
+                        <div className="mt-1 inline-flex items-center gap-1 rounded bg-amber-100/90 px-1.5 py-0.5 text-[11px] font-bold text-amber-900">
+                          <VsIcon
+                            name="link_off"
+                            className="text-xs text-amber-700"
+                          />
+                          <span>Chưa liên kết OTA ({explanation})</span>
+                        </div>
+                      </div>
+                      <div className="w-5 h-5 rounded-md flex items-center justify-center border border-slate-200 bg-slate-100 text-slate-400">
+                        <VsIcon name="block" className="text-xs" />
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <button
                     key={rt.roomTypeId}
                     type="button"
                     onClick={() => toggleRoomType(rt.roomTypeId)}
-                    className={`flex items-center justify-between p-3 rounded-2xl border text-left transition-all ${
+                    className={`flex items-center justify-between p-3 rounded-2xl border text-left transition-all cursor-pointer ${
                       isChecked
                         ? "bg-emerald-50/80 border-emerald-500 text-emerald-950 font-bold shadow-xs"
                         : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 font-medium"
@@ -323,9 +402,14 @@ export function BulkUpdateModal({
               })}
             </div>
             {selectedRoomTypes.length === 0 && (
-              <p className="text-xs font-semibold text-slate-500 italic">
-                * Chưa chọn hạng phòng nào (Mặc định áp dụng cho tất cả các hạng
-                phòng)
+              <p className="text-xs font-semibold text-rose-600 italic">
+                * Vui lòng chọn ít nhất một hạng phòng hợp lệ để áp dụng.
+              </p>
+            )}
+            {eligibleIds.length === 0 && (
+              <p className="text-xs font-semibold text-amber-700">
+                Tất cả hạng phòng đều chưa liên kết OTA. Không thể thực hiện cập
+                nhật hàng loạt.
               </p>
             )}
           </div>
@@ -476,11 +560,12 @@ export function BulkUpdateModal({
                   type="button"
                   aria-pressed={stopSellAction === "keep"}
                   onClick={() => setStopSellAction("keep")}
-                  className={"min-h-11 rounded-lg border px-3 py-2 text-base font-semibold " + (
-                    stopSellAction === "keep"
+                  className={
+                    "min-h-11 rounded-lg border px-3 py-2 text-base font-semibold " +
+                    (stopSellAction === "keep"
                       ? "border-slate-800 bg-slate-800 text-white"
-                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                  )}
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
+                  }
                 >
                   Giữ nguyên
                 </button>
@@ -488,11 +573,12 @@ export function BulkUpdateModal({
                   type="button"
                   aria-pressed={stopSellAction === "open"}
                   onClick={() => setStopSellAction("open")}
-                  className={"min-h-11 rounded-lg border px-3 py-2 text-base font-semibold " + (
-                    stopSellAction === "open"
+                  className={
+                    "min-h-11 rounded-lg border px-3 py-2 text-base font-semibold " +
+                    (stopSellAction === "open"
                       ? "border-emerald-800 bg-emerald-800 text-white"
-                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                  )}
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
+                  }
                 >
                   Mở bán
                 </button>
@@ -500,17 +586,19 @@ export function BulkUpdateModal({
                   type="button"
                   aria-pressed={stopSellAction === "close"}
                   onClick={() => setStopSellAction("close")}
-                  className={"min-h-11 rounded-lg border px-3 py-2 text-base font-semibold " + (
-                    stopSellAction === "close"
+                  className={
+                    "min-h-11 rounded-lg border px-3 py-2 text-base font-semibold " +
+                    (stopSellAction === "close"
                       ? "border-rose-800 bg-rose-800 text-white"
-                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                  )}
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
+                  }
                 >
                   Đóng bán
                 </button>
               </div>
               <p className="mt-2 text-sm text-slate-600">
-                Chỉ áp dụng cho hạng phòng và ngày đã chọn khi bấm Áp dụng cập nhật.
+                Chỉ áp dụng cho hạng phòng và ngày đã chọn khi bấm Áp dụng cập
+                nhật.
               </p>
             </fieldset>
           </div>

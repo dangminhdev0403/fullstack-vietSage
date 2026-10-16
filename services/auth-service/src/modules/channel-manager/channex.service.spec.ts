@@ -1,3 +1,11 @@
+process.env.DATABASE_URL = "postgresql://mock:mock@localhost:5432/mock";
+process.env.NODE_ENV = "test";
+process.env.PORT = "3000";
+process.env.JWT_ACCESS_SECRET = "mock_jwt_access_secret_32_chars_long!!";
+process.env.JWT_REFRESH_SECRET = "mock_jwt_refresh_secret_32_chars_long!";
+process.env.JWT_ACCESS_TTL = "15m";
+process.env.JWT_REFRESH_TTL = "7d";
+
 import { ChannexApiClient } from "./services/channex-api-client.service";
 import { ChannexSyncService } from "./services/channex-sync.service";
 import { ChannexAriSyncService } from "./services/channex-ari-sync.service";
@@ -522,6 +530,12 @@ describe("Channex Channel Manager Integration Suite", () => {
   // ================= 3. OUTBOUND ARI PUSH TESTS ================= //
   describe("Component 3: ChannexAriSyncService (ARI Range Compression & Past Date Filtering)", () => {
     let ariSyncService: ChannexAriSyncService;
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
 
     beforeEach(() => {
       mockApiClient.getProperty.mockResolvedValue({ data: { attributes: { currency: "VND" } } });
@@ -647,7 +661,7 @@ describe("Channex Channel Manager Integration Suite", () => {
       expect(grid.roomTypes[0].days.map((day) => day.bookedRooms)).toEqual([1, 1, 0]);
     });
 
-    it("đẩy availability-only khi mapping room type tồn tại dù chưa có rate plan", async () => {
+    it("chặn availability-only khi thiếu rate plan theo cùng readiness rule", async () => {
       const hotelId = "hotel_viet_1";
       const today = new Intl.DateTimeFormat("en-CA", {
         timeZone: "Asia/Ho_Chi_Minh",
@@ -667,16 +681,15 @@ describe("Channex Channel Manager Integration Suite", () => {
       ]);
       mockPrisma.channelDailyAvailability.findMany.mockResolvedValue([]);
       mockPrisma.channelDailyRestriction.findMany.mockResolvedValue([]);
-      mockApiClient.postAvailability.mockResolvedValue({ data: {} });
-      mockApiClient.getAvailability.mockResolvedValue({ data: { rt_deluxe_chx: { [today]: 1 } } });
 
-      const result = await ariSyncService.pushAri(hotelId, {
-        startDate: today,
-        endDate: today,
-        availabilityOnly: true,
-      });
-      expect(result.success).toBe(true);
-      expect(mockApiClient.postAvailability).toHaveBeenCalledTimes(1);
+      await expect(
+        ariSyncService.pushAri(hotelId, {
+          startDate: today,
+          endDate: today,
+          availabilityOnly: true,
+        }),
+      ).rejects.toThrow("mapping gói giá");
+      expect(mockApiClient.postAvailability).not.toHaveBeenCalled();
       expect(mockApiClient.postRestrictions).not.toHaveBeenCalled();
     });
 
@@ -696,8 +709,8 @@ describe("Channex Channel Manager Integration Suite", () => {
 
       await expect(
         ariSyncService.pushAri(hotelId, {
-          startDate: "2026-10-15",
-          endDate: "2026-10-15",
+          startDate: today,
+          endDate: today,
         }),
       ).rejects.toThrow("mapping gói giá");
 
@@ -718,15 +731,15 @@ describe("Channex Channel Manager Integration Suite", () => {
       mockApiClient.postAvailability.mockResolvedValue({ data: {} });
       mockApiClient.postRestrictions.mockResolvedValue({ data: {} });
       mockApiClient.getAvailability.mockResolvedValue({
-        data: { rt_deluxe_chx: { "2026-10-15": 99 } },
+        data: { rt_deluxe_chx: { [today]: 99 } },
       });
       mockApiClient.getRestrictions.mockResolvedValue({
-        data: { rp_deluxe_chx: { "2026-10-15": { rate: "1.00" } } },
+        data: { rp_deluxe_chx: { [today]: { rate: "1.00" } } },
       });
 
       const result = await ariSyncService.pushAri(hotelId, {
-        startDate: "2026-10-15",
-        endDate: "2026-10-15",
+        startDate: today,
+        endDate: today,
       });
 
       expect(result.readbackVerified.availabilityMatch).toBe(false);
@@ -749,21 +762,21 @@ describe("Channex Channel Manager Integration Suite", () => {
       mockApiClient.postAvailability.mockResolvedValue({ data: {} });
       mockApiClient.postRestrictions.mockResolvedValue({ data: {} });
       mockApiClient.getAvailability.mockResolvedValue({
-        data: { rt_std_chx: { "2026-10-15": 1 } },
+        data: { rt_std_chx: { [today]: 1 } },
       });
       mockApiClient.getRestrictions.mockResolvedValue({
         data: {
           rp_std_chx: {
-            "2026-10-15": { rate: "600000.00", min_stay_arrival: 1, stop_sell: false },
+            [today]: { rate: "600000.00", min_stay_arrival: 1, stop_sell: false },
           },
         },
       });
 
-      // Ngày 2026-10-15 không có bản ghi giá trong DB nhưng KHÔNG được ném BadRequestException
+      // Ngày today không có bản ghi giá trong DB nhưng KHÔNG được ném BadRequestException
       await expect(
         ariSyncService.pushAri(hotelId, {
-          startDate: "2026-10-15",
-          endDate: "2026-10-15",
+          startDate: today,
+          endDate: today,
         }),
       ).rejects.toThrow("giá gốc");
 
@@ -787,20 +800,20 @@ describe("Channex Channel Manager Integration Suite", () => {
       mockApiClient.postAvailability.mockResolvedValue({ data: {} });
       mockApiClient.postRestrictions.mockResolvedValue({ data: {} });
       mockApiClient.getAvailability.mockResolvedValue({
-        data: { rt_std_chx: { "2026-10-15": 1 } },
+        data: { rt_std_chx: { [today]: 1 } },
       });
       mockApiClient.getRestrictions.mockResolvedValue({
         data: {
           rp_std_chx: {
-            "2026-10-15": { rate: "26.10", min_stay_arrival: 1, stop_sell: false },
+            [today]: { rate: "26.10", min_stay_arrival: 1, stop_sell: false },
           },
         },
       });
 
       try {
         const result = await ariSyncService.pushAri("hotel_viet_1", {
-          startDate: "2026-10-15",
-          endDate: "2026-10-15",
+          startDate: today,
+          endDate: today,
         });
 
         expect(mockApiClient.postRestrictions).toHaveBeenCalledWith(
@@ -832,9 +845,13 @@ describe("Channex Channel Manager Integration Suite", () => {
       mockPrisma.channelDailyAvailability.findMany.mockResolvedValue([]);
       mockPrisma.channelDailyRestriction.findMany.mockResolvedValue([]);
 
-      // Giả lập ngày cập nhật mới nhất trong DB là 2026-10-20
+      const futureDate = new Date(`${today}T00:00:00.000Z`);
+      futureDate.setUTCDate(futureDate.getUTCDate() + 5);
+      const futureDateStr = futureDate.toISOString().split("T")[0];
+
+      // Giả lập ngày cập nhật mới nhất trong DB
       mockPrisma.channelDailyRestriction.findFirst.mockResolvedValue({
-        date: new Date("2026-10-20T00:00:00.000Z"),
+        date: futureDate,
       });
       mockPrisma.channelDailyAvailability.findFirst.mockResolvedValue(null);
       mockApiClient.postAvailability.mockResolvedValue({ data: {} });
@@ -843,14 +860,14 @@ describe("Channex Channel Manager Integration Suite", () => {
       mockApiClient.getRestrictions.mockResolvedValue({ data: {} });
 
       const result = await ariSyncService.pushAri(hotelId, {
-        startDate: "2026-10-15",
+        startDate: today,
         // Không truyền endDate
       });
 
       // Readback giả lập rỗng không được coi là đã xác minh thành công.
       expect(result.success).toBe(false);
-      expect(result.startDate).toBe("2026-10-15");
-      expect(result.endDate).toBe("2026-10-20");
+      expect(result.startDate).toBe(today);
+      expect(result.endDate).toBe(futureDateStr);
     });
   });
 
@@ -925,7 +942,7 @@ describe("Channex Channel Manager Integration Suite", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             guestDisplayName: "John Doe",
-            roomId: "room_101",
+            roomId: null,
             roomTypeSnapshot: "DELUXE",
             status: "CONFIRMED",
           }),
@@ -939,6 +956,9 @@ describe("Channex Channel Manager Integration Suite", () => {
             kind: "booking",
             localId: "resv_local_1",
             channexId: "bk_chx_999",
+            metadata: expect.objectContaining({
+              requiresRoomAssignment: true,
+            }),
           }),
         }),
       );
@@ -949,19 +969,7 @@ describe("Channex Channel Manager Integration Suite", () => {
       expect(mockPrisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
         isolationLevel: "Serializable",
       });
-      expect(mockPrisma.room.findFirst).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            OR: expect.arrayContaining([{ roomTypeId: "catalog-DELUXE" }]),
-            reservations: {
-              none: expect.objectContaining({
-                plannedCheckInAt: { lt: new Date("2026-10-18T05:00:00.000Z") },
-                plannedCheckOutAt: { gt: new Date("2026-10-15T07:00:00.000Z") },
-              }),
-            },
-          }),
-        }),
-      );
+      expect(mockPrisma.room.findFirst).not.toHaveBeenCalled();
     });
 
     it("tạo một reservation segment cho mỗi phòng của booking nhiều phòng", async () => {
@@ -1362,7 +1370,7 @@ describe("Channex Channel Manager Integration Suite", () => {
       });
       mockApiClient.ackBookingRevision.mockResolvedValue({ data: { message: "Success" } });
 
-      const res = await ingestionService.handleWebhook(webhookPayload as any);
+      const res = await ingestionService.handleWebhook(webhookPayload);
 
       expect(res.success).toBe(true);
       expect(res.outcome.action).toBe("CREATED");

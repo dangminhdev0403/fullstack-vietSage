@@ -94,6 +94,7 @@ Backend API
   `channexSync: "NOT_PUSHED"` and require a separate authorized Channex sync.
 
 - `/channel-manager` consumes same-origin role-scoped BFF routes through the channel-manager repository/resource/hooks. Browser payloads never contain `CHANNEX_API_KEY` or the webhook secret.
+- Every inventory row must include `channexMappingBlockers`; omission is a failed grid read, never an implicit ready state. Any blocker keeps read-only values/navigation available but disables availability, rate, open/close-sale, quick, and bulk mutation controls. Human-readable Vietnamese labels replace raw blocker codes. Bulk selection includes only rows with an explicit empty blocker array and never treats an empty selection as all rooms. Backend HTTP `409` / `CHANNEX_MAPPING_REQUIRED` remains authoritative against direct API bypass.
 - Platform admins run idempotent Content Sync. Admin/owner users edit and save PMS ARI before explicitly pushing it to Channex. Readback is displayed as matched only when sampled availability and rate/restriction values equal the values sent.
 - VietSage stores room prices in VND. A GBP Booking.com staging property uses the explicit `CHANNEX_STAGING_VND_TO_GBP_RATE` calibration, converted to Channex minor units; this calibration is rejected outside `staging.channex.io`. Existing Channex properties keep their live currency during Content Sync.
 - The OTA tab reads the complete provider catalog from Channex `GET /channels/list` and connected-channel status from property-scoped `GET /channels`; do not hardcode a small test-provider list.

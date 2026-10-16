@@ -37,6 +37,10 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
       stay: { id: "stay-1", status: "ACTIVE" },
       folio: { id: "folio-1", status: "OPEN" },
     }),
+    createBulkReservations: jest.fn().mockResolvedValue({
+      groupCode: "VSH_GROUP_0001",
+      reservations: [],
+    }),
     ...overrides,
   };
 }
@@ -257,5 +261,83 @@ describe("ReservationsService front-desk lifecycle", () => {
     await expect(
       service.checkIn("actor-1", "active-role", "hotel-1", "reservation-1"),
     ).rejects.toThrow(new ConflictException("EARLY_CHECK_IN_NOT_ALLOWED"));
+  });
+
+  describe("createBulkReservations group booking", () => {
+    it("creates bulk reservations sharing one groupCode and asserting access for all rooms", async () => {
+      const mockResult = {
+        groupCode: "VSH_GROUP_0001",
+        reservations: [
+          {
+            id: "res-1",
+            hotelId: "hotel-1",
+            roomId: "room-1",
+            reservationCode: "VSH_RESERVATION_0001",
+            groupCode: "VSH_GROUP_0001",
+            guestDisplayName: "Doan Du Lich Viet",
+            status: "ARRIVAL_READY",
+          },
+          {
+            id: "res-2",
+            hotelId: "hotel-1",
+            roomId: "room-2",
+            reservationCode: "VSH_RESERVATION_0002",
+            groupCode: "VSH_GROUP_0001",
+            guestDisplayName: "Doan Du Lich Viet",
+            status: "ARRIVAL_READY",
+          },
+        ],
+      };
+      const repo = createRepository({
+        createBulkReservations: jest.fn().mockResolvedValue(mockResult),
+      });
+      const { service } = createService(repo);
+
+      const result = await service.createBulkReservations("actor-1", "active-role", "hotel-1", {
+        leadGuestName: " Doan Du Lich Viet ",
+        leadGuestPhone: " 0912345678 ",
+        checkInDate: new Date("2026-09-01T14:00:00.000Z"),
+        checkOutDate: new Date("2026-09-04T12:00:00.000Z"),
+        roomIds: ["room-1", "room-2"],
+        rate: 1200000,
+      });
+
+      expect(result).toEqual(mockResult);
+      expect(repo.createBulkReservations).toHaveBeenCalledWith(
+        expect.objectContaining({
+          hotelId: "hotel-1",
+          groupCode: expect.any(String),
+          leadGuestName: "Doan Du Lich Viet",
+          leadGuestPhone: "0912345678",
+          roomIds: ["room-1", "room-2"],
+          createdByUserId: "actor-1",
+          nightlyRateSnapshot: "1200000.00",
+        }),
+      );
+    });
+
+    it("uses provided groupCode when explicitly passed in input", async () => {
+      const repo = createRepository({
+        createBulkReservations: jest.fn().mockResolvedValue({
+          groupCode: "CUSTOM_GRP_999",
+          reservations: [],
+        }),
+      });
+      const { service } = createService(repo);
+
+      await service.createBulkReservations("actor-1", "active-role", "hotel-1", {
+        leadGuestName: "Doan Hop Tac",
+        checkInDate: new Date("2026-09-01T14:00:00.000Z"),
+        checkOutDate: new Date("2026-09-04T12:00:00.000Z"),
+        roomIds: ["room-1", "room-2"],
+        groupCode: "CUSTOM_GRP_999",
+      });
+
+      expect(repo.createBulkReservations).toHaveBeenCalledWith(
+        expect.objectContaining({
+          groupCode: "CUSTOM_GRP_999",
+        }),
+      );
+    });
   });
 });

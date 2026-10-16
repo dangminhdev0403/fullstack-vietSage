@@ -33,6 +33,35 @@ export interface CreateConnectionPayload {
   inboundUrl: string;
 }
 
+export type ChannexMappingBlocker =
+  | "PROPERTY_MAPPING_MISSING"
+  | "ROOM_TYPE_MAPPING_MISSING"
+  | "RATE_PLAN_MAPPING_MISSING"
+  | "MAPPING_CONFLICT";
+
+export function getChannexBlockerLabel(blocker: ChannexMappingBlocker): string {
+  switch (blocker) {
+    case "PROPERTY_MAPPING_MISSING":
+      return "Chưa liên kết khách sạn";
+    case "ROOM_TYPE_MAPPING_MISSING":
+      return "Chưa liên kết hạng phòng";
+    case "RATE_PLAN_MAPPING_MISSING":
+      return "Chưa liên kết gói giá";
+    case "MAPPING_CONFLICT":
+      return "Xung đột cấu hình liên kết";
+    default:
+      return "Chưa hoàn tất liên kết";
+  }
+}
+
+export function formatChannexBlockersExplanation(
+  blockers?: ChannexMappingBlocker[],
+): string {
+  if (!blockers || blockers.length === 0) return "";
+  const unique = Array.from(new Set(blockers));
+  return unique.map(getChannexBlockerLabel).join(", ");
+}
+
 export interface DayInventory {
   date: string; // YYYY-MM-DD
   available: number;
@@ -51,6 +80,7 @@ export interface RoomTypeInventory {
   basePrice: number | null;
   totalRooms: number;
   days: DayInventory[];
+  channexMappingBlockers: ChannexMappingBlocker[];
 }
 
 export interface InventoryGridResponse {
@@ -261,6 +291,26 @@ export interface ConfigureChannexPropertyResult {
   message: string;
 }
 
+export type OtaAssignmentStatus =
+  "UNASSIGNED" | "PARTIALLY_ASSIGNED" | "FULLY_ASSIGNED";
+
+export interface SimulatedBookingSegmentItem {
+  segmentId?: string;
+  reservationId: string;
+  reservationCode: string;
+  roomType: string | null;
+  roomId?: string | null;
+  roomNumber?: string | null;
+  status: string;
+  stayId?: string | null;
+  stayStatus?: string | null;
+  checkInDate: string | null;
+  checkOutDate: string | null;
+  amount: number | null;
+  currency?: string | null;
+  groupCode?: string | null;
+}
+
 export interface SimulatedBookingItem {
   bookingId: string;
   reservationId: string;
@@ -280,6 +330,11 @@ export interface SimulatedBookingItem {
   amount: number | null;
   currency?: string | null;
   createdAt: string;
+  groupCode?: string | null;
+  assignedCount?: number;
+  totalSegments?: number;
+  assignmentStatus?: OtaAssignmentStatus;
+  segments?: SimulatedBookingSegmentItem[];
 }
 
 export interface CancelSimulatedBookingInput {

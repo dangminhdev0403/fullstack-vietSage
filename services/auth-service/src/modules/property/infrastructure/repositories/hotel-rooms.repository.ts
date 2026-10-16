@@ -428,7 +428,13 @@ export class HotelRoomsRepository {
           status: RoomStatus.AVAILABLE,
           guestStays: {
             none: {
-              status: { in: [GuestStayStatus.ACTIVE, GuestStayStatus.CHECKED_IN, GuestStayStatus.CHECKOUT_PENDING] },
+              status: {
+                in: [
+                  GuestStayStatus.ACTIVE,
+                  GuestStayStatus.CHECKED_IN,
+                  GuestStayStatus.CHECKOUT_PENDING,
+                ],
+              },
               checkedOutAt: null,
             },
           },
@@ -452,6 +458,9 @@ export class HotelRoomsRepository {
       );
       const roomIds = items.map((r) => r.id);
 
+      const now = new Date();
+      const isViewingTodayOrPast = dateStart <= now;
+
       const overlappingStays =
         roomIds.length > 0
           ? await this.prisma.guestStay.findMany({
@@ -466,7 +475,10 @@ export class HotelRoomsRepository {
                   ],
                 },
                 plannedCheckInAt: { lt: dateEnd },
-                plannedCheckOutAt: { gt: dateStart },
+                OR: [
+                  { plannedCheckOutAt: { gt: dateStart } },
+                  ...(isViewingTodayOrPast ? [{ checkedOutAt: null }] : []),
+                ],
               },
               select: {
                 id: true,
@@ -501,7 +513,9 @@ export class HotelRoomsRepository {
       const staysByRoomId = new Map<string, (typeof overlappingStays)[0]>();
       for (const stay of overlappingStays) {
         const stayStart = stay.checkedInAt ?? stay.plannedCheckInAt;
-        const stayEnd = stay.checkedOutAt ?? stay.plannedCheckOutAt;
+        const stayEnd =
+          stay.checkedOutAt ??
+          (isViewingTodayOrPast && stay.plannedCheckOutAt < now ? now : stay.plannedCheckOutAt);
         if (stayStart < dateEnd && stayEnd > dateStart) {
           if (!staysByRoomId.has(stay.roomId)) {
             staysByRoomId.set(stay.roomId, stay);
@@ -529,6 +543,7 @@ export class HotelRoomsRepository {
               roomId: true,
               roomTypeSnapshot: true,
               reservationCode: true,
+              groupCode: true,
               guestDisplayName: true,
               guestPhone: true,
               status: true,
@@ -540,7 +555,7 @@ export class HotelRoomsRepository {
               checkedInAt: true,
               createdAt: true,
               updatedAt: true,
-            },
+            } as any,
             orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
           }),
           this.prisma.guestStay.findMany({
@@ -598,26 +613,34 @@ export class HotelRoomsRepository {
         if (staysByRoomId.has(item.id)) {
           projectedStatus = RoomStatus.OCCUPIED;
           item.projectedStay = staysByRoomId.get(item.id);
-        } else if (reservationsByRoomId.has(item.id)) {
-          projectedStatus = RoomStatus.RESERVED;
-          item.projectedReservation = {
-            ...reservationsByRoomId.get(item.id),
-            sourceType: "RESERVATION",
-          };
-        } else if (reservedStaysByRoomId.has(item.id)) {
-          projectedStatus = RoomStatus.RESERVED;
-          item.projectedReservation = {
-            ...reservedStaysByRoomId.get(item.id),
-            sourceType: "STAY",
-          };
-        } else if (
-          item.status === RoomStatus.MAINTENANCE ||
-          item.status === RoomStatus.BLOCKED ||
-          item.status === RoomStatus.OUT_OF_SERVICE
-        ) {
-          projectedStatus = item.status;
+          item.guestStays = [staysByRoomId.get(item.id) as any];
         } else {
-          projectedStatus = RoomStatus.AVAILABLE;
+          // Current occupant is absent on non-overlapping future date
+          item.guestStays = [];
+          item.activeGuestDeviceCount = 0;
+          delete item.projectedStay;
+
+          if (reservationsByRoomId.has(item.id)) {
+            projectedStatus = RoomStatus.RESERVED;
+            item.projectedReservation = {
+              ...reservationsByRoomId.get(item.id),
+              sourceType: "RESERVATION",
+            };
+          } else if (reservedStaysByRoomId.has(item.id)) {
+            projectedStatus = RoomStatus.RESERVED;
+            item.projectedReservation = {
+              ...reservedStaysByRoomId.get(item.id),
+              sourceType: "STAY",
+            };
+          } else if (
+            item.status === RoomStatus.MAINTENANCE ||
+            item.status === RoomStatus.BLOCKED ||
+            item.status === RoomStatus.OUT_OF_SERVICE
+          ) {
+            projectedStatus = item.status;
+          } else {
+            projectedStatus = RoomStatus.AVAILABLE;
+          }
         }
         item.projectedStatus = projectedStatus;
         item.businessDate = projectionOptions.businessDate;
@@ -646,6 +669,7 @@ export class HotelRoomsRepository {
                   roomId: true,
                   roomTypeSnapshot: true,
                   reservationCode: true,
+                  groupCode: true,
                   guestDisplayName: true,
                   guestPhone: true,
                   status: true,
@@ -657,7 +681,7 @@ export class HotelRoomsRepository {
                   checkedInAt: true,
                   createdAt: true,
                   updatedAt: true,
-                },
+                } as any,
                 orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
               })
             : Promise.resolve([]),
@@ -711,6 +735,7 @@ export class HotelRoomsRepository {
                   roomId: true,
                   roomTypeSnapshot: true,
                   reservationCode: true,
+                  groupCode: true,
                   guestDisplayName: true,
                   guestPhone: true,
                   status: true,
@@ -722,7 +747,7 @@ export class HotelRoomsRepository {
                   checkedInAt: true,
                   createdAt: true,
                   updatedAt: true,
-                },
+                } as any,
                 orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
               })
             : Promise.resolve([]),
@@ -787,7 +812,10 @@ export class HotelRoomsRepository {
         byStatus.occupied += row._count._all;
       } else if (row.status === RoomStatus.PROCESSING) {
         byStatus.processing += row._count._all;
-      } else if (row.status === RoomStatus.MAINTENANCE || row.status === RoomStatus.OUT_OF_SERVICE) {
+      } else if (
+        row.status === RoomStatus.MAINTENANCE ||
+        row.status === RoomStatus.OUT_OF_SERVICE
+      ) {
         byStatus.maintenance += row._count._all;
       } else if (row.status === RoomStatus.BLOCKED) {
         byStatus.blocked += row._count._all;

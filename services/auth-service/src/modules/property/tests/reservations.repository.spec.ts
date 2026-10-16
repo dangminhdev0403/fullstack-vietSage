@@ -388,14 +388,17 @@ describe("ReservationsRepository transactional lifecycle", () => {
     const tx = {
       $queryRawUnsafe: jest.fn(),
       reservation: {
-        findFirst: jest
+        findFirst: jest.fn().mockResolvedValueOnce(reservation).mockResolvedValueOnce(null),
+        update: jest
           .fn()
-          .mockResolvedValueOnce(reservation)
-          .mockResolvedValueOnce(null),
-        update: jest.fn().mockResolvedValue({ id: "res-future", roomId: "room-occ", status: "ARRIVAL_READY" }),
+          .mockResolvedValue({ id: "res-future", roomId: "room-occ", status: "ARRIVAL_READY" }),
       },
       room: {
-        findFirst: jest.fn().mockResolvedValue({ id: "room-occ", status: RoomStatus.OCCUPIED, price: new Prisma.Decimal(1000000) }),
+        findFirst: jest.fn().mockResolvedValue({
+          id: "room-occ",
+          status: RoomStatus.OCCUPIED,
+          price: new Prisma.Decimal(1000000),
+        }),
       },
       guestStay: {
         findFirst: jest.fn().mockResolvedValue(null),
@@ -455,10 +458,7 @@ describe("ReservationsRepository transactional lifecycle", () => {
     const tx = {
       $queryRawUnsafe: jest.fn(),
       reservation: {
-        findFirst: jest
-          .fn()
-          .mockResolvedValueOnce(reservation)
-          .mockResolvedValueOnce(null),
+        findFirst: jest.fn().mockResolvedValueOnce(reservation).mockResolvedValueOnce(null),
         update: jest.fn(),
       },
       room: {
@@ -527,10 +527,16 @@ describe("ReservationsRepository transactional lifecycle", () => {
       $queryRawUnsafe: jest.fn(),
       reservation: {
         findFirst: jest.fn().mockResolvedValue(reservation),
-        update: jest.fn().mockResolvedValue({ ...reservation, status: ReservationStatus.CHECKED_IN }),
+        update: jest
+          .fn()
+          .mockResolvedValue({ ...reservation, status: ReservationStatus.CHECKED_IN }),
       },
       room: {
-        findFirst: jest.fn().mockResolvedValue({ id: "room-1", status: RoomStatus.AVAILABLE, price: new Prisma.Decimal(900000) }),
+        findFirst: jest.fn().mockResolvedValue({
+          id: "room-1",
+          status: RoomStatus.AVAILABLE,
+          price: new Prisma.Decimal(900000),
+        }),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       guestStay: {
@@ -585,10 +591,16 @@ describe("ReservationsRepository transactional lifecycle", () => {
       $queryRawUnsafe: jest.fn(),
       reservation: {
         findFirst: jest.fn().mockResolvedValue(reservation),
-        update: jest.fn().mockResolvedValue({ ...reservation, status: ReservationStatus.CHECKED_IN }),
+        update: jest
+          .fn()
+          .mockResolvedValue({ ...reservation, status: ReservationStatus.CHECKED_IN }),
       },
       room: {
-        findFirst: jest.fn().mockResolvedValue({ id: "room-1", status: RoomStatus.AVAILABLE, price: new Prisma.Decimal(800000) }),
+        findFirst: jest.fn().mockResolvedValue({
+          id: "room-1",
+          status: RoomStatus.AVAILABLE,
+          price: new Prisma.Decimal(800000),
+        }),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       guestStay: {
@@ -643,10 +655,16 @@ describe("ReservationsRepository transactional lifecycle", () => {
       $queryRawUnsafe: jest.fn(),
       reservation: {
         findFirst: jest.fn().mockResolvedValue(reservation),
-        update: jest.fn().mockResolvedValue({ ...reservation, status: ReservationStatus.CHECKED_IN }),
+        update: jest
+          .fn()
+          .mockResolvedValue({ ...reservation, status: ReservationStatus.CHECKED_IN }),
       },
       room: {
-        findFirst: jest.fn().mockResolvedValue({ id: "room-1", status: RoomStatus.AVAILABLE, price: new Prisma.Decimal(800000) }),
+        findFirst: jest.fn().mockResolvedValue({
+          id: "room-1",
+          status: RoomStatus.AVAILABLE,
+          price: new Prisma.Decimal(800000),
+        }),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       guestStay: {
@@ -702,10 +720,16 @@ describe("ReservationsRepository transactional lifecycle", () => {
       $queryRawUnsafe: jest.fn(),
       reservation: {
         findFirst: jest.fn().mockResolvedValue(reservation),
-        update: jest.fn().mockResolvedValue({ ...reservation, status: ReservationStatus.CHECKED_IN }),
+        update: jest
+          .fn()
+          .mockResolvedValue({ ...reservation, status: ReservationStatus.CHECKED_IN }),
       },
       room: {
-        findFirst: jest.fn().mockResolvedValue({ id: "room-1", status: RoomStatus.AVAILABLE, price: new Prisma.Decimal(500000) }),
+        findFirst: jest.fn().mockResolvedValue({
+          id: "room-1",
+          status: RoomStatus.AVAILABLE,
+          price: new Prisma.Decimal(500000),
+        }),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       guestStay: {
@@ -783,6 +807,191 @@ describe("ReservationsRepository transactional lifecycle", () => {
           ],
         },
       }),
+    });
+  });
+
+  describe("createBulkReservations transactional group booking", () => {
+    it("locks rooms in sorted order and creates all reservations atomically with one shared groupCode", async () => {
+      const lockOrder: string[] = [];
+      const tx = {
+        $queryRawUnsafe: jest.fn(async (_sql: string, roomId: string) => {
+          lockOrder.push(roomId);
+        }),
+        room: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: "room-2", status: RoomStatus.AVAILABLE, price: 1000000 },
+            { id: "room-1", status: RoomStatus.AVAILABLE, price: 1000000 },
+          ]),
+        },
+        reservation: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockImplementation(async ({ data }: any) => ({
+            id: `res-${data.roomId}`,
+            ...data,
+          })),
+        },
+        guestStay: {
+          findFirst: jest.fn().mockResolvedValue(null),
+        },
+      };
+      const { repository } = createRepository(tx);
+
+      let seq = 1;
+      const generateReservationCode = jest.fn(async () => `VSH_RES_${seq++}`);
+
+      const result = await repository.createBulkReservations({
+        hotelId: "hotel-1",
+        groupCode: "VSH_GROUP_0001",
+        leadGuestName: "Doan Dai Bieu",
+        leadGuestPhone: "0900111222",
+        checkInDate: new Date("2026-09-10T14:00:00.000Z"),
+        checkOutDate: new Date("2026-09-15T12:00:00.000Z"),
+        roomIds: ["room-2", "room-1"], // Unsorted input
+        createdByUserId: "actor-1",
+        nightlyRateSnapshot: "1000000.00",
+        generateReservationCode,
+      });
+
+      expect(result.groupCode).toBe("VSH_GROUP_0001");
+      expect(result.reservations).toHaveLength(2);
+
+      // Verify sorted locking order
+      expect(lockOrder).toEqual(["room-1", "room-2"]);
+
+      // Verify shared groupCode and copied lead details
+      expect(result.reservations[0]).toMatchObject({
+        roomId: "room-2",
+        groupCode: "VSH_GROUP_0001",
+        guestDisplayName: "Doan Dai Bieu",
+        guestPhone: "0900111222",
+        reservationCode: "VSH_RES_1",
+        status: ReservationStatus.ARRIVAL_READY,
+      });
+      expect(result.reservations[1]).toMatchObject({
+        roomId: "room-1",
+        groupCode: "VSH_GROUP_0001",
+        guestDisplayName: "Doan Dai Bieu",
+        guestPhone: "0900111222",
+        reservationCode: "VSH_RES_2",
+        status: ReservationStatus.ARRIVAL_READY,
+      });
+    });
+
+    it("rejects when less than 2 or more than 50 unique rooms requested", async () => {
+      const tx = {};
+      const { repository } = createRepository(tx);
+
+      await expect(
+        repository.createBulkReservations({
+          hotelId: "hotel-1",
+          groupCode: "GRP-1",
+          leadGuestName: "Guest",
+          checkInDate: new Date("2026-09-10T14:00:00.000Z"),
+          checkOutDate: new Date("2026-09-15T12:00:00.000Z"),
+          roomIds: ["room-1"],
+          createdByUserId: "actor-1",
+          generateReservationCode: jest.fn(),
+        }),
+      ).rejects.toThrow();
+    });
+
+    it("rejects and rolls back completely when any room is non-sellable", async () => {
+      const tx = {
+        $queryRawUnsafe: jest.fn(),
+        room: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: "room-1", status: RoomStatus.AVAILABLE, price: 1000000 },
+            { id: "room-2", status: RoomStatus.MAINTENANCE, price: 1000000 },
+          ]),
+        },
+        reservation: {
+          findFirst: jest.fn(),
+          create: jest.fn(),
+        },
+      };
+      const { repository } = createRepository(tx);
+
+      await expect(
+        repository.createBulkReservations({
+          hotelId: "hotel-1",
+          groupCode: "GRP-1",
+          leadGuestName: "Guest",
+          checkInDate: new Date("2026-09-10T14:00:00.000Z"),
+          checkOutDate: new Date("2026-09-15T12:00:00.000Z"),
+          roomIds: ["room-1", "room-2"],
+          createdByUserId: "actor-1",
+          generateReservationCode: jest.fn(),
+        }),
+      ).rejects.toThrow(new ConflictException("ROOM_NOT_AVAILABLE"));
+
+      expect(tx.reservation.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects and rolls back when any room has overlapping active reservation", async () => {
+      const tx = {
+        $queryRawUnsafe: jest.fn(),
+        room: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: "room-1", status: RoomStatus.AVAILABLE, price: 1000000 },
+            { id: "room-2", status: RoomStatus.AVAILABLE, price: 1000000 },
+          ]),
+        },
+        reservation: {
+          findFirst: jest.fn().mockResolvedValue({ id: "overlap-res", roomId: "room-2" }),
+          create: jest.fn(),
+        },
+      };
+      const { repository } = createRepository(tx);
+
+      await expect(
+        repository.createBulkReservations({
+          hotelId: "hotel-1",
+          groupCode: "GRP-1",
+          leadGuestName: "Guest",
+          checkInDate: new Date("2026-09-10T14:00:00.000Z"),
+          checkOutDate: new Date("2026-09-15T12:00:00.000Z"),
+          roomIds: ["room-1", "room-2"],
+          createdByUserId: "actor-1",
+          generateReservationCode: jest.fn(),
+        }),
+      ).rejects.toThrow(new ConflictException("ROOM_RESERVATION_OVERLAP"));
+
+      expect(tx.reservation.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects and rolls back when any room has overlapping active stay", async () => {
+      const tx = {
+        $queryRawUnsafe: jest.fn(),
+        room: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: "room-1", status: RoomStatus.AVAILABLE, price: 1000000 },
+            { id: "room-2", status: RoomStatus.AVAILABLE, price: 1000000 },
+          ]),
+        },
+        reservation: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: jest.fn(),
+        },
+        guestStay: {
+          findFirst: jest.fn().mockResolvedValue({ id: "overlap-stay", roomId: "room-1" }),
+        },
+      };
+      const { repository } = createRepository(tx);
+
+      await expect(
+        repository.createBulkReservations({
+          hotelId: "hotel-1",
+          groupCode: "GRP-1",
+          leadGuestName: "Guest",
+          checkInDate: new Date("2026-09-10T14:00:00.000Z"),
+          checkOutDate: new Date("2026-09-15T12:00:00.000Z"),
+          roomIds: ["room-1", "room-2"],
+          createdByUserId: "actor-1",
+          generateReservationCode: jest.fn(),
+        }),
+      ).rejects.toThrow(new ConflictException("ROOM_RESERVATION_OVERLAP"));
+
+      expect(tx.reservation.create).not.toHaveBeenCalled();
     });
   });
 });

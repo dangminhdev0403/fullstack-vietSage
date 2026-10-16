@@ -14,6 +14,7 @@ import { CodesService } from "../../codes/codes-public";
 import type {
   AssignReservationRoomBodyInput,
   CheckInReservationBodyInput,
+  CreateBulkReservationsBodyInput,
   CreateReservationBodyInput,
   ListArrivalsQueryInput,
 } from "../domain/schemas/reservations.schema";
@@ -30,7 +31,49 @@ export class ReservationsService {
     @Optional()
     @Inject(STAY_CHECK_IN_EVENT_PUBLISHER)
     private readonly stayCheckInPublisher?: StayCheckInEventPublisher,
+    @Optional()
+    @Inject("RESERVATION_ROOM_ALLOCATION_SERVICE")
+    private readonly roomAllocationService?: any,
   ) {}
+
+  async createBulkReservations(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    dto: CreateBulkReservationsBodyInput,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    for (const roomId of dto.roomIds) {
+      await this.hotelAccessService.assertRoomAccess(actorUserId, activeRoleId, hotelId, roomId);
+    }
+
+    const leadGuestName = (dto.leadGuestName ?? dto.guestDisplayName)!.trim();
+    const leadGuestPhone = (dto.leadGuestPhone ?? dto.guestPhone)?.trim();
+    const checkInDate = (dto.checkInDate ?? dto.plannedCheckInAt)!;
+    const checkOutDate = (dto.checkOutDate ?? dto.plannedCheckOutAt)!;
+    const rawRate = dto.rate !== undefined ? dto.rate : dto.nightlyRateSnapshot;
+    const nightlyRateSnapshot =
+      rawRate !== undefined && rawRate !== null ? new Prisma.Decimal(rawRate).toFixed(2) : null;
+
+    const groupCode =
+      dto.groupCode?.trim() || (await this.codesService.generateEntityCode("GROUP"));
+
+    return this.reservationsRepository.createBulkReservations({
+      hotelId,
+      groupCode,
+      leadGuestName,
+      leadGuestPhone,
+      checkInDate,
+      checkOutDate,
+      roomIds: dto.roomIds,
+      createdByUserId: actorUserId,
+      nightlyRateSnapshot,
+      idempotencyKey: dto.idempotencyKey?.trim(),
+      generateReservationCode: (tx: Prisma.TransactionClient) =>
+        this.codesService.generateEntityCode("RESERVATION", tx),
+      roomAllocationService: this.roomAllocationService,
+    });
+  }
 
   async createReservation(
     actorUserId: string,
@@ -50,9 +93,7 @@ export class ReservationsService {
     const reservationCode = await this.codesService.generateEntityCode("RESERVATION");
     const rawRate = dto.rate !== undefined ? dto.rate : dto.nightlyRateSnapshot;
     const nightlyRateSnapshot =
-      rawRate !== undefined && rawRate !== null
-        ? new Prisma.Decimal(rawRate).toFixed(2)
-        : null;
+      rawRate !== undefined && rawRate !== null ? new Prisma.Decimal(rawRate).toFixed(2) : null;
 
     return this.reservationsRepository.createReservation({
       hotelId,

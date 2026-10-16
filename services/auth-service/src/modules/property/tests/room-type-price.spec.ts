@@ -216,6 +216,7 @@ describe("hotel room type price boundary", () => {
           { kind: "rate_plan", localId: "Suite:STANDARD", channexId: "remote-rate" },
         ]),
       },
+      room: { findMany: jest.fn().mockResolvedValue([]) },
       roomType: { findMany: jest.fn().mockResolvedValue([]) },
     };
     const ariCore = {
@@ -253,6 +254,7 @@ describe("hotel room type price boundary", () => {
           { id: "catalog-double", name: "Double", normalizedKey: "double", basePrice: 1_000_000 },
         ]),
       },
+      room: { findMany: jest.fn().mockResolvedValue([]) },
     };
     const ariCore = {
       getInventoryGrid: jest.fn().mockResolvedValue({
@@ -309,6 +311,7 @@ describe("hotel room type price boundary", () => {
             { id: "catalog-suite", name: "Suite", normalizedKey: "suite", basePrice: null },
           ]),
       },
+      room: { findMany: jest.fn().mockResolvedValue([]) },
     };
     const ariCore = {
       getInventoryGrid: jest.fn().mockResolvedValue({
@@ -348,6 +351,7 @@ describe("hotel room type price boundary", () => {
           .fn()
           .mockResolvedValue([{ kind: "room_type", localId: "Suite", channexId: "remote-suite" }]),
       },
+      room: { findMany: jest.fn().mockResolvedValue([]) },
       roomType: { findMany: jest.fn().mockResolvedValue([]) },
     };
     const ariCore = {
@@ -383,6 +387,7 @@ describe("hotel room type price boundary", () => {
           { kind: "rate_plan", localId: "Suite:STANDARD", channexId: "remote-rate" },
         ]),
       },
+      room: { findMany: jest.fn().mockResolvedValue([]) },
       roomType: { findMany: jest.fn().mockResolvedValue([]) },
       channelSyncLog: { create: jest.fn().mockResolvedValue({}) },
     };

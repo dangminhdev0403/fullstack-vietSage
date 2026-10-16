@@ -128,4 +128,46 @@ describe("GlobalExceptionFilter", () => {
     });
     expect(JSON.stringify(response.json.mock.calls[0][0])).not.toContain("must-not-leak");
   });
+
+  it("preserves bounded blockedRoomTypes metadata for CHANNEX_MAPPING_REQUIRED", () => {
+    const filter = new GlobalExceptionFilter();
+    const { host, response } = createHost();
+
+    filter.catch(
+      new ConflictException({
+        code: "CHANNEX_MAPPING_REQUIRED",
+        message: "Channex mapping required",
+        blockedRoomTypes: [
+          {
+            roomType: "DELUXE",
+            blockers: [
+              "ROOM_TYPE_MAPPING_MISSING",
+              "RATE_PLAN_MAPPING_MISSING",
+              "must-not-leak-blocker",
+            ],
+            internalToken: "must-not-leak-token",
+          },
+        ],
+      }),
+      host as never,
+    );
+
+    expect(response.status).toHaveBeenCalledWith(409);
+    const body = response.json.mock.calls[0][0];
+    expect(body).toMatchObject({
+      status: 409,
+      message: "CHANNEX_MAPPING_REQUIRED",
+      data: {
+        code: "CHANNEX_MAPPING_REQUIRED",
+        detail: "Channex mapping required",
+        blockedRoomTypes: [
+          {
+            roomType: "DELUXE",
+            blockers: ["ROOM_TYPE_MAPPING_MISSING", "RATE_PLAN_MAPPING_MISSING"],
+          },
+        ],
+      },
+    });
+    expect(JSON.stringify(body)).not.toContain("must-not-leak-token");
+  });
 });
