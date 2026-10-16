@@ -8,13 +8,34 @@ Activate when the user requests an audit/review or says:
 - `BẬT CHẾ ĐỘ RÀ SOÁT KHÓ TÍNH`
 - `RÀ SOÁT SIÊU KHÓ TÍNH`
 - `SOAT CODE`
+- `BẬT CHẾ ĐỘ TẬP TRUNG RÀ SOÁT`
+- `CHẾ ĐỘ TẬP TRUNG RÀ SOÁT`
+- `RÀ SOÁT TẬP TRUNG`
+- `TẬP TRUNG RÀ SOÁT`
+- `STRICT AUDIT FOCUS`
+- `FOCUS AUDIT`
 
 Deactivate only on:
 
 - `TURN OFF STRICT AUDIT MODE`
 - `TẮT CHẾ ĐỘ RÀ SOÁT KHÓ TÍNH`
+- `TẮT CHẾ ĐỘ TẬP TRUNG RÀ SOÁT`
 
 A review request is read-only by default. Non-destructive inspection and verification are allowed. Do not edit, autofix, install dependencies, mutate data, commit, deploy, or create remediation tasks unless the user explicitly requests implementation/fixes. Strict mode increases evidence quality; it does not expand authorization.
+
+### Silent Execution & Output-Only Standard (Chuẩn Rà soát Tập trung - Không Spam Lời Thoại)
+
+Tương tự như **chế độ tập trung code** (Ponytail / Code Focus Mode: code first, không giải trình dông dài), chế độ rà soát tập trung bắt buộc thực thi trong trạng thái **hoàn toàn im lặng và chỉ trả lời một lần ở đầu ra cuối cùng**:
+
+1. **Zero Intermediate Chatter (Tuyệt đối không spam tin nhắn trung gian)**:
+   - Trong suốt quá trình rà soát (gọi tool đọc file, truy vấn Graphify, kiểm tra AST, thực thi lệnh phi phá hủy), agent **TUYỆT ĐỐI KHÔNG** gửi tin nhắn dẫn giải từng bước (play-by-play narrative), lời chào, hay cập nhật tiến độ tạm thời (ví dụ: *"Tôi đang đọc file X..."*, *"Phát hiện lỗi ở file Y, tiếp tục đọc Z..."*, *"Chờ tôi chạy lệnh test..."*).
+   - Mọi phân tích, giả thuyết và so sánh invariants diễn ra hoàn toàn trong suy nghĩ nội bộ (`<thought>`) hoặc payload công cụ.
+2. **Single Consolidated Output (Đầu ra duy nhất - Báo cáo hoàn chỉnh)**:
+   - Chỉ xuất ra tin nhắn trả lời người dùng **ĐÚNG MỘT LẦN DUY NHẤT** khi toàn bộ quá trình đối chiếu invariants, thu thập bằng chứng thực tế và deduplicate đã hoàn thành 100%.
+   - Bắt đầu báo cáo tổng hợp cuối cùng này với marker `STRICT AUDIT MODE: ACTIVE.` (hoặc trong handoff nội bộ giữa các subagent). Tuyệt đối không gửi marker này trơ trọi thành một tin nhắn rác trước khi chạy tool.
+3. **Quiet Subagent Aggregation (Điều phối subagent không gây ồn)**:
+   - Khi fan-out subagent phân tích song song (P1–P4 theo Ponytail), Lead Host quản lý worker hoàn toàn ngầm; không forward các phản hồi nhỏ lẻ hoặc thông báo trung gian của worker về cho người dùng.
+   - Lead Host tự tổng hợp, loại bỏ trùng lặp và chỉ xuất trình duy nhất một Báo cáo Cuối cùng (Final Report) chuẩn mực.
 
 ### Mandatory agent auto-activation
 
@@ -29,7 +50,7 @@ AUDIT_INVARIANTS: <repository-backed behavior to verify>
 WRITE_POLICY: read-only | remediation-authorized
 ```
 
-The reviewer starts its first substantive response/handoff with `STRICT AUDIT MODE: ACTIVE.` and continues the review in the same turn. Missing marker: self-activate, report orchestration drift, never downgrade to an informal review. Descendant review cards inherit the marker and exact boundary. Unrelated implementation cards do not. Combined review-and-fix tasks audit first; fixes run only under explicit remediation authorization and existing protected gates.
+The reviewer runs all evidence collection silently, includes `STRICT AUDIT MODE: ACTIVE.` at the top of its single consolidated final report/handoff, and presents only verified findings. Missing marker: self-activate, report orchestration drift, never downgrade to an informal review. Descendant review cards inherit the marker and exact boundary. Unrelated implementation cards do not. Combined review-and-fix tasks audit first; fixes run only under explicit remediation authorization and existing protected gates.
 
 ## Core Standard
 
