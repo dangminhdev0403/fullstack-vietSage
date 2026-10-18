@@ -68,6 +68,7 @@ export interface ChatUiText {
   teaserTag: string;
   teaserTitle: string;
   teaserDesc: string;
+  teaserAction: string;
   readyText: string;
   bannerText: string;
   typing: string;
@@ -87,6 +88,7 @@ export const CHAT_UI_TEXT_BY_LOCALE: Record<SupportedLocale, ChatUiText> = {
     teaserTag: "✨ Trợ lý LocalMate",
     teaserTitle: "Cần gợi ý du lịch & hướng dẫn viên?",
     teaserDesc: "Em có thể gợi ý các tour trải nghiệm bản địa độc đáo, ẩm thực và kết nối hướng dẫn viên LocalMate cho Quý khách!",
+    teaserAction: "Bắt đầu trò chuyện",
     readyText: "Trực tuyến",
     bannerText: "Trợ lý du lịch bản địa & Hướng dẫn viên LocalMate",
     typing: "LocalMate đang soạn câu trả lời...",
@@ -104,6 +106,7 @@ export const CHAT_UI_TEXT_BY_LOCALE: Record<SupportedLocale, ChatUiText> = {
     teaserTag: "✨ LocalMate AI",
     teaserTitle: "Need local travel tips & guides?",
     teaserDesc: "I can suggest authentic local tours, cultural spots, and connect you with native LocalMate guides!",
+    teaserAction: "Start chatting",
     readyText: "Online",
     bannerText: "Native Travel & LocalMate Guide Assistant",
     typing: "LocalMate is composing an answer...",
@@ -121,6 +124,7 @@ export const CHAT_UI_TEXT_BY_LOCALE: Record<SupportedLocale, ChatUiText> = {
     teaserTag: "✨ LocalMate 助理",
     teaserTitle: "需要旅行建议或当地向导推荐吗？",
     teaserDesc: "我可以为您推荐特色原生态路线、地道美食，或对接认证 LocalMate 当地向导！",
+    teaserAction: "开始咨询",
     readyText: "在线",
     bannerText: "原生旅游助理 & LocalMate 向导咨询",
     typing: "LocalMate 正在撰写回复...",
@@ -138,6 +142,7 @@ export const CHAT_UI_TEXT_BY_LOCALE: Record<SupportedLocale, ChatUiText> = {
     teaserTag: "✨ LocalMate AI",
     teaserTitle: "현지 여행 추천이나 가이드가 필요하신가요?",
     teaserDesc: "맞춤 로컬 투어 추천, 고유 문화 체험 및 인증된 LocalMate 가이드 연결을 도와드립니다!",
+    teaserAction: "대화 시작하기",
     readyText: "온라인",
     bannerText: "현지 여행 비서 & LocalMate 가이드 연결",
     typing: "LocalMate가 답변 작성 중...",
@@ -155,6 +160,7 @@ export const CHAT_UI_TEXT_BY_LOCALE: Record<SupportedLocale, ChatUiText> = {
     teaserTag: "✨ LocalMate AI",
     teaserTitle: "Нужен совет по турам или местный гид?",
     teaserDesc: "Помогу подобрать аутентичный маршрут, познакомиться с местной культурой и найти гида LocalMate!",
+    teaserAction: "Начать диалог",
     readyText: "В сети",
     bannerText: "Гид по местным путешествиям & LocalMate",
     typing: "LocalMate печатает ответ...",
@@ -172,6 +178,7 @@ export const CHAT_UI_TEXT_BY_LOCALE: Record<SupportedLocale, ChatUiText> = {
     teaserTag: "✨ LocalMate AI",
     teaserTitle: "स्थानीय यात्रा या गाइड की सलाह चाहिए?",
     teaserDesc: "मैं आपको प्रामाणिक स्थानीय यात्राएं, सांस्कृतिक अनुभव और LocalMate गाइड सुझा सकता हूँ!",
+    teaserAction: "बातचीत शुरू करें",
     readyText: "ऑनलाइन",
     bannerText: "स्थानीय यात्रा सहायक और LocalMate गाइड",
     typing: "LocalMate उत्तर लिख रहा है...",
