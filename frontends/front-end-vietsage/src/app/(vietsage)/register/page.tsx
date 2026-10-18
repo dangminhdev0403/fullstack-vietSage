@@ -555,7 +555,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full rounded-xl bg-primary py-4 font-label-md text-label-md uppercase tracking-widest text-on-primary shadow-lg shadow-primary/10 transition-all active:scale-[0.98] hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-70"
+                className="w-full rounded-xl bg-gradient-to-r from-[#825916] via-[#9e7120] to-[#ba8c2f] py-4 text-sm font-bold uppercase tracking-widest text-white shadow-md shadow-[#825916]/20 transition-all duration-300 hover:brightness-105 hover:shadow-lg hover:shadow-[#825916]/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 cursor-pointer"
               >
                 {isSubmitting ? "Đang xử lý..." : "Tạo tài khoản"}
               </button>
@@ -564,7 +564,7 @@ export default function RegisterPage() {
             <div className="mt-10 text-center">
               <p className="font-body-md text-body-md text-on-surface-variant">
                 Bạn đã có tài khoản?
-                <Link href="/dangnhap" className="ml-2 inline-flex items-center font-bold text-primary hover:underline">
+                <Link href="/dangnhap" className="ml-2 inline-flex items-center font-bold text-[#825916] hover:text-[#9e7120] hover:underline transition-colors">
                   Đăng nhập
                   <VsIcon name="arrow_forward" className="ml-1 text-[18px]" />
                 </Link>

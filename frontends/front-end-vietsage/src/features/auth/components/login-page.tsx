@@ -20,7 +20,7 @@ const heroImage =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuD9Srcwemedi0EAbhP_AmsxklA2qaF3atQBccoD1Y9ZWXV6_Fw2PpA1JHbjWzDtCVUe1AcyA1Zk6IDjTyHaw9jjaR5rZIZJBuk_jz2tgVJ4GyyMkxYuqY8tUJ1enUwoF3n-9ixotbNU-yVtqDenY0jaDDUcgb0o4pPX6j8sfI0cKBol7_2KUUIiV-f59UC9ehwGoleY2H8paJXiPYhvBtzK7TJBqzQx_mALk2WXPX2_8o7EQrVaYGHkus10g0EqwkEKZKGDFvk6Bes";
 
 const fieldClassName =
-  "w-full rounded-lg border border-outline-variant bg-surface-container-low px-4 py-3 font-body-md text-on-surface placeholder:text-outline outline-none transition-all duration-200 focus:border-primary focus:ring-1 focus:ring-primary";
+  "w-full rounded-lg border border-outline-variant bg-surface-container-low px-4 py-3 font-body-md text-on-surface placeholder:text-outline outline-none transition-all duration-200 focus:border-[#b8872f] focus:ring-1 focus:ring-[#b8872f]/40";
 
 const heroTypingPhrases = [
   "Trải nghiệm di sản đương đại",
@@ -468,7 +468,7 @@ export default function LoginPage() {
                   </label>
                   <Link
                     href="#"
-                    className="font-label-md text-secondary transition-all hover:underline"
+                    className="font-label-md text-[#825916] transition-colors hover:text-[#9e7120] hover:underline"
                   >
                     Quên mật khẩu?
                   </Link>
@@ -512,7 +512,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-4 font-label-md text-white shadow-sm transition-all duration-300 hover:bg-primary-container hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#825916] via-[#9e7120] to-[#ba8c2f] py-4 text-sm sm:text-base font-bold text-white shadow-md shadow-[#825916]/20 transition-all duration-300 hover:brightness-105 hover:shadow-lg hover:shadow-[#825916]/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 cursor-pointer"
               >
                 {isSubmitting ? "Đang xử lý..." : "Đăng nhập"}
                 <VsIcon name="arrow_forward" className="text-[20px]" />
@@ -524,7 +524,7 @@ export default function LoginPage() {
                 Chưa có tài khoản hội viên?{" "}
                 <Link
                   href="/register"
-                  className="font-bold text-primary hover:underline"
+                  className="font-bold text-[#825916] hover:text-[#9e7120] hover:underline transition-colors"
                 >
                   Đăng ký ngay
                 </Link>

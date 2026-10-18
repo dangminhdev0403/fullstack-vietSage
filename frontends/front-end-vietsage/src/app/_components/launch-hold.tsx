@@ -52,13 +52,13 @@ export function LaunchHold() {
           <div className="mt-8 flex items-center gap-3">
             <a
               href="/dangnhap"
-              className="rounded-full bg-[#123d2a] px-6 py-3 text-sm font-semibold text-white shadow-md shadow-[#123d2a]/15 transition-all hover:bg-[#194e36]"
+              className="rounded-full bg-gradient-to-r from-[#825916] via-[#9e7120] to-[#ba8c2f] px-6 py-3 text-sm font-bold text-white shadow-md shadow-[#825916]/20 transition-all hover:brightness-105 hover:shadow-lg hover:shadow-[#825916]/30 active:scale-95"
             >
               Đăng nhập hệ thống
             </a>
             <a
               href="/about"
-              className="rounded-full border border-[#123d2a]/20 bg-white px-6 py-3 text-sm font-semibold text-[#123d2a] transition-all hover:bg-[#faf7f2]"
+              className="rounded-full border border-[#9e7120]/30 bg-white/95 px-6 py-3 text-sm font-bold text-[#7a5416] shadow-sm backdrop-blur-sm transition-all hover:border-[#9e7120] hover:bg-[#fffdf8] hover:text-[#5f400f] active:scale-95"
             >
               Tìm hiểu thêm
             </a>
