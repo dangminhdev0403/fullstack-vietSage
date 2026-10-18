@@ -305,7 +305,7 @@ export function MarketingHeader({
             {accountLabel}
           </Link>
           <a
-            className="vs-mkt-primary-btn hidden shrink-0 whitespace-nowrap rounded-full bg-[#123d2a] px-4 py-2 sm:px-5 sm:py-2.5 text-sm font-bold text-white shadow-md shadow-[#123d2a]/20 transition-all hover:bg-[#184d35] md:inline-flex"
+            className="vs-mkt-primary-btn hidden shrink-0 whitespace-nowrap rounded-full bg-gradient-to-r from-[#94691f] via-[#b8872f] to-[#cf9e3c] px-4 py-2 sm:px-5 sm:py-2.5 text-sm font-bold text-white shadow-md shadow-[#b8872f]/25 transition-all hover:brightness-105 hover:shadow-lg hover:shadow-[#b8872f]/35 md:inline-flex"
             href={REQUEST_DEMO_URL}
             target="_blank"
             rel="noopener noreferrer"
@@ -483,7 +483,7 @@ export function MarketingHeader({
                 {accountLabel}
               </Link>
               <a
-                className="rounded-full bg-[#123d2a] px-4 py-3 text-center text-sm font-bold text-white"
+                className="rounded-full bg-gradient-to-r from-[#94691f] via-[#b8872f] to-[#cf9e3c] px-4 py-3 text-center text-sm font-bold text-white shadow-md shadow-[#b8872f]/20"
                 href={REQUEST_DEMO_URL}
                 target="_blank"
                 rel="noopener noreferrer"

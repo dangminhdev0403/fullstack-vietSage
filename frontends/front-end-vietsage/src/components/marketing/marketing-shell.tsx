@@ -583,8 +583,8 @@ export function SectionHeader({ eyebrow, title, text, reveal = "fade" }: { eyebr
   return (
     <div className="vs-section-header mx-auto max-w-3xl text-center" data-reveal={reveal}>
       <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#b8872f]">{eyebrow}</p>
-      <h2 className="vs-display mt-3 text-3xl font-bold leading-tight tracking-[-0.025em] text-[#123d2a] md:text-5xl md:leading-tight [text-wrap:balance]">{title}</h2>
-      <p className="mt-4 text-base sm:text-lg leading-7 sm:leading-8 text-[#627064]">{text}</p>
+      <h2 className="vs-display mt-3 text-3xl font-bold leading-tight tracking-[-0.025em] text-[#181410] md:text-5xl md:leading-tight [text-wrap:balance]">{title}</h2>
+      <p className="mt-4 text-base sm:text-lg leading-7 sm:leading-8 text-[#5c5549]">{text}</p>
     </div>
   );
 }
@@ -616,17 +616,17 @@ export function Hero({
           <Image src={image} alt="" fill className="object-cover" priority />
         </div>
       )}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-20">
-        <div className="grid gap-8 sm:gap-12 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
+        <div className="grid gap-6 sm:gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
           <div data-reveal="from-left">
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#b8872f]">{eyebrow}</p>
-            <h1 className="vs-display mt-4 text-3xl sm:text-4xl font-bold leading-tight tracking-[-0.03em] text-[#123d2a] md:text-6xl md:leading-[1.06] [text-wrap:balance]">
+            <h1 className="vs-display mt-3 text-2xl sm:text-3xl lg:text-4xl xl:text-[2.65rem] font-bold leading-[1.14] tracking-[-0.025em] text-[#181410] [text-wrap:balance]">
               {title}
             </h1>
-            <p className="mt-4 sm:mt-5 max-w-2xl text-base sm:text-lg leading-7 sm:leading-8 text-[#506054]">{text}</p>
-            <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <p className="mt-3 sm:mt-3.5 max-w-xl text-sm sm:text-base leading-relaxed text-[#5c5549]">{text}</p>
+            <div className="mt-5 sm:mt-6 flex flex-col sm:flex-row gap-3">
               <a
-                className="vs-mkt-primary-btn w-full sm:w-auto rounded-full bg-[#123d2a] px-6 sm:px-8 py-3.5 sm:py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white shadow-xl shadow-[#123d2a]/20 transition-all hover:bg-[#184d35]"
+                className="vs-mkt-primary-btn w-full sm:w-auto rounded-full bg-gradient-to-r from-[#94691f] via-[#b8872f] to-[#cf9e3c] px-6 sm:px-7 py-3 sm:py-3.5 text-center text-sm font-bold uppercase tracking-[0.14em] text-white shadow-lg shadow-[#b8872f]/25 transition-all hover:brightness-105 hover:shadow-xl hover:shadow-[#b8872f]/35"
                 href={REQUEST_DEMO_URL}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -634,7 +634,7 @@ export function Hero({
                 {t.demoBtn}
               </a>
               <Link
-                className="vs-mkt-secondary-btn w-full sm:w-auto whitespace-nowrap rounded-full border border-[#123d2a]/20 bg-white/80 px-6 sm:px-8 py-3.5 sm:py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-[#123d2a] shadow-sm backdrop-blur-sm transition-all hover:bg-white"
+                className="vs-mkt-secondary-btn w-full sm:w-auto whitespace-nowrap rounded-full border border-[#b8872f]/30 bg-white/90 px-6 sm:px-7 py-3 sm:py-3.5 text-center text-sm font-bold uppercase tracking-[0.14em] text-[#825b18] shadow-sm backdrop-blur-sm transition-all hover:border-[#b8872f] hover:bg-[#fffcf7] hover:text-[#6a4910]"
                 href="/g/home"
               >
                 {t.guestBtn}
@@ -644,34 +644,34 @@ export function Hero({
           </div>
           <div className="vs-hero-device relative min-w-0" data-parallax>
             <div className="vs-device-float">
-              <div className="vs-device-card overflow-hidden rounded-[2rem] border border-[#123d2a]/10 bg-white shadow-[0_28px_80px_rgba(18,61,42,0.16)]">
-                {/* Header: Dark forest green with white brand circle & status pill */}
-                <div className="relative overflow-hidden bg-[#163f2e] px-5 py-4 sm:px-6 sm:py-5">
-                  <div className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full bg-white/5 blur-xl" aria-hidden="true" />
+              <div className="vs-device-card overflow-hidden rounded-[1.75rem] border border-[#b8872f]/20 bg-white shadow-[0_20px_60px_rgba(184,135,47,0.12)]">
+                {/* Header: Luxury Gold Gradient with white brand circle & gold status pill */}
+                <div className="relative overflow-hidden bg-gradient-to-r from-[#7a5518] via-[#9e7123] to-[#c59639] px-4 py-3 sm:px-5 sm:py-3.5">
+                  <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10 blur-xl" aria-hidden="true" />
                   <div className="relative flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white p-2 shadow-sm">
-                        <VietSageBrand variant="mark" className="h-7 w-7" markClassName="h-7 w-7" />
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white p-1.5 shadow-sm">
+                        <VietSageBrand variant="mark" className="h-6 w-6" markClassName="h-6 w-6" />
                       </div>
                       <div className="min-w-0">
-                        <h2 className="text-base font-bold leading-tight text-white">{t.assistantTitle}</h2>
-                        <p className="mt-0.5 text-xs text-white/80">{t.assistantSubtitle}</p>
+                        <h2 className="text-sm sm:text-base font-bold leading-tight text-white">{t.assistantTitle}</h2>
+                        <p className="mt-0.5 text-xs text-[#fef3c7]">{t.assistantSubtitle}</p>
                       </div>
                     </div>
-                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-[#255841] px-3 py-1.5 text-xs font-semibold text-[#a7f3d0]">
-                      <span className="h-2 w-2 rounded-full bg-[#34d399]" aria-hidden="true" />
+                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/20 bg-black/20 px-2.5 py-1 text-xs font-semibold text-[#fef9c3] backdrop-blur-sm">
+                      <span className="h-2 w-2 rounded-full bg-[#fde047]" aria-hidden="true" />
                       {t.assistantStatus}
                     </span>
                   </div>
                 </div>
 
                 {/* White body panel */}
-                <div className="bg-white p-5 sm:p-6">
+                <div className="bg-white p-3.5 sm:p-4.5">
                   <div>
-                    <h3 className="text-lg font-bold tracking-tight text-[#123d2a] sm:text-xl">
+                    <h3 className="text-base sm:text-lg font-bold tracking-tight text-[#181410]">
                       {t.deviceHeading}
                     </h3>
-                    <p className="mt-1 text-xs text-[#627064] sm:text-sm">
+                    <p className="mt-0.5 text-xs text-[#6b6255]">
                       {t.deviceSub}
                     </p>
                   </div>
@@ -679,60 +679,61 @@ export function Hero({
                   {/* Prompt bar */}
                   <Link
                     href="/g/home"
-                    className="group mt-4 flex min-h-12 items-center gap-2.5 rounded-2xl border border-[#123d2a]/10 bg-[#f4f7f5] px-4 py-2.5 text-xs text-[#506355] transition-all hover:border-[#123d2a]/25 hover:bg-[#edf3ef] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f] sm:text-sm"
+                    className="group mt-2.5 flex min-h-10 items-center gap-2 rounded-xl border border-[#b8872f]/20 bg-[#fdfbf7] px-3 py-2 text-xs text-[#5c5040] transition-all hover:border-[#b8872f]/45 hover:bg-[#faf4e8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f] sm:text-sm"
                   >
-                    <Image src="/images/concierge/icon-ai.png" alt="" width={20} height={20} className="h-5 w-5 shrink-0 rounded object-contain" />
-                    <span className="min-w-0 flex-1 truncate text-[#627064]">
+                    <Image src="/images/concierge/icon-ai.png" alt="" width={18} height={18} className="h-4.5 w-4.5 shrink-0 rounded object-contain" />
+                    <span className="min-w-0 flex-1 truncate text-[#6b6255]">
                       {t.promptPlaceholder}
                     </span>
-                    <VsIcon name="chevron_right" className="shrink-0 text-base text-[#8b9d91] transition-transform group-hover:translate-x-0.5" />
+                    <VsIcon name="chevron_right" className="shrink-0 text-sm text-[#b8872f]/70 transition-transform group-hover:translate-x-0.5" />
                   </Link>
 
                   {/* 2x2 Services Grid */}
-                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="mt-2.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {services.map((service) => (
                       <Link
                         key={service.title}
                         href={service.href}
-                        className="group flex min-w-0 items-center justify-between gap-2.5 rounded-[1.25rem] border border-[#123d2a]/8 bg-[#fcfdfc] p-3 transition-all hover:border-[#123d2a]/20 hover:bg-[#f6f9f7] hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f] sm:p-3.5"
+                        className="group flex min-w-0 items-center justify-between gap-2 rounded-xl border border-[#b8872f]/15 bg-[#fffefc] p-2 sm:p-2.5 transition-all hover:border-[#b8872f]/40 hover:bg-[#fefaf2] hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f]"
                       >
-                        <div className="flex min-w-0 items-center gap-3">
-                          <Image src={service.icon} alt="" width={44} height={44} className="h-11 w-11 shrink-0 rounded-xl object-contain" />
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <Image src={service.icon} alt="" width={38} height={38} className="h-9 w-9 shrink-0 rounded-lg object-contain" />
                           <div className="min-w-0">
-                            <h4 className="whitespace-nowrap text-sm font-bold text-[#123d2a] sm:text-[15px]">{service.title}</h4>
-                            <p className="mt-0.5 truncate text-xs text-[#627064]">{service.text}</p>
+                            <h4 className="whitespace-nowrap text-xs sm:text-sm font-bold text-[#181410] transition-colors group-hover:text-[#8a5d1b]">{service.title}</h4>
+                            <p className="mt-0.5 truncate text-xs text-[#6b6255]">{service.text}</p>
                           </div>
                         </div>
-                        <VsIcon name="arrow_forward" className="shrink-0 text-base text-[#123d2a]/35 transition-all group-hover:translate-x-0.5 group-hover:text-[#123d2a]" />
+                        <VsIcon name="arrow_forward" className="shrink-0 text-sm text-[#b8872f]/40 transition-all group-hover:translate-x-0.5 group-hover:text-[#8a5d1b]" />
                       </Link>
                     ))}
                   </div>
 
-                  {/* Bottom Experience Card */}
-                  <div className="relative mt-4 overflow-hidden rounded-2xl bg-gradient-to-r from-[#2f5e48] via-[#244f3b] to-[#1a3d2e] p-4 text-white shadow-md">
-                    <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/12 text-lg text-white">
-                          <VietSageBrand variant="mark" className="h-6 w-6" markClassName="h-6 w-6" />
+                  {/* Bottom Experience Card: Luxury Gold Gradient */}
+                  <div className="relative mt-2.5 overflow-hidden rounded-xl bg-gradient-to-r from-[#704d13] via-[#94691f] to-[#b8872f] p-3 text-white shadow-md shadow-[#94691f]/15">
+                    <div className="pointer-events-none absolute -right-6 -bottom-6 h-20 w-20 rounded-full bg-white/10 blur-xl" aria-hidden="true" />
+                    <div className="relative flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/15 text-white">
+                          <VietSageBrand variant="mark" className="h-5 w-5" markClassName="h-5 w-5" />
                         </span>
                         <div className="min-w-0">
-                          <h4 className="truncate text-sm font-bold text-white sm:text-base">
+                          <h4 className="truncate text-xs sm:text-sm font-bold text-white">
                             {t.experienceTitle}
                           </h4>
-                          <p className="mt-0.5 truncate text-xs text-white/80">
+                          <p className="mt-0.5 truncate text-xs text-[#fef3c7]">
                             {t.experienceDesc}
                           </p>
                         </div>
                       </div>
-                      <div className="flex shrink-0 items-center gap-2.5 rounded-2xl border border-white/15 bg-white/15 px-3.5 py-2 backdrop-blur-md">
-                        <span className="grid h-8 w-8 place-items-center rounded-full bg-white/20 text-white">
-                          <VsIcon name="concierge" className="text-base" />
+                      <div className="flex shrink-0 items-center gap-2 rounded-xl border border-white/20 bg-white/15 px-2.5 py-1.5 backdrop-blur-md">
+                        <span className="grid h-6 w-6 place-items-center rounded-full bg-white/20 text-white">
+                          <VsIcon name="concierge" className="text-xs" />
                         </span>
                         <div className="text-left">
-                          <p className="text-xs font-semibold uppercase tracking-wider text-white/75 leading-none">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-white/80 leading-none">
                             {t.responseLabel}
                           </p>
-                          <p className="mt-1 text-base font-bold text-white leading-none">
+                          <p className="mt-0.5 text-xs sm:text-sm font-bold text-white leading-none">
                             {t.responseTime}
                           </p>
                         </div>

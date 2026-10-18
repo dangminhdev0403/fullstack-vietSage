@@ -708,16 +708,16 @@ export function MarketingHome({
         title={content.hero.title}
         text={content.hero.text}
       >
-        <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mt-6 sm:mt-7 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           {content.stats.map(([v, l], index) => (
             <div
               key={l}
               data-reveal="scale"
               data-reveal-order={index}
-              className="vs-stat-card rounded-3xl border border-[#123d2a]/10 bg-white/70 p-4 shadow-sm shadow-[#123d2a]/5"
+              className="vs-stat-card rounded-2xl border border-[#b8872f]/20 bg-white/85 p-3 sm:p-3.5 shadow-sm shadow-[#b8872f]/5"
             >
-              <strong className="text-2xl text-[#123d2a]">{v}</strong>
-              <span className="block text-xs leading-4 uppercase tracking-[.1em] text-[#627064]">
+              <strong className="text-xl sm:text-2xl font-bold text-[#8a5d1b]">{v}</strong>
+              <span className="block text-xs leading-4 uppercase tracking-[.08em] text-[#6b6255]">
                 {l}
               </span>
             </div>
@@ -814,11 +814,11 @@ export function MarketingHome({
           />
           <div className="mt-10 space-y-3">
             {content.faqs.items.map(([q, a]) => (
-              <details key={q} data-reveal="fade" className="vs-faq-item rounded-3xl bg-white/82 p-6 shadow-sm shadow-[#123d2a]/5">
-                <summary className="cursor-pointer font-black text-[#123d2a]">
+              <details key={q} data-reveal="fade" className="vs-faq-item rounded-3xl border border-[#b8872f]/10 bg-white/85 p-6 shadow-sm shadow-[#b8872f]/5">
+                <summary className="cursor-pointer font-black text-[#181410] hover:text-[#8a5d1b] transition-colors">
                   {q}
                 </summary>
-                <p className="mt-3 leading-7 text-[#627064]">{a}</p>
+                <p className="mt-3 leading-7 text-[#5c5549]">{a}</p>
               </details>
             ))}
           </div>
