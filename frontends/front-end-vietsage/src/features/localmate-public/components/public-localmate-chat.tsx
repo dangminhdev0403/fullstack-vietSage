@@ -2635,7 +2635,7 @@ export function PublicLocalMateChat({
             <aside
               ref={teaserRef}
               aria-label={chatUi.teaserAria || chatUi.teaserTitle}
-              className="group relative block w-[min(348px,calc(100vw-24px))] cursor-pointer rounded-[1.6rem] border border-[#d6c08b]/70 bg-[#fffdfa]/98 p-4 shadow-[0_16px_40px_rgba(18,61,42,0.14)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-[#b8872f] hover:shadow-[0_22px_48px_rgba(18,61,42,0.20)]"
+              className="group relative block w-[min(348px,calc(100vw-24px))] cursor-pointer rounded-[1.6rem] border border-[#d6c08b]/60 bg-gradient-to-br from-[#faf3e0]/95 via-[#f2f7ef]/95 to-[#e4f2ea]/95 p-4 shadow-[0_16px_40px_rgba(18,61,42,0.12),0_4px_16px_rgba(184,135,47,0.08)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-[#b8c9bc] hover:shadow-[0_22px_48px_rgba(18,61,42,0.18),0_6px_20px_rgba(184,135,47,0.12)]"
               onClick={() => openChat("teaser")}
               role="button"
               tabIndex={0}
@@ -2648,7 +2648,7 @@ export function PublicLocalMateChat({
             >
               {/* Pointer beak pointing towards round FAB below */}
               <div
-                className="absolute -bottom-2 right-6 h-4 w-4 rotate-45 border-b border-r border-[#d6c08b]/70 bg-[#fffdfa]"
+                className="absolute -bottom-2 right-6 h-4 w-4 rotate-45 border-b border-r border-[#d6c08b]/60 bg-[#e4f2ea]"
                 aria-hidden="true"
               />
 
@@ -2691,18 +2691,18 @@ export function PublicLocalMateChat({
                 <h4 className="text-sm sm:text-[15px] font-bold text-[#123d2a] leading-snug [text-wrap:balance]">
                   {chatUi.teaserTitle}
                 </h4>
-                <p className="mt-1.5 text-xs sm:text-[13px] leading-relaxed text-[#4a584f] text-pretty">
+                <p className="mt-1.5 text-xs sm:text-[13px] leading-relaxed text-[#2d4235] text-pretty">
                   {chatUi.teaserDesc}
                 </p>
               </div>
 
               {/* Bottom Action Prompt */}
               <div className="mt-3.5 flex items-center justify-between pt-2.5 border-t border-[#123d2a]/8 text-xs font-semibold text-[#825916]">
-                <span className="inline-flex items-center gap-1.5 group-hover:text-[#9e7120] transition-colors">
+                <span className="inline-flex items-center gap-1.5 group-hover:text-[#123d2a] transition-colors">
                   <VsIcon name="question_answer" className="text-sm text-[#b8872f]" />
                   <span>{chatUi.teaserAction}</span>
                 </span>
-                <span className="inline-flex items-center text-xs text-[#825916] transition-transform duration-200 group-hover:translate-x-1">
+                <span className="inline-flex items-center text-xs text-[#825916] group-hover:text-[#123d2a] transition-all duration-200 group-hover:translate-x-1">
                   <VsIcon name="arrow_forward" className="text-xs" />
                 </span>
               </div>
