@@ -714,10 +714,10 @@ export function MarketingHome({
               key={l}
               data-reveal="scale"
               data-reveal-order={index}
-              className="vs-stat-card rounded-2xl border border-[#b8872f]/20 bg-white/85 p-3 sm:p-3.5 shadow-sm shadow-[#b8872f]/5"
+              className="vs-stat-card rounded-2xl border border-[#825719]/15 bg-white/90 p-3 sm:p-3.5 shadow-sm shadow-[#825719]/5"
             >
-              <strong className="text-xl sm:text-2xl font-bold text-[#8a5d1b]">{v}</strong>
-              <span className="block text-xs leading-4 uppercase tracking-[.08em] text-[#6b6255]">
+              <strong className="text-xl sm:text-2xl font-bold text-[#785016]">{v}</strong>
+              <span className="block text-xs leading-4 uppercase tracking-[.08em] text-[#615545]">
                 {l}
               </span>
             </div>
