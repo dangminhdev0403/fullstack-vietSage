@@ -10,7 +10,6 @@ import {
   SectionHeader,
 } from "@/components/marketing/marketing-shell";
 import { normalizeLocale, type SupportedLocale } from "@/core/i18n/locales";
-import { PublicLocalMateChat } from "@/features/localmate-public/components/public-localmate-chat";
 
 export const marketingMetadata = {
   title: "VietSage | Nền tảng trợ lý số tại phòng",
@@ -825,7 +824,6 @@ export function MarketingHome({
         </div>
       </section>
       <Cta locale={currentLocale} />
-      <PublicLocalMateChat locale={currentLocale} onLocaleChange={handleLocaleChange} />
     </MarketingShell>
   );
 }

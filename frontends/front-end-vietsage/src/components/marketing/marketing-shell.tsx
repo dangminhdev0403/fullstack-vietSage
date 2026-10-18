@@ -9,6 +9,7 @@ import { normalizeLocale, type SupportedLocale } from "@/core/i18n/locales";
 import { MarketingHeader } from "./marketing-header";
 import { REQUEST_DEMO_URL } from "./marketing-links";
 import { MarketingMotionRoot } from "./marketing-motion-root";
+import { PublicLocalMateChat } from "@/features/localmate-public/components/public-localmate-chat";
 
 const sceneParticles = Array.from({ length: 18 }, (_, index) => ({
   left: `${7 + ((index * 29) % 88)}%`,
@@ -575,6 +576,7 @@ export function MarketingShell({
       )}
       {children}
       <Footer locale={activeLocale} />
+      <PublicLocalMateChat locale={activeLocale} onLocaleChange={onLocaleChange} />
     </MarketingMotionRoot>
   );
 }
