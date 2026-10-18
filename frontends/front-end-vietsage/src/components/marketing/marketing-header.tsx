@@ -261,7 +261,7 @@ export function MarketingHeader({
             markClassName="h-6 w-6 sm:h-7 sm:w-7"
             wordmarkClassName="h-4 w-auto sm:h-5"
           />
-          <span className="mt-1 px-1 block text-xs font-medium tracking-tight text-[#627064] transition-colors group-hover:text-[#181410]">
+          <span className="mt-1 px-1 block text-xs font-medium tracking-tight text-[#627064] transition-colors group-hover:text-[#123d2a]">
             {t.brandSubtitle}
           </span>
         </Link>

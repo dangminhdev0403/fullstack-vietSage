@@ -815,7 +815,7 @@ export function MarketingHome({
           <div className="mt-10 space-y-3">
             {content.faqs.items.map(([q, a]) => (
               <details key={q} data-reveal="fade" className="vs-faq-item rounded-3xl border border-[#b8872f]/10 bg-white/85 p-6 shadow-sm shadow-[#b8872f]/5">
-                <summary className="cursor-pointer font-black text-[#181410] hover:text-[#8a5d1b] transition-colors">
+                <summary className="cursor-pointer font-black text-[#123d2a] hover:text-[#825916] transition-colors">
                   {q}
                 </summary>
                 <p className="mt-3 leading-7 text-[#5c5549]">{a}</p>

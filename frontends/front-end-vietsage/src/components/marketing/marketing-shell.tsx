@@ -583,7 +583,7 @@ export function SectionHeader({ eyebrow, title, text, reveal = "fade" }: { eyebr
   return (
     <div className="vs-section-header mx-auto max-w-3xl text-center" data-reveal={reveal}>
       <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#b8872f]">{eyebrow}</p>
-      <h2 className="vs-display mt-3 text-3xl font-bold leading-tight tracking-[-0.025em] text-[#181410] md:text-5xl md:leading-tight [text-wrap:balance]">{title}</h2>
+      <h2 className="vs-display mt-3 text-3xl font-bold leading-tight tracking-[-0.025em] text-[#123d2a] md:text-5xl md:leading-tight [text-wrap:balance]">{title}</h2>
       <p className="mt-4 text-base sm:text-lg leading-7 sm:leading-8 text-[#5c5549]">{text}</p>
     </div>
   );
@@ -620,7 +620,7 @@ export function Hero({
         <div className="grid gap-6 sm:gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
           <div data-reveal="from-left">
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#b8872f]">{eyebrow}</p>
-            <h1 className="vs-display mt-3 text-2xl sm:text-3xl lg:text-4xl xl:text-[2.65rem] font-bold leading-[1.14] tracking-[-0.025em] text-[#181410] [text-wrap:balance]">
+            <h1 className="vs-display mt-3 text-2xl sm:text-3xl lg:text-4xl xl:text-[2.65rem] font-bold leading-[1.14] tracking-[-0.025em] text-[#123d2a] [text-wrap:balance]">
               {title}
             </h1>
             <p className="mt-3 sm:mt-3.5 max-w-xl text-sm sm:text-base leading-relaxed text-[#5c5549]">{text}</p>
@@ -668,7 +668,7 @@ export function Hero({
                 {/* White body panel */}
                 <div className="bg-white p-3.5 sm:p-4.5">
                   <div>
-                    <h3 className="text-base sm:text-lg font-bold tracking-tight text-[#181410]">
+                    <h3 className="text-base sm:text-lg font-bold tracking-tight text-[#123d2a]">
                       {t.deviceHeading}
                     </h3>
                     <p className="mt-0.5 text-xs text-[#6b6255]">
@@ -699,7 +699,7 @@ export function Hero({
                         <div className="flex min-w-0 items-center gap-2.5">
                           <Image src={service.icon} alt="" width={38} height={38} className="h-9 w-9 shrink-0 rounded-lg object-contain" />
                           <div className="min-w-0">
-                            <h4 className="whitespace-nowrap text-xs sm:text-sm font-bold text-[#181410] transition-colors group-hover:text-[#7a5416]">{service.title}</h4>
+                            <h4 className="whitespace-nowrap text-xs sm:text-sm font-bold text-[#123d2a] transition-colors group-hover:text-[#7a5416]">{service.title}</h4>
                             <p className="mt-0.5 truncate text-xs text-[#6b6255]">{service.text}</p>
                           </div>
                         </div>
