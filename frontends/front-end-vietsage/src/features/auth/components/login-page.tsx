@@ -359,17 +359,17 @@ export default function LoginPage() {
           <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(26,28,28,0.48),rgba(26,28,28,0.12),transparent)]" />
 
           <div className="absolute inset-0 flex items-center px-10 md:px-12 lg:px-14">
-            <div className="max-w-[34rem] text-left text-white drop-shadow-[0_6px_30px_rgba(0,0,0,0.45)]">
-              <div className="mb-4 flex min-h-[7.5rem] items-center lg:min-h-[8.5rem]">
+            <div className="max-w-xl text-left text-white drop-shadow-[0_6px_30px_rgba(0,0,0,0.45)] lg:max-w-2xl xl:max-w-3xl 2xl:max-w-4xl">
+              <div className="mb-4 flex min-h-[4.5rem] items-center lg:min-h-[5.5rem]">
                 <h2
-                  className={`font-display-lg text-display-lg font-semibold leading-[1.18] text-[color:rgba(255,255,255,0.98)] text-balance transition-all duration-500 ease-in-out ${
+                  className={`text-2xl font-bold tracking-tight text-white transition-all duration-500 ease-in-out md:text-3xl lg:whitespace-nowrap lg:text-[32px] xl:text-[38px] 2xl:text-[42px] ${
                     isHeroFading ? "opacity-0 -translate-y-2" : "opacity-100 translate-y-0"
                   }`}
                 >
                   {heroTypingPhrases[heroPhraseIndex]}
                 </h2>
               </div>
-              <p className="font-body-lg text-body-lg opacity-90 text-pretty">
+              <p className="max-w-lg font-body-lg text-body-lg opacity-90 text-pretty lg:max-w-xl">
                 Tham gia cùng chúng tôi để tận hưởng những dịch vụ nghỉ dưỡng
                 cao cấp, nơi truyền thống hòa quyện cùng sự sang trọng hiện đại.
               </p>
@@ -405,18 +405,18 @@ export default function LoginPage() {
             </div>
 
             <div className="mb-8">
-              <h1 className="mb-2 font-headline-lg-mobile text-headline-lg-mobile text-on-surface md:font-headline-lg md:text-headline-lg">
-                Chào mừng trở lại
-              </h1>
               <Link
                 href="/"
-                className="group inline-flex items-center gap-1.5 text-sm font-medium text-on-surface-variant transition-colors hover:text-primary"
+                className="group mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-on-surface-variant transition-colors hover:text-primary"
               >
                 <VsIcon name="arrow_back" className="text-base transition-transform duration-200 group-hover:-translate-x-1" />
                 <span className="underline underline-offset-4 decoration-outline-variant transition-colors group-hover:decoration-primary">
                   Quay về trang chủ
                 </span>
               </Link>
+              <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface md:font-headline-lg md:text-headline-lg">
+                Chào mừng trở lại
+              </h1>
             </div>
 
             <form method="post" className="space-y-6" onSubmit={handleLoginSubmit} noValidate>
