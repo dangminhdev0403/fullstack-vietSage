@@ -313,6 +313,17 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-background text-on-background">
       <main className="flex min-h-screen">
         <section className="relative hidden overflow-hidden lg:block lg:min-h-screen lg:w-3/5">
+          {/* Back to home floating pill on hero */}
+          <div className="absolute left-8 top-8 z-20 hidden lg:block">
+            <Link
+              href="/"
+              className="group inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/40 px-4 py-2 text-xs font-semibold text-white/95 backdrop-blur-md transition-all duration-200 hover:border-white/40 hover:bg-black/60 hover:text-white active:scale-95 whitespace-nowrap shadow-sm"
+            >
+              <VsIcon name="arrow_back" className="text-base transition-transform duration-200 group-hover:-translate-x-0.5" />
+              <span>Về trang chủ</span>
+            </Link>
+          </div>
+
           <Image
             src={heroImage}
             alt="Luxury Vietnamese Resort View"
@@ -342,15 +353,28 @@ export default function RegisterPage() {
           </div>
         </section>
 
-        <section className="flex w-full flex-col justify-center bg-surface px-margin-mobile py-12 lg:w-2/5 md:px-margin-desktop">
+        <section className="relative flex w-full flex-col justify-center bg-surface px-margin-mobile py-12 lg:w-2/5 md:px-margin-desktop">
+          {/* Back to home button on auth panel */}
+          <div className="absolute right-6 top-8 z-20 sm:right-8 md:right-10 lg:right-12">
+            <Link
+              href="/"
+              className="group inline-flex items-center gap-2 rounded-full border border-outline-variant/60 bg-white/90 px-4 py-2 text-xs font-semibold text-on-surface-variant backdrop-blur-sm transition-all duration-200 hover:border-[#134e35]/30 hover:bg-white hover:text-[#134e35] shadow-xs active:scale-95 whitespace-nowrap"
+            >
+              <VsIcon name="arrow_back" className="text-base transition-transform duration-200 group-hover:-translate-x-0.5" />
+              <span>Về trang chủ</span>
+            </Link>
+          </div>
+
           <div className="mx-auto w-full max-w-md">
             <div className="mb-12 text-center lg:hidden">
-              <VietSageBrand
-                priority
-                className="gap-2 rounded-xl px-3 py-2"
-                markClassName="h-11 w-11"
-                wordmarkClassName="h-7 w-auto"
-              />
+              <Link href="/" title="Về trang chủ" className="inline-flex items-center transition-opacity hover:opacity-85">
+                <VietSageBrand
+                  priority
+                  className="gap-2 rounded-xl px-3 py-2"
+                  markClassName="h-11 w-11"
+                  wordmarkClassName="h-7 w-auto"
+                />
+              </Link>
               <p className="mt-2 font-label-md text-label-md uppercase tracking-widest text-secondary">Hospitality Operating System</p>
             </div>
 

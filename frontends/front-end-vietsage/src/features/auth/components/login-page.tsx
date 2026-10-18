@@ -364,6 +364,17 @@ export default function LoginPage() {
     <div className="flex min-h-screen flex-col bg-surface text-on-surface font-body-md">
       <main className="flex h-screen shrink-0 flex-col overflow-hidden md:flex-row">
         <section className="relative hidden h-full overflow-hidden md:block md:w-1/2 lg:w-3/5">
+          {/* Back to home floating pill on hero */}
+          <div className="absolute left-8 top-8 z-20 hidden md:block">
+            <Link
+              href="/"
+              className="group inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/40 px-4 py-2 text-xs font-semibold text-white/95 backdrop-blur-md transition-all duration-200 hover:border-white/40 hover:bg-black/60 hover:text-white active:scale-95 whitespace-nowrap shadow-sm"
+            >
+              <VsIcon name="arrow_back" className="text-base transition-transform duration-200 group-hover:-translate-x-0.5" />
+              <span>Về trang chủ</span>
+            </Link>
+          </div>
+
           <Image
             src={heroImage}
             alt="Luxury Vietnamese Resort View"
@@ -394,23 +405,38 @@ export default function LoginPage() {
         </section>
 
         <section className="relative flex h-full w-full flex-col items-center justify-center bg-surface-container-lowest px-margin-mobile py-20 md:w-1/2 md:px-16 md:py-0 lg:w-2/5 lg:px-24">
+          {/* Back to home button on auth panel */}
+          <div className="absolute right-6 top-8 z-20 sm:right-8 md:right-10 lg:right-12">
+            <Link
+              href="/"
+              className="group inline-flex items-center gap-2 rounded-full border border-outline-variant/60 bg-white/90 px-4 py-2 text-xs font-semibold text-on-surface-variant backdrop-blur-sm transition-all duration-200 hover:border-[#134e35]/30 hover:bg-white hover:text-[#134e35] shadow-xs active:scale-95 whitespace-nowrap"
+            >
+              <VsIcon name="arrow_back" className="text-base transition-transform duration-200 group-hover:-translate-x-0.5" />
+              <span>Về trang chủ</span>
+            </Link>
+          </div>
+
           <div className="absolute left-margin-mobile top-8 md:hidden">
-            <VietSageBrand
-              priority
-              className="gap-2 rounded-xl px-2 py-1 shadow-sm"
-              markClassName="h-8 w-8"
-              wordmarkClassName="h-5 w-auto"
-            />
+            <Link href="/" title="Về trang chủ" className="inline-flex items-center transition-opacity hover:opacity-85">
+              <VietSageBrand
+                priority
+                className="gap-2 rounded-xl px-2 py-1 shadow-sm"
+                markClassName="h-8 w-8"
+                wordmarkClassName="h-5 w-auto"
+              />
+            </Link>
           </div>
 
           <div className="w-full max-w-sm">
             <div className="mb-12 hidden flex-col items-start md:flex">
-              <VietSageBrand
-                priority
-                className="mb-2 gap-3 rounded-xl px-2 py-2"
-                markClassName="h-12 w-12"
-                wordmarkClassName="h-8 w-auto"
-              />
+              <Link href="/" title="Về trang chủ" className="group mb-2 inline-flex items-center transition-opacity hover:opacity-85">
+                <VietSageBrand
+                  priority
+                  className="gap-3 rounded-xl px-2 py-2"
+                  markClassName="h-12 w-12"
+                  wordmarkClassName="h-8 w-auto"
+                />
+              </Link>
               <p className="font-label-md uppercase tracking-wider text-on-surface-variant opacity-70">
                 Hospitality Operating System
               </p>
