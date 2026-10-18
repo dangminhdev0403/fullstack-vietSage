@@ -619,14 +619,14 @@ export function Hero({
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
         <div className="grid gap-6 sm:gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
           <div data-reveal="from-left">
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#996a1f]">{eyebrow}</p>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#b8872f]">{eyebrow}</p>
             <h1 className="vs-display mt-3 text-2xl sm:text-3xl lg:text-4xl xl:text-[2.65rem] font-bold leading-[1.14] tracking-[-0.025em] text-[#181410] [text-wrap:balance]">
               {title}
             </h1>
             <p className="mt-3 sm:mt-3.5 max-w-xl text-sm sm:text-base leading-relaxed text-[#5c5549]">{text}</p>
             <div className="mt-5 sm:mt-6 flex flex-col sm:flex-row gap-3">
               <a
-                className="vs-mkt-primary-btn w-full sm:w-auto rounded-full bg-gradient-to-r from-[#634211] via-[#825719] to-[#a16f21] px-6 sm:px-7 py-3 sm:py-3.5 text-center text-sm font-bold uppercase tracking-[0.14em] text-white shadow-md shadow-[#734c14]/20 transition-all hover:from-[#54370d] hover:via-[#734c14] hover:to-[#91621b] hover:shadow-lg hover:shadow-[#734c14]/30"
+                className="vs-mkt-primary-btn w-full sm:w-auto rounded-full bg-gradient-to-r from-[#825916] via-[#9e7120] to-[#ba8c2f] px-6 sm:px-7 py-3 sm:py-3.5 text-center text-sm font-bold uppercase tracking-[0.14em] text-white shadow-md shadow-[#825916]/20 transition-all hover:brightness-105 hover:shadow-lg hover:shadow-[#825916]/30"
                 href={REQUEST_DEMO_URL}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -634,7 +634,7 @@ export function Hero({
                 {t.demoBtn}
               </a>
               <Link
-                className="vs-mkt-secondary-btn w-full sm:w-auto whitespace-nowrap rounded-full border border-[#825719]/30 bg-white/95 px-6 sm:px-7 py-3 sm:py-3.5 text-center text-sm font-bold uppercase tracking-[0.14em] text-[#6d4914] shadow-sm backdrop-blur-sm transition-all hover:border-[#825719] hover:bg-[#fefcf8] hover:text-[#52370c]"
+                className="vs-mkt-secondary-btn w-full sm:w-auto whitespace-nowrap rounded-full border border-[#9e7120]/30 bg-white/95 px-6 sm:px-7 py-3 sm:py-3.5 text-center text-sm font-bold uppercase tracking-[0.14em] text-[#7a5416] shadow-sm backdrop-blur-sm transition-all hover:border-[#9e7120] hover:bg-[#fffdf8] hover:text-[#5f400f]"
                 href="/g/home"
               >
                 {t.guestBtn}
@@ -644,9 +644,9 @@ export function Hero({
           </div>
           <div className="vs-hero-device relative min-w-0" data-parallax>
             <div className="vs-device-float">
-              <div className="vs-device-card overflow-hidden rounded-[1.75rem] border border-[#825719]/20 bg-white shadow-[0_20px_60px_rgba(109,73,20,0.1)]">
-                {/* Header: Stable Deep Luxury Gold Gradient */}
-                <div className="relative overflow-hidden bg-gradient-to-r from-[#593b0e] via-[#785016] to-[#996a1f] px-4 py-3 sm:px-5 sm:py-3.5">
+              <div className="vs-device-card overflow-hidden rounded-[1.75rem] border border-[#9e7120]/20 bg-white shadow-[0_20px_60px_rgba(158,113,32,0.08)]">
+                {/* Header: Lighter Warm Champagne Luxury Gold Gradient */}
+                <div className="relative overflow-hidden bg-gradient-to-r from-[#7a5416] via-[#94691d] to-[#af802b] px-4 py-3 sm:px-5 sm:py-3.5">
                   <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10 blur-xl" aria-hidden="true" />
                   <div className="relative flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2.5">
@@ -658,7 +658,7 @@ export function Hero({
                         <p className="mt-0.5 text-xs text-white/85">{t.assistantSubtitle}</p>
                       </div>
                     </div>
-                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/20 bg-black/30 px-2.5 py-1 text-xs font-semibold text-[#fef3c7] backdrop-blur-sm">
+                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/25 bg-black/25 px-2.5 py-1 text-xs font-semibold text-[#fef9c3] backdrop-blur-sm">
                       <span className="h-2 w-2 rounded-full bg-[#34d399]" aria-hidden="true" />
                       {t.assistantStatus}
                     </span>
@@ -679,13 +679,13 @@ export function Hero({
                   {/* Prompt bar */}
                   <Link
                     href="/g/home"
-                    className="group mt-2.5 flex min-h-10 items-center gap-2 rounded-xl border border-[#825719]/20 bg-[#fdfbf7] px-3 py-2 text-xs text-[#5c5040] transition-all hover:border-[#825719]/45 hover:bg-[#faf4e8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#825719] sm:text-sm"
+                    className="group mt-2.5 flex min-h-10 items-center gap-2 rounded-xl border border-[#9e7120]/20 bg-[#fdfbf7] px-3 py-2 text-xs text-[#5c5040] transition-all hover:border-[#9e7120]/45 hover:bg-[#faf4e8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#9e7120] sm:text-sm"
                   >
                     <Image src="/images/concierge/icon-ai.png" alt="" width={18} height={18} className="h-4.5 w-4.5 shrink-0 rounded object-contain" />
                     <span className="min-w-0 flex-1 truncate text-[#6b6255]">
                       {t.promptPlaceholder}
                     </span>
-                    <VsIcon name="chevron_right" className="shrink-0 text-sm text-[#825719]/70 transition-transform group-hover:translate-x-0.5" />
+                    <VsIcon name="chevron_right" className="shrink-0 text-sm text-[#9e7120]/70 transition-transform group-hover:translate-x-0.5" />
                   </Link>
 
                   {/* 2x2 Services Grid */}
@@ -694,22 +694,22 @@ export function Hero({
                       <Link
                         key={service.title}
                         href={service.href}
-                        className="group flex min-w-0 items-center justify-between gap-2 rounded-xl border border-[#825719]/15 bg-[#fffefc] p-2 sm:p-2.5 transition-all hover:border-[#825719]/40 hover:bg-[#fefaf2] hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#825719]"
+                        className="group flex min-w-0 items-center justify-between gap-2 rounded-xl border border-[#9e7120]/15 bg-[#fffefc] p-2 sm:p-2.5 transition-all hover:border-[#9e7120]/40 hover:bg-[#fefaf2] hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#9e7120]"
                       >
                         <div className="flex min-w-0 items-center gap-2.5">
                           <Image src={service.icon} alt="" width={38} height={38} className="h-9 w-9 shrink-0 rounded-lg object-contain" />
                           <div className="min-w-0">
-                            <h4 className="whitespace-nowrap text-xs sm:text-sm font-bold text-[#181410] transition-colors group-hover:text-[#785016]">{service.title}</h4>
+                            <h4 className="whitespace-nowrap text-xs sm:text-sm font-bold text-[#181410] transition-colors group-hover:text-[#7a5416]">{service.title}</h4>
                             <p className="mt-0.5 truncate text-xs text-[#6b6255]">{service.text}</p>
                           </div>
                         </div>
-                        <VsIcon name="arrow_forward" className="shrink-0 text-sm text-[#825719]/40 transition-all group-hover:translate-x-0.5 group-hover:text-[#785016]" />
+                        <VsIcon name="arrow_forward" className="shrink-0 text-sm text-[#9e7120]/40 transition-all group-hover:translate-x-0.5 group-hover:text-[#7a5416]" />
                       </Link>
                     ))}
                   </div>
 
-                  {/* Bottom Experience Card: Stable Deep Luxury Gold Gradient */}
-                  <div className="relative mt-2.5 overflow-hidden rounded-xl bg-gradient-to-r from-[#4d330c] via-[#6d4914] to-[#8e611d] p-3 text-white shadow-md shadow-[#6d4914]/15">
+                  {/* Bottom Experience Card: Lighter Warm Luxury Gold Gradient */}
+                  <div className="relative mt-2.5 overflow-hidden rounded-xl bg-gradient-to-r from-[#6b4812] via-[#855c19] to-[#a17222] p-3 text-white shadow-md shadow-[#855c19]/15">
                     <div className="pointer-events-none absolute -right-6 -bottom-6 h-20 w-20 rounded-full bg-white/10 blur-xl" aria-hidden="true" />
                     <div className="relative flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex min-w-0 items-center gap-2.5">

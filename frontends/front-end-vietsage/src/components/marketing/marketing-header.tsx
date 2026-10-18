@@ -248,20 +248,21 @@ export function MarketingHeader({
   return (
     <header ref={headerRef} className="vs-mkt-header sticky top-0 z-50">
       <nav
-        className="vs-mkt-navbar mx-auto flex max-w-7xl items-center justify-between gap-2 sm:gap-4 px-3 py-2.5 sm:px-5 sm:py-3 lg:px-6"
+        className="vs-mkt-navbar mx-auto flex max-w-7xl items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6 lg:px-8 py-2.5 sm:py-3 lg:py-3.5"
         aria-label={t.navAria}
       >
-        <Link href="/" className="vs-mkt-brand flex shrink-0 items-center">
-          <span className="flex items-center">
-            <VietSageBrand
-              priority
-              className="justify-start gap-1.5 sm:gap-2 rounded-xl px-1.5 py-1 sm:px-2"
-              markClassName="h-7 w-7 sm:h-9 sm:w-9"
-              wordmarkClassName="h-4 w-auto sm:h-6"
-            />
-            <span className="hidden truncate text-xs font-medium text-[#627064] lg:block xl:hidden 2xl:block border-l border-[#123d2a]/15 ml-2.5 pl-2.5">
-              {t.brandSubtitle}
-            </span>
+        <Link
+          href="/"
+          className="vs-mkt-brand flex shrink-0 flex-col items-start justify-center group focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ba8c2f]"
+        >
+          <VietSageBrand
+            priority
+            className="justify-start gap-1.5 sm:gap-2 rounded-xl px-1.5 py-0.5 sm:px-2"
+            markClassName="h-6 w-6 sm:h-7 sm:w-7"
+            wordmarkClassName="h-4 w-auto sm:h-5"
+          />
+          <span className="mt-1 px-1 block text-xs font-medium tracking-tight text-[#627064] transition-colors group-hover:text-[#181410]">
+            {t.brandSubtitle}
           </span>
         </Link>
 
@@ -305,7 +306,7 @@ export function MarketingHeader({
             {accountLabel}
           </Link>
           <a
-            className="vs-mkt-primary-btn hidden shrink-0 whitespace-nowrap rounded-full bg-gradient-to-r from-[#634211] via-[#825719] to-[#a16f21] px-4 py-2 sm:px-5 sm:py-2.5 text-sm font-bold text-white shadow-md shadow-[#734c14]/20 transition-all hover:from-[#54370d] hover:via-[#734c14] hover:to-[#91621b] hover:shadow-lg hover:shadow-[#734c14]/30 md:inline-flex"
+            className="vs-mkt-primary-btn hidden shrink-0 whitespace-nowrap rounded-full bg-gradient-to-r from-[#825916] via-[#9e7120] to-[#ba8c2f] px-4 py-2 sm:px-5 sm:py-2.5 text-sm font-bold text-white shadow-md shadow-[#825916]/20 transition-all hover:brightness-105 hover:shadow-lg hover:shadow-[#825916]/30 md:inline-flex"
             href={REQUEST_DEMO_URL}
             target="_blank"
             rel="noopener noreferrer"
@@ -483,7 +484,7 @@ export function MarketingHeader({
                 {accountLabel}
               </Link>
               <a
-                className="rounded-full bg-gradient-to-r from-[#634211] via-[#825719] to-[#a16f21] px-4 py-3 text-center text-sm font-bold text-white shadow-md shadow-[#734c14]/20"
+                className="rounded-full bg-gradient-to-r from-[#825916] via-[#9e7120] to-[#ba8c2f] px-4 py-3 text-center text-sm font-bold text-white shadow-md shadow-[#825916]/20"
                 href={REQUEST_DEMO_URL}
                 target="_blank"
                 rel="noopener noreferrer"
