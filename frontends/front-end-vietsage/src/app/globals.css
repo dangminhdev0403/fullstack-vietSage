@@ -1148,7 +1148,8 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
 }
 
 .vs-mkt-sign-in:hover {
-  background: rgba(18, 61, 42, 0.08);
+  background: rgba(184, 135, 47, 0.09);
+  color: #7b5318;
 }
 
 .vs-mkt-nav {
@@ -1168,8 +1169,8 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
 }
 
 .vs-mkt-nav:hover {
-  background: rgba(18, 61, 42, 0.08);
-  color: #123d2a;
+  background: rgba(184, 135, 47, 0.09);
+  color: #7b5318;
   transform: translateY(-1px);
 }
 
@@ -1255,8 +1256,8 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
 
 .vs-mobile-nav-link:hover,
 .vs-mobile-nav-link[data-active="true"] {
-  background: rgba(18, 61, 42, 0.07);
-  color: #123d2a;
+  background: rgba(184, 135, 47, 0.09);
+  color: #7b5318;
 }
 
 .vs-mobile-nav-link[data-active="true"] {
@@ -1386,22 +1387,23 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
 }
 
 .vs-mkt-primary-btn:hover {
-  background: #0d2f20;
-  box-shadow: 0 18px 36px rgba(18, 61, 42, 0.24);
+  background: linear-gradient(135deg, #8d6219, #a97922, #c49635);
+  box-shadow: 0 16px 32px rgba(130, 89, 22, 0.28);
 }
 
 .vs-mkt-secondary-btn:hover {
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 14px 30px rgba(18, 61, 42, 0.12);
+  background: rgba(255, 255, 255, 0.98);
+  border-color: #9e7120;
+  box-shadow: 0 12px 26px rgba(158, 113, 32, 0.12);
 }
 
 .vs-mkt-card:hover,
 .vs-service-tile:hover,
 .vs-logo-tile:hover {
   transform: translateY(-4px);
-  border-color: rgba(18, 61, 42, 0.18);
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 22px 44px rgba(18, 61, 42, 0.1);
+  border-color: rgba(184, 135, 47, 0.24);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 20px 40px rgba(158, 113, 32, 0.08);
 }
 
 .vs-logo-tile {
