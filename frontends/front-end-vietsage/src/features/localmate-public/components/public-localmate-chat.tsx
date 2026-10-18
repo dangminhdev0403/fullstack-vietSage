@@ -640,19 +640,8 @@ export function PublicLocalMateChat({
   const [guideInput, setGuideInput] = useState("");
   const [isSendingGuideMessage, setIsSendingGuideMessage] = useState(false);
 
-  const [showTeaser, setShowTeaser] = useState(true);
-
-  useEffect(() => {
-    // Auto-dismiss teaser after 10 seconds so it doesn't linger forever
-    const timer = setTimeout(() => {
-      setShowTeaser(false);
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (isOpen && showTeaser) {
-    setShowTeaser(false);
-  }
+  const [teaserDismissed, setTeaserDismissed] = useState(false);
+  const showTeaser = !isOpen && !teaserDismissed;
 
   const activeProposal = useMemo(
     () => activeProposals.find((p) => p.proposalKey === activeProposalKey) ?? null,
@@ -2641,12 +2630,12 @@ export function PublicLocalMateChat({
         </>
       ) : (
         <div className="flex flex-col items-end gap-3">
-          {/* Speech-bubble teaser card: hidden on mobile so it never blocks CTA buttons or hero content */}
+          {/* Speech-bubble teaser card: always visible until user dismisses or opens chat */}
           {showTeaser && (
             <aside
               ref={teaserRef}
               aria-label={chatUi.teaserAria || chatUi.teaserTitle}
-              className="group relative hidden sm:block w-[320px] sm:w-[348px] max-w-[calc(100vw-32px)] cursor-pointer rounded-[1.6rem] border border-[#d6c08b]/70 bg-[#fffdfa]/98 p-4 shadow-[0_16px_40px_rgba(18,61,42,0.14)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-[#b8872f] hover:shadow-[0_22px_48px_rgba(18,61,42,0.20)]"
+              className="group relative block w-[min(348px,calc(100vw-24px))] cursor-pointer rounded-[1.6rem] border border-[#d6c08b]/70 bg-[#fffdfa]/98 p-4 shadow-[0_16px_40px_rgba(18,61,42,0.14)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-[#b8872f] hover:shadow-[0_22px_48px_rgba(18,61,42,0.20)]"
               onClick={() => openChat("teaser")}
               role="button"
               tabIndex={0}
@@ -2688,10 +2677,10 @@ export function PublicLocalMateChat({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setShowTeaser(false);
+                    setTeaserDismissed(true);
                   }}
                   aria-label={chatUi.dismissTeaserAria}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[#6b7d73] hover:bg-[#123d2a]/8 hover:text-[#123d2a] transition-colors"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[#6b7d73] hover:bg-[#123d2a]/8 hover:text-[#123d2a] transition-colors cursor-pointer"
                 >
                   <VsIcon name="close" className="text-xs" />
                 </button>
