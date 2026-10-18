@@ -125,7 +125,7 @@ export function LocalMateBookingCard({ action, onBook }: LocalMateBookingCardPro
 
           {/* Languages & Specialties */}
           {localMate.languages.length > 0 && (
-            <div className="mt-1.5 flex flex-wrap gap-1 text-[11px] text-neutral-500 dark:text-neutral-400">
+            <div className="mt-1.5 flex flex-wrap gap-1 text-xs text-neutral-500 dark:text-neutral-400">
               <span className="font-medium text-neutral-600 dark:text-neutral-300">
                 {copy.languages}:
               </span>

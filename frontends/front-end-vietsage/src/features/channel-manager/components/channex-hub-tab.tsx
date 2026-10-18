@@ -373,7 +373,7 @@ export function ChannexHubTab({
                             {provider.title}
                           </h3>
                           <span
-                            className={`shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                            className={`shrink-0 rounded-md border px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${
                               provider.kind === "ota"
                                 ? "border-sky-200 bg-sky-50 text-sky-800"
                                 : provider.kind === "meta"
@@ -386,11 +386,11 @@ export function ChannexHubTab({
                         </div>
 
                         <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                          <span className="font-mono text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                          <span className="font-mono text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
                             #{provider.code}
                           </span>
                           {provider.nativeSupported && (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">
+                            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 text-xs font-bold text-emerald-800">
                               <VsIcon name="bolt" className="text-xs text-emerald-600" />
                               Native API
                             </span>
@@ -432,7 +432,7 @@ export function ChannexHubTab({
                                   <span className="max-w-[130px] truncate">
                                     {conn.title || "Kênh"}
                                   </span>
-                                  <VsIcon name="arrow_forward" className="text-[10px] opacity-60" />
+                                  <VsIcon name="arrow_forward" className="text-xs opacity-60" />
                                 </button>
                               ))}
                             </div>
@@ -444,7 +444,7 @@ export function ChannexHubTab({
                             <span className="h-2 w-2 rounded-full bg-slate-300" />
                             <span>Chưa liên kết</span>
                           </span>
-                          <span className="text-[11px] font-semibold text-slate-400">
+                          <span className="text-xs font-semibold text-slate-400">
                             Sẵn sàng kết nối
                           </span>
                         </div>
@@ -453,7 +453,7 @@ export function ChannexHubTab({
 
                     {/* Thông số cần thiết */}
                     <div className="space-y-1.5">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
                         Yêu cầu xác thực:
                       </span>
                       {setupParams.length > 0 ? (
@@ -465,7 +465,7 @@ export function ChannexHubTab({
                             >
                               <span>{param.title ?? param.key}</span>
                               {param.type === "password" && (
-                                <VsIcon name="lock" className="text-[11px] text-slate-400" />
+                                <VsIcon name="lock" className="text-xs text-slate-400" />
                               )}
                             </span>
                           ))}

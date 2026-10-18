@@ -198,7 +198,7 @@ export default function GuestRequestsPage() {
                 <VsIcon name={tab.icon} className="text-base" />
                 <span>{tab.label}</span>
                 {tab.value === "EXTERNAL" && externalOrders.length > 0 ? (
-                  <span className={`ml-1 rounded-full px-2 py-0.5 text-[11px] font-black ${sourceTab === tab.value ? "bg-white/20 text-white" : "bg-amber-100 text-amber-900"}`}>
+                  <span className={`ml-1 rounded-full px-2 py-0.5 text-xs font-black ${sourceTab === tab.value ? "bg-white/20 text-white" : "bg-amber-100 text-amber-900"}`}>
                     {externalOrders.length}
                   </span>
                 ) : null}
@@ -223,7 +223,7 @@ export default function GuestRequestsPage() {
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-[11px] font-extrabold text-amber-900">{t("requests.sourceExternal")}</span>
+                    <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-xs font-extrabold text-amber-900">{t("requests.sourceExternal")}</span>
                   </div>
                   <h2 id="external-orders-title" className="vs-display mt-1 text-2xl font-semibold text-[#18211d]">{t("requests.sourceExternal")}</h2>
                   <p className="mt-1 text-sm leading-6 text-[#5e6a62]">{t("requests.historySubtitle")}</p>
@@ -257,13 +257,13 @@ export default function GuestRequestsPage() {
                           <div className="grid size-12 shrink-0 place-items-center rounded-full bg-amber-50 text-amber-800">
                             <VsIcon name="storefront" className="text-2xl" />
                           </div>
-                          <span className={`inline-flex min-h-7 items-center rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${statusBadge.className}`}>
+                          <span className={`inline-flex min-h-7 items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider ${statusBadge.className}`}>
                             {statusBadge.label}
                           </span>
                         </div>
 
                         <div className="mb-2 flex items-center gap-2">
-                          <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-extrabold text-amber-900">Dịch vụ bên ngoài</span>
+                          <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-extrabold text-amber-900">Dịch vụ bên ngoài</span>
                           <span className="truncate rounded-lg bg-[#eef3ee] px-2.5 py-1 font-mono text-xs text-[#465149]">{order.orderNumber}</span>
                         </div>
 
@@ -271,14 +271,14 @@ export default function GuestRequestsPage() {
                         <p className="mt-1 text-sm text-[#5e6a62]">{providerName}</p>
 
                         <div className="mt-3 flex flex-wrap gap-2">
-                          <span className="inline-flex min-h-7 items-center rounded-full border border-[#d7bd61]/55 bg-[#fff9df] px-2.5 text-[11px] font-black text-[#765a0e]">
+                          <span className="inline-flex min-h-7 items-center rounded-full border border-[#d7bd61]/55 bg-[#fff9df] px-2.5 text-xs font-black text-[#765a0e]">
                             Tổng: {Number.isFinite(totalAmount) ? new Intl.NumberFormat("vi-VN", { style: "currency", currency: order.currency || "VND", maximumFractionDigits: 0 }).format(totalAmount) : "-"}
                           </span>
-                          <span className="inline-flex min-h-7 items-center rounded-full border border-[#25483f]/14 bg-white px-2.5 text-[11px] font-black text-[#25483f]">
+                          <span className="inline-flex min-h-7 items-center rounded-full border border-[#25483f]/14 bg-white px-2.5 text-xs font-black text-[#25483f]">
                             SL: {order.quantity}
                           </span>
                           {order.unitSnapshot ? (
-                            <span className="inline-flex min-h-7 items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 text-[11px] font-bold text-slate-600">
+                            <span className="inline-flex min-h-7 items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 text-xs font-bold text-slate-600">
                               {order.unitSnapshot}
                             </span>
                           ) : null}
@@ -297,7 +297,7 @@ export default function GuestRequestsPage() {
                                 <VsIcon name="confirmation_number" className="text-xl" />
                               </div>
                               <div>
-                                <div className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">
+                                <div className="text-xs font-extrabold uppercase tracking-wider text-emerald-800">
                                   Mã phiếu dịch vụ
                                 </div>
                                 <div className="font-mono text-sm font-black text-emerald-950 tracking-wider">

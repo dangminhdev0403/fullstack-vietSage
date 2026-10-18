@@ -259,23 +259,23 @@ export function MarketingHeader({
               markClassName="h-7 w-7 sm:h-9 sm:w-9"
               wordmarkClassName="h-4 w-auto sm:h-6"
             />
-            <span className="hidden truncate text-xs font-medium text-[#627064] lg:block">
+            <span className="hidden truncate text-xs font-medium text-[#627064] lg:block xl:hidden 2xl:block border-l border-[#123d2a]/15 ml-2.5 pl-2.5">
               {t.brandSubtitle}
             </span>
           </span>
         </Link>
 
-        <div className="hidden items-center gap-1 xl:flex">
+        <div className="hidden shrink-0 items-center gap-1 xl:flex">
           <DesktopNavLink pathname={pathname} href="/" label={t.home} />
           <div className="group relative">
             <button
-              className="vs-mkt-nav font-semibold text-sm"
+              className="vs-mkt-nav inline-flex shrink-0 items-center whitespace-nowrap font-semibold text-sm"
               data-active={solutionsActive ? "true" : undefined}
               type="button"
               aria-haspopup="true"
             >
               {t.solutions}
-              <span className="ml-1 text-[0.65rem]" aria-hidden="true">&#9662;</span>
+              <span className="ml-1 text-xs" aria-hidden="true">&#9662;</span>
             </button>
             <div className="vs-solutions-menu invisible absolute left-1/2 -translate-x-1/2 top-full w-[520px] pt-4 opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 transition-all duration-150">
               <div className="grid grid-cols-2 gap-3 rounded-[1.8rem] border border-[#123d2a]/10 bg-[#fffdf7]/95 p-4 shadow-2xl shadow-[#123d2a]/15 backdrop-blur-xl">
@@ -301,11 +301,11 @@ export function MarketingHeader({
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-          <Link className="vs-mkt-sign-in hidden sm:inline-flex text-sm font-semibold" href={accountAction.href}>
+          <Link className="vs-mkt-sign-in hidden shrink-0 whitespace-nowrap sm:inline-flex text-sm font-semibold" href={accountAction.href}>
             {accountLabel}
           </Link>
           <a
-            className="vs-mkt-primary-btn hidden rounded-full bg-[#123d2a] px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-[#123d2a]/20 transition-all hover:bg-[#184d35] md:inline-flex"
+            className="vs-mkt-primary-btn hidden shrink-0 whitespace-nowrap rounded-full bg-[#123d2a] px-4 py-2 sm:px-5 sm:py-2.5 text-sm font-bold text-white shadow-md shadow-[#123d2a]/20 transition-all hover:bg-[#184d35] md:inline-flex"
             href={REQUEST_DEMO_URL}
             target="_blank"
             rel="noopener noreferrer"
@@ -314,10 +314,10 @@ export function MarketingHeader({
           </a>
 
           {/* Language Switcher Dropdown */}
-          <div className="relative" ref={langMenuRef}>
+          <div className="relative shrink-0" ref={langMenuRef}>
             <button
               type="button"
-              className="inline-flex h-9 sm:h-10 items-center gap-1.5 sm:gap-2 rounded-full border border-[#123d2a]/20 bg-white/95 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-[#123d2a] shadow-sm backdrop-blur-md transition-all hover:border-[#b8872f] hover:bg-white hover:shadow-md hover:ring-2 hover:ring-[#b8872f]/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f] cursor-pointer"
+              className="inline-flex h-9 sm:h-10 shrink-0 whitespace-nowrap items-center gap-1.5 sm:gap-2 rounded-full border border-[#123d2a]/20 bg-white/95 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-[#123d2a] shadow-sm backdrop-blur-md transition-all hover:border-[#b8872f] hover:bg-white hover:shadow-md hover:ring-2 hover:ring-[#b8872f]/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f] cursor-pointer"
               onClick={() => setLangMenuOpen((prev) => !prev)}
               aria-expanded={langMenuOpen}
               aria-haspopup="listbox"
@@ -329,7 +329,7 @@ export function MarketingHeader({
               </svg>
               <span className="hidden sm:inline font-bold tracking-tight">{currentOption.nativeName}</span>
               <span className="sm:hidden font-bold tracking-tight text-xs">{currentOption.badge}</span>
-              <span className="text-[10px] text-[#627064] transition-transform duration-150" aria-hidden="true">
+              <span className="text-xs text-[#627064] transition-transform duration-150" aria-hidden="true">
                 {langMenuOpen ? "▴" : "▾"}
               </span>
             </button>
@@ -361,7 +361,7 @@ export function MarketingHeader({
                         <span>{opt.nativeName}</span>
                       </span>
                       <span
-                        className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                        className={`text-xs font-mono px-1.5 py-0.5 rounded ${
                           opt.code === activeLocale ? "bg-[#b8872f]/25 text-[#f3c66b]" : "bg-[#123d2a]/5 text-[#627064]"
                         }`}
                       >
@@ -401,7 +401,7 @@ export function MarketingHeader({
           <div className="rounded-[1.6rem] border border-[#123d2a]/10 bg-[#fffdf7]/98 p-3 shadow-2xl shadow-[#123d2a]/16 backdrop-blur-xl">
             {/* Mobile language options */}
             <div className="mb-2.5 border-b border-[#123d2a]/10 pb-3">
-              <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-wider text-[#627064]">
+              <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-[#627064]">
                 {t.selectLanguage}
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 px-1">
@@ -513,7 +513,7 @@ function DesktopNavLink({
 
   return (
     <Link
-      className="vs-mkt-nav text-sm font-semibold"
+      className="vs-mkt-nav inline-flex shrink-0 items-center whitespace-nowrap text-sm font-semibold"
       data-active={active ? "true" : undefined}
       aria-current={active ? "page" : undefined}
       href={href}

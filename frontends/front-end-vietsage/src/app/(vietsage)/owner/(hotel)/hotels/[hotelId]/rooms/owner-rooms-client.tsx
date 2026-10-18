@@ -1182,7 +1182,7 @@ export function OwnerRoomsClient({
               {qrMeta.label}
             </span>
             {showMissingQrHint ? (
-              <p className="max-w-[180px] truncate text-[11px] font-medium leading-4 text-[var(--outline)]">
+              <p className="max-w-[180px] truncate text-xs font-medium leading-4 text-[var(--outline)]">
                 {"Chưa tạo mã QR"}
               </p>
             ) : null}
@@ -1620,7 +1620,7 @@ export function OwnerRoomsClient({
                                 </p>
                               </div>
                               <span
-                                className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider shrink-0 ${statusMeta.className}`}
+                                className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider shrink-0 ${statusMeta.className}`}
                               >
                                 {statusMeta.label}
                               </span>
@@ -1641,7 +1641,7 @@ export function OwnerRoomsClient({
                                 </div>
                               ) : null}
 
-                              <div className="flex items-center justify-between text-[11px] pt-1">
+                              <div className="flex items-center justify-between text-xs pt-1">
                                 <span
                                   className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-bold ${
                                     qrIsActive
@@ -1970,7 +1970,7 @@ export function OwnerRoomsClient({
                     Boolean(roomFormErrors.maxActiveGuestDevices),
                   )}
                 />
-                <p className="text-[11px] font-medium text-[var(--outline)]">
+                <p className="text-xs font-medium text-[var(--outline)]">
                   Để trống để hệ thống dùng mặc định 3.
                 </p>
                 <RoomFieldError

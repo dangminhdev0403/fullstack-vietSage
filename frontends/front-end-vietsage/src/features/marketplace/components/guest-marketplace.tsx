@@ -266,7 +266,7 @@ export function GuestMarketplace({
                     <div className="space-y-1.5">
                       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#25483f]/10 pb-2">
                         <div className="flex items-center gap-2">
-                          <span className="inline-flex items-center rounded-md bg-[#fef3c7] px-2 py-0.5 text-[10px] font-extrabold text-[#92400e] border border-[#fde68a]">
+                          <span className="inline-flex items-center rounded-md bg-[#fef3c7] px-2 py-0.5 text-xs font-extrabold text-[#92400e] border border-[#fde68a]">
                             {t("services.discovery.external")}
                           </span>
                           <p className="font-bold text-[#18211d]">{item.serviceNameSnapshot}</p>
@@ -290,19 +290,19 @@ export function GuestMarketplace({
                           {item.voucher?.voucherNumber ? (
                             <div className="space-y-1.5 border-t border-[#25483f]/10 pt-2">
                               <div className="flex items-center justify-between text-xs">
-                                <span className="font-bold text-[#8a6a13] uppercase tracking-wider text-[10px]">
+                                <span className="font-bold text-[#8a6a13] uppercase tracking-wider text-xs">
                                   {t("marketplace.voucherCodeLabel")}
                                 </span>
                                 <span className="font-mono font-black text-base text-[#25483f] bg-[#f8f4ea] px-2 py-0.5 rounded-lg border border-[#25483f]/20">
                                   {item.voucher.voucherNumber}
                                 </span>
                               </div>
-                              <p className="text-[11px] text-[#5e6a62] italic">
+                              <p className="text-xs text-[#5e6a62] italic">
                                 {t("marketplace.voucherHelpText")}
                               </p>
                             </div>
                           ) : (
-                            <p className="text-[11px] text-[#8a6a13] italic">
+                            <p className="text-xs text-[#8a6a13] italic">
                               {t("marketplace.voucherPendingText")}
                             </p>
                           )}
@@ -328,7 +328,7 @@ export function GuestMarketplace({
           >
             <div className="relative">
               <VsIcon name="shopping_bag" className="text-2xl text-[#d7bd61]" />
-              <span className="absolute -top-1.5 -right-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#d7bd61] px-1 text-[11px] font-black text-[#18211d] shadow">
+              <span className="absolute -top-1.5 -right-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#d7bd61] px-1 text-xs font-black text-[#18211d] shadow">
                 {cartItemCount > 99 ? "99+" : cartItemCount}
               </span>
             </div>

@@ -187,7 +187,7 @@ export function WorkspaceShell({
               key={item.key}
               href={item.href}
               prefetch={true}
-              className={`relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-center text-[10px] font-bold ${
+              className={`relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-center text-xs font-bold ${
                 active ? "bg-[#f8f1e6] text-[#17201b]" : "text-[#d7cbb8]"
               }`}
             >
@@ -195,7 +195,7 @@ export function WorkspaceShell({
                 <VsIcon name={item.icon} className="text-xl" />
                 {badge > 0 ? (
                   <span
-                    className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e8b363] px-1 text-[9px] font-bold text-[#17201b] shadow"
+                    className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e8b363] px-1 text-xs font-bold text-[#17201b] shadow"
                     aria-label={`${item.label}, ${badge} tin chưa đọc`}
                   >
                     {badge > 99 ? "99+" : badge}

@@ -1596,7 +1596,7 @@ export function PublicLocalMateChat({
                   >
                     <VsIcon name="globe" className="text-sm text-[#f3c66b] shrink-0" />
                     <span className="font-bold text-xs text-[#ffe6a0] tracking-wide">{currentOption.nativeName}</span>
-                    <span className="text-[9px] text-[#ffe6a0]/80" aria-hidden="true">{langMenuOpen ? "▴" : "▾"}</span>
+                    <span className="text-xs text-[#ffe6a0]/80" aria-hidden="true">{langMenuOpen ? "▴" : "▾"}</span>
                   </button>
 
                   {langMenuOpen && (
@@ -1624,7 +1624,7 @@ export function PublicLocalMateChat({
                               <span className="font-semibold">{opt.nativeName}</span>
                             </span>
                             <span
-                              className={`font-mono text-[10px] px-1.5 py-0.5 rounded ${
+                              className={`font-mono text-xs px-1.5 py-0.5 rounded ${
                                 opt.code === effectiveLocale
                                   ? "bg-[#b8872f]/25 text-[#f3c66b]"
                                   : "bg-black/5 text-[#627064]"
@@ -1663,7 +1663,7 @@ export function PublicLocalMateChat({
                     <button
                       type="button"
                       onClick={() => setViewMode(currentOrder.payment?.status === "PAID" || currentOrder.status === "COMPLETED" ? "guide-chat" : "payment")}
-                      className="shrink-0 rounded-lg bg-[#123d2a] px-2.5 py-1 text-[11px] font-bold text-[#f3c66b] hover:bg-[#184d35] transition ml-2"
+                      className="shrink-0 rounded-lg bg-[#123d2a] px-2.5 py-1 text-xs font-bold text-[#f3c66b] hover:bg-[#184d35] transition ml-2"
                     >
                       {publicCopy.openOrderChat}
                     </button>
@@ -1682,7 +1682,7 @@ export function PublicLocalMateChat({
                     <button
                       type="button"
                       onClick={() => handleShowAlternatives(activeProposal.proposalKey)}
-                      className="shrink-0 text-[11px] font-bold text-[#916e15] hover:underline ml-2"
+                      className="shrink-0 text-xs font-bold text-[#916e15] hover:underline ml-2"
                     >
                       {publicCopy.showAlternatives}
                     </button>
@@ -1773,15 +1773,15 @@ export function PublicLocalMateChat({
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="min-w-0">
                                     <div className="flex flex-wrap items-center gap-1.5">
-                                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#916e15]">
+                                      <span className="text-xs font-bold uppercase tracking-wider text-[#916e15]">
                                         {proposal.location}
                                       </span>
-                                      <span className="text-[11px] text-[#526458]">•</span>
-                                      <span className="text-[11px] font-medium text-[#526458]">
+                                      <span className="text-xs text-[#526458]">•</span>
+                                      <span className="text-xs font-medium text-[#526458]">
                                         {proposal.duration}
                                       </span>
                                       {isSelected && (
-                                        <span className="inline-flex items-center gap-0.5 rounded-full bg-[#123d2a] px-2 py-0.5 text-[10px] font-bold text-[#f3c66b]">
+                                        <span className="inline-flex items-center gap-0.5 rounded-full bg-[#123d2a] px-2 py-0.5 text-xs font-bold text-[#f3c66b]">
                                           <VsIcon name="check" className="text-xs" />
                                           {publicCopy.selectedProposalPrefix}
                                         </span>
@@ -1792,7 +1792,7 @@ export function PublicLocalMateChat({
                                     </h4>
                                   </div>
                                   {proposal.bookable && (
-                                    <span className="shrink-0 rounded-full bg-[#ecfdf5] px-2.5 py-0.5 text-[11px] font-bold text-[#065f46] border border-[#10b981]/30">
+                                    <span className="shrink-0 rounded-full bg-[#ecfdf5] px-2.5 py-0.5 text-xs font-bold text-[#065f46] border border-[#10b981]/30">
                                       {effectiveLocale === "en"
                                         ? "Available"
                                         : effectiveLocale === "zh"
@@ -1819,7 +1819,7 @@ export function PublicLocalMateChat({
                                   </div>
                                 )}
 
-                                <div className="flex items-center gap-1.5 text-[11px] text-[#526458]">
+                                <div className="flex items-center gap-1.5 text-xs text-[#526458]">
                                   <VsIcon name="group" className="text-sm text-[#123d2a]" />
                                   <span>
                                     {proposal.availableGuideCount > 0
@@ -1936,7 +1936,7 @@ export function PublicLocalMateChat({
                                       <h5 className="font-bold text-[#123d2a] text-sm truncate">
                                         {guideAction.guideName || guideAction.label}
                                       </h5>
-                                      <span className="text-[11px] font-medium text-[#627064]">
+                                      <span className="text-xs font-medium text-[#627064]">
                                         {publicCopy.titleGuideDefault}
                                       </span>
                                     </div>
@@ -2212,7 +2212,7 @@ export function PublicLocalMateChat({
                     <div className="rounded-2xl border border-[#d6c08b]/50 bg-[#fff9ed] p-3.5 shadow-sm">
                       <div className="flex items-start justify-between">
                         <div>
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-[#916e15]">
+                          <span className="text-xs font-bold uppercase tracking-wider text-[#916e15]">
                             {orderFormText.nativeExperience}
                           </span>
                           <h3 className="mt-0.5 text-sm font-bold text-[#123d2a]">
@@ -2307,7 +2307,7 @@ export function PublicLocalMateChat({
                           <h4 className="truncate font-bold text-[#123d2a] text-[13px]">
                             {activeProposal.title}
                           </h4>
-                          <span className="text-[11px] text-[#526458]">
+                          <span className="text-xs text-[#526458]">
                             {activeProposal.location} • {activeProposal.duration}
                           </span>
                         </div>
@@ -2573,7 +2573,7 @@ export function PublicLocalMateChat({
                             {msg.body}
                           </div>
                           {msg.senderType === "GUEST" && (
-                            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-[#526458]">
+                            <div className="mt-1 flex items-center gap-1.5 text-xs text-[#526458]">
                               {(msg.deliveryStatus === "SENDING" || msg.deliveryStatus === "PENDING") && (
                                 <span className="flex items-center gap-1 text-[#718277]">
                                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#718277]" />

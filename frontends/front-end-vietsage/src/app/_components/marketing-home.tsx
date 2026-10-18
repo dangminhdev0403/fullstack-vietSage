@@ -717,7 +717,7 @@ export function MarketingHome({
               className="vs-stat-card rounded-3xl border border-[#123d2a]/10 bg-white/70 p-4 shadow-sm shadow-[#123d2a]/5"
             >
               <strong className="text-2xl text-[#123d2a]">{v}</strong>
-              <span className="block text-[10px] leading-4 uppercase tracking-[.1em] text-[#627064]">
+              <span className="block text-xs leading-4 uppercase tracking-[.1em] text-[#627064]">
                 {l}
               </span>
             </div>

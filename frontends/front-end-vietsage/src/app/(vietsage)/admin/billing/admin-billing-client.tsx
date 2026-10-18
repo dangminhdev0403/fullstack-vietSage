@@ -963,7 +963,7 @@ export function AdminBillingClient({
         >
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+              <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                 Công nợ còn lại
               </p>
               <p className="mt-2.5 text-2xl font-extrabold tabular-nums tracking-tight text-amber-600 dark:text-amber-400">
@@ -993,7 +993,7 @@ export function AdminBillingClient({
         >
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+              <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                 Quá hạn thu hồi
               </p>
               <p className="mt-2.5 text-2xl font-extrabold tabular-nums tracking-tight text-red-600 dark:text-red-400">
@@ -1023,7 +1023,7 @@ export function AdminBillingClient({
         >
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+              <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                 Đã thu
               </p>
               <p className="mt-2.5 text-2xl font-extrabold tabular-nums tracking-tight text-emerald-600 dark:text-emerald-400">
@@ -1048,7 +1048,7 @@ export function AdminBillingClient({
         >
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+              <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                 Hợp đồng hoạt động
               </p>
               <p className="mt-2.5 text-2xl font-extrabold tabular-nums tracking-tight text-slate-900 dark:text-white">
@@ -1099,7 +1099,7 @@ export function AdminBillingClient({
             <VsIcon name="receipt_long" className="text-base" />
             <span>Hóa đơn & Công nợ</span>
             <span
-              className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${
+              className={`rounded-full px-2 py-0.5 text-xs font-extrabold ${
                 activeTab === "invoices"
                   ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
                   : "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400"
@@ -1147,7 +1147,7 @@ export function AdminBillingClient({
             <VsIcon name="handshake" className="text-base" />
             <span>Biểu phí LocalMate</span>
             <span
-              className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${
+              className={`rounded-full px-2 py-0.5 text-xs font-extrabold ${
                 activeTab === "localmate"
                   ? "bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300"
                   : "bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400"
@@ -1337,7 +1337,7 @@ export function AdminBillingClient({
                                 {hotelName}
                               </span>
                               {hotelCode && (
-                                <span className="mt-0.5 inline-block w-fit rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                                <span className="mt-0.5 inline-block w-fit rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
                                   {hotelCode}
                                 </span>
                               )}
@@ -1425,7 +1425,7 @@ export function AdminBillingClient({
                                   <VsIcon name="notifications" className="text-sm" />
                                   <span className="whitespace-nowrap">{issuingNoticeId === p.id ? "Đang ghi..." : "Ghi nhận đã nhắc nợ"}</span>
                                   {(p.debtNoticeCount ?? 0) > 0 && (
-                                    <span className="ml-0.5 rounded-full bg-amber-700 px-1.5 py-0.2 text-[10px] font-bold text-white dark:bg-amber-400 dark:text-amber-950 whitespace-nowrap">
+                                    <span className="ml-0.5 rounded-full bg-amber-700 px-1.5 py-0.2 text-xs font-bold text-white dark:bg-amber-400 dark:text-amber-950 whitespace-nowrap">
                                       {p.debtNoticeCount}
                                     </span>
                                   )}
@@ -1658,7 +1658,7 @@ export function AdminBillingClient({
                   <h4 className="text-sm font-bold text-teal-950 dark:text-teal-200">
                     Phí Nền tảng LocalMate (Tour &amp; Hướng dẫn viên): Hiện đang thu {localMateFeeRate}%
                   </h4>
-                  <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-extrabold text-teal-800 dark:bg-teal-900 dark:text-teal-300">
+                  <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-extrabold text-teal-800 dark:bg-teal-900 dark:text-teal-300">
                     Chính sách riêng
                   </span>
                 </div>
@@ -2002,20 +2002,20 @@ export function AdminBillingClient({
                   <div className="h-4 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800 flex">
                     <div
                       style={{ width: `${Math.max(0, Math.min(100, 100 - localMateFeeInput))}%` }}
-                      className="bg-emerald-500 transition-all duration-300 flex items-center justify-center text-[10px] font-extrabold text-white"
+                      className="bg-emerald-500 transition-all duration-300 flex items-center justify-center text-xs font-extrabold text-white"
                       title={`LocalMate: ${100 - localMateFeeInput}%`}
                     >
                       {100 - localMateFeeInput >= 15 ? `${100 - localMateFeeInput}%` : ""}
                     </div>
                     <div
                       style={{ width: `${Math.max(0, Math.min(100, localMateFeeInput))}%` }}
-                      className="bg-teal-600 transition-all duration-300 flex items-center justify-center text-[10px] font-extrabold text-white"
+                      className="bg-teal-600 transition-all duration-300 flex items-center justify-center text-xs font-extrabold text-white"
                       title={`VietSage: ${localMateFeeInput}%`}
                     >
                       {localMateFeeInput >= 15 ? `${localMateFeeInput}%` : ""}
                     </div>
                   </div>
-                  <div className="flex justify-between text-[11px] font-bold">
+                  <div className="flex justify-between text-xs font-bold">
                     <span className="text-emerald-600 dark:text-emerald-400">
                       ● Hướng dẫn viên ({100 - localMateFeeInput}%)
                     </span>

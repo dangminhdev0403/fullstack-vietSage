@@ -1106,7 +1106,7 @@ export function OtaBookingsTab({
                             {b.totalSegments ?? b.segments?.length ?? 1} phòng
                           </span>
                           <span
-                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ${
                               b.assignmentStatus === "FULLY_ASSIGNED"
                                 ? "bg-emerald-100 text-emerald-800"
                                 : b.assignmentStatus === "PARTIALLY_ASSIGNED"
@@ -1148,7 +1148,7 @@ export function OtaBookingsTab({
                                         "Chưa xác định"}
                                     </span>
                                     {seg.reservationCode && (
-                                      <span className="font-mono text-[10px] text-slate-400">
+                                      <span className="font-mono text-xs text-slate-400">
                                         #{seg.reservationCode}
                                       </span>
                                     )}
@@ -1156,7 +1156,7 @@ export function OtaBookingsTab({
                                   <div className="mt-1 flex items-center justify-between gap-1.5">
                                     {seg.roomNumber ? (
                                       <span
-                                        className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${
+                                        className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold ${
                                           isSegCancelled
                                             ? "bg-slate-100 text-slate-500 border border-slate-200"
                                             : isSegCheckedIn
@@ -1174,7 +1174,7 @@ export function OtaBookingsTab({
                                         <span>Phòng {seg.roomNumber}</span>
                                       </span>
                                     ) : (
-                                      <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 border border-amber-200">
+                                      <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 border border-amber-200">
                                         <span>⏳</span>
                                         <span>Chờ gán phòng</span>
                                       </span>
@@ -1191,7 +1191,7 @@ export function OtaBookingsTab({
                                               seg,
                                             );
                                           }}
-                                          className="inline-flex items-center rounded bg-amber-600 px-2 py-0.5 text-[11px] font-bold text-white hover:bg-amber-700 active:scale-95 transition cursor-pointer"
+                                          className="inline-flex items-center rounded bg-amber-600 px-2 py-0.5 text-xs font-bold text-white hover:bg-amber-700 active:scale-95 transition cursor-pointer"
                                         >
                                           Xếp phòng
                                         </button>
@@ -1210,7 +1210,7 @@ export function OtaBookingsTab({
                                               e.stopPropagation();
                                               void handleFastCheckIn(b, e, seg);
                                             }}
-                                            className="inline-flex items-center rounded bg-emerald-700 px-2 py-0.5 text-[11px] font-bold text-white hover:bg-emerald-800 active:scale-95 transition cursor-pointer"
+                                            className="inline-flex items-center rounded bg-emerald-700 px-2 py-0.5 text-xs font-bold text-white hover:bg-emerald-800 active:scale-95 transition cursor-pointer"
                                           >
                                             Nhận phòng
                                           </button>
@@ -1247,7 +1247,7 @@ export function OtaBookingsTab({
                           {formatMoneyWithCurrency(b.amount, b.currency)}
                         </div>
                         {b.currency && (
-                          <div className="text-[11px] font-bold uppercase text-slate-400 mt-0.5">
+                          <div className="text-xs font-bold uppercase text-slate-400 mt-0.5">
                             {b.currency}
                           </div>
                         )}
@@ -1483,7 +1483,7 @@ export function OtaBookingsTab({
                         đã gán)
                       </span>
                       <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ${
                           selectedBooking.assignmentStatus === "FULLY_ASSIGNED"
                             ? "bg-emerald-100 text-emerald-800"
                             : selectedBooking.assignmentStatus ===
@@ -1540,7 +1540,7 @@ export function OtaBookingsTab({
                                     "Tiêu chuẩn"}
                                 </span>
                                 {seg.reservationCode && (
-                                  <span className="font-mono text-[10px] text-slate-400">
+                                  <span className="font-mono text-xs text-slate-400">
                                     PMS: #{seg.reservationCode}
                                   </span>
                                 )}
@@ -1548,7 +1548,7 @@ export function OtaBookingsTab({
                               <div className="mt-1 flex items-center gap-2">
                                 {seg.roomNumber ? (
                                   <span
-                                    className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${
+                                    className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold ${
                                       isSegCancelled
                                         ? "bg-slate-100 text-slate-500"
                                         : isSegCheckedIn
@@ -1566,13 +1566,13 @@ export function OtaBookingsTab({
                                     <span>Phòng {seg.roomNumber}</span>
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 border border-amber-200">
+                                  <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 border border-amber-200">
                                     <span>⏳</span>
                                     <span>Chờ gán phòng</span>
                                   </span>
                                 )}
                                 {seg.amount != null && (
-                                  <span className="font-mono text-slate-500 text-[11px]">
+                                  <span className="font-mono text-slate-500 text-xs">
                                     {formatMoneyWithCurrency(
                                       seg.amount,
                                       seg.currency || selectedBooking.currency,
@@ -1839,7 +1839,7 @@ export function OtaBookingsTab({
                               </span>
                             )}
                           </div>
-                          <span className="rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-0.5 text-[11px] font-bold">
+                          <span className="rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-0.5 text-xs font-bold">
                             Đúng hạng đặt
                           </span>
                         </div>

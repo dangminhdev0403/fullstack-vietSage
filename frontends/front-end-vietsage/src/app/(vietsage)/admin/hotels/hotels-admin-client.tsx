@@ -419,7 +419,7 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, c
       <section className="overflow-hidden rounded-[1.6rem] border border-[#e8dfd1] bg-white/95 shadow-[0_16px_45px_rgba(23,32,27,0.06)] backdrop-blur-md">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-left text-sm">
-            <thead className="border-b border-[#e5dcd0] bg-[#f6f1e7]/90 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#69726b]">
+            <thead className="border-b border-[#e5dcd0] bg-[#f6f1e7]/90 text-xs font-semibold uppercase tracking-[0.1em] text-[#69726b]">
               <tr>
                 <th className="px-6 py-4 font-semibold">Khách sạn</th>
                 <th className="px-6 py-4 font-semibold">Tổ chức</th>

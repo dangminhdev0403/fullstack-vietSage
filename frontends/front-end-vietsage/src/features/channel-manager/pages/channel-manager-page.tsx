@@ -251,7 +251,7 @@ function ChannelManagerContent({
                 <span>{tab.label}</span>
                 {tab.badge && (
                   <span
-                    className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold border ${
+                    className={`rounded-full px-2 py-0.5 text-xs font-extrabold border ${
                       tab.badgeColor || "bg-gray-100 text-gray-700 border-gray-300"
                     }`}
                   >

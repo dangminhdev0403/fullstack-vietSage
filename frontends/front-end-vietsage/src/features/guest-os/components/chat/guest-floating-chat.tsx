@@ -76,7 +76,7 @@ function renderFormattedMessage(text: string) {
               return (
                 <code
                   key={partIdx}
-                  className="mx-0.5 inline-block rounded-md border border-[#b18b26]/30 bg-[#b18b26]/12 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-[#6d5118]"
+                  className="mx-0.5 inline-block rounded-md border border-[#b18b26]/30 bg-[#b18b26]/12 px-1.5 py-0.5 font-mono text-xs font-semibold text-[#6d5118]"
                 >
                   {part.slice(1, -1)}
                 </code>
@@ -417,7 +417,7 @@ export function GuestFloatingChat() {
                   <h4 className="text-[12px] sm:text-[12.5px] font-bold text-[#1b352e] group-hover:text-[#916e15] transition-colors leading-snug">
                     {uiText.teaserTitle}
                   </h4>
-                  <p className="mt-1 text-[11px] leading-relaxed text-[#55675f] line-clamp-3">
+                  <p className="mt-1 text-xs leading-relaxed text-[#55675f] line-clamp-3">
                     {uiText.teaserDesc}
                   </p>
                 </div>
@@ -508,7 +508,7 @@ export function GuestFloatingChat() {
                       >
                         <VsIcon name="globe" className="text-sm text-[#e8b363] shrink-0" />
                         <span className="font-bold text-xs text-[#fde4aa] tracking-wide">{currentOption.nativeName}</span>
-                        <span className="text-[9px] text-[#fde4aa]/80" aria-hidden="true">{langMenuOpen ? "▴" : "▾"}</span>
+                        <span className="text-xs text-[#fde4aa]/80" aria-hidden="true">{langMenuOpen ? "▴" : "▾"}</span>
                       </button>
 
                       {langMenuOpen && (
@@ -536,7 +536,7 @@ export function GuestFloatingChat() {
                                   <span className="font-semibold">{opt.nativeName}</span>
                                 </span>
                                 <span
-                                  className={`font-mono text-[10px] px-1.5 py-0.5 rounded ${
+                                  className={`font-mono text-xs px-1.5 py-0.5 rounded ${
                                     opt.code === locale
                                       ? "bg-[#e8b363]/25 text-[#fde4aa]"
                                       : "bg-black/5 text-[#485a51]"
@@ -589,7 +589,7 @@ export function GuestFloatingChat() {
                         }`}
                       >
                         {!isGuest && (
-                          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold text-[#b18b26]">
+                          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-[#b18b26]">
                             <VsIcon name="sparkles" className="text-xs" />
                             <span>LocalMate AI</span>
                           </div>
@@ -658,7 +658,7 @@ export function GuestFloatingChat() {
                           "Hỏi tiếp:"
                         ) : uiText.suggestionsTitle}
                       </span>
-                      <span className="text-[10px] text-[#7a8880]">{uiText.suggestionsScroll}</span>
+                      <span className="text-xs text-[#7a8880]">{uiText.suggestionsScroll}</span>
                     </div>
                     <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none overscroll-contain">
                       {chipsToShow.map((item) => (

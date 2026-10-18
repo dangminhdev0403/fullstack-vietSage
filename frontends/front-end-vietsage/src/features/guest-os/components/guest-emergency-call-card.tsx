@@ -68,7 +68,7 @@ export function GuestEmergencyCallCard() {
       <div className="overflow-hidden rounded-2xl border border-red-200 bg-gradient-to-br from-red-50 via-white to-orange-50 p-5 shadow-[0_18px_50px_rgba(127,29,29,0.14)]">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-red-700">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-red-700">
               {translate("guest.emergency.eyebrow")}
             </p>
             <h2 className="mt-1 text-xl font-black text-red-950">{translate("guest.emergency.title")}</h2>

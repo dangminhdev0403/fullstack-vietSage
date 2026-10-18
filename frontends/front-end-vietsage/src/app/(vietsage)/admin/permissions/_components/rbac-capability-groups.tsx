@@ -292,7 +292,7 @@ export function RbacPermissionGroups({
                   <VsIcon name={config.icon} className="text-[14px]" />
                   <span>{config.name}</span>
                   <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
+                    className={`rounded-full px-1.5 py-0.2 text-xs font-bold ${
                       isSelected ? "bg-white/20 text-white" : "bg-gray-200 text-gray-700"
                     }`}
                   >
@@ -405,7 +405,7 @@ export function RbacPermissionGroups({
                       </div>
 
                       {/* Card Footer: Action badge & API endpoint info */}
-                      <div className="mt-3 flex items-center justify-between border-t border-gray-100/80 pt-2 text-[11px]">
+                      <div className="mt-3 flex items-center justify-between border-t border-gray-100/80 pt-2 text-xs">
                         <span
                           className={`rounded px-1.5 py-0.5 font-semibold ${
                             isCritical
@@ -420,7 +420,7 @@ export function RbacPermissionGroups({
 
                         {perm.path && (
                           <span
-                            className="max-w-[150px] truncate font-mono text-[10px] text-gray-400 group-hover:text-gray-600"
+                            className="max-w-[150px] truncate font-mono text-xs text-gray-400 group-hover:text-gray-600"
                             title={`${perm.method} ${perm.path}`}
                           >
                             {perm.method} {perm.path}
@@ -439,7 +439,7 @@ export function RbacPermissionGroups({
         <div className="overflow-hidden rounded-2xl border border-[color:rgba(198,197,213,0.35)] bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="border-b border-gray-200 bg-gray-50/80 text-[11px] font-bold uppercase tracking-wider text-gray-600">
+              <thead className="border-b border-gray-200 bg-gray-50/80 text-xs font-bold uppercase tracking-wider text-gray-600">
                 <tr>
                   <th scope="col" className="px-4 py-3.5">
                     Tên quyền hạn
@@ -471,7 +471,7 @@ export function RbacPermissionGroups({
                       </td>
                       <td className="px-4 py-3">
                         <span
-                          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold ${mod.tagColor.badgeBg}`}
+                          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold ${mod.tagColor.badgeBg}`}
                         >
                           <VsIcon name={mod.icon} className="text-[12px]" />
                           <span>{mod.name}</span>
@@ -479,7 +479,7 @@ export function RbacPermissionGroups({
                       </td>
                       <td className="px-4 py-3">
                         <span
-                          className={`rounded px-2 py-0.5 text-[11px] font-semibold ${
+                          className={`rounded px-2 py-0.5 text-xs font-semibold ${
                             isCritical
                               ? "bg-amber-100 text-amber-900"
                               : isWrite
@@ -491,9 +491,9 @@ export function RbacPermissionGroups({
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5 font-mono text-[11px] text-gray-600">
+                        <div className="flex items-center gap-1.5 font-mono text-xs text-gray-600">
                           <span
-                            className={`rounded px-1.5 py-0.2 text-[10px] font-bold ${
+                            className={`rounded px-1.5 py-0.2 text-xs font-bold ${
                               perm.method === "GET"
                                 ? "bg-blue-100 text-blue-800"
                                 : perm.method === "POST"
@@ -509,7 +509,7 @@ export function RbacPermissionGroups({
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800">
                           <VsIcon name="check_circle" className="text-[13px]" />
                           <span>Được gán</span>
                         </span>

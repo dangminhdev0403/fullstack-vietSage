@@ -344,15 +344,15 @@ export function RoomTypeRoomsModal({
               className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-800 shadow-2xs transition focus:outline-none focus:ring-2 focus:ring-emerald-600/30 cursor-pointer"
             />
             {isToday ? (
-              <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-800">
+              <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-black uppercase tracking-wider text-emerald-800">
                 Hôm nay
               </span>
             ) : isFuture ? (
-              <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-indigo-800">
+              <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-black uppercase tracking-wider text-indigo-800">
                 Tương lai (Dự kiến)
               </span>
             ) : (
-              <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
+              <span className="rounded bg-slate-200 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-slate-600">
                 Đã qua
               </span>
             )}
@@ -612,7 +612,7 @@ export function RoomTypeRoomsModal({
                                 {guestName}
                               </div>
                               {reservationCode && (
-                                <div className="text-[11px] font-mono text-slate-500">
+                                <div className="text-xs font-mono text-slate-500">
                                   #{reservationCode}
                                 </div>
                               )}
@@ -630,7 +630,7 @@ export function RoomTypeRoomsModal({
                         <td className="p-3 text-center">
                           {groupCode ? (
                             <span className="inline-flex items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-xs font-mono font-bold text-indigo-700 shadow-2xs">
-                              <VsIcon name="group" className="text-[11px]" />
+                              <VsIcon name="group" className="text-xs" />
                               <span>{groupCode}</span>
                             </span>
                           ) : (

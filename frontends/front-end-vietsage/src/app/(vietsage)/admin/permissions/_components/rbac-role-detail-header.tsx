@@ -49,7 +49,7 @@ export function RbacRoleDetailHeader({
 
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-md bg-emerald-100/80 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-emerald-900">
+              <span className="rounded-md bg-emerald-100/80 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-emerald-900">
                 Vai trò hệ thống mặc định
               </span>
               <span className="font-mono text-xs font-semibold text-gray-500">
@@ -76,7 +76,7 @@ export function RbacRoleDetailHeader({
             <p className="text-xs font-bold text-emerald-950">
               Quyền hạn chuẩn hóa
             </p>
-            <p className="text-[11px] text-emerald-700 leading-tight">
+            <p className="text-xs text-emerald-700 leading-tight">
               Áp dụng tự động theo quy chuẩn vận hành hệ thống
             </p>
           </div>
@@ -103,7 +103,7 @@ export function RbacRoleDetailHeader({
           <VsIcon name="key" className="text-[16px]" />
           <span>Quyền hạn</span>
           <span
-            className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+            className={`rounded-full px-2 py-0.5 text-xs font-bold ${
               activeTab === "PERMISSIONS"
                 ? "bg-emerald-100 text-emerald-900"
                 : "bg-gray-100 text-gray-600"
@@ -142,7 +142,7 @@ export function RbacRoleDetailHeader({
           <VsIcon name="groups" className="text-[16px]" />
           <span>Người dùng áp dụng</span>
           <span
-            className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+            className={`rounded-full px-2 py-0.5 text-xs font-bold ${
               activeTab === "USERS"
                 ? "bg-emerald-100 text-emerald-900"
                 : "bg-gray-100 text-gray-600"

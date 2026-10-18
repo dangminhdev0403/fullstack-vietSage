@@ -22,16 +22,16 @@
   --outline: #767684;
   --outline-variant: #c6c5d5;
 
-  --primary: #1b2559;
+  --primary: #25483f;
   --on-primary: #ffffff;
-  --primary-container: #2d3a80;
-  --on-primary-container: #a5aef0;
-  --primary-fixed: #e0e3ff;
-  --primary-fixed-dim: #b8bef8;
-  --on-primary-fixed: #0e1747;
-  --on-primary-fixed-variant: #3d49a8;
-  --inverse-primary: #b8bef8;
-  --surface-tint: #5562c7;
+  --primary-container: #1c3831;
+  --on-primary-container: #a3c9bd;
+  --primary-fixed: #e4ede9;
+  --primary-fixed-dim: #c2dcd2;
+  --on-primary-fixed: #0f241e;
+  --on-primary-fixed-variant: #1a4035;
+  --inverse-primary: #a3c9bd;
+  --surface-tint: #25483f;
 
   --secondary: #735c00;
   --on-secondary: #ffffff;
@@ -1133,13 +1133,17 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
 }
 
 .vs-mkt-sign-in {
+  display: inline-flex;
   align-items: center;
-  min-height: 2.75rem;
+  justify-content: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: 2.5rem;
   border-radius: 999px;
-  padding: 0.65rem 1rem;
+  padding: 0.5rem 0.9rem;
   color: #123d2a;
   font-size: 0.875rem;
-  font-weight: 850;
+  font-weight: 700;
   transition: background-color 200ms ease, color 200ms ease;
 }
 
@@ -1149,11 +1153,17 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
 
 .vs-mkt-nav {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  flex-shrink: 0;
   border-radius: 999px;
-  padding: 0.625rem 0.9rem;
+  padding: 0.5rem 0.85rem;
   color: #34473a;
-  font-size: 0.9rem;
-  font-weight: 800;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.25rem;
   transition: background 220ms ease, color 220ms ease, transform 220ms ease;
 }
 
@@ -1170,9 +1180,9 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
 
 .vs-mkt-nav[data-active="true"]::after {
   position: absolute;
-  right: 0.9rem;
+  right: 0.85rem;
   bottom: 0.25rem;
-  left: 0.9rem;
+  left: 0.85rem;
   height: 2px;
   border-radius: 999px;
   background: #b8872f;

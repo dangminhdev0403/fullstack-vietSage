@@ -213,15 +213,15 @@ export function formatBatchResultHtml(options: {
   // 1. Metric summary cards
   html += `  <div class="grid grid-cols-3 gap-2 sm:gap-3 text-center select-none">`;
   html += `    <div class="flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-2xl bg-emerald-50/90 border border-emerald-200/90 shadow-2xs">`;
-  html += `      <span class="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-emerald-800">Thành công</span>`;
+  html += `      <span class="text-xs sm:text-xs font-bold uppercase tracking-wider text-emerald-800">Thành công</span>`;
   html += `      <span class="text-xl sm:text-2xl font-black text-emerald-900 mt-0.5">${success}</span>`;
   html += `    </div>`;
   html += `    <div class="flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-2xl bg-rose-50/90 border border-rose-200/90 shadow-2xs">`;
-  html += `      <span class="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-rose-800">Lỗi / Từ chối</span>`;
+  html += `      <span class="text-xs sm:text-xs font-bold uppercase tracking-wider text-rose-800">Lỗi / Từ chối</span>`;
   html += `      <span class="text-xl sm:text-2xl font-black text-rose-900 mt-0.5">${failedCount}</span>`;
   html += `    </div>`;
   html += `    <div class="flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-2xl bg-slate-50/90 border border-slate-200/90 shadow-2xs">`;
-  html += `      <span class="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-700">Tổng cộng</span>`;
+  html += `      <span class="text-xs sm:text-xs font-bold uppercase tracking-wider text-slate-700">Tổng cộng</span>`;
   html += `      <span class="text-xl sm:text-2xl font-black text-slate-900 mt-0.5">${totalCount} <span class="text-xs font-medium text-slate-600">${itemTypeLabel}</span></span>`;
   html += `    </div>`;
   html += `  </div>`;
@@ -235,7 +235,7 @@ export function formatBatchResultHtml(options: {
     html += `        <span>Chi tiết lỗi (${parsedItems.length} ${itemTypeLabel}):</span>`;
     html += `      </div>`;
     if (parsedItems.length > 3) {
-      html += `      <span class="text-[11px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">Cuộn để xem hết</span>`;
+      html += `      <span class="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">Cuộn để xem hết</span>`;
     }
     html += `    </div>`;
 

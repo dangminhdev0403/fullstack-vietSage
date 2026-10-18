@@ -342,7 +342,7 @@ function ThreadListItems({
               <div className="flex items-center gap-2">
                 {hasGuestUnread && (
                   <span
-                    className="flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 text-center text-[10px] font-black text-white shadow-sm animate-pulse"
+                    className="flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 text-center text-xs font-black text-white shadow-sm animate-pulse"
                     title="Tin nhắn mới từ khách"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
@@ -353,7 +353,7 @@ function ThreadListItems({
                   Phòng {thread.roomNumber}
                 </span>
               </div>
-              <span className="text-[11px] font-semibold text-[var(--on-surface-variant)]">
+              <span className="text-xs font-semibold text-[var(--on-surface-variant)]">
                 {formatMessageTime(thread.lastMessageAt)}
               </span>
             </div>
@@ -905,7 +905,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
                   if (isSystem) {
                     return (
                       <div key={message.id} className="flex justify-center my-2">
-                        <span className="rounded-full bg-[var(--surface-container-high)] px-4 py-1 text-[11px] font-semibold text-[var(--on-surface-variant)]">
+                        <span className="rounded-full bg-[var(--surface-container-high)] px-4 py-1 text-xs font-semibold text-[var(--on-surface-variant)]">
                           {message.body}
                         </span>
                       </div>
@@ -916,10 +916,10 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
                     <div key={message.id} className={`flex ${isStaff ? "justify-end" : "justify-start"}`}>
                       <div className={`min-w-0 max-w-[50%] flex flex-col ${isStaff ? "items-end text-right" : "items-start text-left"}`}>
                         <div className="flex items-center gap-2 px-1 mb-1">
-                          <span className="text-[11px] font-bold opacity-75">
+                          <span className="text-xs font-bold opacity-75">
                             {isStaff ? (message.senderName ?? "Lễ tân") : selectedThread?.guestName ?? "Khách"}
                           </span>
-                          <span className="text-[10px] text-[var(--outline)]">
+                          <span className="text-xs text-[var(--outline)]">
                             {formatMessageTime(message.createdAt)}
                           </span>
                         </div>
@@ -989,7 +989,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
                     />
                     <p
                       id="staff-message-limit"
-                      className={`mt-1 text-right text-[11px] ${body.length > 1000 ? "font-semibold text-red-700" : "text-[var(--on-surface-variant)]"}`}
+                      className={`mt-1 text-right text-xs ${body.length > 1000 ? "font-semibold text-red-700" : "text-[var(--on-surface-variant)]"}`}
                     >
                       Tin nhắn dài tối đa 1000 ký tự. {body.length}/1000
                     </p>

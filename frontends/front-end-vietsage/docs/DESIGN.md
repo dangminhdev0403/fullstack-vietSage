@@ -15,12 +15,12 @@ colors:
   inverse-on-surface: '#f0f1f1'
   outline: '#767684'
   outline-variant: '#c6c5d5'
-  surface-tint: '#4b53bc'
-  primary: '#00003c'
+  surface-tint: '#25483f'
+  primary: '#25483f'
   on-primary: '#ffffff'
-  primary-container: '#000080'
-  on-primary-container: '#777eea'
-  inverse-primary: '#bfc2ff'
+  primary-container: '#1c3831'
+  on-primary-container: '#a3c9bd'
+  inverse-primary: '#a3c9bd'
   secondary: '#735c00'
   on-secondary: '#ffffff'
   secondary-container: '#fed65b'
@@ -33,10 +33,10 @@ colors:
   on-error: '#ffffff'
   error-container: '#ffdad6'
   on-error-container: '#93000a'
-  primary-fixed: '#e0e0ff'
-  primary-fixed-dim: '#bfc2ff'
-  on-primary-fixed: '#00006e'
-  on-primary-fixed-variant: '#3239a3'
+  primary-fixed: '#e4ede9'
+  primary-fixed-dim: '#c2dcd2'
+  on-primary-fixed: '#0f241e'
+  on-primary-fixed-variant: '#1a4035'
   secondary-fixed: '#ffe088'
   secondary-fixed-dim: '#e9c349'
   on-secondary-fixed: '#241a00'
@@ -118,7 +118,7 @@ The visual style is **Corporate Modern with a Minimalist focus**. It utilizes he
 
 ## Colors
 This design system uses a palette that balances authority and warmth. 
-- **Deep Navy (#000080)**: Used for primary branding, navigation, and core interaction points to establish trust.
+- **Deep Heritage Sage (#25483f)**: Used for primary branding, navigation, and core interaction points to establish trust, calm, and luxury hospitality.
 - **Muted Gold (#D4AF37)**: Used sparingly for accents, highlights, and "premium" status indicators to convey luxury without ostentation.
 - **Warm Beige (#F5F5DC)**: Used as a secondary background or subtle section separator to soften the high-contrast navy and white.
 - **White (#FFFFFF)**: The primary canvas color to ensure a clean, modern aesthetic.

@@ -105,7 +105,7 @@ export function VsServiceImagePreview({
               <VietSageLogoV className="h-10 w-10" />
             </div>
 
-            <p className="mt-2.5 font-mono text-[11px] font-extrabold tracking-[0.25em] text-[#d7bd61] uppercase">
+            <p className="mt-2.5 font-mono text-xs font-extrabold tracking-[0.25em] text-[#d7bd61] uppercase">
               VIETSAGE
             </p>
 
@@ -114,14 +114,14 @@ export function VsServiceImagePreview({
             </h4>
 
             {providerName ? (
-              <p className="mt-0.5 max-w-[85%] line-clamp-1 text-[11px] font-medium text-[#d7bd61]/80">
+              <p className="mt-0.5 max-w-[85%] line-clamp-1 text-xs font-medium text-[#d7bd61]/80">
                 {providerName}
               </p>
             ) : null}
           </div>
 
           {/* Clean Footer Bar */}
-          <div className="relative z-10 flex items-center justify-between border-t border-white/10 pt-2 text-[9px] font-semibold text-white/40">
+          <div className="relative z-10 flex items-center justify-between border-t border-white/10 pt-2 text-xs font-semibold text-white/40">
             <span>Dịch vụ liên kết</span>
             {categoryName ? <span className="truncate max-w-[120px]">{categoryName}</span> : null}
           </div>

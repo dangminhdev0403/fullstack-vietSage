@@ -82,7 +82,7 @@ function sumMoney(values: MoneyValue[]): number {
 function InvoiceInfo({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[10px] font-black uppercase tracking-[0.08em] text-slate-500">{label}</dt>
+      <dt className="text-xs font-black uppercase tracking-[0.08em] text-slate-500">{label}</dt>
       <dd className="mt-0.5 break-words text-[13px] font-bold leading-5 text-slate-950">{value}</dd>
     </div>
   );
@@ -115,7 +115,7 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
       <header className="invoice-section border-b border-slate-200 px-8 py-7 print:px-0 print:pt-0">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">HÓA ĐƠN KHÁCH SẠN VIETSAGE</p>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">HÓA ĐƠN KHÁCH SẠN VIETSAGE</p>
             <h1 className="mt-2 text-[30px] font-black leading-none tracking-[-0.02em] text-slate-950">
               {invoice.invoiceNumber}
             </h1>
@@ -124,7 +124,7 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
             </p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left sm:min-w-44 sm:text-right print:bg-white">
-            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Trạng thái hóa đơn</p>
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">Trạng thái hóa đơn</p>
             <p className="mt-1 text-lg font-black text-emerald-800">{labelStatus(invoiceStatusLabels, invoice.status)}</p>
             <p className="mt-1 text-xs font-semibold text-slate-500">{formatDateTime(invoice.issuedAt)}</p>
           </div>
@@ -169,13 +169,13 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
       <section className="invoice-section px-8 py-5 print:px-0">
         <div className="mb-3 flex items-end justify-between gap-4">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">Dịch vụ và chi phí</p>
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Dịch vụ và chi phí</p>
             <h2 className="mt-0.5 text-lg font-black text-slate-950">Chi tiết dòng hóa đơn</h2>
           </div>
           <span className="text-xs font-bold text-slate-500">{items.length} dòng</span>
         </div>
 
-        <table className="invoice-items-table w-full table-fixed border-collapse text-[11px]">
+        <table className="invoice-items-table w-full table-fixed border-collapse text-xs">
           <colgroup>
             <col className="w-[20%]" />
             <col className="w-[14%]" />
@@ -188,7 +188,7 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
             <col className="w-[14%]" />
           </colgroup>
           <thead>
-            <tr className="border-y border-slate-300 bg-slate-100 text-[10px] uppercase tracking-[0.04em] text-slate-600 print:bg-white">
+            <tr className="border-y border-slate-300 bg-slate-100 text-xs uppercase tracking-[0.04em] text-slate-600 print:bg-white">
               <th className="px-2 py-2 text-left">Dịch vụ</th>
               <th className="px-2 py-2 text-left">Phân loại nguồn</th>
               <th className="px-2 py-2 text-left">Loại</th>
@@ -208,20 +208,20 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
                 <tr key={item.id} className="invoice-table-row border-b border-slate-200 align-top">
                   <td className="break-words px-2 py-2 font-bold leading-4 text-slate-950">
                     <div>{item.name}</div>
-                    {item.description ? <div className="mt-0.5 text-[10px] font-normal leading-normal text-slate-500">{item.description}</div> : null}
+                    {item.description ? <div className="mt-0.5 text-xs font-normal leading-normal text-slate-500">{item.description}</div> : null}
                   </td>
                   <td className="break-words px-2 py-2 leading-4">
                     {isExternal ? (
                       <div className="space-y-0.5">
-                        <span className="inline-block rounded border border-purple-300 bg-purple-100 px-1.5 py-0.5 text-[10px] font-extrabold text-purple-900">
+                        <span className="inline-block rounded border border-purple-300 bg-purple-100 px-1.5 py-0.5 text-xs font-extrabold text-purple-900">
                           🌐 Ngoài khách sạn
                         </span>
                         {item.partnerName ? (
-                          <div className="text-[10px] font-semibold text-purple-800">🤝 {item.partnerName}</div>
+                          <div className="text-xs font-semibold text-purple-800">🤝 {item.partnerName}</div>
                         ) : null}
                       </div>
                     ) : (
-                      <span className="inline-block rounded border border-emerald-300 bg-emerald-100 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-900">
+                      <span className="inline-block rounded border border-emerald-300 bg-emerald-100 px-1.5 py-0.5 text-xs font-extrabold text-emerald-900">
                         🏨 Trong khách sạn
                       </span>
                     )}
@@ -272,14 +272,14 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
                 <span>🏨 Tổng dịch vụ trong khách sạn</span>
                 <span className="text-sm tabular-nums">{formatMoney(hotelServicesTotal, currency)}</span>
               </div>
-              <p className="mt-1 text-[11px] text-emerald-700">Bao gồm tiền phòng, dịch vụ nội bộ & Các khoản thu trực tiếp từ KS</p>
+              <p className="mt-1 text-xs text-emerald-700">Bao gồm tiền phòng, dịch vụ nội bộ & Các khoản thu trực tiếp từ KS</p>
             </div>
             <div className="rounded-xl border border-purple-200 bg-purple-50/60 p-3.5 text-xs print:border-slate-300 print:bg-white">
               <div className="flex items-center justify-between font-semibold text-purple-950">
                 <span>🌐 Tổng dịch vụ đối tác liên kết</span>
                 <span className="text-sm tabular-nums">{formatMoney(externalServicesTotal, currency)}</span>
               </div>
-              <p className="mt-1 text-[11px] text-purple-700">Các dịch vụ liên kết đối tác bên ngoài / thu hộ đối tác dịch vụ</p>
+              <p className="mt-1 text-xs text-purple-700">Các dịch vụ liên kết đối tác bên ngoài / thu hộ đối tác dịch vụ</p>
             </div>
           </div>
         )}
@@ -289,7 +289,7 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
         <div>
           <h2 className="text-base font-black text-slate-950">Thanh toán</h2>
           {payments.length ? (
-            <table className="mt-3 w-full table-fixed border-collapse text-[11px]">
+            <table className="mt-3 w-full table-fixed border-collapse text-xs">
               <colgroup>
                 <col className="w-[28%]" />
                 <col className="w-[22%]" />
@@ -297,7 +297,7 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
                 <col className="w-[26%]" />
               </colgroup>
               <thead>
-                <tr className="border-y border-slate-300 bg-slate-100 text-[10px] uppercase tracking-[0.04em] text-slate-600 print:bg-white">
+                <tr className="border-y border-slate-300 bg-slate-100 text-xs uppercase tracking-[0.04em] text-slate-600 print:bg-white">
                   <th className="px-2 py-2 text-left">Phương thức</th>
                   <th className="px-2 py-2 text-left">Trạng thái</th>
                   <th className="px-2 py-2 text-right">Đã trả</th>

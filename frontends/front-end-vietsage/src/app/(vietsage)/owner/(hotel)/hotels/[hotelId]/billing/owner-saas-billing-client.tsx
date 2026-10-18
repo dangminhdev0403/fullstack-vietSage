@@ -346,7 +346,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
             </p>
           </div>
           <div className="shrink-0 rounded-2xl border border-emerald-200/60 bg-white p-4 shadow-sm lg:text-right dark:border-emerald-900/50 dark:bg-slate-900">
-            <div className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Đơn giá hợp đồng
             </div>
             <div className="mt-1 text-2xl font-extrabold tabular-nums tracking-tight text-emerald-600 sm:text-3xl dark:text-emerald-400">
@@ -367,7 +367,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
             className={`rounded-2xl border ${card.border} bg-white p-5 shadow-xs transition-shadow duration-200 hover:shadow-md dark:bg-slate-900`}
           >
             <div className="flex items-start justify-between gap-3">
-              <span className="text-[11px] font-extrabold uppercase leading-tight tracking-[0.12em] text-slate-500 dark:text-slate-400">
+              <span className="text-xs font-extrabold uppercase leading-tight tracking-[0.12em] text-slate-500 dark:text-slate-400">
                 {card.label}
               </span>
               <div

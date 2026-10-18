@@ -557,19 +557,19 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                       Công nợ cần trả VietSage
                     </p>
                     {hasOverdue ? (
-                      <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-[10px] font-black uppercase text-white">
+                      <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-black uppercase text-white">
                         Quá hạn
                       </span>
                     ) : hasDueSoon ? (
-                      <span className="rounded-full bg-amber-600 px-2.5 py-0.5 text-[10px] font-black uppercase text-white">
+                      <span className="rounded-full bg-amber-600 px-2.5 py-0.5 text-xs font-black uppercase text-white">
                         Sắp đến hạn
                       </span>
                     ) : totalDebt === 0 ? (
-                      <span className="rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-0.5 text-[10px] font-bold">
+                      <span className="rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-0.5 text-xs font-bold">
                         Đã tất toán
                       </span>
                     ) : (
-                      <span className="rounded-full bg-amber-100 text-amber-800 px-2.5 py-0.5 text-[10px] font-bold">
+                      <span className="rounded-full bg-amber-100 text-amber-800 px-2.5 py-0.5 text-xs font-bold">
                         {unpaidCount} kỳ chưa trả
                       </span>
                     )}
@@ -858,19 +858,19 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
 
               <div className="mt-5 grid grid-cols-3 gap-3">
                 <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-3.5 text-center">
-                  <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#65726a]">Phản hồi TB</p>
+                  <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">Phản hồi TB</p>
                   <p className="mt-1 text-xl font-bold text-[#17382F]">
                     {dashboard.sla?.averageResponseMinutes != null ? `${dashboard.sla.averageResponseMinutes} phút` : "--"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-3.5 text-center">
-                  <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#65726a]">Hoàn tất TB</p>
+                  <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">Hoàn tất TB</p>
                   <p className="mt-1 text-xl font-bold text-[#17382F]">
                     {dashboard.sla?.averageCompletionMinutes != null ? `${dashboard.sla.averageCompletionMinutes} phút` : "--"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-center">
-                  <p className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-900">Đúng SLA</p>
+                  <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-900">Đúng SLA</p>
                   <p className="mt-1 text-xl font-bold text-[#174e38]">
                     {dashboard.sla?.completedWithinSlaPercent != null ? `${dashboard.sla.completedWithinSlaPercent}%` : "--"}
                   </p>

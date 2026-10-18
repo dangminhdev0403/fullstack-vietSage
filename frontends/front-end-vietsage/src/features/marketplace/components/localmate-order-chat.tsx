@@ -160,7 +160,7 @@ export function LocalMateOrderChat({
 
     return (
       <div
-        className={`mt-1 flex items-center justify-end gap-1 text-[11px] ${
+        className={`mt-1 flex items-center justify-end gap-1 text-xs ${
           isFailed
             ? "cursor-pointer text-red-500 hover:underline"
             : status === "SENT"
@@ -193,7 +193,7 @@ export function LocalMateOrderChat({
             <h4 className="text-sm font-bold text-neutral-900 dark:text-neutral-100">
               {copy.headerTitle}
             </h4>
-            <div className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+            <div className="flex items-center gap-1.5 text-xs text-neutral-500">
               <span>
                 {copy.orderLabel} #{order?.orderNumber ?? orderId.slice(0, 8)}
               </span>

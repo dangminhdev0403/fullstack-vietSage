@@ -58,31 +58,34 @@ When designing screens, building components, or adding modules:
   - Never create duplicate translation keys with identical values (e.g. `messages.loadError` vs `messages.errorLoad`).
   - New dictionary keys must be defined across all 6 supported locales (`vi`, `en`, `zh`, `ko`, `ru`, `hi`).
 
-## UI Theme Direction & Typography Scale
+## UI Theme Direction, Typography Floor & Ruthless Pruning Standards
 
-The application should follow a:
+The application follows the design language in `@DESIGN.md` and enforces the following rules:
 
-- follow file `@DESIGN.md`
-- fresh, bright, friendly, modern UI
-- clean and spacious layout (`p-6`+, `gap-6`+)
-- typography scale: main page headers MUST be `text-2xl` or `text-3xl font-extrabold`; content text MUST be `text-sm font-medium` or `text-base`. Avoid microscopic text (`text-[10px]` or `text-xs`) for critical content or primary CTA buttons.
+### 1. Typography Floor & Scale
+- **Absolute Floor**: Font sizes smaller than 12px (`text-xs` / 0.75rem) are STRICTLY FORBIDDEN. Never use arbitrary micro-classes (`text-[10px]`, `text-[11px]`, `text-[9px]`, sub-0.75rem).
+- `text-xs` (12px): Reserved strictly for small status badges, compact timestamps, secondary tags, and short captions. Must meet WCAG AA contrast (>= 4.5:1).
+- `text-sm` (14px): Standard body text, descriptions, table cells, filters, secondary labels.
+- `text-base` (16px): Primary content, interactive inputs, navigation links, primary buttons.
+- `text-xl` - `text-3xl` (20px - 30px): Section headings and main page titles (`font-bold` / `font-extrabold`).
 
-UI style preferences:
+### 2. Ruthless UI Pruning & Anti-Clutter
+- **No Nested Cards**: Do not wrap cards inside cards purely for visual borders. Use purposeful whitespace and subtle surface elevation.
+- **No Duplicate Actions**: Do not place multiple action buttons or links performing the same function in the same viewport.
+- **No Giant Decorative Banners**: Avoid huge decorative banners that repeat existing page information.
+- **No Blur Overload**: Avoid ambient blur or glow elements (`blur-[160px]`) that reduce contrast and distract users.
+- **No Decorative-Only Badges**: Only display badges or indicators when they represent genuine dynamic data.
 
-- large rounded cards (`rounded-2xl`)
-- soft shadows and backdrop-blur modals (`backdrop-blur-sm bg-slate-900/60`)
-- comfortable spacing
-- clean typography
-- product-focused visuals
-- minimal visual clutter
-- responsive-first layouts
-
-Avoid:
-
-- overly dark UI
-- black/white corporate dashboards
-- crowded marketplace-style layouts
-- microscopic font sizes for main content
+### 3. UI Verification Gate & Zero-Waste Protocol
+- **Quy tắc miễn trừ kiểm thử khi sửa UI**:
+  - Khi chỉnh sửa UI, CSS, Tailwind classes, khoảng cách, màu sắc, JSX layout, copy/text hoặc thêm presentation components:
+    - **CẤM CHẠY**: Test suites (`npm test`, `jest`, `vitest`, `playwright`), full-repo lint (`eslint .`), hoặc build bundling (`next build`).
+    - **Lệnh duy nhất được chạy**: `node scripts/verify-ui-rules.cjs` (< 1s). Chỉ chạy thêm `pnpm --dir frontends/front-end-vietsage exec tsc --noEmit` nếu có imports/types mới.
+- All frontend changes must be verified clean with:
+  ```bash
+  node scripts/verify-ui-rules.cjs
+  ```
+  Auto-upgrade is available via `node scripts/verify-ui-rules.cjs --fix`.
 
 ## Data Fetching
 

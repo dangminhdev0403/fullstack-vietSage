@@ -1525,7 +1525,7 @@ export function RequestQueueClient({
               {financials.customerTotal.toLocaleString("vi-VN")}{" "}
               {financials.currency}
             </div>
-            <div className="text-[11px] text-slate-500 font-medium whitespace-nowrap">
+            <div className="text-xs text-slate-500 font-medium whitespace-nowrap">
               ĐT: {financials.partnerSubtotal.toLocaleString("vi-VN")} · Phí KS:{" "}
               {financials.hotelFee.toLocaleString("vi-VN")}
             </div>
@@ -1846,7 +1846,7 @@ export function RequestQueueClient({
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               {/* Status Select with Arrow */}
               <div className="space-y-1">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   {mergedLabels.status}
                 </label>
                 <div className="relative">
@@ -1871,7 +1871,7 @@ export function RequestQueueClient({
 
               {/* Service Item Select with Arrow */}
               <div className="space-y-1">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   {mergedLabels.service}
                 </label>
                 <div className="relative">
@@ -1896,7 +1896,7 @@ export function RequestQueueClient({
 
               {/* Room Number Input */}
               <div className="space-y-1">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   {mergedLabels.room}
                 </label>
                 <input
@@ -1909,7 +1909,7 @@ export function RequestQueueClient({
 
               {/* Priority Select with Arrow */}
               <div className="space-y-1">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   {mergedLabels.priority}
                 </label>
                 <div className="relative">
@@ -1931,7 +1931,7 @@ export function RequestQueueClient({
 
               {/* From Date Input */}
               <div className="space-y-1">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   Từ ngày
                 </label>
                 <input
@@ -1946,7 +1946,7 @@ export function RequestQueueClient({
 
               {/* To Date Input */}
               <div className="space-y-1">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   Đến ngày
                 </label>
                 <input
@@ -2035,7 +2035,7 @@ export function RequestQueueClient({
             <button
               type="button"
               onClick={resetFilters}
-              className="ml-1 text-[11px] font-bold text-slate-500 hover:text-rose-600 underline cursor-pointer"
+              className="ml-1 text-xs font-bold text-slate-500 hover:text-rose-600 underline cursor-pointer"
             >
               Xóa tất cả
             </button>

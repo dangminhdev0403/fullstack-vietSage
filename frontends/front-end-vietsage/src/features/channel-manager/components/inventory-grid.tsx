@@ -708,12 +708,12 @@ export function InventoryGrid({
                     >
                       <div className="flex items-center justify-center gap-1">
                         {day.isToday ? (
-                          <span className="inline-block rounded bg-emerald-700 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">
+                          <span className="inline-block rounded bg-emerald-700 px-1.5 py-0.5 text-xs font-black uppercase tracking-wider text-white">
                             Hôm nay
                           </span>
                         ) : day.isPast ? (
-                          <span className="inline-flex items-center gap-0.5 rounded bg-slate-200/90 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                            <VsIcon name="lock" className="text-[11px]" />
+                          <span className="inline-flex items-center gap-0.5 rounded bg-slate-200/90 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-slate-500">
+                            <VsIcon name="lock" className="text-xs" />
                             Đã qua
                           </span>
                         ) : (
@@ -796,7 +796,7 @@ export function InventoryGrid({
                               })
                             }
                             aria-label={`Xem phòng vật lý ${rt.roomTypeName}`}
-                            className="inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-700 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 transition cursor-pointer"
+                            className="inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs font-bold text-slate-700 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 transition cursor-pointer"
                           >
                             <VsIcon name="meeting_room" className="text-xs" />
                             <span>Chi tiết phòng</span>
@@ -856,7 +856,7 @@ export function InventoryGrid({
                                     ? `Chưa liên kết OTA: ${blockerExplanation}`
                                     : `Đóng bán toàn bộ ${visibleDays} ngày của ${rt.roomTypeName}`
                                 }
-                                className={`inline-flex min-h-7 items-center justify-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold transition shadow-2xs ${
+                                className={`inline-flex min-h-7 items-center justify-center gap-1 rounded-md border px-2 py-0.5 text-xs font-bold transition shadow-2xs ${
                                   isBlocked
                                     ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed select-none pointer-events-none opacity-50"
                                     : "border-rose-200 bg-white text-rose-700 hover:bg-rose-50 hover:border-rose-300 active:scale-95 cursor-pointer disabled:opacity-50"
@@ -892,7 +892,7 @@ export function InventoryGrid({
                                     ? `Chưa liên kết OTA: ${blockerExplanation}`
                                     : `Mở bán toàn bộ ${visibleDays} ngày của ${rt.roomTypeName}`
                                 }
-                                className={`inline-flex min-h-7 items-center justify-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold transition shadow-2xs ${
+                                className={`inline-flex min-h-7 items-center justify-center gap-1 rounded-md border px-2 py-0.5 text-xs font-bold transition shadow-2xs ${
                                   isBlocked
                                     ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed select-none pointer-events-none opacity-50"
                                     : "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 active:scale-95 cursor-pointer disabled:opacity-50"
@@ -1310,7 +1310,7 @@ export function InventoryGrid({
                                         ? `Chưa liên kết OTA: ${blockerExplanation}`
                                         : `Đóng bán toàn bộ các ngày hiển thị của ${rt.roomTypeName}`
                                     }
-                                    className={`inline-flex min-h-7 items-center justify-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold transition shadow-2xs ${
+                                    className={`inline-flex min-h-7 items-center justify-center gap-1 rounded-md border px-2 py-0.5 text-xs font-bold transition shadow-2xs ${
                                       isBlocked
                                         ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed select-none pointer-events-none opacity-50"
                                         : "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:border-rose-300 active:scale-95 cursor-pointer disabled:opacity-50"
@@ -1345,7 +1345,7 @@ export function InventoryGrid({
                                         ? `Chưa liên kết OTA: ${blockerExplanation}`
                                         : `Mở bán toàn bộ các ngày hiển thị của ${rt.roomTypeName}`
                                     }
-                                    className={`inline-flex min-h-7 items-center justify-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold transition shadow-2xs ${
+                                    className={`inline-flex min-h-7 items-center justify-center gap-1 rounded-md border px-2 py-0.5 text-xs font-bold transition shadow-2xs ${
                                       isBlocked
                                         ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed select-none pointer-events-none opacity-50"
                                         : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 active:scale-95 cursor-pointer disabled:opacity-50"

@@ -150,20 +150,20 @@ export default async function StaffInvoicePage({ params }: PageProps) {
                     <tr key={item.id}>
                       <td className="p-2 font-bold">
                         <div>{item.name}</div>
-                        {item.description ? <div className="mt-0.5 text-[11px] font-normal text-slate-500">{item.description}</div> : null}
+                        {item.description ? <div className="mt-0.5 text-xs font-normal text-slate-500">{item.description}</div> : null}
                       </td>
                       <td className="p-2">
                         {isExternal ? (
                           <div className="space-y-0.5">
-                            <span className="inline-block rounded border border-purple-300 bg-purple-100 px-1.5 py-0.5 text-[10px] font-extrabold text-purple-900">
+                            <span className="inline-block rounded border border-purple-300 bg-purple-100 px-1.5 py-0.5 text-xs font-extrabold text-purple-900">
                               🌐 Ngoài khách sạn
                             </span>
                             {item.partnerName ? (
-                              <div className="text-[10px] font-semibold text-purple-800">🤝 {item.partnerName}</div>
+                              <div className="text-xs font-semibold text-purple-800">🤝 {item.partnerName}</div>
                             ) : null}
                           </div>
                         ) : (
-                          <span className="inline-block rounded border border-emerald-300 bg-emerald-100 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-900">
+                          <span className="inline-block rounded border border-emerald-300 bg-emerald-100 px-1.5 py-0.5 text-xs font-extrabold text-emerald-900">
                             🏨 Trong khách sạn
                           </span>
                         )}
@@ -211,14 +211,14 @@ export default async function StaffInvoicePage({ params }: PageProps) {
                 <span>🏨 Dịch vụ trong khách sạn</span>
                 <span className="text-sm tabular-nums">{formatMoney(hotelServicesTotal, invoice.currency)}</span>
               </div>
-              <p className="mt-1 text-[11px] text-emerald-700">Tiền phòng, dịch vụ nội bộ & Phụ thu do KS cung cấp</p>
+              <p className="mt-1 text-xs text-emerald-700">Tiền phòng, dịch vụ nội bộ & Phụ thu do KS cung cấp</p>
             </div>
             <div className="rounded-xl border border-purple-200 bg-purple-50/60 p-3 text-xs print:border-slate-300 print:bg-white">
               <div className="flex items-center justify-between font-semibold text-purple-950">
                 <span>🌐 Dịch vụ đối tác liên kết</span>
                 <span className="text-sm tabular-nums">{formatMoney(externalServicesTotal, invoice.currency)}</span>
               </div>
-              <p className="mt-1 text-[11px] text-purple-700">Dịch vụ đối tác liên kết bên ngoài / thu hộ đối tác</p>
+              <p className="mt-1 text-xs text-purple-700">Dịch vụ đối tác liên kết bên ngoài / thu hộ đối tác</p>
             </div>
           </div>
         </section>

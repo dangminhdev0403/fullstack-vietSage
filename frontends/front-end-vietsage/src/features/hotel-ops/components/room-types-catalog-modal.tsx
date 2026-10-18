@@ -294,11 +294,11 @@ export function RoomTypesCatalogModal({
                         <td className="px-5 py-4">
                           <div className="font-semibold text-slate-900">{item.name}</div>
                           {isLegacy ? (
-                            <span className="inline-block mt-0.5 text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
+                            <span className="inline-block mt-0.5 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
                               Từ danh sách phòng hiện hữu
                             </span>
                           ) : (
-                            <span className="inline-block mt-0.5 text-[11px] text-slate-400">
+                            <span className="inline-block mt-0.5 text-xs text-slate-400">
                               Đã lưu trong danh mục
                             </span>
                           )}

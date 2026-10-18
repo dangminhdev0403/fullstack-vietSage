@@ -193,7 +193,7 @@ export function GuestMarketplaceOrderDetail({
           <div className="space-y-3 rounded-2xl border border-[#25483f]/12 bg-white p-4 shadow-2xs">
             <div className="flex items-start justify-between gap-3 border-b border-[#25483f]/10 pb-3">
               <div>
-                <span className="inline-flex items-center rounded-md bg-[#fef3c7] px-2 py-0.5 text-[10px] font-extrabold text-[#92400e] border border-[#fde68a] mb-1">
+                <span className="inline-flex items-center rounded-md bg-[#fef3c7] px-2 py-0.5 text-xs font-extrabold text-[#92400e] border border-[#fde68a] mb-1">
                   {t("services.discovery.external")}
                 </span>
                 <h3 className="vs-display text-lg font-extrabold text-[#18211d]">{order.serviceNameSnapshot}</h3>
@@ -238,7 +238,7 @@ export function GuestMarketplaceOrderDetail({
                     <VsIcon name="confirmation_number" className="text-lg" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-800">
                       {t("marketplace.voucherCodeLabel")}
                     </span>
                     <p className="font-mono text-base font-black text-emerald-950 tracking-wider">

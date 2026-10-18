@@ -26,7 +26,7 @@ export default async function AdminChannelManagerPage() {
               <VsIcon name="hub" className="text-2xl sm:text-3xl" />
             </div>
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#e8dfd1] bg-[#fbf8f2] px-3 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[#735c00]">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#e8dfd1] bg-[#fbf8f2] px-3 py-0.5 text-xs font-bold uppercase tracking-wider text-[#735c00]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#e8b363]" />
                 Vận hành nền tảng • Channel Manager
               </div>

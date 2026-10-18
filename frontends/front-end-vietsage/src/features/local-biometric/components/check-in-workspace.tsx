@@ -833,7 +833,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                 <div className="flex flex-col">
                   <label
                     htmlFor="ciw-phone"
-                    className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-none"
+                    className="text-xs font-bold uppercase tracking-wider text-slate-500 leading-none"
                   >
                     SĐT khách
                   </label>
@@ -871,7 +871,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                 <div className="flex flex-col">
                   <label
                     htmlFor="ciw-checkout"
-                    className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-none"
+                    className="text-xs font-bold uppercase tracking-wider text-slate-500 leading-none"
                   >
                     Hạn trả phòng <span className="text-red-500">*</span>
                   </label>
@@ -930,7 +930,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                   <span>Khách 1</span>
                   {fields.guestDisplayName ? (
                     <span
-                      className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-black text-emerald-600 shadow-2xs"
+                      className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-xs font-black text-emerald-600 shadow-2xs"
                       title="Đã có thông tin"
                     >
                       ✓
@@ -958,7 +958,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                       <span>Khách {slotIdx + 1}</span>
                       {hasInfo ? (
                         <span
-                          className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-black text-emerald-700"
+                          className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-100 text-xs font-black text-emerald-700"
                           title="Đã có thông tin"
                         >
                           ✓
@@ -1279,7 +1279,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                     </th>
                     <th className="w-38 min-w-[145px] px-2.5 py-3 font-bold text-slate-900">
                       Ngày sinh{" "}
-                      <span className="text-[11px] font-normal text-slate-500">
+                      <span className="text-xs font-normal text-slate-500">
                         (dd/mm/yyyy)
                       </span>
                     </th>

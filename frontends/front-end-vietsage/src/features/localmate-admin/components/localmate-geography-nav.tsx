@@ -133,7 +133,7 @@ export function LocalMateGeographyNav({
               <VsIcon name="map" className="text-base" />
             </span>
             <div className="min-w-0">
-              <span className="block text-[11px] font-semibold text-stone-500 uppercase tracking-wider">
+              <span className="block text-xs font-semibold text-stone-500 uppercase tracking-wider">
                 Bộ lọc khu vực:
               </span>
               <p className="truncate text-sm font-semibold text-stone-900">

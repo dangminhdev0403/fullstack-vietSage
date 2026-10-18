@@ -447,14 +447,14 @@ export function FrontDeskRoomDetailPanel({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-0.5">
                     <div className="rounded-lg bg-white p-2.5 border border-slate-200/80 shadow-2xs">
-                      <span className="text-slate-500 block font-medium text-[11px]">Số điện thoại</span>
+                      <span className="text-slate-500 block font-medium text-xs">Số điện thoại</span>
                       <span className="font-bold text-slate-900 font-mono text-sm">
                         {stay.guestPhone || "Chưa cập nhật"}
                       </span>
                     </div>
 
                     <div className="rounded-lg bg-white p-2.5 border border-slate-200/80 shadow-2xs">
-                      <span className="text-slate-500 block font-medium text-[11px]">CCCD / Giấy tờ tùy thân</span>
+                      <span className="text-slate-500 block font-medium text-xs">CCCD / Giấy tờ tùy thân</span>
                       <span className="font-bold text-slate-900 font-mono text-xs">
                         {stay.guestIdentityNumber || (
                           <span className="text-slate-400 font-normal italic">Chưa đăng ký</span>
@@ -530,7 +530,7 @@ export function FrontDeskRoomDetailPanel({
 
                   <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100">
                     <div>
-                      <span className="text-slate-500 block text-[11px]">Nhận phòng thực tế:</span>
+                      <span className="text-slate-500 block text-xs">Nhận phòng thực tế:</span>
                       <span className="font-bold text-slate-900">
                         {stay.checkedInAt
                           ? formatDateTime(stay.checkedInAt)
@@ -538,7 +538,7 @@ export function FrontDeskRoomDetailPanel({
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block text-[11px]">Trả phòng dự kiến:</span>
+                      <span className="text-slate-500 block text-xs">Trả phòng dự kiến:</span>
                       <span
                         className={`font-bold ${isOverdue ? "text-rose-700" : "text-slate-900"}`}
                       >
@@ -558,7 +558,7 @@ export function FrontDeskRoomDetailPanel({
                           Khách ở cùng ({extraOccupants.length} người)
                         </span>
                       </div>
-                      <span className="text-[11px] font-bold text-slate-500">
+                      <span className="text-xs font-bold text-slate-500">
                         Tổng {extraOccupants.length + 1} khách
                       </span>
                     </div>
@@ -569,7 +569,7 @@ export function FrontDeskRoomDetailPanel({
                           className="flex items-center justify-between text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-200"
                         >
                           <span className="font-semibold text-slate-900">{occ.fullName}</span>
-                          <span className="text-slate-500 font-mono text-[11px]">
+                          <span className="text-slate-500 font-mono text-xs">
                             {occ.phone || occ.identityNumber || "Khách phụ"}
                           </span>
                         </div>
@@ -587,7 +587,7 @@ export function FrontDeskRoomDetailPanel({
                         Tiện ích & Kết nối phòng
                       </span>
                     </div>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 border border-emerald-200">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       <span>GuestOS sẵn sàng</span>
                     </span>
@@ -595,13 +595,13 @@ export function FrontDeskRoomDetailPanel({
 
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="rounded-lg bg-slate-50 p-2.5 border border-slate-100">
-                      <span className="text-slate-500 block text-[11px]">Loại phòng:</span>
+                      <span className="text-slate-500 block text-xs">Loại phòng:</span>
                       <span className="font-bold text-slate-800">
                         {room.type || "Tiêu chuẩn"} {room.floor ? `(Tầng ${room.floor})` : ""}
                       </span>
                     </div>
                     <div className="rounded-lg bg-slate-50 p-2.5 border border-slate-100">
-                      <span className="text-slate-500 block text-[11px]">Đơn giá / đêm:</span>
+                      <span className="text-slate-500 block text-xs">Đơn giá / đêm:</span>
                       <span className="font-bold text-slate-900">
                         {formatVnd(stay.nightlyRateSnapshot ?? room.price)}
                       </span>
@@ -609,7 +609,7 @@ export function FrontDeskRoomDetailPanel({
                   </div>
 
                   <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
-                    <span className="text-slate-500 text-[11px]">
+                    <span className="text-slate-500 text-xs">
                       {room.activeGuestDeviceCount !== undefined && room.activeGuestDeviceCount !== null
                         ? `${room.activeGuestDeviceCount} thiết bị đang kết nối GuestOS`
                         : "Khách có thể quét mã QR phòng để gọi dịch vụ"}
@@ -749,7 +749,7 @@ export function FrontDeskRoomDetailPanel({
                             <button
                               type="button"
                               onClick={() => setShowActiveRequests((prev) => !prev)}
-                              className="text-[11px] font-bold text-amber-900 underline hover:text-amber-950 cursor-pointer"
+                              className="text-xs font-bold text-amber-900 underline hover:text-amber-950 cursor-pointer"
                             >
                               {showActiveRequests ? "Thu gọn" : "Xem chi tiết"}
                             </button>
@@ -768,7 +768,7 @@ export function FrontDeskRoomDetailPanel({
                                   <div className="flex items-center gap-1.5">
                                     <span className="font-semibold text-slate-800">{req.name}</span>
                                     {req.quantity > 1 && (
-                                      <span className="text-[11px] font-bold text-slate-500">x{req.quantity}</span>
+                                      <span className="text-xs font-bold text-slate-500">x{req.quantity}</span>
                                     )}
                                   </div>
                                   <span className="font-bold text-amber-900">{formatVnd(req.unitPrice)}</span>
@@ -864,12 +864,12 @@ export function FrontDeskRoomDetailPanel({
                                         <div className="flex items-center gap-2 min-w-0 flex-1 mr-3">
                                           <span className="truncate font-medium">{item.nameSnapshot}</span>
                                           {item.quantity > 1 && (
-                                            <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-600">
+                                            <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-bold text-slate-600">
                                               x{item.quantity}
                                             </span>
                                           )}
                                           {isVoided && (
-                                            <span className="shrink-0 text-[10px] uppercase font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                                            <span className="shrink-0 text-xs uppercase font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
                                               Đã hủy
                                             </span>
                                           )}

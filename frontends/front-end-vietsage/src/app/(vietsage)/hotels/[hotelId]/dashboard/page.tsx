@@ -424,7 +424,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
             <div className="space-y-5">
               {dashboard.activities.slice(0, 6).map((activity) => (
                 <div key={activity.id} className="relative flex gap-3 border-l border-[var(--outline-variant)] pl-5 last:border-transparent">
-                  <span className="absolute -left-2 top-0 flex size-4 items-center justify-center rounded-full bg-[var(--primary)] text-white"><VsIcon name="arrow_forward" className="text-[10px]" /></span>
+                  <span className="absolute -left-2 top-0 flex size-4 items-center justify-center rounded-full bg-[var(--primary)] text-white"><VsIcon name="arrow_forward" className="text-xs" /></span>
                   <div><p className="text-sm font-bold text-[var(--primary)]">{activity.title}</p><p className="mt-1 text-sm text-[var(--on-surface-variant)]">{activity.description} · {formatTime(activity.createdAt)}</p></div>
                 </div>
               ))}

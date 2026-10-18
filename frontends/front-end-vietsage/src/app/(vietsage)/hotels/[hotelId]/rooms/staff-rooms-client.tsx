@@ -3039,7 +3039,7 @@ export function StaffRoomsClient({
         <div className="relative z-10 my-3 flex-1 flex flex-col justify-center">
           {effectiveStatus === "overdue" ? (
             <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-rose-600">
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-rose-600">
                 <VsIcon
                   name="warning"
                   className="text-sm text-rose-600 shrink-0"
@@ -3059,7 +3059,7 @@ export function StaffRoomsClient({
                 </span>
               </div>
               {matchedOccupant && !isFutureDate ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-950 bg-rose-100 border border-rose-300 px-2 py-0.5 rounded-md w-fit">
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-950 bg-rose-100 border border-rose-300 px-2 py-0.5 rounded-md w-fit">
                   <VsIcon
                     name="group"
                     className="text-xs text-rose-700 shrink-0"
@@ -3077,7 +3077,7 @@ export function StaffRoomsClient({
             </div>
           ) : effectiveStatus === "reserved" || isReserved ? (
             <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-purple-700">
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-purple-700">
                 <VsIcon
                   name="event"
                   className="text-sm text-purple-600 shrink-0"
@@ -3110,7 +3110,7 @@ export function StaffRoomsClient({
             </div>
           ) : effectiveStatus === "occupied" ? (
             <div className="flex flex-col gap-1">
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
                 Trạng thái vận hành
               </p>
               <div className="flex flex-col gap-1">
@@ -3127,7 +3127,7 @@ export function StaffRoomsClient({
                   </span>
                 </div>
                 {matchedOccupant && !isFutureDate ? (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-950 bg-sky-100 border border-sky-300 px-2 py-0.5 rounded-md w-fit">
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-sky-950 bg-sky-100 border border-sky-300 px-2 py-0.5 rounded-md w-fit">
                     <VsIcon
                       name="group"
                       className="text-xs text-sky-700 shrink-0"
@@ -3147,7 +3147,7 @@ export function StaffRoomsClient({
             </div>
           ) : (
             <>
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
                 Trạng thái vận hành
               </p>
               <div className="mt-1 font-bold text-slate-950 dark:text-slate-100 text-sm flex items-center gap-1.5">
@@ -3197,7 +3197,7 @@ export function StaffRoomsClient({
                           {incomingOta.guestName}
                         </span>
                       </div>
-                      <span className="text-[11px] font-bold text-sky-700">
+                      <span className="text-xs font-bold text-sky-700">
                         🛎️ {incomingOta.otaName} · Đến hôm nay
                       </span>
                     </div>
@@ -3211,7 +3211,7 @@ export function StaffRoomsClient({
                         <span>Sẵn sàng đón khách</span>
                       </div>
                       <span
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-900 bg-purple-100 border border-purple-200 px-2 py-0.5 rounded-md w-fit"
+                        className="inline-flex items-center gap-1 text-xs font-bold text-purple-900 bg-purple-100 border border-purple-200 px-2 py-0.5 rounded-md w-fit"
                         title={`Đã có lịch đặt trước: ${room.upcomingReservation.guestDisplayName}`}
                       >
                         <VsIcon
@@ -3298,7 +3298,7 @@ export function StaffRoomsClient({
               >
                 Dự kiến: {roomStatusLabel(effectiveStatus)}
               </span>
-              <p className="text-[11px] text-slate-500 font-medium">
+              <p className="text-xs text-slate-500 font-medium">
                 Thực tế hiện tại:{" "}
                 <span className="font-bold text-slate-700">
                   {roomStatusLabel(physicalStatus)}
@@ -3536,7 +3536,7 @@ export function StaffRoomsClient({
             <span className="vs-display text-xl sm:text-2xl font-black tracking-tight text-slate-900 leading-none">
               {roomNum}
             </span>
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-0.5">
               {room.floor ? `Tầng ${room.floor}` : "Phòng"}
             </span>
           </div>
@@ -3547,7 +3547,7 @@ export function StaffRoomsClient({
                 {room.type ?? "Phòng tiêu chuẩn"}
               </p>
               {isVip ? (
-                <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black tracking-wider text-amber-900 border border-amber-300">
+                <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-black tracking-wider text-amber-900 border border-amber-300">
                   VIP
                 </span>
               ) : null}
@@ -4533,7 +4533,7 @@ export function StaffRoomsClient({
                   ) : (
                     <table className="w-full min-w-[640px] border-collapse text-left">
                       <thead>
-                        <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500">
                           <th scope="col" className="px-4 py-2.5">
                             Khách hàng
                           </th>
@@ -5382,26 +5382,26 @@ export function StaffRoomsClient({
                                       : "Chưa có giá"}
                                   </span>
                                   {isConflictRoom ? (
-                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
+                                    <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200">
                                       Xung đột
                                     </span>
                                   ) : isConflicting ? (
-                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">
+                                    <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">
                                       Đã có lịch
                                     </span>
                                   ) : isUnavailable ? (
-                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-600">
+                                    <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-slate-200 text-slate-600">
                                       Bảo trì/Khóa
                                     </span>
                                   ) : (
-                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                    <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
                                       Sẵn sàng
                                     </span>
                                   )}
                                 </div>
 
                                 {isPhysicallyOverdue ? (
-                                  <div className="mt-1 text-[10px] text-amber-700 font-semibold flex items-center gap-1">
+                                  <div className="mt-1 text-xs text-amber-700 font-semibold flex items-center gap-1">
                                     <VsIcon
                                       name="warning"
                                       className="text-xs"

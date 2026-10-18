@@ -344,7 +344,7 @@ export function BulkUpdateModal({
                         <div className="text-xs text-slate-400 font-mono">
                           Mã: {rt.roomTypeCode} ({rt.totalRooms} phòng)
                         </div>
-                        <div className="mt-1 inline-flex items-center gap-1 rounded bg-amber-100/90 px-1.5 py-0.5 text-[11px] font-bold text-amber-900">
+                        <div className="mt-1 inline-flex items-center gap-1 rounded bg-amber-100/90 px-1.5 py-0.5 text-xs font-bold text-amber-900">
                           <VsIcon
                             name="link_off"
                             className="text-xs text-amber-700"

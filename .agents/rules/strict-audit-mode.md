@@ -121,7 +121,7 @@ Trace each invariant through producer, transport, consumer, persistence, and ver
 | Reliability | Are timeouts, retries, partial failure, restart behavior, fallbacks, and data-loss prevention explicit? |
 | Operability | Are configuration, deployment, compatibility, observability, diagnostics, rollback, and support paths adequate? |
 | Performance | Are bottlenecks, fan-out, unbounded work, scaling assumptions, and resource ceilings acceptable for the real workload? |
-| User boundary | When applicable: accessibility, error/loading/empty states, locale/i18n hygiene, responsive behavior, safe feedback, and clean professional copywriting (zero technical/dev leakage, no wireframe numbering, no raw enums/HTTP errors, no test strings). |
+| User boundary | When applicable: accessibility, error/loading/empty states, locale/i18n hygiene, responsive behavior, safe feedback, clean professional copywriting (zero technical/dev leakage, no wireframe numbering, no raw enums/HTTP errors, no test strings), **UI Design Gate compliance**: typography floor >= 12px (strictly no sub-12px micro-fonts), zero fluff/boilerplate sentences, ruthless UI pruning (no nested cards, no duplicate actions, no banner/blur bloat), verified via `node scripts/verify-ui-rules.cjs`. |
 | Maintainability | Is complexity necessary? Are shared primitives reused? Does duplication create inconsistent behavior or duplicate/orphan i18n keys? |
 | Technology fit | Does implementation follow the current project's actual stack, installed dependencies, platform primitives, and local conventions? |
 

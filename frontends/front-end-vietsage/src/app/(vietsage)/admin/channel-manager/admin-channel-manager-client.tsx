@@ -204,7 +204,7 @@ export function AdminChannelManagerClient({
               <VsIcon name="sync_alt" className="text-sm text-blue-600 shrink-0" />
               <span>{label}</span>
             </span>
-            <span className="text-[11px] font-normal text-blue-700">
+            <span className="text-xs font-normal text-blue-700">
               Đã ghép: {item.mappedRoomTypes} phòng, {item.mappedRatePlans} gói giá
             </span>
           </div>
@@ -659,7 +659,7 @@ export function AdminChannelManagerClient({
           }`}
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#69726b]">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#69726b]">
               Tổng khách sạn
             </span>
             <span className={`grid h-8 w-8 place-items-center rounded-xl transition-colors ${
@@ -672,7 +672,7 @@ export function AdminChannelManagerClient({
             <p className="text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums text-[#17201b]">
               {summary?.totalHotels ?? 0}
             </p>
-            <p className="mt-0.5 text-[11px] font-medium text-[#69726b]">
+            <p className="mt-0.5 text-xs font-medium text-[#69726b]">
               Toàn hệ thống
             </p>
           </div>
@@ -681,7 +681,7 @@ export function AdminChannelManagerClient({
         {/* 2. Đã cấu hình */}
         <div className="relative flex flex-col justify-between rounded-2xl border border-[#e8dfd1] bg-white/90 p-4.5 text-left shadow-2xs">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-teal-800">
+            <span className="text-xs font-bold uppercase tracking-wider text-teal-800">
               Đã cấu hình
             </span>
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-teal-100/70 text-teal-700">
@@ -692,7 +692,7 @@ export function AdminChannelManagerClient({
             <p className="text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums text-teal-800">
               {summary?.configuredHotels ?? 0}
             </p>
-            <p className="mt-0.5 text-[11px] font-medium text-teal-700/80">
+            <p className="mt-0.5 text-xs font-medium text-teal-700/80">
               Đã liên kết Channex
             </p>
           </div>
@@ -709,7 +709,7 @@ export function AdminChannelManagerClient({
           }`}
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">
               Đang hoạt động
             </span>
             <span className={`grid h-8 w-8 place-items-center rounded-xl transition-colors ${
@@ -722,7 +722,7 @@ export function AdminChannelManagerClient({
             <p className="text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums text-emerald-800">
               {summary?.activeHotels ?? 0}
             </p>
-            <p className="mt-0.5 text-[11px] font-medium text-emerald-700/80">
+            <p className="mt-0.5 text-xs font-medium text-emerald-700/80">
               Đồng bộ ổn định
             </p>
           </div>
@@ -739,7 +739,7 @@ export function AdminChannelManagerClient({
           }`}
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-800">
               Cần chú ý
             </span>
             <span className={`grid h-8 w-8 place-items-center rounded-xl transition-colors ${
@@ -752,7 +752,7 @@ export function AdminChannelManagerClient({
             <p className="text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums text-amber-800">
               {summary?.needsAttention ?? 0}
             </p>
-            <p className="mt-0.5 text-[11px] font-medium text-amber-700/80">
+            <p className="mt-0.5 text-xs font-medium text-amber-700/80">
               Có cảnh báo / lỗi
             </p>
           </div>
@@ -769,7 +769,7 @@ export function AdminChannelManagerClient({
           }`}
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
               Chưa thiết lập
             </span>
             <span className={`grid h-8 w-8 place-items-center rounded-xl transition-colors ${
@@ -782,7 +782,7 @@ export function AdminChannelManagerClient({
             <p className="text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums text-slate-800">
               {summary?.unconfiguredHotels ?? 0}
             </p>
-            <p className="mt-0.5 text-[11px] font-medium text-slate-600">
+            <p className="mt-0.5 text-xs font-medium text-slate-600">
               Chưa kết nối Channex
             </p>
           </div>
@@ -791,7 +791,7 @@ export function AdminChannelManagerClient({
         {/* 6. Chờ đối soát */}
         <div className="relative flex flex-col justify-between rounded-2xl border border-[#e8dfd1] bg-white/90 p-4.5 text-left shadow-2xs">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-orange-800">
+            <span className="text-xs font-bold uppercase tracking-wider text-orange-800">
               Chờ đối soát
             </span>
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-orange-100/70 text-orange-700">
@@ -802,7 +802,7 @@ export function AdminChannelManagerClient({
             <p className="text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums text-orange-800">
               {summary?.pendingReconciliations ?? 0}
             </p>
-            <p className="mt-0.5 text-[11px] font-medium text-orange-700/80">
+            <p className="mt-0.5 text-xs font-medium text-orange-700/80">
               Đơn OTA cần duyệt
             </p>
           </div>
@@ -905,7 +905,7 @@ export function AdminChannelManagerClient({
 
           {/* Quick filter chips */}
           <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-[#f0eae0]">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#69726b] mr-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#69726b] mr-1">
               Bộ lọc nhanh:
             </span>
             {[
@@ -929,7 +929,7 @@ export function AdminChannelManagerClient({
                   <span>{chip.label}</span>
                   {chip.count !== undefined && (
                     <span
-                      className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
+                      className={`rounded-full px-1.5 py-0.2 text-xs font-black ${
                         isCurrent
                           ? "bg-[#e8b363] text-[#17201b]"
                           : "bg-black/10 text-[#17201b]"
@@ -1023,7 +1023,7 @@ export function AdminChannelManagerClient({
         {!isLoading && !isError && items.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm text-[#17201b]">
-              <thead className="border-b border-[#e5dcd0] bg-[#f8f5ee] text-[11px] font-bold uppercase tracking-[0.1em] text-[#69726b]">
+              <thead className="border-b border-[#e5dcd0] bg-[#f8f5ee] text-xs font-bold uppercase tracking-[0.1em] text-[#69726b]">
                 <tr>
                   <th scope="col" className="px-6 py-4">
                     Khách sạn
@@ -1073,7 +1073,7 @@ export function AdminChannelManagerClient({
                               {item.hotelName}
                             </button>
                             <div className="mt-0.5">
-                              <span className="inline-block font-mono text-[11px] font-semibold text-[#69726b] bg-[#f4ede2] px-2 py-0.5 rounded-md">
+                              <span className="inline-block font-mono text-xs font-semibold text-[#69726b] bg-[#f4ede2] px-2 py-0.5 rounded-md">
                                 {item.hotelCode}
                               </span>
                             </div>
@@ -1107,7 +1107,7 @@ export function AdminChannelManagerClient({
                             <VsIcon name="schedule" className="text-sm text-[#8b948d] shrink-0" />
                             <div>
                               <p className="font-bold text-[#17201b]">{sync.time}</p>
-                              <p className="text-[11px] text-[#69726b]">{sync.date}</p>
+                              <p className="text-xs text-[#69726b]">{sync.date}</p>
                             </div>
                           </div>
                         )}

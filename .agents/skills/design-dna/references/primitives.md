@@ -1,7 +1,7 @@
 # Primitives
 
 ## Color
-Canvas #f9f9f9; surface #ffffff; text #1a1c1c; muted text #464653; deep navy #00003c; action navy #000080; muted gold #735c00; warm gold #fed65b; success #166534; error #ba1a1a.
+Canvas #f9f9f9; surface #ffffff; text #1a1c1c; muted text #464653; deep sage #25483f; action sage #1c3831; muted gold #735c00; warm gold #fed65b; success #166534; error #ba1a1a.
 
 Use semantic CSS variables/Tailwind tokens. Raw colors require a documented exceptional role.
 

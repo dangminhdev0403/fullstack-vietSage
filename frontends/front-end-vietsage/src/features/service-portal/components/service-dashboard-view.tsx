@@ -256,7 +256,7 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
                           {order.status}
                         </span>
                         {/* Settlement Status Badge */}
-                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
                           isSettled
                             ? "bg-[#e7f4eb] text-[#16562c] border border-[#bde2c7]"
                             : "bg-[#fff3db] text-[#925f0e] border border-[#f3d6a2]"

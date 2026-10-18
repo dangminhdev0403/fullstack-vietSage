@@ -53,7 +53,7 @@ export function GuestDiscoveryTabs({
           <span className="text-sm font-bold md:text-base">{resolvedHotelLabel}</span>
         </div>
         <span
-          className={`mt-1 text-[11px] font-medium ${
+          className={`mt-1 text-xs font-medium ${
             activeTab === "hotel" ? "text-white/80" : "text-[#7a887f]"
           }`}
         >
@@ -81,7 +81,7 @@ export function GuestDiscoveryTabs({
           <span className="text-sm font-bold md:text-base">{resolvedExternalLabel}</span>
         </div>
         <span
-          className={`mt-1 text-[11px] font-medium ${
+          className={`mt-1 text-xs font-medium ${
             activeTab === "external" ? "text-white/80" : "text-[#7a887f]"
           }`}
         >

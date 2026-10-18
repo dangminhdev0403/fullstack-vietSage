@@ -306,7 +306,7 @@ export function GuestMarketplaceCartFlow({
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
                               <div>
-                                <p className="text-[11px] font-bold text-[#8a6a13] truncate">
+                                <p className="text-xs font-bold text-[#8a6a13] truncate">
                                   {item.providerName}
                                 </p>
                                 <h4 className="font-bold text-sm text-[#18211d] leading-snug">
@@ -324,7 +324,7 @@ export function GuestMarketplaceCartFlow({
                             </div>
 
                             {item.warningReason ? (
-                              <span className="inline-block mt-1 text-[11px] font-bold text-red-600 bg-red-100/80 px-2 py-0.5 rounded-md">
+                              <span className="inline-block mt-1 text-xs font-bold text-red-600 bg-red-100/80 px-2 py-0.5 rounded-md">
                                 {item.warningReason}
                               </span>
                             ) : null}
@@ -364,7 +364,7 @@ export function GuestMarketplaceCartFlow({
 
                             {/* Item Subtotal Preview */}
                             <div className="mt-2 text-right">
-                              <span className="text-[11px] text-[#5e6a62]">{t("marketplace.subtotal")}: </span>
+                              <span className="text-xs text-[#5e6a62]">{t("marketplace.subtotal")}: </span>
                               <span className="text-xs font-black text-[#25483f]">
                                 {formatSubtotalAmount(item.unitPrice, item.quantity, item.currency, intlLocale)}
                               </span>
@@ -390,7 +390,7 @@ export function GuestMarketplaceCartFlow({
                     <div key={item.serviceId} className="py-2.5 flex items-center justify-between text-xs">
                       <div>
                         <p className="font-bold text-[#18211d]">{item.name}</p>
-                        <p className="text-[11px] text-[#5e6a62]">
+                        <p className="text-xs text-[#5e6a62]">
                           {item.providerName} • {formatQuantityWithUnit(item.quantity, item.pricingUnit || "suất", t)}
                         </p>
                       </div>

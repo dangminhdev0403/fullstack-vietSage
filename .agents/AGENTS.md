@@ -149,8 +149,12 @@ A "module completed" includes examples such as:
 
 **Do NOT** run Graphify after every file edit. Reuse the existing graph throughout implementation. Only refresh the graph once when the module is considered complete, so future tasks use the latest project structure.
 
-**Exemption for Minor Edits:**
-For routine, small-scope changes (such as minor UI tweaks, renaming variables/functions, text/copy/label fixes, CSS/spacing tweaks): **DO NOT run tests** and **DO NOT run graphify update** to optimize speed and avoid wasting resources.
+**Exemption for Minor Edits & Zero-Waste Validation Protocol:**
+- For routine, UI-focused, or small-scope changes (such as CSS/Tailwind tweaks, spacing, layout JSX, color, text/copy/label fixes, adding or editing presentation components, renaming variables/functions):
+  - **STRICTLY FORBIDDEN to run test suites** (`npm test`, `pnpm test`, `jest`, `vitest`, `playwright`).
+  - **STRICTLY FORBIDDEN to run full-repo lint** (`eslint .`, `pnpm lint`) or production build (`next build`).
+  - **STRICTLY FORBIDDEN to run graphify update** (`graphify update .`) or database migration/seed scripts.
+  - **Smallest reliable command**: Run `node scripts/verify-ui-rules.cjs` (< 1s). Only run scoped `tsc --noEmit` if new imports/props/types were introduced to verify syntax.
 
 ---
 
@@ -219,11 +223,16 @@ Read:
   - **Spreadsheet URL Auto-Persistence**: Frontends MUST auto-save entered Google Sheets / Excel URLs via a dedicated Zustand store with `persist` and `safeStorage` (e.g., `useMarketplaceAdminImportStore`) and auto-restore the input on load to eliminate repeated copying and pasting. Never read or write `localStorage` directly in feature components.
   - **Header Normalization & Parenthesized Aliases**: Import adapters MUST support normalized lowercase matching and parenthesized column header aliases (e.g., `"tên danh mục (tiếng việt)"`, `"tên (tiếng anh)"`, `"tên (tiếng trung)"`, `"tên (tiếng hàn)"`, `"tên (tiếng nga)"`, `"tên (tiếng ấn độ)"`).
   - **Summary Metric Key Fallbacks**: Preview summary API payloads and UI metric cards MUST align key names (`creates`/`create`, `updates`/`update`) with safe fallbacks (`creates ?? create ?? 0`) to prevent undefined or blank metrics.
-- **UI Copywriting & Clean UI Text Standard (Chuẩn mực Câu Từ & Văn Phong Giao Diện)**:
+- **UI Design, Typography, Copywriting & Ruthless Pruning Standard (Chuẩn mực UI, Cỡ Chữ & Tối Giản Giao Diện)**:
+  - **Typography Floor Limit (Sàn Cỡ Chữ Tối Thiểu >= 12px)**: Strictly FORBIDDEN arbitrary micro-font classes (`text-[10px]`, `text-[11px]`, `text-[9px]`, sub-0.75rem, etc.). The absolute floor is `text-xs` (12px / 0.75rem). All text must satisfy WCAG AA contrast (>= 4.5:1).
+  - **Typographic Balance & Anti-Widow/Orphan Standard**: Headings (`h1`, `h2`, `h3`, `h4`, card titles, modal titles) MUST use `text-balance` (CSS `text-wrap: balance`) to eliminate dangling orphan words ("gãy dòng cộc lốc" / single trailing words). Multi-line body copy / descriptions MUST use `text-pretty`. Badges, status pills, tags, chips, and action buttons MUST use `whitespace-nowrap`.
+  - **Anti-Triple-Stacking & Semantic Partitioning**: Strictly FORBIDDEN triple-layer redundant stacking (Eyebrow + Heading + Subtitle repeating the same message). Eyebrow defines scope/category; Heading defines the primary action/entity; Subtitle defines instructions/value. Form containers for single-column auth/dialogs capped at `max-w-md` to `max-w-lg`.
+  - **Ruthless UI Pruning (Cắt Giảm UI Dư Thừa)**: Strictly FORBIDDEN decorative nested cards (card-in-card syndrome), duplicate action buttons performing identical actions within the same view, giant decorative banners lacking fresh actionable information, and ambient blur overload (`blur-[160px]`).
   - **Zero Technical & Dev Leakage**: Strictly FORBIDDEN to expose internal developer notes, architectural reminders, or implementation comments on user interfaces (e.g., *"Nguồn dữ liệu có thể chuyển sang API..."*, *"tuyệt đối không động đến..."*). Never expose raw backend enum or role codes (e.g., `SUPER_ADMIN` must map to `Quản trị nền tảng`). Never display raw HTTP status codes in user toasts/dialogs (e.g., `(404 Not Found)`, `(Mã lỗi 500)` -> extract clean, human-readable error sentences). Never leak database or backend terms into user copy (e.g., *"trong DB"*, *"test đẩy lại BCA"*).
   - **Zero Wireframe & Draft Residue**: Strictly FORBIDDEN to leave wireframe index prefixes in section headings or subtitles (e.g., `"01 / "`, `"02 / "`, `"03 / "`). Never use developer test strings in placeholders or demo inputs (e.g., `"VD: Test"` -> use realistic hospitality examples like `"VD: Grand Saigon, SGSTAR"`).
   - **Professional Hospitality Tone & No Chinglish/Filler Words**: Do not use informal hybrid slang (e.g., `"full size"` -> `"ảnh gốc / bản gốc"`, `"Service Catalog / Danh mục dịch vụ"` -> `"Danh mục dịch vụ đối tác"`). Eliminate redundant trailing filler phrases (e.g., `"tại đây"`, `"ngay tại đây."`, `"tại đây ạ"`). Ensure concise, professional, hospitality-grade phrasing.
   - **Structured i18n Hygiene**: Multi-lingual user flows (Guest OS, Public, Marketing) MUST NOT hardcode strings in components. Never create duplicate or orphan translation keys with identical meanings (e.g., `messages.loadError` vs `messages.errorLoad`). When adding new dictionary keys, define them synchronously across all 6 supported locales (`vi`, `en`, `zh`, `ko`, `ru`, `hi`).
+  - **UI Verification Gate**: Frontend code modifications must pass the UI static verification check: `node scripts/verify-ui-rules.cjs` (auto-upgrade available via `--fix`).
 - For frontend client server-state, use `@dangminhdev04032005/query-resource`: repository → resource → feature hook → component. Do not add a local copy of the package or write raw TanStack Query `queryKey`/`queryFn`/`mutationFn` configurations in pages or feature hooks. Raw hooks consume resource-generated options; the application `QueryClient` provider is exempt.
 - Do not write secrets, tokens, passwords, API keys, or connection strings into docs or code.
 - Do not commit unrelated modified/untracked files.

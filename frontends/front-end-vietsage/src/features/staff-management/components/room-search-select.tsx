@@ -251,12 +251,12 @@ export function RoomSearchSelect({
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-xs font-semibold">Áp dụng cho toàn khách sạn</p>
-                  <p className="text-[11px] text-slate-500 font-normal">Lễ tân phụ trách chung toàn khách sạn</p>
+                  <p className="text-xs text-slate-500 font-normal">Lễ tân phụ trách chung toàn khách sạn</p>
                 </div>
               </div>
 
               {!value ? (
-                <span className="shrink-0 flex items-center gap-1 text-[11px] text-blue-800 font-semibold">
+                <span className="shrink-0 flex items-center gap-1 text-xs text-blue-800 font-semibold">
                   <VsIcon name="check" className="text-sm font-bold text-blue-700" />
                   Đang chọn
                 </span>
@@ -276,7 +276,7 @@ export function RoomSearchSelect({
             ) : (
               filteredGroups.map(([floorName, floorRooms]) => (
                 <div key={floorName} className="py-1">
-                  <div className="sticky top-0 z-10 bg-white/95 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  <div className="sticky top-0 z-10 bg-white/95 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-slate-400">
                     {floorName} ({floorRooms.length})
                   </div>
                   <div className="space-y-0.5 px-1">
@@ -314,12 +314,12 @@ export function RoomSearchSelect({
 
                           <div className="shrink-0 flex items-center gap-1.5">
                             {isSelected ? (
-                              <span className="flex items-center gap-1 text-[11px] text-amber-800 font-semibold">
+                              <span className="flex items-center gap-1 text-xs text-amber-800 font-semibold">
                                 <VsIcon name="check" className="text-sm font-bold text-amber-700" />
                                 Đang chọn
                               </span>
                             ) : (
-                              <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
+                              <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
                                 Khả dụng
                               </span>
                             )}
@@ -334,7 +334,7 @@ export function RoomSearchSelect({
           </div>
 
           {/* Footer Guidance */}
-          <div className="p-2 border-t border-slate-100 bg-slate-50 text-[11px] text-slate-500 flex items-center justify-between">
+          <div className="p-2 border-t border-slate-100 bg-slate-50 text-xs text-slate-500 flex items-center justify-between">
             <span>Chọn phòng riêng hoặc áp dụng chung toàn khách sạn (Global)</span>
             <span className="text-slate-500 font-medium">Toàn KS / Theo phòng</span>
           </div>

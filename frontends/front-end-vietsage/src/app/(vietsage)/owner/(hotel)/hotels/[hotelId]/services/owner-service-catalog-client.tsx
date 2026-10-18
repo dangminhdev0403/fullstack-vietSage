@@ -674,7 +674,7 @@ export function OwnerServiceCatalogClient({
             className={sortableHeaderClass(categorySort.key === "name")}
           >
             Tên{" "}
-            <span className="text-[10px] normal-case tracking-normal">
+            <span className="text-xs normal-case tracking-normal">
               {sortIndicator(categorySort, "name")}
             </span>
           </button>
@@ -715,7 +715,7 @@ export function OwnerServiceCatalogClient({
             className={sortableHeaderClass(categorySort.key === "price")}
           >
             Giá mặc định{" "}
-            <span className="text-[10px] normal-case tracking-normal">
+            <span className="text-xs normal-case tracking-normal">
               {sortIndicator(categorySort, "price")}
             </span>
           </button>
@@ -737,7 +737,7 @@ export function OwnerServiceCatalogClient({
             className={sortableHeaderClass(categorySort.key === "sortOrder")}
           >
             Thứ tự{" "}
-            <span className="text-[10px] normal-case tracking-normal">
+            <span className="text-xs normal-case tracking-normal">
               {sortIndicator(categorySort, "sortOrder")}
             </span>
           </button>
@@ -755,7 +755,7 @@ export function OwnerServiceCatalogClient({
             className={sortableHeaderClass(categorySort.key === "status")}
           >
             Trạng thái{" "}
-            <span className="text-[10px] normal-case tracking-normal">
+            <span className="text-xs normal-case tracking-normal">
               {sortIndicator(categorySort, "status")}
             </span>
           </button>
@@ -800,7 +800,7 @@ export function OwnerServiceCatalogClient({
             className={sortableHeaderClass(itemSort.key === "name")}
           >
             Tên dịch vụ{" "}
-            <span className="text-[10px] normal-case tracking-normal">
+            <span className="text-xs normal-case tracking-normal">
               {sortIndicator(itemSort, "name")}
             </span>
           </button>
@@ -825,7 +825,7 @@ export function OwnerServiceCatalogClient({
             className={sortableHeaderClass(itemSort.key === "category")}
           >
             Nhóm dịch vụ{" "}
-            <span className="text-[10px] normal-case tracking-normal">
+            <span className="text-xs normal-case tracking-normal">
               {sortIndicator(itemSort, "category")}
             </span>
           </button>
@@ -846,7 +846,7 @@ export function OwnerServiceCatalogClient({
             className={sortableHeaderClass(itemSort.key === "price")}
           >
             Giá{" "}
-            <span className="text-[10px] normal-case tracking-normal">
+            <span className="text-xs normal-case tracking-normal">
               {sortIndicator(itemSort, "price")}
             </span>
           </button>
@@ -890,7 +890,7 @@ export function OwnerServiceCatalogClient({
             className={sortableHeaderClass(itemSort.key === "status")}
           >
             Trạng thái{" "}
-            <span className="text-[10px] normal-case tracking-normal">
+            <span className="text-xs normal-case tracking-normal">
               {sortIndicator(itemSort, "status")}
             </span>
           </button>

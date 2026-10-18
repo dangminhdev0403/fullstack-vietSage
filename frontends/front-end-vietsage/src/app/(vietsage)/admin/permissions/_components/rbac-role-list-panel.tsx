@@ -106,7 +106,7 @@ export function RbacRoleListPanel({
         </div>
 
         {/* Quick status filter pills */}
-        <div className="flex items-center gap-1 text-[11px]">
+        <div className="flex items-center gap-1 text-xs">
           <button
             type="button"
             onClick={() => setStatusFilter("ALL")}
@@ -229,23 +229,23 @@ export function RbacRoleListPanel({
 
                     {/* Bottom Row: Role Code & Badges */}
                     <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1 border-t border-gray-100/70">
-                      <span className="font-mono text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                      <span className="font-mono text-xs font-semibold text-gray-500 uppercase tracking-wider">
                         {role.code}
                       </span>
 
                       <div className="flex items-center gap-1.5">
-                        <span className="inline-flex items-center gap-0.5 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-800">
-                          <VsIcon name="key" className="text-[11px]" />
+                        <span className="inline-flex items-center gap-0.5 rounded-md bg-emerald-50 px-1.5 py-0.5 text-xs font-semibold text-emerald-800">
+                          <VsIcon name="key" className="text-xs" />
                           {role.enabledCount != null ? `${role.enabledCount} quyền` : "—"}
                         </span>
 
                         {role.type === "CUSTOM" ? (
-                          <span className="inline-flex items-center gap-0.5 rounded-md bg-purple-50 px-1.5 py-0.5 text-[10px] font-semibold text-purple-800">
-                            <VsIcon name="tune" className="text-[10px]" /> Tùy chỉnh
+                          <span className="inline-flex items-center gap-0.5 rounded-md bg-purple-50 px-1.5 py-0.5 text-xs font-semibold text-purple-800">
+                            <VsIcon name="tune" className="text-xs" /> Tùy chỉnh
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-0.5 rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600">
-                            <VsIcon name="lock" className="text-[10px]" /> Hệ thống
+                          <span className="inline-flex items-center gap-0.5 rounded-md bg-gray-100 px-1.5 py-0.5 text-xs font-semibold text-gray-600">
+                            <VsIcon name="lock" className="text-xs" /> Hệ thống
                           </span>
                         )}
                       </div>

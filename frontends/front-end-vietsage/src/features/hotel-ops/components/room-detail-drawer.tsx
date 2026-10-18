@@ -531,7 +531,7 @@ function RoomDetailDialog({
                           ))}
                       </select>
                       {roomTypesLoading ? (
-                        <span className="text-[11px] text-slate-400 block">
+                        <span className="text-xs text-slate-400 block">
                           Đang tải danh mục loại phòng...
                         </span>
                       ) : null}
@@ -556,7 +556,7 @@ function RoomDetailDialog({
                         placeholder="Ví dụ: 400.000"
                         className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition"
                       />
-                      <span className="text-[11px] text-slate-500 block">
+                      <span className="text-xs text-slate-500 block">
                         Để trống nếu áp dụng giá gốc của loại phòng.
                       </span>
                       {formErrors.price ? (
@@ -581,7 +581,7 @@ function RoomDetailDialog({
                         placeholder="Mặc định: 3"
                         className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition"
                       />
-                      <span className="text-[11px] text-slate-500 block">
+                      <span className="text-xs text-slate-500 block">
                         Số thiết bị khách đăng nhập đồng thời qua GuestOS.
                       </span>
                     </div>
@@ -640,7 +640,7 @@ function RoomDetailDialog({
                         <p className="font-extrabold text-base sm:text-lg text-emerald-800 mt-1 tabular-nums truncate">
                           {formatVnd(room.price)}
                         </p>
-                        <span className="text-[11px] text-slate-400 mt-0.5 block">
+                        <span className="text-xs text-slate-400 mt-0.5 block">
                           Theo đêm nghỉ
                         </span>
                       </div>
@@ -652,7 +652,7 @@ function RoomDetailDialog({
                           {room.activeGuestDeviceCount ?? 0} /{" "}
                           {room.maxActiveGuestDevices ?? 3} TB
                         </p>
-                        <span className="text-[11px] text-slate-400 mt-0.5 block">
+                        <span className="text-xs text-slate-400 mt-0.5 block">
                           Đăng nhập GuestOS
                         </span>
                       </div>
@@ -664,7 +664,7 @@ function RoomDetailDialog({
                           <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
                           {qrStatusMeta.label}
                         </p>
-                        <span className="text-[11px] text-slate-400 mt-0.5 block">
+                        <span className="text-xs text-slate-400 mt-0.5 block">
                           Mã quét đón khách
                         </span>
                       </div>
@@ -924,7 +924,7 @@ function RoomDetailDialog({
                     </button>
                   ) : null}
 
-                  <p className="text-[11px] text-slate-500 leading-relaxed max-w-xs mx-auto">
+                  <p className="text-xs text-slate-500 leading-relaxed max-w-xs mx-auto">
                     Quét mã để truy cập giao diện GuestOS nhận phòng, dịch vụ và
                     trao đổi trực tiếp với lễ tân.
                   </p>

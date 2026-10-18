@@ -17,7 +17,7 @@ export function GuestCurrentRequest({ request, roomLabel, intlLocale, isLoading,
           <>
             <div className="grid gap-5 lg:grid-cols-[1fr_260px] lg:items-start">
               <div className="min-w-0">
-                <span className={`inline-flex min-h-7 items-center rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${getStatusTone(request.status)}`}>{getRequestStatusLabel(request.status, t)}</span>
+                <span className={`inline-flex min-h-7 items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${getStatusTone(request.status)}`}>{getRequestStatusLabel(request.status, t)}</span>
                 <h2 id="current-request-title" className="vs-display mt-3 text-2xl font-semibold text-[#18211d]">{getRequestTitle(request, t)} - {roomLabel}</h2>
                 <p className="mt-2 max-w-full truncate rounded-lg bg-[#eef3ee] px-2.5 py-1 font-mono text-sm text-[#465149]">ID: {request.id}</p>
                 <div className="mt-3 flex flex-wrap gap-2">

@@ -729,7 +729,7 @@ export function Hero({
                           <VsIcon name="concierge" className="text-base" />
                         </span>
                         <div className="text-left">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-white/75 leading-none">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-white/75 leading-none">
                             {t.responseLabel}
                           </p>
                           <p className="mt-1 text-base font-bold text-white leading-none">

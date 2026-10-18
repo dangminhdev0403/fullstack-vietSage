@@ -1329,7 +1329,7 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
                       <VsIcon name="location_on" className="text-sm text-[#173F35]" />
                       Mốc vị trí phục vụ LocalMate (Tọa độ GPS)
                     </span>
-                    <span className="text-[11px] text-[#52635A]">
+                    <span className="text-xs text-[#52635A]">
                       Tính khoảng cách tới khách sạn
                     </span>
                   </div>
@@ -1538,7 +1538,7 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
 
                   {/* 3 Step Instructions */}
                   <div className="rounded-2xl border border-[#25483F]/10 bg-[#FAF7F0]/60 p-4 space-y-2 text-xs text-[#52635A]">
-                    <div className="font-bold text-[#142823] uppercase tracking-wider text-[11px]">
+                    <div className="font-bold text-[#142823] uppercase tracking-wider text-xs">
                       Các bước hoàn tất kết nối:
                     </div>
                     <div className="flex items-start gap-2">
@@ -1656,7 +1656,7 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-xl border border-[#173F35]/15 bg-white p-3">
-                    <span className="text-[11px] font-semibold text-[#52635A] block">
+                    <span className="text-xs font-semibold text-[#52635A] block">
                       VietSage thu trước
                     </span>
                     <span className="text-lg font-black text-[#173F35]">
@@ -1664,7 +1664,7 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
                     </span>
                   </div>
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
-                    <span className="text-[11px] font-semibold text-emerald-800 block">
+                    <span className="text-xs font-semibold text-emerald-800 block">
                       HDV thu trực tiếp từ khách
                     </span>
                     <span className="text-lg font-black text-emerald-700">

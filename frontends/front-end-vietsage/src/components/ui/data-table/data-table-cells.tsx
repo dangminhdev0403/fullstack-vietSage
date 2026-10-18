@@ -65,7 +65,7 @@ export function StatusBadge({
     <span
       className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 rounded-full px-3.5 py-1 text-xs font-extrabold border shadow-2xs ${VARIANT_STYLES[resolvedVariant]} ${className}`}
     >
-      {resolvedIcon ? <span className="text-[11px] shrink-0">{resolvedIcon}</span> : null}
+      {resolvedIcon ? <span className="text-xs shrink-0">{resolvedIcon}</span> : null}
       <span className="whitespace-nowrap">{resolvedLabel}</span>
     </span>
   );

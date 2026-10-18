@@ -239,7 +239,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
             <div className="truncate font-bold text-sm text-slate-900 dark:text-white leading-snug" title={firstItem.serviceName}>
               {firstItem.serviceName}
               {authorizedItems.length > 1 ? (
-                <span className="ml-1.5 inline-flex items-center rounded-md bg-indigo-50 px-1.5 py-0.5 text-[11px] font-bold text-indigo-900 border border-indigo-200">
+                <span className="ml-1.5 inline-flex items-center rounded-md bg-indigo-50 px-1.5 py-0.5 text-xs font-bold text-indigo-900 border border-indigo-200">
                   +{authorizedItems.length - 1} mục khác
                 </span>
               ) : null}
@@ -248,7 +248,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
               <span className="truncate" title={order.stay?.guestDisplayName ?? "Khách lưu trú"}>
                 {order.stay?.guestDisplayName ?? "Khách lưu trú"}
               </span>
-              <span className="shrink-0 rounded-md border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[11px] font-bold text-indigo-900 dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-200">
+              <span className="shrink-0 rounded-md border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-xs font-bold text-indigo-900 dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-200">
                 {order.stay?.room?.roomNumber ? `Phòng ${order.stay.room.roomNumber}` : "Phòng -"}
               </span>
             </div>
@@ -286,7 +286,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
             <div className="font-black text-base text-emerald-700 dark:text-emerald-400">
               {financials.partnerSubtotal.toLocaleString("vi-VN")} {financials.currency}
             </div>
-            <div className="text-[10px] text-slate-500 font-medium">
+            <div className="text-xs text-slate-500 font-medium">
               {authorizedItems.length > 1 ? `${authorizedItems.length} hạng mục` : "Tạm tính đối tác"}
             </div>
           </div>
@@ -478,7 +478,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
             >
               <span>{tab.label}</span>
               <span
-                className={`rounded-full px-2 py-0.2 text-[10px] font-bold ${
+                className={`rounded-full px-2 py-0.2 text-xs font-bold ${
                   statusFilter === tab.key ? "bg-white/20 text-white" : "bg-slate-200 text-slate-800"
                 }`}
               >
@@ -583,7 +583,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
 
                   {/* List of authorized items */}
                   <div className="space-y-2">
-                    <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                    <p className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
                       Hạng mục dịch vụ ủy quyền ({authorizedItems.length}):
                     </p>
                     <div className="border border-emerald-800/10 rounded-xl overflow-hidden bg-white/90">
@@ -613,13 +613,13 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
                   {/* Pricing & Financial Breakdown (Hides Hotel Fee) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl bg-white/90 p-4 border border-emerald-800/10 shadow-2xs">
                     <div>
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Doanh thu đối tác</p>
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Doanh thu đối tác</p>
                       <p className="text-xl font-black text-emerald-700 mt-0.5">{financials.partnerSubtotal.toLocaleString("vi-VN")} {financials.currency}</p>
-                      <span className="text-[10px] text-slate-500 font-medium">Doanh thu thực nhận của đối tác</span>
+                      <span className="text-xs text-slate-500 font-medium">Doanh thu thực nhận của đối tác</span>
                     </div>
 
                     <div>
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Trạng thái quyết toán</p>
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Trạng thái quyết toán</p>
                       <div className="mt-1">
                         {selectedOrder.settlement?.status === "SETTLED" ? (
                           <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
@@ -631,14 +631,14 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
                           </span>
                         )}
                       </div>
-                      <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">Hạch toán công nợ từ khách sạn</span>
+                      <span className="text-xs text-slate-500 font-medium mt-0.5 block">Hạch toán công nợ từ khách sạn</span>
                     </div>
                   </div>
 
                   {/* Guest Note block */}
                   {selectedOrder.guestNote ? (
                     <div className="rounded-xl bg-amber-100/60 p-3.5 border border-amber-300/80 space-y-1">
-                      <p className="text-[11px] font-extrabold uppercase tracking-wider text-amber-900 flex items-center gap-1">
+                      <p className="text-xs font-extrabold uppercase tracking-wider text-amber-900 flex items-center gap-1">
                         <VsIcon name="edit_note" className="text-sm" />
                         <span>Ghi chú từ khách hàng</span>
                       </p>
@@ -651,7 +651,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
 
             {/* SECONDARY CARD: Khách hàng & Khách sạn */}
             <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-2.5">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Thông tin Phục vụ Khách hàng</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Thông tin Phục vụ Khách hàng</p>
 
               <div className="grid gap-3 sm:grid-cols-2 text-xs">
                 <div>
@@ -680,7 +680,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
             {/* Hotel Coordination & Voucher Details */}
             {selectedOrder.hotelCoordinationStatus === "ACKNOWLEDGED" || selectedOrder.hotelCoordinationStatus === "VOUCHER_ISSUED" || selectedOrder.voucher ? (
               <div className="rounded-xl bg-teal-50 p-4 border border-teal-200 space-y-1">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-teal-900">🤝 Phối hợp từ Khách sạn</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-teal-900">🤝 Phối hợp từ Khách sạn</p>
                 <div className="text-xs text-teal-950 font-medium space-y-0.5">
                   <p>
                     Trạng thái tiếp nhận: <span className="font-bold text-teal-950">✓ Khách sạn đã tiếp nhận thông tin đơn hàng</span>
@@ -697,7 +697,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
 
             {/* Step Progression Timeline */}
             <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-1.5">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Tiến độ đơn hàng</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Tiến độ đơn hàng</p>
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold">
                 <span className={`px-2.5 py-1 rounded-lg border ${selectedOrder.status === "PENDING" ? "bg-amber-100 text-amber-900 border-amber-300 font-bold" : "bg-white text-slate-500 border-slate-200"}`}>
                   1. Chờ tiếp nhận

@@ -1105,7 +1105,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                         }
                         if (isUserFrontDesk) {
                           return (
-                            <span className="inline-flex items-center gap-1 font-medium text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md text-[11px]">
+                            <span className="inline-flex items-center gap-1 font-medium text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md text-xs">
                               <VsIcon name="public" className="text-xs" />
                               Toàn khách sạn
                             </span>
@@ -1300,7 +1300,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                         );
                       })}
                     </select>
-                    <p className="mt-1 text-[11px] text-[var(--on-surface-variant)]">
+                    <p className="mt-1 text-xs text-[var(--on-surface-variant)]">
                       Chọn phòng riêng để phân công, hoặc chọn &ldquo;Áp dụng cho toàn khách sạn (Global)&rdquo; nếu lễ tân phụ trách chung toàn khách sạn.
                     </p>
                   </div>

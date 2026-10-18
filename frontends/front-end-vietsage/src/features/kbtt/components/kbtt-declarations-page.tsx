@@ -1986,7 +1986,7 @@ export function KbttDeclarationsPage({
                         </span>
                         {statusInfo.key === "UNSENT" && (
                           <span
-                            className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800 shadow-2xs"
+                            className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800 shadow-2xs"
                             title="Hồ sơ sẽ được hệ thống tự động đẩy lên C06 Bộ Công An"
                           >
                             <ClockIcon className="h-3 w-3 text-emerald-600" />
@@ -3620,7 +3620,7 @@ function KbttDevInterventionModal({
                         <div className="font-semibold text-slate-900">
                           {row.fullName}
                         </div>
-                        <div className="text-[11px] text-slate-500">
+                        <div className="text-xs text-slate-500">
                           {row.nationality === "VNM" || row.citizenshipKind === "VIETNAMESE"
                             ? "🇻🇳 Việt Nam"
                             : `🌐 ${row.nationality || "Quốc tế"}`}
@@ -3628,7 +3628,7 @@ function KbttDevInterventionModal({
                       </td>
                       <td className="px-3.5 py-2.5">
                         <span
-                          className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold ${status.badgeClass}`}
+                          className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-semibold ${status.badgeClass}`}
                         >
                           <span className={`h-1.5 w-1.5 rounded-full ${status.dotColor}`} />
                           {status.label}
@@ -3659,7 +3659,7 @@ function KbttDevInterventionModal({
                             type="button"
                             title="Tạo số giấy tờ ngẫu nhiên hợp lệ"
                             onClick={() => generateRandomForOccupant(row)}
-                            className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300"
+                            className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300"
                           >
                             <SparklesIcon className="h-3 w-3 text-amber-600" />
                             <span>Random</span>

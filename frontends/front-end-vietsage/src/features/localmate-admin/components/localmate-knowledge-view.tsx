@@ -639,7 +639,7 @@ export function LocalMateKnowledgeView() {
         {/* Card 1: Tổng số Tours */}
         <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between text-stone-500">
-            <span className="text-[11px] font-semibold uppercase tracking-wider">Tổng lịch trình</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">Tổng lịch trình</span>
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-stone-100 text-stone-600">
               <VsIcon name="explore" className="text-base" />
             </span>
@@ -653,7 +653,7 @@ export function LocalMateKnowledgeView() {
         {/* Card 2: Tỉnh/Thành phủ sóng */}
         <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between text-stone-500">
-            <span className="text-[11px] font-semibold uppercase tracking-wider">Tỉnh / Thành</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">Tỉnh / Thành</span>
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-50 text-emerald-800">
               <VsIcon name="map" className="text-base" />
             </span>
@@ -669,7 +669,7 @@ export function LocalMateKnowledgeView() {
         {/* Card 3: Định vị GPS */}
         <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between text-stone-500">
-            <span className="text-[11px] font-semibold uppercase tracking-wider">Định vị GPS</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">Định vị GPS</span>
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-sky-50 text-sky-700">
               <VsIcon name="my_location" className="text-base" />
             </span>
@@ -685,7 +685,7 @@ export function LocalMateKnowledgeView() {
         {/* Card 4: LocalMate AI Hub */}
         <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50/50 p-4 shadow-xs">
           <div className="flex items-center justify-between text-emerald-800">
-            <span className="text-[11px] font-semibold uppercase tracking-wider">LocalMate AI</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">LocalMate AI</span>
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-800/10 text-emerald-800">
               <VsIcon name="smart_toy" className="text-base" />
             </span>
@@ -870,7 +870,7 @@ export function LocalMateKnowledgeView() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="sticky top-0 z-10 border-b border-stone-200/90 bg-stone-50/95 text-[11px] font-bold text-stone-600 uppercase tracking-wider backdrop-blur-xs">
+                <tr className="sticky top-0 z-10 border-b border-stone-200/90 bg-stone-50/95 text-xs font-bold text-stone-600 uppercase tracking-wider backdrop-blur-xs">
                   <th className="px-5 py-3.5 min-w-[340px]">Chương trình Tour</th>
                   <th className="px-4 py-3.5 min-w-[280px]">Tỉnh thành & Phạm vi</th>
                   <th className="px-4 py-3.5 min-w-[130px]">Thời lượng</th>
@@ -908,7 +908,7 @@ export function LocalMateKnowledgeView() {
                         <div className="flex flex-col gap-1.5">
                           <div className="flex items-start gap-2">
                             {tour.tourCode && (
-                              <span className="font-mono text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded shadow-2xs shrink-0 mt-0.5">
+                              <span className="font-mono text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded shadow-2xs shrink-0 mt-0.5">
                                 {tour.tourCode}
                               </span>
                             )}
@@ -929,7 +929,7 @@ export function LocalMateKnowledgeView() {
                                 </span>
                               ))}
                               {hlList.length > 3 && (
-                                <span className="text-[11px] font-semibold text-stone-400">
+                                <span className="text-xs font-semibold text-stone-400">
                                   +{hlList.length - 3} điểm khác
                                 </span>
                               )}

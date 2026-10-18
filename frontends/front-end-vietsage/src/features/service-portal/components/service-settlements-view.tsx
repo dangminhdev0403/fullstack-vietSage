@@ -130,7 +130,7 @@ export function ServiceSettlementsView() {
           <div className="text-2xl font-extrabold text-[#17201b]">
             {(financial?.hotelCollectedAmount ?? 0).toLocaleString("vi-VN")} VND
           </div>
-          <p className="text-[11px] text-[#5a6760]">Tổng giá trị dịch vụ hoàn thành</p>
+          <p className="text-xs text-[#5a6760]">Tổng giá trị dịch vụ hoàn thành</p>
         </div>
 
         <div className="rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-5 shadow-xs space-y-1">
@@ -138,7 +138,7 @@ export function ServiceSettlementsView() {
           <div className="text-2xl font-extrabold text-[#8c6d29]">
             {(financial?.totalNetPayable ?? 0).toLocaleString("vi-VN")} VND
           </div>
-          <p className="text-[11px] text-[#5a6760]">Theo đúng giá trị đơn hàng</p>
+          <p className="text-xs text-[#5a6760]">Theo đúng giá trị đơn hàng</p>
         </div>
 
         <div className="rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-5 shadow-xs space-y-1">
@@ -146,7 +146,7 @@ export function ServiceSettlementsView() {
           <div className="text-2xl font-extrabold text-[#b2720d]">
             {(financial?.outstandingAmount ?? 0).toLocaleString("vi-VN")} VND
           </div>
-          <p className="text-[11px] text-[#5a6760]">KS chưa thanh toán cho đối tác</p>
+          <p className="text-xs text-[#5a6760]">KS chưa thanh toán cho đối tác</p>
         </div>
 
         <div className="rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-5 shadow-xs space-y-1">
@@ -154,7 +154,7 @@ export function ServiceSettlementsView() {
           <div className="text-2xl font-extrabold text-[#16562c]">
             {(financial?.settledAmount ?? 0).toLocaleString("vi-VN")} VND
           </div>
-          <p className="text-[11px] text-[#5a6760]">Đã thực nhận từ khách sạn</p>
+          <p className="text-xs text-[#5a6760]">Đã thực nhận từ khách sạn</p>
         </div>
       </section>
 

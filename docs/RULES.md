@@ -78,6 +78,16 @@ Before finalizing a task, verify:
 3. Error shape examples match current backend behavior.
 4. Status documents include real commands and real outcomes.
 5. No broken references to missing markdown files.
+6. Frontend changes satisfy the UI Design Gate: `node scripts/verify-ui-rules.cjs` (miễn trừ test suites/lint nặng cho các thay đổi CSS/UI/copy/components thuần túy).
+
+### Zero-Waste Validation Matrix
+
+| Phạm vi công việc (Scope) | Lệnh CẦN CHẠY duy nhất | Lệnh TUYỆT ĐỐI CẤM CHẠY (Thừa thãi) |
+| :--- | :--- | :--- |
+| **Chỉnh UI, CSS, Component, Copy** | `node scripts/verify-ui-rules.cjs`<br>(+ scoped `tsc --noEmit` nếu có import/type mới) | CẤM: `test`, `vitest`, `jest`, `playwright`, `eslint .`, `next lint`, `next build`, `graphify update`. |
+| **Sửa DTO / Backend Service logic** | Scoped unit test cho service đó (`jest path/to/service.spec.ts`) + scoped `tsc` | CẤM: test toàn repo, E2E browser tests, next build, frontend lint. |
+| **Sửa Database Schema / Migration** | `npx prisma validate` | CẤM: `db:reset`, seed production, frontend test suite. |
+| **Sửa Docs / Markdown / Quy tắc** | Đọc lại Git diff | CẤM: Mọi lệnh test, lint, build, tsc. |
 
 ## Non-Goals
 

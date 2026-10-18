@@ -320,7 +320,7 @@ function Metric({
   return (
     <div className={`rounded-2xl border p-4 shadow-xs backdrop-blur-sm ${toneClass}`}>
       <div className="flex items-center justify-between gap-1">
-        <div className="text-[11px] font-extrabold uppercase tracking-[0.14em] opacity-70">{label}</div>
+        <div className="text-xs font-extrabold uppercase tracking-[0.14em] opacity-70">{label}</div>
         {icon ? <VsIcon name={icon} className="text-base opacity-60" /> : null}
       </div>
       <div className={`mt-1.5 text-2xl font-black ${numClass}`}>{value}</div>
