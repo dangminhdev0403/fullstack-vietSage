@@ -198,47 +198,30 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [heroPhraseIndex, setHeroPhraseIndex] = useState(0);
-  const [typedHeroText, setTypedHeroText] = useState("");
   const [isHeroFading, setIsHeroFading] = useState(false);
 
   useEffect(() => {
-    const fullPhrase = heroTypingPhrases[heroPhraseIndex];
-    let typingTimer: number | undefined;
-    let transitionTimer: number | undefined;
+    let fadeTimer: number | undefined;
+    let switchTimer: number | undefined;
 
-    if (typedHeroText.length < fullPhrase.length) {
-      typingTimer = window.setTimeout(() => {
-        setTypedHeroText(fullPhrase.slice(0, typedHeroText.length + 1));
-      }, 96);
-
-      return () => {
-        if (typingTimer !== undefined) {
-          window.clearTimeout(typingTimer);
-        }
-      };
-    }
-
-    const pauseMs = 4000 + Math.floor(Math.random() * 2001);
-
-    typingTimer = window.setTimeout(() => {
+    fadeTimer = window.setTimeout(() => {
       setIsHeroFading(true);
 
-      transitionTimer = window.setTimeout(() => {
+      switchTimer = window.setTimeout(() => {
         setHeroPhraseIndex((index) => (index + 1) % heroTypingPhrases.length);
-        setTypedHeroText("");
         setIsHeroFading(false);
-      }, 420);
-    }, pauseMs);
+      }, 500);
+    }, 4500);
 
     return () => {
-      if (typingTimer !== undefined) {
-        window.clearTimeout(typingTimer);
+      if (fadeTimer !== undefined) {
+        window.clearTimeout(fadeTimer);
       }
-      if (transitionTimer !== undefined) {
-        window.clearTimeout(transitionTimer);
+      if (switchTimer !== undefined) {
+        window.clearTimeout(switchTimer);
       }
     };
-  }, [heroPhraseIndex, typedHeroText]);
+  }, [heroPhraseIndex]);
 
   const handleFieldChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, type, value, checked } = event.target;
@@ -313,17 +296,6 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-background text-on-background">
       <main className="flex min-h-screen">
         <section className="relative hidden overflow-hidden lg:block lg:min-h-screen lg:w-3/5">
-          {/* Back to home floating pill on hero */}
-          <div className="absolute left-8 top-8 z-20 hidden lg:block">
-            <Link
-              href="/"
-              className="group inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/40 px-4 py-2 text-xs font-semibold text-white/95 backdrop-blur-md transition-all duration-200 hover:border-white/40 hover:bg-black/60 hover:text-white active:scale-95 whitespace-nowrap shadow-sm"
-            >
-              <VsIcon name="arrow_back" className="text-base transition-transform duration-200 group-hover:-translate-x-0.5" />
-              <span>Về trang chủ</span>
-            </Link>
-          </div>
-
           <Image
             src={heroImage}
             alt="Luxury Vietnamese Resort View"
@@ -337,15 +309,16 @@ export default function RegisterPage() {
 
           <div className="absolute inset-0 flex items-center px-10 md:px-12 lg:px-14">
             <div className="max-w-[34rem] text-left text-white drop-shadow-[0_6px_30px_rgba(0,0,0,0.45)]">
-              <h2
-                className={`mb-4 min-h-[7.5rem] font-display-lg text-display-lg font-semibold leading-[1.18] text-[color:rgba(255,255,255,0.98)] transition-opacity duration-500 lg:min-h-[8.5rem] ${
-                  isHeroFading ? "opacity-0" : "opacity-100"
-                }`}
-              >
-                {typedHeroText}
-                <span className="ml-1 inline-block h-[0.9em] w-[3px] translate-y-[2px] animate-pulse bg-[color:rgba(254,214,91,0.95)] align-middle" />
-              </h2>
-              <p className="font-body-lg text-body-lg opacity-90">
+              <div className="mb-4 flex min-h-[7.5rem] items-center lg:min-h-[8.5rem]">
+                <h2
+                  className={`font-display-lg text-display-lg font-semibold leading-[1.18] text-[color:rgba(255,255,255,0.98)] text-balance transition-all duration-500 ease-in-out ${
+                    isHeroFading ? "opacity-0 -translate-y-2" : "opacity-100 translate-y-0"
+                  }`}
+                >
+                  {heroTypingPhrases[heroPhraseIndex]}
+                </h2>
+              </div>
+              <p className="font-body-lg text-body-lg opacity-90 text-pretty">
                 Tham gia cùng chúng tôi để tận hưởng những dịch vụ nghỉ dưỡng cao cấp, nơi truyền thống hòa quyện cùng sự
                 sang trọng hiện đại.
               </p>
@@ -353,18 +326,7 @@ export default function RegisterPage() {
           </div>
         </section>
 
-        <section className="relative flex w-full flex-col justify-center bg-surface px-margin-mobile py-12 lg:w-2/5 md:px-margin-desktop">
-          {/* Back to home button on auth panel */}
-          <div className="absolute right-6 top-8 z-20 sm:right-8 md:right-10 lg:right-12">
-            <Link
-              href="/"
-              className="group inline-flex items-center gap-2 rounded-full border border-outline-variant/60 bg-white/90 px-4 py-2 text-xs font-semibold text-on-surface-variant backdrop-blur-sm transition-all duration-200 hover:border-[#134e35]/30 hover:bg-white hover:text-[#134e35] shadow-xs active:scale-95 whitespace-nowrap"
-            >
-              <VsIcon name="arrow_back" className="text-base transition-transform duration-200 group-hover:-translate-x-0.5" />
-              <span>Về trang chủ</span>
-            </Link>
-          </div>
-
+        <section className="flex w-full flex-col justify-center bg-surface px-margin-mobile py-12 lg:w-2/5 md:px-margin-desktop">
           <div className="mx-auto w-full max-w-md">
             <div className="mb-12 text-center lg:hidden">
               <Link href="/" title="Về trang chủ" className="inline-flex items-center transition-opacity hover:opacity-85">
@@ -382,7 +344,15 @@ export default function RegisterPage() {
               <h2 className="mb-2 font-headline-lg-mobile text-headline-lg-mobile text-primary md:font-headline-lg md:text-headline-lg">
                 Đăng ký tài khoản
               </h2>
-              <p className="font-body-md text-body-md text-on-surface-variant">Bắt đầu hành trình khám phá di sản cùng VietSage.</p>
+              <Link
+                href="/"
+                className="group inline-flex items-center gap-1.5 text-sm font-medium text-on-surface-variant transition-colors hover:text-primary"
+              >
+                <VsIcon name="arrow_back" className="text-base transition-transform duration-200 group-hover:-translate-x-1" />
+                <span className="underline underline-offset-4 decoration-outline-variant transition-colors group-hover:decoration-primary">
+                  Quay về trang chủ
+                </span>
+              </Link>
             </div>
 
             <form className="space-y-6" onSubmit={handleRegisterSubmit} noValidate>
