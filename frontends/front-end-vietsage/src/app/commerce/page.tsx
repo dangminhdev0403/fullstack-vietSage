@@ -26,7 +26,7 @@ export default function Page() {
         eyebrow="Thương mại dịch vụ ẩm thực và tiện ích tại phòng"
         title="VietSage Commerce"
         text="Gia tăng doanh thu dịch vụ phòng, nâng cao trải nghiệm ẩm thực và tối ưu quy trình phục vụ cho thương hiệu khách sạn hiện đại."
-        image="/marketing/mountain-road.jpg"
+        image="/brand/register-hero.png"
       />
       <section className="px-5 py-16 lg:px-8">
         <div className="mx-auto max-w-7xl">

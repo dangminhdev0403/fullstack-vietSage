@@ -13,6 +13,8 @@ type HeaderCopy = {
   about: string;
   contact: string;
   solutions: string;
+  pricing: string;
+  integrations: string;
   hotelTitle: string;
   hotelDesc: string;
   commerceTitle: string;
@@ -27,6 +29,9 @@ type HeaderCopy = {
   mobileMenuAria: string;
   openMenuAria: string;
   closeMenuAria: string;
+  lifecycleHeading: string;
+  propertiesHeading: string;
+  allSolutionsLink: string;
 };
 
 const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
@@ -35,6 +40,8 @@ const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
     about: "Về chúng tôi",
     contact: "Liên hệ",
     solutions: "Giải pháp",
+    pricing: "Bảng giá",
+    integrations: "Tích hợp",
     hotelTitle: "VietSage Hotel",
     hotelDesc: "Trải nghiệm khách lưu trú, tự động hóa vận hành và minh bạch báo cáo.",
     commerceTitle: "VietSage Commerce",
@@ -49,12 +56,17 @@ const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
     mobileMenuAria: "Menu điều hướng",
     openMenuAria: "Mở menu điều hướng",
     closeMenuAria: "Đóng menu điều hướng",
+    lifecycleHeading: "Theo chu trình vận hành",
+    propertiesHeading: "Mô hình khách sạn",
+    allSolutionsLink: "Xem toàn bộ giải pháp →",
   },
   en: {
     home: "Home",
     about: "About Us",
     contact: "Contact",
     solutions: "Solutions",
+    pricing: "Pricing",
+    integrations: "Integrations",
     hotelTitle: "VietSage Hotel",
     hotelDesc: "Guest stay experience, operational automation, and clear reporting.",
     commerceTitle: "VietSage Commerce",
@@ -69,12 +81,17 @@ const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
     mobileMenuAria: "Navigation menu",
     openMenuAria: "Open navigation menu",
     closeMenuAria: "Close navigation menu",
+    lifecycleHeading: "Operational Lifecycle",
+    propertiesHeading: "Property Types",
+    allSolutionsLink: "View all solutions →",
   },
   zh: {
     home: "首页",
     about: "关于我们",
     contact: "联系我们",
     solutions: "解决方案",
+    pricing: "价格方案",
+    integrations: "生态集成",
     hotelTitle: "VietSage Hotel",
     hotelDesc: "住客全流程体验、服务运营自动化与透明数据报表。",
     commerceTitle: "VietSage Commerce",
@@ -89,12 +106,17 @@ const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
     mobileMenuAria: "导航菜单",
     openMenuAria: "打开导航菜单",
     closeMenuAria: "关闭导航菜单",
+    lifecycleHeading: "运营全流程",
+    propertiesHeading: "适用业态",
+    allSolutionsLink: "查看全部方案 →",
   },
   ko: {
     home: "홈",
     about: "회사 소개",
     contact: "문의하기",
     solutions: "솔루션",
+    pricing: "요금 안내",
+    integrations: "시스템 연동",
     hotelTitle: "VietSage Hotel",
     hotelDesc: "투숙객 경험, 운영 자동화 및 투명한 데이터 리포트.",
     commerceTitle: "VietSage Commerce",
@@ -109,12 +131,17 @@ const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
     mobileMenuAria: "내비게이션 메뉴",
     openMenuAria: "내비게이션 메뉴 열기",
     closeMenuAria: "내비게이션 메뉴 닫기",
+    lifecycleHeading: "운영 라이프사이클",
+    propertiesHeading: "숙박 시설 유형",
+    allSolutionsLink: "모든 솔루션 보기 →",
   },
   ru: {
     home: "Главная",
     about: "О нас",
     contact: "Контакты",
     solutions: "Решения",
+    pricing: "Тарифы",
+    integrations: "Интеграции",
     hotelTitle: "VietSage Hotel",
     hotelDesc: "Гостевой опыт, автоматизация процессов и прозрачная отчетность.",
     commerceTitle: "VietSage Commerce",
@@ -129,12 +156,17 @@ const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
     mobileMenuAria: "Меню навигации",
     openMenuAria: "Открыть меню",
     closeMenuAria: "Закрыть меню",
+    lifecycleHeading: "Жизненный цикл",
+    propertiesHeading: "Типы объектов",
+    allSolutionsLink: "Все решения →",
   },
   hi: {
     home: "होम",
     about: "हमारे बारे में",
     contact: "संपर्क करें",
     solutions: "समाधान",
+    pricing: "मूल्य निर्धारण",
+    integrations: "एकीकरण",
     hotelTitle: "VietSage Hotel",
     hotelDesc: "अतिथि अनुभव, परिचालन स्वचालन और पारदर्शी रिपोर्टिंग।",
     commerceTitle: "VietSage Commerce",
@@ -149,6 +181,9 @@ const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
     mobileMenuAria: "नेविगेशन मेनू",
     openMenuAria: "नेविगेशन मेनू खोलें",
     closeMenuAria: "नेविगेशन मेनू बंद करें",
+    lifecycleHeading: "परिचालन चक्र",
+    propertiesHeading: "होटल के प्रकार",
+    allSolutionsLink: "सभी समाधान देखें →",
   },
 };
 
@@ -169,33 +204,12 @@ export function MarketingHeader({
   const t = HEADER_COPY[activeLocale] ?? HEADER_COPY.vi;
   const currentOption = LOCALE_OPTIONS.find((o) => o.code === activeLocale) ?? LOCALE_OPTIONS[0];
 
-  const primaryLinks = [
-    { label: t.home, href: "/" },
-    { label: t.about, href: "/about" },
-    { label: t.contact, href: "/contact" },
-  ];
-
-  const solutionLinks = [
-    {
-      title: t.hotelTitle,
-      href: "/",
-      text: t.hotelDesc,
-    },
-    {
-      title: t.commerceTitle,
-      href: "/commerce",
-      text: t.commerceDesc,
-    },
-  ];
-
   const pathname = usePathname();
   const headerRef = useRef<HTMLElement>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
   const firstMobileLinkRef = useRef<HTMLAnchorElement>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [mobileSolutionsOpen, setMobileSolutionsOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
-  const solutionsActive = ["/commerce"].some((href) => pathname.startsWith(href));
 
   const accountLabel =
     accountAction.href === "/dangnhap"
@@ -268,37 +282,11 @@ export function MarketingHeader({
 
         <div className="hidden shrink-0 items-center gap-1 xl:flex">
           <DesktopNavLink pathname={pathname} href="/" label={t.home} />
-          <div className="group relative">
-            <button
-              className="vs-mkt-nav inline-flex shrink-0 items-center whitespace-nowrap font-semibold text-sm"
-              data-active={solutionsActive ? "true" : undefined}
-              type="button"
-              aria-haspopup="true"
-            >
-              {t.solutions}
-              <span className="ml-1 text-xs" aria-hidden="true">&#9662;</span>
-            </button>
-            <div className="vs-solutions-menu invisible absolute left-1/2 -translate-x-1/2 top-full w-[520px] pt-4 opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 transition-all duration-150">
-              <div className="grid grid-cols-2 gap-3 rounded-[1.8rem] border border-[#123d2a]/10 bg-[#fffdf7]/95 p-4 shadow-2xl shadow-[#123d2a]/15 backdrop-blur-xl">
-                {solutionLinks.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="vs-solution-link rounded-2xl p-4 hover:bg-[#f4ead0] transition-colors"
-                    aria-current={isActivePath(pathname, item.href) ? "page" : undefined}
-                  >
-                    <strong className="block text-sm font-bold text-[#123d2a]">{item.title}</strong>
-                    <span className="mt-1.5 block text-xs leading-5 text-[#627064]">
-                      {item.text}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </div>
-          {primaryLinks.slice(1).map((link) => (
-            <DesktopNavLink key={link.href} pathname={pathname} {...link} />
-          ))}
+          <DesktopNavLink pathname={pathname} href="/giai-phap" label={t.solutions} />
+          <DesktopNavLink pathname={pathname} href="/gia" label={t.pricing} />
+          <DesktopNavLink pathname={pathname} href="/tich-hop" label={t.integrations} />
+          <DesktopNavLink pathname={pathname} href="/about" label={t.about} />
+          <DesktopNavLink pathname={pathname} href="/contact" label={t.contact} />
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
@@ -439,45 +427,60 @@ export function MarketingHeader({
               {t.home}
             </Link>
 
-            <button
-              className="vs-mobile-nav-link flex w-full items-center justify-between text-sm font-semibold"
-              type="button"
-              data-active={solutionsActive ? "true" : undefined}
-              aria-expanded={mobileSolutionsOpen}
+            <Link
+              href="/giai-phap"
+              className="vs-mobile-nav-link text-sm font-semibold"
+              data-active={isActivePath(pathname, "/giai-phap") ? "true" : undefined}
+              aria-current={isActivePath(pathname, "/giai-phap") ? "page" : undefined}
               tabIndex={mobileOpen ? 0 : -1}
-              onClick={() => setMobileSolutionsOpen((open) => !open)}
+              onClick={() => setMobileOpen(false)}
             >
               {t.solutions}
-              <span aria-hidden="true">{mobileSolutionsOpen ? "-" : "+"}</span>
-            </button>
-            {mobileSolutionsOpen && (
-              <div className="grid gap-2 px-2 pb-2 sm:grid-cols-2">
-                {solutionLinks.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="rounded-2xl bg-[#f4ead0]/70 p-3 text-sm font-bold text-[#123d2a]"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    {item.title}
-                  </Link>
-                ))}
-              </div>
-            )}
+            </Link>
 
-            {primaryLinks.slice(1).map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="vs-mobile-nav-link text-sm font-semibold"
-                data-active={isActivePath(pathname, link.href) ? "true" : undefined}
-                aria-current={isActivePath(pathname, link.href) ? "page" : undefined}
-                tabIndex={mobileOpen ? 0 : -1}
-                onClick={() => setMobileOpen(false)}
-              >
-                {link.label}
-              </Link>
-            ))}
+            <Link
+              href="/gia"
+              className="vs-mobile-nav-link text-sm font-semibold"
+              data-active={isActivePath(pathname, "/gia") ? "true" : undefined}
+              aria-current={isActivePath(pathname, "/gia") ? "page" : undefined}
+              tabIndex={mobileOpen ? 0 : -1}
+              onClick={() => setMobileOpen(false)}
+            >
+              {t.pricing}
+            </Link>
+
+            <Link
+              href="/tich-hop"
+              className="vs-mobile-nav-link text-sm font-semibold"
+              data-active={isActivePath(pathname, "/tich-hop") ? "true" : undefined}
+              aria-current={isActivePath(pathname, "/tich-hop") ? "page" : undefined}
+              tabIndex={mobileOpen ? 0 : -1}
+              onClick={() => setMobileOpen(false)}
+            >
+              {t.integrations}
+            </Link>
+
+            <Link
+              href="/about"
+              className="vs-mobile-nav-link text-sm font-semibold"
+              data-active={isActivePath(pathname, "/about") ? "true" : undefined}
+              aria-current={isActivePath(pathname, "/about") ? "page" : undefined}
+              tabIndex={mobileOpen ? 0 : -1}
+              onClick={() => setMobileOpen(false)}
+            >
+              {t.about}
+            </Link>
+
+            <Link
+              href="/contact"
+              className="vs-mobile-nav-link text-sm font-semibold"
+              data-active={isActivePath(pathname, "/contact") ? "true" : undefined}
+              aria-current={isActivePath(pathname, "/contact") ? "page" : undefined}
+              tabIndex={mobileOpen ? 0 : -1}
+              onClick={() => setMobileOpen(false)}
+            >
+              {t.contact}
+            </Link>
 
             <div className="mt-2 grid grid-cols-2 gap-2 border-t border-[#123d2a]/10 pt-3 sm:hidden">
               <Link className="vs-mkt-sign-in justify-center text-sm font-semibold" href={accountAction.href} tabIndex={mobileOpen ? 0 : -1} onClick={() => setMobileOpen(false)}>

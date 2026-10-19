@@ -26,7 +26,7 @@ export default function Page() {
         eyebrow="Tổ chức tiên phong hạ tầng công nghệ dịch vụ số"
         title="Về VietSage"
         text="Chúng tôi đồng hành cùng các khách sạn biến quy trình vận hành phức tạp thành hành trình trải nghiệm dịch vụ liền mạch, êm ái và chuẩn xác."
-        image="/marketing/team-road.jpg"
+        image="/brand/register-hero.png"
       />
       <section className="px-5 py-16 lg:px-8">
         <div className="mx-auto max-w-7xl">

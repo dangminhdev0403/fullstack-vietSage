@@ -23,7 +23,7 @@ export default function Page() {
         eyebrow="Đăng ký trải nghiệm giải pháp VietSage"
         title="Liên hệ VietSage"
         text="Hãy chia sẻ về khách sạn của bạn, đội ngũ chuyên gia của chúng tôi sẽ đồng hành thiết kế lộ trình số hóa vận hành chuẩn xác nhất."
-        image="/marketing/bay.jpg"
+        image="/brand/register-hero.png"
       />
       <section className="px-5 py-16 lg:px-8">
         <div className="mx-auto max-w-7xl">

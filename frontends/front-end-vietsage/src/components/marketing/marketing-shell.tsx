@@ -123,7 +123,9 @@ const SHELL_COPY: Record<SupportedLocale, ShellCopy> = {
       {
         heading: "Giải pháp",
         links: [
-          { label: "VietSage Hotel", href: "/" },
+          { label: "Tổng quan giải pháp", href: "/giai-phap" },
+          { label: "Bảng giá dịch vụ", href: "/gia" },
+          { label: "Hệ sinh thái tích hợp", href: "/tich-hop" },
           { label: "VietSage Commerce", href: "/commerce" },
         ],
       },
@@ -199,7 +201,9 @@ const SHELL_COPY: Record<SupportedLocale, ShellCopy> = {
       {
         heading: "Solutions",
         links: [
-          { label: "VietSage Hotel", href: "/" },
+          { label: "Solutions Overview", href: "/giai-phap" },
+          { label: "Pricing & Plans", href: "/gia" },
+          { label: "Integrations", href: "/tich-hop" },
           { label: "VietSage Commerce", href: "/commerce" },
         ],
       },
@@ -581,12 +585,24 @@ export function MarketingShell({
   );
 }
 
-export function SectionHeader({ eyebrow, title, text, reveal = "fade" }: { eyebrow: string; title: string; text: string; reveal?: "fade" | "from-left" | "from-right" }) {
+export function SectionHeader({
+  eyebrow,
+  title,
+  text,
+  reveal = "fade",
+  className = "",
+}: {
+  eyebrow: ReactNode;
+  title: ReactNode;
+  text: ReactNode;
+  reveal?: "fade" | "from-left" | "from-right";
+  className?: string;
+}) {
   return (
-    <div className="vs-section-header mx-auto max-w-3xl text-center" data-reveal={reveal}>
-      <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#b8872f]">{eyebrow}</p>
-      <h2 className="vs-display mt-3 text-3xl font-bold leading-tight tracking-[-0.025em] text-[#123d2a] md:text-5xl md:leading-tight [text-wrap:balance]">{title}</h2>
-      <p className="mt-4 text-base sm:text-lg leading-7 sm:leading-8 text-[#5c5549]">{text}</p>
+    <div className={`vs-section-header mx-auto max-w-4xl text-center px-4 ${className}`} data-reveal={reveal}>
+      <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#b8872f] whitespace-nowrap">{eyebrow}</p>
+      <h2 className="vs-display mt-3 text-2xl font-bold leading-tight tracking-[-0.025em] text-[#123d2a] sm:text-3xl md:text-4xl lg:text-5xl [text-wrap:balance]">{title}</h2>
+      <p className="mt-4 text-sm sm:text-base md:text-lg leading-relaxed text-[#5c5549] [text-wrap:pretty] max-w-2xl mx-auto">{text}</p>
     </div>
   );
 }
@@ -599,9 +615,9 @@ export function Hero({
   image,
   locale = "vi",
 }: {
-  eyebrow: string;
-  title: string;
-  text: string;
+  eyebrow: ReactNode;
+  title: ReactNode;
+  text: ReactNode;
   image?: string;
   children?: ReactNode;
   locale?: MarketingLocale;
