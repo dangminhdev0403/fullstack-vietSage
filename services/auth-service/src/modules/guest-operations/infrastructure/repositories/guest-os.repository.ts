@@ -72,6 +72,7 @@ export const guestRequestGuestInclude = {
       id: true,
       name: true,
       priceOverride: true,
+      translations: true,
       category: {
         select: {
           defaultPrice: true,

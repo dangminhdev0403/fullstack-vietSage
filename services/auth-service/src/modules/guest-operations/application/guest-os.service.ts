@@ -38,19 +38,23 @@ import {
   type GuestRequestGuestRow,
   type GuestSessionContextRow,
 } from "../infrastructure/repositories/guest-os.repository";
-import type {
-  CreateGuestRequestBodyInput,
-  GuestPortalRequestPriority,
-  GuestPortalRequestStatus,
-  GuestPortalRequestStatusFilter,
-  ListGuestCategoryServicesQueryInput,
-  ListGuestRequestsQueryInput,
-  ScanQrBodyInput,
+import {
+  guestLocaleValues,
+  type CreateGuestRequestBodyInput,
+  type GuestLocale,
+  type GuestPortalRequestPriority,
+  type GuestPortalRequestStatus,
+  type GuestPortalRequestStatusFilter,
+  type ListGuestCategoryServicesQueryInput,
+  type ListGuestRequestsQueryInput,
+  type ScanQrBodyInput,
 } from "../domain/schemas/guest-os.schema";
 import {
   compatibleGuestRequestStatuses,
   normalizeGuestRequestStatus,
 } from "../domain/guest-request-status";
+
+export const GUEST_SUPPORTED_LOCALES = guestLocaleValues;
 
 export const ROOM_ACCESS_UNAVAILABLE_MESSAGE =
   "Guest portal access is currently unavailable. Please contact the front desk.";
@@ -88,6 +92,7 @@ export interface GuestRequestListItemResponse {
   currency: string;
   unitPrice: Prisma.Decimal;
   estimatedTotalAmount: Prisma.Decimal;
+  locale?: string;
   service?: {
     id: string;
     name: string;
@@ -168,10 +173,16 @@ export class GuestOsService {
       this.denyAccess("ACCESS_CLOSED", qr.room.roomNumber);
     }
 
+    const guestLocale = dto.locale ?? this.normalizeGuestLocale(this.i18n.resolveLocale(request));
+
     const currentSession = await this.resolveCurrentSessionForScan(dto.currentSessionToken);
     if (currentSession) {
       if (currentSession.stayId === stay.id && currentSession.roomId === qr.roomId) {
-        return this.toScanQrResponse(currentSession, dto.currentSessionToken?.trim() ?? "");
+        return this.toScanQrResponse(
+          currentSession,
+          dto.currentSessionToken?.trim() ?? "",
+          guestLocale,
+        );
       }
 
       if (!dto.forceSwitch) {
@@ -227,7 +238,7 @@ export class GuestOsService {
         sessionId: session.id,
         qrCodeId: qr.id,
       });
-      return this.toScanQrResponse(session, sessionToken);
+      return this.toScanQrResponse(session, sessionToken, guestLocale);
     } catch (error) {
       if (error instanceof Error && error.message === SESSION_LIMIT_REACHED_CODE) {
         throw new ForbiddenException({
@@ -259,10 +270,25 @@ export class GuestOsService {
     }
   }
 
-  private toScanQrResponse(session: GuestSessionContextRow, sessionToken: string) {
+  private normalizeGuestLocale(locale?: string | null): GuestLocale {
+    if (!locale) return "vi";
+    const normalized = locale.toLowerCase().split("-")[0];
+    if ((GUEST_SUPPORTED_LOCALES as readonly string[]).includes(normalized)) {
+      return normalized as GuestLocale;
+    }
+    return "vi";
+  }
+
+  private toScanQrResponse(
+    session: GuestSessionContextRow,
+    sessionToken: string,
+    locale: GuestLocale = "vi",
+  ) {
     return {
       sessionToken,
       expiresAt: session.expiresAt,
+      locale,
+      supportedLocales: [...GUEST_SUPPORTED_LOCALES],
       hotel: {
         name: session.hotel.name,
         timezone: session.hotel.timezone,
@@ -441,7 +467,7 @@ export class GuestOsService {
     });
 
     const locale = this.i18n.resolveLocale(httpRequest);
-    const guestRequest = this.toGuestRequestData(request, locale);
+    const guestRequest = this.toGuestRequestData(request, locale, serviceItem);
     this.logger.info("Guest request created from guest portal", {
       module: "guest_os",
       service: "GuestOsService",
@@ -457,6 +483,9 @@ export class GuestOsService {
       priority: request.priority,
       quantity: request.quantity,
     });
+    const guestRequestListItem = this.toGuestRequestListItem(request, locale, serviceItem);
+    const guestLocale = this.normalizeGuestLocale(locale);
+
     this.guestRequestEventPublisher.publishGuestRequestCreated({
       hotelId: current.hotelId,
       sessionId: current.id,
@@ -464,7 +493,7 @@ export class GuestOsService {
       roomId: current.roomId,
       ownerRequest: {
         id: request.id,
-        displayName: request.serviceItem?.name ?? request.title ?? "Request",
+        displayName: request.serviceItem?.name ?? serviceItem.name ?? request.title ?? "Request",
         status: normalizeGuestRequestStatus(request.status),
         priority: guestRequest.priority,
         quantity: request.quantity,
@@ -477,7 +506,11 @@ export class GuestOsService {
         assignedToName: null,
         actions: ["ACCEPT", "CANCEL"],
       },
-      guestRequest: this.toGuestRequestListItem(request, locale),
+      guestRequest: {
+        ...guestRequestListItem,
+        locale: guestLocale,
+        displayName: guestRequestListItem.displayName,
+      },
     });
 
     void this.telegramNotificationService
@@ -590,6 +623,9 @@ export class GuestOsService {
       requestId: trimmedRequestId,
     });
 
+    const guestRequestItem = this.toGuestRequestListItem(cancelled, locale);
+    const guestLocale = this.normalizeGuestLocale(locale);
+
     this.guestRequestEventPublisher.publishGuestRequestUpdated({
       hotelId: current.hotelId,
       sessionId: current.id,
@@ -610,7 +646,11 @@ export class GuestOsService {
         assignedToName: null,
         actions: [],
       },
-      guestRequest: this.toGuestRequestListItem(cancelled, locale),
+      guestRequest: {
+        ...guestRequestItem,
+        locale: guestLocale,
+        displayName: guestRequestItem.displayName,
+      },
     });
 
     return this.toGuestRequestData(cancelled, locale);
@@ -708,6 +748,7 @@ export class GuestOsService {
       idleAt: row.idleAt,
       expiresAt: row.expiresAt,
       closedAt: row.closedAt,
+      supportedLocales: [...GUEST_SUPPORTED_LOCALES],
       hotel: {
         id: row.hotel.id,
         tenantId: row.hotel.tenantId,
@@ -735,9 +776,21 @@ export class GuestOsService {
   private toGuestRequestData(
     row: GuestRequestGuestRow,
     locale: SupportedLocale = "vi-VN",
+    serviceItemOverride?: {
+      name: string;
+      description?: string | null;
+      translations?: Array<{ locale: string; name: string; description?: string | null }>;
+    } | null,
   ): GuestRequestResponse {
-    const serviceName = row.serviceItem
-      ? this.resolveCatalogText(row.serviceItem, locale).name
+    const itemToResolve =
+      row.serviceItem &&
+      "translations" in row.serviceItem &&
+      Array.isArray(row.serviceItem.translations) &&
+      row.serviceItem.translations.length > 0
+        ? row.serviceItem
+        : (serviceItemOverride ?? row.serviceItem);
+    const serviceName = itemToResolve
+      ? this.resolveCatalogText(itemToResolve, locale).name
       : (row.title ?? null);
     return {
       id: row.id,
@@ -757,11 +810,23 @@ export class GuestOsService {
   private toGuestRequestListItem(
     row: GuestRequestGuestRow,
     locale: SupportedLocale = "vi-VN",
+    serviceItemOverride?: {
+      name: string;
+      description?: string | null;
+      translations?: Array<{ locale: string; name: string; description?: string | null }>;
+    } | null,
   ): GuestRequestListItemResponse {
     const price = this.resolveGuestRequestUnitPrice(row);
     const currency = row.serviceItem?.category.currency ?? "VND";
-    const serviceName = row.serviceItem
-      ? this.resolveCatalogText(row.serviceItem, locale).name
+    const itemToResolve =
+      row.serviceItem &&
+      "translations" in row.serviceItem &&
+      Array.isArray(row.serviceItem.translations) &&
+      row.serviceItem.translations.length > 0
+        ? row.serviceItem
+        : (serviceItemOverride ?? row.serviceItem);
+    const serviceName = itemToResolve
+      ? this.resolveCatalogText(itemToResolve, locale).name
       : (row.title ?? "Request");
 
     return {

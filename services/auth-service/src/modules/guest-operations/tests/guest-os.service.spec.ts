@@ -1614,4 +1614,258 @@ describe("GuestOsService", () => {
       expect(result.session.hotel).not.toHaveProperty("featureEntitlements");
     });
   });
+
+  describe("GuestOS Multilingual & Realtime Alignment", () => {
+    it("validates locale field in scanQrBodySchema and rejects unsupported locales", () => {
+      expect(scanQrBodySchema.safeParse({ qrCode: "valid-qr", locale: "en" }).success).toBe(true);
+      expect(scanQrBodySchema.safeParse({ qrCode: "valid-qr", locale: "zh" }).success).toBe(true);
+      expect(scanQrBodySchema.safeParse({ qrCode: "valid-qr", locale: "ko" }).success).toBe(true);
+      expect(scanQrBodySchema.safeParse({ qrCode: "valid-qr", locale: "ru" }).success).toBe(true);
+      expect(scanQrBodySchema.safeParse({ qrCode: "valid-qr", locale: "hi" }).success).toBe(true);
+      expect(scanQrBodySchema.safeParse({ qrCode: "valid-qr", locale: "vi" }).success).toBe(true);
+      expect(scanQrBodySchema.safeParse({ qrCode: "valid-qr", locale: "fr" }).success).toBe(false);
+    });
+
+    it("returns locale and supportedLocales in scanQr response", async () => {
+      const expiresAt = new Date(Date.now() + 86_400_000);
+      const repository = {
+        findQrForScan: jest.fn().mockResolvedValue({
+          id: "qr-1",
+          hotelId: "hotel-1",
+          roomId: "room-1",
+          status: "ACTIVE",
+          hotel: { tenantId: "tenant-1" },
+          room: { roomNumber: "101", floor: "1", type: "DELUXE", status: "OCCUPIED" },
+        }),
+        recordQrScan: jest.fn().mockResolvedValue({}),
+        findActiveStayForRoom: jest.fn().mockResolvedValue({
+          id: "stay-1",
+          status: "ACTIVE",
+          checkedOutAt: null,
+        }),
+        isAccessOpen: jest.fn().mockReturnValue(true),
+        createGuestSession: jest.fn().mockResolvedValue({
+          id: "session-1",
+          hotelId: "hotel-1",
+          roomId: "room-1",
+          stayId: "stay-1",
+          expiresAt,
+          hotel: {
+            name: "Hotel International",
+            timezone: "Asia/Ho_Chi_Minh",
+            brandSettings: null,
+            featureEntitlements: [],
+          },
+          room: { roomNumber: "101", floor: "1", type: "DELUXE" },
+          stay: { guestDisplayName: "John Doe", plannedCheckOutAt: expiresAt, occupants: [] },
+        }),
+      };
+      const service = new GuestOsService(repository as never);
+
+      // 1. With explicit dto.locale
+      const resExplicit = await service.scanQr(
+        { qrCode: "qr-1", locale: "zh" },
+        { headers: {}, ip: "127.0.0.1" } as never,
+      );
+      expect(resExplicit.locale).toBe("zh");
+      expect(resExplicit.supportedLocales).toEqual(["vi", "en", "zh", "ko", "ru", "hi"]);
+
+      // 2. Fallback to Accept-Language
+      const resHeader = await service.scanQr(
+        { qrCode: "qr-1" },
+        { headers: { "accept-language": "en-US" }, ip: "127.0.0.1" } as never,
+      );
+      expect(resHeader.locale).toBe("en");
+      expect(resHeader.supportedLocales).toEqual(["vi", "en", "zh", "ko", "ru", "hi"]);
+
+      // 3. Fallback to default "vi"
+      const resDefault = await service.scanQr(
+        { qrCode: "qr-1" },
+        { headers: {}, ip: "127.0.0.1" } as never,
+      );
+      expect(resDefault.locale).toBe("vi");
+      expect(resDefault.supportedLocales).toEqual(["vi", "en", "zh", "ko", "ru", "hi"]);
+    });
+
+    it("returns supportedLocales in getCurrentSession", async () => {
+      const repository = {
+        updateSessionHeartbeat: jest.fn().mockResolvedValue({
+          id: "session-1",
+          hotelId: "hotel-1",
+          roomId: "room-1",
+          stayId: "stay-1",
+          status: GuestSessionStatus.ACTIVE,
+          createdAt: new Date(),
+          activatedAt: new Date(),
+          lastSeenAt: new Date(),
+          idleAt: null,
+          expiresAt: new Date(Date.now() + 60_000),
+          closedAt: null,
+          hotel: {
+            id: "hotel-1",
+            tenantId: "tenant-1",
+            name: "Hotel",
+            code: "htl",
+            timezone: "Asia/Ho_Chi_Minh",
+            brandSettings: null,
+            featureEntitlements: [],
+          },
+          room: { roomNumber: "101", floor: "1", type: "DELUXE" },
+          stay: { guestDisplayName: "Guest", plannedCheckOutAt: new Date() },
+        }),
+      };
+      const service = new GuestOsService(repository as never);
+      const result = await service.getCurrentSession({
+        sessionId: "session-1",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        stayId: "stay-1",
+        status: GuestSessionStatus.ACTIVE,
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+
+      expect(result.session.supportedLocales).toEqual(["vi", "en", "zh", "ko", "ru", "hi"]);
+    });
+
+    it("resolves request displayName by locale and includes locale in published realtime event", async () => {
+      const createdAt = new Date("2026-06-21T09:47:17.042Z");
+      const serviceItemWithTranslations = {
+        id: "item-towel",
+        name: "Khăn tắm thêm",
+        translations: [
+          { locale: "en", name: "Extra towels", description: "Fresh bath towels" },
+          { locale: "zh", name: "加毛巾", description: "干净浴巾" },
+        ],
+        quantityEnabled: false,
+        minQuantity: 1,
+        maxQuantity: null,
+        category: { defaultPrice: new Prisma.Decimal(0), currency: "VND" },
+      };
+
+      const repository = {
+        findSessionById: jest.fn().mockResolvedValue({
+          id: "session-1",
+          hotelId: "hotel-1",
+          roomId: "room-1",
+          stayId: "stay-1",
+          status: GuestSessionStatus.ACTIVE,
+          expiresAt: new Date(Date.now() + 60_000),
+          lastSeenAt: new Date(),
+          createdAt: new Date(),
+          stay: { status: "ACTIVE", guestDisplayName: "Foreign Guest" },
+          room: { status: "OCCUPIED", roomNumber: "302" },
+          hotel: { tenantId: "tenant-1" },
+        }),
+        updateSessionHeartbeat: jest.fn().mockImplementation((sessionId, status) => ({
+          id: sessionId,
+          hotelId: "hotel-1",
+          roomId: "room-1",
+          stayId: "stay-1",
+          status,
+          expiresAt: new Date(Date.now() + 60_000),
+          hotel: { tenantId: "tenant-1" },
+          room: { status: "OCCUPIED", roomNumber: "302" },
+          stay: { status: "ACTIVE", guestDisplayName: "Foreign Guest" },
+        })),
+        findActiveServiceItemInHotel: jest.fn().mockResolvedValue(serviceItemWithTranslations),
+        createRequest: jest.fn().mockResolvedValue({
+          id: "request-towel-1",
+          hotelId: "hotel-1",
+          roomId: "room-1",
+          stayId: "stay-1",
+          sessionId: "session-1",
+          serviceItemId: "item-towel",
+          priority: "NORMAL",
+          description: null,
+          quantity: 1,
+          status: GuestRequestStatus.PENDING,
+          createdAt,
+          updatedAt: createdAt,
+          serviceItem: serviceItemWithTranslations,
+          events: [],
+        }),
+        findRequestForGuest: jest.fn().mockResolvedValue({
+          id: "request-towel-1",
+          stayId: "stay-1",
+          status: GuestRequestStatus.PENDING,
+          serviceItem: serviceItemWithTranslations,
+        }),
+        cancelCreatedRequest: jest.fn().mockResolvedValue({
+          id: "request-towel-1",
+          hotelId: "hotel-1",
+          roomId: "room-1",
+          stayId: "stay-1",
+          sessionId: "session-1",
+          serviceItemId: "item-towel",
+          priority: "NORMAL",
+          description: null,
+          quantity: 1,
+          status: GuestRequestStatus.CANCELLED,
+          createdAt,
+          updatedAt: createdAt,
+          serviceItem: serviceItemWithTranslations,
+          events: [],
+        }),
+      };
+
+      const eventPublisher = {
+        publishGuestRequestCreated: jest.fn(),
+        publishGuestRequestUpdated: jest.fn(),
+        publishGuestMessageCreated: jest.fn(),
+        publishConversationClosed: jest.fn(),
+      };
+      const service = new GuestOsService(repository as never, undefined, undefined, eventPublisher);
+
+      // 1. Create request with English locale header
+      const createResponse = await service.createRequest(
+        {
+          sessionId: "session-1",
+          hotelId: "hotel-1",
+          roomId: "room-1",
+          stayId: "stay-1",
+          status: GuestSessionStatus.ACTIVE,
+          expiresAt: new Date(Date.now() + 60_000),
+        },
+        { serviceItemId: "item-towel" },
+        { headers: { "accept-language": "en" } } as never,
+      );
+
+      // Response service name is localized
+      expect(createResponse.service.name).toBe("Extra towels");
+
+      // Published guestRequest carries localized displayName and locale
+      expect(eventPublisher.publishGuestRequestCreated).toHaveBeenCalledWith(
+        expect.objectContaining({
+          guestRequest: expect.objectContaining({
+            displayName: "Extra towels",
+            locale: "en",
+          }),
+        }),
+      );
+
+      // 2. Cancel request with English locale header
+      await service.cancelRequest(
+        {
+          sessionId: "session-1",
+          hotelId: "hotel-1",
+          roomId: "room-1",
+          stayId: "stay-1",
+          status: GuestSessionStatus.ACTIVE,
+          expiresAt: new Date(Date.now() + 60_000),
+        },
+        "request-towel-1",
+        { headers: { "accept-language": "en" } } as never,
+      );
+
+      // publishGuestRequestUpdated has localized displayName and locale
+      expect(eventPublisher.publishGuestRequestUpdated).toHaveBeenCalledWith(
+        expect.objectContaining({
+          guestRequest: expect.objectContaining({
+            displayName: "Extra towels",
+            locale: "en",
+          }),
+        }),
+      );
+    });
+  });
 });

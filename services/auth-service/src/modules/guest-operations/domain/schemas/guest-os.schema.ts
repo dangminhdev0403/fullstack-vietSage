@@ -13,12 +13,16 @@ export const guestRequestStatusFilterSchema = z.enum(guestRequestStatusFilterVal
 export const guestRequestPriorityValues = ["NORMAL", "URGENT"] as const;
 export const guestRequestPrioritySchema = z.enum(guestRequestPriorityValues);
 
+export const guestLocaleValues = ["vi", "en", "zh", "ko", "ru", "hi"] as const;
+export const guestLocaleSchema = z.enum(guestLocaleValues);
+
 export const scanQrBodySchema = z
   .object({
     qrCode: z.string().trim().min(1).max(120),
     deviceFingerprint: z.string().trim().max(255).optional(),
     currentSessionToken: z.string().trim().min(1).max(255).optional(),
     forceSwitch: z.boolean().optional(),
+    locale: z.enum(["vi", "en", "zh", "ko", "ru", "hi"]).optional(),
   })
   .strict();
 
@@ -48,6 +52,11 @@ export const scanQrBodyOpenApiSchema = {
       type: "boolean",
       description:
         "When true, closes the current session and switches this device to the scanned room.",
+    },
+    locale: {
+      type: "string",
+      enum: ["vi", "en", "zh", "ko", "ru", "hi"],
+      description: "Optional preferred language code for the guest session.",
     },
   },
 };
@@ -104,6 +113,7 @@ export const listGuestCategoryServicesQuerySchema = z
   })
   .strict();
 
+export type GuestLocale = z.infer<typeof guestLocaleSchema>;
 export type ScanQrBodyInput = z.infer<typeof scanQrBodySchema>;
 export type CreateGuestRequestBodyInput = z.infer<typeof createGuestRequestBodySchema>;
 export type GuestPortalRequestStatus = z.infer<typeof guestRequestStatusSchema>;

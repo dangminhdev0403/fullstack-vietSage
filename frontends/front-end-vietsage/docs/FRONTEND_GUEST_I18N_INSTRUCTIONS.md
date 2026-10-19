@@ -150,11 +150,8 @@ Not fully confirmed/complete yet:
 - Open `/g/requests` and confirm the page still handles current backend response shape.
 - Re-scan QR after selecting a non-default locale and confirm the scan payload includes `locale`.
 
-## Backend Follow-Up Still Needed
+## Backend Follow-Up Status
+- [x] Request `displayName` localization for list/create/cancel responses (Implemented in `GuestOsService`).
+- [x] Persisting or echoing locale on QR scan/session (`toScanQrResponse` & `toSessionData` now return `locale` and `supportedLocales`).
+- [x] Realtime event payload locale behavior (payloads now carry normalized `locale` and localized `displayName`).
 
-Backend should still finish:
-
-- Request `displayName` localization for list/create/cancel responses.
-- Persisting or echoing locale on QR scan/session.
-- Stable guest error `code` values with localized `message`.
-- Realtime event payload locale behavior.
