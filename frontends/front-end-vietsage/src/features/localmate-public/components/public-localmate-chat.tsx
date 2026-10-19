@@ -1491,7 +1491,7 @@ export function PublicLocalMateChat({
             className="flex h-[min(640px,calc(100dvh-24px))] w-[calc(100vw-24px)] max-w-[420px] flex-col overflow-hidden rounded-2xl border border-[#d6c08b]/55 bg-[#fffdf8] shadow-[0_24px_70px_rgba(18,61,42,0.24)] sm:rounded-3xl"
           >
             {/* Header */}
-            <header className="relative flex shrink-0 items-center justify-between bg-gradient-to-r from-[#123d2a] to-[#245942] px-4 py-3 text-white sm:px-5 sm:py-3.5">
+            <header className="relative flex shrink-0 items-center justify-between border-b border-[#d6c08b]/50 bg-gradient-to-r from-[#f8ecc9] via-[#e5f0e3] to-[#d4ebd8] px-4 py-3 text-[#123d2a] shadow-xs sm:px-5 sm:py-3.5">
               <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
                 {viewMode !== "discovery" ? (
                   <button
@@ -1501,50 +1501,50 @@ export function PublicLocalMateChat({
                       setViewMode("discovery");
                     }}
                     aria-label={publicCopy.backToDiscoveryAria}
-                    className="flex h-9 w-9 items-center justify-center rounded-full text-white transition hover:bg-white/10 active:scale-95"
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-[#123d2a] transition hover:bg-[#123d2a]/10 active:scale-95"
                   >
                     <VsIcon name="arrow_back" className="text-xl" />
                   </button>
                 ) : (
-                  <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f3c66b]/15 ring-1 ring-[#f3c66b]/65 sm:h-11 sm:w-11">
+                  <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#123d2a] via-[#1a5038] to-[#256648] text-[#f3c66b] ring-2 ring-[#b8872f]/40 shadow-sm sm:h-11 sm:w-11">
                     <VsIcon name="sparkles" className="text-xl text-[#f3c66b] sm:text-2xl" />
                     <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center">
                       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#10b981] opacity-75 motion-reduce:animate-none" />
-                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#10b981] ring-1 ring-[#123d2a]" />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#10b981] ring-2 ring-white" />
                     </span>
                   </div>
                 )}
                 <div className="min-w-0">
-                  <h2 className="truncate text-sm font-bold leading-tight sm:text-base">
+                  <h2 className="truncate text-sm font-bold leading-tight text-[#123d2a] sm:text-base">
                     {viewMode === "discovery" && publicCopy.titleDiscovery}
                     {viewMode === "confirm" && publicCopy.titleConfirm}
                     {viewMode === "payment" && publicCopy.titlePayment}
                     {viewMode === "guide-chat" && (candidateDetails?.guide.fullName || currentOrder?.assignedGuide?.fullName || publicCopy.titleGuideDefault)}
                   </h2>
-                  <p className="flex items-center gap-1.5 truncate text-[11.5px] text-white/80 sm:text-[12.5px]">
+                  <p className="flex items-center gap-1.5 truncate text-xs text-[#4a584f]">
                     {viewMode === "discovery" && (
                       <>
-                        <span className="font-medium text-[#a7f3d0]">{publicCopy.statusOnline}</span>
+                        <span className="font-semibold text-[#15803d]">{publicCopy.statusOnline}</span>
                         {location ? (
                           <>
-                            <span className="text-white/40">•</span>
+                            <span className="text-[#123d2a]/40">•</span>
                             <span className="truncate">{location}</span>
                           </>
                         ) : null}
                       </>
                     )}
                     {viewMode === "confirm" && (
-                      <span className="truncate text-[#f3c66b] font-medium">
+                      <span className="truncate text-[#825916] font-semibold">
                         {location || publicCopy.titleDiscovery}
                       </span>
                     )}
                     {viewMode === "payment" && currentOrder && (
-                      <span className="truncate font-mono text-white/90">
+                      <span className="truncate font-mono font-medium text-[#123d2a]">
                         #{currentOrder.orderNumber}
                       </span>
                     )}
                     {viewMode === "guide-chat" && currentOrder && (
-                      <span className="truncate font-medium text-[#a7f3d0]">
+                      <span className="truncate font-medium text-[#15803d]">
                         {publicCopy.statusConnecting} • #{currentOrder.orderNumber}
                       </span>
                     )}
@@ -1558,7 +1558,7 @@ export function PublicLocalMateChat({
                     type="button"
                     onClick={handleStartNewDiscovery}
                     title={publicCopy.newDiscovery}
-                    className="min-h-9 rounded-full px-2.5 text-xs font-semibold text-[#f3c66b] transition hover:bg-white/10 sm:min-h-10 sm:px-3 sm:text-xs"
+                    className="min-h-9 rounded-full px-2.5 text-xs font-semibold text-[#825916] transition hover:bg-[#123d2a]/8 sm:min-h-10 sm:px-3 sm:text-xs"
                   >
                     {publicCopy.newDiscovery}
                   </button>
@@ -1568,7 +1568,7 @@ export function PublicLocalMateChat({
                     type="button"
                     disabled={chatMutation.isPending}
                     onClick={changeLocation}
-                    className="min-h-9 rounded-full px-2.5 text-xs font-semibold text-[#f3c66b] transition hover:bg-white/10 disabled:opacity-50 sm:min-h-10 sm:px-3 sm:text-sm"
+                    className="min-h-9 rounded-full px-2.5 text-xs font-semibold text-[#825916] transition hover:bg-[#123d2a]/8 disabled:opacity-50 sm:min-h-10 sm:px-3 sm:text-sm"
                   >
                     {publicCopy.changeLocation}
                   </button>
@@ -1581,11 +1581,11 @@ export function PublicLocalMateChat({
                     aria-label={chatUi.selectLanguageAria}
                     aria-expanded={langMenuOpen}
                     title={currentOption.nativeName}
-                    className="flex h-9 items-center gap-1.5 rounded-full border border-[#f3c66b]/80 bg-[#123d2a]/80 px-2.5 sm:px-3 text-xs font-bold text-white shadow-md backdrop-blur-sm transition-all hover:bg-[#123d2a] hover:border-[#ffe088] hover:ring-2 hover:ring-[#f3c66b]/30 active:scale-95 cursor-pointer"
+                    className="flex h-9 items-center gap-1.5 rounded-full border border-[#b8872f]/60 bg-white/95 px-2.5 sm:px-3 text-xs font-bold text-[#123d2a] shadow-xs backdrop-blur-sm transition-all hover:bg-white hover:border-[#b8872f] hover:ring-2 hover:ring-[#b8872f]/20 active:scale-95 cursor-pointer"
                   >
-                    <VsIcon name="globe" className="text-sm text-[#f3c66b] shrink-0" />
-                    <span className="font-bold text-xs text-[#ffe6a0] tracking-wide">{currentOption.nativeName}</span>
-                    <span className="text-xs text-[#ffe6a0]/80" aria-hidden="true">{langMenuOpen ? "▴" : "▾"}</span>
+                    <VsIcon name="globe" className="text-sm text-[#b8872f] shrink-0" />
+                    <span className="font-bold text-xs text-[#123d2a] tracking-wide">{currentOption.nativeName}</span>
+                    <span className="text-xs text-[#825916]" aria-hidden="true">{langMenuOpen ? "▴" : "▾"}</span>
                   </button>
 
                   {langMenuOpen && (
@@ -1633,7 +1633,7 @@ export function PublicLocalMateChat({
                   type="button"
                   onClick={closeChat}
                   aria-label={publicCopy.closeChatAria}
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-white transition hover:bg-white/10 sm:h-10 sm:w-10"
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-[#123d2a]/70 transition hover:bg-[#123d2a]/10 hover:text-[#123d2a] active:scale-95 sm:h-10 sm:w-10"
                 >
                   <VsIcon name="close" className="text-xl" />
                 </button>
@@ -1715,7 +1715,7 @@ export function PublicLocalMateChat({
                               className={`w-fit max-w-[85%] rounded-2xl px-4 py-2.5 text-[14px] leading-relaxed shadow-sm sm:max-w-[80%] sm:py-3 sm:text-[14.5px] ${
                                 message.sender === "guest"
                                   ? "rounded-tr-sm bg-gradient-to-br from-[#123d2a] to-[#1e5038] text-white"
-                                  : "rounded-tl-sm border border-[#123d2a]/10 bg-white text-[#24342b]"
+                                  : "rounded-tl-sm border border-[#d6c08b]/45 bg-gradient-to-br from-[#fcf7ec] via-[#f4f8f1] to-[#ebf5ef] text-[#1c2e24]"
                               }`}
                             >
                               {renderMessageContent(message.text, message.sender === "guest")}
@@ -2079,8 +2079,8 @@ export function PublicLocalMateChat({
                       <span className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#123d2a]/10">
                         <VsIcon name="sparkles" className="animate-spin text-sm text-[#2a6649]" />
                       </span>
-                      <div className="rounded-2xl rounded-tl-sm border border-[#123d2a]/10 bg-white px-4 py-2.5 shadow-sm">
-                        <span className="inline-flex items-center gap-1.5 font-medium">
+                      <div className="rounded-2xl rounded-tl-sm border border-[#d6c08b]/45 bg-gradient-to-br from-[#fcf7ec] via-[#f4f8f1] to-[#ebf5ef] px-4 py-2.5 text-[#1c2e24] shadow-sm">
+                        <span className="inline-flex items-center gap-1.5 font-medium text-[#1c2e24]">
                           {chatUi.typing}
                           <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#2a6649]" />
                         </span>
@@ -2290,7 +2290,7 @@ export function PublicLocalMateChat({
                           <VsIcon name="bookmark" className="text-sm" />
                         </span>
                         <div className="min-w-0">
-                          <span className="text-[10.5px] font-bold uppercase tracking-wider text-[#916e15]">
+                          <span className="text-xs font-bold uppercase tracking-wider text-[#916e15]">
                             {publicCopy.selectedProposalPrefix}
                           </span>
                           <h4 className="truncate font-bold text-[#123d2a] text-[13px]">
@@ -2556,7 +2556,7 @@ export function PublicLocalMateChat({
                             className={`w-fit rounded-2xl px-3.5 py-2.5 text-[13.5px] leading-relaxed shadow-sm sm:text-sm ${
                               msg.senderType === "GUEST"
                                 ? "rounded-tr-sm bg-[#123d2a] text-white"
-                                : "rounded-tl-sm border border-[#123d2a]/10 bg-white text-[#24342b]"
+                                : "rounded-tl-sm border border-[#d6c08b]/45 bg-gradient-to-br from-[#fcf7ec] via-[#f4f8f1] to-[#ebf5ef] text-[#1c2e24]"
                             }`}
                           >
                             {msg.body}
