@@ -53,3 +53,11 @@ export const directBookingStatusQuerySchema = z.object({
 });
 
 export type DirectBookingStatusQueryDto = z.infer<typeof directBookingStatusQuerySchema>;
+
+export const catalogExportSchema = z.object({
+  hotel_id: z.string().min(1, "hotel_id là bắt buộc"),
+  partner_email: z.string().optional(),
+});
+
+export type CatalogExportDto = z.infer<typeof catalogExportSchema>;
+

@@ -193,7 +193,7 @@ export function mapAdminChannelOverviewResponse(raw: unknown): AdminChannelOverv
   };
 }
 
-export type DrillDownTab = "OVERVIEW" | "CHANNELS" | "CONFIG" | "REPAIR";
+export type DrillDownTab = "OVERVIEW" | "CHANNELS" | "CONFIG" | "REPAIR" | "VIETSAGE_BOOKING";
 
 export function getContextualTab(item: AdminChannelOverviewItem): DrillDownTab {
   if (item.primaryIssueCode === "PROPERTY_MISSING" || !item.propertyConfigured) {

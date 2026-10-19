@@ -6,6 +6,7 @@ import { AriPushCard } from "@/features/channel-manager/components/ari-push-card
 import { ChannexHubTab } from "@/features/channel-manager/components/channex-hub-tab";
 import { ChannexPropertyConfigCard } from "@/features/channel-manager/components/channex-property-config-card";
 import { OtaBookingsTab } from "@/features/channel-manager/components/ota-bookings-tab";
+import { VietSageBookingTab } from "@/features/channel-manager/components/vietsage-booking-tab";
 import { useAdminChannelManagerOverview } from "@/features/channel-manager/admin/hooks/use-admin-channel-manager-overview";
 import {
   FRIENDLY_STATE_LABELS,
@@ -175,14 +176,9 @@ export function AdminChannelManagerClient({
   const renderIssueDescription = (item: AdminChannelOverviewItem) => {
     if (!item.primaryIssueCode) {
       return (
-        <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-200/80 bg-emerald-50/60 px-3 py-1.5 text-xs">
+        <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-200/80 bg-emerald-50/60 px-3 py-1.5 text-xs whitespace-nowrap">
           <VsIcon name="check_circle" className="text-sm text-emerald-600 shrink-0" />
-          <span className="text-emerald-900 font-medium">
-            <strong className="font-bold">Bình thường</strong>
-            <span className="text-emerald-700 ml-1.5 font-normal">
-              ({item.mappedRoomTypes} phòng, {item.mappedRatePlans} gói giá)
-            </span>
-          </span>
+          <span className="text-emerald-900 font-bold">Bình thường</span>
         </div>
       );
     }
@@ -192,33 +188,28 @@ export function AdminChannelManagerClient({
     switch (item.primaryIssueCode) {
       case "PROPERTY_MISSING":
         return (
-          <div className="inline-flex items-center gap-2 rounded-xl border border-amber-200/80 bg-amber-50/70 px-3 py-1.5 text-xs text-amber-900">
+          <div className="inline-flex items-center gap-2 rounded-xl border border-amber-200/80 bg-amber-50/70 px-3 py-1.5 text-xs text-amber-900 whitespace-nowrap">
             <VsIcon name="warning" className="text-sm text-amber-600 shrink-0" />
-            <span className="font-semibold">{label}</span>
+            <span className="font-bold">{label}</span>
           </div>
         );
       case "MAPPING_INCOMPLETE":
         return (
-          <div className="inline-flex flex-col gap-0.5 rounded-xl border border-blue-200/80 bg-blue-50/70 px-3 py-1.5 text-xs text-blue-900">
-            <span className="inline-flex items-center gap-1.5 font-bold">
-              <VsIcon name="sync_alt" className="text-sm text-blue-600 shrink-0" />
-              <span>{label}</span>
-            </span>
-            <span className="text-xs font-normal text-blue-700">
-              Đã ghép: {item.mappedRoomTypes} phòng, {item.mappedRatePlans} gói giá
-            </span>
+          <div className="inline-flex items-center gap-2 rounded-xl border border-blue-200/80 bg-blue-50/70 px-3 py-1.5 text-xs text-blue-900 whitespace-nowrap">
+            <VsIcon name="sync_alt" className="text-sm text-blue-600 shrink-0" />
+            <span className="font-bold">{label}</span>
           </div>
         );
       case "RECONCILIATION_REQUIRED":
         return (
-          <div className="inline-flex items-center gap-2 rounded-xl border border-orange-200/80 bg-orange-50/70 px-3 py-1.5 text-xs text-orange-900">
+          <div className="inline-flex items-center gap-2 rounded-xl border border-orange-200/80 bg-orange-50/70 px-3 py-1.5 text-xs text-orange-900 whitespace-nowrap">
             <VsIcon name="receipt_long" className="text-sm text-orange-600 shrink-0" />
-            <span className="font-bold">{label} ({item.pendingReconciliations} đơn chờ)</span>
+            <span className="font-bold">{label}</span>
           </div>
         );
       case "SYNC_FAILED":
         return (
-          <div className="inline-flex items-center gap-2 rounded-xl border border-rose-200/80 bg-rose-50/70 px-3 py-1.5 text-xs text-rose-900">
+          <div className="inline-flex items-center gap-2 rounded-xl border border-rose-200/80 bg-rose-50/70 px-3 py-1.5 text-xs text-rose-900 whitespace-nowrap">
             <VsIcon name="error" className="text-sm text-rose-600 shrink-0" />
             <span className="font-bold">{label}</span>
           </div>
@@ -226,7 +217,7 @@ export function AdminChannelManagerClient({
       case "CONNECTION_INTERRUPTED":
       default:
         return (
-          <div className="inline-flex items-center gap-2 rounded-xl border border-rose-200/80 bg-rose-50/70 px-3 py-1.5 text-xs text-rose-900">
+          <div className="inline-flex items-center gap-2 rounded-xl border border-rose-200/80 bg-rose-50/70 px-3 py-1.5 text-xs text-rose-900 whitespace-nowrap">
             <VsIcon name="bolt" className="text-sm text-rose-600 shrink-0" />
             <span className="font-bold">{label}</span>
           </div>
@@ -302,6 +293,7 @@ export function AdminChannelManagerClient({
         >
           {[
             { id: "OVERVIEW" as const, label: "Tổng quan & Checklist", icon: "fact_check" },
+            { id: "VIETSAGE_BOOKING" as const, label: "Kênh VietSage OTA", icon: "shopping_bag" },
             { id: "CHANNELS" as const, label: "Kênh OTA & Ghép phòng", icon: "hub" },
             { id: "CONFIG" as const, label: "Cấu hình Channex", icon: "settings" },
             { id: "REPAIR" as const, label: "Khắc phục sự cố & Đối soát", icon: "build" },
@@ -517,6 +509,19 @@ export function AdminChannelManagerClient({
                   </div>
                 </div>
               </div>
+            </section>
+          )}
+
+          {/* TAB: VIETSAGE OTA DIRECT BOOKING */}
+          {drillDownTab === "VIETSAGE_BOOKING" && (
+            <section aria-label="Kênh VietSage OTA">
+              <VietSageBookingTab
+                key={`vs-booking-${selectedHotel.hotelId}`}
+                hotelId={selectedHotel.hotelId}
+                hotelName={selectedHotel.hotelName}
+                hotelCode={selectedHotel.hotelCode}
+                tenantName={formatTenantName(selectedHotel.tenantName)}
+              />
             </section>
           )}
 

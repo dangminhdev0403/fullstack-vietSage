@@ -10,6 +10,7 @@ import {
 import { ApiTags } from "@nestjs/swagger";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import {
+  catalogExportSchema,
   confirmHoldSchema,
   createHoldSchema,
   directBookingStatusQuerySchema,
@@ -76,6 +77,19 @@ export class DirectBookingController {
   async getStatus(@Query() query: unknown) {
     const parsedQuery = parseWithZod(directBookingStatusQuerySchema, query);
     const result = await this.directBookingService.getStatus(parsedQuery);
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  /**
+   * Xuất danh mục phòng và giá cơ sở từ VietSage PMS cho OTA Booking Manager
+   */
+  @Post("catalog-export")
+  async exportCatalog(@Body() body: unknown) {
+    const dto = parseWithZod(catalogExportSchema, body);
+    const result = await this.directBookingService.exportRoomCatalog(dto);
     return {
       success: true,
       data: result,
