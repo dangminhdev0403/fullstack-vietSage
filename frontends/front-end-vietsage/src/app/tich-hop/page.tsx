@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { MarketingShell } from "@/components/marketing/marketing-shell";
 
@@ -10,7 +11,7 @@ export default function TichHopPage() {
         {/* BEGIN: HeroIntroduction */}
         <section className="relative overflow-hidden pt-12 pb-8 border-b border-slate-100 bg-gradient-to-b from-amber-50/40 via-white to-[#fbfbfc]">
           <div className="max-w-7xl mx-auto px-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200/60 mb-3 shadow-2xs">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200/60 mb-3 shadow-2xs">
               <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
               <span className="text-xs font-bold uppercase tracking-widest text-amber-800 whitespace-nowrap">
                 HỆ SINH THÁI TÍCH HỢP VIETSAGE
@@ -19,8 +20,8 @@ export default function TichHopPage() {
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight mb-3 text-balance">
               Các đối tác tích hợp
             </h1>
-            <p className="text-slate-600 text-xs sm:text-base max-w-2xl font-normal leading-relaxed text-pretty">
-              Kết nối với hơn <span className="font-bold text-slate-800">30+</span> đối tác công nghệ uy tín, bao phủ toàn bộ nhu cầu vận hành khách sạn.
+            <p className="text-slate-600 text-sm sm:text-base lg:text-lg max-w-2xl font-normal leading-relaxed text-pretty">
+              Kết nối với hơn <span className="font-bold text-slate-900">30+</span> đối tác công nghệ uy tín, bao phủ toàn bộ nhu cầu vận hành khách sạn.
             </p>
           </div>
         </section>
@@ -41,7 +42,7 @@ export default function TichHopPage() {
                 <h2 className="text-xl font-bold text-slate-900 tracking-tight text-balance">
                   Kênh OTA &amp; Booking
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1 text-pretty">
+                <p className="text-sm sm:text-base text-slate-600 mt-1 text-pretty">
                   Đồng bộ lịch phòng, quản lý giá và tối ưu doanh thu từ các kênh đặt phòng trực tuyến.
                 </p>
               </div>
@@ -56,7 +57,7 @@ export default function TichHopPage() {
                     Booking<span className="text-sky-400">.com</span>
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 text-center leading-snug text-pretty">
+                <p className="text-sm text-slate-600 text-center leading-snug text-pretty">
                   Kênh đặt phòng toàn cầu phổ biến nhất.
                 </p>
               </div>
@@ -70,7 +71,7 @@ export default function TichHopPage() {
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
                 </div>
-                <p className="text-xs text-slate-500 text-center leading-snug text-pretty">
+                <p className="text-sm text-slate-600 text-center leading-snug text-pretty">
                   Nền tảng đặt phòng hàng đầu châu Á.
                 </p>
               </div>
@@ -83,7 +84,7 @@ export default function TichHopPage() {
                   </svg>
                   <span className="text-base font-bold tracking-tight">airbnb</span>
                 </div>
-                <p className="text-xs text-slate-500 text-center leading-snug text-pretty">
+                <p className="text-sm text-slate-600 text-center leading-snug text-pretty">
                   Kết nối với cộng đồng khách du lịch toàn cầu.
                 </p>
               </div>
@@ -96,7 +97,7 @@ export default function TichHopPage() {
                   </span>
                   <span className="text-sm font-bold text-slate-800">.com</span>
                 </div>
-                <p className="text-xs text-slate-500 text-center leading-snug text-pretty">
+                <p className="text-sm text-slate-600 text-center leading-snug text-pretty">
                   Nền tảng du lịch hàng đầu khu vực châu Á.
                 </p>
               </div>
@@ -109,7 +110,7 @@ export default function TichHopPage() {
                   </svg>
                   <span className="text-sm font-black tracking-tight">traveloka</span>
                 </div>
-                <p className="text-xs text-slate-500 text-center leading-snug text-pretty">
+                <p className="text-sm text-slate-600 text-center leading-snug text-pretty">
                   Nền tảng du lịch phổ biến tại Đông Nam Á.
                 </p>
               </div>
@@ -120,7 +121,7 @@ export default function TichHopPage() {
                   <span className="text-xs bg-amber-400 text-blue-950 font-black px-1 rounded">Exp</span>
                   <span className="text-sm font-extrabold text-blue-950 tracking-tight">Expedia</span>
                 </div>
-                <p className="text-xs text-slate-500 text-center leading-snug text-pretty">
+                <p className="text-sm text-slate-600 text-center leading-snug text-pretty">
                   Nền tảng du lịch toàn cầu với mạng lưới rộng lớn.
                 </p>
               </div>
@@ -144,7 +145,7 @@ export default function TichHopPage() {
                     Mới
                   </span>
                 </div>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1 text-pretty">
+                <p className="text-sm sm:text-base text-slate-600 mt-1 text-pretty">
                   Giải pháp AI đồng hành thông minh, gợi ý tour tuyến, ẩm thực, văn hoá địa phương và chăm sóc khách lưu trú 24/7 tự động.
                 </p>
               </div>
@@ -160,13 +161,13 @@ export default function TichHopPage() {
                         <path d="M3 18h18M12 4v4m-8 10a8 8 0 0 1 16 0" />
                       </svg>
                     </div>
-                    <div className="text-sm font-bold text-slate-900">LocalMate Concierge</div>
+                    <div className="text-base font-bold text-slate-900">LocalMate Concierge</div>
                   </div>
-                  <p className="text-xs text-slate-500 leading-relaxed text-pretty">
+                  <p className="text-sm text-slate-600 leading-relaxed text-pretty">
                     Trợ lý AI hỏi đáp tức thì đa ngôn ngữ, gợi ý ăn uống và địa điểm check-in chuẩn bản địa.
                   </p>
                 </div>
-                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-amber-700 font-semibold">
+                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs sm:text-sm text-amber-700 font-semibold">
                   <span className="whitespace-nowrap">Đa ngôn ngữ 24/7</span>
                   <span aria-hidden="true">→</span>
                 </div>
@@ -181,13 +182,13 @@ export default function TichHopPage() {
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                       </svg>
                     </div>
-                    <div className="text-sm font-bold text-slate-900">Voice &amp; Chat AI Guest</div>
+                    <div className="text-base font-bold text-slate-900">Voice &amp; Chat AI Guest</div>
                   </div>
-                  <p className="text-xs text-slate-500 leading-relaxed text-pretty">
+                  <p className="text-sm text-slate-600 leading-relaxed text-pretty">
                     Hỗ trợ đặt xe, dịch vụ phòng, tour trải nghiệm theo thời gian thực tiện lợi và nhanh chóng.
                   </p>
                 </div>
-                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-blue-700 font-semibold">
+                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs sm:text-sm text-blue-700 font-semibold">
                   <span className="whitespace-nowrap">Tương tác giọng nói &amp; chat</span>
                   <span aria-hidden="true">→</span>
                 </div>
@@ -203,13 +204,13 @@ export default function TichHopPage() {
                         <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
                       </svg>
                     </div>
-                    <div className="text-sm font-bold text-slate-900">Recommendation Engine</div>
+                    <div className="text-base font-bold text-slate-900">Recommendation Engine</div>
                   </div>
-                  <p className="text-xs text-slate-500 leading-relaxed text-pretty">
+                  <p className="text-sm text-slate-600 leading-relaxed text-pretty">
                     Cá nhân hoá hành trình du khách dựa trên sở thích, thói quen tiêu dùng và ngân sách du lịch.
                   </p>
                 </div>
-                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-emerald-700 font-semibold">
+                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs sm:text-sm text-emerald-700 font-semibold">
                   <span className="whitespace-nowrap">Cá nhân hoá trải nghiệm</span>
                   <span aria-hidden="true">→</span>
                 </div>
@@ -226,13 +227,13 @@ export default function TichHopPage() {
                         <polyline points="2 12 12 17 22 12" />
                       </svg>
                     </div>
-                    <div className="text-sm font-bold text-slate-900">Tích hợp đa kênh</div>
+                    <div className="text-base font-bold text-slate-900">Tích hợp đa kênh</div>
                   </div>
-                  <p className="text-xs text-slate-500 leading-relaxed text-pretty">
+                  <p className="text-sm text-slate-600 leading-relaxed text-pretty">
                     Đồng bộ mượt mà Zalo OA, Web Widget, WhatsApp, Telegram và ứng dụng máy tính bảng phòng khách sạn.
                   </p>
                 </div>
-                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-cyan-700 font-semibold">
+                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs sm:text-sm text-cyan-700 font-semibold">
                   <span className="whitespace-nowrap">Omnichannel sẵn sàng</span>
                   <span aria-hidden="true">→</span>
                 </div>
@@ -254,7 +255,7 @@ export default function TichHopPage() {
                 <h2 className="text-xl font-bold text-slate-900 tracking-tight text-balance">
                   Hệ thống Quản lý PMS
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1 text-pretty">
+                <p className="text-sm sm:text-base text-slate-600 mt-1 text-pretty">
                   Kết nối với các hệ thống quản lý khách sạn phổ biến, giúp đồng bộ dữ liệu phòng, đặt phòng và vận hành.
                 </p>
               </div>
@@ -268,7 +269,7 @@ export default function TichHopPage() {
                   </span>
                   <span className="text-base font-extrabold text-slate-900">OPERA Cloud</span>
                 </div>
-                <p className="text-xs text-slate-500 text-center leading-snug text-pretty">
+                <p className="text-sm text-slate-600 text-center leading-snug text-pretty">
                   Hệ thống PMS hàng đầu toàn cầu.
                 </p>
               </div>
@@ -280,7 +281,7 @@ export default function TichHopPage() {
                   </span>
                   <span className="text-base font-black text-[#0b6623]">INNKEEPER</span>
                 </div>
-                <p className="text-xs text-slate-500 text-center leading-snug text-pretty">
+                <p className="text-sm text-slate-600 text-center leading-snug text-pretty">
                   Giải pháp quản lý khách sạn dễ sử dụng.
                 </p>
               </div>
@@ -292,7 +293,7 @@ export default function TichHopPage() {
                   </span>
                   <span className="text-lg font-black text-[#ff6600]">ezCloud</span>
                 </div>
-                <p className="text-xs text-slate-500 text-center leading-snug text-pretty">
+                <p className="text-sm text-slate-600 text-center leading-snug text-pretty">
                   Nền tảng quản lý khách sạn phổ biến tại Việt Nam.
                 </p>
               </div>
@@ -304,7 +305,7 @@ export default function TichHopPage() {
                   </svg>
                   <span className="text-base font-black text-[#00a3e0]">Cloudbeds</span>
                 </div>
-                <p className="text-xs text-slate-500 text-center leading-snug text-pretty">
+                <p className="text-sm text-slate-600 text-center leading-snug text-pretty">
                   Giải pháp PMS toàn diện cho khách sạn hiện đại.
                 </p>
               </div>
@@ -324,7 +325,7 @@ export default function TichHopPage() {
                 <h2 className="text-xl font-bold text-slate-900 tracking-tight text-balance">
                   Dịch vụ vận hành &amp; Thuế số
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1 text-pretty">
+                <p className="text-sm sm:text-base text-slate-600 mt-1 text-pretty">
                   Tích hợp các dịch vụ hỗ trợ vận hành khách sạn như quản lý phân phối, kênh đánh giá và hóa đơn điện tử.
                 </p>
               </div>
@@ -338,7 +339,7 @@ export default function TichHopPage() {
                   </span>
                   <span className="text-sm font-black text-[#d92d20]">GO GLOBAL</span>
                 </div>
-                <p className="text-xs text-slate-500 text-center leading-snug text-pretty">
+                <p className="text-sm text-slate-600 text-center leading-snug text-pretty">
                   Quản lý đánh giá và uy tín thương hiệu.
                 </p>
               </div>
@@ -350,7 +351,7 @@ export default function TichHopPage() {
                   </span>
                   <span className="text-sm font-black text-[#ee0033]">Viettel Solutions</span>
                 </div>
-                <p className="text-xs text-slate-500 text-center leading-snug text-pretty">
+                <p className="text-sm text-slate-600 text-center leading-snug text-pretty">
                   Giải pháp viễn thông &amp; chuyển đổi số.
                 </p>
               </div>
@@ -362,7 +363,7 @@ export default function TichHopPage() {
                   </span>
                   <span className="text-sm font-black text-[#005bac]">VNPT e-invoice</span>
                 </div>
-                <p className="text-xs text-slate-500 text-center leading-snug text-pretty">
+                <p className="text-sm text-slate-600 text-center leading-snug text-pretty">
                   Giải pháp hóa đơn điện tử an toàn, chuẩn quy định.
                 </p>
               </div>
@@ -374,7 +375,7 @@ export default function TichHopPage() {
                   </span>
                   <span className="text-base font-black text-[#4f46e5]">QikStay</span>
                 </div>
-                <p className="text-xs text-slate-500 text-center leading-snug text-pretty">
+                <p className="text-sm text-slate-600 text-center leading-snug text-pretty">
                   Giải pháp check-in trực tuyến, tiết kiệm thời gian.
                 </p>
               </div>
@@ -394,7 +395,7 @@ export default function TichHopPage() {
                 <h2 className="text-xl font-bold text-slate-900 tracking-tight text-balance">
                   Cổng Thanh toán &amp; Ví điện tử
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1 text-pretty">
+                <p className="text-sm sm:text-base text-slate-600 mt-1 text-pretty">
                   Hỗ trợ đa dạng phương thức thanh toán, giúp khách sạn tối ưu trải nghiệm và tăng tỷ lệ chuyển đổi.
                 </p>
               </div>
@@ -407,7 +408,7 @@ export default function TichHopPage() {
                     VNPAY<span className="text-[#e31e24]">·QR</span>
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 text-center leading-snug text-pretty">
+                <p className="text-sm text-slate-600 text-center leading-snug text-pretty">
                   Thanh toán QR phổ biến tại Việt Nam.
                 </p>
               </div>
@@ -416,7 +417,7 @@ export default function TichHopPage() {
                 <div className="h-9 flex items-center justify-center gap-2 mb-2">
                   <span className="text-lg font-black text-[#a50064]">MoMo</span>
                 </div>
-                <p className="text-xs text-slate-500 text-center leading-snug text-pretty">
+                <p className="text-sm text-slate-600 text-center leading-snug text-pretty">
                   Ví điện tử được ưa chuộng nhất tại Việt Nam.
                 </p>
               </div>
@@ -427,7 +428,7 @@ export default function TichHopPage() {
                     VISA
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 text-center leading-snug text-pretty">
+                <p className="text-sm text-slate-600 text-center leading-snug text-pretty">
                   Thanh toán thẻ quốc tế an toàn, nhanh chóng.
                 </p>
               </div>
@@ -440,7 +441,7 @@ export default function TichHopPage() {
                   </div>
                   <span className="text-xs font-bold text-slate-800 lowercase">mastercard</span>
                 </div>
-                <p className="text-xs text-slate-500 text-center leading-snug text-pretty">
+                <p className="text-sm text-slate-600 text-center leading-snug text-pretty">
                   Giải pháp thanh toán toàn cầu dành cho khách sạn.
                 </p>
               </div>
@@ -464,7 +465,7 @@ export default function TichHopPage() {
                 <h2 className="text-xl font-bold text-slate-900 tracking-tight text-balance">
                   Phần cứng &amp; Thiết bị IoT
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1 text-pretty">
+                <p className="text-sm sm:text-base text-slate-600 mt-1 text-pretty">
                   Kết nối với các thiết bị thông minh, nâng cao trải nghiệm khách và tối ưu vận hành.
                 </p>
               </div>
@@ -478,7 +479,7 @@ export default function TichHopPage() {
                     HÄFELE
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 leading-relaxed text-pretty">
+                <p className="text-sm text-slate-600 leading-relaxed text-pretty">
                   Giải pháp khóa thông minh cho khách sạn.
                 </p>
               </div>
@@ -487,9 +488,9 @@ export default function TichHopPage() {
               <div className="bg-slate-50/70 border border-slate-100 hover:border-cyan-300 hover:bg-white rounded-xl p-5 shadow-xs hover:shadow-sm transition-all duration-200 flex flex-col justify-between">
                 <div className="h-8 flex flex-col justify-center mb-2">
                   <span className="text-base font-extrabold text-[#0066b2] leading-none">PHGLock</span>
-                  <span className="text-xs font-semibold text-cyan-600 mt-0.5">Smart Security</span>
+                  <span className="text-xs font-semibold text-cyan-700 mt-0.5">Smart Security</span>
                 </div>
-                <p className="text-xs text-slate-500 leading-relaxed text-pretty">
+                <p className="text-sm text-slate-600 leading-relaxed text-pretty">
                   Thiết bị khóa điện tử hiện đại.
                 </p>
               </div>
@@ -502,7 +503,7 @@ export default function TichHopPage() {
                   </div>
                   <span className="text-base font-black tracking-widest text-emerald-800">MIWA</span>
                 </div>
-                <p className="text-xs text-slate-500 leading-relaxed text-pretty">
+                <p className="text-sm text-slate-600 leading-relaxed text-pretty">
                   Giải pháp kiểm soát ra vào chuyên nghiệp.
                 </p>
               </div>
@@ -514,7 +515,7 @@ export default function TichHopPage() {
                     ZK<span className="text-lime-600">Teco</span>
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 leading-relaxed text-pretty">
+                <p className="text-sm text-slate-600 leading-relaxed text-pretty">
                   Thiết bị kiểm soát an ninh thông minh.
                 </p>
               </div>
@@ -534,13 +535,17 @@ export default function TichHopPage() {
               {/* Left content column */}
               <div className="lg:col-span-7 space-y-5">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-800/80 border border-emerald-600/40 flex items-center justify-center text-emerald-300 shadow-inner">
-                    <svg className="h-6 w-6 text-emerald-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    </svg>
+                  <div className="w-12 h-12 rounded-2xl bg-white/95 p-1.5 shadow-md border border-amber-300/40 flex items-center justify-center shrink-0">
+                    <Image
+                      src="/images/vneid.png"
+                      alt="Bộ Công an - VNeID & C06"
+                      width={38}
+                      height={38}
+                      className="w-full h-full object-contain"
+                    />
                   </div>
-                  <div className="inline-block px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-bold uppercase tracking-wider whitespace-nowrap">
-                    TÍNH NĂNG NỔI BẬT
+                  <div className="inline-block px-3 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-bold uppercase tracking-wider whitespace-nowrap">
+                    TÍNH NĂNG NỔI BẬT • BỘ CÔNG AN - VNeID &amp; C06
                   </div>
                 </div>
 
@@ -548,12 +553,12 @@ export default function TichHopPage() {
                   Tự động Khai báo lưu trú Công an
                 </h2>
 
-                <p className="text-emerald-100/90 text-xs sm:text-base leading-relaxed text-pretty">
+                <p className="text-emerald-100/90 text-sm sm:text-base lg:text-lg leading-relaxed text-pretty">
                   Sau mỗi lần check-in, hệ thống tự động gửi thông tin lưu trú đến cơ quan Công an theo quy định,{" "}
                   <span className="text-white font-semibold">nhanh chóng – chính xác – an toàn – giảm thiểu rủi ro.</span>
                 </p>
 
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-xs text-emerald-200">
+                <div className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-emerald-950/70 border border-emerald-500/40 text-xs sm:text-sm text-emerald-200">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span>Kết nối trực tiếp <strong>CSDL Quốc gia về Dân cư &amp; Định danh điện tử VNeID (Bộ Công an)</strong></span>
                 </div>
@@ -562,22 +567,22 @@ export default function TichHopPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                   <div className="flex items-center gap-2.5 bg-white/5 border border-white/10 rounded-xl p-2.5 backdrop-blur-xs">
                     <span className="text-amber-400 font-bold text-xs">✈</span>
-                    <span className="text-xs font-medium text-emerald-50">Tự động gửi sau mỗi check-in</span>
+                    <span className="text-xs sm:text-sm font-medium text-emerald-50">Tự động gửi sau mỗi check-in</span>
                   </div>
                   <div className="flex items-center gap-2.5 bg-white/5 border border-white/10 rounded-xl p-2.5 backdrop-blur-xs">
                     <span className="text-amber-400 font-bold text-xs">✓</span>
-                    <span className="text-xs font-medium text-emerald-50">Đúng định dạng theo quy định CA</span>
+                    <span className="text-xs sm:text-sm font-medium text-emerald-50">Đúng định dạng theo quy định CA</span>
                   </div>
                   <div className="flex items-center gap-2.5 bg-white/5 border border-white/10 rounded-xl p-2.5 backdrop-blur-xs">
                     <span className="text-amber-400 font-bold text-xs">🔒</span>
-                    <span className="text-xs font-medium text-emerald-50">An toàn, bảo mật dữ liệu khách hàng</span>
+                    <span className="text-xs sm:text-sm font-medium text-emerald-50">An toàn, bảo mật dữ liệu khách hàng</span>
                   </div>
                 </div>
 
                 <div className="pt-3">
                   <Link
                     href="/contact?topic=kbtt-compliance"
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#c59a50] hover:bg-amber-500 text-slate-900 font-bold text-xs sm:text-sm shadow-lg shadow-amber-900/30 transition-all duration-200 group cursor-pointer whitespace-nowrap"
+                    className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-[#c59a50] hover:bg-amber-500 text-slate-900 font-bold text-sm sm:text-base shadow-lg shadow-amber-900/30 transition-all duration-200 group cursor-pointer whitespace-nowrap"
                   >
                     <span>Tìm hiểu chi tiết</span>
                     <span aria-hidden="true" className="group-hover:translate-x-1 transition-transform">→</span>
@@ -589,12 +594,12 @@ export default function TichHopPage() {
               <div className="lg:col-span-5 flex items-center justify-center">
                 <div className="w-full max-w-md bg-white/10 p-5 rounded-2xl border border-white/15 backdrop-blur-md shadow-2xl flex items-center justify-between gap-3 text-center">
                   {/* Card 1: Guest Check-in */}
-                  <div className="bg-white rounded-xl p-3 text-slate-800 shadow-md text-left w-36 shrink-0 border border-slate-100">
+                  <div className="bg-white rounded-xl p-3 text-slate-800 shadow-md text-left w-36 sm:w-40 shrink-0 border border-slate-100">
                     <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 mb-1.5">
                       <span className="h-2 w-2 rounded-full bg-emerald-500" />
                       <span>Check-in thành công</span>
                     </div>
-                    <div className="text-xs font-bold text-slate-900 truncate">Nguyễn Văn An</div>
+                    <div className="text-sm font-bold text-slate-900 truncate">Nguyễn Văn An</div>
                     <div className="text-xs text-slate-500 font-mono truncate">079203xxxxxx</div>
                     <div className="mt-1 flex items-center justify-between text-xs">
                       <span className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-semibold">P.104</span>
@@ -609,22 +614,25 @@ export default function TichHopPage() {
                         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                       </svg>
                     </div>
-                    <span className="text-xs text-emerald-200 font-medium mt-1 leading-tight max-w-[70px] whitespace-nowrap">
-                      Mã hoá gửi tự động
+                    <span className="text-xs text-emerald-200 font-semibold mt-1 leading-tight max-w-[70px] whitespace-nowrap">
+                      Mã hoá tự động
                     </span>
                   </div>
 
                   {/* Card 3: BCA VNeID */}
-                  <div className="flex flex-col items-center justify-center bg-white/10 rounded-xl p-3 border border-white/20 w-36 shrink-0">
-                    <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-amber-600 to-yellow-400 p-0.5 shadow-lg">
-                      <div className="w-full h-full rounded-full bg-red-700 flex flex-col items-center justify-center text-yellow-300 border-2 border-yellow-400">
-                        <span className="text-xs leading-none">★</span>
-                        <span className="text-xs font-black tracking-tighter text-yellow-300 mt-0.5">VNeID</span>
-                      </div>
+                  <div className="flex flex-col items-center justify-center bg-white/10 rounded-xl p-3 border border-white/20 w-36 sm:w-40 shrink-0 shadow-lg backdrop-blur-sm">
+                    <div className="w-12 h-12 rounded-2xl bg-white/95 p-1.5 shadow-md flex items-center justify-center border border-amber-300/40">
+                      <Image
+                        src="/images/vneid.png"
+                        alt="Bộ Công an - VNeID & C06"
+                        width={40}
+                        height={40}
+                        className="w-full h-full object-contain"
+                      />
                     </div>
-                    <div className="text-xs font-bold text-white mt-1.5 leading-tight">Bộ Công an</div>
-                    <div className="text-xs text-amber-300 font-semibold mt-0.5">Định danh VNeID</div>
-                    <div className="text-xs text-emerald-200 mt-0.5">CSDL Quốc gia Dân cư</div>
+                    <div className="text-sm font-bold text-white mt-1.5 leading-tight">Bộ Công an</div>
+                    <div className="text-xs text-amber-300 font-semibold mt-0.5 whitespace-nowrap">Định danh VNeID</div>
+                    <div className="text-xs text-emerald-200 mt-0.5 whitespace-nowrap">CSDL Dân cư</div>
                   </div>
                 </div>
               </div>
@@ -632,66 +640,6 @@ export default function TichHopPage() {
           </div>
         </section>
         {/* END: HighlightFeatureSection */}
-
-        {/* BEGIN: BottomCTASection */}
-        <section className="max-w-7xl mx-auto px-6 mb-16">
-          <div className="relative overflow-hidden rounded-3xl p-8 md:p-12 text-white border border-emerald-950 shadow-2xl bg-gradient-to-r from-[#03231e] via-[#053e34] to-[#042d26]">
-            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              {/* Text & Action */}
-              <div className="lg:col-span-7 space-y-4">
-                <div className="text-xs uppercase tracking-widest font-extrabold text-amber-300 whitespace-nowrap">
-                  ĐỒNG HÀNH CÙNG VIETSAGE
-                </div>
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-tight text-balance">
-                  Cùng VietSage mở rộng giá trị cho ngành khách sạn Việt Nam.
-                </h2>
-                <p className="text-slate-300 text-xs sm:text-base leading-relaxed max-w-xl text-pretty">
-                  Chúng tôi luôn chào đón các đối tác công nghệ cùng nhau xây dựng hệ sinh thái khách sạn hiện đại, hiệu quả và bền vững.
-                </p>
-                <div className="pt-2">
-                  <Link
-                    href="/contact?topic=partner-ecosystem"
-                    className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-[#c59a50] hover:bg-amber-400 text-slate-900 font-bold text-xs sm:text-sm shadow-xl shadow-amber-900/40 transition duration-200 group cursor-pointer whitespace-nowrap"
-                  >
-                    <span>Liên hệ hợp tác</span>
-                    <span aria-hidden="true" className="group-hover:translate-x-1 transition-transform">→</span>
-                  </Link>
-                </div>
-              </div>
-
-              {/* Floating Nodes Graphic */}
-              <div className="lg:col-span-5 relative flex items-center justify-center min-h-[220px]">
-                {/* Hotel image */}
-                <div className="relative w-64 h-40 sm:w-72 sm:h-44 rounded-2xl overflow-hidden shadow-2xl border-2 border-emerald-500/30">
-                  <img
-                    alt="Khách sạn đối tác VietSage"
-                    className="w-full h-full object-cover"
-                    src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80"
-                  />
-                  <div className="absolute inset-0 bg-[#053e34]/40 mix-blend-multiply" />
-                </div>
-
-                {/* Floating Orbit Nodes */}
-                <div className="absolute -top-3 left-10 w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg border-2 border-white/60">
-                  <span className="text-xs">🛏</span>
-                </div>
-                <div className="absolute -top-1 right-10 w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-lg border-2 border-white/60">
-                  <span className="text-xs">💳</span>
-                </div>
-                <div className="absolute -bottom-3 right-6 w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg border-2 border-white/60">
-                  <span className="text-xs">🗄</span>
-                </div>
-                <div className="absolute bottom-2 left-6 w-9 h-9 rounded-full bg-cyan-600 text-white flex items-center justify-center shadow-lg border-2 border-white/60">
-                  <span className="text-xs">💬</span>
-                </div>
-                <div className="absolute -bottom-4 left-24 w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg border-2 border-white/60">
-                  <span className="text-xs">🔑</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-        {/* END: BottomCTASection */}
       </div>
     </MarketingShell>
   );

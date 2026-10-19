@@ -187,8 +187,25 @@ const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
   },
 };
 
-function isActivePath(pathname: string, href: string) {
-  return href === "/" ? pathname === href : pathname.startsWith(href);
+function isActivePath(pathname: string | null | undefined, href: string) {
+  if (!pathname) return false;
+
+  const normalize = (path: string) => {
+    const trimmed = path.trim();
+    if (trimmed.length > 1 && trimmed.endsWith("/")) {
+      return trimmed.slice(0, -1);
+    }
+    return trimmed;
+  };
+
+  const normalizedPath = normalize(pathname);
+  const normalizedHref = normalize(href);
+
+  if (normalizedHref === "/") {
+    return normalizedPath === "/";
+  }
+
+  return normalizedPath === normalizedHref || normalizedPath.startsWith(`${normalizedHref}/`);
 }
 
 export function MarketingHeader({
@@ -419,8 +436,8 @@ export function MarketingHeader({
               ref={firstMobileLinkRef}
               href="/"
               className="vs-mobile-nav-link text-sm font-semibold"
-              data-active={pathname === "/" ? "true" : undefined}
-              aria-current={pathname === "/" ? "page" : undefined}
+              data-active={isActivePath(pathname, "/") ? "true" : undefined}
+              aria-current={isActivePath(pathname, "/") ? "page" : undefined}
               tabIndex={mobileOpen ? 0 : -1}
               onClick={() => setMobileOpen(false)}
             >
