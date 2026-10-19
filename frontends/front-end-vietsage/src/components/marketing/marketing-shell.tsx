@@ -527,51 +527,52 @@ export function MarketingShell({
   locale = "vi",
   onLocaleChange,
   accountAction = { label: "Đăng nhập", href: "/dangnhap" },
+  showSceneRail = true,
+  showSceneBackdrop = true,
 }: {
   children: ReactNode;
   locale?: MarketingLocale;
   onLocaleChange?: (locale: SupportedLocale) => void;
   accountAction?: { label: string; href: string };
+  showSceneRail?: boolean;
+  showSceneBackdrop?: boolean;
 }) {
   const activeLocale = normalizeLocale(locale);
   const t = SHELL_COPY[activeLocale] ?? SHELL_COPY.vi;
 
   return (
     <MarketingMotionRoot className="vs-mkt-shell min-h-screen text-[#132119]">
-      <div className="vs-scene-backdrop" aria-hidden="true">
-        <span className="vs-scene-backdrop-layer" data-scene-backdrop="arrival" />
-        <span className="vs-scene-backdrop-layer" data-scene-backdrop="concierge" />
-        <span className="vs-scene-backdrop-layer" data-scene-backdrop="operations" />
-        <span className="vs-scene-backdrop-layer" data-scene-backdrop="visibility" />
-      </div>
-      <div className="vs-scene-particles" aria-hidden="true">
-        {sceneParticles.map((particle, index) => (
-          <span
-            key={index}
-            style={
-              {
-                "--particle-left": particle.left,
-                "--particle-top": particle.top,
-                "--particle-size": particle.size,
-                "--particle-drift": particle.drift,
-                "--particle-delay": particle.delay,
-                "--particle-distance": particle.distance,
-              } as CSSProperties
-            }
-          />
-        ))}
-      </div>
-      <div className="vs-scroll-progress" aria-hidden="true" />
+      {showSceneBackdrop && (
+        <>
+          <div className="vs-scene-backdrop" aria-hidden="true">
+            <span className="vs-scene-backdrop-layer" data-scene-backdrop="arrival" />
+            <span className="vs-scene-backdrop-layer" data-scene-backdrop="concierge" />
+            <span className="vs-scene-backdrop-layer" data-scene-backdrop="operations" />
+            <span className="vs-scene-backdrop-layer" data-scene-backdrop="visibility" />
+          </div>
+          <div className="vs-scene-particles" aria-hidden="true">
+            {sceneParticles.map((particle, index) => (
+              <span
+                key={index}
+                style={
+                  {
+                    "--particle-left": particle.left,
+                    "--particle-top": particle.top,
+                    "--particle-size": particle.size,
+                    "--particle-drift": particle.drift,
+                    "--particle-delay": particle.delay,
+                    "--particle-distance": particle.distance,
+                  } as CSSProperties
+                }
+              />
+            ))}
+          </div>
+          <div className="vs-scroll-progress" aria-hidden="true" />
+        </>
+      )}
       <MarketingHeader accountAction={accountAction} locale={activeLocale} onLocaleChange={onLocaleChange} />
-      {activeLocale === "vi" ? (
-        <nav className="vs-scene-rail" aria-label="Danh mục điều hướng trang chủ">
-          <a href="#arrival" data-scene-link="arrival"><span>01</span><em>{t.railArrival}</em></a>
-          <a href="#concierge" data-scene-link="concierge"><span>02</span><em>{t.railConcierge}</em></a>
-          <a href="#operations" data-scene-link="operations"><span>03</span><em>{t.railOperations}</em></a>
-          <a href="#visibility" data-scene-link="visibility"><span>04</span><em>{t.railVisibility}</em></a>
-        </nav>
-      ) : (
-        <nav className="vs-scene-rail" aria-label={t.navAria}>
+      {showSceneRail && (
+        <nav className="vs-scene-rail" aria-label={activeLocale === "vi" ? "Danh mục điều hướng trang chủ" : t.navAria}>
           <a href="#arrival" data-scene-link="arrival"><span>01</span><em>{t.railArrival}</em></a>
           <a href="#concierge" data-scene-link="concierge"><span>02</span><em>{t.railConcierge}</em></a>
           <a href="#operations" data-scene-link="operations"><span>03</span><em>{t.railOperations}</em></a>
