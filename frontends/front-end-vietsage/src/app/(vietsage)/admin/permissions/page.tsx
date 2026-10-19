@@ -8,9 +8,13 @@ import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { VsIcon } from "../../_components/vs-icon";
 import {
   type RolePermissionsBrowserRole,
-  RolePermissionsBrowser,
 } from "./_components/role-permissions-browser";
+import {
+  AdminPermissionsWorkbench,
+  type AdminPermissionsTab,
+} from "./_components/admin-permissions-workbench";
 import type { RolePermissionsBrowserPermission } from "./permission-types";
+import { IMMUTABLE_D3_PERMISSION_CATALOG } from "./d3-catalog-types";
 import { PermissionsWarningsAlert } from "./_components/permissions-warnings-alert";
 
 type PermissionsPageProps = {
@@ -82,6 +86,9 @@ export default async function AdminPermissionsPage({
 }: Readonly<PermissionsPageProps>) {
   const resolvedSearchParams = (await searchParams) ?? {};
   const selectedRoleId = extractParam(resolvedSearchParams.roleId);
+  const tabParam = extractParam(resolvedSearchParams.tab);
+  const initialTab: AdminPermissionsTab =
+    tabParam === "catalog" ? "catalog" : "roles";
 
   const session = await auth();
   const executeAuthorizedApi = createAuthorizedApiExecutor({
@@ -192,10 +199,12 @@ export default async function AdminPermissionsPage({
 
       <PermissionsWarningsAlert warnings={apiWarnings} />
 
-      <RolePermissionsBrowser
+      <AdminPermissionsWorkbench
+        initialTab={initialTab}
         roles={roles}
         initialRoleId={effectiveRoleId}
         initialPermissionsByRoleId={initialPermissionsByRoleId}
+        customCatalog={IMMUTABLE_D3_PERMISSION_CATALOG}
       />
     </div>
   );

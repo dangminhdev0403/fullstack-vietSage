@@ -7,4 +7,4 @@
 - [x] Shared contract declarations synchronized (`share_api.json` & `front-end/config/share_api.json`).
 - [x] Protected contract requiring permission `identity.permissions.read`.
 - [x] Response success envelope data.permissions item format (`key`, `label`, `description`, `bounded_context`, `risk`) defined for immutable catalog.
-- [ ] D3 Frontend Management UI integration (Pending UI phase).
+- [x] D3 Frontend Management UI integration (Pending UI phase).

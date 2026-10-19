@@ -46,3 +46,5 @@ export type PermissionApiDescriptor = {
   path: string;
   intent: string;
 };
+
+export * from "./d3-catalog-types";
