@@ -97,11 +97,42 @@ export class DirectBookingService {
   ): Promise<{ hotelId: string; roomTypeId: string; candidateRoomIds: string[] }> {
     let hotel: any = null;
     if (this.prisma.hotel?.findFirst) {
-      hotel = await this.prisma.hotel.findFirst({
-        where: {
-          OR: [{ id: rawHotelId }, { code: rawHotelId }],
-        },
-      });
+      if (rawHotelId && rawHotelId.includes("@")) {
+        hotel = await this.prisma.hotel.findFirst({
+          where: {
+            OR: [
+              {
+                staffAssignments: {
+                  some: {
+                    user: {
+                      email: { equals: rawHotelId.trim(), mode: "insensitive" },
+                    },
+                  },
+                },
+              },
+              {
+                tenant: {
+                  tenantUsers: {
+                    some: {
+                      user: {
+                        email: { equals: rawHotelId.trim(), mode: "insensitive" },
+                      },
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        });
+      }
+
+      if (!hotel) {
+        hotel = await this.prisma.hotel.findFirst({
+          where: {
+            OR: [{ id: rawHotelId }, { code: rawHotelId }],
+          },
+        });
+      }
 
       if (!hotel) {
         hotel = await this.prisma.hotel.findFirst({
@@ -123,6 +154,7 @@ export class DirectBookingService {
             { type: rawRoomTypeId },
             { roomType: { id: rawRoomTypeId } },
             { roomType: { normalizedKey: rawRoomTypeId.toLowerCase().trim() } },
+            { roomType: { name: { contains: rawRoomTypeId.trim(), mode: "insensitive" } } },
           ],
           status: { notIn: NON_SELLABLE_ROOM_STATUSES },
         },
