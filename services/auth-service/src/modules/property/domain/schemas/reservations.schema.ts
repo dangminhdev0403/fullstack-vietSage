@@ -79,6 +79,7 @@ export const checkInReservationBodySchema = z
     guestResidencePlace: z.string().trim().max(500).optional(),
     plannedCheckOutAt: z.coerce.date().optional(),
     occupants: z.array(stayOccupantInputSchema).optional(),
+    allowEarlyCheckIn: z.boolean().optional(),
   })
   .strict();
 

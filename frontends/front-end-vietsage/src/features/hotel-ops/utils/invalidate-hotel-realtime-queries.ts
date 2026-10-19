@@ -45,6 +45,8 @@ export async function invalidateHotelRealtimeQueries(
     localPartnersBound.queries.marketplaceOrders.invalidateAll(queryClient),
     cmAdminBound.queries.inventoryGrid.invalidateAll(queryClient),
     cmOwnerBound.queries.inventoryGrid.invalidateAll(queryClient),
+    cmAdminBound.queries.simulatedBookings.invalidateAll(queryClient),
+    cmOwnerBound.queries.simulatedBookings.invalidateAll(queryClient),
     cmAdminBound.invalidate(queryClient),
     cmOwnerBound.invalidate(queryClient),
     queryClient.invalidateQueries({

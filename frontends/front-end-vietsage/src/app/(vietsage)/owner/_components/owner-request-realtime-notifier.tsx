@@ -201,6 +201,7 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
           roomType?: string | null;
           guestName?: string;
           amount?: number | string | null;
+          currency?: string | null;
           reservationCode?: string;
         } | null;
 
@@ -215,11 +216,28 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
             ? `Hạng ${raw.roomType}`
             : "Chờ phân phòng";
         const ota = raw?.otaName || "OTA";
-        const guest = raw?.guestName || "Khách OTA";
+        const guest = raw?.guestName || "Khách hàng";
+        const otaLower = ota.toLowerCase();
+        const isDirect =
+          otaLower.includes("direct") ||
+          otaLower.includes("vietsage") ||
+          otaLower.includes("booking engine");
 
-        toast.success(`Đơn đặt phòng mới từ ${ota}!`, {
+        let amountText = "";
+        if (raw?.amount) {
+          const num = Number(raw.amount);
+          if (!Number.isNaN(num) && num > 0) {
+            amountText = ` • ${num.toLocaleString("vi-VN")} ${raw.currency || "VND"}`;
+          }
+        }
+
+        const title = isDirect
+          ? "Khách thanh toán thành công!"
+          : `Đơn đặt phòng mới từ ${ota}!`;
+
+        toast.success(title, {
           id: `channel-booking-${bookingKey}`,
-          description: `${roomInfo} • Khách: ${guest}`,
+          description: `${roomInfo} • Khách: ${guest}${amountText}`,
           duration: 12_000,
           action: {
             label: "Xem sơ đồ",
@@ -230,6 +248,7 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
         });
 
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        router.refresh();
       },
       onChannelBookingCancelled: (event: unknown) => {
         const raw = event as {
@@ -244,13 +263,14 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
         const bookingKey = raw?.bookingId || raw?.reservationCode || "latest";
         const codeDisplay = raw?.reservationCode ? `(${raw.reservationCode}) ` : "";
 
-        toast.warning("Đơn đặt phòng OTA đã HỦY", {
+        toast.warning("Đơn đặt phòng đã HỦY", {
           id: `channel-booking-cancelled-${bookingKey}`,
-          description: `Đơn từ ${raw?.otaName || "OTA"} ${codeDisplay}đã bị hủy trên sàn. Đã giải phóng ô phòng trống trong PMS.`,
+          description: `Đơn từ ${raw?.otaName || "kênh đặt phòng"} ${codeDisplay}đã hủy. Đã giải phóng phòng trống trong PMS.`,
           duration: 10_000,
         });
 
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        router.refresh();
       },
       onRoomStatusUpdated: (event: unknown) => {
         const raw = event as {
@@ -264,6 +284,7 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
         if (raw?.hotelId && raw.hotelId !== hotelId) return;
 
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        router.refresh();
 
         const statusLabels: Record<string, string> = {
           AVAILABLE: "TRỐNG (sẵn sàng đón khách)",

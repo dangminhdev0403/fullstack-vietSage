@@ -34,6 +34,18 @@ export const confirmHoldSchema = z.object({
   booking_id: z.string().min(1, "booking_id là bắt buộc"),
   idempotency_key: z.string().optional(),
   operation_key: z.string().optional(),
+  // Fallback booking metadata — used to reconstruct hold on-the-fly when hold_id is not found in memory
+  hotel_id: z.string().optional(),
+  room_type_id: z.string().optional(),
+  check_in_date: z.string().optional(),
+  check_out_date: z.string().optional(),
+  guest: z.object({
+    name: z.string().optional(),
+    email: z.string().optional(),
+    phone: z.string().optional(),
+  }).optional(),
+  amount: z.coerce.number().optional(),
+  currency: z.string().optional(),
 });
 
 export type ConfirmHoldDto = z.infer<typeof confirmHoldSchema>;

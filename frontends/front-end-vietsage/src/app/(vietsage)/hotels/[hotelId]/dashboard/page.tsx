@@ -380,7 +380,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm sm:text-base font-bold text-amber-950">{arrival.guestDisplayName}</p>
                     <p className="mt-0.5 text-xs sm:text-sm text-amber-800/85">
-                      Mã: <span className="font-semibold text-amber-900">{arrival.reservationCode}</span> · {arrival.roomId ? `Phòng ${arrival.roomId}` : "Chưa gán phòng"}
+                      Mã: <span className="font-semibold text-amber-900">{arrival.reservationCode}</span> · {arrival.room?.roomNumber ? `Phòng ${arrival.room.roomNumber}` : arrival.roomId ? `Phòng ${arrival.roomId}` : "Chưa gán phòng"}
                     </p>
                   </div>
                   <div className="flex items-center gap-2.5 shrink-0">

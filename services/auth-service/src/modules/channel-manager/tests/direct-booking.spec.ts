@@ -16,6 +16,7 @@ import {
   signDirectBookingPayload,
 } from "../services/direct-booking-hmac.util";
 import { DirectBookingService } from "../services/direct-booking.service";
+import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 
 describe("Channel Manager Direct Booking & Auto Room Allocation Module", () => {
   let directBookingService: DirectBookingService;
@@ -358,6 +359,50 @@ describe("Channel Manager Direct Booking & Auto Room Allocation Module", () => {
           mode: "auto",
         }),
       );
+    });
+
+    it("phát sự kiện realtime channel_booking.created và room_status.updated khi confirm hold thành công", async () => {
+      const emitBookingSpy = jest.spyOn(RequestRealtimeEmitter, "emitChannelBookingCreated").mockImplementation(() => {});
+      const emitRoomSpy = jest.spyOn(RequestRealtimeEmitter, "emitRoomStatusUpdated").mockImplementation(() => {});
+
+      const holdRes = await directBookingController.createHold({
+        hotel_id: hotelId,
+        room_type_id: roomTypeId,
+        check_in_date: "2026-11-20",
+        check_out_date: "2026-11-22",
+        guest: { name: "Le Van C" },
+      });
+
+      const holdId = holdRes.data.hold_id;
+      await directBookingController.confirmHold(holdId, {
+        hold_id: holdId,
+        booking_id: "bk_realtime_001",
+        amount: 1500000,
+        currency: "VND",
+      });
+
+      expect(emitBookingSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          hotelId,
+          bookingId: "bk_realtime_001",
+          guestName: "Le Van C",
+          roomNumber: "302",
+          amount: 1500000,
+          currency: "VND",
+        }),
+      );
+
+      expect(emitRoomSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          hotelId,
+          roomId: "room_302",
+          roomNumber: "302",
+          status: RoomStatus.RESERVED,
+        }),
+      );
+
+      emitBookingSpy.mockRestore();
+      emitRoomSpy.mockRestore();
     });
 
     it("hỗ trợ idempotency khi confirm lại cùng booking_id", async () => {

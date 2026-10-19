@@ -52,6 +52,12 @@ const ROOM_STATUS_MAP: Record<
     text: "text-emerald-800",
     icon: "check_circle",
   },
+  RESERVED: {
+    label: "Đã đặt",
+    bg: "bg-purple-100",
+    text: "text-purple-800",
+    icon: "bookmark",
+  },
   OCCUPIED: {
     label: "Đang ở",
     bg: "bg-blue-100",

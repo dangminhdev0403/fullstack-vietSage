@@ -608,6 +608,44 @@ export class HotelRoomsRepository {
         }
       }
 
+      const upcomingByRoomId = new Map<string, any>();
+      if (roomIds.length > 0) {
+        const upcomingList = await this.prisma.reservation.findMany({
+          where: {
+            hotelId,
+            roomId: { in: roomIds },
+            status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY] },
+            plannedCheckInAt: { gte: dateStart },
+          },
+          select: {
+            id: true,
+            hotelId: true,
+            roomId: true,
+            roomTypeSnapshot: true,
+            reservationCode: true,
+            groupCode: true,
+            guestDisplayName: true,
+            guestPhone: true,
+            status: true,
+            plannedCheckInAt: true,
+            plannedCheckOutAt: true,
+            nightlyRateSnapshot: true,
+            assignedAt: true,
+            assignedByUserId: true,
+            checkedInAt: true,
+            createdAt: true,
+            updatedAt: true,
+          } as any,
+          orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
+        });
+
+        for (const u of upcomingList) {
+          if (u.roomId && !upcomingByRoomId.has(u.roomId)) {
+            upcomingByRoomId.set(u.roomId, u);
+          }
+        }
+      }
+
       for (const item of items) {
         let projectedStatus: RoomStatus;
         if (staysByRoomId.has(item.id)) {
@@ -641,6 +679,12 @@ export class HotelRoomsRepository {
           } else {
             projectedStatus = RoomStatus.AVAILABLE;
           }
+        }
+        if (upcomingByRoomId.has(item.id)) {
+          item.upcomingReservation = {
+            ...upcomingByRoomId.get(item.id),
+            sourceType: "RESERVATION",
+          };
         }
         item.projectedStatus = projectedStatus;
         item.businessDate = projectionOptions.businessDate;

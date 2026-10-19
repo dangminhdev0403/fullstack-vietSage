@@ -357,6 +357,12 @@ export class ChannexBookingIngestionService {
                   if (candidateRoom.roomNumber) {
                     assignedRoomNumbers.push(candidateRoom.roomNumber);
                   }
+                  if (tx.room?.update) {
+                    await tx.room.update({
+                      where: { id: candidateRoom.id },
+                      data: { status: RoomStatus.RESERVED },
+                    });
+                  }
                 }
 
                 const suffix = segments.length > 1 ? `-${index + 1}` : "";
@@ -426,6 +432,7 @@ export class ChannexBookingIngestionService {
                 reservationIds,
                 roomNumber: assignedRoomNumbers[0] ?? null,
                 assignedRoomNumbers,
+                usedRoomIds,
                 guestName,
                 groupCode,
               };
@@ -443,9 +450,24 @@ export class ChannexBookingIngestionService {
                 reservationCode: attrs.ota_reservation_code || attrs.booking_id.slice(0, 8),
                 guestName: (outcome as any).guestName || "Khách OTA",
                 roomNumber: (outcome as any).roomNumber ?? null,
+                roomType: attrs.rooms?.[0]?.room_type_id ?? null,
+                checkInDate: attrs.arrival_date,
+                checkOutDate: attrs.departure_date,
                 amount: attrs.amount,
                 currency: attrs.currency,
               });
+
+              const usedIds = (outcome as any).usedRoomIds ?? [];
+              const roomNums = (outcome as any).assignedRoomNumbers ?? [];
+              for (let i = 0; i < usedIds.length; i++) {
+                RequestRealtimeEmitter.emitRoomStatusUpdated({
+                  hotelId,
+                  roomId: usedIds[i],
+                  roomNumber: roomNums[i] ?? null,
+                  status: RoomStatus.RESERVED,
+                  previousStatus: RoomStatus.AVAILABLE,
+                });
+              }
             } catch (emitErr) {
               this.logger.warn(`[Channex Ingestion] Realtime booking emit thất bại: ${emitErr}`);
             }
@@ -489,6 +511,7 @@ export class ChannexBookingIngestionService {
           const meta = (bookingMapping?.metadata as any) || {};
           let resCode: string | undefined = meta.otaReservationCode;
 
+          const freedRooms: Array<{ roomId: string; roomNumber?: string | null }> = [];
           if (reservationIds.length) {
             const firstRes = await tx.reservation.findUnique({
               where: { id: reservationIds[0] },
@@ -496,6 +519,24 @@ export class ChannexBookingIngestionService {
             });
             if (firstRes?.reservationCode) {
               resCode = firstRes.reservationCode;
+            }
+
+            const affectedRes = tx.reservation?.findMany
+              ? await tx.reservation.findMany({
+                  where: { id: { in: reservationIds }, roomId: { not: null } },
+                  select: { roomId: true, room: { select: { roomNumber: true, status: true } } },
+                })
+              : [];
+            for (const r of affectedRes) {
+              if (r.roomId && r.room?.status === RoomStatus.RESERVED) {
+                if (tx.room?.update) {
+                  await tx.room.update({
+                    where: { id: r.roomId },
+                    data: { status: RoomStatus.AVAILABLE },
+                  });
+                }
+                freedRooms.push({ roomId: r.roomId, roomNumber: r.room?.roomNumber });
+              }
             }
 
             await tx.reservation.updateMany({
@@ -521,6 +562,7 @@ export class ChannexBookingIngestionService {
             reservationId: reservationIds[0],
             reservationCode: resCode || attrs.ota_reservation_code,
             otaName: meta.otaName || attrs.ota_name,
+            freedRooms,
           };
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
@@ -534,6 +576,17 @@ export class ChannexBookingIngestionService {
             reservationCode: (outcome as any).reservationCode,
             otaName: (outcome as any).otaName || attrs.ota_name,
           });
+
+          const freed = (outcome as any).freedRooms ?? [];
+          for (const fr of freed) {
+            RequestRealtimeEmitter.emitRoomStatusUpdated({
+              hotelId,
+              roomId: fr.roomId,
+              roomNumber: fr.roomNumber ?? null,
+              status: RoomStatus.AVAILABLE,
+              previousStatus: RoomStatus.RESERVED,
+            });
+          }
         } catch (emitErr) {
           this.logger.warn(`[Channex Ingestion] Realtime cancel emit thất bại: ${emitErr}`);
         }

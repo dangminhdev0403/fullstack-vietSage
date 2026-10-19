@@ -21,6 +21,7 @@ import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { CheckInWorkspace } from "@/features/local-biometric/components/check-in-workspace";
 import type { CheckInStayFields } from "@/features/local-biometric/types/check-in-workspace";
 import { BrandedRoomQr } from "@/features/hotel-ops/components/branded-room-qr";
+import { formatFriendlyCheckInError } from "@/features/hotel-ops/utils/check-in-error";
 import { FrontDeskRoomDetailPanel } from "@/features/hotel-ops/components/front-desk-room-detail-panel";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
@@ -2912,16 +2913,6 @@ export function StaffRoomsClient({
     }
 
     if (activeReservationCheckIn) {
-      const confirmation = await showConfirmDialog({
-        icon: "question",
-        title: "Xác nhận nhận phòng?",
-        text: `Nhận phòng ${getRoomNumber(selectedRoom)} cho khách "${fields.guestDisplayName.trim()}". Hệ thống sẽ kích hoạt QR và mã GuestOS ngay.`,
-        confirmText: "Nhận phòng",
-        cancelText: "Hủy",
-      });
-
-      if (!confirmation.isConfirmed) return;
-
       setSaving(true);
       setSubmitError(undefined);
       try {
@@ -2953,6 +2944,7 @@ export function StaffRoomsClient({
                 ? { occupants: fields.occupants }
                 : {}),
               plannedCheckOutAt,
+              allowEarlyCheckIn: true,
             },
           },
         );
@@ -2972,32 +2964,85 @@ export function StaffRoomsClient({
           void loadArrivals(arrivalsRange);
         }
       } catch (error) {
-        setSubmitError(
-          error instanceof Error
-            ? error.message
-            : "Đã có lỗi xảy ra khi nhận phòng.",
-        );
-        await showErrorAlert(
-          "Không thể nhận phòng",
-          error instanceof Error
-            ? error.message
-            : "Đã có lỗi xảy ra khi nhận phòng.",
-        );
+        const rawMsg = error instanceof Error ? error.message : "";
+        if (rawMsg.includes("EARLY_CHECK_IN_NOT_ALLOWED")) {
+          const earlyConfirm = await showConfirmDialog({
+            icon: "question",
+            title: "Xác nhận nhận phòng sớm?",
+            text: "Đơn đặt phòng này có ngày nhận phòng dự kiến trong tương lai. Bạn có muốn cho phép khách làm thủ tục nhận phòng sớm ngay bây giờ không?",
+            confirmText: "Đồng ý nhận phòng sớm",
+            cancelText: "Hủy bỏ",
+            reverseButtons: false,
+          });
+          if (earlyConfirm.isConfirmed) {
+            setSaving(true);
+            try {
+              const retryResult = await requestInternalApiEnvelope<HotelCheckInResult>(
+                `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(activeReservationCheckIn.reservationId)}/check-in`,
+                {
+                  method: "POST",
+                  body: {
+                    guestDisplayName: fields.guestDisplayName.trim(),
+                    ...(fields.guestPhone?.trim()
+                      ? { guestPhone: fields.guestPhone.trim() }
+                      : {}),
+                    ...(fields.guestIdentityNumber?.trim()
+                      ? { guestIdentityNumber: fields.guestIdentityNumber.trim() }
+                      : {}),
+                    ...(fields.guestDateOfBirth?.trim()
+                      ? { guestDateOfBirth: fields.guestDateOfBirth.trim() }
+                      : {}),
+                    ...(fields.guestGender?.trim()
+                      ? { guestGender: fields.guestGender.trim() }
+                      : {}),
+                    ...(fields.guestNationality?.trim()
+                      ? { guestNationality: fields.guestNationality.trim() }
+                      : {}),
+                    ...(fields.guestResidencePlace?.trim()
+                      ? { guestResidencePlace: fields.guestResidencePlace.trim() }
+                      : {}),
+                    ...(fields.occupants?.length
+                      ? { occupants: fields.occupants }
+                      : {}),
+                    plannedCheckOutAt,
+                    allowEarlyCheckIn: true,
+                  },
+                },
+              );
+
+              setIsCheckInOpen(false);
+              setSelectedRoom(null);
+              setActiveReservationCheckIn(null);
+              setCustomCheckInInitialFields(null);
+              await showSuccessAlert(
+                "Nhận phòng thành công",
+                `Mã GuestOS: ${retryResult.data?.accessCode || ""}. Hồ sơ khách đang được tự động chuyển sang Khai báo tạm trú (BCA).`,
+              );
+              await invalidateHotelRealtimeQueries(queryClient, hotelId);
+              void boundChannelResource.invalidate(queryClient);
+              void refetch();
+              if (isArrivalsOpen) {
+                void loadArrivals(arrivalsRange);
+              }
+              return;
+            } catch (retryError) {
+              const friendlyRetry = formatFriendlyCheckInError(retryError);
+              setSubmitError(friendlyRetry);
+              await showErrorAlert("Không thể nhận phòng", friendlyRetry);
+              return;
+            } finally {
+              setSaving(false);
+            }
+          }
+        }
+        const friendlyMsg = formatFriendlyCheckInError(error);
+        setSubmitError(friendlyMsg);
+        await showErrorAlert("Không thể nhận phòng", friendlyMsg);
       } finally {
         setSaving(false);
       }
       return;
     }
-
-    const confirmation = await showConfirmDialog({
-      icon: "question",
-      title: "Xác nhận mở phòng và nhận phòng?",
-      text: `Mở phòng ${getRoomNumber(selectedRoom)} cho khách "${fields.guestDisplayName.trim()}". Hệ thống sẽ kích hoạt QR và mã GuestOS ngay.`,
-      confirmText: "Xác nhận mở phòng",
-      cancelText: "Hủy",
-    });
-
-    if (!confirmation.isConfirmed) return;
 
     setSaving(true);
     setSubmitError(undefined);

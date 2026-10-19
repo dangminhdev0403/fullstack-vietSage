@@ -531,11 +531,15 @@ export class ReservationsRepository {
       const now = new Date();
       const todayStr = formatHotelDate(now);
       const reservationDateStr = formatHotelDate(reservation.plannedCheckInAt);
-      if (todayStr < reservationDateStr) {
+      if (todayStr < reservationDateStr && !input.dto?.allowEarlyCheckIn) {
         throw new ConflictException("EARLY_CHECK_IN_NOT_ALLOWED");
       }
 
-      if (reservation.status !== ReservationStatus.ARRIVAL_READY || !reservation.roomId) {
+      if (
+        (reservation.status !== ReservationStatus.ARRIVAL_READY &&
+          reservation.status !== ReservationStatus.CONFIRMED) ||
+        !reservation.roomId
+      ) {
         throw new ConflictException("RESERVATION_NOT_READY_FOR_CHECK_IN");
       }
 
@@ -548,7 +552,10 @@ export class ReservationsRepository {
         where: { id: reservation.roomId, hotelId: input.hotelId },
         select: { id: true, status: true, price: true },
       });
-      if (!room || room.status !== RoomStatus.AVAILABLE) {
+      if (
+        !room ||
+        (room.status !== RoomStatus.AVAILABLE && room.status !== RoomStatus.RESERVED)
+      ) {
         throw new ConflictException("ROOM_NOT_READY_FOR_CHECK_IN");
       }
 
@@ -591,7 +598,11 @@ export class ReservationsRepository {
       }
 
       const occupiedRoom = await tx.room.updateMany({
-        where: { id: room.id, hotelId: input.hotelId, status: RoomStatus.AVAILABLE },
+        where: {
+          id: room.id,
+          hotelId: input.hotelId,
+          status: { in: [RoomStatus.AVAILABLE, RoomStatus.RESERVED] },
+        },
         data: { status: RoomStatus.OCCUPIED },
       });
       if (occupiedRoom.count !== 1) {

@@ -455,6 +455,9 @@ export function OwnerRoomsClient({
         onChannelBookingCancelled: () => {
           void refetchRooms();
         },
+        onRoomStatusUpdated: () => {
+          void refetchRooms();
+        },
       }),
       [refetchRooms],
     ),
@@ -784,20 +787,23 @@ export function OwnerRoomsClient({
   async function updateRoomFromQrAction(
     room: HotelRoomSummary,
     action: "rotate" | "activate" | "deactivate",
+    skipConfirm = false,
   ) {
-    const actionTitle =
-      action === "rotate"
-        ? "Đổi mã QR?"
-        : action === "activate"
-          ? "Kích hoạt QR?"
-          : "Tạm tắt QR?";
-    const confirmed = await showConfirmDialog({
-      icon: "question",
-      title: actionTitle,
-      confirmText: "Đồng ý",
-      cancelText: "Hủy",
-    });
-    if (!confirmed.isConfirmed) return;
+    if (!skipConfirm) {
+      const actionTitle =
+        action === "rotate"
+          ? "Đổi mã QR?"
+          : action === "activate"
+            ? "Kích hoạt QR?"
+            : "Tạm tắt QR?";
+      const confirmed = await showConfirmDialog({
+        icon: "question",
+        title: actionTitle,
+        confirmText: "Đồng ý",
+        cancelText: "Hủy",
+      });
+      if (!confirmed.isConfirmed) return;
+    }
 
     try {
       showLoading(action === "rotate" ? "Đang đổi mã QR" : "Đang cập nhật QR");
@@ -1780,7 +1786,7 @@ export function OwnerRoomsClient({
           setDetailDrawerInitialMode("view");
         }}
         onSaveRoom={handleSaveRoomFromDrawer}
-        onQrAction={(r, action) => void updateRoomFromQrAction(r, action)}
+        onQrAction={(r, action) => void updateRoomFromQrAction(r, action, true)}
         onOpenQrModal={(r) => {
           setSelectedDetailRoom(null);
           setSelectedQrRoom(r);

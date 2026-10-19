@@ -45,10 +45,24 @@ export class DirectBookingController {
   async confirmHold(@Param("id") paramId: string | undefined, @Body() body: unknown) {
     const dto = parseWithZod(confirmHoldSchema, body);
     const holdId = paramId || dto.hold_id || "";
+    const fallbackMeta = (dto.hotel_id && dto.room_type_id && dto.check_in_date && dto.check_out_date)
+      ? {
+          hotel_id: dto.hotel_id,
+          room_type_id: dto.room_type_id,
+          check_in_date: dto.check_in_date,
+          check_out_date: dto.check_out_date,
+          guest: dto.guest,
+          amount: dto.amount,
+          currency: dto.currency,
+        }
+      : undefined;
     const result = await this.directBookingService.confirmHold(
       holdId,
       dto.booking_id,
       dto.operation_key,
+      fallbackMeta,
+      dto.amount,
+      dto.currency,
     );
     return {
       success: true,

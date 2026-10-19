@@ -13,6 +13,7 @@ import type { HotelArrival } from "@/features/hotel-ops/types/hotel-ops-contract
 import { getArrivalStatusDisplay } from "@/features/hotel-ops/utils/hotel-ops-display";
 import { CheckInWorkspace } from "@/features/local-biometric/components/check-in-workspace";
 import type { CheckInStayFields } from "@/features/local-biometric/types/check-in-workspace";
+import { formatFriendlyCheckInError } from "@/features/hotel-ops/utils/check-in-error";
 import {
   showConfirmDialog,
   showErrorAlert,
@@ -243,17 +244,6 @@ export function FrontDeskArrivalDetailPanel({
   async function handleCheckInWorkspaceSubmit(fields: CheckInStayFields) {
     if (!arrival) return;
 
-    const confirmation = await showConfirmDialog({
-      icon: "question",
-      title: "Xác nhận nhận phòng?",
-      text: `Nhận phòng ${arrival.room?.roomNumber ? `Phòng ${arrival.room.roomNumber}` : ""} cho khách "${fields.guestDisplayName || arrival.guestDisplayName}". Hệ thống sẽ kích hoạt QR và mã GuestOS ngay.`,
-      confirmText: "Nhận phòng",
-      cancelText: "Hủy bỏ",
-      reverseButtons: false,
-    });
-
-    if (!confirmation.isConfirmed) return;
-
     setIsCheckingIn(true);
     setCheckInError(undefined);
     try {
@@ -275,6 +265,7 @@ export function FrontDeskArrivalDetailPanel({
             ...(fields.guestResidencePlace?.trim() ? { guestResidencePlace: fields.guestResidencePlace.trim() } : {}),
             ...(fields.plannedCheckOutAt ? { plannedCheckOutAt: fields.plannedCheckOutAt } : {}),
             ...(fields.occupants?.length ? { occupants: fields.occupants } : {}),
+            allowEarlyCheckIn: true,
           },
         },
       );
@@ -289,7 +280,64 @@ export function FrontDeskArrivalDetailPanel({
       onClose();
       router.refresh();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Đã có lỗi xảy ra khi làm thủ tục nhận phòng.";
+      const rawMsg = err instanceof Error ? err.message : "";
+      if (rawMsg.includes("EARLY_CHECK_IN_NOT_ALLOWED")) {
+        const earlyConfirm = await showConfirmDialog({
+          icon: "question",
+          title: "Xác nhận nhận phòng sớm?",
+          text: "Đơn đặt phòng này có ngày nhận phòng dự kiến trong tương lai. Bạn có muốn cho phép khách làm thủ tục nhận phòng sớm ngay bây giờ không?",
+          confirmText: "Đồng ý nhận phòng sớm",
+          cancelText: "Hủy bỏ",
+          reverseButtons: false,
+        });
+
+        if (earlyConfirm.isConfirmed) {
+          setIsCheckingIn(true);
+          try {
+            const res = await requestInternalApiEnvelope<{
+              accessCode: string;
+              stayId: string;
+              guestUrl?: string;
+            }>(
+              `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(arrival.id)}/check-in`,
+              {
+                method: "POST",
+                body: {
+                  guestDisplayName: fields.guestDisplayName?.trim() || arrival.guestDisplayName,
+                  ...(fields.guestPhone?.trim() ? { guestPhone: fields.guestPhone.trim() } : {}),
+                  ...(fields.guestIdentityNumber?.trim() ? { guestIdentityNumber: fields.guestIdentityNumber.trim() } : {}),
+                  ...(fields.guestDateOfBirth?.trim() ? { guestDateOfBirth: fields.guestDateOfBirth.trim() } : {}),
+                  ...(fields.guestGender?.trim() ? { guestGender: fields.guestGender.trim() } : {}),
+                  ...(fields.guestNationality?.trim() ? { guestNationality: fields.guestNationality.trim() } : {}),
+                  ...(fields.guestResidencePlace?.trim() ? { guestResidencePlace: fields.guestResidencePlace.trim() } : {}),
+                  ...(fields.plannedCheckOutAt ? { plannedCheckOutAt: fields.plannedCheckOutAt } : {}),
+                  ...(fields.occupants?.length ? { occupants: fields.occupants } : {}),
+                  allowEarlyCheckIn: true,
+                },
+              },
+            );
+
+            setIsCheckInWorkspaceOpen(false);
+            await showSuccessAlert(
+              "Nhận phòng thành công",
+              `Đã nhận phòng cho khách ${fields.guestDisplayName || arrival.guestDisplayName}.${res.data?.accessCode ? ` Mã GuestOS: ${res.data.accessCode}` : ""}`,
+            );
+
+            await invalidateHotelRealtimeQueries(queryClient, hotelId);
+            onClose();
+            router.refresh();
+            return;
+          } catch (retryErr) {
+            const retryMsg = formatFriendlyCheckInError(retryErr);
+            setCheckInError(retryMsg);
+            await showErrorAlert("Không thể nhận phòng", retryMsg);
+            return;
+          } finally {
+            setIsCheckingIn(false);
+          }
+        }
+      }
+      const msg = formatFriendlyCheckInError(err);
       setCheckInError(msg);
       await showErrorAlert("Không thể nhận phòng", msg);
     } finally {

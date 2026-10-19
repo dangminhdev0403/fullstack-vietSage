@@ -3,6 +3,7 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   Optional,
 } from "@nestjs/common";
@@ -17,6 +18,7 @@ import {
 import { PrismaService } from "../../../prisma/prisma.service";
 import { CodesService } from "../../codes/codes-public";
 import { ReservationRoomAllocationService } from "../../property/application/reservation-room-allocation.service";
+import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 import {
   CatalogExportDto,
   CreateHoldDto,
@@ -46,6 +48,7 @@ export interface DirectBookingHold {
   bookingId?: string;
   confirmedAt?: string;
   assignedRoom?: {
+    room_id?: string;
     room_number: string;
     floor: number | string | null;
   };
@@ -59,6 +62,7 @@ export interface DirectBookingConfirmResult {
   status: "CONFIRMED";
   room_status: "RESERVED";
   assigned_room: {
+    room_id?: string;
     room_number: string;
     floor: number | string | null;
   };
@@ -80,6 +84,7 @@ function parseVietnamDate(dateStr: string, timeStr = "14:00:00"): Date {
 
 @Injectable()
 export class DirectBookingService {
+  private readonly logger = new Logger(DirectBookingService.name);
   private readonly holds = new Map<string, DirectBookingHold>();
   private readonly confirmedBookings = new Map<string, DirectBookingConfirmResult>();
   private readonly operations = new Map<string, any>();
@@ -336,6 +341,17 @@ export class DirectBookingService {
     holdId: string,
     bookingId: string,
     operationKey?: string,
+    fallbackMeta?: {
+      hotel_id?: string;
+      room_type_id?: string;
+      check_in_date?: string;
+      check_out_date?: string;
+      guest?: { name?: string; email?: string; phone?: string };
+      amount?: number;
+      currency?: string;
+    },
+    amount?: number,
+    currency?: string,
   ): Promise<DirectBookingConfirmResult> {
     if (!holdId) {
       throw new BadRequestException("hold_id là bắt buộc");
@@ -354,16 +370,55 @@ export class DirectBookingService {
       return this.operations.get(effectiveOpKey);
     }
 
-    const hold = this.holds.get(holdId);
+    let hold = this.holds.get(holdId);
+
+    // On-the-fly hold reconstruction: when hold is not in memory (server restart,
+    // or booking-manager created booking without calling createHold first),
+    // reconstruct from fallback metadata and proceed with confirmation
+    if (!hold && fallbackMeta?.hotel_id && fallbackMeta?.room_type_id && fallbackMeta?.check_in_date && fallbackMeta?.check_out_date) {
+      const {
+        hotelId: effectiveHotelId,
+        roomTypeId: effectiveRoomTypeId,
+      } = await this.resolveEffectiveHotelAndRoomType(
+        fallbackMeta.hotel_id,
+        fallbackMeta.room_type_id,
+      );
+
+      const reconstructedHold: DirectBookingHold = {
+        holdId,
+        hotelId: effectiveHotelId,
+        roomTypeId: effectiveRoomTypeId,
+        checkInDate: fallbackMeta.check_in_date,
+        checkOutDate: fallbackMeta.check_out_date,
+        roomsCount: 1,
+        guest: fallbackMeta.guest,
+        ttlMinutes: 30,
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000), // extend TTL for reconstruction
+        status: 'HELD',
+        createdAt: new Date(),
+      };
+      this.holds.set(holdId, reconstructedHold);
+      hold = reconstructedHold;
+    }
+
     if (!hold) {
       throw new NotFoundException(`Không tìm thấy hold với mã: ${holdId}`);
     }
+
+    // Ensure effective hotelId and roomTypeId in case hold was created with external raw IDs
+    const {
+      hotelId: effectiveHotelId,
+      roomTypeId: effectiveRoomTypeId,
+    } = await this.resolveEffectiveHotelAndRoomType(hold.hotelId, hold.roomTypeId);
+    hold.hotelId = effectiveHotelId;
+    hold.roomTypeId = effectiveRoomTypeId;
 
     if (hold.status === "RELEASED") {
       throw new ConflictException("Hold đã bị giải phóng trước đó");
     }
 
-    if (Date.now() > hold.expiresAt.getTime()) {
+    // Skip expiry check for reconstructed holds (they were just created)
+    if (Date.now() > hold.expiresAt.getTime() && !fallbackMeta) {
       hold.status = "EXPIRED";
       throw new ConflictException("HOLD_EXPIRED");
     }
@@ -410,7 +465,7 @@ export class DirectBookingService {
           guestPhone: hold.guest?.phone || null,
           plannedCheckInAt: checkInAt,
           plannedCheckOutAt: checkOutAt,
-          status: ReservationStatus.CONFIRMED,
+          status: ReservationStatus.ARRIVAL_READY,
           assignedAt: new Date(),
           roomTypeSnapshot: allocated.type || hold.roomTypeId,
         },
@@ -440,6 +495,7 @@ export class DirectBookingService {
         status: "CONFIRMED",
         room_status: "RESERVED",
         assigned_room: {
+          room_id: allocated.roomId,
           room_number: allocated.roomNumber,
           floor: floorVal,
         },
@@ -460,6 +516,40 @@ export class DirectBookingService {
     this.confirmedBookings.set(bookingId, confirmResult);
     if (effectiveOpKey) {
       this.operations.set(effectiveOpKey, confirmResult);
+    }
+
+    // Phát sự kiện realtime thông báo tức thì cho Tenant/Owner và Frontdesk/Lễ tân
+    try {
+      const effectiveAmount = fallbackMeta?.amount ?? amount ?? null;
+      const effectiveCurrency = fallbackMeta?.currency ?? currency ?? "VND";
+
+      RequestRealtimeEmitter.emitChannelBookingCreated({
+        hotelId: hold.hotelId,
+        bookingId,
+        reservationId: confirmResult.reservation_id,
+        otaName: "Booking Engine (VietSage Direct)",
+        reservationCode: confirmResult.reservation_code,
+        guestName: hold.guest?.name || "Khách đặt trực tiếp",
+        roomNumber: confirmResult.assigned_room?.room_number ?? null,
+        roomType: hold.roomTypeId,
+        checkInDate: hold.checkInDate,
+        checkOutDate: hold.checkOutDate,
+        amount: effectiveAmount,
+        currency: effectiveCurrency,
+      });
+
+      if (confirmResult.assigned_room?.room_id) {
+        RequestRealtimeEmitter.emitRoomStatusUpdated({
+          hotelId: hold.hotelId,
+          roomId: confirmResult.assigned_room.room_id,
+          roomNumber: confirmResult.assigned_room.room_number,
+          status: RoomStatus.RESERVED,
+          previousStatus: RoomStatus.AVAILABLE,
+          updatedAt: confirmResult.confirmed_at,
+        });
+      }
+    } catch (emitErr) {
+      this.logger.warn(`[DirectBooking] Lỗi khi phát realtime event cho booking ${bookingId}: ${emitErr}`);
     }
 
     return confirmResult;
