@@ -1,5 +1,5 @@
-import { Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
-import { Prisma, RoomStatus } from "@prisma/client";
+import { ConflictException, Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
+import { Prisma, ReservationStatus, RoomStatus } from "@prisma/client";
 import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 import {
   addHours,
@@ -13,10 +13,14 @@ import {
 import { CodesService } from "../../codes/codes-public";
 import type {
   AssignReservationRoomBodyInput,
+  CancelReservationBodyInput,
+  CancelReservationDto,
   CheckInReservationBodyInput,
   CreateBulkReservationsBodyInput,
   CreateReservationBodyInput,
   ListArrivalsQueryInput,
+  MarkNoShowBodyInput,
+  MarkNoShowDto,
 } from "../domain/schemas/reservations.schema";
 import { ReservationsRepository } from "../infrastructure/repositories/reservations.repository";
 import { getBusinessDateRange } from "../infrastructure/repositories/hotel-rooms.repository";
@@ -258,5 +262,109 @@ export class ReservationsService {
         ? { id: result.roomQrCode.id, status: result.roomQrCode.status }
         : null,
     };
+  }
+
+  async cancelReservation(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    reservationId: string,
+    dto: CancelReservationBodyInput,
+  ) {
+    const hotel = await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
+    const reservation = await this.reservationsRepository.findReservationById(
+      hotelId,
+      reservationId,
+    );
+    if (!reservation) {
+      throw new NotFoundException("Không tìm thấy đặt phòng");
+    }
+    if (reservation.roomId) {
+      await this.hotelAccessService.assertRoomAccess(
+        actorUserId,
+        activeRoleId,
+        hotelId,
+        reservation.roomId,
+      );
+    }
+    if (reservation.status === ReservationStatus.CHECKED_IN) {
+      throw new ConflictException("Không thể hủy đặt phòng đã check-in");
+    }
+    if (
+      reservation.status === ReservationStatus.CANCELLED ||
+      reservation.status === ReservationStatus.NO_SHOW
+    ) {
+      throw new ConflictException("Đặt phòng đã bị hủy hoặc báo vắng mặt");
+    }
+    if (
+      reservation.status !== ReservationStatus.CONFIRMED &&
+      reservation.status !== ReservationStatus.ARRIVAL_READY
+    ) {
+      throw new ConflictException("Trạng thái đặt phòng không hợp lệ để hủy");
+    }
+
+    return this.reservationsRepository.cancelReservation({
+      hotelId,
+      tenantId: hotel.tenantId,
+      reservationId,
+      actorUserId,
+      reason: dto.reason,
+    });
+  }
+
+  async markNoShow(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    reservationId: string,
+    dto: MarkNoShowBodyInput,
+  ) {
+    const hotel = await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
+    const reservation = await this.reservationsRepository.findReservationById(
+      hotelId,
+      reservationId,
+    );
+    if (!reservation) {
+      throw new NotFoundException("Không tìm thấy đặt phòng");
+    }
+    if (reservation.roomId) {
+      await this.hotelAccessService.assertRoomAccess(
+        actorUserId,
+        activeRoleId,
+        hotelId,
+        reservation.roomId,
+      );
+    }
+    if (reservation.status === ReservationStatus.CHECKED_IN) {
+      throw new ConflictException("Không thể báo vắng mặt đặt phòng đã check-in");
+    }
+    if (
+      reservation.status === ReservationStatus.CANCELLED ||
+      reservation.status === ReservationStatus.NO_SHOW
+    ) {
+      throw new ConflictException("Đặt phòng đã bị hủy hoặc báo vắng mặt");
+    }
+    if (
+      reservation.status !== ReservationStatus.CONFIRMED &&
+      reservation.status !== ReservationStatus.ARRIVAL_READY
+    ) {
+      throw new ConflictException("Trạng thái đặt phòng không hợp lệ để báo vắng mặt");
+    }
+
+    return this.reservationsRepository.markNoShow({
+      hotelId,
+      tenantId: hotel.tenantId,
+      reservationId,
+      actorUserId,
+      reason: dto.reason,
+    });
   }
 }

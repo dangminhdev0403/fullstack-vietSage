@@ -994,4 +994,179 @@ describe("ReservationsRepository transactional lifecycle", () => {
       expect(tx.reservation.create).not.toHaveBeenCalled();
     });
   });
+
+  describe("cancelReservation transactional lifecycle", () => {
+    it("cancels a reservation, clears roomId, and creates auditLog and domainEvent", async () => {
+      const reservation = {
+        id: "reservation-1",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        status: ReservationStatus.ARRIVAL_READY,
+      };
+      const updatedReservation = {
+        ...reservation,
+        roomId: null,
+        status: ReservationStatus.CANCELLED,
+      };
+      const tx = {
+        $queryRawUnsafe: jest.fn(),
+        reservation: {
+          findFirst: jest.fn().mockResolvedValue(reservation),
+          update: jest.fn().mockResolvedValue(updatedReservation),
+        },
+        auditLog: {
+          create: jest.fn().mockResolvedValue({ id: "audit-1" }),
+        },
+        domainEvent: {
+          create: jest.fn().mockResolvedValue({ id: "event-1" }),
+        },
+      };
+      const { repository } = createRepository(tx);
+
+      const result = await repository.cancelReservation({
+        hotelId: "hotel-1",
+        tenantId: "tenant-1",
+        reservationId: "reservation-1",
+        actorUserId: "actor-1",
+        reason: "Khách bận việc đột xuất",
+      });
+
+      expect(result.status).toBe(ReservationStatus.CANCELLED);
+      expect(result.roomId).toBeNull();
+      expect(tx.reservation.update).toHaveBeenCalledWith({
+        where: { id: "reservation-1" },
+        data: {
+          status: ReservationStatus.CANCELLED,
+          roomId: null,
+        },
+        include: { room: true },
+      });
+      expect(tx.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          action: "RESERVATION_CANCELLED",
+          actorId: "actor-1",
+          entityType: "Reservation",
+          entityId: "reservation-1",
+          metadata: expect.objectContaining({
+            actorUserId: "actor-1",
+            reason: "Khách bận việc đột xuất",
+            previousStatus: ReservationStatus.ARRIVAL_READY,
+            previousRoomId: "room-1",
+          }),
+        }),
+      });
+      expect(tx.domainEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          eventType: "RESERVATION_CANCELLED",
+          aggregateType: "Reservation",
+          aggregateId: "reservation-1",
+          payload: expect.objectContaining({
+            actorUserId: "actor-1",
+            reason: "Khách bận việc đột xuất",
+          }),
+        }),
+      });
+    });
+
+    it("rejects cancellation if reservation is already CHECKED_IN", async () => {
+      const reservation = {
+        id: "reservation-1",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        status: ReservationStatus.CHECKED_IN,
+      };
+      const tx = {
+        $queryRawUnsafe: jest.fn(),
+        reservation: {
+          findFirst: jest.fn().mockResolvedValue(reservation),
+          update: jest.fn(),
+        },
+      };
+      const { repository } = createRepository(tx);
+
+      await expect(
+        repository.cancelReservation({
+          hotelId: "hotel-1",
+          tenantId: "tenant-1",
+          reservationId: "reservation-1",
+          actorUserId: "actor-1",
+        }),
+      ).rejects.toThrow(ConflictException);
+      expect(tx.reservation.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("markNoShow transactional lifecycle", () => {
+    it("marks reservation as no-show, clears roomId, and creates auditLog and domainEvent", async () => {
+      const reservation = {
+        id: "reservation-1",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        status: ReservationStatus.ARRIVAL_READY,
+      };
+      const updatedReservation = {
+        ...reservation,
+        roomId: null,
+        status: ReservationStatus.NO_SHOW,
+      };
+      const tx = {
+        $queryRawUnsafe: jest.fn(),
+        reservation: {
+          findFirst: jest.fn().mockResolvedValue(reservation),
+          update: jest.fn().mockResolvedValue(updatedReservation),
+        },
+        auditLog: {
+          create: jest.fn().mockResolvedValue({ id: "audit-1" }),
+        },
+        domainEvent: {
+          create: jest.fn().mockResolvedValue({ id: "event-1" }),
+        },
+      };
+      const { repository } = createRepository(tx);
+
+      const result = await repository.markNoShow({
+        hotelId: "hotel-1",
+        tenantId: "tenant-1",
+        reservationId: "reservation-1",
+        actorUserId: "actor-1",
+        reason: "Quá giờ nhận phòng không liên lạc được",
+      });
+
+      expect(result.status).toBe(ReservationStatus.NO_SHOW);
+      expect(result.roomId).toBeNull();
+      expect(tx.reservation.update).toHaveBeenCalledWith({
+        where: { id: "reservation-1" },
+        data: {
+          status: ReservationStatus.NO_SHOW,
+          roomId: null,
+        },
+        include: { room: true },
+      });
+      expect(tx.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          action: "RESERVATION_NO_SHOW",
+          actorId: "actor-1",
+          entityType: "Reservation",
+          entityId: "reservation-1",
+          metadata: expect.objectContaining({
+            actorUserId: "actor-1",
+            reason: "Quá giờ nhận phòng không liên lạc được",
+            previousStatus: ReservationStatus.ARRIVAL_READY,
+            previousRoomId: "room-1",
+          }),
+        }),
+      });
+      expect(tx.domainEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          eventType: "RESERVATION_NO_SHOW",
+          aggregateType: "Reservation",
+          aggregateId: "reservation-1",
+          payload: expect.objectContaining({
+            actorUserId: "actor-1",
+            reason: "Quá giờ nhận phòng không liên lạc được",
+          }),
+        }),
+      });
+    });
+  });
 });

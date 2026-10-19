@@ -186,6 +186,42 @@ export class HotelOpsService {
     return unwrapApiEnvelope<HotelReservationCheckInResult>(payload).data;
   }
 
+  async cancelReservation(
+    hotelId: string,
+    reservationId: string,
+    body?: { reason?: string },
+    accessToken?: string,
+  ): Promise<HotelArrival> {
+    const payload = await this.httpClient.request<unknown, unknown>({
+      method: "POST",
+      path: hotelPath(
+        hotelId,
+        `/reservations/${encodeURIComponent(reservationId)}/cancel`,
+      ),
+      body: body ?? {},
+      accessToken,
+    });
+    return unwrapApiEnvelope<HotelArrival>(payload).data;
+  }
+
+  async markNoShowReservation(
+    hotelId: string,
+    reservationId: string,
+    body?: { reason?: string },
+    accessToken?: string,
+  ): Promise<HotelArrival> {
+    const payload = await this.httpClient.request<unknown, unknown>({
+      method: "POST",
+      path: hotelPath(
+        hotelId,
+        `/reservations/${encodeURIComponent(reservationId)}/no-show`,
+      ),
+      body: body ?? {},
+      accessToken,
+    });
+    return unwrapApiEnvelope<HotelArrival>(payload).data;
+  }
+
   async listRoomTypes(
     hotelId: string,
     accessToken?: string,

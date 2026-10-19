@@ -16,10 +16,12 @@ import type { AuthenticatedUser } from "../../../shared/security";
 import { ReservationsService } from "../application/reservations.service";
 import {
   assignReservationRoomBodySchema,
+  cancelReservationBodySchema,
   checkInReservationBodySchema,
   createBulkReservationsBodySchema,
   createReservationBodySchema,
   listArrivalsQuerySchema,
+  markNoShowBodySchema,
 } from "../domain/schemas/reservations.schema";
 import { hotelIdParamSchema, reservationIdParamSchema } from "../domain/schemas/shared.schema";
 
@@ -38,7 +40,10 @@ const reservationResponseSchema = {
     reservationCode: { type: "string" },
     guestDisplayName: { type: "string" },
     guestPhone: { type: "string", nullable: true },
-    status: { type: "string", enum: ["CONFIRMED", "ARRIVAL_READY", "CHECKED_IN"] },
+    status: {
+      type: "string",
+      enum: ["CONFIRMED", "ARRIVAL_READY", "CHECKED_IN", "CANCELLED", "NO_SHOW"],
+    },
     plannedCheckInAt: { type: "string", format: "date-time" },
     plannedCheckOutAt: { type: "string", format: "date-time" },
   },
@@ -236,6 +241,80 @@ export class ReservationsController {
     const reservationId = parseWithZod(reservationIdParamSchema, reservationIdParam);
     const dto = parseWithZod(checkInReservationBodySchema, body ?? {});
     return this.reservationsService.checkIn(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      reservationId,
+      dto,
+    );
+  }
+
+  @RequirePermission("hotel.reservations.manage")
+  @SuccessMessage("Hủy đặt phòng thành công")
+  @ApiDescript("Hủy đặt phòng và giải phóng phòng đã gán")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "reservationId", type: String })
+  @ApiBody({
+    required: false,
+    schema: {
+      type: "object",
+      properties: {
+        reason: { type: "string" },
+      },
+    },
+  })
+  @ApiOkResponse({
+    description: "Đã hủy đặt phòng và giải phóng gán phòng",
+    schema: reservationResponseSchema,
+  })
+  @Post(":hotelId/reservations/:reservationId/cancel")
+  async cancelReservation(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("reservationId") reservationIdParam: string,
+    @Body() body?: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const reservationId = parseWithZod(reservationIdParamSchema, reservationIdParam);
+    const dto = parseWithZod(cancelReservationBodySchema, body ?? {});
+    return this.reservationsService.cancelReservation(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      reservationId,
+      dto,
+    );
+  }
+
+  @RequirePermission("hotel.reservations.manage")
+  @SuccessMessage("Báo vắng mặt (No-show) thành công")
+  @ApiDescript("Đánh dấu khách không đến nhận phòng và giải phóng phòng đã gán")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "reservationId", type: String })
+  @ApiBody({
+    required: false,
+    schema: {
+      type: "object",
+      properties: {
+        reason: { type: "string" },
+      },
+    },
+  })
+  @ApiOkResponse({
+    description: "Đã đánh dấu khách vắng mặt (No-show) và giải phóng phòng",
+    schema: reservationResponseSchema,
+  })
+  @Post(":hotelId/reservations/:reservationId/no-show")
+  async markNoShow(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("reservationId") reservationIdParam: string,
+    @Body() body?: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const reservationId = parseWithZod(reservationIdParamSchema, reservationIdParam);
+    const dto = parseWithZod(markNoShowBodySchema, body ?? {});
+    return this.reservationsService.markNoShow(
       request.user.userId,
       request.user.roleId,
       hotelId,

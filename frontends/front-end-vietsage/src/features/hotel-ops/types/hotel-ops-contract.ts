@@ -312,7 +312,7 @@ export type HotelArrival = {
   groupCode?: string | null;
   guestDisplayName: string;
   guestPhone: string | null;
-  status: "CONFIRMED" | "ARRIVAL_READY" | "CHECKED_IN";
+  status: "CONFIRMED" | "ARRIVAL_READY" | "CHECKED_IN" | "CANCELLED" | "NO_SHOW";
   plannedCheckInAt: string;
   plannedCheckOutAt: string;
   nightlyRateSnapshot?: number | string | null;

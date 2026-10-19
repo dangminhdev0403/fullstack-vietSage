@@ -89,6 +89,8 @@ export function FrontDeskArrivalDetailPanel({
   const [isAssigningMode, setIsAssigningMode] = useState<boolean>(false);
   const [isSubmittingRoom, setIsSubmittingRoom] = useState<boolean>(false);
   const [isCheckingIn, setIsCheckingIn] = useState<boolean>(false);
+  const [isCancelling, setIsCancelling] = useState<boolean>(false);
+  const [isMarkingNoShow, setIsMarkingNoShow] = useState<boolean>(false);
   const [isCheckInWorkspaceOpen, setIsCheckInWorkspaceOpen] = useState<boolean>(false);
   const [checkInError, setCheckInError] = useState<string | undefined>();
 
@@ -99,6 +101,8 @@ export function FrontDeskArrivalDetailPanel({
     setIsAssigningMode(!arrival.roomId);
     setIsCheckInWorkspaceOpen(false);
     setCheckInError(undefined);
+    setIsCancelling(false);
+    setIsMarkingNoShow(false);
   }
 
   // Keyboard navigation and focus trap
@@ -293,6 +297,90 @@ export function FrontDeskArrivalDetailPanel({
     }
   }
 
+  async function handleCancelReservation() {
+    if (!arrival) return;
+
+    const confirm = await showConfirmDialog({
+      icon: "warning",
+      title: "Xác nhận hủy đặt phòng?",
+      text: `Đơn đặt phòng #${arrival.reservationCode} của khách "${arrival.guestDisplayName}" sẽ bị hủy. Phòng đã gán (nếu có) sẽ được giải phóng ngay lập tức để đón khách khác.`,
+      confirmText: "Hủy đặt phòng",
+      cancelText: "Giữ lại",
+      reverseButtons: false,
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    setIsCancelling(true);
+    try {
+      await requestInternalApiEnvelope(
+        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(arrival.id)}/cancel`,
+        {
+          method: "POST",
+          body: {},
+        },
+      );
+
+      await showSuccessAlert(
+        "Hủy đặt phòng thành công",
+        `Đã hủy đơn đặt phòng #${arrival.reservationCode} của khách ${arrival.guestDisplayName} và giải phóng phòng thành công.`,
+      );
+
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
+      onClose();
+      router.refresh();
+    } catch (err) {
+      await showErrorAlert(
+        "Không thể hủy đặt phòng",
+        err instanceof Error ? err.message : "Đã có lỗi xảy ra khi hủy đặt phòng.",
+      );
+    } finally {
+      setIsCancelling(false);
+    }
+  }
+
+  async function handleMarkNoShow() {
+    if (!arrival) return;
+
+    const confirm = await showConfirmDialog({
+      icon: "warning",
+      title: "Xác nhận báo vắng mặt (No-show)?",
+      text: `Xác nhận khách "${arrival.guestDisplayName}" (Đơn #${arrival.reservationCode}) không đến nhận phòng? Phòng sẽ được giải phóng ngay lập tức để phục vụ khách khác.`,
+      confirmText: "Báo vắng mặt",
+      cancelText: "Hủy bỏ",
+      reverseButtons: false,
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    setIsMarkingNoShow(true);
+    try {
+      await requestInternalApiEnvelope(
+        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(arrival.id)}/no-show`,
+        {
+          method: "POST",
+          body: {},
+        },
+      );
+
+      await showSuccessAlert(
+        "Ghi nhận vắng mặt thành công",
+        `Đã chuyển đơn đặt phòng #${arrival.reservationCode} của khách ${arrival.guestDisplayName} sang trạng thái vắng mặt (No-show).`,
+      );
+
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
+      onClose();
+      router.refresh();
+    } catch (err) {
+      await showErrorAlert(
+        "Không thể ghi nhận vắng mặt",
+        err instanceof Error ? err.message : "Đã có lỗi xảy ra khi báo vắng mặt.",
+      );
+    } finally {
+      setIsMarkingNoShow(false);
+    }
+  }
+
   return (
     <>
       <div
@@ -315,11 +403,11 @@ export function FrontDeskArrivalDetailPanel({
         <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4.5 bg-slate-50 shrink-0">
           <div>
             <div className="flex flex-wrap items-center gap-2.5">
-              <h2 id={titleId} className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+              <h2 id={titleId} className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 text-balance">
                 {arrival.guestDisplayName}
               </h2>
               {arrival.reservationCode ? (
-                <span className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 font-mono text-xs sm:text-sm font-black text-blue-900 shadow-2xs">
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 font-mono text-xs sm:text-sm font-black text-blue-900 shadow-2xs whitespace-nowrap">
                   <span>#{arrival.reservationCode}</span>
                   <button
                     type="button"
@@ -340,25 +428,33 @@ export function FrontDeskArrivalDetailPanel({
                   </button>
                 </span>
               ) : null}
-              {isToday ? (
-                <span className="rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-1 text-sm font-black uppercase tracking-wider">
+              {arrival.status === "CANCELLED" ? (
+                <span className="rounded-lg bg-rose-50 text-rose-800 border border-rose-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
+                  Đã hủy đặt phòng
+                </span>
+              ) : arrival.status === "NO_SHOW" ? (
+                <span className="rounded-lg bg-slate-100 text-slate-800 border border-slate-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
+                  Vắng mặt (No-show)
+                </span>
+              ) : isToday ? (
+                <span className="rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
                   Hôm nay nhận phòng
                 </span>
               ) : isFuture ? (
-                <span className="rounded-lg bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 text-sm font-black uppercase tracking-wider">
+                <span className="rounded-lg bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
                   Lịch đặt tương lai
                 </span>
               ) : (
-                <span className="rounded-lg bg-amber-50 text-amber-800 border border-amber-300 px-3 py-1 text-sm font-black uppercase tracking-wider">
+                <span className="rounded-lg bg-amber-50 text-amber-800 border border-amber-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
                   Đến hạn nhận phòng
                 </span>
               )}
-              {arrival.roomId ? (
-                <span className="rounded-lg bg-sky-50 text-sky-800 border border-sky-300 px-3 py-1 text-sm font-black uppercase tracking-wider">
+              {arrival.status === "CANCELLED" || arrival.status === "NO_SHOW" ? null : arrival.roomId ? (
+                <span className="rounded-lg bg-sky-50 text-sky-800 border border-sky-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
                   Phòng {arrival.room?.roomNumber || "Đã gán"}
                 </span>
               ) : (
-                <span className="rounded-lg bg-amber-50 text-amber-800 border border-amber-300 px-3 py-1 text-sm font-black uppercase tracking-wider">
+                <span className="rounded-lg bg-amber-50 text-amber-800 border border-amber-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
                   Chưa gán phòng
                 </span>
               )}
@@ -592,39 +688,67 @@ export function FrontDeskArrivalDetailPanel({
         </div>
 
         {/* Footer Actions Bar */}
-        <footer className="border-t border-slate-200 px-6 py-4 bg-slate-50 shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
+        <footer className="border-t border-slate-200 px-6 py-4 bg-slate-50 shrink-0 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href={`/hotels/${encodeURIComponent(hotelId)}/rooms?flow=arrivals&roomId=${encodeURIComponent(arrival.roomId || "")}`}
-              className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-700 font-bold text-sm shadow-2xs transition-all hover:bg-slate-50 hover:text-slate-900 cursor-pointer"
+              className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-slate-700 font-bold text-xs sm:text-sm shadow-2xs transition-all hover:bg-slate-50 hover:text-slate-900 cursor-pointer whitespace-nowrap"
             >
-              <VsIcon name="grid_view" className="text-lg text-slate-500" />
+              <VsIcon name="grid_view" className="text-base text-slate-500" />
               <span>Xem trên sơ đồ phòng</span>
             </Link>
+
+            {canAssignRoom && (arrival.status === "CONFIRMED" || arrival.status === "ARRIVAL_READY") ? (
+              <>
+                <button
+                  type="button"
+                  disabled={isCancelling || isMarkingNoShow || isCheckingIn}
+                  onClick={() => void handleCancelReservation()}
+                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-rose-300 bg-white hover:bg-rose-50 px-3.5 py-2 text-rose-700 font-bold text-xs sm:text-sm transition-all cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                >
+                  <VsIcon name="cancel" className="text-base text-rose-600" />
+                  <span>{isCancelling ? "Đang hủy..." : "Hủy đặt phòng"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isCancelling || isMarkingNoShow || isCheckingIn}
+                  onClick={() => void handleMarkNoShow()}
+                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 px-3.5 py-2 text-slate-700 font-bold text-xs sm:text-sm transition-all cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                >
+                  <VsIcon name="person_off" className="text-base text-slate-500" />
+                  <span>{isMarkingNoShow ? "Đang ghi nhận..." : "Báo vắng mặt (No-show)"}</span>
+                </button>
+              </>
+            ) : null}
           </div>
 
           <div className="flex items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white hover:bg-slate-100 px-5 py-2.5 text-slate-800 font-bold text-sm transition cursor-pointer min-h-[46px]"
+              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white hover:bg-slate-100 px-5 py-2.5 text-slate-800 font-bold text-sm transition cursor-pointer min-h-[44px] whitespace-nowrap"
             >
               <span>Đóng</span>
             </button>
 
-            {arrival.roomId ? (
+            {arrival.status === "CANCELLED" || arrival.status === "NO_SHOW" ? (
+              <div className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-slate-200/80 px-4 py-2 text-slate-700 text-sm font-bold border border-slate-300 whitespace-nowrap">
+                <span>Đơn không còn hoạt động</span>
+              </div>
+            ) : arrival.roomId ? (
               isToday && canCheckInStay ? (
                 <button
                   type="button"
-                  disabled={isCheckingIn}
+                  disabled={isCheckingIn || isCancelling || isMarkingNoShow}
                   onClick={() => handleStartCheckIn()}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 px-6 py-2.5 text-white font-black text-sm sm:text-base shadow-md transition active:scale-[0.98] cursor-pointer min-h-[46px]"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 px-6 py-2.5 text-white font-black text-sm sm:text-base shadow-md transition active:scale-[0.98] cursor-pointer min-h-[44px] whitespace-nowrap"
                 >
                   <VsIcon name="login" className="text-lg" />
                   <span>{isCheckingIn ? "Đang nhận phòng..." : "Nhận phòng ngay"}</span>
                 </button>
               ) : (
-                <div className="inline-flex min-h-[46px] items-center justify-center rounded-xl bg-slate-200/80 px-4 py-2 text-slate-800 text-sm font-bold border border-slate-300">
+                <div className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-slate-200/80 px-4 py-2 text-slate-800 text-sm font-bold border border-slate-300 whitespace-nowrap">
                   <VsIcon name="schedule" className="mr-1.5 h-4 w-4 text-slate-600" />
                   <span>Lịch đặt tương lai — Đến vào ngày nhận</span>
                 </div>
@@ -633,7 +757,7 @@ export function FrontDeskArrivalDetailPanel({
               <button
                 type="button"
                 onClick={() => setIsAssigningMode(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 px-5 py-2.5 text-white font-bold text-sm shadow-md transition cursor-pointer min-h-[46px]"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 px-5 py-2.5 text-white font-bold text-sm shadow-md transition cursor-pointer min-h-[44px] whitespace-nowrap"
               >
                 <VsIcon name="meeting_room" className="text-lg" />
                 <span>Gán phòng trước</span>

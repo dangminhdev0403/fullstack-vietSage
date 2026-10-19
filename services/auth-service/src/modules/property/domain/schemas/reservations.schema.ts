@@ -147,3 +147,20 @@ export type CheckInReservationBodyInput = z.infer<typeof checkInReservationBodyS
 export type CreateBulkReservationsBodyInput = z.infer<typeof createBulkReservationsBodySchema>;
 export const createGroupReservationsBodySchema = createBulkReservationsBodySchema;
 export type CreateGroupReservationsBodyInput = CreateBulkReservationsBodyInput;
+
+export const cancelReservationBodySchema = z
+  .object({
+    reason: z.string().trim().max(500).optional(),
+  })
+  .strict();
+
+export const markNoShowBodySchema = z
+  .object({
+    reason: z.string().trim().max(500).optional(),
+  })
+  .strict();
+
+export type CancelReservationBodyInput = z.infer<typeof cancelReservationBodySchema>;
+export type MarkNoShowBodyInput = z.infer<typeof markNoShowBodySchema>;
+export type CancelReservationDto = CancelReservationBodyInput;
+export type MarkNoShowDto = MarkNoShowBodyInput;

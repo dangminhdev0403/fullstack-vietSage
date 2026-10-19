@@ -94,7 +94,7 @@ Initial implementation may create directly as `CONFIRMED`; `DRAFT` remains optio
 2. `GET /hotels/{hotelId}/reservations?arrivalDate=&status=` — arrivals queue.
 3. `POST /hotels/{hotelId}/reservations/{reservationId}/assign-room` — atomic room assignment validation.
 4. `POST /hotels/{hotelId}/reservations/{reservationId}/check-in` — transactional conversion to stay.
-5. Cancellation/no-show commands after create/assign/check-in is verified.
+5. `POST /hotels/{hotelId}/reservations/{reservationId}/cancel` & `POST /hotels/{hotelId}/reservations/{reservationId}/no-show` — cancellation and no-show commands with room release, audit log, and domain event persistence (Implemented).
 
 ### Compatibility
 

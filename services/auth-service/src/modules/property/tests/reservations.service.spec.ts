@@ -41,6 +41,18 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
       groupCode: "VSH_GROUP_0001",
       reservations: [],
     }),
+    cancelReservation: jest.fn().mockResolvedValue({
+      id: "reservation-1",
+      hotelId: "hotel-1",
+      roomId: null,
+      status: "CANCELLED",
+    }),
+    markNoShow: jest.fn().mockResolvedValue({
+      id: "reservation-1",
+      hotelId: "hotel-1",
+      roomId: null,
+      status: "NO_SHOW",
+    }),
     ...overrides,
   };
 }
@@ -338,6 +350,226 @@ describe("ReservationsService front-desk lifecycle", () => {
           groupCode: "CUSTOM_GRP_999",
         }),
       );
+    });
+  });
+
+  describe("cancelReservation", () => {
+    it("cancels a confirmed reservation successfully and releases assigned room", async () => {
+      const { service, repository } = createService();
+
+      const result = await service.cancelReservation("actor-1", "active-role", "hotel-1", "reservation-1", {
+        reason: "Khách đổi lịch",
+      });
+
+      expect(repository.cancelReservation).toHaveBeenCalledWith({
+        hotelId: "hotel-1",
+        tenantId: "tenant-1",
+        reservationId: "reservation-1",
+        actorUserId: "actor-1",
+        reason: "Khách đổi lịch",
+      });
+      expect(result).toMatchObject({
+        status: "CANCELLED",
+        roomId: null,
+      });
+    });
+
+    it("cancels an arrival_ready reservation successfully and releases room", async () => {
+      const { service, repository } = createService(
+        createRepository({
+          findReservationById: jest.fn().mockResolvedValue({
+            id: "reservation-1",
+            hotelId: "hotel-1",
+            roomId: "room-1",
+            status: "ARRIVAL_READY",
+          }),
+        }),
+      );
+
+      const result = await service.cancelReservation("actor-1", "active-role", "hotel-1", "reservation-1", {});
+
+      expect(repository.cancelReservation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reservationId: "reservation-1",
+        }),
+      );
+      expect(result).toMatchObject({
+        status: "CANCELLED",
+        roomId: null,
+      });
+    });
+
+    it("rejects when reservation is already CHECKED_IN with 409 ConflictException", async () => {
+      const { service } = createService(
+        createRepository({
+          findReservationById: jest.fn().mockResolvedValue({
+            id: "reservation-1",
+            hotelId: "hotel-1",
+            roomId: "room-1",
+            status: "CHECKED_IN",
+          }),
+        }),
+      );
+
+      await expect(
+        service.cancelReservation("actor-1", "active-role", "hotel-1", "reservation-1", {}),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("rejects when reservation is already CANCELLED with 409 ConflictException", async () => {
+      const { service } = createService(
+        createRepository({
+          findReservationById: jest.fn().mockResolvedValue({
+            id: "reservation-1",
+            hotelId: "hotel-1",
+            roomId: null,
+            status: "CANCELLED",
+          }),
+        }),
+      );
+
+      await expect(
+        service.cancelReservation("actor-1", "active-role", "hotel-1", "reservation-1", {}),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("rejects when reservation is already NO_SHOW with 409 ConflictException", async () => {
+      const { service } = createService(
+        createRepository({
+          findReservationById: jest.fn().mockResolvedValue({
+            id: "reservation-1",
+            hotelId: "hotel-1",
+            roomId: null,
+            status: "NO_SHOW",
+          }),
+        }),
+      );
+
+      await expect(
+        service.cancelReservation("actor-1", "active-role", "hotel-1", "reservation-1", {}),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("throws NotFoundException when reservation does not exist", async () => {
+      const { service } = createService(
+        createRepository({
+          findReservationById: jest.fn().mockResolvedValue(null),
+        }),
+      );
+
+      await expect(
+        service.cancelReservation("actor-1", "active-role", "hotel-1", "missing-res", {}),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe("markNoShow", () => {
+    it("marks a confirmed reservation as no-show successfully and releases assigned room", async () => {
+      const { service, repository } = createService();
+
+      const result = await service.markNoShow("actor-1", "active-role", "hotel-1", "reservation-1", {
+        reason: "Khách không đến nhận phòng",
+      });
+
+      expect(repository.markNoShow).toHaveBeenCalledWith({
+        hotelId: "hotel-1",
+        tenantId: "tenant-1",
+        reservationId: "reservation-1",
+        actorUserId: "actor-1",
+        reason: "Khách không đến nhận phòng",
+      });
+      expect(result).toMatchObject({
+        status: "NO_SHOW",
+        roomId: null,
+      });
+    });
+
+    it("marks an arrival_ready reservation as no-show successfully and releases room", async () => {
+      const { service, repository } = createService(
+        createRepository({
+          findReservationById: jest.fn().mockResolvedValue({
+            id: "reservation-1",
+            hotelId: "hotel-1",
+            roomId: "room-1",
+            status: "ARRIVAL_READY",
+          }),
+        }),
+      );
+
+      const result = await service.markNoShow("actor-1", "active-role", "hotel-1", "reservation-1", {});
+
+      expect(repository.markNoShow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reservationId: "reservation-1",
+        }),
+      );
+      expect(result).toMatchObject({
+        status: "NO_SHOW",
+        roomId: null,
+      });
+    });
+
+    it("rejects when reservation is already CHECKED_IN with 409 ConflictException", async () => {
+      const { service } = createService(
+        createRepository({
+          findReservationById: jest.fn().mockResolvedValue({
+            id: "reservation-1",
+            hotelId: "hotel-1",
+            roomId: "room-1",
+            status: "CHECKED_IN",
+          }),
+        }),
+      );
+
+      await expect(
+        service.markNoShow("actor-1", "active-role", "hotel-1", "reservation-1", {}),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("rejects when reservation is already CANCELLED with 409 ConflictException", async () => {
+      const { service } = createService(
+        createRepository({
+          findReservationById: jest.fn().mockResolvedValue({
+            id: "reservation-1",
+            hotelId: "hotel-1",
+            roomId: null,
+            status: "CANCELLED",
+          }),
+        }),
+      );
+
+      await expect(
+        service.markNoShow("actor-1", "active-role", "hotel-1", "reservation-1", {}),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("rejects when reservation is already NO_SHOW with 409 ConflictException", async () => {
+      const { service } = createService(
+        createRepository({
+          findReservationById: jest.fn().mockResolvedValue({
+            id: "reservation-1",
+            hotelId: "hotel-1",
+            roomId: null,
+            status: "NO_SHOW",
+          }),
+        }),
+      );
+
+      await expect(
+        service.markNoShow("actor-1", "active-role", "hotel-1", "reservation-1", {}),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("throws NotFoundException when reservation does not exist", async () => {
+      const { service } = createService(
+        createRepository({
+          findReservationById: jest.fn().mockResolvedValue(null),
+        }),
+      );
+
+      await expect(
+        service.markNoShow("actor-1", "active-role", "hotel-1", "missing-res", {}),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });

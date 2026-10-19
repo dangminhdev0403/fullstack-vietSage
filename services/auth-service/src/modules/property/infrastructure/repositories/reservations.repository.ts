@@ -687,6 +687,176 @@ export class ReservationsRepository {
     }, "RESERVATION_CHECK_IN_CONCURRENCY_CONFLICT");
   }
 
+  async cancelReservation(input: {
+    hotelId: string;
+    tenantId: string;
+    reservationId: string;
+    actorUserId: string;
+    reason?: string;
+  }) {
+    return this.runSerializable(async (tx) => {
+      await tx.$queryRawUnsafe(
+        'SELECT id FROM "Reservation" WHERE id = $1 AND "hotelId" = $2 FOR UPDATE',
+        input.reservationId,
+        input.hotelId,
+      );
+      const reservation = await tx.reservation.findFirst({
+        where: { id: input.reservationId, hotelId: input.hotelId },
+      });
+      if (!reservation) {
+        throw new NotFoundException("Không tìm thấy đặt phòng");
+      }
+      if (reservation.status === ReservationStatus.CHECKED_IN) {
+        throw new ConflictException("Không thể hủy đặt phòng đã check-in");
+      }
+      if (
+        reservation.status === ReservationStatus.CANCELLED ||
+        reservation.status === ReservationStatus.NO_SHOW
+      ) {
+        throw new ConflictException("Đặt phòng đã bị hủy hoặc báo vắng mặt");
+      }
+      if (
+        reservation.status !== ReservationStatus.CONFIRMED &&
+        reservation.status !== ReservationStatus.ARRIVAL_READY
+      ) {
+        throw new ConflictException("Trạng thái đặt phòng không hợp lệ để hủy");
+      }
+
+      const now = new Date();
+      const updatedReservation = await tx.reservation.update({
+        where: { id: reservation.id },
+        data: {
+          status: ReservationStatus.CANCELLED,
+          roomId: null,
+        },
+        include: { room: true },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId: input.actorUserId,
+          tenantId: input.tenantId,
+          action: "RESERVATION_CANCELLED",
+          entityType: "Reservation",
+          entityId: reservation.id,
+          metadata: {
+            cancelledAt: now.toISOString(),
+            actorUserId: input.actorUserId,
+            reason: input.reason ?? null,
+            previousStatus: reservation.status,
+            previousRoomId: reservation.roomId,
+          },
+        },
+      });
+
+      await tx.domainEvent.create({
+        data: {
+          eventType: "RESERVATION_CANCELLED",
+          aggregateType: "Reservation",
+          aggregateId: reservation.id,
+          hotelId: input.hotelId,
+          tenantId: input.tenantId,
+          payload: {
+            reservationId: reservation.id,
+            cancelledAt: now.toISOString(),
+            actorUserId: input.actorUserId,
+            reason: input.reason ?? null,
+            previousStatus: reservation.status,
+            previousRoomId: reservation.roomId,
+          },
+          status: DomainEventStatus.PENDING,
+        },
+      });
+
+      return updatedReservation;
+    }, "RESERVATION_CANCEL_CONCURRENCY_CONFLICT");
+  }
+
+  async markNoShow(input: {
+    hotelId: string;
+    tenantId: string;
+    reservationId: string;
+    actorUserId: string;
+    reason?: string;
+  }) {
+    return this.runSerializable(async (tx) => {
+      await tx.$queryRawUnsafe(
+        'SELECT id FROM "Reservation" WHERE id = $1 AND "hotelId" = $2 FOR UPDATE',
+        input.reservationId,
+        input.hotelId,
+      );
+      const reservation = await tx.reservation.findFirst({
+        where: { id: input.reservationId, hotelId: input.hotelId },
+      });
+      if (!reservation) {
+        throw new NotFoundException("Không tìm thấy đặt phòng");
+      }
+      if (reservation.status === ReservationStatus.CHECKED_IN) {
+        throw new ConflictException("Không thể báo vắng mặt đặt phòng đã check-in");
+      }
+      if (
+        reservation.status === ReservationStatus.CANCELLED ||
+        reservation.status === ReservationStatus.NO_SHOW
+      ) {
+        throw new ConflictException("Đặt phòng đã bị hủy hoặc báo vắng mặt");
+      }
+      if (
+        reservation.status !== ReservationStatus.CONFIRMED &&
+        reservation.status !== ReservationStatus.ARRIVAL_READY
+      ) {
+        throw new ConflictException("Trạng thái đặt phòng không hợp lệ để báo vắng mặt");
+      }
+
+      const now = new Date();
+      const updatedReservation = await tx.reservation.update({
+        where: { id: reservation.id },
+        data: {
+          status: ReservationStatus.NO_SHOW,
+          roomId: null,
+        },
+        include: { room: true },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId: input.actorUserId,
+          tenantId: input.tenantId,
+          action: "RESERVATION_NO_SHOW",
+          entityType: "Reservation",
+          entityId: reservation.id,
+          metadata: {
+            noShowAt: now.toISOString(),
+            actorUserId: input.actorUserId,
+            reason: input.reason ?? null,
+            previousStatus: reservation.status,
+            previousRoomId: reservation.roomId,
+          },
+        },
+      });
+
+      await tx.domainEvent.create({
+        data: {
+          eventType: "RESERVATION_NO_SHOW",
+          aggregateType: "Reservation",
+          aggregateId: reservation.id,
+          hotelId: input.hotelId,
+          tenantId: input.tenantId,
+          payload: {
+            reservationId: reservation.id,
+            noShowAt: now.toISOString(),
+            actorUserId: input.actorUserId,
+            reason: input.reason ?? null,
+            previousStatus: reservation.status,
+            previousRoomId: reservation.roomId,
+          },
+          status: DomainEventStatus.PENDING,
+        },
+      });
+
+      return updatedReservation;
+    }, "RESERVATION_NO_SHOW_CONCURRENCY_CONFLICT");
+  }
+
   private async runSerializable<T>(
     work: (tx: Prisma.TransactionClient) => Promise<T>,
     conflictCode: string,

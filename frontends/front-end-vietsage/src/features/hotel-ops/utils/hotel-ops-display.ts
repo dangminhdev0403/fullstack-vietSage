@@ -177,6 +177,22 @@ export function getArrivalStatusDisplay(
     };
   }
 
+  if (arrival.status === "CANCELLED") {
+    return {
+      label: "Đã hủy",
+      badgeClass: "bg-rose-50 text-rose-700 border-rose-200",
+      dotClass: "bg-rose-500",
+    };
+  }
+
+  if (arrival.status === "NO_SHOW") {
+    return {
+      label: "Vắng mặt (No-show)",
+      badgeClass: "bg-slate-100 text-slate-700 border-slate-300",
+      dotClass: "bg-slate-500",
+    };
+  }
+
   // Khách chưa được phân bổ phòng cụ thể
   if (!arrival.roomId) {
     return {
