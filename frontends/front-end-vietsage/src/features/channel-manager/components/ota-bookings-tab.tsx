@@ -158,6 +158,25 @@ function calculateNights(
   return diffDays > 0 ? diffDays : 1;
 }
 
+function cleanBookingCode(
+  code?: string | null,
+  otaName?: string | null,
+): string {
+  if (!code) return "";
+  let clean = code.trim().replace(/^#/, "");
+  clean = clean.replace(
+    /^(BookingCom|Booking\.com|Booking|Agoda|Expedia|TripCom|Trip|Traveloka|Airbnb|Channex)[-_:]?/i,
+    "",
+  );
+  if (otaName) {
+    const norm = otaName.replace(/[^a-zA-Z0-9]/g, "");
+    if (norm) {
+      clean = clean.replace(new RegExp(`^${norm}[-_:]?`, "i"), "");
+    }
+  }
+  return clean || code;
+}
+
 export function OtaBookingsTab({
   hotelId,
   roleScope = "owner",
@@ -433,6 +452,10 @@ export function OtaBookingsTab({
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
       },
       onChannelBookingCancelled: () => {
+        void refreshSimulatedBookings();
+        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+      },
+      onRoomStatusUpdated: () => {
         void refreshSimulatedBookings();
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
       },
@@ -982,13 +1005,13 @@ export function OtaBookingsTab({
             <table className="w-full text-left">
               <thead className="border-b border-slate-200 bg-slate-50/80 text-xs font-bold uppercase tracking-wider text-slate-500">
                 <tr>
-                  <th className="py-4 px-5">Kênh & Mã đơn</th>
-                  <th className="py-4 px-5">Khách hàng</th>
-                  <th className="py-4 px-5">Hạng phòng & Phòng gán</th>
-                  <th className="py-4 px-5">Lịch lưu trú</th>
-                  <th className="py-4 px-5">Tổng tiền</th>
-                  <th className="py-4 px-5 text-center">Trạng thái</th>
-                  <th className="py-4 px-4 text-right">Tác vụ nhanh</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Kênh & Mã đơn</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Khách hàng</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Phòng gán</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Lịch lưu trú</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Tổng tiền</th>
+                  <th className="py-3.5 px-4 text-center whitespace-nowrap">Trạng thái</th>
+                  <th className="py-3.5 px-4 text-right whitespace-nowrap">Tác vụ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -1009,6 +1032,19 @@ export function OtaBookingsTab({
                         (s.status || "").toUpperCase() !== "CHECKED_IN" &&
                         s.stayStatus !== "ACTIVE",
                     ) || b.segments?.[0];
+                  const cleanCode = cleanBookingCode(
+                    b.otaReservationCode || b.reservationCode,
+                    b.otaName,
+                  );
+                  const assignedRooms = b.segments?.length
+                    ? b.segments
+                        .map((s) => s.roomNumber)
+                        .filter((r): r is string => Boolean(r))
+                    : b.roomNumber
+                      ? [b.roomNumber]
+                      : [];
+                  const totalRoomsCount =
+                    b.totalSegments ?? b.segments?.length ?? 1;
 
                   return (
                     <tr
@@ -1030,38 +1066,31 @@ export function OtaBookingsTab({
                       title="Nhấp vào đơn để xem thông tin chi tiết"
                     >
                       {/* Column 1: Kênh & Mã đơn */}
-                      <td className="py-4 px-5 align-middle">
-                        <div className="flex items-center gap-3">
+                      <td className="py-3.5 px-4 align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-2.5">
                           {/* Channel Badge / Logo */}
                           <div
-                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-black text-xs shadow-2xs ${channel.bgColor} ${channel.textColor}`}
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-bold text-xs shadow-2xs ${channel.bgColor} ${channel.textColor}`}
                             title={channel.name}
                           >
                             {channel.tag}
                           </div>
 
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                {channel.name}
-                              </span>
-                              {b.otaReservationCode && (
-                                <span className="font-mono text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-                                  #{b.otaReservationCode}
-                                </span>
-                              )}
+                            <div className="text-xs font-bold text-slate-800">
+                              {channel.name}
                             </div>
-                            <div className="mt-0.5 flex items-center gap-1.5 text-xs font-mono text-slate-500">
-                              <span>PMS: {b.reservationCode}</span>
+                            <div className="flex items-center gap-1 font-mono text-xs font-semibold text-slate-600">
+                              <span>#{cleanCode}</span>
                               <button
                                 type="button"
-                                aria-label={`Sao chép mã PMS ${b.reservationCode}`}
+                                aria-label={`Sao chép mã đơn ${b.reservationCode}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleCopy(b.reservationCode, b.bookingId);
+                                  handleCopy(cleanCode, b.bookingId);
                                 }}
-                                className="min-h-11 min-w-11 rounded text-slate-400 hover:bg-slate-100 hover:text-blue-600 transition cursor-pointer"
-                                title="Sao chép mã PMS"
+                                className="inline-flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-blue-600 transition cursor-pointer"
+                                title="Sao chép mã đơn"
                               >
                                 {copiedKey === b.bookingId ? (
                                   <span className="text-emerald-600 font-bold text-xs">
@@ -1080,8 +1109,8 @@ export function OtaBookingsTab({
                       </td>
 
                       {/* Column 2: Khách hàng */}
-                      <td className="py-4 px-5 align-middle">
-                        <div className="text-[15px] font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                      <td className="py-3.5 px-4 align-middle whitespace-nowrap">
+                        <div className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
                           {b.guestName}
                         </div>
                         {b.guestPhone ? (
@@ -1099,142 +1128,47 @@ export function OtaBookingsTab({
                         )}
                       </td>
 
-                      {/* Column 3: Hạng phòng & Phòng gán */}
-                      <td className="py-4 px-5 align-middle">
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <span className="text-xs font-semibold text-slate-500">
-                            {b.totalSegments ?? b.segments?.length ?? 1} phòng
+                      {/* Column 3: Phòng gán */}
+                      <td className="py-3.5 px-4 align-middle whitespace-nowrap">
+                        {assignedRooms.length === 0 ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 text-xs font-bold text-amber-800 whitespace-nowrap">
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                            Chưa gán
                           </span>
-                          <span
-                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ${
-                              b.assignmentStatus === "FULLY_ASSIGNED"
-                                ? "bg-emerald-100 text-emerald-800"
-                                : b.assignmentStatus === "PARTIALLY_ASSIGNED"
-                                  ? "bg-amber-100 text-amber-800"
-                                  : "bg-slate-100 text-slate-700"
-                            }`}
-                          >
-                            Đã gán {b.assignedCount ?? 0}/
-                            {b.totalSegments ?? b.segments?.length ?? 1} phòng
+                        ) : assignedRooms.length === 1 && totalRoomsCount === 1 ? (
+                          <span className="inline-flex items-center gap-1.5 font-bold text-sm text-slate-900 whitespace-nowrap">
+                            <VsIcon
+                              name="meeting_room"
+                              className="text-base text-slate-400"
+                            />
+                            Phòng {assignedRooms[0]}
                           </span>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          {b.segments && b.segments.length > 0 ? (
-                            b.segments.map((seg, sIdx) => {
-                              const isSegCancelled =
-                                (seg.status || b.status || "").toUpperCase() ===
-                                "CANCELLED";
-                              const isSegCheckedIn =
-                                (seg.status || "").toUpperCase() ===
-                                  "CHECKED_IN" || seg.stayStatus === "ACTIVE";
-                              const segKey = `seg-${b.bookingId}-${seg.reservationId || seg.reservationCode || sIdx}`;
-                              return (
-                                <div
-                                  key={segKey}
-                                  className="rounded-lg border border-slate-100 bg-slate-50/70 p-2 text-xs"
-                                >
-                                  <div className="flex items-center justify-between gap-1">
-                                    <span
-                                      className="font-semibold text-slate-800 truncate max-w-[150px]"
-                                      title={
-                                        seg.roomType ||
-                                        b.roomType ||
-                                        "Chưa xác định"
-                                      }
-                                    >
-                                      {seg.roomType ||
-                                        b.roomType ||
-                                        "Chưa xác định"}
-                                    </span>
-                                    {seg.reservationCode && (
-                                      <span className="font-mono text-xs text-slate-400">
-                                        #{seg.reservationCode}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="mt-1 flex items-center justify-between gap-1.5">
-                                    {seg.roomNumber ? (
-                                      <span
-                                        className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold ${
-                                          isSegCancelled
-                                            ? "bg-slate-100 text-slate-500 border border-slate-200"
-                                            : isSegCheckedIn
-                                              ? "bg-blue-50 text-blue-800 border border-blue-200"
-                                              : "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                                        }`}
-                                      >
-                                        <span>
-                                          {isSegCancelled
-                                            ? "🔓"
-                                            : isSegCheckedIn
-                                              ? "🏨"
-                                              : "🔑"}
-                                        </span>
-                                        <span>Phòng {seg.roomNumber}</span>
-                                      </span>
-                                    ) : (
-                                      <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 border border-amber-200">
-                                        <span>⏳</span>
-                                        <span>Chờ gán phòng</span>
-                                      </span>
-                                    )}
-
-                                    <div className="flex items-center gap-1">
-                                      {!isCancelled && !seg.roomNumber && (
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleOpenAssignModalForSegment(
-                                              b,
-                                              seg,
-                                            );
-                                          }}
-                                          className="inline-flex items-center rounded bg-amber-600 px-2 py-0.5 text-xs font-bold text-white hover:bg-amber-700 active:scale-95 transition cursor-pointer"
-                                        >
-                                          Xếp phòng
-                                        </button>
-                                      )}
-                                      {!isCancelled &&
-                                        seg.roomNumber &&
-                                        !isSegCheckedIn &&
-                                        (
-                                          seg.status ||
-                                          b.status ||
-                                          ""
-                                        ).toUpperCase() === "CONFIRMED" && (
-                                          <button
-                                            type="button"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              void handleFastCheckIn(b, e, seg);
-                                            }}
-                                            className="inline-flex items-center rounded bg-emerald-700 px-2 py-0.5 text-xs font-bold text-white hover:bg-emerald-800 active:scale-95 transition cursor-pointer"
-                                          >
-                                            Nhận phòng
-                                          </button>
-                                        )}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })
-                          ) : (
-                            <div className="text-sm font-semibold text-slate-900">
-                              {b.roomType || "Chưa xác định"}
-                            </div>
-                          )}
-                        </div>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {assignedRooms.map((r, i) => (
+                              <span
+                                key={i}
+                                className="inline-flex items-center rounded-md bg-slate-100 border border-slate-200 px-2 py-0.5 text-xs font-bold text-slate-800 whitespace-nowrap"
+                              >
+                                P.{r}
+                              </span>
+                            ))}
+                            {assignedRooms.length < totalRoomsCount && (
+                              <span className="inline-flex items-center rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-800 whitespace-nowrap">
+                                +{totalRoomsCount - assignedRooms.length} chưa gán
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </td>
 
                       {/* Column 4: Lịch lưu trú */}
-                      <td className="py-4 px-5 align-middle">
+                      <td className="py-3.5 px-4 align-middle whitespace-nowrap">
                         <div className="text-sm font-semibold text-slate-900">
                           {formatDate(b.checkInDate)} →{" "}
                           {formatDate(b.checkOutDate)}
                         </div>
-                        <div className="mt-1">
+                        <div className="mt-0.5">
                           <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
                             {nights} đêm
                           </span>
@@ -1242,41 +1176,36 @@ export function OtaBookingsTab({
                       </td>
 
                       {/* Column 5: Tổng tiền */}
-                      <td className="py-4 px-5 align-middle">
-                        <div className="text-base font-extrabold text-slate-900 tracking-tight">
+                      <td className="py-3.5 px-4 align-middle whitespace-nowrap">
+                        <div className="text-sm font-bold text-slate-900">
                           {formatMoneyWithCurrency(b.amount, b.currency)}
                         </div>
-                        {b.currency && (
-                          <div className="text-xs font-bold uppercase text-slate-400 mt-0.5">
-                            {b.currency}
-                          </div>
-                        )}
                       </td>
 
                       {/* Column 6: Trạng thái */}
-                      <td className="py-4 px-5 text-center align-middle">
+                      <td className="py-3.5 px-4 text-center align-middle whitespace-nowrap">
                         {isCancelled ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 border border-rose-200 px-3 py-1 text-xs font-bold text-rose-700">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 border border-rose-200 px-3 py-1 text-xs font-bold text-rose-700 whitespace-nowrap">
                             <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
                             <span>Đã hủy</span>
                           </span>
                         ) : isCheckedIn ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-bold text-blue-700">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-bold text-blue-700 whitespace-nowrap">
                             <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
                             <span>Đã nhận phòng</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-bold text-emerald-700">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-bold text-emerald-700 whitespace-nowrap">
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                             <span>Đang giữ phòng</span>
                           </span>
                         )}
                       </td>
 
-                      {/* Column 7: Fast Action Buttons */}
-                      <td className="py-4 px-4 text-right align-middle whitespace-nowrap">
+                      {/* Column 7: Tác vụ */}
+                      <td className="py-3.5 px-4 text-right align-middle whitespace-nowrap">
                         <div
-                          className="flex items-center justify-end gap-2"
+                          className="flex items-center justify-end gap-1.5"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {!isCancelled &&
@@ -1292,7 +1221,7 @@ export function OtaBookingsTab({
                                     unassignedSegment,
                                   );
                                 }}
-                                className="inline-flex min-h-11 items-center rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-amber-700 active:scale-95 transition cursor-pointer"
+                                className="inline-flex min-h-9 items-center rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-amber-700 active:scale-95 transition cursor-pointer whitespace-nowrap"
                               >
                                 Xếp phòng
                               </button>
@@ -1310,7 +1239,7 @@ export function OtaBookingsTab({
                                     readyToCheckInSegment,
                                   )
                                 }
-                                className="inline-flex min-h-11 items-center rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 active:scale-95 transition cursor-pointer"
+                                className="inline-flex min-h-9 items-center rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 active:scale-95 transition cursor-pointer whitespace-nowrap"
                               >
                                 Nhận phòng
                               </button>
@@ -1319,7 +1248,7 @@ export function OtaBookingsTab({
                             <button
                               type="button"
                               onClick={(e) => handleCheckOut(b, e)}
-                              className="inline-flex min-h-11 items-center rounded-lg bg-rose-700 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-rose-800 active:scale-95 transition cursor-pointer"
+                              className="inline-flex min-h-9 items-center rounded-lg bg-rose-700 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-rose-800 active:scale-95 transition cursor-pointer whitespace-nowrap"
                             >
                               Trả phòng
                             </button>
@@ -1328,7 +1257,8 @@ export function OtaBookingsTab({
                             type="button"
                             aria-label={`Xem chi tiết đơn ${b.reservationCode}`}
                             onClick={() => setSelectedBooking(b)}
-                            className="min-h-11 min-w-11 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
+                            className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
+                            title="Xem chi tiết"
                           >
                             <VsIcon
                               name="chevron_right"
@@ -1370,8 +1300,11 @@ export function OtaBookingsTab({
                   </h3>
                   <p className="text-xs text-slate-500 font-mono mt-0.5">
                     {selectedBooking.otaName} • #
-                    {selectedBooking.otaReservationCode ||
-                      selectedBooking.reservationCode}
+                    {cleanBookingCode(
+                      selectedBooking.otaReservationCode ||
+                        selectedBooking.reservationCode,
+                      selectedBooking.otaName,
+                    )}
                   </p>
                 </div>
               </div>
