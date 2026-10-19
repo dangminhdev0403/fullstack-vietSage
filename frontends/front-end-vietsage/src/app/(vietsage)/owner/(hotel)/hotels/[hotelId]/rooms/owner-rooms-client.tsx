@@ -1806,7 +1806,7 @@ export function OwnerRoomsClient({
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">
-                  {roomForm.id ? "Update room" : "Create room"}
+                  {roomForm.id ? "Cập nhật phòng" : "Tạo phòng mới"}
                 </p>
                 <h2
                   id="room-form-title"

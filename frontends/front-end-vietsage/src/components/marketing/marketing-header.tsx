@@ -228,10 +228,44 @@ export function MarketingHeader({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
 
+  const [currentAccountAction, setCurrentAccountAction] = useState(accountAction);
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    accountAction.href !== "/dangnhap",
+  );
+
+  useEffect(() => {
+    if (accountAction.href !== "/dangnhap") {
+      setIsAuthenticated(true);
+      setCurrentAccountAction(accountAction);
+      return;
+    }
+
+    let isMounted = true;
+    fetch("/api/auth/session")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((session) => {
+        if (!isMounted) return;
+        if (session && (session.user?.id || (session.activeRoleCode && !session.authError))) {
+          setIsAuthenticated(true);
+          const defaultPath =
+            session.activeRoleCode === "guest" ? "/g/home" : "/admin/dashboard";
+          setCurrentAccountAction({
+            label: session.activeRoleCode === "guest" ? t.guestExp : t.dashboard,
+            href: defaultPath,
+          });
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [accountAction, t.guestExp, t.dashboard]);
+
   const accountLabel =
-    accountAction.href === "/dangnhap"
+    currentAccountAction.href === "/dangnhap"
       ? t.signIn
-      : accountAction.href === "/g/home"
+      : currentAccountAction.href === "/g/home"
         ? t.guestExp
         : t.dashboard;
 
@@ -299,15 +333,19 @@ export function MarketingHeader({
 
         <div className="hidden shrink-0 items-center gap-1 xl:flex">
           <DesktopNavLink pathname={pathname} href="/" label={t.home} />
-          <DesktopNavLink pathname={pathname} href="/giai-phap" label={t.solutions} />
-          <DesktopNavLink pathname={pathname} href="/gia" label={t.pricing} />
-          <DesktopNavLink pathname={pathname} href="/tich-hop" label={t.integrations} />
+          {isAuthenticated && (
+            <>
+              <DesktopNavLink pathname={pathname} href="/giai-phap" label={t.solutions} />
+              <DesktopNavLink pathname={pathname} href="/gia" label={t.pricing} />
+              <DesktopNavLink pathname={pathname} href="/tich-hop" label={t.integrations} />
+            </>
+          )}
           <DesktopNavLink pathname={pathname} href="/about" label={t.about} />
           <DesktopNavLink pathname={pathname} href="/contact" label={t.contact} />
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-          <Link className="vs-mkt-sign-in hidden shrink-0 whitespace-nowrap sm:inline-flex text-sm font-semibold" href={accountAction.href}>
+          <Link className="vs-mkt-sign-in hidden shrink-0 whitespace-nowrap sm:inline-flex text-sm font-semibold" href={currentAccountAction.href}>
             {accountLabel}
           </Link>
           <a
@@ -444,38 +482,42 @@ export function MarketingHeader({
               {t.home}
             </Link>
 
-            <Link
-              href="/giai-phap"
-              className="vs-mobile-nav-link text-sm font-semibold"
-              data-active={isActivePath(pathname, "/giai-phap") ? "true" : undefined}
-              aria-current={isActivePath(pathname, "/giai-phap") ? "page" : undefined}
-              tabIndex={mobileOpen ? 0 : -1}
-              onClick={() => setMobileOpen(false)}
-            >
-              {t.solutions}
-            </Link>
+            {isAuthenticated && (
+              <>
+                <Link
+                  href="/giai-phap"
+                  className="vs-mobile-nav-link text-sm font-semibold"
+                  data-active={isActivePath(pathname, "/giai-phap") ? "true" : undefined}
+                  aria-current={isActivePath(pathname, "/giai-phap") ? "page" : undefined}
+                  tabIndex={mobileOpen ? 0 : -1}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {t.solutions}
+                </Link>
 
-            <Link
-              href="/gia"
-              className="vs-mobile-nav-link text-sm font-semibold"
-              data-active={isActivePath(pathname, "/gia") ? "true" : undefined}
-              aria-current={isActivePath(pathname, "/gia") ? "page" : undefined}
-              tabIndex={mobileOpen ? 0 : -1}
-              onClick={() => setMobileOpen(false)}
-            >
-              {t.pricing}
-            </Link>
+                <Link
+                  href="/gia"
+                  className="vs-mobile-nav-link text-sm font-semibold"
+                  data-active={isActivePath(pathname, "/gia") ? "true" : undefined}
+                  aria-current={isActivePath(pathname, "/gia") ? "page" : undefined}
+                  tabIndex={mobileOpen ? 0 : -1}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {t.pricing}
+                </Link>
 
-            <Link
-              href="/tich-hop"
-              className="vs-mobile-nav-link text-sm font-semibold"
-              data-active={isActivePath(pathname, "/tich-hop") ? "true" : undefined}
-              aria-current={isActivePath(pathname, "/tich-hop") ? "page" : undefined}
-              tabIndex={mobileOpen ? 0 : -1}
-              onClick={() => setMobileOpen(false)}
-            >
-              {t.integrations}
-            </Link>
+                <Link
+                  href="/tich-hop"
+                  className="vs-mobile-nav-link text-sm font-semibold"
+                  data-active={isActivePath(pathname, "/tich-hop") ? "true" : undefined}
+                  aria-current={isActivePath(pathname, "/tich-hop") ? "page" : undefined}
+                  tabIndex={mobileOpen ? 0 : -1}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {t.integrations}
+                </Link>
+              </>
+            )}
 
             <Link
               href="/about"
@@ -500,7 +542,7 @@ export function MarketingHeader({
             </Link>
 
             <div className="mt-2 grid grid-cols-2 gap-2 border-t border-[#123d2a]/10 pt-3 sm:hidden">
-              <Link className="vs-mkt-sign-in justify-center text-sm font-semibold" href={accountAction.href} tabIndex={mobileOpen ? 0 : -1} onClick={() => setMobileOpen(false)}>
+              <Link className="vs-mkt-sign-in justify-center text-sm font-semibold" href={currentAccountAction.href} tabIndex={mobileOpen ? 0 : -1} onClick={() => setMobileOpen(false)}>
                 {accountLabel}
               </Link>
               <a

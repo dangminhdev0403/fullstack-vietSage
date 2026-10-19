@@ -23,6 +23,9 @@ const protectedPrefixes = [
   "/staff",
   "/hotels",
   "/service",
+  "/gia",
+  "/giai-phap",
+  "/tich-hop",
 ] as const;
 const authRoutes = new Set([LOGIN_PATH, LEGACY_LOGIN_PATH, "/register"]);
 const nextAuthCookiePrefixes = [

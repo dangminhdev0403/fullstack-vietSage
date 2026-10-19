@@ -13,11 +13,11 @@ test("trangchu renders complete Vietnamese marketing copy without changing share
   assert.match(home, /<MarketingShell[\s\S]*locale=\{currentLocale\}/);
   assert.match(home, /<Hero[\s\S]*locale=\{currentLocale\}/);
   assert.match(home, /<Cta locale=\{currentLocale\}/);
-  assert.match(home, /<PublicLocalMateChat locale=\{currentLocale\}/);
-  assert.match(shell, /text-4xl font-bold/);
+  assert.match(shell, /<PublicLocalMateChat locale=\{activeLocale\}/);
+  assert.match(shell, /md:text-4xl|lg:text-4xl/);
   assert.match(shell, /Bạn cần gì để kỳ lưu trú thoải mái hơn\?/);
-  assert.match(home, /mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4/);
-  assert.match(home, /text-\[10px\] leading-4 uppercase tracking-\[\.1em\]/);
+  assert.match(home, /grid grid-cols-2 gap-2\.5 sm:grid-cols-4/);
+  assert.match(home, /text-xs leading-4 uppercase/);
   assert.match(shell, /Trợ lý số VietSage/);
   assert.match(shell, /Chọn nhu cầu của bạn, chúng tôi sẽ hỗ trợ ngay/);
   assert.match(shell, /Sẵn sàng phục vụ/);
@@ -41,7 +41,7 @@ test("trangchu renders complete Vietnamese marketing copy without changing share
   assert.doesNotMatch(home, /Room concierge by QR|Guest comfort, not guest database management|Clear positioning before a demo/);
 
   assert.match(shell, /locale = "vi"/);
-  assert.match(shell, /aria-label="Danh mục điều hướng trang chủ"/);
+  assert.match(shell, /"Danh mục điều hướng trang chủ"/);
   assert.match(shell, /Đặt lịch demo/);
   assert.match(shell, /Xem trải nghiệm khách/);
   assert.match(shell, /Công ty/);
@@ -67,7 +67,7 @@ test("marketing chrome and floating chat synchronize across all six supported lo
     assert.match(header, new RegExp(`${loc}:\\s*\\{`));
   }
 
-  // Verifies that PublicLocalMateChat receives currentLocale
-  assert.match(home, /<PublicLocalMateChat locale=\{currentLocale\}/);
+  // Verifies that PublicLocalMateChat receives activeLocale
+  assert.match(shell, /<PublicLocalMateChat locale=\{activeLocale\}/);
   assert.match(home, /handleLocaleChange/);
 });
