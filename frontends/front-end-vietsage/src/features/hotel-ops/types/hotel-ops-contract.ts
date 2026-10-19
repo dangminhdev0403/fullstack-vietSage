@@ -193,11 +193,24 @@ export type HotelReservationCheckInResult = {
   roomQrCode: HotelRoomSummary["qr"];
 };
 
+export type BulkAllocationItem = {
+  roomTypeId: string;
+  quantity: number;
+  rate?: number | string | null;
+  nightlyRateSnapshot?: number | string | null;
+};
+
 export type BulkReservationInput = {
   leadGuestName: string;
+  leadGuestPhone?: string;
   checkInDate: string;
   checkOutDate: string;
-  roomIds: string[];
+  roomIds?: string[];
+  allocations?: BulkAllocationItem[];
+  autoAssign?: boolean;
+  rate?: number | string | null;
+  nightlyRateSnapshot?: number | string | null;
+  roomRates?: Record<string, number | string | null>;
 };
 
 export type BulkReservationResult = {

@@ -456,6 +456,18 @@ function iconGlyph(name: string): ReactNode {
         </>
       );
 
+    case "calendar_view_week":
+    case "view_timeline":
+    case "table_chart":
+      return (
+        <>
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="M3 9h18" />
+          <path d="M9 9v11" />
+          <path d="M15 9v11" />
+        </>
+      );
+
     case "view_list":
     case "list":
       return (

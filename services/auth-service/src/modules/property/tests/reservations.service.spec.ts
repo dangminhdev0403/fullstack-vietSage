@@ -351,6 +351,36 @@ describe("ReservationsService front-desk lifecycle", () => {
         }),
       );
     });
+
+    it("passes custom roomRates per room when specified in group booking", async () => {
+      const repo = createRepository({
+        createBulkReservations: jest.fn().mockResolvedValue({
+          groupCode: "CUSTOM_GRP_1",
+          reservations: [],
+        }),
+      });
+      const { service } = createService(repo);
+
+      await service.createBulkReservations("actor-1", "active-role", "hotel-1", {
+        leadGuestName: "Doan Du Lich",
+        checkInDate: new Date("2026-09-01T14:00:00.000Z"),
+        checkOutDate: new Date("2026-09-04T12:00:00.000Z"),
+        roomIds: ["room-1", "room-2"],
+        roomRates: {
+          "room-1": 800000,
+          "room-2": 950000,
+        },
+      });
+
+      expect(repo.createBulkReservations).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomRates: {
+            "room-1": 800000,
+            "room-2": 950000,
+          },
+        }),
+      );
+    });
   });
 
   describe("cancelReservation", () => {

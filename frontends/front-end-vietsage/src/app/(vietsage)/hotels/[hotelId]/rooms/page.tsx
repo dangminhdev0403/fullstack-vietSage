@@ -154,7 +154,14 @@ export default async function StaffRoomsPage({
           initialByStatus={dashboard?.rooms.byStatus}
           canManageRooms={!isHousekeeping && context.permissions.includes("hotel.rooms.manage")}
           canManageReservations={
-            !isHousekeeping && context.permissions.includes("hotel.reservations.manage")
+            !isHousekeeping &&
+            (context.permissions.includes("hotel.reservations.manage") ||
+              context.permissions.includes("hotel.reservations.view") ||
+              context.permissions.includes("hotel.stays.manage") ||
+              context.permissions.includes("hotel.stays.check-in") ||
+              userPersona === "front_desk" ||
+              userPersona === "manager" ||
+              userPersona === "owner")
           }
           canManageStays={
             !isHousekeeping &&

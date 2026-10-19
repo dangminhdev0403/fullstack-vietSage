@@ -66,6 +66,7 @@ import { ReservationRoomAllocationService } from "./application/reservation-room
     HotelAccessService,
     HotelStayOccupantsReadService,
     HotelFeatureEntitlementsService,
+    ReservationRoomAllocationService,
     "RESERVATION_ROOM_ALLOCATION_SERVICE",
   ],
 })

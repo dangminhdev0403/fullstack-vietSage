@@ -13,6 +13,7 @@ import type { DayInventory } from "../types/channel-manager.types";
 import { formatChannexBlockersExplanation } from "../types/channel-manager.types";
 import { BulkUpdateModal } from "./bulk-update-modal";
 import { RoomTypeRoomsModal } from "./room-type-rooms-modal";
+import { RoomTimelineTapeChart } from "./room-timeline-tape-chart";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 
 interface InventoryGridProps {
@@ -84,6 +85,7 @@ export function InventoryGrid({
   const todayStr = useMemo(() => getTodayInVietnam(), []);
   const [startDate, setStartDate] = useState<string>(todayStr);
   const [visibleDays, setVisibleDays] = useState<7 | 14>(7);
+  const [viewMode, setViewMode] = useState<"matrix" | "tape-chart">("tape-chart");
   const endDate = useMemo(
     () => addDays(startDate, visibleDays - 1),
     [startDate, visibleDays],
@@ -446,8 +448,92 @@ export function InventoryGrid({
 
   return (
     <div className="min-w-0 space-y-4 [&_button]:focus-visible:outline-2 [&_button]:focus-visible:outline-offset-2 [&_button]:focus-visible:outline-emerald-700 [&_button]:disabled:cursor-not-allowed [&_button]:disabled:opacity-50">
-      {/* Control Header Card */}
-      <div className="space-y-4 rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs">
+      {/* Top View Selector Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200/90 bg-white p-3 sm:p-4 shadow-xs">
+        <div className="flex flex-wrap items-center gap-3.5">
+          <div
+            role="tablist"
+            aria-label="Chế độ hiển thị kho phòng"
+            className="inline-flex rounded-xl border border-slate-200/90 bg-slate-100 p-1 shadow-inner"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={viewMode === "tape-chart"}
+              onClick={() => setViewMode("tape-chart")}
+              className={`inline-flex items-center gap-2.5 min-h-10 sm:min-h-11 px-4 sm:px-5 text-sm sm:text-base font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                viewMode === "tape-chart"
+                  ? "bg-emerald-800 text-white shadow-sm ring-1 ring-emerald-900/10"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 font-semibold"
+              }`}
+            >
+              <VsIcon
+                name="calendar_view_week"
+                className={`text-lg sm:text-xl transition-colors ${
+                  viewMode === "tape-chart" ? "text-white" : "text-slate-500"
+                }`}
+              />
+              <span>Kế hoạch phòng (Tape Chart)</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={viewMode === "matrix"}
+              onClick={() => setViewMode("matrix")}
+              className={`inline-flex items-center gap-2.5 min-h-10 sm:min-h-11 px-4 sm:px-5 text-sm sm:text-base font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                viewMode === "matrix"
+                  ? "bg-emerald-800 text-white shadow-sm ring-1 ring-emerald-900/10"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 font-semibold"
+              }`}
+            >
+              <VsIcon
+                name="grid_view"
+                className={`text-lg sm:text-xl transition-colors ${
+                  viewMode === "matrix" ? "text-white" : "text-slate-500"
+                }`}
+              />
+              <span>Lưới số lượng & Giá bán (ARI)</span>
+            </button>
+          </div>
+
+          <span className="hidden lg:inline-block text-xs sm:text-sm text-slate-500 font-medium text-pretty max-w-md">
+            {viewMode === "tape-chart"
+              ? "Theo dõi kế hoạch sử dụng từng phòng vật lý và trạng thái booking thực tế theo ngày."
+              : "Điều chỉnh số lượng phòng bán, giá bán và đóng/mở bán theo ngày."}
+          </span>
+        </div>
+
+        {viewMode === "matrix" && canManage && (
+          <button
+            type="button"
+            onClick={() => setIsBulkModalOpen(true)}
+            disabled={
+              isSavingChanges ||
+              isLoading ||
+              isError ||
+              roomTypes.length === 0 ||
+              !roomTypes.some(
+                (rt) => (rt.channexMappingBlockers?.length ?? 0) === 0,
+              )
+            }
+            className="inline-flex min-h-10 sm:min-h-11 items-center gap-2 rounded-xl bg-emerald-800 px-4 sm:px-5 text-sm font-bold text-white hover:bg-emerald-900 transition shadow-xs cursor-pointer disabled:opacity-50 whitespace-nowrap"
+          >
+            <VsIcon name="tune" className="text-lg" />
+            <span>Cập nhật hàng loạt</span>
+          </button>
+        )}
+      </div>
+
+      {viewMode === "tape-chart" ? (
+        <RoomTimelineTapeChart
+          hotelId={hotelId}
+          roleScope={roleScope}
+          canManage={canManage}
+        />
+      ) : (
+        <>
+          {/* Control Header Card */}
+          <div className="space-y-4 rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs">
         {/* Row 1: Title, Realtime Save State, and Bulk Action */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -552,7 +638,7 @@ export function InventoryGrid({
             <div
               role="group"
               aria-label="Số ngày hiển thị"
-              className="inline-flex rounded-xl border border-slate-200 bg-slate-50/80 p-0.5 shadow-2xs"
+              className="inline-flex rounded-xl border border-slate-200/90 bg-slate-100 p-0.5 shadow-2xs"
             >
               {([7, 14] as const).map((dayCount) => (
                 <button
@@ -561,10 +647,10 @@ export function InventoryGrid({
                   aria-pressed={visibleDays === dayCount}
                   disabled={isSavingChanges || isLoading}
                   onClick={() => setVisibleDays(dayCount)}
-                  className={`h-9 px-3.5 text-xs font-bold rounded-lg transition cursor-pointer ${
+                  className={`h-9 px-3.5 text-xs sm:text-sm font-bold rounded-lg transition cursor-pointer whitespace-nowrap ${
                     visibleDays === dayCount
-                      ? "bg-white text-slate-900 shadow-xs"
-                      : "text-slate-600 hover:text-slate-900"
+                      ? "bg-emerald-800 text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
                   }`}
                 >
                   {dayCount} ngày
@@ -1716,6 +1802,8 @@ export function InventoryGrid({
           </div>
         )}
       </div>
+        </>
+      )}
 
       {canManage && isBulkModalOpen && (
         <BulkUpdateModal

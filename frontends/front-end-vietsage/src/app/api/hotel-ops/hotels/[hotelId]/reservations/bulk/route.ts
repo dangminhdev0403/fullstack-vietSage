@@ -11,6 +11,19 @@ import {
 
 type Params = { params: Promise<{ hotelId: string }> };
 
+const bulkAllocationSchema = z
+  .object({
+    roomTypeId: z.string().trim().min(1, "Mã loại phòng không hợp lệ"),
+    quantity: z
+      .number()
+      .int("Số lượng phòng phải là số nguyên")
+      .min(1, "Số lượng phòng tối thiểu là 1")
+      .max(50, "Số lượng phòng tối đa là 50"),
+    rate: z.union([z.number(), z.string()]).nullable().optional(),
+    nightlyRateSnapshot: z.union([z.number(), z.string()]).nullable().optional(),
+  })
+  .strict();
+
 const bulkReservationSchema = z
   .object({
     leadGuestName: z
@@ -18,15 +31,22 @@ const bulkReservationSchema = z
       .trim()
       .min(2, "Tên người đại diện / trưởng đoàn tối thiểu 2 ký tự")
       .max(120),
+    leadGuestPhone: z.string().trim().max(40).optional(),
     checkInDate: z.string().trim().min(1, "Ngày nhận phòng không hợp lệ"),
     checkOutDate: z.string().trim().min(1, "Ngày trả phòng không hợp lệ"),
     roomIds: z
       .array(z.string().trim().min(1, "Mã phòng không hợp lệ"))
-      .min(2, "Cần chọn tối thiểu 2 phòng để đặt hàng loạt")
+      .min(1, "Cần chọn tối thiểu 1 phòng")
       .max(50, "Chỉ được chọn tối đa 50 phòng trong một lần đặt")
       .refine((ids) => new Set(ids).size === ids.length, {
         message: "Danh sách phòng không được trùng lặp",
-      }),
+      })
+      .optional(),
+    allocations: z.array(bulkAllocationSchema).min(1).max(20).optional(),
+    autoAssign: z.boolean().optional(),
+    rate: z.union([z.number(), z.string()]).nullable().optional(),
+    nightlyRateSnapshot: z.union([z.number(), z.string()]).nullable().optional(),
+    roomRates: z.record(z.string(), z.union([z.number(), z.string()]).nullable()).optional(),
   })
   .strict()
   .refine(
@@ -38,6 +58,17 @@ const bulkReservationSchema = z
     {
       message: "Thời gian nhận phòng phải trước thời gian trả phòng",
       path: ["checkOutDate"],
+    },
+  )
+  .refine(
+    (data) => {
+      const hasRoomIds = Boolean(data.roomIds && data.roomIds.length > 0);
+      const hasAllocations = Boolean(data.allocations && data.allocations.length > 0);
+      return hasRoomIds || hasAllocations;
+    },
+    {
+      message: "Cần chọn phòng cụ thể hoặc nhập số lượng theo loại phòng",
+      path: ["roomIds"],
     },
   );
 
@@ -63,9 +94,17 @@ export async function POST(request: Request, context: Params) {
           hotelId,
           {
             leadGuestName: parsed.data.leadGuestName,
+            ...(parsed.data.leadGuestPhone ? { leadGuestPhone: parsed.data.leadGuestPhone } : {}),
             checkInDate: parsed.data.checkInDate,
             checkOutDate: parsed.data.checkOutDate,
-            roomIds: parsed.data.roomIds,
+            ...(parsed.data.roomIds ? { roomIds: parsed.data.roomIds } : {}),
+            ...(parsed.data.allocations ? { allocations: parsed.data.allocations } : {}),
+            ...(parsed.data.autoAssign !== undefined ? { autoAssign: parsed.data.autoAssign } : {}),
+            ...(parsed.data.rate !== undefined ? { rate: parsed.data.rate } : {}),
+            ...(parsed.data.nightlyRateSnapshot !== undefined
+              ? { nightlyRateSnapshot: parsed.data.nightlyRateSnapshot }
+              : {}),
+            ...(parsed.data.roomRates ? { roomRates: parsed.data.roomRates } : {}),
           },
           accessToken,
         );

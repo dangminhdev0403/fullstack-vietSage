@@ -45,22 +45,54 @@ export class ReservationsRepository {
     leadGuestPhone?: string;
     checkInDate: Date;
     checkOutDate: Date;
-    roomIds: string[];
+    roomIds?: string[];
+    allocations?: Array<{
+      roomTypeId: string;
+      quantity: number;
+      rate?: Prisma.Decimal | number | string | null;
+      nightlyRateSnapshot?: Prisma.Decimal | number | string | null;
+    }>;
+    autoAssign?: boolean;
     createdByUserId: string;
     nightlyRateSnapshot?: Prisma.Decimal | number | string | null;
+    roomRates?: Record<string, Prisma.Decimal | number | string | null | undefined>;
     idempotencyKey?: string;
     generateReservationCode: (tx: Prisma.TransactionClient) => Promise<string>;
     roomAllocationService?: any;
   }) {
-    const uniqueRoomIds = Array.from(new Set(input.roomIds));
-    if (uniqueRoomIds.length < 2 || uniqueRoomIds.length > 50) {
-      throw new BadRequestException("Số lượng phòng đặt theo đoàn phải từ 2 đến 50 phòng");
-    }
-
-    // Sorted locking to eliminate deadlock risks across concurrent transactions
-    const sortedRoomIds = [...uniqueRoomIds].sort();
-
     return this.runSerializable(async (tx) => {
+      let resolvedRoomIds = input.roomIds ? [...input.roomIds] : [];
+      const allocatedRoomRates = new Map<string, Prisma.Decimal | number | string | null>();
+      if (input.allocations && input.allocations.length > 0) {
+        if (!input.roomAllocationService) {
+          throw new BadRequestException("Dịch vụ tự động phân bổ phòng không khả dụng");
+        }
+        for (const alloc of input.allocations) {
+          const allocRate = alloc.rate !== undefined ? alloc.rate : alloc.nightlyRateSnapshot;
+          for (let i = 0; i < alloc.quantity; i++) {
+            const allocated = await input.roomAllocationService.allocateRoom(tx, {
+              hotelId: input.hotelId,
+              roomTypeId: alloc.roomTypeId,
+              interval: { checkInAt: input.checkInDate, checkOutAt: input.checkOutDate },
+              excludedRoomIds: resolvedRoomIds,
+              mode: "auto",
+            });
+            resolvedRoomIds.push(allocated.roomId);
+            if (allocRate !== undefined) {
+              allocatedRoomRates.set(allocated.roomId, allocRate);
+            }
+          }
+        }
+      }
+
+      const uniqueRoomIds = Array.from(new Set(resolvedRoomIds));
+      if (uniqueRoomIds.length < 1 || uniqueRoomIds.length > 50) {
+        throw new BadRequestException("Số lượng phòng đặt phải từ 1 đến 50 phòng");
+      }
+
+      // Sorted locking to eliminate deadlock risks across concurrent transactions
+      const sortedRoomIds = [...uniqueRoomIds].sort();
+
       for (const roomId of sortedRoomIds) {
         await tx.$queryRawUnsafe(
           'SELECT id FROM "Room" WHERE id = $1 AND "hotelId" = $2 FOR UPDATE',
@@ -143,8 +175,21 @@ export class ReservationsRepository {
       const reservations: any[] = [];
       const now = new Date();
 
-      for (const roomId of input.roomIds) {
+      for (const roomId of uniqueRoomIds) {
         const reservationCode = await input.generateReservationCode(tx);
+        const specificRate = input.roomRates?.[roomId] ?? allocatedRoomRates.get(roomId);
+        const effectiveRaw =
+          specificRate !== undefined
+            ? specificRate
+            : input.nightlyRateSnapshot !== undefined
+              ? input.nightlyRateSnapshot
+              : null;
+
+        const nightlyRateSnapshot =
+          effectiveRaw !== undefined && effectiveRaw !== null
+            ? new Prisma.Decimal(effectiveRaw).toFixed(2)
+            : null;
+
         const reservationData: any = {
           hotelId: input.hotelId,
           roomId,
@@ -158,8 +203,7 @@ export class ReservationsRepository {
           status: ReservationStatus.ARRIVAL_READY,
           assignedAt: now,
           assignedByUserId: input.createdByUserId,
-          nightlyRateSnapshot:
-            input.nightlyRateSnapshot !== undefined ? input.nightlyRateSnapshot : null,
+          nightlyRateSnapshot,
         };
 
         const reservation = await (tx.reservation.create as any)({
@@ -185,11 +229,28 @@ export class ReservationsRepository {
     plannedCheckOutAt: Date;
     createdByUserId: string;
     roomId?: string | null;
+    roomTypeId?: string | null;
+    autoAssign?: boolean;
+    roomAllocationService?: any;
     nightlyRateSnapshot?: Prisma.Decimal | number | string | null;
   }) {
-    if (input.roomId) {
-      const roomId = input.roomId;
+    if (input.roomId || ((input.autoAssign || input.roomTypeId) && input.roomAllocationService)) {
       return this.runSerializable(async (tx) => {
+        let roomId = input.roomId;
+        if (!roomId && (input.autoAssign || input.roomTypeId) && input.roomAllocationService) {
+          const allocated = await input.roomAllocationService.allocateRoom(tx, {
+            hotelId: input.hotelId,
+            roomTypeId: input.roomTypeId ?? undefined,
+            interval: { checkInAt: input.plannedCheckInAt, checkOutAt: input.plannedCheckOutAt },
+            mode: "auto",
+          });
+          roomId = allocated.roomId;
+        }
+
+        if (!roomId) {
+          throw new BadRequestException("Không thể xác định phòng");
+        }
+
         await tx.$queryRawUnsafe(
           'SELECT id FROM "Room" WHERE id = $1 AND "hotelId" = $2 FOR UPDATE',
           roomId,

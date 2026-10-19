@@ -30,6 +30,8 @@ export const createReservationBodySchema = z
     plannedCheckInAt: z.coerce.date(),
     plannedCheckOutAt: z.coerce.date(),
     roomId: z.string().trim().min(1).nullable().optional(),
+    roomTypeId: z.string().trim().min(1).optional(),
+    autoAssign: z.boolean().optional(),
     rate: nightlyRateSnapshotSchema,
     nightlyRateSnapshot: nightlyRateSnapshotSchema,
   })
@@ -80,6 +82,19 @@ export const checkInReservationBodySchema = z
   })
   .strict();
 
+export const bulkAllocationItemSchema = z
+  .object({
+    roomTypeId: z.string().trim().min(1, "roomTypeId không được để trống"),
+    quantity: z
+      .number()
+      .int("Số lượng phòng phải là số nguyên")
+      .min(1, "Số lượng phòng tối thiểu là 1")
+      .max(50, "Số lượng phòng tối đa là 50"),
+    rate: nightlyRateSnapshotSchema,
+    nightlyRateSnapshot: nightlyRateSnapshotSchema,
+  })
+  .strict();
+
 export const createBulkReservationsBodySchema = z
   .object({
     leadGuestName: z
@@ -97,15 +112,19 @@ export const createBulkReservationsBodySchema = z
     plannedCheckOutAt: z.coerce.date().optional(),
     roomIds: z
       .array(z.string().trim().min(1, "roomId không được để trống"))
-      .min(2, "Số lượng phòng đặt theo đoàn tối thiểu là 2")
+      .min(1, "Số lượng phòng tối thiểu là 1")
       .max(50, "Số lượng phòng đặt theo đoàn tối đa là 50")
       .refine((arr) => new Set(arr).size === arr.length, {
         message: "Danh sách roomIds không được chứa phòng trùng lặp",
-      }),
+      })
+      .optional(),
+    allocations: z.array(bulkAllocationItemSchema).min(1).max(20).optional(),
+    autoAssign: z.boolean().optional(),
     groupCode: z.string().trim().max(80).optional(),
     idempotencyKey: z.string().trim().max(120).optional(),
     rate: nightlyRateSnapshotSchema,
     nightlyRateSnapshot: nightlyRateSnapshotSchema,
+    roomRates: z.record(z.string(), nightlyRateSnapshotSchema).optional(),
   })
   .strict()
   .refine(
@@ -137,6 +156,17 @@ export const createBulkReservationsBodySchema = z
     {
       message: "Ngày trả phòng phải sau ngày nhận phòng",
       path: ["checkOutDate"],
+    },
+  )
+  .refine(
+    (data) => {
+      const hasRoomIds = Boolean(data.roomIds && data.roomIds.length > 0);
+      const hasAllocations = Boolean(data.allocations && data.allocations.length > 0);
+      return hasRoomIds || hasAllocations;
+    },
+    {
+      message: "Phải cung cấp danh sách roomIds hoặc allocations phân bổ loại phòng",
+      path: ["roomIds"],
     },
   );
 

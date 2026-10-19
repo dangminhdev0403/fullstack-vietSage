@@ -47,8 +47,10 @@ export class ReservationsService {
     dto: CreateBulkReservationsBodyInput,
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    for (const roomId of dto.roomIds) {
-      await this.hotelAccessService.assertRoomAccess(actorUserId, activeRoleId, hotelId, roomId);
+    if (dto.roomIds && dto.roomIds.length > 0) {
+      for (const roomId of dto.roomIds) {
+        await this.hotelAccessService.assertRoomAccess(actorUserId, activeRoleId, hotelId, roomId);
+      }
     }
 
     const leadGuestName = (dto.leadGuestName ?? dto.guestDisplayName)!.trim();
@@ -70,8 +72,11 @@ export class ReservationsService {
       checkInDate,
       checkOutDate,
       roomIds: dto.roomIds,
+      allocations: dto.allocations,
+      autoAssign: dto.autoAssign,
       createdByUserId: actorUserId,
       nightlyRateSnapshot,
+      roomRates: dto.roomRates,
       idempotencyKey: dto.idempotencyKey?.trim(),
       generateReservationCode: (tx: Prisma.TransactionClient) =>
         this.codesService.generateEntityCode("RESERVATION", tx),
@@ -108,6 +113,9 @@ export class ReservationsService {
       plannedCheckOutAt: dto.plannedCheckOutAt,
       createdByUserId: actorUserId,
       roomId,
+      roomTypeId: dto.roomTypeId,
+      autoAssign: dto.autoAssign,
+      roomAllocationService: this.roomAllocationService,
       nightlyRateSnapshot,
     });
   }

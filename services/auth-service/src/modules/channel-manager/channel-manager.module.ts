@@ -2,6 +2,8 @@ import { Module } from "@nestjs/common";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { PropertyModule } from "../property/property.module";
 import { ChannelManagerController } from "./controllers/channel-manager.controller";
+import { DirectBookingController } from "./controllers/direct-booking.controller";
+import { DirectBookingHmacGuard } from "./guards/direct-booking-hmac.guard";
 import { AriCoreService } from "./services/ari-core.service";
 import { ChannelManagerService } from "./services/channel-manager.service";
 import { ChannexApiClient } from "./services/channex-api-client.service";
@@ -14,13 +16,16 @@ import { ChannelManagerAdminOverviewService } from "./services/channel-manager-a
 import { ChannelManagerAuditService } from "./services/channel-manager-audit.service";
 import { ChannexMappingReadinessService } from "./services/channex-mapping-readiness.service";
 import { ChannexSyncService } from "./services/channex-sync.service";
+import { DirectBookingService } from "./services/direct-booking.service";
 import { IcalService } from "./services/ical.service";
 
 @Module({
   imports: [PrismaModule, PropertyModule],
-  controllers: [ChannelManagerController],
+  controllers: [ChannelManagerController, DirectBookingController],
   providers: [
     ChannelManagerService,
+    DirectBookingService,
+    DirectBookingHmacGuard,
     AriCoreService,
     IcalService,
     ChannexApiClient,
@@ -36,6 +41,7 @@ import { IcalService } from "./services/ical.service";
   ],
   exports: [
     ChannelManagerService,
+    DirectBookingService,
     AriCoreService,
     IcalService,
     ChannexApiClient,
@@ -49,3 +55,4 @@ import { IcalService } from "./services/ical.service";
   ],
 })
 export class ChannelManagerModule {}
+

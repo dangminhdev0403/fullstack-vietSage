@@ -28,6 +28,7 @@ export const PUBLIC_REGEX: RegExp[] = [
   /^\/localmate\/(?:ai\/match|guides\/[^/]+)$/,
   /^\/public\/localmate\/(?:proposals(?:\/[^/]+\/select)?|candidates\/[^/]+|orders(?:\/[^/]+(?:\/payment-session|\/conversation(?:\/messages)?)?)?)$/,
   /^\/api\/v1\/channel-manager\/ical\/[^/]+(?:\.ics)?$/,
+  /^\/(?:api\/v1\/)?channel-manager\/direct-booking(?:\/.*)?$/,
 ];
 
 export const publicMatcher = new PublicRouteMatcher(PUBLIC_PATTERNS, PUBLIC_REGEX);
