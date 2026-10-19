@@ -31,6 +31,7 @@ export interface InventoryGridDay {
   stopSell: boolean;
   closedToArrival: boolean;
   closedToDeparture: boolean;
+  isFallbackRate?: boolean;
 }
 
 export interface InventoryGridRoomType {
@@ -255,6 +256,10 @@ export class AriCoreService {
         const stopSell = res ? res.stopSell : false;
         const closedToArrival = res ? res.closedToArrival : false;
         const closedToDeparture = res ? res.closedToDeparture : false;
+        const isFallbackRate =
+          (stats.basePrice === null || stats.basePrice <= 0) &&
+          rate !== null &&
+          (rate === 500000 || rate === 50 || stopSell);
 
         days.push({
           date: d,
@@ -271,6 +276,7 @@ export class AriCoreService {
           stopSell,
           closedToArrival,
           closedToDeparture,
+          isFallbackRate,
         });
       }
 

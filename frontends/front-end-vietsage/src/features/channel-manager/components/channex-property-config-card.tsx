@@ -41,17 +41,30 @@ export function ChannexPropertyConfigCard({
 
   const handleContentSync = async () => {
     if (!canManage) return;
-    const confirmation = await showConfirmDialog({
-      title: isConfigured
-        ? "Đồng bộ lại nội dung Channex?"
-        : `Khởi tạo “${hotelName}” trên Channex?`,
-      text: isConfigured
-        ? "Hệ thống sẽ cập nhật Property, hạng phòng và gói giá hiện tại. Thao tác có thể chạy lại an toàn."
-        : `Hệ thống sẽ tạo Property với tiền tệ ${selectedCurrency}, sau đó đồng bộ hạng phòng và gói giá.`,
-      confirmText: isConfigured ? "Đồng bộ lại" : "Khởi tạo",
-      cancelText: "Hủy",
-    });
-    if (!confirmation.isConfirmed) return;
+
+    const unpricedTypes = config?.unpricedRoomTypes ?? [];
+    if (unpricedTypes.length > 0) {
+      const warning = await showConfirmDialog({
+        title: "Cảnh báo: Hạng phòng chưa có giá",
+        text: `Các hạng phòng sau chưa có giá cơ sở trong PMS: ${unpricedTypes.join(", ")}. Nếu tiếp tục, hệ thống sẽ tự động gán giá sàn an toàn (500.000 ₫ hoặc tương đương) và tự động khóa bán (Stop Sell Lock) 365 ngày để bảo vệ doanh thu khách sạn. Bạn có muốn tiếp tục không?`,
+        confirmText: "Tiếp tục với giá sàn",
+        cancelText: "Hủy để đặt giá",
+        icon: "warning",
+      });
+      if (!warning.isConfirmed) return;
+    } else {
+      const confirmation = await showConfirmDialog({
+        title: isConfigured
+          ? "Đồng bộ lại nội dung Channex?"
+          : `Khởi tạo “${hotelName}” trên Channex?`,
+        text: isConfigured
+          ? "Hệ thống sẽ cập nhật Property, hạng phòng và gói giá hiện tại. Thao tác có thể chạy lại an toàn."
+          : `Hệ thống sẽ tạo Property với tiền tệ ${selectedCurrency}, sau đó đồng bộ hạng phòng và gói giá.`,
+        confirmText: isConfigured ? "Đồng bộ lại" : "Khởi tạo",
+        cancelText: "Hủy",
+      });
+      if (!confirmation.isConfirmed) return;
+    }
 
     try {
       const result = await syncContent.mutateAsync({
@@ -64,7 +77,7 @@ export function ChannexPropertyConfigCard({
         result as typeof result & { fallbackRoomTypes?: string[] }
       ).fallbackRoomTypes;
       const fallbackNote = fallbackRoomTypes?.length
-        ? ` Các hạng phòng đang dùng giá khởi điểm tạm: ${fallbackRoomTypes.join(", ")}. Hãy đặt giá thật trước khi mở bán.`
+        ? ` Các hạng phòng đang dùng giá sàn tạm (đã tự động khóa bán): ${fallbackRoomTypes.join(", ")}. Hãy cập nhật giá thật trên ARI Grid trước khi mở bán.`
         : "";
 
       await showSuccessAlert(
@@ -176,6 +189,16 @@ export function ChannexPropertyConfigCard({
               {syncContent.isPending ? "Đang khởi tạo..." : "Khởi tạo Channex"}
             </button>
           </div>
+          {config?.unpricedRoomTypes && config.unpricedRoomTypes.length > 0 && (
+            <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50/80 p-3.5 text-xs font-medium text-amber-900">
+              <span className="font-bold text-amber-950 uppercase tracking-wide whitespace-nowrap">
+                Lưu ý:
+              </span>
+              <span className="leading-relaxed text-pretty">
+                Hạng phòng ({config.unpricedRoomTypes.join(", ")}) chưa có giá cơ sở trong PMS. Hệ thống sẽ tự động gán giá sàn an toàn và kích hoạt khóa bán (Stop Sell Lock) 365 ngày để bảo vệ doanh thu khách sạn.
+              </span>
+            </div>
+          )}
         </div>
       ) : (
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">

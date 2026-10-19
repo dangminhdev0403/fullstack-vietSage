@@ -71,6 +71,7 @@ export interface DayInventory {
   stopSell: boolean;
   closedToArrival?: boolean;
   closedToDeparture?: boolean;
+  isFallbackRate?: boolean;
 }
 
 export interface RoomTypeInventory {
@@ -280,6 +281,7 @@ export interface ChannexPropertyConfig {
   isConfigured: boolean;
   channexPropertyUrl: string | null;
   availableProperties: AvailableChannexProperty[];
+  unpricedRoomTypes?: string[];
 }
 
 export interface ConfigureChannexPropertyResult {

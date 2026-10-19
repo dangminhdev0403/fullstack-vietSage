@@ -60,12 +60,12 @@ Nhằm đảm bảo trải nghiệm người dùng **1-Click Auto-Provisioning**
 
 Sau khi luồng thử nghiệm vận hành ổn định, đội ngũ kỹ thuật sẽ tiếp tục nâng cấp các tính năng sau:
 
-| Mã Task | Hạng Mục Cải Thiện | Giải Pháp Kỹ Thuật Đề Xuất | Mức Độ Ưu Tiên |
-| :--- | :--- | :--- | :--- |
-| **CM-IMPR-01** | **Modal Cấu Hình Nhanh Giá Khởi Điểm** | Nếu phát hiện hạng phòng thiếu giá trước khi gọi API, Frontend tự động mở một popover nhỏ cho phép Super Admin gõ nhanh giá khởi điểm thay vì dùng giá sàn hệ thống. | Trung bình |
-| **CM-IMPR-02** | **Tự Động Đóng Bán (Stop Sell Lock)** | Khi khởi tạo Rate Plan với giá sàn dự phòng, tự động ghi bản ghi `ChannelDailyRestriction` với cờ `stopSell: true` cho 365 ngày tới. Chỉ khi người dùng lưu giá mới trên ARI Grid thì cờ Stop Sell mới được gỡ bỏ. | Cao (Bảo vệ doanh thu) |
-| **CM-IMPR-03** | **Huy Hiệu Nhận Diện Giá Sàn Trên ARI Grid** | Thêm visual cue (viền cam / biểu tượng cảnh báo) tại các ô ngày trên ARI Grid nếu giá đó đang là giá sàn tự sinh chứ chưa phải giá do nhân viên khách sạn thiết lập. | Thấp |
-| **CM-IMPR-04** | **Cơ Chế Đồng Bộ Nhiều Rate Plan (Multi-Rate Plan Mapping)** | Hỗ trợ cấu hình gói giá linh hoạt (Không hoàn tiền - Non-refundable, Đã bao gồm bữa sáng - Breakfast included) song song với Standard Rate. | Dài hạn |
+| Mã Task | Hạng Mục Cải Thiện | Giải Pháp Kỹ Thuật Đề Xuất | Mức Độ Ưu Tiên | Trạng Thái |
+| :--- | :--- | :--- | :--- | :--- |
+| **CM-IMPR-01** | **Modal Cấu Hình Nhanh Giá Khởi Điểm** | Nếu phát hiện hạng phòng thiếu giá trước khi gọi API, Frontend tự động mở popover/alert cho phép Super Admin xác nhận hoặc gõ nhanh giá khởi điểm thay vì dùng giá sàn hệ thống. | Trung bình | **Đã hoàn thành** |
+| **CM-IMPR-02** | **Tự Động Đóng Bán (Stop Sell Lock)** | Khi khởi tạo Rate Plan với giá sàn dự phòng, tự động ghi bản ghi `ChannelDailyRestriction` với cờ `stopSell: true` cho 365 ngày tới. Chỉ khi người dùng lưu giá mới trên ARI Grid thì cờ Stop Sell mới được gỡ bỏ. | Cao (Bảo vệ doanh thu) | **Đã hoàn thành** |
+| **CM-IMPR-03** | **Huy Hiệu Nhận Diện Giá Sàn Trên ARI Grid** | Thêm visual cue (viền amber / huy hiệu "Giá sàn" / "Khóa giá sàn") tại các ô ngày trên ARI Grid nếu giá đó đang là giá sàn tự sinh chứ chưa phải giá do nhân viên khách sạn thiết lập. | Thấp | **Đã hoàn thành** |
+| **CM-IMPR-04** | **Cơ Chế Đồng Bộ Nhiều Rate Plan (Multi-Rate Plan Mapping)** | Hỗ trợ cấu hình gói giá linh hoạt (Không hoàn tiền - Non-refundable, Đã bao gồm bữa sáng - Breakfast included) song song với Standard Rate. | Dài hạn | Đang mở |
 
 ---
 

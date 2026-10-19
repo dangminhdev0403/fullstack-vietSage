@@ -41,6 +41,7 @@ export type BackendInventoryGrid = {
       stopSell: boolean;
       closedToArrival: boolean;
       closedToDeparture: boolean;
+      isFallbackRate?: boolean;
     }>;
   }>;
 };
@@ -109,6 +110,7 @@ export function mapInventoryGrid(
           stopSell: day.stopSell,
           closedToArrival: day.closedToArrival,
           closedToDeparture: day.closedToDeparture,
+          isFallbackRate: day.isFallbackRate ?? false,
         })),
       };
     }),

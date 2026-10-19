@@ -31,6 +31,7 @@ export interface SyncContentResult {
   status?: "SUCCESS" | "FAILED" | "PARTIAL_FAILURE";
   stage?: "PROPERTY" | "ROOM_TYPE" | "RATE_PLAN" | "VERIFICATION" | "WEBHOOK";
   error?: string;
+  fallbackRoomTypes?: string[];
 }
 
 @Injectable()
@@ -72,7 +73,13 @@ export class ChannexSyncService {
     }
     const roomTypeMap = new Map<
       string,
-      { id: string; count: number; defaultPrice: number; name: string }
+      {
+        id: string;
+        count: number;
+        defaultPrice: number;
+        name: string;
+        isFallbackPrice?: boolean;
+      }
     >();
     const seenNames = new Map<string, string>();
     for (const room of hotel.rooms) {
@@ -98,28 +105,39 @@ export class ChannexSyncService {
           );
         }
       }
-      if (
-        !type ||
-        type.basePrice === null ||
-        !Number.isFinite(Number(type.basePrice)) ||
-        Number(type.basePrice) <= 0
-      ) {
+
+      const typeId = type?.id ?? `roomtype-${room.type!.trim()}`;
+      const typeName = type?.name ?? room.type!.trim();
+
+      if (seenNames.has(typeId) && seenNames.get(typeId) !== room.type!.trim()) {
         throw new BadRequestException(
-          `Hạng phòng "${room.type}" chưa có giá gốc rõ ràng. Cập nhật danh mục loại phòng trước khi đồng bộ Channex`,
+          `Hạng phòng "${typeName}" có nhiều cách viết trong phòng cũ. Chuẩn hóa sau khi đối soát trước khi đồng bộ`,
         );
       }
-      if (seenNames.has(type.id) && seenNames.get(type.id) !== room.type!.trim()) {
-        throw new BadRequestException(
-          `Hạng phòng "${type.name}" có nhiều cách viết trong phòng cũ. Chuẩn hóa sau khi đối soát trước khi đồng bộ`,
-        );
-      }
-      seenNames.set(type.id, room.type!.trim());
-      const current = roomTypeMap.get(type.id);
-      roomTypeMap.set(type.id, {
-        id: type.id,
-        name: type.name,
+      seenNames.set(typeId, room.type!.trim());
+
+      const rawPrice =
+        type &&
+        type.basePrice !== null &&
+        type.basePrice !== undefined &&
+        Number.isFinite(Number(type.basePrice)) &&
+        Number(type.basePrice) > 0
+          ? Number(type.basePrice)
+          : room.price !== null &&
+            room.price !== undefined &&
+            Number.isFinite(Number(room.price)) &&
+            Number(room.price) > 0
+          ? Number(room.price)
+          : 0;
+
+      const current = roomTypeMap.get(typeId);
+      const isUnpriced = rawPrice <= 0;
+      roomTypeMap.set(typeId, {
+        id: typeId,
+        name: typeName,
         count: (current?.count ?? 0) + 1,
-        defaultPrice: Number(type.basePrice),
+        defaultPrice: isUnpriced ? (current?.defaultPrice ?? 0) : rawPrice,
+        isFallbackPrice: isUnpriced && (current?.isFallbackPrice !== false),
       });
     }
     const legacyMappings = await this.prisma.channexMapping.findMany({
@@ -218,6 +236,19 @@ export class ChannexSyncService {
       this.channexClient.getBaseUrl(),
       effectiveCurrency,
     );
+
+    const fallbackBasePrice = this.getSafeFallbackBasePrice(effectiveCurrency);
+    const fallbackRoomTypes: string[] = [];
+    for (const stats of roomTypeMap.values()) {
+      if (stats.defaultPrice <= 0 || stats.isFallbackPrice) {
+        stats.defaultPrice = fallbackBasePrice;
+        stats.isFallbackPrice = true;
+        fallbackRoomTypes.push(stats.name);
+        this.logger.warn(
+          `[ChannexSync] Hạng phòng "${stats.name}" chưa có giá cơ sở trong PMS. Áp dụng giá sàn an toàn: ${fallbackBasePrice} ${effectiveCurrency}. Tự động khóa bán (stopSell) 365 ngày để bảo vệ doanh thu.`,
+        );
+      }
+    }
     let channelConnection = await this.prisma.channelConnection.findFirst({
       where: { hotelId, channelCode: "CHANNEX" },
     });
@@ -493,6 +524,13 @@ export class ChannexSyncService {
         channexRatePlanId: channexRpId,
         action: rpAction,
       });
+
+      if (stats.isFallbackPrice) {
+        await this.applyStopSellLock(hotelId, roomType, stats.defaultPrice);
+        this.logger.log(
+          `[ChannexSync] Đã tự động kích hoạt Stop Sell Lock 365 ngày cho hạng phòng "${roomType}" (Rate: ${stats.defaultPrice})`,
+        );
+      }
     }
 
     // 5. BƯỚC 4: VERIFICATION READBACK TỪ CHANNEX ĐỂ ĐẢM BẢO DỮ LIỆU ĐÃ VÀO
@@ -678,6 +716,7 @@ export class ChannexSyncService {
           mismatches,
         },
         error: `Xác thực readback Channex thất bại: ${mismatches.join("; ")}`,
+        fallbackRoomTypes: fallbackRoomTypes.length > 0 ? fallbackRoomTypes : undefined,
       };
     }
 
@@ -692,6 +731,7 @@ export class ChannexSyncService {
         roomTypesInChannex: remoteRts.length,
         ratePlansInChannex: remoteRps.length,
       },
+      fallbackRoomTypes: fallbackRoomTypes.length > 0 ? fallbackRoomTypes : undefined,
     };
   }
 
@@ -840,6 +880,43 @@ export class ChannexSyncService {
       },
     });
 
+    const [rooms, roomTypes] = await Promise.all([
+      this.prisma.room.findMany({
+        where: { hotelId },
+        select: { type: true, price: true, roomTypeId: true },
+      }),
+      this.prisma.roomType.findMany({
+        where: { hotelId },
+        select: { id: true, name: true, normalizedKey: true, basePrice: true },
+      }),
+    ]);
+
+    const unpricedRoomTypes: string[] = [];
+    const seenTypeNames = new Set<string>();
+    for (const room of rooms) {
+      const typeName = room.type?.trim();
+      if (!typeName || seenTypeNames.has(typeName)) continue;
+      seenTypeNames.add(typeName);
+      const matched =
+        (room.roomTypeId ? roomTypes.find((rt) => rt.id === room.roomTypeId) : undefined) ??
+        roomTypes.find(
+          (rt) =>
+            rt.normalizedKey === typeName.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase(),
+        );
+      const hasBasePrice =
+        matched &&
+        matched.basePrice !== null &&
+        Number.isFinite(Number(matched.basePrice)) &&
+        Number(matched.basePrice) > 0;
+      const hasRoomPrice =
+        room.price !== null &&
+        Number.isFinite(Number(room.price)) &&
+        Number(room.price) > 0;
+      if (!hasBasePrice && !hasRoomPrice) {
+        unpricedRoomTypes.push(matched?.name || typeName);
+      }
+    }
+
     let availableProperties: Array<{
       id: string;
       title: string;
@@ -872,6 +949,97 @@ export class ChannexSyncService {
         ? `https://staging.channex.io/properties/${mapping.channexId}`
         : null,
       availableProperties,
+      unpricedRoomTypes,
     };
+  }
+
+  private getSafeFallbackBasePrice(currency: string): number {
+    switch (currency?.toUpperCase()) {
+      case "GBP":
+        return 50;
+      case "USD":
+      case "EUR":
+        return 50;
+      case "VND":
+      default:
+        return 500_000;
+    }
+  }
+
+  private getTodayInVietnam(): string {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+  }
+
+  private generateNext365Days(startDateStr: string): string[] {
+    const dates: string[] = [];
+    const current = new Date(`${startDateStr}T00:00:00.000Z`);
+    for (let i = 0; i < 365; i++) {
+      dates.push(current.toISOString().split("T")[0]);
+      current.setUTCDate(current.getUTCDate() + 1);
+    }
+    return dates;
+  }
+
+  private async applyStopSellLock(
+    hotelId: string,
+    roomType: string,
+    fallbackRate: number,
+  ): Promise<void> {
+    const today = this.getTodayInVietnam();
+    const dates = this.generateNext365Days(today);
+    const restrictionItems = dates.map((d) => ({
+      hotelId,
+      roomType,
+      ratePlanCode: "STANDARD",
+      date: new Date(`${d}T00:00:00.000Z`),
+      rate: fallbackRate,
+      stopSell: true,
+      minStayArrival: 1,
+      minStayThrough: 1,
+      maxStay: 0,
+      closedToArrival: false,
+      closedToDeparture: false,
+    }));
+
+    if (this.prisma.channelDailyRestriction?.createMany) {
+      await this.prisma.channelDailyRestriction.createMany({
+        data: restrictionItems,
+        skipDuplicates: true,
+      });
+      const startDate = restrictionItems[0].date;
+      const endDate = restrictionItems[restrictionItems.length - 1].date;
+      if (this.prisma.channelDailyRestriction?.updateMany) {
+        await this.prisma.channelDailyRestriction.updateMany({
+          where: {
+            hotelId,
+            roomType,
+            date: { gte: startDate, lte: endDate },
+          },
+          data: {
+            stopSell: true,
+          },
+        });
+      }
+    } else if (this.prisma.channelDailyRestriction?.upsert) {
+      for (const item of restrictionItems) {
+        await this.prisma.channelDailyRestriction.upsert({
+          where: {
+            hotelId_roomType_ratePlanCode_date: {
+              hotelId: item.hotelId,
+              roomType: item.roomType,
+              ratePlanCode: item.ratePlanCode,
+              date: item.date,
+            },
+          },
+          create: item,
+          update: { stopSell: true },
+        });
+      }
+    }
   }
 }

@@ -65,6 +65,9 @@ describe("Channex Channel Manager Integration Suite", () => {
         findMany: jest.fn(),
         findUnique: jest.fn(),
         findFirst: jest.fn(),
+        createMany: jest.fn().mockResolvedValue({ count: 365 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        upsert: jest.fn().mockResolvedValue({}),
       },
       $transaction: jest.fn(async (work: (tx: any) => Promise<any>) => work(mockPrisma)),
     };
@@ -524,6 +527,96 @@ describe("Channex Channel Manager Integration Suite", () => {
         if (previousSecret === undefined) delete process.env.CHANNEX_WEBHOOK_SECRET;
         else process.env.CHANNEX_WEBHOOK_SECRET = previousSecret;
       }
+    });
+
+    it("tự động áp dụng giá sàn dự phòng và kích hoạt Stop Sell Lock 365 ngày khi hạng phòng chưa có giá trong DB", async () => {
+      const hotelId = "hotel_unpriced_1";
+      mockPrisma.hotel.findUnique.mockResolvedValue({
+        id: hotelId,
+        name: "Hotel Unpriced Test",
+        rooms: [{ id: "r1", type: "STANDARD", price: null }],
+        roomTypes: [
+          {
+            id: "catalog-STANDARD",
+            hotelId,
+            name: "STANDARD",
+            normalizedKey: "standard",
+            basePrice: null,
+          },
+        ],
+      });
+
+      mockPrisma.channelConnection.findFirst.mockResolvedValue({ id: "conn_1" });
+      mockPrisma.channexMapping.findUnique.mockResolvedValue(null);
+      mockPrisma.channexMapping.create.mockResolvedValue({});
+      mockApiClient.createProperty.mockResolvedValue({ data: { id: "prop_1" } });
+      mockApiClient.createRoomType.mockResolvedValue({ data: { id: "rt_1" } });
+      mockApiClient.createRatePlan.mockResolvedValue({ data: { id: "rp_1" } });
+      mockApiClient.getRoomTypes
+        .mockResolvedValueOnce({ data: [] })
+        .mockResolvedValue({
+          data: [
+            {
+              id: "rt_1",
+              attributes: {
+                property_id: "prop_1",
+                title: "STANDARD",
+                count_of_rooms: 1,
+                occ_adults: 2,
+                occ_children: 1,
+                occ_infants: 1,
+                default_occupancy: 2,
+              },
+            },
+          ],
+        });
+      mockApiClient.getRatePlans
+        .mockResolvedValueOnce({ data: [] })
+        .mockResolvedValue({
+          data: [
+            {
+              id: "rp_1",
+              attributes: {
+                property_id: "prop_1",
+                room_type_id: "rt_1",
+                title: "STANDARD - Standard Rate",
+                currency: "VND",
+                sell_mode: "per_room",
+                rate_mode: "manual",
+                options: [{ occupancy: 2, is_primary: true, rate: 500000 }],
+              },
+            },
+          ],
+        });
+
+      const service = new ChannexSyncService(mockPrisma, mockApiClient);
+      const result = await service.syncContent(hotelId);
+
+      expect(result.success).toBe(true);
+      expect(result.fallbackRoomTypes).toEqual(["STANDARD"]);
+      // Rate plan payload được tạo với giá sàn an toàn 500.000 VND
+      expect(mockApiClient.createRatePlan).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: [expect.objectContaining({ rate: 500000 })],
+        }),
+        undefined,
+      );
+      // Đã ghi nhận 365 ngày stopSell: true để bảo vệ doanh thu khách sạn
+      expect(mockPrisma.channelDailyRestriction.createMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.arrayContaining([
+            expect.objectContaining({
+              hotelId,
+              roomType: "STANDARD",
+              stopSell: true,
+              rate: 500000,
+            }),
+          ]),
+          skipDuplicates: true,
+        }),
+      );
+      const callData = mockPrisma.channelDailyRestriction.createMany.mock.calls.at(-1)?.[0]?.data;
+      expect(callData).toHaveLength(365);
     });
   });
 

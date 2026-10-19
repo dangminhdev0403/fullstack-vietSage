@@ -1120,6 +1120,10 @@ export function InventoryGrid({
                             const isEditing = editingCellKey === cellKey;
                             const isSaving = savingCellKey === cellKey;
                             const value = day.rate;
+                            const isFallbackFloorPrice =
+                              Boolean(day.isFallbackRate) ||
+                              (day.rate === 500000 &&
+                                (!rt.basePrice || rt.basePrice <= 0));
 
                             if (isPast) {
                               return (
@@ -1128,18 +1132,29 @@ export function InventoryGrid({
                                   className="border-r border-slate-200 px-2 py-1.5 text-center bg-slate-50/70 last:border-r-0"
                                 >
                                   <div
-                                    title="Ngày đã qua — Đã khóa, không cho chỉnh sửa"
-                                    className="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-100/70 px-2 py-1.5 text-sm font-semibold text-slate-400 cursor-not-allowed select-none"
+                                    title={
+                                      isFallbackFloorPrice
+                                        ? "Ngày đã qua — Đã áp dụng giá sàn hệ thống"
+                                        : "Ngày đã qua — Đã khóa, không cho chỉnh sửa"
+                                    }
+                                    className="flex min-h-10 w-full flex-col items-center justify-center gap-0.5 rounded-xl border border-slate-200/80 bg-slate-100/70 px-2 py-1 text-sm font-semibold text-slate-400 cursor-not-allowed select-none"
                                   >
-                                    <VsIcon
-                                      name="lock"
-                                      className="text-xs text-slate-400"
-                                    />
-                                    <span>
-                                      {value === null
-                                        ? "—"
-                                        : formatCurrencyFull(value)}
-                                    </span>
+                                    <div className="flex items-center gap-1">
+                                      <VsIcon
+                                        name="lock"
+                                        className="text-xs text-slate-400"
+                                      />
+                                      <span>
+                                        {value === null
+                                          ? "—"
+                                          : formatCurrencyFull(value)}
+                                      </span>
+                                    </div>
+                                    {isFallbackFloorPrice && (
+                                      <span className="whitespace-nowrap rounded px-1 text-xs font-medium text-amber-700 bg-amber-100/70">
+                                        Giá sàn
+                                      </span>
+                                    )}
                                   </div>
                                 </td>
                               );
@@ -1151,13 +1166,37 @@ export function InventoryGrid({
                                   key={day.date}
                                   className="border-r border-slate-200 px-2 py-1.5 text-center last:border-r-0"
                                 >
-                                  <div className="flex min-h-10 w-full items-center justify-center rounded-xl border border-slate-200/80 bg-slate-50/70 px-2 py-1.5 text-sm font-bold select-none">
+                                  <div
+                                    className={`flex min-h-10 w-full flex-col items-center justify-center rounded-xl border px-2 py-1.5 text-sm font-bold select-none ${
+                                      isFallbackFloorPrice
+                                        ? "border-amber-300 bg-amber-50/80 text-amber-950"
+                                        : "border-slate-200/80 bg-slate-50/70 text-indigo-950"
+                                    }`}
+                                  >
+                                    {isFallbackFloorPrice && (
+                                      <span
+                                        title="Đang áp dụng giá sàn hệ thống do hạng phòng chưa có giá cơ sở"
+                                        className="mb-0.5 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-bold text-amber-900 bg-amber-200/80 border border-amber-300 whitespace-nowrap"
+                                      >
+                                        <VsIcon
+                                          name="warning"
+                                          className="text-xs text-amber-700"
+                                        />
+                                        <span>Giá sàn</span>
+                                      </span>
+                                    )}
                                     {value === null ? (
                                       <span className="text-xs italic font-semibold text-slate-400">
                                         Chưa đặt giá
                                       </span>
                                     ) : (
-                                      <span className="font-black text-indigo-950 tracking-tight text-sm">
+                                      <span
+                                        className={`font-black tracking-tight text-sm ${
+                                          isFallbackFloorPrice
+                                            ? "text-amber-950"
+                                            : "text-indigo-950"
+                                        }`}
+                                      >
                                         {formatCurrencyFull(value)}
                                       </span>
                                     )}
@@ -1177,15 +1216,38 @@ export function InventoryGrid({
                                     disabled={true}
                                     aria-disabled={true}
                                     tabIndex={-1}
-                                    title={`Chưa liên kết OTA: ${blockerExplanation}`}
-                                    className="group relative min-h-10 w-full whitespace-nowrap rounded-xl px-2 py-1.5 text-sm font-bold border border-slate-200 bg-slate-50/70 text-slate-400 cursor-not-allowed select-none pointer-events-none"
+                                    title={
+                                      isFallbackFloorPrice
+                                        ? `Giá sàn hệ thống (${blockerExplanation})`
+                                        : `Chưa liên kết OTA: ${blockerExplanation}`
+                                    }
+                                    className={`group relative flex min-h-10 w-full flex-col items-center justify-center rounded-xl px-2 py-1.5 text-sm font-bold border cursor-not-allowed select-none pointer-events-none ${
+                                      isFallbackFloorPrice
+                                        ? "border-amber-300 bg-amber-50/70 text-amber-900"
+                                        : "border-slate-200 bg-slate-50/70 text-slate-400"
+                                    }`}
                                   >
+                                    {isFallbackFloorPrice && (
+                                      <span className="mb-0.5 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-bold text-amber-900 bg-amber-200/80 border border-amber-300 whitespace-nowrap">
+                                        <VsIcon
+                                          name="warning"
+                                          className="text-xs text-amber-700"
+                                        />
+                                        <span>Giá sàn</span>
+                                      </span>
+                                    )}
                                     {value === null ? (
                                       <span className="text-xs italic font-semibold text-slate-400">
                                         Chưa đặt giá
                                       </span>
                                     ) : (
-                                      <span className="font-bold text-slate-500 tracking-tight text-sm">
+                                      <span
+                                        className={`font-bold tracking-tight text-sm ${
+                                          isFallbackFloorPrice
+                                            ? "text-amber-900"
+                                            : "text-slate-500"
+                                        }`}
+                                      >
                                         {formatCurrencyFull(value)}
                                       </span>
                                     )}
@@ -1247,15 +1309,30 @@ export function InventoryGrid({
                                         value,
                                       )
                                     }
-                                    title="Nhấp để sửa giá bán (tự động lưu)"
-                                    className={`group relative min-h-10 w-full whitespace-nowrap rounded-xl px-2 py-1.5 text-sm font-bold transition-all border cursor-pointer ${
+                                    title={
+                                      isFallbackFloorPrice
+                                        ? "Đang áp dụng giá sàn hệ thống do hạng phòng chưa có giá cơ sở. Nhấp để chỉnh sửa giá bán thực tế."
+                                        : "Nhấp để sửa giá bán (tự động lưu)"
+                                    }
+                                    className={`group relative flex min-h-10 w-full flex-col items-center justify-center rounded-xl px-2 py-1.5 text-sm font-bold transition-all border cursor-pointer ${
                                       isSaving
                                         ? "bg-emerald-50 text-emerald-800 animate-pulse border-emerald-300"
-                                        : value === null
-                                          ? "bg-slate-50/60 text-slate-400 border-dashed border-slate-300 hover:bg-indigo-50 hover:border-indigo-400 hover:text-indigo-900 hover:shadow-xs hover:scale-[1.02] active:scale-[0.98]"
-                                          : "bg-white text-indigo-950 border-slate-200/90 hover:bg-indigo-50/80 hover:border-indigo-500 hover:text-indigo-950 hover:shadow-xs hover:scale-[1.02] active:scale-[0.98]"
+                                        : isFallbackFloorPrice
+                                          ? "border-amber-300 bg-amber-50/80 text-amber-950 hover:bg-amber-100/90 hover:border-amber-400 hover:shadow-xs hover:scale-[1.02] active:scale-[0.98]"
+                                          : value === null
+                                            ? "bg-slate-50/60 text-slate-400 border-dashed border-slate-300 hover:bg-indigo-50 hover:border-indigo-400 hover:text-indigo-900 hover:shadow-xs hover:scale-[1.02] active:scale-[0.98]"
+                                            : "bg-white text-indigo-950 border-slate-200/90 hover:bg-indigo-50/80 hover:border-indigo-500 hover:text-indigo-950 hover:shadow-xs hover:scale-[1.02] active:scale-[0.98]"
                                     }`}
                                   >
+                                    {isFallbackFloorPrice && !isSaving && (
+                                      <span className="mb-0.5 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-bold text-amber-900 bg-amber-200/80 border border-amber-300 whitespace-nowrap">
+                                        <VsIcon
+                                          name="warning"
+                                          className="text-xs text-amber-700"
+                                        />
+                                        <span>Giá sàn</span>
+                                      </span>
+                                    )}
                                     {isSaving ? (
                                       <span className="text-xs font-semibold">
                                         Đang lưu...
@@ -1265,7 +1342,13 @@ export function InventoryGrid({
                                         Chưa đặt giá
                                       </span>
                                     ) : (
-                                      <span className="font-black text-indigo-950 tracking-tight text-sm">
+                                      <span
+                                        className={`font-black tracking-tight text-sm ${
+                                          isFallbackFloorPrice
+                                            ? "text-amber-950"
+                                            : "text-indigo-950"
+                                        }`}
+                                      >
                                         {formatCurrencyFull(value)}
                                       </span>
                                     )}
@@ -1371,6 +1454,12 @@ export function InventoryGrid({
                             const isSaving =
                               savingCellKey ===
                               rt.roomTypeId + "_" + day.date + "_stopsell";
+                            const isFallbackFloorPrice =
+                              Boolean(day.isFallbackRate) ||
+                              (day.rate === 500000 &&
+                                (!rt.basePrice || rt.basePrice <= 0));
+                            const isAutoStopSell =
+                              day.stopSell && isFallbackFloorPrice;
 
                             if (isPast) {
                               return (
@@ -1378,6 +1467,18 @@ export function InventoryGrid({
                                   key={day.date}
                                   className="border-r border-slate-200 px-2 py-2 text-center bg-slate-50/70 last:border-r-0"
                                 >
+                                  {isAutoStopSell && (
+                                    <div
+                                      title="Khóa giá sàn hệ thống"
+                                      className="mb-1 whitespace-nowrap text-xs font-bold inline-flex items-center gap-1 text-amber-800 bg-amber-100/80 border border-amber-200 px-1.5 py-0.5 rounded-md"
+                                    >
+                                      <VsIcon
+                                        name="lock"
+                                        className="text-xs text-amber-700"
+                                      />
+                                      <span>Khóa giá sàn</span>
+                                    </div>
+                                  )}
                                   <div className="mb-1.5 whitespace-nowrap text-xs font-semibold text-slate-400 inline-flex items-center gap-1">
                                     <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
                                     <span>
@@ -1403,22 +1504,48 @@ export function InventoryGrid({
                                 <td
                                   key={day.date}
                                   className={`border-r border-slate-200 px-2 py-2 text-center last:border-r-0 ${
-                                    day.stopSell ? "bg-rose-50/50" : ""
+                                    day.stopSell
+                                      ? isAutoStopSell
+                                        ? "bg-amber-50/50"
+                                        : "bg-rose-50/50"
+                                      : ""
                                   }`}
                                 >
+                                  {isAutoStopSell && (
+                                    <div
+                                      title="Tự động đóng bán (Stop Sell Lock) do phòng đang dùng giá sàn tạm để bảo vệ doanh thu"
+                                      className="mb-1.5 whitespace-nowrap text-xs font-bold inline-flex items-center gap-1 text-amber-900 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-md"
+                                    >
+                                      <VsIcon
+                                        name="lock"
+                                        className="text-xs text-amber-700"
+                                      />
+                                      <span>Khóa giá sàn</span>
+                                    </div>
+                                  )}
                                   <div
                                     className={`whitespace-nowrap text-xs font-bold inline-flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg border select-none ${
                                       day.stopSell
-                                        ? "border-rose-200 bg-rose-50 text-rose-800"
+                                        ? isAutoStopSell
+                                          ? "border-amber-300 bg-amber-50 text-amber-900"
+                                          : "border-rose-200 bg-rose-50 text-rose-800"
                                         : "border-emerald-200 bg-emerald-50 text-emerald-800"
                                     }`}
                                   >
                                     <span
-                                      className={`h-2 w-2 rounded-full ${day.stopSell ? "bg-rose-600" : "bg-emerald-600"}`}
+                                      className={`h-2 w-2 rounded-full ${
+                                        day.stopSell
+                                          ? isAutoStopSell
+                                            ? "bg-amber-600"
+                                            : "bg-rose-600"
+                                          : "bg-emerald-600"
+                                      }`}
                                     />
                                     <span>
                                       {day.stopSell
-                                        ? "Đang đóng bán"
+                                        ? isAutoStopSell
+                                          ? "Tạm khóa giá sàn"
+                                          : "Đang đóng bán"
                                         : "Đang mở bán"}
                                     </span>
                                   </div>
@@ -1431,26 +1558,48 @@ export function InventoryGrid({
                                 <td
                                   key={day.date}
                                   className={`border-r border-slate-200 px-2 py-2 text-center last:border-r-0 ${
-                                    day.stopSell ? "bg-rose-50/50" : ""
+                                    day.stopSell
+                                      ? isAutoStopSell
+                                        ? "bg-amber-50/50"
+                                        : "bg-rose-50/50"
+                                      : ""
                                   }`}
                                 >
+                                  {isAutoStopSell && (
+                                    <div
+                                      title="Tự động đóng bán (Stop Sell Lock) do phòng đang dùng giá sàn tạm để bảo vệ doanh thu"
+                                      className="mb-1.5 whitespace-nowrap text-xs font-bold inline-flex items-center gap-1 text-amber-900 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-md"
+                                    >
+                                      <VsIcon
+                                        name="lock"
+                                        className="text-xs text-amber-700"
+                                      />
+                                      <span>Khóa giá sàn</span>
+                                    </div>
+                                  )}
                                   <div
                                     className={`mb-1.5 whitespace-nowrap text-xs font-bold inline-flex items-center gap-1 ${
                                       day.stopSell
-                                        ? "text-rose-700"
+                                        ? isAutoStopSell
+                                          ? "text-amber-800"
+                                          : "text-rose-700"
                                         : "text-emerald-700"
                                     }`}
                                   >
                                     <span
                                       className={`h-1.5 w-1.5 rounded-full ${
                                         day.stopSell
-                                          ? "bg-rose-600"
+                                          ? isAutoStopSell
+                                            ? "bg-amber-600"
+                                            : "bg-rose-600"
                                           : "bg-emerald-600"
                                       }`}
                                     />
                                     <span>
                                       {day.stopSell
-                                        ? "Đang đóng bán"
+                                        ? isAutoStopSell
+                                          ? "Tạm khóa giá sàn"
+                                          : "Đang đóng bán"
                                         : "Đang mở bán"}
                                     </span>
                                   </div>
@@ -1473,22 +1622,48 @@ export function InventoryGrid({
                               <td
                                 key={day.date}
                                 className={`border-r border-slate-200 px-2 py-2 text-center last:border-r-0 ${
-                                  day.stopSell ? "bg-rose-50/50" : ""
+                                  day.stopSell
+                                    ? isAutoStopSell
+                                      ? "bg-amber-50/50"
+                                      : "bg-rose-50/50"
+                                    : ""
                                 }`}
                               >
+                                {isAutoStopSell && (
+                                  <div
+                                    title="Tự động đóng bán (Stop Sell Lock) do phòng đang dùng giá sàn tạm để bảo vệ doanh thu. Đặt giá thật hoặc nhấp Mở bán để mở phòng."
+                                    className="mb-1.5 whitespace-nowrap text-xs font-bold inline-flex items-center gap-1 text-amber-900 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-md"
+                                  >
+                                    <VsIcon
+                                      name="lock"
+                                      className="text-xs text-amber-700"
+                                    />
+                                    <span>Khóa giá sàn</span>
+                                  </div>
+                                )}
                                 <div
                                   className={`mb-1.5 whitespace-nowrap text-xs font-bold inline-flex items-center gap-1 ${
                                     day.stopSell
-                                      ? "text-rose-700"
+                                      ? isAutoStopSell
+                                        ? "text-amber-800"
+                                        : "text-rose-700"
                                       : "text-emerald-700"
                                   }`}
                                 >
                                   <span
-                                    className={`h-1.5 w-1.5 rounded-full ${day.stopSell ? "bg-rose-600" : "bg-emerald-600"}`}
+                                    className={`h-1.5 w-1.5 rounded-full ${
+                                      day.stopSell
+                                        ? isAutoStopSell
+                                          ? "bg-amber-600"
+                                          : "bg-rose-600"
+                                        : "bg-emerald-600"
+                                    }`}
                                   />
                                   <span>
                                     {day.stopSell
-                                      ? "Đang đóng bán"
+                                      ? isAutoStopSell
+                                        ? "Tạm khóa giá sàn"
+                                        : "Đang đóng bán"
                                       : "Đang mở bán"}
                                   </span>
                                 </div>
@@ -1507,14 +1682,18 @@ export function InventoryGrid({
                                   }
                                   title={
                                     day.stopSell
-                                      ? "Đang đóng bán - Nhấp để mở bán"
+                                      ? isAutoStopSell
+                                        ? "Đang khóa giá sàn tạm — Nhấp để mở bán ngay"
+                                        : "Đang đóng bán - Nhấp để mở bán"
                                       : "Đang mở bán - Nhấp để đóng bán"
                                   }
                                   className={`inline-flex min-h-8 w-full items-center justify-center rounded-lg px-2 text-xs font-bold transition-all shadow-2xs cursor-pointer border hover:scale-[1.02] active:scale-[0.98] ${
                                     isSaving
                                       ? "bg-slate-100 text-slate-500 border-slate-200 animate-pulse"
                                       : day.stopSell
-                                        ? "border-emerald-600 bg-emerald-800 text-white hover:bg-emerald-900 shadow-xs"
+                                        ? isAutoStopSell
+                                          ? "border-amber-600 bg-amber-700 text-white hover:bg-amber-800 shadow-xs"
+                                          : "border-emerald-600 bg-emerald-800 text-white hover:bg-emerald-900 shadow-xs"
                                         : "border-slate-300 bg-white text-slate-800 hover:border-rose-400 hover:bg-rose-50 hover:text-rose-900"
                                   }`}
                                 >
