@@ -140,7 +140,7 @@ const TIERS = [
     target: "Phù hợp khách sạn nhỏ, homestay (1 – 10 phòng)",
     monthlyPrice: "600.000đ",
     annualPrice: "480.000đ",
-    unit: "/phòng/tháng",
+    unit: "",
     popular: false,
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -162,7 +162,7 @@ const TIERS = [
     target: "Phù hợp khách sạn vừa (11 – 50 phòng)",
     monthlyPrice: "900.000đ",
     annualPrice: "720.000đ",
-    unit: "/phòng/tháng",
+    unit: "",
     popular: true,
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -185,7 +185,7 @@ const TIERS = [
     target: "Phù hợp khách sạn lớn (51 – 200 phòng)",
     monthlyPrice: "1.200.000đ",
     annualPrice: "960.000đ",
-    unit: "/phòng/tháng",
+    unit: "",
     popular: false,
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -232,8 +232,7 @@ const ADDONS = [
     id: "channel-manager",
     name: "Channel Manager OTA",
     desc: "Đồng bộ Booking.com, Agoda, Airbnb, Traveloka, Trip.com tự động 2 chiều",
-    price: "Từ 100.000đ",
-    unit: "/phòng/tháng",
+    price: "100.000đ",
     iconBg: "bg-emerald-50 text-emerald-700",
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -245,8 +244,7 @@ const ADDONS = [
     id: "e-concierge",
     name: "E-Concierge Trợ lý số",
     desc: "Tăng trải nghiệm khách tại phòng, gọi dịch vụ, đặt món và tra cứu 24/7",
-    price: "Từ 100.000đ",
-    unit: "/phòng/tháng",
+    price: "100.000đ",
     iconBg: "bg-teal-50 text-teal-700",
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -258,8 +256,7 @@ const ADDONS = [
     id: "kbtt-police",
     name: "Khai báo lưu trú Công an (C06 - VNeID)",
     desc: "Tự động trích xuất CCCD chip NFC & gửi thông tin cổng C06 Bộ Công An & VNeID",
-    price: "Từ 50.000đ",
-    unit: "/phòng/tháng",
+    price: "50.000đ",
     iconBg: "bg-amber-50 text-amber-900 border border-amber-200/60",
     icon: (
       <div className="w-7 h-7 rounded-full overflow-hidden shrink-0">
@@ -271,8 +268,7 @@ const ADDONS = [
     id: "iot-integration",
     name: "Tích hợp thiết bị IoT",
     desc: "Khóa thẻ từ thông minh, công tắc điện, cảm biến tiết kiệm điện năng",
-    price: "Từ 80.000đ",
-    unit: "/phòng/tháng",
+    price: "80.000đ",
     iconBg: "bg-purple-50 text-purple-700",
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -372,7 +368,6 @@ export default function GiaPage() {
 
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
   const [roomCount, setRoomCount] = useState<number>(50);
-  const [selectedAddons, setSelectedAddons] = useState<string[]>(["channel-manager", "kbtt-police"]);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   // Active matrix row index based on current roomCount
@@ -421,12 +416,6 @@ export default function GiaPage() {
     if (Number.isNaN(value)) return;
     const clamped = Math.min(500, Math.max(1, value));
     setRoomCount(clamped);
-  };
-
-  const toggleAddon = (id: string) => {
-    setSelectedAddons((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
   };
 
   return (
@@ -672,14 +661,13 @@ export default function GiaPage() {
                       <h3 className="text-xl font-bold text-slate-900 text-balance">{tier.name}</h3>
                       <p className="text-sm text-slate-600 mt-1 min-h-[36px] text-pretty">{tier.target}</p>
 
-                      <div className="my-6">
-                        <div className="text-3xl font-black text-emerald-900">{displayPrice}</div>
-                        <div className="text-sm text-slate-500 font-semibold whitespace-nowrap mt-1">
-                          {tier.unit}
-                          {billingCycle === "annual" && (
-                            <span className="ml-1.5 text-amber-700 font-bold">(Tiết kiệm 20%)</span>
-                          )}
-                        </div>
+                      <div className="my-6 min-h-[58px] flex flex-col justify-center">
+                        <div className="text-3xl sm:text-4xl font-black tracking-tight text-emerald-900">{displayPrice}</div>
+                        {billingCycle === "annual" && (
+                          <div className="mt-1 text-xs font-bold text-amber-700 whitespace-nowrap">
+                            Tiết kiệm 20% khi thanh toán theo năm
+                          </div>
+                        )}
                       </div>
 
                       {/* Features */}
@@ -732,14 +720,17 @@ export default function GiaPage() {
                     <h3 className="text-xl font-bold text-slate-900 text-balance">{tier.name}</h3>
                     <p className="text-sm text-slate-600 mt-1 min-h-[36px] text-pretty">{tier.target}</p>
 
-                    <div className="my-6">
-                      <div className="text-3xl font-black text-slate-900">{displayPrice}</div>
-                      <div className="text-sm text-slate-500 font-semibold whitespace-nowrap mt-1">
-                        {tier.unit}
-                        {!isEnterprise && billingCycle === "annual" && (
-                          <span className="ml-1.5 text-amber-700 font-bold">(Tiết kiệm 20%)</span>
-                        )}
-                      </div>
+                    <div className="my-6 min-h-[58px] flex flex-col justify-center">
+                      <div className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900">{displayPrice}</div>
+                      {isEnterprise ? (
+                        <div className="mt-1 text-xs font-semibold text-slate-500 whitespace-nowrap">
+                          {tier.unit}
+                        </div>
+                      ) : billingCycle === "annual" ? (
+                        <div className="mt-1 text-xs font-bold text-amber-700 whitespace-nowrap">
+                          Tiết kiệm 20% khi thanh toán theo năm
+                        </div>
+                      ) : null}
                     </div>
 
                     {/* Features */}
@@ -791,7 +782,7 @@ export default function GiaPage() {
                 Bảng giá chi tiết theo số lượng phòng
               </h2>
               <p className="text-sm sm:text-base text-slate-600 mt-1 text-pretty">
-                Đơn giá hiển thị theo đ/phòng/tháng. Hàng nổi bật tự động tương ứng theo số phòng của thanh trượt.
+                Bảng giá chi tiết theo từng quy mô phòng. Hàng nổi bật tự động tương ứng theo số phòng của thanh trượt.
               </p>
             </div>
 
@@ -902,48 +893,36 @@ export default function GiaPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {ADDONS.map((addon) => {
-              const isSelected = selectedAddons.includes(addon.id);
-
-              return (
-                <div
-                  key={addon.id}
-                  className={`bg-white p-5 sm:p-6 rounded-2xl border transition-all flex flex-col justify-between ${
-                    isSelected
-                      ? "border-emerald-600 shadow-md ring-2 ring-emerald-500/20"
-                      : "border-slate-200/90 hover:shadow-md"
-                  }`}
-                >
-                  <div>
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-4 ${addon.iconBg}`}>
-                      {addon.icon}
-                    </div>
-                    <h3 className="text-base sm:text-lg font-bold text-slate-900 text-balance">{addon.name}</h3>
-                    <p className="text-sm text-slate-600 mt-1.5 min-h-[42px] text-pretty leading-relaxed">{addon.desc}</p>
+            {ADDONS.map((addon) => (
+              <div
+                key={addon.id}
+                className="group bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-900/5 transition-all duration-200 flex flex-col justify-between"
+              >
+                <div>
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-4 transition-transform duration-200 group-hover:scale-105 shadow-2xs ${addon.iconBg}`}>
+                    {addon.icon}
                   </div>
-
-                  <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between">
-                    <div>
-                      <div className="text-xs text-slate-400 leading-none">
-                        Từ <span className="text-sm font-bold text-slate-900">{addon.price}</span>
-                      </div>
-                      <div className="text-xs text-slate-400 mt-0.5">{addon.unit}</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleAddon(addon.id)}
-                      className={`px-3.5 py-2 text-xs sm:text-sm font-bold rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
-                        isSelected
-                          ? "bg-emerald-900 text-white shadow-xs"
-                          : "bg-slate-100 hover:bg-emerald-900 hover:text-white text-slate-700"
-                      }`}
-                    >
-                      {isSelected ? "✓ Đã chọn" : "Thêm"}
-                    </button>
-                  </div>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 text-balance group-hover:text-emerald-950 transition-colors">
+                    {addon.name}
+                  </h3>
+                  <p className="text-sm text-slate-600 mt-1.5 min-h-[42px] text-pretty leading-relaxed">
+                    {addon.desc}
+                  </p>
                 </div>
-              );
-            })}
+
+                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-xs font-medium text-slate-500 whitespace-nowrap">
+                    Giá dịch vụ
+                  </span>
+                  <span className="inline-flex items-center gap-1 bg-emerald-50/80 border border-emerald-100/90 text-emerald-950 px-2.5 py-1 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap shadow-2xs">
+                    <span className="text-emerald-800 text-xs font-semibold">Từ</span>
+                    <span className="text-sm sm:text-base font-extrabold text-emerald-950 tracking-tight">
+                      {addon.price}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 

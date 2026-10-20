@@ -79,7 +79,8 @@ The application follows the design language in `@DESIGN.md` and enforces the fol
 ### 3. UI Verification Gate & Zero-Waste Protocol
 - **Quy tắc miễn trừ kiểm thử khi sửa UI**:
   - Khi chỉnh sửa UI, CSS, Tailwind classes, khoảng cách, màu sắc, JSX layout, copy/text hoặc thêm presentation components:
-    - **CẤM CHẠY**: Test suites (`npm test`, `jest`, `vitest`, `playwright`), full-repo lint (`eslint .`), hoặc build bundling (`next build`).
+    - **CẤM CHẠY**: Mọi test suites (`node --test`, `npm test`, `jest`, `vitest`, `playwright`), full-repo lint (`eslint .`), build bundling (`next build`), soi `git diff` file ngoài phạm vi, `node -e`.
+    - **CẤM CHẠY**: `tsc --noEmit` khi chỉ chỉnh sửa CSS/styling hoặc đổi text thuần túy.
     - **Lệnh duy nhất được chạy**: `node scripts/verify-ui-rules.cjs` (< 1s). Chỉ chạy thêm `pnpm --dir frontends/front-end-vietsage exec tsc --noEmit` nếu có imports/types mới.
 - All frontend changes must be verified clean with:
   ```bash

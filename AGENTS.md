@@ -18,8 +18,12 @@ Before writing any code, agents MUST reuse the project's standard architectural 
 - **UI Design, Typography, Anti-Fluff & Balance Standard**: Minimum font size is strictly 12px (`text-xs`). Strictly FORBIDDEN arbitrary micro-classes (`text-[10px]`, `text-[11px]`, sub-0.75rem, etc.). Strictly FORBIDDEN developer notes, wireframe prefixes (`"03 / "`), raw enum/role codes (`SUPER_ADMIN`), raw HTTP status codes (`(404 Not Found)`), DB terms, developer placeholders (`"VD: Test"`), or boilerplate marketing fluff slogans. Strictly FORBIDDEN decorative nested cards and duplicate action buttons. Headings MUST use `text-balance` (`text-wrap: balance`) to prevent awkward dangling orphan words ("gãy dòng cộc lốc"). Multi-line copy MUST use `text-pretty`. Badges/pills MUST use `whitespace-nowrap`. Strictly FORBIDDEN triple-layer redundant stacking (Eyebrow + Heading + Subtitle saying the same thing). Single-column forms/cards capped at `max-w-md` to `max-w-lg`. All frontend changes must pass the UI Design Gate: `node scripts/verify-ui-rules.cjs`.
 - **Zero-Waste Validation & Command Exemption (Miễn trừ lệnh thừa & Tối ưu tốc độ)**:
   - Khi chỉnh sửa UI, CSS, Tailwind, spacing, layout JSX, copywriting, hoặc thêm component hiển thị thuần túy:
-    - **CẤM CHẠY**: Test suites (`npm test`, `pnpm test`, `jest`, `vitest`, `playwright`), full-repo lint (`pnpm lint`, `eslint .`), và build bundling (`next build`).
-    - **Lệnh duy nhất được chạy**: `node scripts/verify-ui-rules.cjs` (quét tĩnh < 1s). Chỉ chạy thêm `tsc --noEmit` nếu có imports/props/types mới để chống lỗi cú pháp.
+    - **CẤM CHẠY**: Mọi hình thức test suites (`node --test`, `npm test`, `pnpm test`, `jest`, `vitest`, `playwright`).
+    - **CẤM CHẠY**: `tsc --noEmit` khi chỉ chỉnh sửa CSS/styling hoặc đổi text/giao diện JSX (chỉ được chạy nếu thêm props/types/import TypeScript mới).
+    - **CẤM CHẠY**: Full-repo lint (`pnpm lint`, `eslint .`), và build bundling (`next build`).
+    - **CẤM CHẠY**: `git diff` hoặc kiểm tra/soát các file không thuộc phạm vi task được giao (ví dụ: task sửa `globals.css` thì cấm soi diff `tape-chart-view.tsx`).
+    - **CẤM CHẠY**: Các lệnh ad-hoc thử nghiệm như `node -e "..."`.
+    - **Lệnh duy nhất được chạy**: `node scripts/verify-ui-rules.cjs` (quét tĩnh < 1s).
   - **Các lệnh thừa khác cấm chạy tự tiện**:
     - Cấm chạy `graphify update` cho các sửa đổi UI/CSS/copy nhỏ.
     - Cấm chạy migrations/seed/db scripts cho frontend tasks.

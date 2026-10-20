@@ -84,7 +84,7 @@ Before finalizing a task, verify:
 
 | Phạm vi công việc (Scope) | Lệnh CẦN CHẠY duy nhất | Lệnh TUYỆT ĐỐI CẤM CHẠY (Thừa thãi) |
 | :--- | :--- | :--- |
-| **Chỉnh UI, CSS, Component, Copy** | `node scripts/verify-ui-rules.cjs`<br>(+ scoped `tsc --noEmit` nếu có import/type mới) | CẤM: `test`, `vitest`, `jest`, `playwright`, `eslint .`, `next lint`, `next build`, `graphify update`. |
+| **Chỉnh UI, CSS, Component, Copy** | `node scripts/verify-ui-rules.cjs`<br>(+ scoped `tsc --noEmit` NẾU VÀ CHỈ NẾU có import/type mới) | CẤM: Mọi unit tests (`node --test`, `test`, `vitest`, `jest`, `playwright`), `tsc` khi chỉ sửa pure CSS/text, `eslint .`, `next lint`, `next build`, `graphify update`, soi `git diff` file không liên quan, `node -e`. |
 | **Sửa DTO / Backend Service logic** | Scoped unit test cho service đó (`jest path/to/service.spec.ts`) + scoped `tsc` | CẤM: test toàn repo, E2E browser tests, next build, frontend lint. |
 | **Sửa Database Schema / Migration** | `npx prisma validate` | CẤM: `db:reset`, seed production, frontend test suite. |
 | **Sửa Docs / Markdown / Quy tắc** | Đọc lại Git diff | CẤM: Mọi lệnh test, lint, build, tsc. |

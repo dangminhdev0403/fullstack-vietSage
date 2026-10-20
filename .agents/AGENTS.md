@@ -151,10 +151,13 @@ A "module completed" includes examples such as:
 
 **Exemption for Minor Edits & Zero-Waste Validation Protocol:**
 - For routine, UI-focused, or small-scope changes (such as CSS/Tailwind tweaks, spacing, layout JSX, color, text/copy/label fixes, adding or editing presentation components, renaming variables/functions):
-  - **STRICTLY FORBIDDEN to run test suites** (`npm test`, `pnpm test`, `jest`, `vitest`, `playwright`).
+  - **STRICTLY FORBIDDEN to run ANY test suites** (`node --test`, `npm test`, `pnpm test`, `jest`, `vitest`, `playwright`, etc.).
+  - **STRICTLY FORBIDDEN to run `tsc --noEmit`** when editing CSS/styling or JSX text (only permitted if new TypeScript imports/props/types were introduced).
   - **STRICTLY FORBIDDEN to run full-repo lint** (`eslint .`, `pnpm lint`) or production build (`next build`).
+  - **STRICTLY FORBIDDEN to inspect unrelated files** via `git diff` or expand scope beyond assigned files.
+  - **STRICTLY FORBIDDEN to execute ad-hoc code snippets** (such as `node -e "..."`).
   - **STRICTLY FORBIDDEN to run graphify update** (`graphify update .`) or database migration/seed scripts.
-  - **Smallest reliable command**: Run `node scripts/verify-ui-rules.cjs` (< 1s). Only run scoped `tsc --noEmit` if new imports/props/types were introduced to verify syntax.
+  - **The ONLY validation command to run**: Run `node scripts/verify-ui-rules.cjs` (< 1s). Only run scoped `tsc --noEmit` if new imports/props/types were introduced to verify syntax.
 
 ---
 
