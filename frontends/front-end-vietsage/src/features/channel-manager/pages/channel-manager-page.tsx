@@ -67,9 +67,16 @@ function ChannelManagerContent({
     : true;
 
   const access = useMemo(() => {
-    return resolveChannelManagerAccess(permissions, {
+    const res = resolveChannelManagerAccess(permissions, {
       allowPlatformAdmin: roleScope === "admin",
     });
+    if (roleScope === "owner") {
+      return {
+        ...res,
+        visibleTabs: res.visibleTabs.filter((tab) => tab !== "CHANNELS"),
+      };
+    }
+    return res;
   }, [permissions, roleScope]);
 
   const { visibleTabs } = access;

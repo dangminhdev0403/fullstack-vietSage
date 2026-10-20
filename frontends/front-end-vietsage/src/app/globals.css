@@ -318,69 +318,221 @@ p.text-center {
 }
 
 /* =====================================================================
-   SWEETALERT2 LUXURY HOSPITALITY THEME & ICON ENHANCEMENTS
+   SWEETALERT2 LUXURY HOSPITALITY THEME & ICON ENHANCEMENTS (VIETSAGE)
    ===================================================================== */
 .swal2-container {
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  transition: backdrop-filter 0.25s ease-out;
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  background: rgba(15, 26, 23, 0.52) !important;
+  transition: backdrop-filter 0.25s ease-out, background-color 0.25s ease-out;
+}
+
+@keyframes vs-swal2-enter {
+  0% {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .swal2-popup {
+  position: relative;
   box-shadow:
-    0 25px 60px -15px rgba(15, 23, 42, 0.22),
-    0 0 0 1px rgba(15, 23, 42, 0.06) !important;
+    0 25px 60px -12px rgba(28, 56, 49, 0.18),
+    0 0 0 1px rgba(37, 72, 63, 0.08),
+    0 8px 24px -4px rgba(0, 0, 0, 0.04) !important;
   border-radius: 28px !important;
-  font-family: inherit !important;
+  font-family: var(--font-be-vietnam-pro), "Be Vietnam Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  background: #ffffff !important;
 }
 
-/* Icon polish & ambient glow rings */
+.swal2-popup.swal2-show {
+  animation: vs-swal2-enter 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}
+
+.swal2-popup::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 20%;
+  right: 20%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(37, 72, 63, 0.28), transparent);
+  pointer-events: none;
+  border-radius: 9999px;
+}
+
+/* Icon polish & bespoke hospitality seals */
 .swal2-icon {
-  margin: 1.25rem auto 1rem !important;
-  border-width: 3px !important;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+  font-size: 13px !important;
+  width: 5em !important;
+  height: 5em !important;
+  margin: 1.25rem auto 0.75rem !important;
+  border-width: 2px !important;
+  border-style: solid !important;
+  border-radius: 50% !important;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease !important;
 }
 
+/* 1. Success - Signature VietSage Deep Sage */
 .swal2-icon.swal2-success {
   border-color: #25483f !important;
   color: #25483f !important;
-  box-shadow: 0 0 0 8px rgba(37, 72, 63, 0.08), 0 12px 28px -6px rgba(37, 72, 63, 0.22);
-}
-
-.swal2-icon.swal2-success [class^="swal2-success-line"] {
-  background-color: #25483f !important;
+  background: #eaf2ee !important;
+  box-shadow:
+    0 0 0 6px rgba(37, 72, 63, 0.08),
+    0 10px 24px -4px rgba(37, 72, 63, 0.2) !important;
 }
 
 .swal2-icon.swal2-success .swal2-success-ring {
-  border: 3px solid rgba(37, 72, 63, 0.25) !important;
+  display: none !important;
 }
 
+.swal2-icon.swal2-success .swal2-success-circular-line-left,
+.swal2-icon.swal2-success .swal2-success-circular-line-right,
+.swal2-icon.swal2-success .swal2-success-fix {
+  display: none !important;
+  background: transparent !important;
+}
+
+.swal2-icon.swal2-success [class^="swal2-success-line"] {
+  background-color: #1c3831 !important;
+  border-radius: 9999px !important;
+  height: 3.5px !important;
+}
+
+/* 2. Warning - VietSage Warm Amber & Muted Gold */
+.swal2-icon.swal2-warning {
+  border-color: #d97706 !important;
+  color: #92400e !important;
+  background: #fef8ee !important;
+  box-shadow:
+    0 0 0 6px rgba(217, 119, 6, 0.08),
+    0 10px 24px -4px rgba(180, 83, 9, 0.18) !important;
+}
+
+.swal2-icon.swal2-warning .swal2-icon-content {
+  color: #92400e !important;
+  font-family: var(--font-be-vietnam-pro), sans-serif !important;
+  font-weight: 800 !important;
+}
+
+/* 3. Error - VietSage Heritage Crimson */
 .swal2-icon.swal2-error {
-  border-color: #e11d48 !important;
-  color: #e11d48 !important;
-  box-shadow: 0 0 0 8px rgba(225, 29, 72, 0.08), 0 12px 28px -6px rgba(225, 29, 72, 0.22);
+  border-color: #ba1a1a !important;
+  color: #ba1a1a !important;
+  background: #fdf2f2 !important;
+  box-shadow:
+    0 0 0 6px rgba(186, 26, 26, 0.08),
+    0 10px 24px -4px rgba(186, 26, 26, 0.2) !important;
 }
 
 .swal2-icon.swal2-error [class^="swal2-x-mark-line"] {
-  background-color: #e11d48 !important;
+  background-color: #93000a !important;
+  border-radius: 9999px !important;
+  height: 3.5px !important;
 }
 
-.swal2-icon.swal2-warning {
-  border-color: #ea580c !important;
-  color: #ea580c !important;
-  box-shadow: 0 0 0 8px rgba(234, 88, 12, 0.08), 0 12px 28px -6px rgba(234, 88, 12, 0.22);
-}
-
+/* 4. Info - VietSage Maritime Slate / Teal */
 .swal2-icon.swal2-info {
-  border-color: #0284c7 !important;
-  color: #0284c7 !important;
-  box-shadow: 0 0 0 8px rgba(2, 132, 199, 0.08), 0 12px 28px -6px rgba(2, 132, 199, 0.22);
+  border-color: #0f766e !important;
+  color: #0f766e !important;
+  background: #f0fdfa !important;
+  box-shadow:
+    0 0 0 6px rgba(15, 118, 110, 0.08),
+    0 10px 24px -4px rgba(15, 118, 110, 0.18) !important;
 }
 
+.swal2-icon.swal2-info .swal2-icon-content {
+  color: #0f766e !important;
+  font-family: var(--font-be-vietnam-pro), sans-serif !important;
+  font-weight: 800 !important;
+}
+
+/* 5. Question - VietSage Sage Charcoal */
 .swal2-icon.swal2-question {
-  border-color: #475569 !important;
-  color: #475569 !important;
-  box-shadow: 0 0 0 8px rgba(71, 85, 105, 0.08), 0 12px 28px -6px rgba(71, 85, 105, 0.18);
+  border-color: #25483f !important;
+  color: #25483f !important;
+  background: #f0f4f2 !important;
+  box-shadow:
+    0 0 0 6px rgba(37, 72, 63, 0.08),
+    0 10px 24px -4px rgba(37, 72, 63, 0.16) !important;
+}
+
+.swal2-icon.swal2-question .swal2-icon-content {
+  color: #1c3831 !important;
+  font-family: var(--font-be-vietnam-pro), sans-serif !important;
+  font-weight: 800 !important;
+}
+
+/* 6. Loader - VietSage Signature Loading Spinner */
+.swal2-loader {
+  border-color: #25483f transparent #25483f transparent !important;
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  margin: 1.25rem auto !important;
+}
+
+/* 7. Timer Progress Bar */
+.swal2-timer-progress-bar {
+  background: linear-gradient(90deg, #1c3831, #25483f, #735c00) !important;
+  height: 3px !important;
+  border-radius: 9999px !important;
+}
+
+/* 8. Close Button */
+.swal2-close {
+  color: #767684 !important;
+  font-family: var(--font-be-vietnam-pro), sans-serif !important;
+  border-radius: 9999px !important;
+  transition: all 0.2s ease !important;
+}
+
+.swal2-close:hover {
+  color: #1a1c1c !important;
+  background: #f3f3f4 !important;
+}
+
+.swal2-confirm:focus-visible,
+.swal2-cancel:focus-visible {
+  outline: 2px solid #25483f !important;
+  outline-offset: 2px !important;
+}
+
+/* =====================================================================
+   SONNER TOAST LUXURY VIETSAGE STYLING
+   ===================================================================== */
+[data-sonner-toaster] [data-sonner-toast] {
+  font-family: var(--font-be-vietnam-pro), "Be Vietnam Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  border-radius: 16px !important;
+  box-shadow: 0 16px 36px -8px rgba(28, 56, 49, 0.16), 0 0 0 1px rgba(37, 72, 63, 0.06) !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="success"] {
+  background: #f2f7f4 !important;
+  border-color: #c2dcd2 !important;
+  color: #0f241e !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="error"] {
+  background: #fff5f5 !important;
+  border-color: #ffdad6 !important;
+  color: #93000a !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="warning"] {
+  background: #fffbeb !important;
+  border-color: #fde68a !important;
+  color: #92400e !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="info"] {
+  background: #f0fdfa !important;
+  border-color: #99f6e4 !important;
+  color: #0f766e !important;
 }
 
 .swal2-popup.vs-service-confirm-popup {
@@ -1230,7 +1382,7 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
   white-space: nowrap;
   flex-shrink: 0;
   border-radius: 999px;
-  padding: 0.5rem 0.85rem;
+  padding: 0.45rem 0.75rem;
   color: #34473a;
   font-size: 0.875rem;
   font-weight: 700;

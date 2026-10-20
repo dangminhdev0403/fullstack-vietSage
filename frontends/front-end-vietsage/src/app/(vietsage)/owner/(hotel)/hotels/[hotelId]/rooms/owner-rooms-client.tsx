@@ -1,13 +1,13 @@
 "use client";
 
 import {
-  type FormEvent,
+  type FormEvent, useEffect,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   SwalVietSage,
@@ -44,12 +44,14 @@ import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/inval
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import { RoomDetailDrawer } from "@/features/hotel-ops/components/room-detail-drawer";
 import { RoomTypesCatalogModal } from "@/features/hotel-ops/components/room-types-catalog-modal";
+import { TapeChartView } from "@/features/hotel-ops/components/tape-chart/tape-chart-view";
 
 type Props = {
   hotelId: string;
   initialRooms: HotelRoomSummary[];
   initialTypes?: string[];
   initialFloors?: string[];
+  surfaceMode?: "operations" | "settings";
 };
 type RoomSortKey =
   | "roomNumber"
@@ -373,10 +375,39 @@ export function OwnerRoomsClient({
   initialRooms,
   initialTypes = [],
   initialFloors = [],
+  surfaceMode = "operations",
 }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const qrCodeRef = useRef<SVGSVGElement | null>(null);
+  const rawTab = (searchParams?.get("tab") || "").toLowerCase();
+  const initialActiveTab: "rooms" | "room-plan" =
+    rawTab === "room-plan" || rawTab === "plan" ? "room-plan" : "rooms";
+
+  const [activeSurfaceTab, setActiveSurfaceTab] = useState<"rooms" | "room-plan">(initialActiveTab);
+
+  useEffect(() => {
+    const tabParam = searchParams?.get("tab");
+    if (tabParam === "room-plan" || tabParam === "plan") {
+      setActiveSurfaceTab("room-plan");
+    } else if (tabParam === "rooms") {
+      setActiveSurfaceTab("rooms");
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab: "rooms" | "room-plan") => {
+    setActiveSurfaceTab(tab);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (tab === "room-plan") {
+        url.searchParams.set("tab", "room-plan");
+      } else {
+        url.searchParams.delete("tab");
+      }
+      window.history.replaceState(null, "", url.toString());
+    }
+  };
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [query, setQuery] = useState("");
   const [floorFilter, setFloorFilter] = useState("");
@@ -1394,6 +1425,15 @@ export function OwnerRoomsClient({
           <VsIcon name="table_rows" className="text-base" />
           <span>Bảng chi tiết</span>
         </button>
+        <button
+          type="button"
+          onClick={() => handleTabChange("room-plan")}
+          className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer border border-purple-200 bg-purple-50 text-purple-900 hover:bg-purple-100 hover:border-purple-300"
+          title="Xem dạng Bảng kế hoạch phòng trực quan theo trục thời gian (Tape Chart)"
+        >
+          <VsIcon name="calendar_view_week" className="text-base text-purple-700" />
+          <span>Kế hoạch phòng</span>
+        </button>
       </div>
     </div>
   );
@@ -1403,66 +1443,157 @@ export function OwnerRoomsClient({
       className="space-y-8"
       data-api-room-count={initialRooms.length}
       data-hotel-id={hotelId}
+      data-surface-mode={surfaceMode}
+      data-plan-ready="true"
     >
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">
-            Thiết lập phòng
-          </p>
-          <h1 className="mt-3 text-4xl font-semibold leading-tight text-[var(--primary)]">
-            Danh mục phòng & QR
-          </h1>
-          <p className="mt-2 max-w-3xl text-base leading-7 text-[var(--on-surface-variant)]">
-            Cấu hình thông tin phòng, giá niêm yết, giới hạn thiết bị và mã QR GuestOS. Trạng thái lưu trú chỉ hiển thị để theo dõi.
-          </p>
+      {surfaceMode === "operations" && (
+        <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">
+              VẬN HÀNH &amp; THIẾT LẬP PHÒNG
+            </p>
+            <h1 className="mt-2 text-3xl sm:text-4xl font-semibold leading-tight text-[var(--primary)] text-balance">
+              Quản lý phòng &amp; QR
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--on-surface-variant)] text-pretty">
+              Cấu hình thông tin phòng, giá niêm yết, mã QR GuestOS và theo dõi bảng kế hoạch phòng theo trục thời gian trực quan.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={openCreateRoom}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-5 text-sm font-bold text-[var(--on-primary)] shadow-sm hover:opacity-95 transition cursor-pointer"
+            >
+              <VsIcon name="add_circle" className="text-lg" />
+              Thêm phòng mới
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsRoomTypesModalOpen(true)}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--outline-variant)] bg-white px-4 text-sm font-bold text-[var(--primary)] shadow-2xs hover:bg-slate-50 transition active:scale-[0.98] cursor-pointer"
+              title="Quản lý danh mục loại phòng và giá gốc để đồng bộ OTA / Channex"
+            >
+              <VsIcon name="tune" className="text-lg text-[var(--secondary)]" />
+              <span>Danh mục loại phòng</span>
+              {catalog.some((item) => item.readiness === "MISSING_PRICE") && (
+                <span
+                  className="h-2 w-2 rounded-full bg-amber-500 animate-pulse"
+                  title="Có loại phòng chưa có giá gốc"
+                />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleOperationalReset()}
+              disabled={isResetting || isBulkQrBusy}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50/90 px-4 text-sm font-bold text-amber-900 shadow-2xs hover:bg-amber-100 hover:border-amber-400 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+              title="Làm mới dữ liệu vận hành về trạng thái ban đầu, đưa phòng về TRỐNG và bảo toàn nguyên vẹn danh sách phòng cùng mã QR Code"
+            >
+              {isResetting ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-amber-800 border-t-transparent" />
+                  <span>Đang xử lý...</span>
+                </>
+              ) : (
+                <>
+                  <VsIcon name="restart_alt" className="text-xl text-amber-700" />
+                  <span>Khởi động lại vận hành</span>
+                </>
+              )}
+            </button>
+          </div>
+        </header>
+      )}
+
+      {surfaceMode === "settings" && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--outline-variant)] pb-4">
+          <div>
+            <h2 className="text-lg font-bold text-[var(--primary)] text-balance">
+              Cấu hình phòng &amp; Bảng kế hoạch
+            </h2>
+            <p className="text-xs text-[var(--on-surface-variant)] text-pretty">
+              Quản lý danh mục phòng vật lý, mã QR và xem kế hoạch xếp phòng trực quan.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={openCreateRoom}
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-4 text-xs sm:text-sm font-bold text-[var(--on-primary)] shadow-sm hover:opacity-95 transition cursor-pointer"
+            >
+              <VsIcon name="add_circle" className="text-base" />
+              Thêm phòng mới
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsRoomTypesModalOpen(true)}
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[var(--outline-variant)] bg-white px-4 text-xs sm:text-sm font-bold text-[var(--primary)] shadow-2xs hover:bg-slate-50 transition active:scale-[0.98] cursor-pointer"
+              title="Quản lý danh mục loại phòng và giá gốc để đồng bộ OTA / Channex"
+            >
+              <VsIcon name="tune" className="text-base text-[var(--secondary)]" />
+              <span>Danh mục loại phòng</span>
+            </button>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={openCreateRoom}
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-6 text-sm font-bold text-[var(--on-primary)] shadow-lg shadow-[color:rgba(0,0,60,0.12)] transition-all hover:-translate-y-0.5 hover:shadow-xl"
-          >
-            <VsIcon name="add_circle" className="text-lg" />
-            Thêm phòng mới
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsRoomTypesModalOpen(true)}
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[var(--outline-variant)] bg-white px-5 text-sm font-bold text-[var(--primary)] shadow-sm transition-all hover:bg-[var(--surface-container-low)] hover:border-[var(--primary)] active:scale-[0.98]"
-            title="Quản lý danh mục loại phòng và giá gốc để đồng bộ OTA / Channex"
-          >
-            <VsIcon name="tune" className="text-lg text-[var(--secondary)]" />
-            <span>Danh mục loại phòng</span>
-            {catalog.some((item) => item.readiness === "MISSING_PRICE") && (
-              <span
-                className="h-2 w-2 rounded-full bg-amber-500 animate-pulse"
-                title="Có loại phòng chưa có giá gốc"
-              />
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleOperationalReset()}
-            disabled={isResetting || isBulkQrBusy}
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50/90 px-5 text-sm font-bold text-amber-900 shadow-sm transition-all hover:bg-amber-100 hover:border-amber-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-            title="Làm mới dữ liệu vận hành về trạng thái ban đầu, đưa phòng về TRỐNG và bảo toàn nguyên vẹn danh sách phòng cùng mã QR Code"
-          >
-            {isResetting ? (
-              <>
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-amber-800 border-t-transparent" />
-                <span>Đang xử lý...</span>
-              </>
-            ) : (
-              <>
-                <VsIcon name="restart_alt" className="text-xl text-amber-700" />
-                <span>Khởi động lại vận hành</span>
-              </>
-            )}
-          </button>
+      )}
+
+      <nav
+        role="tablist"
+        aria-label="Chế độ quản lý phòng"
+        className="flex gap-2 border-b border-[#e5ddcd] pb-px"
+      >
+        <button
+          type="button"
+          role="tab"
+          id="tab-rooms"
+          aria-controls="panel-rooms"
+          aria-selected={activeSurfaceTab === "rooms"}
+          onClick={() => handleTabChange("rooms")}
+          className={`min-h-11 flex items-center gap-2 rounded-t-xl border-b-2 px-4 py-2.5 text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+            activeSurfaceTab === "rooms"
+              ? "border-[#735c00] bg-white text-[#735c00] shadow-2xs font-black"
+              : "border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+          }`}
+        >
+          <VsIcon name="meeting_room" className="text-base" />
+          <span>Danh mục phòng &amp; QR</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-room-plan"
+          aria-controls="panel-room-plan"
+          aria-selected={activeSurfaceTab === "room-plan"}
+          onClick={() => handleTabChange("room-plan")}
+          className={`min-h-11 flex items-center gap-2 rounded-t-xl border-b-2 px-4 py-2.5 text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+            activeSurfaceTab === "room-plan"
+              ? "border-[#735c00] bg-white text-[#735c00] shadow-2xs font-black"
+              : "border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+          }`}
+        >
+          <VsIcon name="calendar_view_week" className="text-base" />
+          <span>Bảng kế hoạch phòng</span>
+        </button>
+      </nav>
+
+      {activeSurfaceTab === "room-plan" ? (
+        <div id="panel-room-plan" role="tabpanel" aria-labelledby="tab-room-plan">
+          <TapeChartView
+            hotelId={hotelId}
+            rooms={rooms}
+            onRefresh={() => {
+              void refetchRooms();
+            }}
+          />
         </div>
-      </div>
+      ) : null}
+
+      {activeSurfaceTab === "rooms" && (
+        <div id="panel-rooms" role="tabpanel" aria-labelledby="tab-rooms" className="space-y-8">
 
       <section className="space-y-5">
+        {surfaceMode === "operations" && (
         <div className="overflow-hidden rounded-3xl border border-[#d7bd61]/40 bg-[linear-gradient(135deg,#173d34,#25483f_52%,#f4d36f)] p-[1px] shadow-[0_24px_70px_rgba(31,61,53,0.18)]">
           <div className="grid gap-5 rounded-3xl bg-[#f9f4e8] p-5 lg:grid-cols-[1fr_auto] lg:items-center">
             <div>
@@ -1509,6 +1640,8 @@ export function OwnerRoomsClient({
             </div>
           </div>
         </div>
+
+        )}
 
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
           {stats.map((item) => (
@@ -1579,7 +1712,7 @@ export function OwnerRoomsClient({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-4 gap-4">
                     {floorRooms.map((room) => {
                       const roomStatus = room.status?.toUpperCase() || "AVAILABLE";
                       const statusMeta = getRoomStatusMeta(room);
@@ -1773,6 +1906,9 @@ export function OwnerRoomsClient({
             onPageSizeChange: updatePageSize,
           }}
         />
+      )}
+
+        </div>
       )}
 
       <RoomDetailDrawer

@@ -34,6 +34,8 @@ import type {
   UpdateHotelRoomInput,
   UpdateServiceCategoryInput,
   UpdateServiceItemInput,
+  RoomPlanResponse,
+  UpdateReservationPlacementInput,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 
 export type HotelOpsServiceOptions = {
@@ -870,6 +872,37 @@ export class HotelOpsService {
       accessTokenExpiresAt: options.accessTokenExpiresAt,
     });
     return unwrapApiEnvelope<{ unreadCount: number }>(payload).data;
+  }
+
+  async getRoomPlan(
+    hotelId: string,
+    query: { from: string; to: string },
+    options: AuthRequestOptions = {},
+  ): Promise<RoomPlanResponse> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, "/room-plan"),
+      query: query as HttpQuery,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<RoomPlanResponse>(payload).data;
+  }
+
+  async updateReservationPlacement(
+    hotelId: string,
+    reservationId: string,
+    body: UpdateReservationPlacementInput,
+    options: AuthRequestOptions = {},
+  ): Promise<unknown> {
+    const payload = await this.httpClient.request<unknown, UpdateReservationPlacementInput>({
+      method: "PUT",
+      path: hotelPath(hotelId, `/reservations/${encodeURIComponent(reservationId)}/placement`),
+      body,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<unknown>(payload).data;
   }
 }
 

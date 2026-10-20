@@ -399,4 +399,73 @@ test("never returns 0.0.0.0 in redirect origin under any circumstance", () => {
   assert.equal(redirectUrl.toString(), "http://127.0.0.1:3000/login?reauth=1&callbackUrl=%2Fstaff");
 });
 
+test("Portless vietsage.localhost preserves HTTPS origin on protected login redirect", () => {
+  const req = {
+    url: "http://localhost:3000/owner/dashboard",
+    headers: new Map([
+      ["host", "vietsage.localhost"],
+      ["x-forwarded-proto", "https"],
+    ]),
+  };
+  const redirectUrl = createRequestRedirectUrl("/dangnhap?reauth=1&callbackUrl=%2Fowner%2Fdashboard", {
+    url: req.url,
+    headers: {
+      get: (key: string) => req.headers.get(key) ?? null,
+    },
+  });
 
+  assert.equal(
+    redirectUrl.toString(),
+    "https://vietsage.localhost/dangnhap?reauth=1&callbackUrl=%2Fowner%2Fdashboard",
+  );
+});
+
+test("Portless vietsage.localhost preserves HTTPS origin via x-forwarded-host header", () => {
+  const req = {
+    url: "http://localhost:3000/owner/dashboard",
+    headers: new Map([
+      ["x-forwarded-host", "vietsage.localhost"],
+      ["x-forwarded-proto", "https"],
+    ]),
+  };
+  const redirectUrl = createRequestRedirectUrl("/dangnhap?reauth=1&callbackUrl=%2Fowner%2Fdashboard", {
+    url: req.url,
+    headers: {
+      get: (key: string) => req.headers.get(key) ?? null,
+    },
+  });
+
+  assert.equal(
+    redirectUrl.toString(),
+    "https://vietsage.localhost/dangnhap?reauth=1&callbackUrl=%2Fowner%2Fdashboard",
+  );
+});
+
+test("Portless configured PORTLESS_URL environment variable is respected", () => {
+  const originalUrl = process.env.PORTLESS_URL;
+  process.env.PORTLESS_URL = "https://vietsage.localhost";
+
+  try {
+    const redirectUrl = createRequestRedirectUrl("/owner/dashboard", {
+      url: "http://localhost:3000/api/auth/post-login",
+      headers: {
+        get: (key: string) =>
+          new Map([
+            ["x-forwarded-host", "vietsage.localhost"],
+            ["x-forwarded-proto", "https"],
+          ]).get(key) ?? null,
+      },
+    });
+
+    assert.equal(
+      redirectUrl.toString(),
+      "https://vietsage.localhost/owner/dashboard",
+    );
+  } finally {
+    if (originalUrl === undefined) {
+      delete process.env.PORTLESS_URL;
+    } else {
+      process.env.PORTLESS_URL = originalUrl;
+    }
+  }
+});

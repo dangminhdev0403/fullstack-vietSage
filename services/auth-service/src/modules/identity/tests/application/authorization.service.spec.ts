@@ -27,4 +27,23 @@ describe("AuthorizationService", () => {
       service.checkUserBusinessPermission("u1", "role-active", "hotel.requests.manage"),
     ).resolves.toBe(false);
   });
+
+  it("resolves active role code from repository", async () => {
+    const findActiveRoleCode = jest.fn().mockResolvedValue("TENANT_OWNER");
+    const service = new AuthorizationService({
+      findActiveRoleCode,
+    } as unknown as AuthRepository);
+
+    await expect(service.getActiveRoleCode("u1", "role-active")).resolves.toBe("TENANT_OWNER");
+    expect(findActiveRoleCode).toHaveBeenCalledWith("u1", "role-active");
+  });
+
+  it("returns null when active role is not found or inactive", async () => {
+    const findActiveRoleCode = jest.fn().mockResolvedValue(null);
+    const service = new AuthorizationService({
+      findActiveRoleCode,
+    } as unknown as AuthRepository);
+
+    await expect(service.getActiveRoleCode("u1", "role-active")).resolves.toBeNull();
+  });
 });

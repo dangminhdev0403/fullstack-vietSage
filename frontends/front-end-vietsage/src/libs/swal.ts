@@ -22,10 +22,10 @@ export function preventOrphans(text: string): string {
    SHARED SWEETALERT2 STYLING TOKENS (HOSPITALITY LUXURY STANDARD)
    ===================================================================== */
 export const SWAL_BASE_POPUP_CLASS =
-  "relative rounded-[28px] sm:rounded-[32px] bg-white p-6 sm:p-8 md:p-9 shadow-[0_25px_60px_-15px_rgba(15,23,42,0.22),0_0_0_1px_rgba(15,23,42,0.06)] border border-slate-100/90 max-h-[90vh] flex flex-col my-auto overflow-hidden";
+  "relative rounded-[28px] sm:rounded-[32px] bg-white p-6 sm:p-8 md:p-9 shadow-[0_25px_60px_-15px_rgba(28,56,49,0.18),0_0_0_1px_rgba(37,72,63,0.08),0_8px_24px_-4px_rgba(0,0,0,0.04)] border border-[#25483f]/10 max-h-[90vh] flex flex-col my-auto overflow-hidden";
 
 export const SWAL_POPUP_STANDARD =
-  `${SWAL_BASE_POPUP_CLASS} w-[94vw] sm:w-[90vw] max-w-[500px]`;
+  `${SWAL_BASE_POPUP_CLASS} w-[94vw] sm:w-[90vw] max-w-[480px]`;
 
 export const SWAL_POPUP_MEDIUM =
   `${SWAL_BASE_POPUP_CLASS} w-[94vw] sm:w-[90vw] max-w-xl`;
@@ -34,25 +34,25 @@ export const SWAL_POPUP_LARGE =
   `${SWAL_BASE_POPUP_CLASS} w-[94vw] sm:w-[90vw] md:max-w-2xl`;
 
 export const SWAL_TITLE_CLASS =
-  "text-2xl sm:text-[26px] md:text-[28px] font-black text-slate-900 text-center mb-2.5 mt-1 tracking-tight shrink-0 text-balance leading-snug max-w-[36ch] mx-auto";
+  "text-xl sm:text-2xl md:text-[26px] font-bold text-[#1a1c1c] text-center mb-2 mt-0.5 tracking-tight shrink-0 text-balance leading-snug max-w-[36ch] mx-auto";
 
 export const SWAL_HTML_CONTAINER_CLASS =
-  "text-base sm:text-[17px] md:text-lg font-normal text-slate-600 text-center leading-relaxed max-h-[58vh] overflow-y-auto pr-1 focus:outline-none custom-scrollbar w-full max-w-[56ch] mx-auto !m-0 !mt-2.5 !mb-1 text-pretty [text-wrap:pretty]";
+  "text-sm sm:text-base font-normal text-[#464653] text-center leading-relaxed max-h-[58vh] overflow-y-auto pr-1 focus:outline-none custom-scrollbar w-full max-w-[52ch] mx-auto !m-0 !mt-1.5 !mb-1 text-pretty [text-wrap:pretty]";
 
 export const SWAL_HTML_CONTAINER_LEFT_CLASS =
-  "text-base sm:text-[17px] md:text-lg font-normal text-slate-700 !text-left leading-relaxed max-h-[58vh] overflow-y-auto pr-1 focus:outline-none custom-scrollbar w-full max-w-none !m-0 !mt-3 !mb-1 text-pretty [text-wrap:pretty]";
+  "text-sm sm:text-base font-normal text-[#464653] !text-left leading-relaxed max-h-[58vh] overflow-y-auto pr-1 focus:outline-none custom-scrollbar w-full max-w-none !m-0 !mt-2.5 !mb-1 text-pretty [text-wrap:pretty]";
 
 export const SWAL_CONFIRM_BTN_CLASS =
-  "inline-flex h-12 min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#1c3831] to-[#25483f] hover:from-[#152e27] hover:to-[#1c3831] active:scale-[0.98] px-8 text-base font-bold text-white shadow-md shadow-[#25483f]/25 hover:shadow-lg hover:shadow-[#25483f]/35 transition-all duration-150 cursor-pointer mx-1.5 min-w-[130px] select-none";
+  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#1c3831] via-[#22443b] to-[#25483f] hover:from-[#152e27] hover:to-[#1c3831] active:scale-[0.98] px-7 sm:px-8 text-sm sm:text-base font-bold text-white shadow-md shadow-[#25483f]/25 hover:shadow-lg hover:shadow-[#25483f]/35 border border-[#25483f]/30 transition-all duration-150 cursor-pointer mx-1.5 min-w-[120px] select-none";
 
 export const SWAL_DANGER_BTN_CLASS =
-  "inline-flex h-12 min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 active:scale-[0.98] px-8 text-base font-bold text-white shadow-md shadow-rose-600/25 hover:shadow-lg hover:shadow-rose-600/35 transition-all duration-150 cursor-pointer mx-1.5 min-w-[130px] select-none";
+  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#ba1a1a] via-[#a81818] to-[#93000a] hover:from-[#a01515] hover:to-[#7f0007] active:scale-[0.98] px-7 sm:px-8 text-sm sm:text-base font-bold text-white shadow-md shadow-red-950/20 hover:shadow-lg hover:shadow-red-950/30 border border-red-900/30 transition-all duration-150 cursor-pointer mx-1.5 min-w-[120px] select-none";
 
 export const SWAL_CANCEL_BTN_CLASS =
-  "inline-flex h-12 min-h-[48px] items-center justify-center gap-2 rounded-2xl border border-slate-200/90 bg-slate-100/90 hover:bg-slate-200/90 active:scale-[0.98] px-7 text-base font-bold text-slate-700 hover:text-slate-900 transition-all duration-150 cursor-pointer mx-1.5 min-w-[110px] select-none";
+  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl border border-slate-200/90 bg-white hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] px-6 sm:px-7 text-sm sm:text-base font-bold text-[#464653] hover:text-[#1a1c1c] shadow-2xs transition-all duration-150 cursor-pointer mx-1.5 min-w-[100px] select-none";
 
 export const SWAL_ACTIONS_CLASS =
-  "flex flex-wrap sm:flex-nowrap items-center justify-center gap-3 pt-4 sm:pt-5 shrink-0 border-t border-slate-100/90 w-full mt-4";
+  "flex flex-wrap sm:flex-nowrap items-center justify-center gap-3 pt-4 sm:pt-5 shrink-0 border-t border-[#25483f]/10 w-full mt-4";
 
 export const SwalVietSage = Swal.mixin({
   customClass: {
@@ -65,7 +65,7 @@ export const SwalVietSage = Swal.mixin({
   },
   buttonsStyling: false,
   reverseButtons: false,
-  backdrop: "rgba(15, 23, 42, 0.48)",
+  backdrop: "rgba(15, 26, 23, 0.52)",
 });
 
 const TRUSTED_ALERT_HTML = Symbol("trustedAlertHtml");
@@ -160,15 +160,15 @@ export function formatTextContent(raw: string): string {
 
   // 5. Restore highlights with styled tags
   escaped = escaped.replace(/___HL_QUOTE___(.*?)___HL_END___/g, (_m, content) => {
-    return `<span class="inline-block px-2 py-0.5 mx-0.5 rounded-lg font-bold text-slate-900 bg-white border border-slate-200 shadow-2xs text-sm sm:text-base">${content}</span>`;
+    return `<span class="inline-block px-2 py-0.5 mx-0.5 rounded-lg font-bold text-[#1a1c1c] bg-[#f3f3f4] border border-[#e2e2e2] shadow-2xs text-sm sm:text-base">${content}</span>`;
   });
 
   escaped = escaped.replace(/___HL_DATE___(.*?)___HL_END___/g, (_m, date) => {
-    return `<span class="inline-block px-2 py-0.5 mx-0.5 rounded-lg font-semibold text-slate-800 bg-slate-100 border border-slate-200/80 text-sm sm:text-base">${date}</span>`;
+    return `<span class="inline-block px-2 py-0.5 mx-0.5 rounded-lg font-semibold text-[#1c3831] bg-[#e4ede9] border border-[#c2dcd2]/80 text-sm sm:text-base">${date}</span>`;
   });
 
   escaped = escaped.replace(/___HL_CODE___(.*?)___HL_END___/g, (_m, code) => {
-    return `<span class="inline-block px-2 py-0.5 mx-0.5 rounded font-mono text-xs sm:text-sm font-bold text-rose-900 bg-rose-100 border border-rose-200">${code}</span>`;
+    return `<span class="inline-block px-2 py-0.5 mx-0.5 rounded font-mono text-xs sm:text-sm font-bold text-[#93000a] bg-[#ffdad6]/70 border border-[#ffdad6]">${code}</span>`;
   });
 
   return escaped;
@@ -256,11 +256,11 @@ export function formatBatchResultHtml(options: {
     html += `  <div class="space-y-2.5 pt-1">`;
     html += `    <div class="flex items-center justify-between px-1">`;
     html += `      <div class="flex items-center gap-2 text-sm sm:text-base font-bold text-slate-900">`;
-    html += `        <span class="inline-flex h-2.5 w-2.5 rounded-full bg-rose-500"></span>`;
+    html += `        <span class="inline-flex h-2.5 w-2.5 rounded-full bg-[#ba1a1a]"></span>`;
     html += `        <span>Chi tiết lỗi (${parsedItems.length} ${itemTypeLabel}):</span>`;
     html += `      </div>`;
     if (parsedItems.length > 3) {
-      html += `      <span class="text-xs sm:text-sm font-medium text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full">Cuộn để xem hết</span>`;
+      html += `      <span class="text-xs sm:text-sm font-medium text-[#464653] bg-[#f3f3f4] px-2.5 py-0.5 rounded-full">Cuộn để xem hết</span>`;
     }
     html += `    </div>`;
 
@@ -269,29 +269,29 @@ export function formatBatchResultHtml(options: {
 
     for (let idx = 0; idx < parsedItems.length; idx++) {
       const item = parsedItems[idx];
-      html += `      <div class="rounded-2xl border border-rose-200/90 bg-rose-50/60 p-3.5 sm:p-4 hover:bg-rose-50/80 transition-colors shadow-2xs space-y-1.5">`;
+      html += `      <div class="rounded-2xl border border-[#ffdad6] bg-[#fff5f5]/80 p-3.5 sm:p-4 hover:bg-[#fff5f5] transition-colors shadow-2xs space-y-1.5">`;
 
       if (item.room || item.name || item.label) {
         html += `        <div class="flex items-center gap-2 flex-wrap mb-1">`;
         if (item.room) {
-          html += `          <span class="inline-flex items-center px-3 py-1 rounded-lg text-xs sm:text-sm font-black bg-rose-200/90 text-rose-950 border border-rose-300">`;
+          html += `          <span class="inline-flex items-center px-3 py-1 rounded-lg text-xs sm:text-sm font-black bg-[#ffdad6] text-[#93000a] border border-[#ffb4ab]">`;
           html += `            Phòng ${escapeHtml(item.room)}`;
           html += `          </span>`;
         }
         if (item.label && !item.room) {
-          html += `          <span class="inline-flex items-center px-3 py-1 rounded-lg text-xs sm:text-sm font-black bg-slate-200 text-slate-900 border border-slate-300">`;
+          html += `          <span class="inline-flex items-center px-3 py-1 rounded-lg text-xs sm:text-sm font-black bg-[#e2e2e2] text-[#1a1c1c] border border-[#c6c5d5]">`;
           html += `            ${escapeHtml(item.label)}`;
           html += `          </span>`;
         }
         if (item.name) {
-          html += `          <span class="font-bold text-slate-900 text-sm sm:text-base">`;
+          html += `          <span class="font-bold text-[#1a1c1c] text-sm sm:text-base">`;
           html += `            ${escapeHtml(item.name)}`;
           html += `          </span>`;
         }
         html += `        </div>`;
       }
 
-      html += `        <p class="text-sm sm:text-base text-slate-800 leading-relaxed font-normal pl-0.5">`;
+      html += `        <p class="text-sm sm:text-base text-[#464653] leading-relaxed font-normal pl-0.5">`;
       html += `          ${formatTextContent(item.message)}`;
       html += `        </p>`;
       html += `      </div>`;
@@ -303,10 +303,10 @@ export function formatBatchResultHtml(options: {
 
   // 3. Guidance footer
   if (guidance) {
-    html += `  <div class="flex items-start gap-3 rounded-2xl border border-amber-200/90 bg-amber-50/90 p-3.5 sm:p-4 text-amber-950 shadow-2xs">`;
+    html += `  <div class="flex items-start gap-3 rounded-2xl border border-[#fed65b]/90 bg-[#fffbeb] p-3.5 sm:p-4 text-[#735c00] shadow-2xs">`;
     html += `    <span class="text-lg shrink-0 select-none mt-0.5">💡</span>`;
     html += `    <div class="text-sm sm:text-base font-medium leading-relaxed">`;
-    html += `      <span class="font-bold text-amber-950">Hướng dẫn: </span>`;
+    html += `      <span class="font-bold text-[#735c00]">Hướng dẫn: </span>`;
     html += `      <span>${escapeHtml(guidance)}</span>`;
     html += `    </div>`;
     html += `  </div>`;
@@ -318,12 +318,12 @@ export function formatBatchResultHtml(options: {
 
 export function formatAlertErrorMessage(raw: string): string {
   if (!raw || typeof raw !== "string") {
-    return `<p class="text-center text-slate-600">Đã xảy ra lỗi không xác định.</p>`;
+    return `<p class="text-center text-[#464653]">Đã xảy ra lỗi không xác định.</p>`;
   }
 
   let text = raw.trim();
   if (!text) {
-    return `<p class="text-center text-slate-600">Đã xảy ra lỗi không xác định.</p>`;
+    return `<p class="text-center text-[#464653]">Đã xảy ra lỗi không xác định.</p>`;
   }
 
   // 1. Extract guidance / advice at the end
@@ -400,22 +400,22 @@ export function formatAlertErrorMessage(raw: string): string {
       }
     }
 
-    let html = `<div class="space-y-3.5 text-left text-base sm:text-lg leading-relaxed text-slate-700 max-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">`;
+    let html = `<div class="space-y-3.5 text-left text-base sm:text-lg leading-relaxed text-[#464653] max-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">`;
 
     for (const [groupLabel, items] of groups.entries()) {
-      html += `<div class="rounded-2xl border border-rose-200/90 bg-rose-50/70 p-4 sm:p-5 space-y-3 shadow-2xs">`;
-      html += `  <div class="flex items-center gap-2.5 font-bold text-rose-950 text-base sm:text-lg">`;
-      html += `    <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-200 text-rose-900 text-xs sm:text-sm font-black">!</span>`;
+      html += `<div class="rounded-2xl border border-[#ffdad6] bg-[#fff5f5]/80 p-4 sm:p-5 space-y-3 shadow-2xs">`;
+      html += `  <div class="flex items-center gap-2.5 font-bold text-[#93000a] text-base sm:text-lg">`;
+      html += `    <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#ffdad6] text-[#93000a] text-xs sm:text-sm font-black">!</span>`;
       html += `    <span>${escapeHtml(groupLabel)}</span>`;
       html += `  </div>`;
 
       if (items.length === 1) {
-        html += `  <p class="text-rose-950 pl-8 text-base sm:text-[17px] leading-relaxed">${formatTextContent(items[0])}</p>`;
+        html += `  <p class="text-[#93000a] pl-8 text-base sm:text-[17px] leading-relaxed">${formatTextContent(items[0])}</p>`;
       } else {
         html += `  <ul class="space-y-2.5 pl-3.5">`;
         for (const item of items) {
-          html += `    <li class="flex items-start gap-3 text-rose-950 text-base sm:text-[17px]">`;
-          html += `      <span class="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500"></span>`;
+          html += `    <li class="flex items-start gap-3 text-[#93000a] text-base sm:text-[17px]">`;
+          html += `      <span class="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#ba1a1a]"></span>`;
           html += `      <span class="leading-relaxed">${formatTextContent(item)}</span>`;
           html += `    </li>`;
         }
@@ -425,10 +425,10 @@ export function formatAlertErrorMessage(raw: string): string {
     }
 
     if (guidance) {
-      html += `<div class="flex items-start gap-3 rounded-2xl border border-amber-200/90 bg-amber-50/90 p-3.5 sm:p-4 text-amber-950 shadow-2xs">`;
+      html += `<div class="flex items-start gap-3 rounded-2xl border border-[#fed65b]/90 bg-[#fffbeb] p-3.5 sm:p-4 text-[#735c00] shadow-2xs">`;
       html += `  <span class="text-lg shrink-0 select-none mt-0.5">💡</span>`;
       html += `  <div class="text-sm sm:text-base font-medium leading-relaxed">`;
-      html += `    <span class="font-bold text-amber-950">Hướng dẫn: </span>`;
+      html += `    <span class="font-bold text-[#735c00]">Hướng dẫn: </span>`;
       html += `    <span>${escapeHtml(guidance)}</span>`;
       html += `  </div>`;
       html += `</div>`;
@@ -451,28 +451,28 @@ export function formatAlertErrorMessage(raw: string): string {
       itemLines = lines.slice(1);
     }
 
-    let html = `<div class="space-y-3.5 text-left text-base sm:text-lg leading-relaxed text-slate-700 max-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">`;
-    html += `<div class="rounded-2xl border border-rose-200/90 bg-rose-50/70 p-4 sm:p-5 space-y-3 shadow-2xs">`;
+    let html = `<div class="space-y-3.5 text-left text-base sm:text-lg leading-relaxed text-[#464653] max-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">`;
+    html += `<div class="rounded-2xl border border-[#ffdad6] bg-[#fff5f5]/80 p-4 sm:p-5 space-y-3 shadow-2xs">`;
     if (title) {
-      html += `  <div class="flex items-center gap-2.5 font-bold text-rose-950 text-base sm:text-lg">`;
-      html += `    <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-200 text-rose-900 text-xs sm:text-sm font-black">!</span>`;
+      html += `  <div class="flex items-center gap-2.5 font-bold text-[#93000a] text-base sm:text-lg">`;
+      html += `    <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#ffdad6] text-[#93000a] text-xs sm:text-sm font-black">!</span>`;
       html += `    <span>${escapeHtml(title)}</span>`;
       html += `  </div>`;
     }
     html += `<ul class="space-y-2.5 ${title ? "pl-3.5" : ""}">`;
     for (const line of itemLines) {
       const cleaned = line.replace(/^[-*•]\s+/, "").replace(/^\d+[.)]\s+/, "");
-      html += `  <li class="flex items-start gap-3 text-rose-950 text-base sm:text-[17px]">`;
-      html += `    <span class="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500"></span>`;
+      html += `  <li class="flex items-start gap-3 text-[#93000a] text-base sm:text-[17px]">`;
+      html += `    <span class="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#ba1a1a]"></span>`;
       html += `    <span>${formatTextContent(cleaned)}</span>`;
       html += `  </li>`;
     }
     html += `</ul></div>`;
     if (guidance) {
-      html += `<div class="flex items-start gap-3 rounded-2xl border border-amber-200/90 bg-amber-50/90 p-3.5 sm:p-4 text-amber-950 shadow-2xs">`;
+      html += `<div class="flex items-start gap-3 rounded-2xl border border-[#fed65b]/90 bg-[#fffbeb] p-3.5 sm:p-4 text-[#735c00] shadow-2xs">`;
       html += `  <span class="text-lg shrink-0 select-none mt-0.5">💡</span>`;
       html += `  <div class="text-sm sm:text-base font-medium leading-relaxed">`;
-      html += `    <span class="font-bold text-amber-950">Hướng dẫn: </span>`;
+      html += `    <span class="font-bold text-[#735c00]">Hướng dẫn: </span>`;
       html += `    <span>${escapeHtml(guidance)}</span>`;
       html += `  </div></div>`;
     }
@@ -482,17 +482,17 @@ export function formatAlertErrorMessage(raw: string): string {
 
   // 5. Multiple lines without bullets (e.g. error lines)
   if (lines.length > 1) {
-    let html = `<div class="space-y-2.5 text-left text-base sm:text-lg leading-relaxed text-slate-700 max-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">`;
+    let html = `<div class="space-y-2.5 text-left text-base sm:text-lg leading-relaxed text-[#464653] max-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">`;
     for (const line of lines) {
-      html += `<div class="rounded-2xl border border-rose-200/90 bg-rose-50/70 p-3.5 sm:p-4 text-rose-950 text-base sm:text-[17px] leading-relaxed shadow-2xs">`;
+      html += `<div class="rounded-2xl border border-[#ffdad6] bg-[#fff5f5]/80 p-3.5 sm:p-4 text-[#93000a] text-base sm:text-[17px] leading-relaxed shadow-2xs">`;
       html += `  <span>${formatTextContent(line)}</span>`;
       html += `</div>`;
     }
     if (guidance) {
-      html += `<div class="flex items-start gap-3 rounded-2xl border border-amber-200/90 bg-amber-50/90 p-3.5 sm:p-4 text-amber-950 shadow-2xs">`;
+      html += `<div class="flex items-start gap-3 rounded-2xl border border-[#fed65b]/90 bg-[#fffbeb] p-3.5 sm:p-4 text-[#735c00] shadow-2xs">`;
       html += `  <span class="text-lg shrink-0 select-none mt-0.5">💡</span>`;
       html += `  <div class="text-sm sm:text-base font-medium leading-relaxed">`;
-      html += `    <span class="font-bold text-amber-950">Hướng dẫn: </span>`;
+      html += `    <span class="font-bold text-[#735c00]">Hướng dẫn: </span>`;
       html += `    <span>${escapeHtml(guidance)}</span>`;
       html += `  </div></div>`;
     }
@@ -503,21 +503,21 @@ export function formatAlertErrorMessage(raw: string): string {
   // 6. Semicolon-separated multiple items
   const semiItems = text.split(/;\s+/).map((s) => s.trim()).filter(Boolean);
   if (semiItems.length >= 2) {
-    let html = `<div class="space-y-3.5 text-left text-base sm:text-lg leading-relaxed text-slate-700 max-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">`;
-    html += `<div class="rounded-2xl border border-rose-200/90 bg-rose-50/70 p-4 sm:p-5 space-y-2.5 shadow-2xs">`;
+    let html = `<div class="space-y-3.5 text-left text-base sm:text-lg leading-relaxed text-[#464653] max-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">`;
+    html += `<div class="rounded-2xl border border-[#ffdad6] bg-[#fff5f5]/80 p-4 sm:p-5 space-y-2.5 shadow-2xs">`;
     html += `<ul class="space-y-2.5">`;
     for (const item of semiItems) {
-      html += `  <li class="flex items-start gap-3 text-rose-950 text-base sm:text-[17px]">`;
-      html += `    <span class="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500"></span>`;
+      html += `  <li class="flex items-start gap-3 text-[#93000a] text-base sm:text-[17px]">`;
+      html += `    <span class="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#ba1a1a]"></span>`;
       html += `    <span>${formatTextContent(item)}</span>`;
       html += `  </li>`;
     }
     html += `</ul></div>`;
     if (guidance) {
-      html += `<div class="flex items-start gap-3 rounded-2xl border border-amber-200/90 bg-amber-50/90 p-3.5 sm:p-4 text-amber-950 shadow-2xs">`;
+      html += `<div class="flex items-start gap-3 rounded-2xl border border-[#fed65b]/90 bg-[#fffbeb] p-3.5 sm:p-4 text-[#735c00] shadow-2xs">`;
       html += `  <span class="text-lg shrink-0 select-none mt-0.5">💡</span>`;
       html += `  <div class="text-sm sm:text-base font-medium leading-relaxed">`;
-      html += `    <span class="font-bold text-amber-950">Hướng dẫn: </span>`;
+      html += `    <span class="font-bold text-[#735c00]">Hướng dẫn: </span>`;
       html += `    <span>${escapeHtml(guidance)}</span>`;
       html += `  </div></div>`;
     }
@@ -527,19 +527,19 @@ export function formatAlertErrorMessage(raw: string): string {
 
   // 7. Single / Simple message with guidance
   if (guidance) {
-    let html = `<div class="space-y-3.5 text-left text-base sm:text-lg leading-relaxed text-slate-700">`;
-    html += `<p class="text-center font-medium text-slate-800 text-base sm:text-lg max-w-[56ch] mx-auto text-pretty">${formatTextContent(text)}</p>`;
-    html += `<div class="flex items-start gap-3 rounded-2xl border border-amber-200/90 bg-amber-50/90 p-3.5 sm:p-4 text-amber-950 shadow-2xs">`;
+    let html = `<div class="space-y-3.5 text-left text-base sm:text-lg leading-relaxed text-[#464653]">`;
+    html += `<p class="text-center font-medium text-[#1a1c1c] text-base sm:text-lg max-w-[56ch] mx-auto text-pretty">${formatTextContent(text)}</p>`;
+    html += `<div class="flex items-start gap-3 rounded-2xl border border-[#fed65b]/90 bg-[#fffbeb] p-3.5 sm:p-4 text-[#735c00] shadow-2xs">`;
     html += `  <span class="text-lg shrink-0 select-none mt-0.5">💡</span>`;
     html += `  <div class="text-sm sm:text-base font-medium leading-relaxed">`;
-    html += `    <span class="font-bold text-amber-950">Hướng dẫn: </span>`;
+    html += `    <span class="font-bold text-[#735c00]">Hướng dẫn: </span>`;
     html += `    <span>${escapeHtml(guidance)}</span>`;
     html += `  </div></div></div>`;
     return html;
   }
 
   // 8. Pure single text
-  return `<p class="text-center text-base sm:text-lg font-normal text-slate-600 leading-relaxed max-w-[56ch] mx-auto text-pretty">${formatTextContent(text)}</p>`;
+  return `<p class="text-center text-base sm:text-lg font-normal text-[#464653] leading-relaxed max-w-[56ch] mx-auto text-pretty">${formatTextContent(text)}</p>`;
 }
 
 export function extractErrorMessage(value: unknown): string {

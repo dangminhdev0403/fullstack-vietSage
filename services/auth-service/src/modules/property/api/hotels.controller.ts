@@ -32,6 +32,7 @@ import {
 } from "../../../common/openapi/contract-schemas";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { CANONICAL_OWNER_ROLE, RequireActiveRole } from "../../../shared/decorators/require-active-role.decorator";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
@@ -116,6 +117,7 @@ export class HotelsController {
     return this.hotelsService.getHotel(request.user.userId, request.user.roleId, hotelId);
   }
 
+  @RequireActiveRole([CANONICAL_OWNER_ROLE, "SUPER_ADMIN"])
   @RequirePermission(["platform.hotels.manage", "hotel.profile.manage"])
   @SuccessMessage("Cập nhật khách sạn thành công")
   @ApiDescript("Cập nhật khách sạn")
@@ -136,6 +138,7 @@ export class HotelsController {
     return this.hotelsService.updateHotel(request.user.userId, request.user.roleId, hotelId, dto);
   }
 
+  @RequireActiveRole([CANONICAL_OWNER_ROLE, "SUPER_ADMIN"])
   @RequirePermission(["hotel.profile.manage", "platform.hotels.manage"])
   @SuccessMessage("Thiết lập lại dữ liệu vận hành thành công")
   @ApiDescript(

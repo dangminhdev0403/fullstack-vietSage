@@ -313,7 +313,7 @@ export function MarketingHeader({
   return (
     <header ref={headerRef} className="vs-mkt-header sticky top-0 z-50">
       <nav
-        className="vs-mkt-navbar mx-auto flex max-w-7xl items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6 lg:px-8 py-2.5 sm:py-3 lg:py-3.5"
+        className="vs-mkt-navbar mx-auto flex max-w-7xl items-center justify-between gap-2.5 sm:gap-3 lg:gap-4 px-4 sm:px-5 lg:px-6 py-2 sm:py-2.5 lg:py-3"
         aria-label={t.navAria}
       >
         <Link
@@ -345,23 +345,37 @@ export function MarketingHeader({
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-          <Link className="vs-mkt-sign-in hidden shrink-0 whitespace-nowrap sm:inline-flex text-sm font-semibold" href={currentAccountAction.href}>
-            {accountLabel}
-          </Link>
-          <a
-            className="vs-mkt-primary-btn hidden shrink-0 whitespace-nowrap rounded-full bg-gradient-to-r from-[#825916] via-[#9e7120] to-[#ba8c2f] px-4 py-2 sm:px-5 sm:py-2.5 text-sm font-bold text-white shadow-md shadow-[#825916]/20 transition-all hover:brightness-105 hover:shadow-lg hover:shadow-[#825916]/30 md:inline-flex"
-            href={REQUEST_DEMO_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {t.demoBtn}
-          </a>
+          {isAuthenticated ? (
+            <Link
+              className="vs-mkt-primary-btn hidden shrink-0 whitespace-nowrap rounded-full bg-gradient-to-r from-[#825916] via-[#9e7120] to-[#ba8c2f] px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-bold text-white shadow-md shadow-[#825916]/20 transition-all hover:brightness-105 hover:shadow-lg hover:shadow-[#825916]/30 sm:inline-flex items-center gap-1.5"
+              href={currentAccountAction.href}
+            >
+              <span>{accountLabel}</span>
+              <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
+            </Link>
+          ) : (
+            <>
+              <Link className="vs-mkt-sign-in hidden shrink-0 whitespace-nowrap sm:inline-flex text-sm font-semibold" href={currentAccountAction.href}>
+                {accountLabel}
+              </Link>
+              <a
+                className="vs-mkt-primary-btn hidden shrink-0 whitespace-nowrap rounded-full bg-gradient-to-r from-[#825916] via-[#9e7120] to-[#ba8c2f] px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-bold text-white shadow-md shadow-[#825916]/20 transition-all hover:brightness-105 hover:shadow-lg hover:shadow-[#825916]/30 md:inline-flex"
+                href={REQUEST_DEMO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {t.demoBtn}
+              </a>
+            </>
+          )}
 
           {/* Language Switcher Dropdown */}
           <div className="relative shrink-0" ref={langMenuRef}>
             <button
               type="button"
-              className="inline-flex h-9 sm:h-10 shrink-0 whitespace-nowrap items-center gap-1.5 sm:gap-2 rounded-full border border-[#123d2a]/20 bg-white/95 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-[#123d2a] shadow-sm backdrop-blur-md transition-all hover:border-[#b8872f] hover:bg-white hover:shadow-md hover:ring-2 hover:ring-[#b8872f]/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f] cursor-pointer"
+              className="inline-flex h-9 sm:h-10 shrink-0 whitespace-nowrap items-center gap-1.5 rounded-full border border-[#123d2a]/20 bg-white/95 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-[#123d2a] shadow-sm backdrop-blur-md transition-all hover:border-[#b8872f] hover:bg-white hover:shadow-md hover:ring-2 hover:ring-[#b8872f]/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f] cursor-pointer"
               onClick={() => setLangMenuOpen((prev) => !prev)}
               aria-expanded={langMenuOpen}
               aria-haspopup="listbox"
@@ -371,17 +385,18 @@ export function MarketingHeader({
                 <circle cx="12" cy="12" r="10" />
                 <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
               </svg>
-              <span className="hidden sm:inline font-bold tracking-tight">{currentOption.nativeName}</span>
-              <span className="sm:hidden font-bold tracking-tight text-xs">{currentOption.badge}</span>
+              <span className="font-bold tracking-tight text-xs sm:text-sm">
+                {currentOption.code === 'vi' ? 'VN' : currentOption.code === 'en' ? 'EN' : currentOption.badge}
+              </span>
               <span className="text-xs text-[#627064] transition-transform duration-150" aria-hidden="true">
-                {langMenuOpen ? "▴" : "▾"}
+                {langMenuOpen ? '▴' : '▾'}
               </span>
             </button>
             {langMenuOpen && (
               <ul
                 role="listbox"
                 aria-label={t.selectLanguage}
-                className="absolute right-0 top-full mt-2 z-50 w-52 overflow-hidden rounded-2xl border border-[#123d2a]/15 bg-white/98 p-1.5 shadow-2xl shadow-[#123d2a]/15 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
+                className="absolute right-0 top-full mt-2 z-50 w-48 overflow-hidden rounded-2xl border border-[#123d2a]/15 bg-white/98 p-1.5 shadow-2xl shadow-[#123d2a]/15 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
               >
                 {LOCALE_OPTIONS.map((opt) => (
                   <li key={opt.code} role="option" aria-selected={opt.code === activeLocale}>
@@ -393,23 +408,20 @@ export function MarketingHeader({
                       }}
                       className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs sm:text-sm font-medium transition-colors ${
                         opt.code === activeLocale
-                          ? "bg-[#123d2a] text-white font-semibold shadow-sm"
-                          : "text-[#123d2a] hover:bg-[#f4ead0]/60"
+                          ? 'bg-[#123d2a] text-white font-semibold shadow-sm'
+                          : 'text-[#123d2a] hover:bg-[#f4ead0]/60'
                       }`}
                     >
                       <span className="flex items-center gap-2.5">
-                        <svg className="h-4 w-4 text-[#b8872f] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-                          <circle cx="12" cy="12" r="10" />
-                          <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                        </svg>
+                        <span className="text-base leading-none">{opt.flag}</span>
                         <span>{opt.nativeName}</span>
                       </span>
                       <span
                         className={`text-xs font-mono px-1.5 py-0.5 rounded ${
-                          opt.code === activeLocale ? "bg-[#b8872f]/25 text-[#f3c66b]" : "bg-[#123d2a]/5 text-[#627064]"
+                          opt.code === activeLocale ? 'bg-[#b8872f]/25 text-[#f3c66b]' : 'bg-[#123d2a]/5 text-[#627064]'
                         }`}
                       >
-                        {opt.badge}
+                        {opt.code === 'vi' ? 'VN' : opt.code === 'en' ? 'EN' : opt.badge}
                       </span>
                     </button>
                   </li>
@@ -541,20 +553,36 @@ export function MarketingHeader({
               {t.contact}
             </Link>
 
-            <div className="mt-2 grid grid-cols-2 gap-2 border-t border-[#123d2a]/10 pt-3 sm:hidden">
-              <Link className="vs-mkt-sign-in justify-center text-sm font-semibold" href={currentAccountAction.href} tabIndex={mobileOpen ? 0 : -1} onClick={() => setMobileOpen(false)}>
-                {accountLabel}
-              </Link>
-              <a
-                className="rounded-full bg-gradient-to-r from-[#825916] via-[#9e7120] to-[#ba8c2f] px-4 py-3 text-center text-sm font-bold text-white shadow-md shadow-[#825916]/20"
-                href={REQUEST_DEMO_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                tabIndex={mobileOpen ? 0 : -1}
-                onClick={() => setMobileOpen(false)}
-              >
-                {t.demoBtn}
-              </a>
+            <div className="mt-2 border-t border-[#123d2a]/10 pt-3 sm:hidden">
+              {isAuthenticated ? (
+                <Link
+                  className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#825916] via-[#9e7120] to-[#ba8c2f] px-4 py-3 text-center text-sm font-bold text-white shadow-md shadow-[#825916]/20"
+                  href={currentAccountAction.href}
+                  tabIndex={mobileOpen ? 0 : -1}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <span>{accountLabel}</span>
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                  </svg>
+                </Link>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <Link className="vs-mkt-sign-in justify-center text-sm font-semibold" href={currentAccountAction.href} tabIndex={mobileOpen ? 0 : -1} onClick={() => setMobileOpen(false)}>
+                    {accountLabel}
+                  </Link>
+                  <a
+                    className="rounded-full bg-gradient-to-r from-[#825916] via-[#9e7120] to-[#ba8c2f] px-4 py-3 text-center text-sm font-bold text-white shadow-md shadow-[#825916]/20"
+                    href={REQUEST_DEMO_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    tabIndex={mobileOpen ? 0 : -1}
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {t.demoBtn}
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         </div>

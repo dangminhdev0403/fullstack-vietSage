@@ -59,10 +59,7 @@ test("buildWorkspaceNavigation produces complete owner navigation structure", ()
     "owner.home",
     "owner.hotel.billing",
     "owner.hotel.rooms",
-    "owner.hotel.services",
-    "owner.hotel.staff",
-    "owner.hotel.partners",
-    "owner.hotel.kbtt",
+    "owner.hotel.profile",
     "owner.hotel.settings",
   ]);
 });
@@ -84,9 +81,11 @@ test("buildWorkspaceNavigation produces shift, rooms, requests, messages, checko
   assert.deepEqual(frontdeskItems.map((item) => item.key), [
     "staff.dashboard",
     "staff.rooms",
+    "staff.front-desk",
     "staff.requests",
     "staff.messages",
     "staff.billing",
-    "staff.biometric",
   ]);
 });
+
+

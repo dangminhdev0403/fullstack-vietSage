@@ -1,17 +1,9 @@
-import { OwnerNearbyProvidersClient } from "@/features/local-partners/components/staff-local-partners-client";
-import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+import { redirect } from "next/navigation";
 
 type PageProps = { params: Promise<{ hotelId: string }> };
 export const dynamic = "force-dynamic";
 
 export default async function OwnerLocalPartnersPage({ params }: PageProps) {
-  const { hotelId } = await Promise.resolve(params);
-  const context = await loadServerWorkspaceContext(`/owner/hotels/${hotelId}/partners`);
-  return (
-    <OwnerNearbyProvidersClient
-      hotelId={hotelId}
-      canManage={context.permissions.includes("hotel.local-partners.manage")}
-      canSettle={false}
-    />
-  );
+  const { hotelId } = await params;
+  redirect(`/owner/hotels/${encodeURIComponent(hotelId)}/settings?tab=partners`);
 }

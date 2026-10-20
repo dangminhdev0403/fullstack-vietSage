@@ -11,6 +11,7 @@ import {
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import { CANONICAL_OWNER_ROLE, RequireActiveRole } from "../../../shared/decorators/require-active-role.decorator";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
 import { HotelServicesService } from "../application/hotel-services.service";
@@ -52,6 +53,7 @@ export class HotelServicesController {
   @ApiParam({ name: "hotelId", type: String })
   @ApiOkResponse({ description: "Đã đồng bộ Google Sheets" })
   @Post(":hotelId/service-catalog/sync")
+  @RequireActiveRole(CANONICAL_OWNER_ROLE)
   @RequirePermission("hotel.services.manage")
   async syncServiceCatalogFromGoogleSheets(
     @Req() request: RequestWithUser,
@@ -96,6 +98,7 @@ export class HotelServicesController {
   @ApiDescript("Xác nhận nhập dữ liệu dịch vụ từ Google Sheets")
   @ApiParam({ name: "hotelId", type: String })
   @Post(":hotelId/service-catalog/import/commit")
+  @RequireActiveRole(CANONICAL_OWNER_ROLE)
   @RequirePermission("hotel.services.manage")
   async commitServiceCatalogImport(
     @Req() request: RequestWithUser,
@@ -151,6 +154,7 @@ export class HotelServicesController {
   @ApiBody({ schema: { type: "object" } })
   @ApiCreatedResponse({ description: "Đã tạo danh mục dịch vụ" })
   @Post(":hotelId/service-categories")
+  @RequireActiveRole(CANONICAL_OWNER_ROLE)
   @RequirePermission("hotel.services.manage")
   async createServiceCategory(
     @Req() request: RequestWithUser,
@@ -174,6 +178,7 @@ export class HotelServicesController {
   @ApiBody({ schema: { type: "object" } })
   @ApiOkResponse({ description: "Đã cập nhật danh mục dịch vụ" })
   @Patch(":hotelId/service-categories/:categoryId")
+  @RequireActiveRole(CANONICAL_OWNER_ROLE)
   @RequirePermission("hotel.services.manage")
   async updateServiceCategory(
     @Req() request: RequestWithUser,
@@ -227,6 +232,7 @@ export class HotelServicesController {
   @ApiBody({ schema: { type: "object" } })
   @ApiCreatedResponse({ description: "Đã tạo dịch vụ" })
   @Post(":hotelId/service-items")
+  @RequireActiveRole(CANONICAL_OWNER_ROLE)
   @RequirePermission("hotel.services.manage")
   @ApiBody({ schema: createServiceItemBodyOpenApiSchema })
   @ApiCreatedResponse({
@@ -254,6 +260,7 @@ export class HotelServicesController {
   @ApiBody({ schema: { type: "object" } })
   @ApiOkResponse({ description: "Đã cập nhật dịch vụ" })
   @Patch(":hotelId/service-items/:itemId")
+  @RequireActiveRole(CANONICAL_OWNER_ROLE)
   @RequirePermission("hotel.services.manage")
   @ApiBody({ schema: updateServiceItemBodyOpenApiSchema })
   @ApiOkResponse({

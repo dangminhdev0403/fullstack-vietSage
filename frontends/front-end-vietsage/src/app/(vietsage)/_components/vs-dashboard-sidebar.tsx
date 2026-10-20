@@ -34,7 +34,7 @@ const SECTION_ORDER: readonly DashboardNavSection[] = [
 const SECTION_LABELS: Record<DashboardNavSection, string> = {
   OVERVIEW: "Tổng quan",
   OPERATIONS: "Vận hành",
-  ADMINISTRATION: "Quản trị",
+  ADMINISTRATION: "Thiết lập & Cấu hình",
   PARTNERS: "Đối tác",
 };
 

@@ -37,6 +37,7 @@ import type {
   HotelOpsPage,
   HotelRoomSummary,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
+import { TapeChartView } from "@/features/hotel-ops/components/tape-chart/tape-chart-view";
 import { channelManagerResource } from "@/features/channel-manager/api/channel-manager.resource";
 import type { SimulatedBookingItem } from "@/features/channel-manager/types/channel-manager.types";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
@@ -717,6 +718,11 @@ export function StaffRoomsClient({
   const [availableRoomChoice, setAvailableRoomChoice] =
     useState<HotelRoomSummary | null>(null);
 
+  // Operational View Mode: "grid" (Sơ đồ phòng) vs "tape-chart" (Kế hoạch phòng)
+  const [operationalViewMode, setOperationalViewMode] = useState<
+    "grid" | "tape-chart"
+  >("grid");
+
   // Future Reservation State
   const [isReservationOpen, setIsReservationOpen] = useState(
     initialFlow === "reservation" && !isHousekeeping,
@@ -995,8 +1001,9 @@ export function StaffRoomsClient({
       params.delete("businessDate");
     }
     const queryStr = params.toString();
-    router.push(
+    router.replace(
       `/hotels/${encodeURIComponent(hotelId)}/rooms${queryStr ? `?${queryStr}` : ""}`,
+      { scroll: false },
     );
   }
 
@@ -4192,6 +4199,36 @@ export function StaffRoomsClient({
 
             {/* Reception Operational Actions */}
             <div className="flex flex-wrap items-center gap-2">
+              {/* Layout Switcher: Sơ đồ phòng vs Kế hoạch phòng (Tape Chart) */}
+              <div className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-slate-100 p-1 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setOperationalViewMode("grid")}
+                  className={`inline-flex h-full items-center gap-1.5 rounded-lg px-3 text-xs font-bold transition cursor-pointer ${
+                    operationalViewMode === "grid"
+                      ? "bg-white text-sky-800 shadow-xs font-black border border-slate-200"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                  }`}
+                  title="Xem dạng Sơ đồ lưới phòng khách sạn"
+                >
+                  <VsIcon name="grid_view" className="text-sm" />
+                  <span className="whitespace-nowrap">Sơ đồ phòng</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOperationalViewMode("tape-chart")}
+                  className={`inline-flex h-full items-center gap-1.5 rounded-lg px-3 text-xs font-bold transition cursor-pointer ${
+                    operationalViewMode === "tape-chart"
+                      ? "bg-white text-purple-800 shadow-xs font-black border border-slate-200"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                  }`}
+                  title="Xem dạng Kế hoạch phòng trực quan theo trục thời gian (Tape Chart)"
+                >
+                  <VsIcon name="calendar_view_week" className="text-sm" />
+                  <span className="whitespace-nowrap">Kế hoạch phòng</span>
+                </button>
+              </div>
+
               <button
                 type="button"
                 onClick={openBulkReservationModal}
@@ -4355,7 +4392,68 @@ export function StaffRoomsClient({
         </div>
       </section>
 
-      <section className="relative min-h-[400px] flex flex-col justify-between">
+      {/* Operational Body: Tape Chart View vs Room Grid/Tasklist View */}
+      {operationalViewMode === "tape-chart" ? (
+        <TapeChartView
+          hotelId={hotelId}
+          rooms={rooms}
+          arrivalsList={arrivalsList}
+          businessDate={businessDate}
+          onOpenCheckIn={(room) => {
+            setSelectedRoom(room);
+            setActiveReservationCheckIn(null);
+            setCustomCheckInInitialFields(null);
+            setSubmitError(undefined);
+            setIsCheckInOpen(true);
+          }}
+          onOpenQuickReservation={(room, initialDate, initialEndDate) => {
+            if (room) {
+              setReservationRoomId(room.id);
+              setInitialReservationRoomId(room.id);
+              const roomPrice =
+                room && "price" in room && typeof (room as unknown as { price?: number }).price === "number" && ((room as unknown as { price?: number }).price ?? 0) > 0
+                  ? String((room as unknown as { price?: number }).price)
+                  : "";
+              setReservationNightlyRate(roomPrice);
+            }
+            if (initialDate) {
+              setReservationCheckIn(`${initialDate}T14:00`);
+              if (initialEndDate) {
+                setReservationCheckOut(`${initialEndDate}T12:00`);
+              } else {
+                const d = new Date(initialDate);
+                d.setDate(d.getDate() + 1);
+                const nextDay = d.toISOString().slice(0, 10);
+                setReservationCheckOut(`${nextDay}T12:00`);
+              }
+            }
+            setIsReservationOpen(true);
+          }}
+          onCheckOutStay={async (stayId, roomNum) => {
+            try {
+              await requestInternalApiEnvelope(
+                `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/stays/${encodeURIComponent(stayId)}/check-out`,
+                { method: "POST" },
+              );
+              await showSuccessAlert(
+                `Trả phòng P.${roomNum} thành công`,
+                "Phòng đã chuyển sang trạng thái chờ dọn dẹp.",
+              );
+              await invalidateHotelRealtimeQueries(queryClient, hotelId);
+              void refetch();
+            } catch (err) {
+              await showErrorAlert(
+                "Không thể trả phòng",
+                err instanceof Error ? err.message : "Vui lòng thử lại.",
+              );
+            }
+          }}
+          onRefresh={() => {
+            void refetch();
+          }}
+        />
+      ) : (
+        <section className="relative min-h-[400px] flex flex-col justify-between">
         <div className="relative flex-1">
           {isFetching && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 backdrop-blur-[1px] rounded-xl transition-all">
@@ -4556,6 +4654,7 @@ export function StaffRoomsClient({
           </div>
         </div>
       </section>
+      )}
 
       {/* Guest QR Preview Portal */}
       {roomQrPreview

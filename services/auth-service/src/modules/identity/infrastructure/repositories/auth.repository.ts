@@ -84,6 +84,28 @@ export class AuthRepository {
     });
   }
 
+  async findActiveRoleCode(userId: string, roleId: string): Promise<string | null> {
+    const userRole = await this.prisma.userRole.findFirst({
+      where: {
+        userId,
+        roleId,
+        status: UserRoleStatus.ACTIVE,
+        role: {
+          status: RoleStatus.ACTIVE,
+        },
+      },
+      select: {
+        role: {
+          select: {
+            code: true,
+          },
+        },
+      },
+    });
+
+    return userRole?.role.code ?? null;
+  }
+
   async upsertUserByEmail(data: {
     email: string;
     passwordHash: string;

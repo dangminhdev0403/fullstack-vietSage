@@ -10,6 +10,7 @@ import {
 import type { Request, Response } from "express";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { CANONICAL_OWNER_ROLE, RequireActiveRole } from "../../../shared/decorators/require-active-role.decorator";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
@@ -55,6 +56,7 @@ export class HotelRoomsController {
     );
   }
 
+  @RequireActiveRole(CANONICAL_OWNER_ROLE)
   @RequirePermission("hotel.rooms.manage")
   @ApiParam({ name: "hotelId", type: String })
   @ApiBody({
@@ -86,6 +88,7 @@ export class HotelRoomsController {
     return { ...result.item, created: result.created };
   }
 
+  @RequireActiveRole(CANONICAL_OWNER_ROLE)
   @RequirePermission("hotel.rooms.manage")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "roomTypeId", type: String })
@@ -115,6 +118,7 @@ export class HotelRoomsController {
   }
 
   @SuccessMessage("Tạo phòng thành công")
+  @RequireActiveRole(CANONICAL_OWNER_ROLE)
   @RequirePermission("hotel.rooms.manage")
   @ApiDescript("Tạo phòng")
   @ApiParam({ name: "hotelId", type: String })
@@ -137,6 +141,7 @@ export class HotelRoomsController {
   }
 
   @SuccessMessage("Tạo danh sách phòng thành công")
+  @RequireActiveRole(CANONICAL_OWNER_ROLE)
   @RequirePermission("hotel.rooms.manage")
   @ApiDescript("Tạo nhiều phòng")
   @ApiParam({ name: "hotelId", type: String })
@@ -186,6 +191,7 @@ export class HotelRoomsController {
   }
 
   @SuccessMessage("Cập nhật phòng thành công")
+  @RequireActiveRole(CANONICAL_OWNER_ROLE)
   @RequirePermission("hotel.rooms.manage")
   @ApiDescript("Cập nhật phòng")
   @ApiParam({ name: "hotelId", type: String })

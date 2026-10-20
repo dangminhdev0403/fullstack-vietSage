@@ -753,7 +753,7 @@ export function RequestQueueClient({
       setActiveDetailRequestId(request.id);
       const url = new URL(window.location.href);
       url.searchParams.set("requestId", request.id);
-      window.history.pushState({}, "", url.toString());
+      window.history.replaceState({}, "", url.toString());
     } else {
       router.push(`${basePath}/${request.id}`);
     }
@@ -764,7 +764,7 @@ export function RequestQueueClient({
     const url = new URL(window.location.href);
     if (url.searchParams.has("requestId")) {
       url.searchParams.delete("requestId");
-      window.history.pushState({}, "", url.pathname + (url.search ? url.search : ""));
+      window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
     }
   }
 
@@ -850,7 +850,9 @@ export function RequestQueueClient({
     if (pageSize) {
       params.set("limit", String(pageSize));
     }
-    router.push(`${basePath}${params.size ? `?${params.toString()}` : ""}`);
+    router.replace(`${basePath}${params.size ? `?${params.toString()}` : ""}`, {
+      scroll: false,
+    });
   }
 
   useEffect(() => {

@@ -602,3 +602,56 @@ export const validNextRequestStatuses: Record<
   CANCELLED: [],
   REJECTED: [],
 };
+
+export type RoomPlanRoom = {
+  id: string;
+  roomNumber: string;
+  floor: string | null;
+  roomTypeId: string | null;
+  roomTypeName: string | null;
+  status: string;
+  price?: number | null;
+};
+
+export type RoomPlanBlock = {
+  id: string;
+  kind: "RESERVATION" | "STAY";
+  reservationId: string | null;
+  guestStayId: string | null;
+  reservationCode: string | null;
+  guestName: string;
+  guestCount?: number | null;
+  phone: string | null;
+  source: string | null;
+  channel: string | null;
+  status: string;
+  roomId: string;
+  roomNumber: string;
+  roomTypeId: string | null;
+  roomTypeName: string | null;
+  startDate: string;
+  endDate: string;
+  nights: number;
+  nightlyRate: number | null;
+  movable: boolean;
+  expectedUpdatedAt: string;
+  notes?: string | null;
+};
+
+export type RoomPlanResponse = {
+  hotelId: string;
+  timezone: string;
+  from: string;
+  to: string;
+  rooms: RoomPlanRoom[];
+  blocks: RoomPlanBlock[];
+};
+
+export type UpdateReservationPlacementInput = {
+  targetRoomId: string;
+  mode: "MOVE" | "SWAP";
+  expectedUpdatedAt: string;
+  swapWithReservationId?: string;
+  expectedSwapUpdatedAt?: string;
+};
+

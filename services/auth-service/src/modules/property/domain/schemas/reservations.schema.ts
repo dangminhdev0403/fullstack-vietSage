@@ -195,3 +195,38 @@ export type CancelReservationBodyInput = z.infer<typeof cancelReservationBodySch
 export type MarkNoShowBodyInput = z.infer<typeof markNoShowBodySchema>;
 export type CancelReservationDto = CancelReservationBodyInput;
 export type MarkNoShowDto = MarkNoShowBodyInput;
+
+export const roomPlanQuerySchema = z
+  .object({
+    from: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Định dạng ngày bắt đầu YYYY-MM-DD"),
+    to: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Định dạng ngày kết thúc YYYY-MM-DD"),
+  })
+  .strict()
+  .refine(
+    (data) => {
+      const fromDate = new Date(`${data.from}T00:00:00.000Z`);
+      const toDate = new Date(`${data.to}T23:59:59.999Z`);
+      if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) return false;
+      const diffDays = Math.round((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24));
+      return diffDays >= 0 && diffDays <= 31;
+    },
+    {
+      message: "Khoảng thời gian không hợp lệ hoặc vượt quá giới hạn 31 ngày",
+      path: ["to"],
+    },
+  );
+
+export type RoomPlanQueryInput = z.infer<typeof roomPlanQuerySchema>;
+
+export const updateReservationPlacementBodySchema = z
+  .object({
+    targetRoomId: z.string().trim().min(1, "targetRoomId là bắt buộc"),
+    expectedUpdatedAt: z.string().trim().min(1, "expectedUpdatedAt là bắt buộc"),
+    swapWithReservationId: z.string().trim().min(1).optional(),
+    swapExpectedUpdatedAt: z.string().trim().min(1).optional(),
+  })
+  .strict();
+
+export type UpdateReservationPlacementBodyInput = z.infer<
+  typeof updateReservationPlacementBodySchema
+>;

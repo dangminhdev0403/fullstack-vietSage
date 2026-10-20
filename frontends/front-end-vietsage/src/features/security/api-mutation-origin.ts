@@ -32,7 +32,23 @@ export function isAllowedApiMutationRequest(request: ApiMutationRequest): boolea
   if (!suppliedOrigin) return false;
 
   try {
-    return new URL(suppliedOrigin).origin === new URL(request.url).origin;
+    const supplied = new URL(suppliedOrigin).origin;
+    const directRequestOrigin = new URL(request.url).origin;
+    if (supplied === directRequestOrigin) return true;
+
+    const forwardedHost =
+      request.headers.get("x-forwarded-host")?.split(",", 1)[0]?.trim() ||
+      request.headers.get("host")?.split(",", 1)[0]?.trim();
+    const forwardedProto =
+      request.headers.get("x-forwarded-proto")?.split(",", 1)[0]?.trim()?.toLowerCase() ||
+      "https";
+
+    if (forwardedHost) {
+      const forwardedOrigin = `${forwardedProto}://${forwardedHost}`;
+      if (supplied === forwardedOrigin) return true;
+    }
+
+    return false;
   } catch {
     return false;
   }

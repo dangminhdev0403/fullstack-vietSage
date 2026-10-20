@@ -7,6 +7,7 @@ import { VietSageBrand } from "@/components/brand/vietsage-brand";
 import { normalizeLocale, type SupportedLocale } from "@/core/i18n/locales";
 
 import { MarketingHeader } from "./marketing-header";
+import { MarketingFooterLinks } from "./marketing-footer-links";
 import { REQUEST_DEMO_URL } from "./marketing-links";
 import { MarketingMotionRoot } from "./marketing-motion-root";
 import { PublicLocalMateChat } from "@/features/localmate-public/components/public-localmate-chat";

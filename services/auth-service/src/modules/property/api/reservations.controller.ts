@@ -22,6 +22,8 @@ import {
   createReservationBodySchema,
   listArrivalsQuerySchema,
   markNoShowBodySchema,
+  roomPlanQuerySchema,
+  updateReservationPlacementBodySchema,
 } from "../domain/schemas/reservations.schema";
 import { hotelIdParamSchema, reservationIdParamSchema } from "../domain/schemas/shared.schema";
 
@@ -379,6 +381,70 @@ export class ReservationsController {
     "Tạo danh sách đặt phòng theo đoàn (2–50 phòng) với 1 groupCode chung và các reservation riêng biệt",
   )
   @ApiParam({ name: "hotelId", type: String })
+  @RequirePermission(["hotel.reservations.view", "hotel.reservations.manage"])
+  @SuccessMessage("Lấy kế hoạch phòng thành công")
+  @ApiDescript("Kế hoạch phòng trong khoảng thời gian tối đa 31 ngày")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiQuery({ name: "from", required: true, type: String })
+  @ApiQuery({ name: "to", required: true, type: String })
+  @ApiOkResponse({
+    description: "Đã lấy kế hoạch phòng",
+  })
+  @Get(":hotelId/room-plan")
+  async getRoomPlan(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const dto = parseWithZod(roomPlanQuerySchema, query);
+    return this.reservationsService.getRoomPlan(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      dto,
+    );
+  }
+
+  @RequirePermission("hotel.reservations.manage")
+  @SuccessMessage("Cập nhật vị trí đặt phòng thành công")
+  @ApiDescript("Chuyển hoặc tráo phòng cho đặt phòng cùng loại")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "reservationId", type: String })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["targetRoomId", "expectedUpdatedAt"],
+      properties: {
+        targetRoomId: { type: "string" },
+        expectedUpdatedAt: { type: "string" },
+        swapWithReservationId: { type: "string" },
+        swapExpectedUpdatedAt: { type: "string" },
+      },
+    },
+  })
+  @ApiOkResponse({
+    description: "Đã cập nhật vị trí đặt phòng",
+  })
+  @Put(":hotelId/reservations/:reservationId/placement")
+  async updateReservationPlacement(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("reservationId") reservationIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const reservationId = parseWithZod(reservationIdParamSchema, reservationIdParam);
+    const dto = parseWithZod(updateReservationPlacementBodySchema, body);
+    return this.reservationsService.updateReservationPlacement(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      reservationId,
+      dto,
+    );
+  }
+
   @Post(":hotelId/reservations/group")
   async createGroupReservations(
     @Req() request: RequestWithUser,

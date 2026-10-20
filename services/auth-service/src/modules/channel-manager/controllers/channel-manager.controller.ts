@@ -18,6 +18,7 @@ import type { Response } from "express";
 import { successEnvelopeSchema } from "../../../common/openapi/contract-schemas";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { CANONICAL_OWNER_ROLE, RequireActiveRole } from "../../../shared/decorators/require-active-role.decorator";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import type { RequestWithRequiredUser } from "../../../shared/security/request-with-authenticated-user";
@@ -368,6 +369,7 @@ export class ChannelManagerController {
   @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Đồng bộ dữ liệu sang Channex thành công")
   @Post("hotels/:hotelId/channex/sync-content")
+  @RequireActiveRole([CANONICAL_OWNER_ROLE, "SUPER_ADMIN"])
   async syncChannexContent(
     @Req() req: RequestWithRequiredUser,
     @Param("hotelId") hotelIdParam: string,
@@ -562,6 +564,7 @@ export class ChannelManagerController {
   @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Chuẩn bị cấu hình kênh OTA thành công")
   @Post("hotels/:hotelId/channex/channels/prepare")
+  @RequireActiveRole([CANONICAL_OWNER_ROLE, "SUPER_ADMIN"])
   async prepareChannexChannel(
     @Req() req: RequestWithRequiredUser,
     @Param("hotelId") hotelIdParam: string,
@@ -577,6 +580,7 @@ export class ChannelManagerController {
   @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Tạo kênh OTA thành công")
   @Post("hotels/:hotelId/channex/channels")
+  @RequireActiveRole([CANONICAL_OWNER_ROLE, "SUPER_ADMIN"])
   async createChannexChannel(
     @Req() req: RequestWithRequiredUser,
     @Param("hotelId") hotelIdParam: string,
@@ -602,6 +606,7 @@ export class ChannelManagerController {
   @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Kích hoạt kênh OTA thành công")
   @Post("hotels/:hotelId/channex/channels/:channelId/activate")
+  @RequireActiveRole([CANONICAL_OWNER_ROLE, "SUPER_ADMIN"])
   async activateChannexChannel(
     @Req() req: RequestWithRequiredUser,
     @Param("hotelId") hotelIdParam: string,
@@ -628,6 +633,7 @@ export class ChannelManagerController {
   @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Tạm dừng kênh OTA thành công")
   @Post("hotels/:hotelId/channex/channels/:channelId/deactivate")
+  @RequireActiveRole([CANONICAL_OWNER_ROLE, "SUPER_ADMIN"])
   async deactivateChannexChannel(
     @Req() req: RequestWithRequiredUser,
     @Param("hotelId") hotelIdParam: string,
@@ -669,6 +675,7 @@ export class ChannelManagerController {
   @RequirePermission(["hotel.channels.manage", "platform.hotels.manage"])
   @SuccessMessage("Cập nhật kênh OTA thành công")
   @Put("hotels/:hotelId/channex/channels/:channelId")
+  @RequireActiveRole([CANONICAL_OWNER_ROLE, "SUPER_ADMIN"])
   async updateChannexChannel(
     @Req() req: RequestWithRequiredUser,
     @Param("hotelId") hotelIdParam: string,

@@ -1,13 +1,4 @@
-import { notFound } from "next/navigation";
-
-import { auth } from "@/auth";
-import { HttpError } from "@/core/http/http-error";
-import { adminService } from "@/features/admin/service/admin-service-instance";
-import type { Hotel } from "@/features/admin/types/admin-contract";
-import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
-
-import { ownerAccessMessage } from "../../../_components/owner-auth";
-import { OwnerHotelDetailClient } from "./owner-hotel-detail-client";
+import { redirect } from "next/navigation";
 
 type OwnerHotelPageProps = {
   params: Promise<{ hotelId: string }>;
@@ -15,44 +6,7 @@ type OwnerHotelPageProps = {
 
 export const dynamic = "force-dynamic";
 
-async function getOwnerVisibleHotel(hotelId: string, accessToken: string | undefined): Promise<Hotel | null> {
-  const hotelsPage = await adminService.listHotels({
-    query: { page: 1, limit: 100 },
-    accessToken,
-  });
-
-  return hotelsPage.items.find((item) => item.id === hotelId) ?? null;
-}
-
 export default async function OwnerHotelPage({ params }: OwnerHotelPageProps) {
-  const { hotelId } = await Promise.resolve(params);
-  const session = await auth();
-  const callbackUrl = `/owner/hotels/${hotelId}` as const;
-  const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
-  
-  let hotel: Hotel | null;
-
-  try {
-    [hotel] = await Promise.all([
-      authorizedApi("get owner visible hotel", (accessToken) => getOwnerVisibleHotel(hotelId, accessToken)),
-    ]);
-  } catch (error) {
-    if (error instanceof HttpError && error.status === 404) {
-      notFound();
-    }
-
-    return (
-      <>
-        <section className="rounded-xl border border-[var(--outline-variant)] bg-white p-6 text-sm text-[var(--on-surface-variant)]">
-          {ownerAccessMessage(error)}
-        </section>
-      </>
-    );
-  }
-
-  if (!hotel) {
-    notFound();
-  }
-
-  return <OwnerHotelDetailClient hotel={hotel} />;
+  const { hotelId } = await params;
+  redirect(`/owner/hotels/${encodeURIComponent(hotelId)}/profile`);
 }

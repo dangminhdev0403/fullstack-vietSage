@@ -34,6 +34,7 @@ import {
 } from "../../../common/openapi/contract-schemas";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { CANONICAL_OWNER_ROLE, RequireActiveRole } from "../../../shared/decorators/require-active-role.decorator";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
@@ -71,6 +72,7 @@ export class HotelUsersController {
     ),
   })
   @Post()
+  @RequireActiveRole([CANONICAL_OWNER_ROLE, "SUPER_ADMIN"])
   async createHotelUser(
     @Req() request: RequestWithUser,
     @Body() body: unknown,
@@ -187,6 +189,7 @@ export class HotelUsersController {
     ),
   })
   @Patch(":id/status")
+  @RequireActiveRole([CANONICAL_OWNER_ROLE, "SUPER_ADMIN"])
   async updateHotelUserStatus(
     @Req() request: RequestWithUser,
     @Param("id") userIdParam: string,
@@ -209,6 +212,7 @@ export class HotelUsersController {
   @SuccessMessage("Cập nhật thông tin nhân viên thành công")
   @ApiDescript("Cập nhật thông tin nhân viên")
   @Patch(":id")
+  @RequireActiveRole([CANONICAL_OWNER_ROLE, "SUPER_ADMIN"])
   async updateHotelUser(
     @Req() request: RequestWithUser,
     @Param("id") userIdParam: string,
@@ -241,6 +245,7 @@ export class HotelUsersController {
     ),
   })
   @Post(":id/roles")
+  @RequireActiveRole([CANONICAL_OWNER_ROLE, "SUPER_ADMIN"])
   async assignHotelUserRoles(
     @Req() request: RequestWithUser,
     @Param("id") userIdParam: string,
@@ -266,6 +271,7 @@ export class HotelUsersController {
   @ApiParam({ name: "id", type: String })
   @ApiHeader({ name: "x-tenant-id", required: false, description: "Ghi đè đơn vị tùy chọn" })
   @Post(":id/reset-password")
+  @RequireActiveRole([CANONICAL_OWNER_ROLE, "SUPER_ADMIN"])
   async resetPassword(
     @Req() request: RequestWithUser,
     @Param("id") userIdParam: string,

@@ -179,29 +179,14 @@ test("builds owner sidebar with operational modules and hotel settings", () => {
         label: "Kho Phòng & Kênh Bán",
       },
       {
-        key: "owner.hotel.services",
-        href: "/owner/hotels/hotel-1/services",
-        label: "Danh mục dịch vụ",
-      },
-      {
-        key: "owner.hotel.staff",
-        href: "/owner/hotels/hotel-1/staff",
-        label: "Nhân viên",
-      },
-      {
-        key: "owner.hotel.partners",
-        href: "/owner/hotels/hotel-1/partners",
-        label: "Kết nối đối tác",
-      },
-      {
-        key: "owner.hotel.kbtt",
-        href: "/owner/hotels/hotel-1/kbtt",
-        label: "Kết nối Bộ Công an",
+        key: "owner.hotel.profile",
+        href: "/owner/hotels/hotel-1/profile",
+        label: "Thông tin khách sạn",
       },
       {
         key: "owner.hotel.settings",
-        href: "/owner/hotels/hotel-1",
-        label: "Cài đặt khách sạn",
+        href: "/owner/hotels/hotel-1/settings",
+        label: "Thiết lập khách sạn",
       },
     ],
   );

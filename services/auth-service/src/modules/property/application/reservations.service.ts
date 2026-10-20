@@ -21,6 +21,8 @@ import type {
   ListArrivalsQueryInput,
   MarkNoShowBodyInput,
   MarkNoShowDto,
+  RoomPlanQueryInput,
+  UpdateReservationPlacementBodyInput,
 } from "../domain/schemas/reservations.schema";
 import { ReservationsRepository } from "../infrastructure/repositories/reservations.repository";
 import { getBusinessDateRange } from "../infrastructure/repositories/hotel-rooms.repository";
@@ -373,6 +375,58 @@ export class ReservationsService {
       reservationId,
       actorUserId,
       reason: dto.reason,
+    });
+  }
+
+  async getRoomPlan(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    query: RoomPlanQueryInput,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const roomScope = await this.hotelAccessService.resolveRoomScope(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
+    const from = new Date(`${query.from}T00:00:00.000Z`);
+    const to = new Date(`${query.to}T23:59:59.999Z`);
+    return this.reservationsRepository.getRoomPlan({
+      hotelId,
+      from,
+      to,
+      roomScopeIds: roomScope.allowedRoomId ? [roomScope.allowedRoomId] : null,
+    });
+  }
+
+  async updateReservationPlacement(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    reservationId: string,
+    dto: UpdateReservationPlacementBodyInput,
+  ) {
+    const hotel = await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
+    await this.hotelAccessService.assertRoomAccess(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+      dto.targetRoomId,
+    );
+    return this.reservationsRepository.updateReservationPlacement({
+      hotelId,
+      tenantId: hotel.tenantId,
+      reservationId,
+      targetRoomId: dto.targetRoomId,
+      expectedUpdatedAt: dto.expectedUpdatedAt,
+      swapWithReservationId: dto.swapWithReservationId,
+      swapExpectedUpdatedAt: dto.swapExpectedUpdatedAt,
+      actorUserId,
     });
   }
 }

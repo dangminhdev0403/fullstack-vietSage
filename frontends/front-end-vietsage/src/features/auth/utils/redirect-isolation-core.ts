@@ -90,14 +90,31 @@ export function resolvePostLoginRedirectUrl({
   const trusted = configured && !configured.isLocal ? new URL(configured.origin) : null;
   const requestHost = new URL(fallbackOrigin).hostname;
   const vietsageHosts = new Set(["vietsage.com", "www.vietsage.com", "stay.vietsage.com"]);
+
+  const isPortlessHost = (h: string) =>
+    h === "vietsage.localhost" || h.endsWith(".localhost") || h.endsWith(".ts.net");
+
+  const isConfiguredPortlessHost = (h: string) => {
+    const portlessUrl = parseOrigin(process.env.PORTLESS_URL);
+    if (portlessUrl && new URL(portlessUrl.origin).hostname.toLowerCase() === h) return true;
+    const tailscaleUrl = parseOrigin(process.env.PORTLESS_TAILSCALE_URL);
+    if (tailscaleUrl && new URL(tailscaleUrl.origin).hostname.toLowerCase() === h) return true;
+    return false;
+  };
+
+  const isAllowedAppHost = (h: string) =>
+    vietsageHosts.has(h) || isPortlessHost(h) || isConfiguredPortlessHost(h);
+
   let origin = trusted?.origin ?? (isLocalHost(requestHost) ? fallbackOrigin : "http://127.0.0.1:3000");
   if (vietsageHosts.has(requestHost)) {
     // The public request host owns the Auth.js cookie; never downgrade or switch hosts.
     origin = `https://${requestHost}`;
   } else if (forwardedOrigin) {
     const forwarded = new URL(forwardedOrigin);
-    if (vietsageHosts.has(forwarded.hostname) && (!trusted || vietsageHosts.has(trusted.hostname))) {
-      origin = `https://${forwarded.hostname}`;
+    if (isAllowedAppHost(forwarded.hostname) && (!trusted || isAllowedAppHost(trusted.hostname))) {
+      origin = vietsageHosts.has(forwarded.hostname)
+        ? `https://${forwarded.hostname}`
+        : `${forwarded.protocol}//${forwarded.host}`;
     } else if (trusted && forwarded.host === trusted.host) {
       origin = trusted.origin;
     }
@@ -116,10 +133,13 @@ export function createRequestRedirectUrl(
 ): URL {
   const forwardedHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
   const forwardedProto = request.headers.get("x-forwarded-proto");
+  const portlessUrl = parseOrigin(process.env.PORTLESS_URL);
   const portlessTailscaleUrl = parseOrigin(process.env.PORTLESS_TAILSCALE_URL);
   const forwardedOrigin = resolveForwardedOrigin(forwardedHost, forwardedProto);
   const configuredUrl =
-    portlessTailscaleUrl && forwardedOrigin === portlessTailscaleUrl.origin
+    portlessUrl && forwardedOrigin === portlessUrl.origin
+      ? portlessUrl.origin
+      : portlessTailscaleUrl && forwardedOrigin === portlessTailscaleUrl.origin
       ? portlessTailscaleUrl.origin
       : process.env.NEXTAUTH_URL ?? process.env.AUTH_URL;
   const redirectUrlString = resolvePostLoginRedirectUrl({

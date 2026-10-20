@@ -17,4 +17,8 @@ export class AuthorizationService {
     );
     return matchCount > 0;
   }
+
+  async getActiveRoleCode(userId: string, roleId: string): Promise<string | null> {
+    return this.authRepository.findActiveRoleCode(userId, roleId);
+  }
 }

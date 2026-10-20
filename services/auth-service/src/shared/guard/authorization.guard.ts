@@ -5,6 +5,7 @@ import { loadAppConfig } from "../../common/config/env.config";
 import { publicMatcher } from "../../common/config/routes.config";
 import { AppLogger } from "../../common/logging/app-logger.service";
 import { AuthorizationService } from "../../modules/identity/identity-public";
+import { REQUIRED_ACTIVE_ROLE_KEY } from "../decorators/require-active-role.decorator";
 import { REQUIRED_PERMISSION_KEY } from "../decorators/require-permission.decorator";
 import { SKIP_AUTHORIZATION_KEY } from "../decorators/skip-authorization.decorator";
 import type { AuthenticatedUser } from "../security";
@@ -83,29 +84,90 @@ export class AuthorizationGuard implements CanActivate {
     }
 
     const permissionKeys = Array.isArray(permissionKey) ? permissionKey : [permissionKey];
+    let permissionAllowed = false;
     for (const key of permissionKeys) {
       const allowed = await this.authorizationService.checkUserBusinessPermission(
         userId,
         roleId,
         key,
       );
-      if (allowed) return true;
+      if (allowed) {
+        permissionAllowed = true;
+        break;
+      }
     }
 
-    this.logger.warn(
-      "Authorization failed because the user lacks the required business permission",
-      {
-        module: "authz",
-        service: "AuthorizationGuard",
-        operation: "canActivate",
-        event: "AUTHORIZATION_FAILURE",
-        reason: "insufficient_business_permission",
-        userId,
-        permissionKey,
-        method: request.method,
-        path: request.path,
-      },
-    );
-    throw new ForbiddenException("You do not have permission to access this resource");
+    if (!permissionAllowed) {
+      this.logger.warn(
+        "Authorization failed because the user lacks the required business permission",
+        {
+          module: "authz",
+          service: "AuthorizationGuard",
+          operation: "canActivate",
+          event: "AUTHORIZATION_FAILURE",
+          reason: "insufficient_business_permission",
+          userId,
+          permissionKey,
+          method: request.method,
+          path: request.path,
+        },
+      );
+      throw new ForbiddenException("You do not have permission to access this resource");
+    }
+
+    const requiredActiveRole = authorizationTargets.length
+      ? this.reflector.getAllAndOverride<string | string[]>(
+          REQUIRED_ACTIVE_ROLE_KEY,
+          authorizationTargets,
+        )
+      : undefined;
+
+    if (!requiredActiveRole) {
+      return true;
+    }
+
+    const activeRoleCode = await this.authorizationService.getActiveRoleCode(userId, roleId);
+    if (!activeRoleCode) {
+      this.logger.warn(
+        "Authorization failed because the active role could not be resolved",
+        {
+          module: "authz",
+          service: "AuthorizationGuard",
+          operation: "canActivate",
+          event: "AUTHORIZATION_FAILURE",
+          reason: "active_role_not_found",
+          userId,
+          roleId,
+          method: request.method,
+          path: request.path,
+        },
+      );
+      throw new ForbiddenException("You do not have permission to access this resource");
+    }
+
+    const allowedRoleCodes = Array.isArray(requiredActiveRole)
+      ? requiredActiveRole
+      : [requiredActiveRole];
+
+    if (!allowedRoleCodes.includes(activeRoleCode)) {
+      this.logger.warn(
+        "Authorization failed because the active role does not match the required role",
+        {
+          module: "authz",
+          service: "AuthorizationGuard",
+          operation: "canActivate",
+          event: "AUTHORIZATION_FAILURE",
+          reason: "mismatched_active_role",
+          userId,
+          activeRoleCode,
+          requiredActiveRole,
+          method: request.method,
+          path: request.path,
+        },
+      );
+      throw new ForbiddenException("You do not have permission to access this resource");
+    }
+
+    return true;
   }
 }

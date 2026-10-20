@@ -42,3 +42,17 @@ test("root proxy matcher includes API routes", async () => {
   const source = await readFile(new URL("../../../proxy.ts", import.meta.url), "utf8");
   assert.doesNotMatch(source, /\(\?!api\|/);
 });
+
+test("allows reverse-proxy portless cookie-authenticated mutations matching forwarded host", () => {
+  const req = new Request("http://localhost:3000/api/hotel-ops/hotels/h1/rooms", {
+    method: "POST",
+    headers: new Headers({
+      cookie: sessionCookie,
+      origin: "https://vietsage.localhost",
+      "x-forwarded-host": "vietsage.localhost",
+      "x-forwarded-proto": "https",
+      "sec-fetch-site": "same-origin",
+    }),
+  });
+  assert.equal(isAllowedApiMutationRequest(req), true);
+});

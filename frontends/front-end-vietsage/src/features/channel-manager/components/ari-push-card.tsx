@@ -1,7 +1,6 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import {
   escapeHtml,
@@ -64,7 +63,6 @@ export function AriPushCard({
   hotelId,
   roleScope = "owner",
 }: AriPushCardProps) {
-  const router = useRouter();
   const { pushAri } = useChannex(hotelId, roleScope, {
     loadMappings: false,
     loadConfig: false,
@@ -253,17 +251,10 @@ export function AriPushCard({
         /giá gốc hợp lệ/i.test(errorMsg);
 
       if (isMissingPrice) {
-        const action = await showConfirmDialog({
-          title: "Cần thiết lập giá gốc loại phòng",
-          text: `${errorMsg}. Bạn có muốn chuyển sang mục Quản lý phòng để cấu hình giá gốc cho các hạng phòng không?`,
-          confirmText: "Thiết lập giá gốc ngay",
-          cancelText: "Để sau",
-          icon: "warning",
-          reverseButtons: false,
-        });
-        if (action.isConfirmed) {
-          router.push(`/owner/hotels/${encodeURIComponent(hotelId)}/rooms`);
-        }
+        await showErrorAlert(
+          "Cần thiết lập giá gốc loại phòng",
+          `${errorMsg}. Vui lòng hoàn tất thiết lập giá gốc trong danh mục loại phòng của khách sạn trước khi đồng bộ ARI.`,
+        );
         return;
       }
 
