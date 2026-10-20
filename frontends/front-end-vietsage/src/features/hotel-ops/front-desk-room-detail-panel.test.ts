@@ -55,9 +55,11 @@ test("page.tsx passes explicit capability props to StaffRoomsClient", () => {
   assert.match(pageSource, /!isHousekeeping &&/);
 });
 
-test("rooms BFF forwards businessDate to the backend projection", () => {
+test("rooms BFF forwards businessDate and zone to the backend projection", () => {
   assert.match(roomsRouteSource, /businessDate:\s*z\.string\(\)\.trim\(\)\.optional\(\)/);
-  assert.match(roomsRouteSource, /const \{ page, limit, q, status, floor, type, vipOnly, businessDate \}/);
+  assert.match(roomsRouteSource, /zone:\s*z\.string\(\)\.trim\(\)\.optional\(\)/);
+  assert.match(roomsRouteSource, /const \{ page, limit, q, status, floor, zone, type, vipOnly, businessDate \}/);
+  assert.match(roomsRouteSource, /\.\.\.\(zone \? \{ zone \} : \{\}\)/);
   assert.match(roomsRouteSource, /\.\.\.\(businessDate \? \{ businessDate \} : \{\}\)/);
 });
 
@@ -114,29 +116,39 @@ test("Reserved room projection hides folio services and renders business-date re
   assert.match(panelSource, /isOccupiedMode\s*&&\s*stay\s*&&/);
 });
 
-test("StaffRoomsClient renders purple reserved styling and collision guard for reserved-today rooms", () => {
+test("StaffRoomsClient strictly derives effectiveStatus from backend room projection and prevents local arrival override", () => {
   // Check that today arrivals are indexed by roomId
   assert.match(clientSource, /todayArrivalByRoomId/);
   assert.match(clientSource, /getRoomReservationDetails/);
 
-  // Check that effectiveStatus switches to "reserved" when room has reservation
-  assert.match(clientSource, /const hasReservation = !hasActiveStay && Boolean\(resDetails\);/);
-  assert.match(clientSource, /const effectiveStatus: RoomStatusFilter = hasReservation\s*\?\s*"reserved"\s*:\s*rawEffectiveStatus;/);
+  // Check that effectiveStatus is strictly authoritative from backend projected status, not local arrivals
+  assert.match(clientSource, /const effectiveStatus: RoomStatusFilter = rawEffectiveStatus;/);
+  assert.doesNotMatch(clientSource, /const effectiveStatus: RoomStatusFilter = hasReservation\s*\?\s*"reserved"\s*:\s*rawEffectiveStatus;/);
 
-  // Check that the room card displays "ĐÃ ĐẶT TRƯỚC" in purple
+  // Check that filtering uses authoritative backend effectiveStatus
+  assert.match(clientSource, /getEffectiveRoomStatus\(r,\s*isFutureDate\)\s*===\s*status/);
+
+  // Check that the room card displays "ĐÃ ĐẶT TRƯỚC" in purple when reserved
   assert.match(clientSource, /effectiveStatus === "reserved"/);
   assert.match(clientSource, /<span>Đã đặt trước<\/span>/);
-
-  // Check that direct touch action button for reserved guest exists
-  assert.match(clientSource, /<span>Nhận phòng<\/span>/);
-  assert.match(clientSource, /bg-purple-700 hover:bg-purple-800/);
 
   // Check collision guard in openWalkIn
   assert.match(clientSource, /const conflictRes = getRoomReservationDetails\(room\);/);
   assert.match(clientSource, /if \(conflictRes\?\.isReservedToday\)/);
   assert.match(clientSource, /Phòng \$\{getRoomNumber\(room\)\} đã có khách đặt trước!/);
 
-  // Check arrival prop is passed to FrontDeskRoomDetailPanel
+  // Check arrival prop is passed to FrontDeskRoomDetailPanel for context only
   assert.match(clientSource, /arrival=\{\s*selectedContextRoom\s*\?\s*todayArrivalByRoomId\.get\(selectedContextRoom\.id\)/);
+});
+
+test("resolveRoomStatusModel proves backend projection is authoritative over local status or inferences", () => {
+  // Extract resolveRoomStatusModel behavior statically / contractually
+  assert.match(panelSource, /const projected = room\?\.projectedStatus\?\.toUpperCase\(\);/);
+  assert.match(panelSource, /projected === "OCCUPIED"[\s\S]*?opStatus = "occupied"/);
+  assert.match(panelSource, /projected === "RESERVED"[\s\S]*?opStatus = "reserved"/);
+  assert.match(panelSource, /projected === "PROCESSING"[\s\S]*?opStatus = "processing"/);
+  assert.match(panelSource, /projected === "BLOCKED"[\s\S]*?opStatus = "blocked"/);
+  assert.match(panelSource, /projected === "MAINTENANCE"[\s\S]*?opStatus = "maintenance"/);
+  assert.match(panelSource, /opStatus = "available"/);
 });
 

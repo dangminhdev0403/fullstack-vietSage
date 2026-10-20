@@ -16,6 +16,9 @@ const schema = z.object({
   plannedCheckInAt: z.string().datetime({ message: "Thời gian nhận phòng không hợp lệ" }),
   plannedCheckOutAt: z.string().datetime({ message: "Thời gian trả phòng không hợp lệ" }),
   roomId: z.string().trim().min(1).optional(),
+  roomTypeId: z.string().trim().min(1).optional(),
+  guestCount: z.coerce.number().int().min(1).max(50).optional(),
+  notes: z.string().trim().max(500).optional(),
   nightlyRateSnapshot: z.union([z.number(), z.string().trim().min(1)]).optional(),
 }).strict();
 
@@ -34,6 +37,9 @@ export async function POST(request: Request, context: Params) {
           plannedCheckInAt: parsed.data.plannedCheckInAt,
           plannedCheckOutAt: parsed.data.plannedCheckOutAt,
           roomId: parsed.data.roomId,
+          roomTypeId: parsed.data.roomTypeId,
+          guestCount: parsed.data.guestCount,
+          notes: parsed.data.notes,
           nightlyRateSnapshot: parsed.data.nightlyRateSnapshot,
         },
         accessToken,
@@ -42,7 +48,7 @@ export async function POST(request: Request, context: Params) {
         await hotelOpsService.assignReservationRoom(
           hotelId,
           reservation.id,
-          parsed.data.roomId,
+          { roomId: parsed.data.roomId },
           accessToken,
         );
       }

@@ -48,16 +48,17 @@ export interface DraftBookingSelection {
   roomId: string;
   roomNumber: string;
   room: RoomPlanRoom;
+  rooms: RoomPlanRoom[];
   startDay: string;
   endDay: string;
   nights: number;
+  guestCount?: number;
 }
 
 export interface ActiveDragRange {
-  roomId: string;
-  roomNumber: string;
-  room: RoomPlanRoom;
+  anchorRoom: RoomPlanRoom;
   anchorDay: string;
+  currentRoom: RoomPlanRoom;
   currentDay: string;
 }
 
@@ -71,6 +72,11 @@ interface TapeChartViewProps {
     room?: HotelRoomSummary | RoomPlanRoom,
     initialDate?: string,
     initialEndDate?: string,
+  ) => void;
+  onOpenBulkReservation?: (
+    selectedRooms: RoomPlanRoom[],
+    initialDate: string,
+    initialEndDate: string,
   ) => void;
   onCheckOutStay?: (stayId: string, roomNumber: string) => Promise<void>;
   onRefresh?: () => void;
@@ -312,9 +318,12 @@ function DraggableRoomRow({
           const isCellOccupied = roomBlocks.some(
             (b) => b.startDate <= day.ymd && b.endDate > day.ymd,
           );
+          const isRoomInDraft = Boolean(
+            draftSelection && draftSelection.rooms.some((r) => r.id === room.id),
+          );
           const isDraftCell = Boolean(
-            draftSelection &&
-              draftSelection.roomId === room.id &&
+            isRoomInDraft &&
+              draftSelection &&
               day.ymd >= draftSelection.startDay &&
               day.ymd < draftSelection.endDay,
           );
@@ -322,6 +331,7 @@ function DraggableRoomRow({
           return (
             <div
               key={day.ymd}
+              data-cell-day="true"
               onMouseDown={(e) => {
                 if (e.button !== 0) return;
                 if (isCellOccupied) return;
@@ -336,7 +346,7 @@ function DraggableRoomRow({
               }}
               className={`flex-1 min-w-[70px] border-r border-slate-100 relative group/cell select-none transition-colors ${
                 isDraftCell
-                  ? "bg-purple-100/50"
+                  ? "bg-purple-100/60 ring-1 ring-inset ring-purple-300"
                   : day.isToday
                     ? "bg-sky-50/30"
                     : day.isWeekend
@@ -347,7 +357,7 @@ function DraggableRoomRow({
               {!isCellOccupied && !isDraftCell && !isDraggingRange && (
                 <div
                   className="absolute inset-1 hidden group-hover/cell:flex items-center justify-center rounded-lg border border-dashed border-purple-400 bg-purple-50/80 text-purple-700 text-xs font-bold shadow-2xs hover:bg-purple-100 transition z-10 pointer-events-none"
-                  title={`Click hoặc kéo ngang để đặt trước P.${room.roomNumber} từ ${day.dateNum}`}
+                  title={`Click hoặc kéo để đặt trước P.${room.roomNumber} từ ${day.dateNum}`}
                 >
                   <span className="flex items-center gap-0.5">
                     <span className="text-sm leading-none">+</span>
@@ -359,7 +369,50 @@ function DraggableRoomRow({
           );
         })}
 
-        {/* Active Draft Booking Range Overlay */}
+        {/* Draft Booking Overlay on Secondary / Group Member Rooms */}
+        {draftSelection &&
+          draftSelection.roomId !== room.id &&
+          draftSelection.rooms.some((r) => r.id === room.id) &&
+          (() => {
+            const startIndex = daysList.findIndex((d) => d.ymd >= draftSelection.startDay);
+            const endIndex = daysList.findIndex((d) => d.ymd >= draftSelection.endDay);
+
+            if (
+              draftSelection.endDay < daysList[0].ymd ||
+              draftSelection.startDay > daysList[daysList.length - 1].ymd
+            ) {
+              return null;
+            }
+
+            const leftPct =
+              startIndex === -1 ? 0 : (startIndex / daysList.length) * 100;
+            const widthPct =
+              endIndex === -1
+                ? 100 - leftPct
+                : Math.max(
+                    (1 / daysList.length) * 100,
+                    (Math.max(1, endIndex - Math.max(0, startIndex)) /
+                      daysList.length) *
+                      100,
+                  );
+
+            return (
+              <div
+                key="draft-group-member-bar"
+                style={{
+                  left: `calc(${leftPct}% + 4px)`,
+                  width: `calc(${widthPct}% - 8px)`,
+                  top: "6px",
+                  bottom: "6px",
+                }}
+                className="absolute z-10 flex items-center justify-center px-2 rounded-lg border border-dashed border-purple-400 bg-purple-600/25 text-purple-900 text-xs font-bold pointer-events-none shadow-2xs backdrop-blur-[1px]"
+              >
+                <span className="truncate whitespace-nowrap">✓ P.{room.roomNumber} (Trong đoàn)</span>
+              </div>
+            );
+          })()}
+
+        {/* Active Draft Booking Range Control Bar (on Primary Anchor Room) */}
         {draftSelection && draftSelection.roomId === room.id && (() => {
           const startIndex = daysList.findIndex((d) => d.ymd >= draftSelection.startDay);
           const endIndex = daysList.findIndex((d) => d.ymd >= draftSelection.endDay);
@@ -383,26 +436,34 @@ function DraggableRoomRow({
                     100,
                 );
 
+          const isGroup = draftSelection.rooms.length > 1;
+
           return (
             <div
               key="draft-booking-bar"
+              data-draft-interactive="true"
               style={{
                 left: `calc(${leftPct}% + 4px)`,
                 width: `calc(${widthPct}% - 8px)`,
                 top: "5px",
                 bottom: "5px",
               }}
-              className="absolute z-20 flex items-center justify-between px-2.5 rounded-lg border-2 border-dashed border-purple-300 bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 text-white shadow-lg ring-2 ring-purple-400/50 select-none animate-in fade-in zoom-in-95 duration-150"
+              className={`absolute z-20 flex items-center justify-between px-2.5 rounded-lg border-2 border-dashed border-purple-300 bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 text-white shadow-lg ring-2 ring-purple-400/50 select-none animate-in fade-in zoom-in-95 duration-150 ${
+                isDraggingRange ? "pointer-events-none" : "pointer-events-auto"
+              }`}
             >
-              {/* Left label / nights */}
+              {/* Left label / nights & group summary */}
               <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
-                <VsIcon name="bookmark_add" className="text-sm shrink-0 text-amber-300" />
+                <VsIcon
+                  name={isGroup ? "group_add" : "bookmark_add"}
+                  className="text-sm shrink-0 text-amber-300"
+                />
                 <span className="text-xs font-black truncate whitespace-nowrap">
-                  Đặt trước: {draftSelection.nights} đêm
+                  {isGroup ? `Đoàn: ${draftSelection.rooms.length} phòng` : `Đặt trước`}: {draftSelection.nights} đêm
                 </span>
               </div>
 
-              {/* Quick Stepper & Confirm buttons */}
+              {/* Quick Stepper, Guest Count & Confirm buttons */}
               <div className="flex items-center gap-1 shrink-0">
                 <button
                   type="button"
@@ -427,6 +488,18 @@ function DraggableRoomRow({
                 >
                   +
                 </button>
+
+                {/* Guest Capacity Badge (1 lead guest for advance booking) */}
+                <div
+                  className="hidden sm:flex items-center gap-0.5 bg-black/25 px-1.5 py-0.5 rounded text-xs font-bold text-amber-200 whitespace-nowrap"
+                  title="Ước tính số khách tiêu chuẩn (1 người đại diện đặt trước, phân bổ phòng chi tiết khi check-in)"
+                >
+                  <VsIcon name="person" className="text-xs" />
+                  <span>
+                    {draftSelection.guestCount || (isGroup ? draftSelection.rooms.length * 2 : 2)}
+                  </span>
+                </div>
+
                 <button
                   type="button"
                   onClick={(e) => {
@@ -434,10 +507,14 @@ function DraggableRoomRow({
                     onConfirmDraft(draftSelection);
                   }}
                   className="ml-1 px-2.5 py-0.5 rounded-md bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black shadow-xs flex items-center gap-1 cursor-pointer whitespace-nowrap transition"
-                  title="Xác nhận tạo đặt trước"
+                  title={
+                    isGroup
+                      ? "Xác nhận đặt trước cho cả đoàn (1 người đại diện)"
+                      : "Xác nhận tạo đặt trước"
+                  }
                 >
                   <VsIcon name="check" className="text-xs" />
-                  <span>Đặt trước</span>
+                  <span>{isGroup ? `Đặt ${draftSelection.rooms.length} phòng` : "Đặt trước"}</span>
                 </button>
                 <button
                   type="button"
@@ -454,7 +531,11 @@ function DraggableRoomRow({
 
               {/* Floating Tooltip Header above the bar for clear date readability */}
               <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-slate-900/95 text-white px-2.5 py-0.5 rounded-full text-xs font-bold shadow-xl border border-slate-700 whitespace-nowrap pointer-events-none">
-                <span className="text-amber-300">P.{room.roomNumber}</span>
+                <span className="text-amber-300">
+                  {isGroup
+                    ? `${draftSelection.rooms.length} phòng (${draftSelection.rooms.map((r) => `P.${r.roomNumber}`).join(", ")})`
+                    : `P.${room.roomNumber}`}
+                </span>
                 <span>•</span>
                 <span>
                   {formatDateNum(draftSelection.startDay)} ➔ {formatDateNum(draftSelection.endDay)}
@@ -936,7 +1017,7 @@ export function TapeChartView({
         guestStayId: raw.guestStayId ?? raw.stayId ?? null,
         reservationCode: raw.reservationCode ?? null,
         guestName,
-        guestCount: raw.guestCount ?? (raw.kind === "STAY" ? 1 : 1),
+        guestCount: raw.guestCount ?? null,
         phone: raw.phone ?? raw.guestPhone ?? null,
         source: raw.source ?? null,
         channel,
@@ -1295,7 +1376,7 @@ export function TapeChartView({
     });
   }, [placementSourceBlock, allRooms]);
 
-  // ── Draft Reservation State (Click / Drag horizontally to select stay dates) ──
+  // ── Draft Reservation State (Click / Drag horizontally to select dates, vertically to select multiple rooms) ──
   const [draftSelection, setDraftSelection] = useState<DraftBookingSelection | null>(null);
   const [activeDragRange, setActiveDragRange] = useState<ActiveDragRange | null>(null);
 
@@ -1325,6 +1406,25 @@ export function TapeChartView({
     };
   }, []);
 
+  // Global click-outside to cancel draft selection cleanly when clicking outside the chart
+  useEffect(() => {
+    if (!draftSelection) return;
+    const handleDocumentClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest?.('[data-draft-interactive="true"]')) return;
+      if (target?.closest?.('[data-cell-day="true"]')) return;
+      setDraftSelection(null);
+      setActiveDragRange(null);
+    };
+    const timer = setTimeout(() => {
+      window.addEventListener("click", handleDocumentClick);
+    }, 60);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("click", handleDocumentClick);
+    };
+  }, [draftSelection]);
+
   const handleStartDragRange = useCallback(
     (room: RoomPlanRoom, ymd: string) => {
       const blocks = blocksByRoomId.get(room.id) || [];
@@ -1333,19 +1433,20 @@ export function TapeChartView({
 
       const nextDay = addDaysYmd(ymd, 1);
       setActiveDragRange({
-        roomId: room.id,
-        roomNumber: room.roomNumber,
-        room,
+        anchorRoom: room,
         anchorDay: ymd,
+        currentRoom: room,
         currentDay: ymd,
       });
       setDraftSelection({
         roomId: room.id,
         roomNumber: room.roomNumber,
         room,
+        rooms: [room],
         startDay: ymd,
         endDay: nextDay,
         nights: 1,
+        guestCount: room.maxOccupancy || 2,
       });
     },
     [blocksByRoomId],
@@ -1353,30 +1454,32 @@ export function TapeChartView({
 
   const handleHoverDragDay = useCallback(
     (room: RoomPlanRoom, targetYmd: string) => {
-      if (!activeDragRange || activeDragRange.roomId !== room.id) return;
+      if (!activeDragRange) return;
 
-      const anchor = activeDragRange.anchorDay;
-      const blocks = blocksByRoomId.get(room.id) || [];
+      const anchorDay = activeDragRange.anchorDay;
+      const anchorRoom = activeDragRange.anchorRoom;
 
-      let start = anchor;
+      // 1. Horizontal date range calculation
+      let start = anchorDay;
       let end = addDaysYmd(targetYmd, 1);
 
-      if (targetYmd < anchor) {
+      if (targetYmd < anchorDay) {
         start = targetYmd;
-        end = addDaysYmd(anchor, 1);
+        end = addDaysYmd(anchorDay, 1);
       }
 
-      // Check collision with existing blocks
-      if (targetYmd >= anchor) {
-        const collidingBlock = blocks
-          .filter((b) => b.startDate >= anchor && b.startDate < end)
+      // Check collision on the anchor room
+      const anchorBlocks = blocksByRoomId.get(anchorRoom.id) || [];
+      if (targetYmd >= anchorDay) {
+        const collidingBlock = anchorBlocks
+          .filter((b) => b.startDate >= anchorDay && b.startDate < end)
           .sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
         if (collidingBlock) {
           end = collidingBlock.startDate;
         }
       } else {
-        const collidingBlock = blocks
-          .filter((b) => b.endDate > start && b.endDate <= anchor)
+        const collidingBlock = anchorBlocks
+          .filter((b) => b.endDate > start && b.endDate <= anchorDay)
           .sort((a, b) => b.endDate.localeCompare(a.endDate))[0];
         if (collidingBlock) {
           start = collidingBlock.endDate;
@@ -1389,17 +1492,64 @@ export function TapeChartView({
 
       const nights = calculateNights(start, end);
 
-      setActiveDragRange((prev) => (prev ? { ...prev, currentDay: targetYmd } : null));
+      // 2. Vertical room range calculation across orderedFilteredRooms
+      const anchorIdx = orderedFilteredRooms.findIndex((r) => r.id === anchorRoom.id);
+      const currentIdx = orderedFilteredRooms.findIndex((r) => r.id === room.id);
+
+      let selectedRooms: RoomPlanRoom[] = [anchorRoom];
+
+      if (anchorIdx !== -1 && currentIdx !== -1) {
+        const minIdx = Math.min(anchorIdx, currentIdx);
+        const maxIdx = Math.max(anchorIdx, currentIdx);
+        const candidateRooms = orderedFilteredRooms
+          .slice(minIdx, maxIdx + 1)
+          .filter((cand) => {
+            const cat = cand.roomTypeName || "Hạng phòng khác";
+            return !collapsedCategories[cat];
+          });
+
+        // Filter out rooms that have collisions during [start, end)
+        selectedRooms = candidateRooms.filter((candRoom) => {
+          if (candRoom.id === anchorRoom.id) return true;
+          const rBlocks = blocksByRoomId.get(candRoom.id) || [];
+          const isColliding = rBlocks.some(
+            (b) => b.startDate < end && b.endDate > start,
+          );
+          return !isColliding;
+        });
+
+        if (selectedRooms.length === 0) {
+          selectedRooms = [anchorRoom];
+        }
+      }
+
+      const totalGuests = selectedRooms.reduce(
+        (acc, r) => acc + (r.maxOccupancy || 2),
+        0,
+      );
+
+      setActiveDragRange((prev) =>
+        prev
+          ? {
+              ...prev,
+              currentRoom: room,
+              currentDay: targetYmd,
+            }
+          : null,
+      );
+
       setDraftSelection({
-        roomId: room.id,
-        roomNumber: room.roomNumber,
-        room,
+        roomId: anchorRoom.id,
+        roomNumber: anchorRoom.roomNumber,
+        room: anchorRoom,
+        rooms: selectedRooms,
         startDay: start,
         endDay: end,
         nights,
+        guestCount: totalGuests,
       });
     },
-    [activeDragRange, blocksByRoomId],
+    [activeDragRange, blocksByRoomId, orderedFilteredRooms, collapsedCategories],
   );
 
   const handleAdjustDraftDays = useCallback(
@@ -1416,17 +1566,21 @@ export function TapeChartView({
         });
       } else {
         const candidateEnd = addDaysYmd(draftSelection.endDay, 1);
-        const blocks = blocksByRoomId.get(draftSelection.roomId) || [];
-        const isOccupied = blocks.some(
-          (b) => b.startDate <= draftSelection.endDay && b.endDate > draftSelection.endDay,
-        );
-        if (isOccupied) {
+        const conflictRoom = draftSelection.rooms.find((r) => {
+          const blocks = blocksByRoomId.get(r.id) || [];
+          return blocks.some(
+            (b) => b.startDate <= draftSelection.endDay && b.endDate > draftSelection.endDay,
+          );
+        });
+
+        if (conflictRoom) {
           void showErrorAlert(
             "Không thể kéo dài thêm",
-            "Ngày tiếp theo của phòng này đã có lượt đặt trước hoặc đang có khách lưu trú.",
+            `Phòng P.${conflictRoom.roomNumber} đã có lượt đặt trước hoặc đang có khách lưu trú vào ngày tiếp theo.`,
           );
           return;
         }
+
         const nights = calculateNights(draftSelection.startDay, candidateEnd);
         setDraftSelection({
           ...draftSelection,
@@ -1440,19 +1594,23 @@ export function TapeChartView({
 
   const handleConfirmDraft = useCallback(
     (draft: DraftBookingSelection) => {
-      if (onOpenQuickReservation) {
+      if (draft.rooms.length > 1 && onOpenBulkReservation) {
+        onOpenBulkReservation(draft.rooms, draft.startDay, draft.endDay);
+      } else if (onOpenQuickReservation) {
         onOpenQuickReservation(draft.room, draft.startDay, draft.endDay);
       } else if (onOpenCheckIn && draft.startDay === todayYmd) {
         onOpenCheckIn(draft.room, draft.startDay);
       } else {
         void showSuccessAlert(
           "Đã chọn khoảng lưu trú",
-          `Phòng P.${draft.roomNumber} từ ${draft.startDay} đến ${draft.endDay} (${draft.nights} đêm).`,
+          draft.rooms.length > 1
+            ? `Đã chọn đoàn ${draft.rooms.length} phòng (${draft.rooms.map((r) => `P.${r.roomNumber}`).join(", ")}) từ ${draft.startDay} đến ${draft.endDay} (${draft.nights} đêm).`
+            : `Phòng P.${draft.roomNumber} từ ${draft.startDay} đến ${draft.endDay} (${draft.nights} đêm).`,
         );
       }
       setDraftSelection(null);
     },
-    [onOpenQuickReservation, onOpenCheckIn, todayYmd],
+    [onOpenBulkReservation, onOpenQuickReservation, onOpenCheckIn, todayYmd],
   );
 
   const handleCancelDraft = useCallback(() => {
@@ -1626,19 +1784,19 @@ export function TapeChartView({
           <span>Bảo trì / Khóa</span>
         </span>
         <span className="ml-auto text-slate-500 text-pretty">
-          💡 Click hoặc kéo chuột ngang trên ô trống để Đặt trước nhiều đêm. Kéo thả thanh màu tím để đổi phòng.
+          💡 Click hoặc kéo chuột ngang để chọn số đêm, kéo dọc để chọn nhiều phòng (đặt đoàn). Kéo thả thanh màu tím để đổi phòng.
         </span>
       </div>
 
       {/* ── Main Gantt / Tape Chart Grid Container ────────────────── */}
       <div className="relative rounded-2xl border border-slate-200/90 bg-white shadow-xs overflow-hidden">
-        {/* Main Grid View - Giữ trọn 100% chiều rộng, không bị bóp nghẽn */}
-        <div className="overflow-x-auto min-w-0">
+        {/* Main Grid View - Giữ trọn 100% chiều rộng, hỗ trợ cuộn dọc cố định tiêu đề */}
+        <div className="overflow-x-auto min-w-0 max-h-[calc(100vh-210px)] overflow-y-auto">
           <div className="min-w-[800px]">
             {/* Header Dates Row */}
-            <div className="flex border-b border-slate-200 bg-slate-50 text-xs font-bold text-slate-700">
+            <div className="flex border-b border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 sticky top-0 z-30 shadow-xs">
               {/* Room Column Header */}
-              <div className="sticky left-0 z-20 w-48 shrink-0 border-r border-slate-200 bg-slate-100/95 px-3 py-2 flex items-center justify-between shadow-xs">
+              <div className="sticky left-0 z-40 w-48 shrink-0 border-r border-slate-200 bg-slate-100/95 px-3 py-2 flex items-center justify-between shadow-xs">
                 <button
                   type="button"
                   onClick={toggleAllCategories}
@@ -1931,9 +2089,9 @@ export function TapeChartView({
                             {selectedBlock.guestName}
                           </p>
                           <p className="text-xs text-slate-500 font-medium">
-                            {selectedBlock.guestCount && selectedBlock.guestCount > 1
+                            {selectedBlock.guestCount
                               ? `${selectedBlock.guestCount} khách`
-                              : "1 khách"}
+                              : "—"}
                           </p>
                         </div>
                       </div>

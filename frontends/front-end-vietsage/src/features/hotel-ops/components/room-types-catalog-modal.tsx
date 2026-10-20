@@ -51,14 +51,14 @@ export function RoomTypesCatalogModal({
   const updatePriceMutation = useMutation(roomTypesScope.mutations.updatePrice.options());
   const createTypeMutation = useMutation(roomTypesScope.mutations.create.options());
 
-  // Local state for inline price editing per room type
   const [editingPrices, setEditingPrices] = useState<Record<string, string>>({});
+  const [editingCapacities, setEditingCapacities] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  // New room type state
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTypeName, setNewTypeName] = useState("");
   const [newTypePrice, setNewTypePrice] = useState("");
+  const [newTypeCapacity, setNewTypeCapacity] = useState("");
   const [isCreatingNew, setIsCreatingNew] = useState(false);
 
   const items: HotelRoomType[] = useMemo(() => roomTypeData?.items ?? [], [roomTypeData]);
@@ -73,21 +73,27 @@ export function RoomTypesCatalogModal({
   if (!isOpen) return null;
 
   const handlePriceChange = (id: string, value: string) => {
-    const raw = toRawDigits(value);
-    setEditingPrices((prev) => ({ ...prev, [id]: raw }));
+    setEditingPrices((prev) => ({ ...prev, [id]: toRawDigits(value) }));
+  };
+
+  const handleCapacityChange = (id: string, value: string) => {
+    setEditingCapacities((prev) => ({ ...prev, [id]: toRawDigits(value) }));
   };
 
   const handleSavePrice = async (item: HotelRoomType) => {
-    const inputValue = editingPrices[item.id] !== undefined
-      ? editingPrices[item.id]
-      : (item.basePrice ? String(item.basePrice) : "");
-
+    const inputValue = editingPrices[item.id] ?? (item.basePrice ? String(item.basePrice) : "");
+    const capacityInput = editingCapacities[item.id] ?? String(item.maxOccupancy ?? "");
     const numericPrice = Number(inputValue);
+    const numericCapacity = capacityInput ? Number(capacityInput) : null;
     if (!numericPrice || numericPrice <= 0) {
       await showErrorAlert(
         "Giá gốc không hợp lệ",
         "Vui lòng nhập giá gốc lớn hơn 0 (VNĐ) để kích hoạt đồng bộ ARI và kết nối OTA.",
       );
+      return;
+    }
+    if (numericCapacity !== null && (!Number.isInteger(numericCapacity) || numericCapacity < 1 || numericCapacity > 50)) {
+      await showErrorAlert("Sức chứa không hợp lệ", "Sức chứa phải từ 1 đến 50 khách.");
       return;
     }
 
@@ -98,11 +104,13 @@ export function RoomTypesCatalogModal({
         await createTypeMutation.mutateAsync({
           name: item.name,
           basePrice: numericPrice,
+          maxOccupancy: numericCapacity,
         });
       } else {
         await updatePriceMutation.mutateAsync({
           roomTypeId: item.id,
           basePrice: numericPrice,
+          maxOccupancy: numericCapacity,
         });
       }
 
@@ -111,6 +119,11 @@ export function RoomTypesCatalogModal({
       await queryClient.invalidateQueries({ queryKey: ["vietsage", "owner-rooms", "hotel", hotelId] });
 
       setEditingPrices((prev) => {
+        const next = { ...prev };
+        delete next[item.id];
+        return next;
+      });
+      setEditingCapacities((prev) => {
         const next = { ...prev };
         delete next[item.id];
         return next;
@@ -138,8 +151,13 @@ export function RoomTypesCatalogModal({
       return;
     }
     const numericPrice = Number(toRawDigits(newTypePrice));
+    const numericCapacity = newTypeCapacity ? Number(newTypeCapacity) : null;
     if (!numericPrice || numericPrice <= 0) {
       await showErrorAlert("Giá gốc không hợp lệ", "Vui lòng nhập giá gốc lớn hơn 0 (VNĐ).");
+      return;
+    }
+    if (numericCapacity !== null && (!Number.isInteger(numericCapacity) || numericCapacity < 1 || numericCapacity > 50)) {
+      await showErrorAlert("Sức chứa không hợp lệ", "Sức chứa phải từ 1 đến 50 khách.");
       return;
     }
 
@@ -148,6 +166,7 @@ export function RoomTypesCatalogModal({
       await createTypeMutation.mutateAsync({
         name: trimmedName,
         basePrice: numericPrice,
+        maxOccupancy: numericCapacity,
       });
 
       await refetch();
@@ -156,6 +175,7 @@ export function RoomTypesCatalogModal({
 
       setNewTypeName("");
       setNewTypePrice("");
+      setNewTypeCapacity("");
       setShowAddForm(false);
       onUpdated?.();
 
@@ -275,6 +295,7 @@ export function RoomTypesCatalogModal({
                   <tr>
                     <th scope="col" className="px-5 py-3.5">Hạng phòng</th>
                     <th scope="col" className="px-4 py-3.5 text-center">Số phòng</th>
+                    <th scope="col" className="px-4 py-3.5 text-center">Sức chứa</th>
                     <th scope="col" className="px-4 py-3.5">Trạng thái ARI</th>
                     <th scope="col" className="px-5 py-3.5">Giá gốc niêm yết</th>
                     <th scope="col" className="px-5 py-3.5 text-right">Cập nhật giá</th>
@@ -307,6 +328,18 @@ export function RoomTypesCatalogModal({
                           <span className="inline-flex items-center justify-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
                             {item.roomCount} phòng
                           </span>
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <input
+                            type="number"
+                            min={1}
+                            max={50}
+                            value={editingCapacities[item.id] ?? item.maxOccupancy ?? ""}
+                            onChange={(e) => handleCapacityChange(item.id, e.target.value)}
+                            disabled={isBusy}
+                            aria-label={`Sức chứa hạng ${item.name}`}
+                            className="w-20 rounded-xl border border-slate-300 bg-white px-2 py-1.5 text-center text-sm font-semibold outline-none focus:border-[var(--primary)]"
+                          />
                         </td>
                         <td className="px-4 py-4">
                           {isReady ? (
@@ -392,7 +425,7 @@ export function RoomTypesCatalogModal({
                     Đóng
                   </button>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <label className="space-y-1.5">
                     <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Tên loại phòng</span>
                     <input
@@ -413,6 +446,18 @@ export function RoomTypesCatalogModal({
                       value={formatPriceInput(newTypePrice)}
                       onChange={(e) => setNewTypePrice(toRawDigits(e.target.value))}
                       required
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10"
+                    />
+                  </label>
+                  <label className="space-y-1.5">
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Sức chứa tối đa</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      placeholder="VD: 2"
+                      value={newTypeCapacity}
+                      onChange={(e) => setNewTypeCapacity(e.target.value)}
                       className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10"
                     />
                   </label>

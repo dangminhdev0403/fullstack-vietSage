@@ -15,11 +15,11 @@ export const ownerRoomTypesResource = createResource<Scope>()({
   },
   mutations: {
     create: defineMutation({
-      mutationFn: ({ scope, variables }: { scope: Scope; variables: { name: string; basePrice: number } }) =>
+      mutationFn: ({ scope, variables }: { scope: Scope; variables: { name: string; basePrice: number; maxOccupancy?: number | null } }) =>
         ownerRoomTypesRepository.create(scope.hotelId, variables),
     }),
     updatePrice: defineMutation({
-      mutationFn: ({ scope, variables }: { scope: Scope; variables: { roomTypeId: string; basePrice: number } }) =>
+      mutationFn: ({ scope, variables }: { scope: Scope; variables: { roomTypeId: string; basePrice?: number; maxOccupancy?: number | null } }) =>
         ownerRoomTypesRepository.updatePrice(scope.hotelId, variables),
     }),
   },

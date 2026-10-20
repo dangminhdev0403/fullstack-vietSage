@@ -29,6 +29,7 @@ export const staffRoomsResource = createResource<{ hotelId: string }>()({
         input?.status ?? "",
         input?.type ?? "",
         input?.floor ?? "",
+        input?.zone ?? "",
         input?.vipOnly ?? false,
         input?.businessDate ?? "",
         input?.page ?? 1,

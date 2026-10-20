@@ -6715,6 +6715,7 @@ export interface operations {
                 "application/json": {
                     name: string;
                     basePrice: number;
+                    maxOccupancy?: number | null;
                 };
             };
         };
@@ -6748,12 +6749,13 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    basePrice: number;
+                    basePrice?: number;
+                    maxOccupancy?: number | null;
                 };
             };
         };
         responses: {
-            /** @description Giá gốc được lưu nội bộ; chưa đẩy Channex */
+            /** @description Giá gốc hoặc sức chứa được lưu nội bộ; chưa đẩy Channex */
             200: {
                 headers: {
                     [name: string]: unknown;

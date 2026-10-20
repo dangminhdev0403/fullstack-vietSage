@@ -1178,19 +1178,18 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                 title: "Xác nhận nhận phòng?",
                 text: (() => {
                   const partyCount = 1 + normalizedOccupants.length;
-                  const reservationCode = (initialStayFields as { reservationCode?: string })?.reservationCode;
-                  const inSchedule = (initialStayFields as { plannedCheckInAt?: string })?.plannedCheckInAt
-                    ? toDisplayVnDate((initialStayFields as { plannedCheckInAt?: string }).plannedCheckInAt)
+                  const reservationCode = initialStayFields?.reservationCode;
+                  const inSchedule = initialStayFields?.plannedCheckInAt
+                    ? toDisplayVnDate(initialStayFields.plannedCheckInAt)
                     : "Hôm nay";
                   const outSchedule = fields.plannedCheckOutAt
                     ? toDisplayVnDate(fields.plannedCheckOutAt)
                     : "Theo quy định";
                   const notesText =
-                    (initialStayFields as { notes?: string })?.notes ||
-                    (room as { notes?: string })?.notes ||
+                    initialStayFields?.notes ||
                     "Không có ghi chú";
                   const roomCapacity =
-                    (room as { capacity?: string | number })?.capacity ?? "2 khách";
+                    room.maxOccupancy ? `${room.maxOccupancy} khách` : "Chưa thiết lập";
 
                   return [
                     `• Khách đại diện: ${fields.guestDisplayName || "Chưa nhập tên"}${fields.guestPhone ? ` (${fields.guestPhone})` : ""}`,

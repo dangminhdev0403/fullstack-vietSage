@@ -191,16 +191,17 @@ test("getArrivalStatusDisplay accurately determines hospitality statuses", async
   );
 });
 
-test("FrontDeskArrivalDetailPanel check-in request never sends early/late override on first attempt", () => {
-  // First POST check-in request uses basePayload without allowEarlyCheckIn
+test("FrontDeskArrivalDetailPanel check-in uses stale guards and explicit confirmation flags", () => {
   assert.match(panelSource, /body:\s*basePayload/);
   const basePayloadMatch = panelSource.match(/const basePayload = \{([\s\S]*?)\};/);
   assert.ok(basePayloadMatch, "basePayload must be defined");
-  assert.doesNotMatch(basePayloadMatch[1], /allowEarlyCheckIn/);
+  assert.doesNotMatch(basePayloadMatch[1], /confirmEarlyCheckIn|confirmLateCheckIn/);
+  assert.match(basePayloadMatch[1], /expectedRoomId/);
+  assert.match(basePayloadMatch[1], /expectedUpdatedAt/);
 
-  // Retry with allowEarlyCheckIn occurs ONLY after warning confirmation
   assert.match(panelSource, /warningConfirm\.isConfirmed/);
-  assert.match(panelSource, /allowEarlyCheckIn:\s*true/);
+  assert.match(panelSource, /confirmEarlyCheckIn:\s*true/);
+  assert.match(panelSource, /confirmLateCheckIn:\s*true/);
 });
 
 test("FrontDeskArrivalDetailPanel and CheckInWorkspace final summary covers all 8 required dimensions", () => {

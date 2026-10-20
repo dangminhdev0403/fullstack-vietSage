@@ -24,10 +24,7 @@ import { BrandedRoomQr } from "@/features/hotel-ops/components/branded-room-qr";
 import { formatFriendlyCheckInError } from "@/features/hotel-ops/utils/check-in-error";
 import {
   FrontDeskRoomDetailPanel,
-  formatBookingInterval,
-  formatRoomDisplay,
   resolveRoomStatusModel,
-  type RoomCompatibilityData,
 } from "@/features/hotel-ops/components/front-desk-room-detail-panel";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
@@ -161,13 +158,9 @@ function isOverdueCheckOut(room: HotelRoomSummary): boolean {
 
 function getRoomStatus(room: HotelRoomSummary): RoomStatusFilter {
   if (isOverdueCheckOut(room)) return "overdue";
-  const status = room.status?.toUpperCase();
-  if (room.activeStay || status === "OCCUPIED") return "occupied";
-  if (
-    status === "RESERVED" ||
-    (!room.activeStay && Boolean(room.projectedReservation))
-  )
-    return "reserved";
+  const status = (room.physicalStatus || room.status)?.toUpperCase();
+  if (status === "OCCUPIED" || (!room.physicalStatus && room.activeStay)) return "occupied";
+  if (status === "RESERVED") return "reserved";
   if (status === "PROCESSING") return "processing";
   if (status === "BLOCKED") return "blocked";
   if (status === "MAINTENANCE" || status === "OUT_OF_SERVICE")
@@ -194,18 +187,8 @@ function getEffectiveRoomStatus(
   room: HotelRoomSummary,
   isFuture: boolean,
 ): RoomStatusFilter {
-  if (isFuture) {
-    if (room.projectedStatus) {
-      return getProjectedRoomStatus(room);
-    }
-    const status = room.status?.toUpperCase();
-    if (status === "MAINTENANCE" || status === "OUT_OF_SERVICE")
-      return "maintenance";
-    if (status === "BLOCKED") return "blocked";
-    if (room.projectedReservation) return "reserved";
-    return "available";
-  }
-  return getRoomStatus(room);
+  const status = resolveRoomStatusModel(room, { isFuture }).operational.status;
+  return status === "all" ? "available" : status;
 }
 
 function roomStatusLabel(status: RoomStatusFilter): string {
@@ -719,6 +702,8 @@ export function StaffRoomsClient({
   const [activeReservationCheckIn, setActiveReservationCheckIn] = useState<{
     reservationId: string;
     guestDisplayName?: string;
+    roomId: string | null;
+    updatedAt?: string | null;
   } | null>(null);
   const [customCheckInInitialFields, setCustomCheckInInitialFields] =
     useState<Partial<CheckInStayFields> | null>(null);
@@ -1330,11 +1315,16 @@ export function StaffRoomsClient({
     setActiveReservationCheckIn({
       reservationId: arrival.id,
       guestDisplayName: arrival.guestDisplayName,
+      roomId: arrival.roomId,
+      updatedAt: arrival.updatedAt,
     });
     setCustomCheckInInitialFields({
       guestDisplayName: arrival.guestDisplayName,
       guestPhone: arrival.guestPhone || "",
       plannedCheckOutAt: arrival.plannedCheckOutAt,
+      reservationCode: arrival.reservationCode,
+      plannedCheckInAt: arrival.plannedCheckInAt,
+      notes: arrival.notes ?? undefined,
     });
     setSubmitError(undefined);
     setIsArrivalsOpen(false);
@@ -1362,6 +1352,7 @@ export function StaffRoomsClient({
       q: query,
       status: isFutureDate ? "all" : status,
       floor,
+      zone,
       type,
       vipOnly: false,
       businessDate: isFutureDate ? businessDate : undefined,
@@ -1994,6 +1985,20 @@ export function StaffRoomsClient({
     const todayArrival = todayArrivalByRoomId.get(room.id);
     const upcomingArrival = upcomingArrivalByRoomId.get(room.id);
 
+    if (room.projectedReservation) {
+      return {
+        isReservedToday: true,
+        isUpcoming: false,
+        arrival: todayArrival ?? null,
+        guestDisplayName: room.projectedReservation.guestDisplayName,
+        guestPhone: room.projectedReservation.guestPhone,
+        reservationCode: room.projectedReservation.reservationCode,
+        plannedCheckInAt: room.projectedReservation.plannedCheckInAt,
+        plannedCheckOutAt: room.projectedReservation.plannedCheckOutAt,
+        status: room.projectedReservation.status,
+      };
+    }
+
     if (todayArrival) {
       return {
         isReservedToday: true,
@@ -2005,20 +2010,6 @@ export function StaffRoomsClient({
         plannedCheckInAt: todayArrival.plannedCheckInAt,
         plannedCheckOutAt: todayArrival.plannedCheckOutAt,
         status: todayArrival.status,
-      };
-    }
-
-    if (room.projectedReservation) {
-      return {
-        isReservedToday: true,
-        isUpcoming: false,
-        arrival: null,
-        guestDisplayName: room.projectedReservation.guestDisplayName,
-        guestPhone: room.projectedReservation.guestPhone,
-        reservationCode: room.projectedReservation.reservationCode,
-        plannedCheckInAt: room.projectedReservation.plannedCheckInAt,
-        plannedCheckOutAt: room.projectedReservation.plannedCheckOutAt,
-        status: room.projectedReservation.status,
       };
     }
 
@@ -2057,28 +2048,9 @@ export function StaffRoomsClient({
   }
 
   const rawFilteredRooms =
-    isFutureDate && status !== "all"
-      ? rooms.filter((r) => getEffectiveRoomStatus(r, true) === status)
-      : status === "reserved"
-        ? rooms.filter((r) => {
-            const hasActiveStay = Boolean(
-              r.activeStay && !r.activeStay.checkedOutAt,
-            );
-            if (hasActiveStay) return false;
-            const res = getRoomReservationDetails(r);
-            return Boolean(res) || r.status?.toUpperCase() === "RESERVED";
-          })
-        : status === "available"
-          ? rooms.filter((r) => {
-              const hasActiveStay = Boolean(
-                r.activeStay && !r.activeStay.checkedOutAt,
-              );
-              if (hasActiveStay) return false;
-              const res = getRoomReservationDetails(r);
-              if (res) return false;
-              return getRoomStatus(r) === "available";
-            })
-          : rooms;
+    status !== "all"
+      ? rooms.filter((r) => getEffectiveRoomStatus(r, isFutureDate) === status)
+      : rooms;
 
   const filteredRooms =
     zone !== "all"
@@ -2410,11 +2382,16 @@ export function StaffRoomsClient({
     setActiveReservationCheckIn({
       reservationId,
       guestDisplayName: res.guestDisplayName,
+      roomId: res.arrival?.roomId ?? room.id,
+      updatedAt: res.arrival?.updatedAt,
     });
     setCustomCheckInInitialFields({
       guestDisplayName: res.guestDisplayName,
       guestPhone: res.guestPhone || "",
       plannedCheckOutAt: res.plannedCheckOutAt,
+      reservationCode: res.reservationCode,
+      plannedCheckInAt: res.arrival?.plannedCheckInAt,
+      notes: res.arrival?.notes ?? undefined,
     });
     setSubmitError(undefined);
     setIsArrivalsOpen(false);
@@ -2786,6 +2763,7 @@ export function StaffRoomsClient({
     setActiveReservationCheckIn({
       reservationId: booking.reservationId,
       guestDisplayName: booking.guestName,
+      roomId: room.id,
     });
     setCustomCheckInInitialFields({
       guestDisplayName: booking.guestName,
@@ -2837,6 +2815,7 @@ export function StaffRoomsClient({
         setActiveReservationCheckIn({
           reservationId: targetRoom.projectedReservation.id,
           guestDisplayName: targetRoom.projectedReservation.guestDisplayName,
+          roomId: targetRoom.id,
         });
         setCustomCheckInInitialFields({
           guestDisplayName: targetRoom.projectedReservation.guestDisplayName,
@@ -2882,15 +2861,7 @@ export function StaffRoomsClient({
 
     const effectiveStatus = getEffectiveRoomStatus(room, isFutureDate);
     const hasProjectedStay = Boolean(room.projectedStay || room.activeStay);
-    const resDetails = getRoomReservationDetails(room);
-    const hasReservation = !hasProjectedStay && Boolean(resDetails);
-    const hasProjectedReservation = Boolean(room.projectedReservation);
-    const isReserved =
-      (effectiveStatus === "occupied" &&
-        !hasProjectedStay &&
-        hasProjectedReservation) ||
-      (room.projectedStatus === "RESERVED" && hasProjectedReservation) ||
-      hasReservation;
+    const isReserved = effectiveStatus === "reserved";
 
     if (
       effectiveStatus === "overdue" ||
@@ -2977,7 +2948,10 @@ export function StaffRoomsClient({
                 ? { occupants: fields.occupants }
                 : {}),
               plannedCheckOutAt,
-              allowEarlyCheckIn: true,
+              expectedRoomId: activeReservationCheckIn.roomId,
+              ...(activeReservationCheckIn.updatedAt
+                ? { expectedUpdatedAt: activeReservationCheckIn.updatedAt }
+                : {}),
             },
           },
         );
@@ -2998,12 +2972,24 @@ export function StaffRoomsClient({
         }
       } catch (error) {
         const rawMsg = error instanceof Error ? error.message : "";
-        if (rawMsg.includes("EARLY_CHECK_IN_NOT_ALLOWED")) {
+        const isEarlyConfirmation =
+          rawMsg.includes("EARLY_CHECK_IN_CONFIRMATION_REQUIRED") ||
+          rawMsg.includes("EARLY_CHECK_IN_NOT_ALLOWED");
+        const isLateConfirmation = rawMsg.includes(
+          "LATE_CHECK_IN_CONFIRMATION_REQUIRED",
+        );
+        if (isEarlyConfirmation || isLateConfirmation) {
           const earlyConfirm = await showConfirmDialog({
             icon: "question",
-            title: "Xác nhận nhận phòng sớm?",
-            text: "Đơn đặt phòng này có ngày nhận phòng dự kiến trong tương lai. Bạn có muốn cho phép khách làm thủ tục nhận phòng sớm ngay bây giờ không?",
-            confirmText: "Đồng ý nhận phòng sớm",
+            title: isEarlyConfirmation
+              ? "Xác nhận nhận phòng sớm?"
+              : "Xác nhận nhận phòng muộn?",
+            text: isEarlyConfirmation
+              ? "Đơn đặt phòng này có ngày nhận phòng dự kiến trong tương lai. Bạn có muốn cho phép khách làm thủ tục nhận phòng sớm ngay bây giờ không?"
+              : "Ngày nhận phòng dự kiến đã qua. Bạn có muốn tiếp tục làm thủ tục nhận phòng muộn không?",
+            confirmText: isEarlyConfirmation
+              ? "Đồng ý nhận phòng sớm"
+              : "Đồng ý nhận phòng muộn",
             cancelText: "Hủy bỏ",
             reverseButtons: false,
           });
@@ -3038,7 +3024,13 @@ export function StaffRoomsClient({
                       ? { occupants: fields.occupants }
                       : {}),
                     plannedCheckOutAt,
-                    allowEarlyCheckIn: true,
+                    ...(isEarlyConfirmation
+                      ? { confirmEarlyCheckIn: true }
+                      : { confirmLateCheckIn: true }),
+                    expectedRoomId: activeReservationCheckIn.roomId,
+                    ...(activeReservationCheckIn.updatedAt
+                      ? { expectedUpdatedAt: activeReservationCheckIn.updatedAt }
+                      : {}),
                   },
                 },
               );
@@ -3262,6 +3254,7 @@ export function StaffRoomsClient({
 
   function renderRoomCard(room: HotelRoomSummary) {
     const rawEffectiveStatus = getEffectiveRoomStatus(room, isFutureDate);
+    const effectiveStatus: RoomStatusFilter = rawEffectiveStatus;
     const physicalStatus = getRoomStatus(room);
     const hasActiveStay = Boolean(room.activeStay || room.projectedStay);
     const isPhysicallyBusy =
@@ -3273,21 +3266,8 @@ export function StaffRoomsClient({
     );
     const isVip = /suite|vip|premium|penthouse/i.test(room.type ?? "");
     const resDetails = getRoomReservationDetails(room);
-    const hasReservation = !hasActiveStay && Boolean(resDetails);
-    const isReserved =
-      (rawEffectiveStatus === "occupied" &&
-        !hasActiveStay &&
-        Boolean(room.projectedReservation)) ||
-      (room.projectedStatus === "RESERVED" &&
-        Boolean(room.projectedReservation)) ||
-      hasReservation;
-    const effectiveStatus: RoomStatusFilter = hasReservation
-      ? "reserved"
-      : rawEffectiveStatus;
-    const roomStatusModel = resolveRoomStatusModel(room as RoomCompatibilityData, {
-      isFuture: isFutureDate,
-    });
-    const displayData = formatRoomDisplay(room as RoomCompatibilityData);
+    const isReserved = effectiveStatus === "reserved";
+
     const matchedOccupant =
       !isFutureDate && inputQuery.trim()
         ? room.activeStay?.occupants?.find((occ) =>
@@ -4476,6 +4456,14 @@ export function StaffRoomsClient({
             }
             setIsReservationOpen(true);
           }}
+          onOpenBulkReservation={(selectedRooms, checkInDate, checkOutDate) => {
+            setBulkMode("manual");
+            setBulkSelectedRoomIds(new Set(selectedRooms.map((r) => r.id)));
+            setBulkCheckInDate(checkInDate);
+            setBulkCheckOutDate(checkOutDate);
+            setBulkLeadName("");
+            setIsBulkModalOpen(true);
+          }}
           onCheckOutStay={async (stayId, roomNum) => {
             try {
               await requestInternalApiEnvelope(
@@ -4794,6 +4782,7 @@ export function StaffRoomsClient({
             id: selectedRoom.id,
             roomNumber: getRoomNumber(selectedRoom),
             type: selectedRoom.type ?? undefined,
+            maxOccupancy: selectedRoom.maxOccupancy,
             status: "available",
           }}
           canManageStays={canManageStays}
@@ -6486,11 +6475,16 @@ export function StaffRoomsClient({
           setActiveReservationCheckIn({
             reservationId,
             guestDisplayName: arr?.guestDisplayName,
+            roomId: arr?.roomId ?? targetRoom.id,
+            updatedAt: arr?.updatedAt,
           });
           setCustomCheckInInitialFields({
             guestDisplayName: arr?.guestDisplayName,
             guestPhone: arr?.guestPhone || "",
             plannedCheckOutAt: arr?.plannedCheckOutAt,
+            reservationCode: arr?.reservationCode,
+            plannedCheckInAt: arr?.plannedCheckInAt,
+            notes: arr?.notes ?? undefined,
           });
           setSubmitError(undefined);
           setIsCheckInOpen(true);

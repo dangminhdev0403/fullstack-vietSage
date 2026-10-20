@@ -10,7 +10,11 @@ import {
 } from "@/app/api/hotel-ops/_utils";
 
 type Params = { params: Promise<{ hotelId: string; reservationId: string }> };
-const schema = z.object({ roomId: z.string().trim().min(1) }).strict();
+const schema = z.object({
+  roomId: z.string().trim().min(1),
+  expectedUpdatedAt: z.string().datetime().optional(),
+  expectedRoomId: z.string().trim().min(1).nullable().optional(),
+}).strict();
 
 export async function PUT(request: Request, context: Params) {
   const { hotelId, reservationId } = await context.params;
@@ -19,7 +23,7 @@ export async function PUT(request: Request, context: Params) {
   if (!parsed.success) return validationErrorResponse("roomId is required");
   try {
     const data = await executeHotelOpsBackendRequest("assign reservation room", (accessToken) =>
-      hotelOpsService.assignReservationRoom(hotelId, reservationId, parsed.data.roomId, accessToken),
+      hotelOpsService.assignReservationRoom(hotelId, reservationId, parsed.data, accessToken),
     );
     if (data instanceof Response) return data;
     return successResponse(data);

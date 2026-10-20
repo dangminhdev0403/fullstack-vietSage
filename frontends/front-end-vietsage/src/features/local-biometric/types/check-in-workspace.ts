@@ -2,6 +2,7 @@ export type CheckInWorkspaceRoom = {
   id: string;
   roomNumber: string;
   type?: string;
+  maxOccupancy?: number | null;
   status: string;
 };
 
@@ -26,6 +27,9 @@ export type CheckInStayFields = {
   guestNationality?: string;
   guestResidencePlace?: string;
   occupants?: CheckInOccupantField[];
+  reservationCode?: string;
+  plannedCheckInAt?: string;
+  notes?: string;
 };
 
 export type CheckInWorkspaceProps = {

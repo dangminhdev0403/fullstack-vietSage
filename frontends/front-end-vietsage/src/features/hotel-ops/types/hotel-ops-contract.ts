@@ -82,12 +82,17 @@ export type HotelRoomSummary = {
   hotelId?: string;
   roomNumber?: string | null;
   floor?: string | null;
+  zone?: string | null;
   type?: string | null;
+  roomTypeName?: string | null;
+  maxOccupancy?: number | null;
   price?: string | number | null;
   maxActiveGuestDevices?: number | null;
   activeGuestDeviceCount?: number | null;
   status?: string | null;
+  physicalStatus?: string | null;
   projectedStatus?: string | null;
+  statusConflictCode?: string | null;
   publicCode?: string | null;
   qrCode?: string | null;
   qrStatus?: string | null;
@@ -111,6 +116,7 @@ export type HotelRoomType = {
   id: string;
   name: string;
   basePrice: number | null;
+  maxOccupancy?: number | null;
   readiness: "READY" | "MISSING_PRICE";
   roomCount: number;
 };
@@ -181,6 +187,9 @@ export type HotelReservationInput = {
   plannedCheckInAt: string;
   plannedCheckOutAt: string;
   roomId?: string;
+  roomTypeId?: string;
+  guestCount?: number;
+  notes?: string;
   nightlyRateSnapshot?: number | string;
 };
 
@@ -320,9 +329,12 @@ export type HotelArrival = {
   id: string;
   hotelId: string;
   roomId: string | null;
-  room?: Pick<HotelRoomSummary, "id" | "roomNumber"> | null;
+  roomTypeId?: string | null;
+  room?: Pick<HotelRoomSummary, "id" | "roomNumber" | "type" | "maxOccupancy"> | null;
   reservationCode: string;
   groupCode?: string | null;
+  guestCount?: number | null;
+  notes?: string | null;
   guestDisplayName: string;
   guestPhone: string | null;
   status: "CONFIRMED" | "ARRIVAL_READY" | "CHECKED_IN" | "CANCELLED" | "NO_SHOW";
@@ -330,6 +342,7 @@ export type HotelArrival = {
   plannedCheckOutAt: string;
   nightlyRateSnapshot?: number | string | null;
   rate?: string | null;
+  updatedAt?: string | null;
 };
 
 export type ListHotelArrivalsQuery = {
@@ -438,6 +451,7 @@ export type ListHotelRoomsQuery = {
   q?: string;
   status?: string;
   floor?: string;
+  zone?: string;
   type?: string;
   vipOnly?: boolean;
   businessDate?: string;
@@ -448,9 +462,10 @@ export type ListHotelRoomsQuery = {
 export type CreateHotelRoomInput = {
   roomNumber: string;
   floor?: string;
+  zone?: string | null;
   type?: string;
   roomTypeId?: string;
-  newRoomType?: { name: string; basePrice: number };
+  newRoomType?: { name: string; basePrice: number; maxOccupancy?: number | null };
   price?: number;
   maxActiveGuestDevices?: number;
 };
@@ -458,6 +473,7 @@ export type CreateHotelRoomInput = {
 export type UpdateHotelRoomInput = {
   roomNumber?: string;
   floor?: string | null;
+  zone?: string | null;
   type?: string | null;
   roomTypeId?: string;
   price?: number | null;

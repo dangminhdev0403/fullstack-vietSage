@@ -155,16 +155,20 @@ export class HotelOpsService {
   async assignReservationRoom(
     hotelId: string,
     reservationId: string,
-    roomId: string,
+    body: {
+      roomId: string;
+      expectedUpdatedAt?: string;
+      expectedRoomId?: string | null;
+    },
     accessToken?: string,
   ): Promise<HotelArrival> {
-    const payload = await this.httpClient.request<unknown, { roomId: string }>({
+    const payload = await this.httpClient.request<unknown, typeof body>({
       method: "PUT",
       path: hotelPath(
         hotelId,
         `/reservations/${encodeURIComponent(reservationId)}/room`,
       ),
-      body: { roomId },
+      body,
       accessToken,
     });
     return unwrapApiEnvelope<HotelArrival>(payload).data;
@@ -238,7 +242,7 @@ export class HotelOpsService {
 
   async createRoomType(
     hotelId: string,
-    body: { name: string; basePrice: number },
+    body: { name: string; basePrice: number; maxOccupancy?: number | null },
     accessToken?: string,
   ): Promise<HotelRoomType & { created: boolean }> {
     const payload = await this.httpClient.request<unknown, typeof body>({
@@ -254,7 +258,7 @@ export class HotelOpsService {
   async updateRoomTypePrice(
     hotelId: string,
     roomTypeId: string,
-    body: { basePrice: number },
+    body: { basePrice?: number; maxOccupancy?: number | null },
     accessToken?: string,
   ): Promise<HotelRoomType> {
     const payload = await this.httpClient.request<unknown, typeof body>({

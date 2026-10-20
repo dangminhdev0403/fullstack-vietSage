@@ -10,16 +10,19 @@ export const ownerRoomTypesRepository = {
     );
     return response.data;
   },
-  async create(hotelId: string, body: { name: string; basePrice: number }) {
+  async create(hotelId: string, body: { name: string; basePrice: number; maxOccupancy?: number | null }) {
     const response = await requestInternalApiEnvelope<HotelRoomType>(
       path(hotelId), { method: "POST", body },
     );
     return response.data;
   },
-  async updatePrice(hotelId: string, body: { roomTypeId: string; basePrice: number }) {
+  async updatePrice(hotelId: string, body: { roomTypeId: string; basePrice?: number; maxOccupancy?: number | null }) {
     const response = await requestInternalApiEnvelope<HotelRoomType>(
       `${path(hotelId)}/${encodeURIComponent(body.roomTypeId)}/price`,
-      { method: "PATCH", body: { basePrice: body.basePrice } },
+      { method: "PATCH", body: {
+        ...(body.basePrice !== undefined ? { basePrice: body.basePrice } : {}),
+        ...(body.maxOccupancy !== undefined ? { maxOccupancy: body.maxOccupancy } : {}),
+      } },
     );
     return response.data;
   },

@@ -1231,7 +1231,7 @@ export class ReservationsRepository {
       guestDisplayName: string;
       phone: string | null;
       guestPhone: string | null;
-      guestCount: number;
+      guestCount: number | null;
       status: string;
       source: "OTA" | "DIRECT" | "UNKNOWN";
       channel: string;
@@ -1281,7 +1281,7 @@ export class ReservationsRepository {
           guestDisplayName: r.guestDisplayName,
           phone: r.guestPhone,
           guestPhone: r.guestPhone,
-          guestCount: 1,
+          guestCount: r.guestCount ?? null,
           status: r.status,
           source: isOta ? "OTA" : "DIRECT",
           channel: channelName,

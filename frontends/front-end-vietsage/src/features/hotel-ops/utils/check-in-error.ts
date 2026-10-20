@@ -2,7 +2,10 @@ export function formatFriendlyCheckInError(error: unknown): string {
   const msg = error instanceof Error ? error.message : String(error || "");
   const normalized = msg.toUpperCase();
 
-  if (normalized.includes("EARLY_CHECK_IN_NOT_ALLOWED")) {
+  if (
+    normalized.includes("EARLY_CHECK_IN_NOT_ALLOWED") ||
+    normalized.includes("EARLY_CHECK_IN_CONFIRMATION_REQUIRED")
+  ) {
     return "Chưa tới ngày nhận phòng dự kiến. Đơn đặt phòng này có ngày đến trong tương lai. Vui lòng xác nhận nhận phòng sớm nếu phòng đã sẵn sàng.";
   }
 
@@ -64,7 +67,11 @@ export function formatFriendlyCheckInError(error: unknown): string {
 
 export function isEarlyCheckInError(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error || "");
-  return msg.toUpperCase().includes("EARLY_CHECK_IN_NOT_ALLOWED");
+  const upper = msg.toUpperCase();
+  return (
+    upper.includes("EARLY_CHECK_IN_NOT_ALLOWED") ||
+    upper.includes("EARLY_CHECK_IN_CONFIRMATION_REQUIRED")
+  );
 }
 
 export function isLateCheckInError(error: unknown): boolean {

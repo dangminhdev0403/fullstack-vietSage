@@ -99,26 +99,12 @@ export type ResolvedRoomStatus =
   | "maintenance"
   | "blocked";
 
-export type ResolvedPhysicalStatus =
-  | "clean"
-  | "dirty"
-  | "cleaning"
-  | "inspecting"
-  | "out_of_service";
-
 export type RoomStatusVisual = {
   status: ResolvedRoomStatus;
   label: string;
   icon: string;
   badgeClass: string;
   textColor: string;
-};
-
-export type PhysicalStatusVisual = {
-  status: ResolvedPhysicalStatus;
-  label: string;
-  icon: string;
-  badgeClass: string;
 };
 
 export type StatusConflictVisual = {
@@ -134,7 +120,6 @@ export function resolveRoomStatusModel(
   options?: { isFuture?: boolean; nowTimestamp?: number },
 ): {
   operational: RoomStatusVisual;
-  physical: PhysicalStatusVisual;
   conflict: StatusConflictVisual;
 } {
   const now = options?.nowTimestamp ?? Date.now();
@@ -164,58 +149,53 @@ export function resolveRoomStatusModel(
     badgeClass: "bg-amber-100 text-amber-950 border border-amber-300",
   };
 
-  // 2. Operational Status resolution (no local competing state beyond explicit legacy fallback)
+  // Backend projection is authoritative. Local fields are compatibility-only fallback.
   const stay = room?.activeStay;
-  const isOverdue = Boolean(
-    stay &&
-      !stay.checkedOutAt &&
-      stay.plannedCheckOutAt &&
-      new Date(stay.plannedCheckOutAt).getTime() < now &&
-      ["ACTIVE", "CHECKED_IN", "CHECKOUT_PENDING"].includes(
-        (stay.status || "").toUpperCase(),
-      ),
-  );
+  const isOverdue = rawConflictCode?.toUpperCase().includes("OVERDUE") ||
+    (!room?.projectedStatus && Boolean(
+      stay &&
+        !stay.checkedOutAt &&
+        stay.plannedCheckOutAt &&
+        new Date(stay.plannedCheckOutAt).getTime() < now &&
+        ["ACTIVE", "CHECKED_IN", "CHECKOUT_PENDING"].includes(
+          (stay.status || "").toUpperCase(),
+        ),
+    ));
 
   let opStatus: ResolvedRoomStatus = "available";
 
+  const projected = room?.projectedStatus?.toUpperCase();
   if (isOverdue) {
     opStatus = "overdue";
-  } else if (isFuture) {
-    const proj = (room?.projectedStatus || room?.status || "").toUpperCase();
-    if (proj === "OCCUPIED") opStatus = "occupied";
+  } else if (projected) {
+    if (projected === "OCCUPIED") opStatus = "occupied";
     else if (
-      proj === "RESERVED" ||
-      (!room?.activeStay && Boolean(room?.projectedReservation))
+      projected === "RESERVED"
     )
       opStatus = "reserved";
-    else if (proj === "PROCESSING") opStatus = "processing";
-    else if (proj === "BLOCKED") opStatus = "blocked";
-    else if (proj === "MAINTENANCE" || proj === "OUT_OF_SERVICE")
+    else if (projected === "PROCESSING") opStatus = "processing";
+    else if (projected === "BLOCKED") opStatus = "blocked";
+    else if (projected === "MAINTENANCE" || projected === "OUT_OF_SERVICE")
       opStatus = "maintenance";
-    else if (room?.projectedReservation) opStatus = "reserved";
     else opStatus = "available";
   } else {
-    // Normal / current date
-    const projectedUc = room?.projectedStatus?.toUpperCase();
+    // Compatibility fallback for older room responses.
     const statusUc = room?.status?.toUpperCase();
 
-    if (room?.activeStay || statusUc === "OCCUPIED" || projectedUc === "OCCUPIED") {
+    if (room?.activeStay || statusUc === "OCCUPIED") {
       opStatus = "occupied";
     } else if (
       statusUc === "RESERVED" ||
-      projectedUc === "RESERVED" ||
       (!room?.activeStay && Boolean(room?.projectedReservation))
     ) {
       opStatus = "reserved";
-    } else if (statusUc === "PROCESSING" || projectedUc === "PROCESSING") {
+    } else if (statusUc === "PROCESSING") {
       opStatus = "processing";
-    } else if (statusUc === "BLOCKED" || projectedUc === "BLOCKED") {
+    } else if (statusUc === "BLOCKED") {
       opStatus = "blocked";
     } else if (
       statusUc === "MAINTENANCE" ||
-      statusUc === "OUT_OF_SERVICE" ||
-      projectedUc === "MAINTENANCE" ||
-      projectedUc === "OUT_OF_SERVICE"
+      statusUc === "OUT_OF_SERVICE"
     ) {
       opStatus = "maintenance";
     } else {
@@ -283,68 +263,8 @@ export function resolveRoomStatusModel(
     ...opVisualInfo,
   };
 
-  // 3. Physical Status resolution
-  const rawPhys = (room?.physicalStatus || "").toUpperCase();
-  let physStatus: ResolvedPhysicalStatus = "clean";
-  let physLabel = "Sạch";
-  let physIcon = "check_circle";
-  let physBadge = "bg-emerald-50 text-emerald-800 border-emerald-300";
-
-  if (rawPhys === "DIRTY" || rawPhys === "CHỜ DỌN") {
-    physStatus = "dirty";
-    physLabel = "Chưa dọn";
-    physIcon = "cleaning_services";
-    physBadge = "bg-amber-50 text-amber-900 border-amber-300";
-  } else if (rawPhys === "CLEANING" || rawPhys === "PROCESSING" || rawPhys === "ĐANG DỌN") {
-    physStatus = "cleaning";
-    physLabel = "Đang dọn";
-    physIcon = "hourglass_empty";
-    physBadge = "bg-sky-50 text-sky-800 border-sky-300";
-  } else if (rawPhys === "INSPECTING" || rawPhys === "KIỂM TRA") {
-    physStatus = "inspecting";
-    physLabel = "Chờ kiểm tra";
-    physIcon = "fact_check";
-    physBadge = "bg-indigo-50 text-indigo-800 border-indigo-300";
-  } else if (rawPhys === "OUT_OF_SERVICE" || rawPhys === "MAINTENANCE" || rawPhys === "BẢO TRÌ") {
-    physStatus = "out_of_service";
-    physLabel = "Bảo trì";
-    physIcon = "build";
-    physBadge = "bg-rose-50 text-rose-800 border-rose-300";
-  } else if (rawPhys === "CLEAN" || rawPhys === "READY" || rawPhys === "SẠCH") {
-    physStatus = "clean";
-    physLabel = "Sạch";
-    physIcon = "check_circle";
-    physBadge = "bg-emerald-50 text-emerald-800 border-emerald-300";
-  } else {
-    // Legacy fallback
-    if (opStatus === "processing") {
-      physStatus = "dirty";
-      physLabel = "Chưa dọn";
-      physIcon = "cleaning_services";
-      physBadge = "bg-amber-50 text-amber-900 border-amber-300";
-    } else if (opStatus === "maintenance") {
-      physStatus = "out_of_service";
-      physLabel = "Bảo trì";
-      physIcon = "build";
-      physBadge = "bg-rose-50 text-rose-800 border-rose-300";
-    } else {
-      physStatus = "clean";
-      physLabel = "Sạch";
-      physIcon = "check_circle";
-      physBadge = "bg-emerald-50 text-emerald-800 border-emerald-300";
-    }
-  }
-
-  const physical: PhysicalStatusVisual = {
-    status: physStatus,
-    label: physLabel,
-    icon: physIcon,
-    badgeClass: physBadge,
-  };
-
   return {
     operational,
-    physical,
     conflict,
   };
 }
@@ -730,14 +650,6 @@ export function FrontDeskRoomDetailPanel({
                 <span>{roomStatusModel.operational.label}</span>
               </span>
 
-              {/* Physical status badge */}
-              <span
-                className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold border shadow-2xs whitespace-nowrap ${roomStatusModel.physical.badgeClass}`}
-                title={`Tình trạng buồng phòng: ${roomStatusModel.physical.label}`}
-              >
-                <VsIcon name={roomStatusModel.physical.icon} className="text-xs shrink-0" />
-                <span>{roomStatusModel.physical.label}</span>
-              </span>
 
               {/* Conflict indicator badge */}
               {roomStatusModel.conflict.hasConflict && (

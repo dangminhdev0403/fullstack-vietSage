@@ -1,4 +1,5 @@
 import { HttpError } from "@/core/http/http-error";
+import { z } from "zod";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import {
   executeOwnerBackendRequest,
@@ -9,6 +10,12 @@ import {
 } from "../../../_utils";
 
 type Context = { params: Promise<{ hotelId: string }> };
+
+const createRoomTypeSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  basePrice: z.number().finite().positive(),
+  maxOccupancy: z.number().int().min(1).max(50).nullable().optional(),
+}).strict();
 
 export async function GET(_request: Request, context: Context) {
   const { hotelId } = await context.params;
@@ -27,18 +34,11 @@ export async function POST(request: Request, context: Context) {
   if (!hotelId) return validationErrorResponse("hotelId is required");
   let body: unknown;
   try { body = await request.json(); } catch { return validationErrorResponse("Invalid JSON"); }
-  if (!body || typeof body !== "object" || Array.isArray(body) ||
-      Object.keys(body).some((key) => key !== "name" && key !== "basePrice")) {
-    return validationErrorResponse("Chỉ nhập tên và giá gốc loại phòng");
-  }
-  const { name, basePrice } = body as Record<string, unknown>;
-  if (typeof name !== "string" || !name.trim() || name.length > 80 ||
-      typeof basePrice !== "number" || !Number.isFinite(basePrice) || basePrice <= 0) {
-    return validationErrorResponse("Tên và giá gốc dương là bắt buộc");
-  }
+  const parsed = createRoomTypeSchema.safeParse(body);
+  if (!parsed.success) return validationErrorResponse(parsed.error.issues[0]?.message || "Thông tin loại phòng không hợp lệ");
   try {
     const result = await executeOwnerBackendRequest("create owner room type", (token) =>
-      hotelOpsService.createRoomType(hotelId, { name: name.trim(), basePrice }, token));
+      hotelOpsService.createRoomType(hotelId, parsed.data, token));
     return result instanceof Response ? result : successResponse(result, result.created ? 201 : 200, "Room type saved");
   } catch (error) {
     return error instanceof HttpError ? ownerHttpErrorResponse(error) : unknownServerErrorResponse();

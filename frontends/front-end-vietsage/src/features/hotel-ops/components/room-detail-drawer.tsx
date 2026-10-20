@@ -27,6 +27,7 @@ type RoomDetailDrawerProps = {
     data: {
       roomNumber: string;
       floor?: string;
+      zone?: string | null;
       roomTypeId?: string;
       price?: number;
       maxActiveGuestDevices?: number | null;
@@ -171,6 +172,7 @@ function RoomDetailDialog({
   // Form edit states
   const [formRoomNumber, setFormRoomNumber] = useState(room.roomNumber ?? "");
   const [formFloor, setFormFloor] = useState(room.floor ?? "");
+  const [formZone, setFormZone] = useState(room.zone ?? "");
   const [formRoomTypeId, setFormRoomTypeId] = useState(room.roomTypeId ?? "");
   const [formPrice, setFormPrice] = useState(
     room.price !== null && room.price !== undefined && room.price !== ""
@@ -299,6 +301,7 @@ function RoomDetailDialog({
       await onSaveRoom(room.id, {
         roomNumber: trimmedNumber,
         floor: formFloor.trim() || undefined,
+        zone: formZone.trim() || null,
         ...(formRoomTypeId ? { roomTypeId: formRoomTypeId } : {}),
         price: priceNum,
         maxActiveGuestDevices: formMaxDevices.trim()
@@ -495,6 +498,19 @@ function RoomDetailDialog({
                         value={formFloor}
                         onChange={(e) => setFormFloor(e.target.value)}
                         placeholder="Ví dụ: 5"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+                        Khu vực
+                      </label>
+                      <input
+                        type="text"
+                        value={formZone}
+                        onChange={(e) => setFormZone(e.target.value)}
+                        placeholder="Ví dụ: Tòa A"
                         className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition"
                       />
                     </div>

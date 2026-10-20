@@ -65,6 +65,7 @@ type RoomFormState = {
   id?: string;
   roomNumber: string;
   floor: string;
+  zone: string;
   type: string;
   roomTypeId: string;
   price: string;
@@ -77,6 +78,7 @@ function createInitialRoomForm(): RoomFormState {
   return {
     roomNumber: "",
     floor: "",
+    zone: "",
     type: "",
     roomTypeId: "",
     price: "",
@@ -89,6 +91,7 @@ const roomPageSizeOptions = [10, 25, 50];
 const roomFormSchema = z.object({
   roomNumber: z.string().trim().min(1, "Vui lòng nhập số phòng."),
   floor: z.string(),
+  zone: z.string(),
   type: z.string(),
   roomTypeId: z.string(),
   price: z
@@ -300,6 +303,7 @@ function getRoomFormErrors(form: RoomFormState): RoomFormErrors {
   return {
     roomNumber: fieldErrors.roomNumber?.[0],
     floor: fieldErrors.floor?.[0],
+    zone: fieldErrors.zone?.[0],
     type: fieldErrors.type?.[0],
     price: fieldErrors.price?.[0],
     maxActiveGuestDevices: fieldErrors.maxActiveGuestDevices?.[0],
@@ -676,6 +680,7 @@ export function OwnerRoomsClient({
     data: {
       roomNumber: string;
       floor?: string;
+      zone?: string | null;
       roomTypeId?: string;
       price?: number;
       maxActiveGuestDevices?: number | null;
@@ -778,6 +783,7 @@ export function OwnerRoomsClient({
       const body = {
         roomNumber: roomForm.roomNumber.trim(),
         floor: roomForm.floor.trim() || undefined,
+        zone: roomForm.zone.trim() || undefined,
         ...(isEditing
           ? { ...(roomForm.roomTypeId && roomForm.roomTypeId !== originalRoom?.roomTypeId ? { roomTypeId: roomForm.roomTypeId } : {}) }
           : roomForm.roomTypeId
@@ -1991,6 +1997,18 @@ export function OwnerRoomsClient({
                   className={roomInputClass(Boolean(roomFormErrors.floor))}
                 />
                 <RoomFieldError message={roomFormErrors.floor} />
+              </label>
+              <label className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
+                  Khu vực
+                </span>
+                <input
+                  value={roomForm.zone}
+                  onChange={(event) => updateRoomFormField("zone", event.target.value)}
+                  aria-invalid={Boolean(roomFormErrors.zone)}
+                  className={roomInputClass(Boolean(roomFormErrors.zone))}
+                />
+                <RoomFieldError message={roomFormErrors.zone} />
               </label>
               <label className="space-y-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">

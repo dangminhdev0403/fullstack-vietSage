@@ -1500,4 +1500,81 @@ describe("ReservationsRepository transactional lifecycle", () => {
       });
     });
   });
+
+  describe("getRoomPlan canonical reservation guestCount", () => {
+    it("preserves canonical reservation guestCount and preserves null instead of fabricating 1", async () => {
+      const rooms = [
+        {
+          id: "room-1",
+          roomNumber: "101",
+          floor: "1",
+          roomTypeId: "type-1",
+          roomType: { name: "Deluxe" },
+          status: RoomStatus.AVAILABLE,
+          price: new Prisma.Decimal(500000),
+        },
+      ];
+      const reservations = [
+        {
+          id: "res-unknown-count",
+          roomId: "room-1",
+          groupCode: null,
+          status: ReservationStatus.CONFIRMED,
+          plannedCheckInAt: new Date("2026-10-21T07:00:00.000Z"),
+          plannedCheckOutAt: new Date("2026-10-23T05:00:00.000Z"),
+          guestDisplayName: "Guest Unknown",
+          guestPhone: "0900000001",
+          guestCount: null,
+          nightlyRateSnapshot: new Prisma.Decimal(500000),
+          updatedAt: new Date("2026-10-21T00:00:00.000Z"),
+          room: {
+            roomNumber: "101",
+            roomTypeId: "type-1",
+            roomType: { name: "Deluxe" },
+          },
+        },
+        {
+          id: "res-known-count",
+          roomId: "room-1",
+          groupCode: "OTA-Agoda",
+          status: ReservationStatus.CONFIRMED,
+          plannedCheckInAt: new Date("2026-10-24T07:00:00.000Z"),
+          plannedCheckOutAt: new Date("2026-10-26T05:00:00.000Z"),
+          guestDisplayName: "Guest Known",
+          guestPhone: "0900000002",
+          guestCount: 3,
+          nightlyRateSnapshot: new Prisma.Decimal(500000),
+          updatedAt: new Date("2026-10-21T00:00:00.000Z"),
+          room: {
+            roomNumber: "101",
+            roomTypeId: "type-1",
+            roomType: { name: "Deluxe" },
+          },
+        },
+      ];
+
+      const prisma = {
+        room: { findMany: jest.fn().mockResolvedValue(rooms) },
+        reservation: { findMany: jest.fn().mockResolvedValue(reservations) },
+        guestStay: { findMany: jest.fn().mockResolvedValue([]) },
+      };
+      const repository = new ReservationsRepository(prisma as never);
+
+      const result = await repository.getRoomPlan({
+        hotelId: "hotel-1",
+        from: new Date("2026-10-20T00:00:00.000Z"),
+        to: new Date("2026-10-30T00:00:00.000Z"),
+      });
+
+      expect(result.blocks).toHaveLength(2);
+
+      const unknownBlock = result.blocks.find((b) => b.reservationId === "res-unknown-count");
+      expect(unknownBlock).toBeDefined();
+      expect(unknownBlock?.guestCount).toBeNull();
+
+      const knownBlock = result.blocks.find((b) => b.reservationId === "res-known-count");
+      expect(knownBlock).toBeDefined();
+      expect(knownBlock?.guestCount).toBe(3);
+    });
+  });
 });

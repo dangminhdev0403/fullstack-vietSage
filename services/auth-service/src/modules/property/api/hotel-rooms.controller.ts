@@ -66,6 +66,7 @@ export class HotelRoomsController {
       properties: {
         name: { type: "string", minLength: 1, maxLength: 80 },
         basePrice: { type: "number", minimum: 0, exclusiveMinimum: true },
+        maxOccupancy: { type: "integer", minimum: 1, maximum: 50, nullable: true },
       },
     },
   })
@@ -95,11 +96,13 @@ export class HotelRoomsController {
   @ApiBody({
     schema: {
       type: "object",
-      required: ["basePrice"],
-      properties: { basePrice: { type: "number", minimum: 0, exclusiveMinimum: true } },
+      properties: {
+        basePrice: { type: "number", minimum: 0, exclusiveMinimum: true },
+        maxOccupancy: { type: "integer", minimum: 1, maximum: 50, nullable: true },
+      },
     },
   })
-  @ApiOkResponse({ description: "Giá gốc được lưu nội bộ; chưa đẩy Channex" })
+  @ApiOkResponse({ description: "Giá gốc hoặc sức chứa được lưu nội bộ; chưa đẩy Channex" })
   @Patch(":hotelId/room-types/:roomTypeId/price")
   async updateRoomTypePrice(
     @Req() request: RequestWithUser,
@@ -107,13 +110,14 @@ export class HotelRoomsController {
     @Param("roomTypeId") roomTypeId: string,
     @Body() body: unknown,
   ) {
-    const { basePrice } = parseWithZod(updateRoomTypePriceBodySchema, body);
+    const { basePrice, maxOccupancy } = parseWithZod(updateRoomTypePriceBodySchema, body);
     return this.hotelRoomsService.updateRoomTypePrice(
       request.user.userId,
       request.user.roleId,
       parseWithZod(hotelIdParamSchema, hotelIdParam),
       parseWithZod(roomIdParamSchema, roomTypeId),
       basePrice,
+      maxOccupancy,
     );
   }
 

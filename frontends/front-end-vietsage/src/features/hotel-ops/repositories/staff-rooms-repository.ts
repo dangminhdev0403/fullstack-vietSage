@@ -18,6 +18,7 @@ export type StaffRoomsListInput = Readonly<{
   q?: string;
   status?: string;
   floor?: string;
+  zone?: string;
   type?: string;
   vipOnly?: boolean;
   businessDate?: string;
@@ -43,6 +44,8 @@ export const staffRoomsRepository = {
       params.set("status", input.status.toUpperCase());
     if (input?.floor && input.floor !== "all")
       params.set("floor", input.floor.trim());
+    if (input?.zone && input.zone !== "all")
+      params.set("zone", input.zone.trim());
     if (input?.type && input.type !== "all")
       params.set("type", input.type.trim());
     if (input?.vipOnly) params.set("vipOnly", "true");

@@ -261,20 +261,21 @@ export function FrontDeskArrivalDetailPanel({
       ...(fields.guestResidencePlace?.trim() ? { guestResidencePlace: fields.guestResidencePlace.trim() } : {}),
       ...(fields.plannedCheckOutAt ? { plannedCheckOutAt: fields.plannedCheckOutAt } : {}),
       ...(fields.occupants?.length ? { occupants: fields.occupants } : {}),
+      expectedRoomId: arrival.roomId,
+      ...(arrival.updatedAt ? { expectedUpdatedAt: arrival.updatedAt } : {}),
     };
 
     const assignedRoom = availableRooms.find((r) => r.id === arrival.roomId);
     const roomLabel = arrival.room?.roomNumber
       ? `Phòng ${arrival.room.roomNumber}`
       : (assignedRoom?.roomNumber ? `Phòng ${assignedRoom.roomNumber}` : (arrival.roomId ? `Phòng ${arrival.roomId}` : "Chưa rõ"));
-    const roomType = assignedRoom?.type || "Tiêu chuẩn";
-    const capacityLabel = assignedRoom?.maxActiveGuestDevices
-      ? `${assignedRoom.maxActiveGuestDevices} khách`
-      : "2 khách";
+    const roomType = assignedRoom?.type || arrival.room?.type || "Tiêu chuẩn";
+    const maxOccupancy = assignedRoom?.maxOccupancy ?? arrival.room?.maxOccupancy;
+    const capacityLabel = maxOccupancy ? `${maxOccupancy} khách` : "Chưa thiết lập";
     const scheduleLabel = `${formatDateTime(arrival.plannedCheckInAt)} – ${formatDateTime(fields.plannedCheckOutAt || arrival.plannedCheckOutAt)} (${nights} đêm)`;
     const partyCount = 1 + (fields.occupants?.length || 0);
     const partyLabel = `${partyCount} khách (1 khách chính${fields.occupants?.length ? ` + ${fields.occupants.length} khách đi cùng` : ""})`;
-    const notesLabel = arrival.groupCode ? `Mã đoàn: ${arrival.groupCode}` : "Không có ghi chú";
+    const notesLabel = arrival.notes || (arrival.groupCode ? `Mã đoàn: ${arrival.groupCode}` : "Không có ghi chú");
 
     const formatSuccessSummary = (isReplay: boolean, accessCode?: string) => {
       return [
@@ -356,7 +357,9 @@ export function FrontDeskArrivalDetailPanel({
                 method: "POST",
                 body: {
                   ...basePayload,
-                  allowEarlyCheckIn: true,
+                  ...(isEarly
+                    ? { confirmEarlyCheckIn: true }
+                    : { confirmLateCheckIn: true }),
                 },
               },
             );
@@ -738,9 +741,9 @@ export function FrontDeskArrivalDetailPanel({
                         ) : null}
                       </h4>
                       <p className="text-xs text-slate-600 mt-0.5">
-                        Sức chứa: {availableRooms.find((r) => r.id === arrival.roomId)?.maxActiveGuestDevices
-                          ? `${availableRooms.find((r) => r.id === arrival.roomId)?.maxActiveGuestDevices} khách`
-                          : "2 khách"} · Phòng đã sẵn sàng tiếp đón khi khách đến.
+                        Sức chứa: {availableRooms.find((r) => r.id === arrival.roomId)?.maxOccupancy
+                          ? `${availableRooms.find((r) => r.id === arrival.roomId)?.maxOccupancy} khách`
+                          : "—"} · Phòng đã sẵn sàng tiếp đón khi khách đến.
                       </p>
                     </div>
                   </div>
@@ -910,9 +913,7 @@ export function FrontDeskArrivalDetailPanel({
             roomNumber: arrival.room?.roomNumber ? String(arrival.room.roomNumber) : arrival.roomId,
             type: availableRooms.find((r) => r.id === arrival.roomId)?.type ?? undefined,
             status: "available",
-            capacity: availableRooms.find((r) => r.id === arrival.roomId)?.maxActiveGuestDevices
-              ? `${availableRooms.find((r) => r.id === arrival.roomId)?.maxActiveGuestDevices} khách`
-              : "2 khách",
+            maxOccupancy: availableRooms.find((r) => r.id === arrival.roomId)?.maxOccupancy ?? arrival.room?.maxOccupancy ?? null,
             notes: arrival.groupCode ? `Mã đoàn: ${arrival.groupCode}` : undefined,
           } as any}
           canManageStays={Boolean(canCheckInStay || canOperateArrivals)}

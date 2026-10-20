@@ -3795,6 +3795,11 @@ paths:
                   type: number
                   minimum: 0
                   exclusiveMinimum: true
+                maxOccupancy:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  nullable: true
       responses:
         "200":
           description: Loại phòng đã tồn tại; giá gốc không thay đổi
@@ -3821,16 +3826,19 @@ paths:
           application/json:
             schema:
               type: object
-              required:
-                - basePrice
               properties:
                 basePrice:
                   type: number
                   minimum: 0
                   exclusiveMinimum: true
+                maxOccupancy:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  nullable: true
       responses:
         "200":
-          description: Giá gốc được lưu nội bộ; chưa đẩy Channex
+          description: Giá gốc hoặc sức chứa được lưu nội bộ; chưa đẩy Channex
       tags: *a8
   /hotels/{hotelId}/rooms:
     post:

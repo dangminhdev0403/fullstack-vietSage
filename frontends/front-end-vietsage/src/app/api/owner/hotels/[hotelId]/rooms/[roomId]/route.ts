@@ -30,6 +30,10 @@ function sanitizeUpdateRoomPayload(payload: unknown): UpdateHotelRoomInput | nul
     updatePayload.floor = typeof input.floor === "string" && input.floor.trim() ? input.floor.trim() : null;
   }
 
+  if ("zone" in input) {
+    updatePayload.zone = typeof input.zone === "string" && input.zone.trim() ? input.zone.trim() : null;
+  }
+
   if ("type" in input) {
     updatePayload.type = typeof input.type === "string" && input.type.trim() ? input.type.trim() : null;
   }

@@ -30,7 +30,11 @@ function sanitizeCreateRoomPayload(payload: unknown): CreateHotelRoomInput | nul
   if (!roomNumber || (price !== undefined && (!Number.isFinite(price) || price < 0)) ||
       [Boolean(roomTypeId), Boolean(newRoomType), Boolean(type)].filter(Boolean).length !== 1 ||
       (newRoomType && (typeof newRoomType.name !== "string" || !newRoomType.name.trim() ||
-        !Number.isFinite(Number(newRoomType.basePrice)) || Number(newRoomType.basePrice) <= 0))) {
+        !Number.isFinite(Number(newRoomType.basePrice)) || Number(newRoomType.basePrice) <= 0 ||
+        (newRoomType.maxOccupancy !== undefined &&
+          (!Number.isInteger(Number(newRoomType.maxOccupancy)) ||
+            Number(newRoomType.maxOccupancy) < 1 ||
+            Number(newRoomType.maxOccupancy) > 50))))) {
     return null;
   }
 
@@ -45,9 +49,14 @@ function sanitizeCreateRoomPayload(payload: unknown): CreateHotelRoomInput | nul
   return {
     roomNumber,
     ...(typeof input.floor === "string" && input.floor.trim() ? { floor: input.floor.trim() } : {}),
+    ...(typeof input.zone === "string" && input.zone.trim() ? { zone: input.zone.trim() } : {}),
     ...(type ? { type } : {}),
     ...(roomTypeId ? { roomTypeId } : {}),
-    ...(newRoomType ? { newRoomType: { name: String(newRoomType.name).trim(), basePrice: Number(newRoomType.basePrice) } } : {}),
+    ...(newRoomType ? { newRoomType: {
+      name: String(newRoomType.name).trim(),
+      basePrice: Number(newRoomType.basePrice),
+      ...(newRoomType.maxOccupancy !== undefined ? { maxOccupancy: Number(newRoomType.maxOccupancy) } : {}),
+    } } : {}),
     ...(price !== undefined ? { price } : {}),
     ...(maxActiveGuestDevices !== undefined ? { maxActiveGuestDevices } : {}),
   };
@@ -64,6 +73,7 @@ export async function GET(request: Request, context: Params) {
   const status = url.searchParams.get("status")?.trim() || undefined;
   const type = url.searchParams.get("type")?.trim() || undefined;
   const floor = url.searchParams.get("floor")?.trim() || undefined;
+  const zone = url.searchParams.get("zone")?.trim() || undefined;
   const page = Number(url.searchParams.get("page")) || 1;
   const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit")) || 100));
 
@@ -77,6 +87,7 @@ export async function GET(request: Request, context: Params) {
           ...(status ? { status } : {}),
           ...(type ? { type } : {}),
           ...(floor ? { floor } : {}),
+          ...(zone ? { zone } : {}),
         },
         accessToken,
       }),
