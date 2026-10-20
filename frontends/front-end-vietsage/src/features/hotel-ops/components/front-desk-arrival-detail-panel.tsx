@@ -13,7 +13,11 @@ import type { HotelArrival } from "@/features/hotel-ops/types/hotel-ops-contract
 import { getArrivalStatusDisplay } from "@/features/hotel-ops/utils/hotel-ops-display";
 import { CheckInWorkspace } from "@/features/local-biometric/components/check-in-workspace";
 import type { CheckInStayFields } from "@/features/local-biometric/types/check-in-workspace";
-import { formatFriendlyCheckInError } from "@/features/hotel-ops/utils/check-in-error";
+import {
+  formatFriendlyCheckInError,
+  isEarlyCheckInError,
+  isLateCheckInError,
+} from "@/features/hotel-ops/utils/check-in-error";
 import {
   showConfirmDialog,
   showErrorAlert,
@@ -246,88 +250,137 @@ export function FrontDeskArrivalDetailPanel({
 
     setIsCheckingIn(true);
     setCheckInError(undefined);
+
+    const basePayload = {
+      guestDisplayName: fields.guestDisplayName?.trim() || arrival.guestDisplayName,
+      ...(fields.guestPhone?.trim() ? { guestPhone: fields.guestPhone.trim() } : {}),
+      ...(fields.guestIdentityNumber?.trim() ? { guestIdentityNumber: fields.guestIdentityNumber.trim() } : {}),
+      ...(fields.guestDateOfBirth?.trim() ? { guestDateOfBirth: fields.guestDateOfBirth.trim() } : {}),
+      ...(fields.guestGender?.trim() ? { guestGender: fields.guestGender.trim() } : {}),
+      ...(fields.guestNationality?.trim() ? { guestNationality: fields.guestNationality.trim() } : {}),
+      ...(fields.guestResidencePlace?.trim() ? { guestResidencePlace: fields.guestResidencePlace.trim() } : {}),
+      ...(fields.plannedCheckOutAt ? { plannedCheckOutAt: fields.plannedCheckOutAt } : {}),
+      ...(fields.occupants?.length ? { occupants: fields.occupants } : {}),
+    };
+
+    const assignedRoom = availableRooms.find((r) => r.id === arrival.roomId);
+    const roomLabel = arrival.room?.roomNumber
+      ? `Phòng ${arrival.room.roomNumber}`
+      : (assignedRoom?.roomNumber ? `Phòng ${assignedRoom.roomNumber}` : (arrival.roomId ? `Phòng ${arrival.roomId}` : "Chưa rõ"));
+    const roomType = assignedRoom?.type || "Tiêu chuẩn";
+    const capacityLabel = assignedRoom?.maxActiveGuestDevices
+      ? `${assignedRoom.maxActiveGuestDevices} khách`
+      : "2 khách";
+    const scheduleLabel = `${formatDateTime(arrival.plannedCheckInAt)} – ${formatDateTime(fields.plannedCheckOutAt || arrival.plannedCheckOutAt)} (${nights} đêm)`;
+    const partyCount = 1 + (fields.occupants?.length || 0);
+    const partyLabel = `${partyCount} khách (1 khách chính${fields.occupants?.length ? ` + ${fields.occupants.length} khách đi cùng` : ""})`;
+    const notesLabel = arrival.groupCode ? `Mã đoàn: ${arrival.groupCode}` : "Không có ghi chú";
+
+    const formatSuccessSummary = (isReplay: boolean, accessCode?: string) => {
+      return [
+        isReplay
+          ? `Đơn đặt phòng #${arrival.reservationCode} đã được hoàn tất nhận phòng trước đó (phản hồi trùng lặp). Dữ liệu lưu trú đã được đồng bộ an toàn.`
+          : `Đã hoàn tất nhận phòng thành công cho đơn đặt #${arrival.reservationCode}.`,
+        `• Khách đại diện: ${fields.guestDisplayName || arrival.guestDisplayName}`,
+        `• Mã đặt phòng: #${arrival.reservationCode}`,
+        `• Phòng: ${roomLabel}`,
+        `• Hạng phòng: ${roomType}`,
+        `• Sức chứa: ${capacityLabel}`,
+        `• Lịch trình: ${scheduleLabel}`,
+        `• Đoàn lưu trú: ${partyLabel}`,
+        `• Ghi chú: ${notesLabel}`,
+        accessCode ? `• Mã GuestOS: ${accessCode}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    };
+
     try {
+      // First request NEVER sends early/late override
       const res = await requestInternalApiEnvelope<{
         accessCode: string;
         stayId: string;
         guestUrl?: string;
+        idempotent?: boolean;
       }>(
         `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(arrival.id)}/check-in`,
         {
           method: "POST",
-          body: {
-            guestDisplayName: fields.guestDisplayName?.trim() || arrival.guestDisplayName,
-            ...(fields.guestPhone?.trim() ? { guestPhone: fields.guestPhone.trim() } : {}),
-            ...(fields.guestIdentityNumber?.trim() ? { guestIdentityNumber: fields.guestIdentityNumber.trim() } : {}),
-            ...(fields.guestDateOfBirth?.trim() ? { guestDateOfBirth: fields.guestDateOfBirth.trim() } : {}),
-            ...(fields.guestGender?.trim() ? { guestGender: fields.guestGender.trim() } : {}),
-            ...(fields.guestNationality?.trim() ? { guestNationality: fields.guestNationality.trim() } : {}),
-            ...(fields.guestResidencePlace?.trim() ? { guestResidencePlace: fields.guestResidencePlace.trim() } : {}),
-            ...(fields.plannedCheckOutAt ? { plannedCheckOutAt: fields.plannedCheckOutAt } : {}),
-            ...(fields.occupants?.length ? { occupants: fields.occupants } : {}),
-            allowEarlyCheckIn: true,
-          },
+          body: basePayload,
         },
       );
 
       setIsCheckInWorkspaceOpen(false);
-      await showSuccessAlert(
-        "Nhận phòng thành công",
-        `Đã nhận phòng cho khách ${fields.guestDisplayName || arrival.guestDisplayName}.${res.data?.accessCode ? ` Mã GuestOS: ${res.data.accessCode}` : ""}`,
-      );
+
+      if (res.data?.idempotent) {
+        await showSuccessAlert(
+          "Đã nhận phòng trước đó",
+          formatSuccessSummary(true, res.data?.accessCode),
+        );
+      } else {
+        await showSuccessAlert(
+          "Nhận phòng thành công",
+          formatSuccessSummary(false, res.data?.accessCode),
+        );
+      }
 
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       onClose();
       router.refresh();
     } catch (err) {
-      const rawMsg = err instanceof Error ? err.message : "";
-      if (rawMsg.includes("EARLY_CHECK_IN_NOT_ALLOWED")) {
-        const earlyConfirm = await showConfirmDialog({
-          icon: "question",
-          title: "Xác nhận nhận phòng sớm?",
-          text: "Đơn đặt phòng này có ngày nhận phòng dự kiến trong tương lai. Bạn có muốn cho phép khách làm thủ tục nhận phòng sớm ngay bây giờ không?",
-          confirmText: "Đồng ý nhận phòng sớm",
+      if (isEarlyCheckInError(err) || isLateCheckInError(err)) {
+        const isEarly = isEarlyCheckInError(err);
+        const warningConfirm = await showConfirmDialog({
+          icon: "warning",
+          title: isEarly ? "Xác nhận nhận phòng sớm?" : "Xác nhận nhận phòng quá hạn?",
+          text: isEarly
+            ? "Đơn đặt phòng này có ngày nhận phòng dự kiến trong tương lai. Bạn có muốn cho phép khách làm thủ tục nhận phòng sớm ngay bây giờ không?"
+            : "Đơn đặt phòng này đã quá hạn nhận phòng dự kiến. Bạn có muốn cho phép khách tiếp tục làm thủ tục nhận phòng trễ không?",
+          confirmText: isEarly ? "Đồng ý nhận phòng sớm" : "Đồng ý nhận phòng trễ",
           cancelText: "Hủy bỏ",
           reverseButtons: false,
         });
 
-        if (earlyConfirm.isConfirmed) {
+        if (warningConfirm.isConfirmed) {
           setIsCheckingIn(true);
           try {
-            const res = await requestInternalApiEnvelope<{
+            // Only explicit warning confirmation retries with matching flag
+            const retryRes = await requestInternalApiEnvelope<{
               accessCode: string;
               stayId: string;
               guestUrl?: string;
+              idempotent?: boolean;
             }>(
               `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(arrival.id)}/check-in`,
               {
                 method: "POST",
                 body: {
-                  guestDisplayName: fields.guestDisplayName?.trim() || arrival.guestDisplayName,
-                  ...(fields.guestPhone?.trim() ? { guestPhone: fields.guestPhone.trim() } : {}),
-                  ...(fields.guestIdentityNumber?.trim() ? { guestIdentityNumber: fields.guestIdentityNumber.trim() } : {}),
-                  ...(fields.guestDateOfBirth?.trim() ? { guestDateOfBirth: fields.guestDateOfBirth.trim() } : {}),
-                  ...(fields.guestGender?.trim() ? { guestGender: fields.guestGender.trim() } : {}),
-                  ...(fields.guestNationality?.trim() ? { guestNationality: fields.guestNationality.trim() } : {}),
-                  ...(fields.guestResidencePlace?.trim() ? { guestResidencePlace: fields.guestResidencePlace.trim() } : {}),
-                  ...(fields.plannedCheckOutAt ? { plannedCheckOutAt: fields.plannedCheckOutAt } : {}),
-                  ...(fields.occupants?.length ? { occupants: fields.occupants } : {}),
+                  ...basePayload,
                   allowEarlyCheckIn: true,
                 },
               },
             );
 
             setIsCheckInWorkspaceOpen(false);
-            await showSuccessAlert(
-              "Nhận phòng thành công",
-              `Đã nhận phòng cho khách ${fields.guestDisplayName || arrival.guestDisplayName}.${res.data?.accessCode ? ` Mã GuestOS: ${res.data.accessCode}` : ""}`,
-            );
+
+            if (retryRes.data?.idempotent) {
+              await showSuccessAlert(
+                "Đã nhận phòng trước đó",
+                formatSuccessSummary(true, retryRes.data?.accessCode),
+              );
+            } else {
+              await showSuccessAlert(
+                "Nhận phòng thành công",
+                formatSuccessSummary(false, retryRes.data?.accessCode),
+              );
+            }
 
             await invalidateHotelRealtimeQueries(queryClient, hotelId);
             onClose();
             router.refresh();
             return;
           } catch (retryErr) {
+            await invalidateHotelRealtimeQueries(queryClient, hotelId);
             const retryMsg = formatFriendlyCheckInError(retryErr);
             setCheckInError(retryMsg);
             await showErrorAlert("Không thể nhận phòng", retryMsg);
@@ -335,8 +388,12 @@ export function FrontDeskArrivalDetailPanel({
           } finally {
             setIsCheckingIn(false);
           }
+        } else {
+          return;
         }
       }
+
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
       const msg = formatFriendlyCheckInError(err);
       setCheckInError(msg);
       await showErrorAlert("Không thể nhận phòng", msg);
@@ -433,415 +490,450 @@ export function FrontDeskArrivalDetailPanel({
     <>
       <div
         className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-900/60 backdrop-blur-xs p-4 sm:p-6"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={titleId}
-      aria-describedby={descId}
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
-      }}
-    >
-      <div
-        ref={panelRef}
-        className="my-auto flex flex-col w-full max-w-4xl lg:max-w-5xl rounded-2xl bg-white shadow-2xl border border-slate-200 text-slate-900 overflow-hidden max-h-[90vh] animate-in fade-in zoom-in-95 duration-200"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descId}
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) {
+            onClose();
+          }
+        }}
       >
-        {/* Header */}
-        <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4.5 bg-slate-50 shrink-0">
-          <div>
-            <div className="flex flex-wrap items-center gap-2.5">
-              <h2 id={titleId} className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 text-balance">
-                {arrival.guestDisplayName}
-              </h2>
-              {arrival.reservationCode ? (
-                <span className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 font-mono text-xs sm:text-sm font-black text-blue-900 shadow-2xs whitespace-nowrap">
-                  <span>#{arrival.reservationCode}</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (arrival.reservationCode) {
-                        void navigator.clipboard.writeText(arrival.reservationCode);
-                        void showSuccessAlert(
-                          "Đã sao chép",
-                          `Mã đặt phòng #${arrival.reservationCode} đã được sao chép vào bộ nhớ tạm.`,
-                        );
-                      }
-                    }}
-                    className="inline-flex items-center text-blue-600 hover:text-blue-950 transition cursor-pointer"
-                    title="Sao chép mã đặt phòng"
-                    aria-label="Sao chép mã đặt phòng"
-                  >
-                    <VsIcon name="content_copy" className="text-xs" />
-                  </button>
-                </span>
-              ) : null}
-              {arrival.status === "CANCELLED" ? (
-                <span className="rounded-lg bg-rose-50 text-rose-800 border border-rose-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
-                  Đã hủy đặt phòng
-                </span>
-              ) : arrival.status === "NO_SHOW" ? (
-                <span className="rounded-lg bg-slate-100 text-slate-800 border border-slate-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
-                  Vắng mặt (No-show)
-                </span>
-              ) : isToday ? (
-                <span className="rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
-                  Hôm nay nhận phòng
-                </span>
-              ) : isFuture ? (
-                <span className="rounded-lg bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
-                  Lịch đặt tương lai
-                </span>
-              ) : (
-                <span className="rounded-lg bg-amber-50 text-amber-800 border border-amber-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
-                  Đến hạn nhận phòng
-                </span>
-              )}
-              {arrival.status === "CANCELLED" || arrival.status === "NO_SHOW" ? null : arrival.roomId ? (
-                <span className="rounded-lg bg-sky-50 text-sky-800 border border-sky-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
-                  Phòng {arrival.room?.roomNumber || "Đã gán"}
-                </span>
-              ) : (
-                <span className="rounded-lg bg-amber-50 text-amber-800 border border-amber-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
-                  Chưa gán phòng
-                </span>
-              )}
-            </div>
-            <p id={descId} className="text-sm font-bold text-slate-600 mt-1">
-              Khách đặt trước · Dự kiến nhận: {formatDateTime(arrival.plannedCheckInAt)}
-            </p>
-          </div>
-          <button
-            ref={closeButtonRef}
-            type="button"
-            onClick={onClose}
-            aria-label="Đóng chi tiết khách đặt trước"
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-200 transition cursor-pointer min-h-[44px]"
-          >
-            <VsIcon name="close" className="text-2xl" />
-          </button>
-        </header>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
-          {/* Warning banner if room is not yet allocated */}
-          {!arrival.roomId && (
-            <div className="flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs sm:text-sm text-amber-900 font-medium shadow-2xs">
-              <VsIcon name="warning" className="text-base text-amber-600 shrink-0" />
-              <span>
-                Đơn đặt phòng này chưa được phân bổ phòng cụ thể. Bạn có thể chọn và gán phòng trống khả dụng ngay bên dưới trước khi khách làm thủ tục nhận phòng.
-              </span>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
-            {/* Card 1: Guest Information */}
-            <section className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5 space-y-4">
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-slate-200/80 pb-2.5">
-                  <VsIcon name="person" className="text-slate-600 text-lg" />
-                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">
-                    Thông tin khách đặt phòng
-                  </h3>
-                </div>
-                <div className="space-y-3 text-base">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-slate-600">Khách đại diện:</span>
-                    <span className="font-black text-slate-900 text-lg">
-                      {arrival.guestDisplayName || "Chưa rõ"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-slate-600">Số điện thoại:</span>
-                    {arrival.guestPhone ? (
-                      <a
-                        href={`tel:${arrival.guestPhone}`}
-                        className="font-bold text-blue-700 hover:underline inline-flex items-center gap-1"
-                      >
-                        <VsIcon name="phone" className="text-xs" />
-                        <span>{arrival.guestPhone}</span>
-                      </a>
-                    ) : (
-                      <span className="text-slate-400 font-medium">Chưa cung cấp</span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-200/70">
-                    <span className="text-sm font-semibold text-slate-600">Mã đặt phòng:</span>
-                    <span className="font-mono font-bold text-slate-800 bg-slate-200 px-2.5 py-0.5 rounded text-sm">
-                      #{arrival.reservationCode}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-slate-600">Trạng thái:</span>
-                    {(() => {
-                      const statusDisplay = getArrivalStatusDisplay(arrival, todayYmd);
-                      return (
-                        <span
-                          className={`inline-flex items-center gap-1.5 font-bold px-2.5 py-1 rounded text-xs border ${statusDisplay.badgeClass}`}
-                        >
-                          <span className={`h-1.5 w-1.5 rounded-full ${statusDisplay.dotClass}`} />
-                          <span>{statusDisplay.label}</span>
-                        </span>
-                      );
-                    })()}
-                  </div>
-                </div>
+        <div
+          ref={panelRef}
+          className="my-auto flex flex-col w-full max-w-4xl lg:max-w-5xl rounded-2xl bg-white shadow-2xl border border-slate-200 text-slate-900 overflow-hidden max-h-[90vh] animate-in fade-in zoom-in-95 duration-200"
+        >
+          {/* Header */}
+          <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4.5 bg-slate-50 shrink-0">
+            <div>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h2 id={titleId} className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 text-balance">
+                  {arrival.guestDisplayName}
+                </h2>
+                {arrival.reservationCode ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 font-mono text-xs sm:text-sm font-black text-blue-900 shadow-2xs whitespace-nowrap">
+                    <span>#{arrival.reservationCode}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (arrival.reservationCode) {
+                          void navigator.clipboard.writeText(arrival.reservationCode);
+                          void showSuccessAlert(
+                            "Đã sao chép",
+                            `Mã đặt phòng #${arrival.reservationCode} đã được sao chép vào bộ nhớ tạm.`,
+                          );
+                        }
+                      }}
+                      className="inline-flex items-center text-blue-600 hover:text-blue-950 transition cursor-pointer"
+                      title="Sao chép mã đặt phòng"
+                      aria-label="Sao chép mã đặt phòng"
+                    >
+                      <VsIcon name="content_copy" className="text-xs" />
+                    </button>
+                  </span>
+                ) : null}
+                {arrival.status === "CANCELLED" ? (
+                  <span className="rounded-lg bg-rose-50 text-rose-800 border border-rose-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
+                    Đã hủy đặt phòng
+                  </span>
+                ) : arrival.status === "NO_SHOW" ? (
+                  <span className="rounded-lg bg-slate-100 text-slate-800 border border-slate-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
+                    Vắng mặt (No-show)
+                  </span>
+                ) : arrival.status === "CHECKED_IN" ? (
+                  <span className="rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
+                    Đã nhận phòng
+                  </span>
+                ) : isToday ? (
+                  <span className="rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
+                    Hôm nay nhận phòng
+                  </span>
+                ) : isFuture ? (
+                  <span className="rounded-lg bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
+                    Lịch đặt tương lai
+                  </span>
+                ) : (
+                  <span className="rounded-lg bg-amber-50 text-amber-800 border border-amber-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
+                    Đến hạn nhận phòng
+                  </span>
+                )}
+                {arrival.status === "CANCELLED" || arrival.status === "NO_SHOW" ? null : arrival.roomId ? (
+                  <span className="rounded-lg bg-sky-50 text-sky-800 border border-sky-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
+                    Phòng {arrival.room?.roomNumber || "Đã gán"}
+                  </span>
+                ) : (
+                  <span className="rounded-lg bg-amber-50 text-amber-800 border border-amber-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
+                    Chưa gán phòng
+                  </span>
+                )}
               </div>
-            </section>
+              <p id={descId} className="text-sm font-bold text-slate-600 mt-1">
+                Khách đặt trước · Dự kiến nhận: {formatDateTime(arrival.plannedCheckInAt)}
+              </p>
+            </div>
+            <button
+              ref={closeButtonRef}
+              type="button"
+              onClick={onClose}
+              aria-label="Đóng chi tiết khách đặt trước"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-200 transition cursor-pointer min-h-[44px]"
+            >
+              <VsIcon name="close" className="text-2xl" />
+            </button>
+          </header>
 
-            {/* Card 2: Schedule & Pricing */}
-            <section className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
-                  <VsIcon name="calendar_month" className="text-slate-500 text-lg" />
-                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">
-                    Lịch lưu trú & Chi phí dự kiến
-                  </h3>
-                </div>
-                <div className="space-y-3 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600 font-semibold">Nhận phòng dự kiến:</span>
-                    <span className="font-bold text-slate-900">
-                      {formatDateTime(arrival.plannedCheckInAt)}
-                    </span>
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
+            {/* Warning banner if room is not yet allocated */}
+            {!arrival.roomId && (
+              <div className="flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs sm:text-sm text-amber-900 font-medium shadow-2xs">
+                <VsIcon name="warning" className="text-base text-amber-600 shrink-0" />
+                <span>
+                  Đơn đặt phòng này chưa được phân bổ phòng cụ thể. Bạn có thể chọn và gán phòng trống khả dụng ngay bên dưới trước khi khách làm thủ tục nhận phòng.
+                </span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
+              {/* Card 1: Guest Information */}
+              <section className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5 space-y-4">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 border-b border-slate-200/80 pb-2.5">
+                    <VsIcon name="person" className="text-slate-600 text-lg" />
+                    <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">
+                      Thông tin khách đặt phòng
+                    </h3>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600 font-semibold">Trả phòng dự kiến:</span>
-                    <span className="font-bold text-slate-900">
-                      {formatDateTime(arrival.plannedCheckOutAt)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600 font-semibold">Số đêm lưu trú:</span>
-                    <span className="font-bold text-slate-900">{nights} đêm</span>
-                  </div>
-                  {rateNumber > 0 ? (
+                  <div className="space-y-3 text-base">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-600 font-semibold">Giá phòng niêm yết:</span>
-                      <span className="font-bold text-slate-900">
-                        {formatVnd(rateNumber)} / đêm
+                      <span className="text-sm font-semibold text-slate-600">Khách đại diện:</span>
+                      <span className="font-black text-slate-900 text-lg">
+                        {arrival.guestDisplayName || "Chưa rõ"}
                       </span>
                     </div>
-                  ) : null}
-                  <div className="flex items-center justify-between pt-2.5 border-t border-slate-200/70 text-base font-black text-slate-900">
-                    <span>Tổng tiền phòng dự kiến:</span>
-                    <span className="text-emerald-700 text-lg font-black">
-                      {formatVnd(totalEstimated)}
-                    </span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-slate-600">Số điện thoại:</span>
+                      {arrival.guestPhone ? (
+                        <a
+                          href={`tel:${arrival.guestPhone}`}
+                          className="font-bold text-blue-700 hover:underline inline-flex items-center gap-1"
+                        >
+                          <VsIcon name="phone" className="text-xs" />
+                          <span>{arrival.guestPhone}</span>
+                        </a>
+                      ) : (
+                        <span className="text-slate-400 font-medium">Chưa cung cấp</span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/70">
+                      <span className="text-sm font-semibold text-slate-600">Mã đặt phòng:</span>
+                      <span className="font-mono font-bold text-slate-800 bg-slate-200 px-2.5 py-0.5 rounded text-sm">
+                        #{arrival.reservationCode}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-slate-600">Đoàn / Ghi chú:</span>
+                      <span className="font-semibold text-slate-800 text-sm">
+                        {arrival.groupCode ? `Đoàn #${arrival.groupCode}` : "Khách lẻ (không ghi chú)"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-slate-600">Trạng thái:</span>
+                      {(() => {
+                        const statusDisplay = getArrivalStatusDisplay(arrival, todayYmd);
+                        return (
+                          <span
+                            className={`inline-flex items-center gap-1.5 font-bold px-2.5 py-1 rounded text-xs border ${statusDisplay.badgeClass}`}
+                          >
+                            <span className={`h-1.5 w-1.5 rounded-full ${statusDisplay.dotClass}`} />
+                            <span>{statusDisplay.label}</span>
+                          </span>
+                        );
+                      })()}
+                    </div>
                   </div>
                 </div>
+              </section>
+
+              {/* Card 2: Schedule & Pricing */}
+              <section className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
+                    <VsIcon name="calendar_month" className="text-slate-500 text-lg" />
+                    <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">
+                      Lịch lưu trú & Chi phí dự kiến
+                    </h3>
+                  </div>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-600 font-semibold">Nhận phòng dự kiến:</span>
+                      <span className="font-bold text-slate-900">
+                        {formatDateTime(arrival.plannedCheckInAt)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-600 font-semibold">Trả phòng dự kiến:</span>
+                      <span className="font-bold text-slate-900">
+                        {formatDateTime(arrival.plannedCheckOutAt)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-600 font-semibold">Số đêm lưu trú:</span>
+                      <span className="font-bold text-slate-900">{nights} đêm</span>
+                    </div>
+                    {rateNumber > 0 ? (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-600 font-semibold">Giá phòng niêm yết:</span>
+                        <span className="font-bold text-slate-900">
+                          {formatVnd(rateNumber)} / đêm
+                        </span>
+                      </div>
+                    ) : null}
+                    <div className="flex items-center justify-between pt-2.5 border-t border-slate-200/70 text-base font-black text-slate-900">
+                      <span>Tổng tiền phòng dự kiến:</span>
+                      <span className="text-emerald-700 text-lg font-black">
+                        {formatVnd(totalEstimated)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            {/* Section 3: Room Allocation */}
+            <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <VsIcon name="meeting_room" className="text-blue-600 text-xl" />
+                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-800">
+                    Phân bổ phòng cho khách
+                  </h3>
+                </div>
+                {arrival.roomId && !isAssigningMode && canAssignRoom ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsAssigningMode(true)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition-all hover:bg-slate-50 hover:text-slate-900 cursor-pointer min-h-[36px]"
+                  >
+                    <VsIcon name="swap_horiz" className="h-4 w-4 text-slate-500" />
+                    <span>Đổi phòng khác</span>
+                  </button>
+                ) : null}
               </div>
+
+              {arrival.roomId && !isAssigningMode ? (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/50 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-white font-black text-lg shadow-2xs">
+                      {arrival.room?.roomNumber || "OK"}
+                    </div>
+                    <div>
+                      <h4 className="font-black text-slate-900 text-base">
+                        Phòng {arrival.room?.roomNumber || arrival.roomId}
+                        {availableRooms.find((r) => r.id === arrival.roomId)?.type ? (
+                          <span className="text-slate-600 font-normal text-sm ml-2">
+                            · {availableRooms.find((r) => r.id === arrival.roomId)?.type}
+                          </span>
+                        ) : null}
+                      </h4>
+                      <p className="text-xs text-slate-600 mt-0.5">
+                        Sức chứa: {availableRooms.find((r) => r.id === arrival.roomId)?.maxActiveGuestDevices
+                          ? `${availableRooms.find((r) => r.id === arrival.roomId)?.maxActiveGuestDevices} khách`
+                          : "2 khách"} · Phòng đã sẵn sàng tiếp đón khi khách đến.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 self-start sm:self-center rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-xs font-bold text-emerald-800">
+                    <span className="h-2 w-2 rounded-full bg-emerald-600" />
+                    <span>Đã phân bổ phòng</span>
+                  </span>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label
+                      htmlFor="arrival-assign-room-select"
+                      className="text-xs font-bold uppercase tracking-wider text-slate-700"
+                    >
+                      Chọn phòng trống phù hợp từ danh sách khách sạn:
+                    </label>
+                    {isLoadingRooms ? (
+                      <div className="flex items-center gap-2 py-3 text-sm text-slate-500">
+                        <VsIcon name="refresh" className="h-4 w-4 animate-spin text-blue-600" />
+                        <span>Đang tải danh sách phòng trống khả dụng...</span>
+                      </div>
+                    ) : availableRooms.length === 0 ? (
+                      <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+                        Hiện tại không có phòng nào ở trạng thái TRỐNG để gán. Vui lòng rà soát trên sơ đồ phòng.
+                      </div>
+                    ) : (
+                      <select
+                        id="arrival-assign-room-select"
+                        value={selectedRoomId}
+                        onChange={(e) => setSelectedRoomId(e.target.value)}
+                        className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-800 shadow-2xs focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+                      >
+                        <option value="">-- Chọn phòng trống phù hợp --</option>
+                        {availableRooms.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            Phòng {r.roomNumber || r.id} ({r.type || "Tiêu chuẩn"}{r.floor ? ` · Tầng ${r.floor}` : ""})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={!selectedRoomId || isSubmittingRoom}
+                      onClick={() => void handleConfirmAssignRoom()}
+                      className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-xs transition-all hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+                    >
+                      <VsIcon name="check" className="h-4 w-4" />
+                      <span>{isSubmittingRoom ? "Đang lưu..." : "Xác nhận gán phòng"}</span>
+                    </button>
+                    {arrival.roomId ? (
+                      <button
+                        type="button"
+                        onClick={() => setIsAssigningMode(false)}
+                        className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 cursor-pointer"
+                      >
+                        <span>Hủy đổi phòng</span>
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              )}
             </section>
           </div>
 
-          {/* Section 3: Room Allocation */}
-          <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <VsIcon name="meeting_room" className="text-blue-600 text-xl" />
-                <h3 className="text-sm font-black uppercase tracking-wider text-slate-800">
-                  Phân bổ phòng cho khách
-                </h3>
-              </div>
-              {arrival.roomId && !isAssigningMode && canAssignRoom ? (
+          {/* Footer Actions Bar */}
+          <footer className="border-t border-slate-200 px-6 py-4 bg-slate-50 shrink-0 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href={`/hotels/${encodeURIComponent(hotelId)}/rooms?flow=arrivals&roomId=${encodeURIComponent(arrival.roomId || "")}`}
+                className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-slate-700 font-bold text-xs sm:text-sm shadow-2xs transition-all hover:bg-slate-50 hover:text-slate-900 cursor-pointer whitespace-nowrap"
+              >
+                <VsIcon name="grid_view" className="text-base text-slate-500" />
+                <span>Xem trên sơ đồ phòng</span>
+              </Link>
+
+              {canAssignRoom && (arrival.status === "CONFIRMED" || arrival.status === "ARRIVAL_READY") ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={isCancelling || isMarkingNoShow || isCheckingIn}
+                    onClick={() => void handleCancelReservation()}
+                    className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-rose-300 bg-white hover:bg-rose-50 px-3.5 py-2 text-rose-700 font-bold text-xs sm:text-sm transition-all cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                  >
+                    <VsIcon name="cancel" className="text-base text-rose-600" />
+                    <span>{isCancelling ? "Đang hủy..." : "Hủy đặt phòng"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isCancelling || isMarkingNoShow || isCheckingIn}
+                    onClick={() => void handleMarkNoShow()}
+                    className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 px-3.5 py-2 text-slate-700 font-bold text-xs sm:text-sm transition-all cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                  >
+                    <VsIcon name="person_off" className="text-base text-slate-500" />
+                    <span>{isMarkingNoShow ? "Đang ghi nhận..." : "Báo vắng mặt (No-show)"}</span>
+                  </button>
+                </>
+              ) : null}
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white hover:bg-slate-100 px-5 py-2.5 text-slate-800 font-bold text-sm transition cursor-pointer min-h-[44px] whitespace-nowrap"
+              >
+                <span>Đóng</span>
+              </button>
+
+              {arrival.status === "CANCELLED" ? (
+                <div className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-rose-50 px-4 py-2 text-rose-800 text-sm font-bold border border-rose-300 whitespace-nowrap">
+                  <VsIcon name="cancel" className="text-base text-rose-600" />
+                  <span>Đơn đặt phòng đã bị hủy</span>
+                </div>
+              ) : arrival.status === "NO_SHOW" ? (
+                <div className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-4 py-2 text-slate-800 text-sm font-bold border border-slate-300 whitespace-nowrap">
+                  <VsIcon name="person_off" className="text-base text-slate-600" />
+                  <span>Vắng mặt (No-show)</span>
+                </div>
+              ) : arrival.status === "CHECKED_IN" ? (
+                <div className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-emerald-50 px-4 py-2 text-emerald-800 text-sm font-bold border border-emerald-300 whitespace-nowrap">
+                  <VsIcon name="check_circle" className="text-base text-emerald-600" />
+                  <span>Đã nhận phòng thành công</span>
+                </div>
+              ) : arrival.roomId ? (
+                isToday && canCheckInStay ? (
+                  <button
+                    type="button"
+                    disabled={isCheckingIn || isCancelling || isMarkingNoShow}
+                    onClick={() => handleStartCheckIn()}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 px-6 py-2.5 text-white font-black text-sm sm:text-base shadow-md transition active:scale-[0.98] cursor-pointer min-h-[44px] whitespace-nowrap"
+                  >
+                    <VsIcon name="login" className="text-lg" />
+                    <span>{isCheckingIn ? "Đang nhận phòng..." : "Nhận phòng ngay"}</span>
+                  </button>
+                ) : (
+                  <div className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-slate-200/80 px-4 py-2 text-slate-800 text-sm font-bold border border-slate-300 whitespace-nowrap">
+                    <VsIcon name="schedule" className="mr-1.5 h-4 w-4 text-slate-600" />
+                    <span>Lịch đặt tương lai — Đến vào ngày nhận</span>
+                  </div>
+                )
+              ) : (
                 <button
                   type="button"
                   onClick={() => setIsAssigningMode(true)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition-all hover:bg-slate-50 hover:text-slate-900 cursor-pointer min-h-[36px]"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 px-5 py-2.5 text-white font-bold text-sm shadow-md transition cursor-pointer min-h-[44px] whitespace-nowrap"
                 >
-                  <VsIcon name="swap_horiz" className="h-4 w-4 text-slate-500" />
-                  <span>Đổi phòng khác</span>
+                  <VsIcon name="meeting_room" className="text-lg" />
+                  <span>Gán phòng trước</span>
                 </button>
-              ) : null}
+              )}
             </div>
-
-            {arrival.roomId && !isAssigningMode ? (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/50 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-white font-black text-lg shadow-2xs">
-                    {arrival.room?.roomNumber || "OK"}
-                  </div>
-                  <div>
-                    <h4 className="font-black text-slate-900 text-base">
-                      Phòng {arrival.room?.roomNumber || arrival.roomId}
-                    </h4>
-                    <p className="text-xs text-slate-600 mt-0.5">
-                      Đã được phân bổ an toàn cho đơn đặt này. Phòng sẵn sàng tiếp đón khi khách đến.
-                    </p>
-                  </div>
-                </div>
-                <span className="inline-flex items-center gap-1.5 self-start sm:self-center rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-xs font-bold text-emerald-800">
-                  <span className="h-2 w-2 rounded-full bg-emerald-600" />
-                  <span>Đã phân bổ phòng</span>
-                </span>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex flex-col gap-1.5">
-                  <label
-                    htmlFor="arrival-assign-room-select"
-                    className="text-xs font-bold uppercase tracking-wider text-slate-700"
-                  >
-                    Chọn phòng trống phù hợp từ danh sách khách sạn:
-                  </label>
-                  {isLoadingRooms ? (
-                    <div className="flex items-center gap-2 py-3 text-sm text-slate-500">
-                      <VsIcon name="refresh" className="h-4 w-4 animate-spin text-blue-600" />
-                      <span>Đang tải danh sách phòng trống khả dụng...</span>
-                    </div>
-                  ) : availableRooms.length === 0 ? (
-                    <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
-                      Hiện tại không có phòng nào ở trạng thái TRỐNG để gán. Vui lòng rà soát trên sơ đồ phòng.
-                    </div>
-                  ) : (
-                    <select
-                      id="arrival-assign-room-select"
-                      value={selectedRoomId}
-                      onChange={(e) => setSelectedRoomId(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-800 shadow-2xs focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
-                    >
-                      <option value="">-- Chọn phòng trống phù hợp --</option>
-                      {availableRooms.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          Phòng {r.roomNumber || r.id} ({r.type || "Tiêu chuẩn"}{r.floor ? ` · Tầng ${r.floor}` : ""})
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <button
-                    type="button"
-                    disabled={!selectedRoomId || isSubmittingRoom}
-                    onClick={() => void handleConfirmAssignRoom()}
-                    className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-xs transition-all hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
-                  >
-                    <VsIcon name="check" className="h-4 w-4" />
-                    <span>{isSubmittingRoom ? "Đang lưu..." : "Xác nhận gán phòng"}</span>
-                  </button>
-                  {arrival.roomId ? (
-                    <button
-                      type="button"
-                      onClick={() => setIsAssigningMode(false)}
-                      className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 cursor-pointer"
-                    >
-                      <span>Hủy đổi phòng</span>
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            )}
-          </section>
+          </footer>
         </div>
-
-        {/* Footer Actions Bar */}
-        <footer className="border-t border-slate-200 px-6 py-4 bg-slate-50 shrink-0 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href={`/hotels/${encodeURIComponent(hotelId)}/rooms?flow=arrivals&roomId=${encodeURIComponent(arrival.roomId || "")}`}
-              className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-slate-700 font-bold text-xs sm:text-sm shadow-2xs transition-all hover:bg-slate-50 hover:text-slate-900 cursor-pointer whitespace-nowrap"
-            >
-              <VsIcon name="grid_view" className="text-base text-slate-500" />
-              <span>Xem trên sơ đồ phòng</span>
-            </Link>
-
-            {canAssignRoom && (arrival.status === "CONFIRMED" || arrival.status === "ARRIVAL_READY") ? (
-              <>
-                <button
-                  type="button"
-                  disabled={isCancelling || isMarkingNoShow || isCheckingIn}
-                  onClick={() => void handleCancelReservation()}
-                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-rose-300 bg-white hover:bg-rose-50 px-3.5 py-2 text-rose-700 font-bold text-xs sm:text-sm transition-all cursor-pointer disabled:opacity-50 whitespace-nowrap"
-                >
-                  <VsIcon name="cancel" className="text-base text-rose-600" />
-                  <span>{isCancelling ? "Đang hủy..." : "Hủy đặt phòng"}</span>
-                </button>
-
-                <button
-                  type="button"
-                  disabled={isCancelling || isMarkingNoShow || isCheckingIn}
-                  onClick={() => void handleMarkNoShow()}
-                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 px-3.5 py-2 text-slate-700 font-bold text-xs sm:text-sm transition-all cursor-pointer disabled:opacity-50 whitespace-nowrap"
-                >
-                  <VsIcon name="person_off" className="text-base text-slate-500" />
-                  <span>{isMarkingNoShow ? "Đang ghi nhận..." : "Báo vắng mặt (No-show)"}</span>
-                </button>
-              </>
-            ) : null}
-          </div>
-
-          <div className="flex items-center justify-end gap-2.5">
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white hover:bg-slate-100 px-5 py-2.5 text-slate-800 font-bold text-sm transition cursor-pointer min-h-[44px] whitespace-nowrap"
-            >
-              <span>Đóng</span>
-            </button>
-
-            {arrival.status === "CANCELLED" || arrival.status === "NO_SHOW" ? (
-              <div className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-slate-200/80 px-4 py-2 text-slate-700 text-sm font-bold border border-slate-300 whitespace-nowrap">
-                <span>Đơn không còn hoạt động</span>
-              </div>
-            ) : arrival.roomId ? (
-              isToday && canCheckInStay ? (
-                <button
-                  type="button"
-                  disabled={isCheckingIn || isCancelling || isMarkingNoShow}
-                  onClick={() => handleStartCheckIn()}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 px-6 py-2.5 text-white font-black text-sm sm:text-base shadow-md transition active:scale-[0.98] cursor-pointer min-h-[44px] whitespace-nowrap"
-                >
-                  <VsIcon name="login" className="text-lg" />
-                  <span>{isCheckingIn ? "Đang nhận phòng..." : "Nhận phòng ngay"}</span>
-                </button>
-              ) : (
-                <div className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-slate-200/80 px-4 py-2 text-slate-800 text-sm font-bold border border-slate-300 whitespace-nowrap">
-                  <VsIcon name="schedule" className="mr-1.5 h-4 w-4 text-slate-600" />
-                  <span>Lịch đặt tương lai — Đến vào ngày nhận</span>
-                </div>
-              )
-            ) : (
-              <button
-                type="button"
-                onClick={() => setIsAssigningMode(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 px-5 py-2.5 text-white font-bold text-sm shadow-md transition cursor-pointer min-h-[44px] whitespace-nowrap"
-              >
-                <VsIcon name="meeting_room" className="text-lg" />
-                <span>Gán phòng trước</span>
-              </button>
-            )}
-          </div>
-        </footer>
       </div>
-    </div>
 
-    {isCheckInWorkspaceOpen && arrival.roomId ? (
-      <CheckInWorkspace
-        open={isCheckInWorkspaceOpen}
-        hotelId={hotelId}
-        room={{
-          id: arrival.roomId,
-          roomNumber: arrival.room?.roomNumber ? String(arrival.room.roomNumber) : arrival.roomId,
-          type: availableRooms.find((r) => r.id === arrival.roomId)?.type ?? undefined,
-          status: "available",
-        }}
-        canManageStays={Boolean(canCheckInStay || canOperateArrivals)}
-        initialStayFields={{
-          guestDisplayName: arrival.guestDisplayName,
-          guestPhone: arrival.guestPhone || "",
-          plannedCheckOutAt: arrival.plannedCheckOutAt,
-        }}
-        submitState={isCheckingIn ? "submitting" : "idle"}
-        submitError={checkInError}
-        onSubmit={handleCheckInWorkspaceSubmit}
-        onClose={() => {
-          if (isCheckingIn) return;
-          setIsCheckInWorkspaceOpen(false);
-          setCheckInError(undefined);
-        }}
-      />
-    ) : null}
-  </>
+      {isCheckInWorkspaceOpen && arrival.roomId ? (
+        <CheckInWorkspace
+          open={isCheckInWorkspaceOpen}
+          hotelId={hotelId}
+          room={{
+            id: arrival.roomId,
+            roomNumber: arrival.room?.roomNumber ? String(arrival.room.roomNumber) : arrival.roomId,
+            type: availableRooms.find((r) => r.id === arrival.roomId)?.type ?? undefined,
+            status: "available",
+            capacity: availableRooms.find((r) => r.id === arrival.roomId)?.maxActiveGuestDevices
+              ? `${availableRooms.find((r) => r.id === arrival.roomId)?.maxActiveGuestDevices} khách`
+              : "2 khách",
+            notes: arrival.groupCode ? `Mã đoàn: ${arrival.groupCode}` : undefined,
+          } as any}
+          canManageStays={Boolean(canCheckInStay || canOperateArrivals)}
+          initialStayFields={{
+            guestDisplayName: arrival.guestDisplayName,
+            guestPhone: arrival.guestPhone || "",
+            plannedCheckOutAt: arrival.plannedCheckOutAt,
+            reservationCode: arrival.reservationCode,
+            plannedCheckInAt: arrival.plannedCheckInAt,
+            notes: arrival.groupCode ? `Mã đoàn: ${arrival.groupCode}` : undefined,
+          } as any}
+          submitState={isCheckingIn ? "submitting" : "idle"}
+          submitError={checkInError}
+          onSubmit={handleCheckInWorkspaceSubmit}
+          onClose={() => {
+            if (isCheckingIn) return;
+            setIsCheckInWorkspaceOpen(false);
+            setCheckInError(undefined);
+          }}
+        />
+      ) : null}
+    </>
   );
 }

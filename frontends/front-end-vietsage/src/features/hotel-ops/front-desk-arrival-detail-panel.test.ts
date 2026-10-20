@@ -191,3 +191,77 @@ test("getArrivalStatusDisplay accurately determines hospitality statuses", async
   );
 });
 
+test("FrontDeskArrivalDetailPanel check-in request never sends early/late override on first attempt", () => {
+  // First POST check-in request uses basePayload without allowEarlyCheckIn
+  assert.match(panelSource, /body:\s*basePayload/);
+  const basePayloadMatch = panelSource.match(/const basePayload = \{([\s\S]*?)\};/);
+  assert.ok(basePayloadMatch, "basePayload must be defined");
+  assert.doesNotMatch(basePayloadMatch[1], /allowEarlyCheckIn/);
+
+  // Retry with allowEarlyCheckIn occurs ONLY after warning confirmation
+  assert.match(panelSource, /warningConfirm\.isConfirmed/);
+  assert.match(panelSource, /allowEarlyCheckIn:\s*true/);
+});
+
+test("FrontDeskArrivalDetailPanel and CheckInWorkspace final summary covers all 8 required dimensions", () => {
+  // 1. Guest: Khách đại diện
+  assert.match(panelSource, /Khách đại diện/);
+  // 2. Reservation: Mã đặt phòng
+  assert.match(panelSource, /Mã đặt phòng/);
+  // 3. Room: Phòng
+  assert.match(panelSource, /Phòng/);
+  // 4. Type: Hạng phòng
+  assert.match(panelSource, /Hạng phòng/);
+  // 5. Capacity: Sức chứa
+  assert.match(panelSource, /Sức chứa/);
+  // 6. Schedule: Lịch trình
+  assert.match(panelSource, /Lịch trình/);
+  // 7. Party: Đoàn lưu trú
+  assert.match(panelSource, /Đoàn lưu trú/);
+  // 8. Notes: Ghi chú
+  assert.match(panelSource, /Ghi chú/);
+
+  // CheckInWorkspace pre-confirmation also contains all 8 fields
+  const workspaceSource = readFileSync(
+    new URL("../local-biometric/components/check-in-workspace.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(workspaceSource, /• Khách đại diện:/);
+  assert.match(workspaceSource, /• Mã đặt phòng:/);
+  assert.match(workspaceSource, /• Phòng:/);
+  assert.match(workspaceSource, /• Hạng phòng:/);
+  assert.match(workspaceSource, /• Sức chứa:/);
+  assert.match(workspaceSource, /• Lịch trình:/);
+  assert.match(workspaceSource, /• Đoàn lưu trú:/);
+  assert.match(workspaceSource, /• Ghi chú:/);
+});
+
+test("formatFriendlyCheckInError handles conflict refetch guidance, cancelled, already-checked-in, and idempotent replay", async () => {
+  // @ts-expect-error Node strip-types requires file extension
+  const { formatFriendlyCheckInError } = await import("./utils/check-in-error.ts");
+
+  // Conflict / stale error gives actionable refetch guidance
+  const conflictMsg = formatFriendlyCheckInError("ROOM_CHECK_IN_CONFLICT");
+  assert.match(conflictMsg, /Xung đột dữ liệu nhận phòng/);
+  assert.match(conflictMsg, /Vui lòng tải lại dữ liệu/);
+
+  // Early check in error explains future arrival date
+  const earlyMsg = formatFriendlyCheckInError("EARLY_CHECK_IN_NOT_ALLOWED");
+  assert.match(earlyMsg, /Chưa tới ngày nhận phòng dự kiến/);
+  assert.match(earlyMsg, /nhận phòng sớm/);
+
+  // Cancelled reservation returns actionable Vietnamese guidance
+  const cancelledMsg = formatFriendlyCheckInError("RESERVATION_CANCELLED");
+  assert.match(cancelledMsg, /Đơn đặt phòng này đã bị hủy/);
+  assert.match(cancelledMsg, /tạo đơn đặt phòng mới/);
+
+  // Already checked in returns actionable Vietnamese guidance
+  const checkedInMsg = formatFriendlyCheckInError("ALREADY_CHECKED_IN");
+  assert.match(checkedInMsg, /hoàn tất nhận phòng trước đó/);
+  assert.match(checkedInMsg, /tải lại trang/);
+
+  // Idempotent replay returns actionable synchronization confirmation
+  const idempotentMsg = formatFriendlyCheckInError("IDEMPOTENT_REPLAY");
+  assert.match(idempotentMsg, /xử lý thành công trước đó/);
+  assert.match(idempotentMsg, /đồng bộ an toàn/);
+});

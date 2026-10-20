@@ -22,7 +22,7 @@ export function preventOrphans(text: string): string {
    SHARED SWEETALERT2 STYLING TOKENS (HOSPITALITY LUXURY STANDARD)
    ===================================================================== */
 export const SWAL_BASE_POPUP_CLASS =
-  "relative rounded-[28px] sm:rounded-[32px] bg-white p-6 sm:p-8 md:p-9 shadow-[0_25px_60px_-15px_rgba(28,56,49,0.18),0_0_0_1px_rgba(37,72,63,0.08),0_8px_24px_-4px_rgba(0,0,0,0.04)] border border-[#25483f]/10 max-h-[90vh] flex flex-col my-auto overflow-hidden";
+  "relative rounded-[28px] sm:rounded-[32px] bg-white p-6 sm:p-8 md:p-9 shadow-2xl border border-gray-100 max-h-[90vh] flex flex-col my-auto overflow-hidden";
 
 export const SWAL_POPUP_STANDARD =
   `${SWAL_BASE_POPUP_CLASS} w-[94vw] sm:w-[90vw] max-w-[480px]`;
@@ -34,25 +34,25 @@ export const SWAL_POPUP_LARGE =
   `${SWAL_BASE_POPUP_CLASS} w-[94vw] sm:w-[90vw] md:max-w-2xl`;
 
 export const SWAL_TITLE_CLASS =
-  "text-xl sm:text-2xl md:text-[26px] font-bold text-[#1a1c1c] text-center mb-2 mt-0.5 tracking-tight shrink-0 text-balance leading-snug max-w-[36ch] mx-auto";
+  "text-xl sm:text-2xl md:text-[26px] font-bold text-gray-800 text-center mb-2 mt-0.5 tracking-tight shrink-0 text-balance leading-snug max-w-[36ch] mx-auto";
 
 export const SWAL_HTML_CONTAINER_CLASS =
-  "text-sm sm:text-base font-normal text-[#464653] text-center leading-relaxed max-h-[58vh] overflow-y-auto pr-1 focus:outline-none custom-scrollbar w-full max-w-[52ch] mx-auto !m-0 !mt-1.5 !mb-1 text-pretty [text-wrap:pretty]";
+  "text-sm sm:text-base font-normal text-gray-600 text-center leading-relaxed max-h-[58vh] overflow-y-auto pr-1 focus:outline-none custom-scrollbar w-full max-w-[52ch] mx-auto !m-0 !mt-1.5 !mb-1 text-pretty [text-wrap:pretty]";
 
 export const SWAL_HTML_CONTAINER_LEFT_CLASS =
-  "text-sm sm:text-base font-normal text-[#464653] !text-left leading-relaxed max-h-[58vh] overflow-y-auto pr-1 focus:outline-none custom-scrollbar w-full max-w-none !m-0 !mt-2.5 !mb-1 text-pretty [text-wrap:pretty]";
+  "text-sm sm:text-base font-normal text-gray-600 !text-left leading-relaxed max-h-[58vh] overflow-y-auto pr-1 focus:outline-none custom-scrollbar w-full max-w-none !m-0 !mt-2.5 !mb-1 text-pretty [text-wrap:pretty]";
 
 export const SWAL_CONFIRM_BTN_CLASS =
-  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#1c3831] via-[#22443b] to-[#25483f] hover:from-[#152e27] hover:to-[#1c3831] active:scale-[0.98] px-7 sm:px-8 text-sm sm:text-base font-bold text-white shadow-md shadow-[#25483f]/25 hover:shadow-lg hover:shadow-[#25483f]/35 border border-[#25483f]/30 transition-all duration-150 cursor-pointer mx-1.5 min-w-[120px] select-none";
+  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-[#24473d] hover:bg-[#1a352d] active:scale-[0.98] px-7 sm:px-8 text-sm sm:text-base font-bold text-white shadow-md shadow-[#24473d]/20 transition-all duration-150 cursor-pointer mx-1.5 min-w-[120px] select-none";
 
 export const SWAL_DANGER_BTN_CLASS =
-  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#ba1a1a] via-[#a81818] to-[#93000a] hover:from-[#a01515] hover:to-[#7f0007] active:scale-[0.98] px-7 sm:px-8 text-sm sm:text-base font-bold text-white shadow-md shadow-red-950/20 hover:shadow-lg hover:shadow-red-950/30 border border-red-900/30 transition-all duration-150 cursor-pointer mx-1.5 min-w-[120px] select-none";
+  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-[#ba1a1a] hover:bg-[#a01515] active:scale-[0.98] px-7 sm:px-8 text-sm sm:text-base font-bold text-white shadow-md shadow-red-500/20 transition-all duration-150 cursor-pointer mx-1.5 min-w-[120px] select-none";
 
 export const SWAL_CANCEL_BTN_CLASS =
-  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl border border-slate-200/90 bg-white hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] px-6 sm:px-7 text-sm sm:text-base font-bold text-[#464653] hover:text-[#1a1c1c] shadow-2xs transition-all duration-150 cursor-pointer mx-1.5 min-w-[100px] select-none";
+  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl border border-gray-300 bg-white hover:bg-gray-50 hover:border-gray-400 active:scale-[0.98] px-6 sm:px-7 text-sm sm:text-base font-bold text-gray-600 hover:text-gray-800 shadow-2xs transition-all duration-150 cursor-pointer mx-1.5 min-w-[100px] select-none";
 
 export const SWAL_ACTIONS_CLASS =
-  "flex flex-wrap sm:flex-nowrap items-center justify-center gap-3 pt-4 sm:pt-5 shrink-0 border-t border-[#25483f]/10 w-full mt-4";
+  "flex flex-wrap sm:flex-nowrap items-center justify-center gap-3 pt-4 sm:pt-5 shrink-0 border-t border-gray-100 w-full mt-4";
 
 export const SwalVietSage = Swal.mixin({
   customClass: {
@@ -65,7 +65,7 @@ export const SwalVietSage = Swal.mixin({
   },
   buttonsStyling: false,
   reverseButtons: false,
-  backdrop: "rgba(15, 26, 23, 0.52)",
+  backdrop: "rgba(0, 0, 0, 0.4)",
 });
 
 const TRUSTED_ALERT_HTML = Symbol("trustedAlertHtml");
@@ -108,6 +108,8 @@ export function showSuccessAlert(
     titleText: preventOrphans(title),
     ...content,
     icon: "success",
+    timer: isHtml ? 3500 : 2000,
+    timerProgressBar: true,
     showConfirmButton: true,
     confirmButtonText: "OK",
     customClass: {
@@ -160,11 +162,11 @@ export function formatTextContent(raw: string): string {
 
   // 5. Restore highlights with styled tags
   escaped = escaped.replace(/___HL_QUOTE___(.*?)___HL_END___/g, (_m, content) => {
-    return `<span class="inline-block px-2 py-0.5 mx-0.5 rounded-lg font-bold text-[#1a1c1c] bg-[#f3f3f4] border border-[#e2e2e2] shadow-2xs text-sm sm:text-base">${content}</span>`;
+    return `<span class="inline-block px-2 py-0.5 mx-0.5 rounded-lg font-bold text-gray-800 bg-gray-50 border border-gray-200 shadow-2xs text-sm sm:text-base">${content}</span>`;
   });
 
   escaped = escaped.replace(/___HL_DATE___(.*?)___HL_END___/g, (_m, date) => {
-    return `<span class="inline-block px-2 py-0.5 mx-0.5 rounded-lg font-semibold text-[#1c3831] bg-[#e4ede9] border border-[#c2dcd2]/80 text-sm sm:text-base">${date}</span>`;
+    return `<span class="inline-block px-2 py-0.5 mx-0.5 rounded-lg font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 text-sm sm:text-base">${date}</span>`;
   });
 
   escaped = escaped.replace(/___HL_CODE___(.*?)___HL_END___/g, (_m, code) => {
@@ -239,15 +241,15 @@ export function formatBatchResultHtml(options: {
   html += `  <div class="grid grid-cols-3 gap-2.5 sm:gap-3.5 text-center select-none">`;
   html += `    <div class="flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl bg-emerald-50/90 border border-emerald-200/90 shadow-2xs">`;
   html += `      <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-emerald-800">Thành công</span>`;
-  html += `      <span class="text-2xl sm:text-3xl font-black text-emerald-950 mt-1">${success}</span>`;
+  html += `      <span class="text-2xl sm:text-3xl font-black text-emerald-900 mt-1">${success}</span>`;
   html += `    </div>`;
   html += `    <div class="flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl bg-rose-50/90 border border-rose-200/90 shadow-2xs">`;
   html += `      <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-rose-800">Lỗi / Từ chối</span>`;
-  html += `      <span class="text-2xl sm:text-3xl font-black text-rose-950 mt-1">${failedCount}</span>`;
+  html += `      <span class="text-2xl sm:text-3xl font-black text-rose-900 mt-1">${failedCount}</span>`;
   html += `    </div>`;
   html += `    <div class="flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl bg-slate-50/90 border border-slate-200/90 shadow-2xs">`;
   html += `      <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-700">Tổng cộng</span>`;
-  html += `      <span class="text-2xl sm:text-3xl font-black text-slate-950 mt-1">${totalCount} <span class="text-xs sm:text-sm font-medium text-slate-600">${itemTypeLabel}</span></span>`;
+  html += `      <span class="text-2xl sm:text-3xl font-black text-slate-900 mt-1">${totalCount} <span class="text-xs sm:text-sm font-medium text-slate-600">${itemTypeLabel}</span></span>`;
   html += `    </div>`;
   html += `  </div>`;
 
@@ -260,7 +262,7 @@ export function formatBatchResultHtml(options: {
     html += `        <span>Chi tiết lỗi (${parsedItems.length} ${itemTypeLabel}):</span>`;
     html += `      </div>`;
     if (parsedItems.length > 3) {
-      html += `      <span class="text-xs sm:text-sm font-medium text-[#464653] bg-[#f3f3f4] px-2.5 py-0.5 rounded-full">Cuộn để xem hết</span>`;
+      html += `      <span class="text-xs sm:text-sm font-medium text-gray-600 bg-gray-50 px-2.5 py-0.5 rounded-full">Cuộn để xem hết</span>`;
     }
     html += `    </div>`;
 
@@ -279,19 +281,19 @@ export function formatBatchResultHtml(options: {
           html += `          </span>`;
         }
         if (item.label && !item.room) {
-          html += `          <span class="inline-flex items-center px-3 py-1 rounded-lg text-xs sm:text-sm font-black bg-[#e2e2e2] text-[#1a1c1c] border border-[#c6c5d5]">`;
+          html += `          <span class="inline-flex items-center px-3 py-1 rounded-lg text-xs sm:text-sm font-black bg-gray-100 text-gray-800 border border-gray-300">`;
           html += `            ${escapeHtml(item.label)}`;
           html += `          </span>`;
         }
         if (item.name) {
-          html += `          <span class="font-bold text-[#1a1c1c] text-sm sm:text-base">`;
+          html += `          <span class="font-bold text-gray-800 text-sm sm:text-base">`;
           html += `            ${escapeHtml(item.name)}`;
           html += `          </span>`;
         }
         html += `        </div>`;
       }
 
-      html += `        <p class="text-sm sm:text-base text-[#464653] leading-relaxed font-normal pl-0.5">`;
+      html += `        <p class="text-sm sm:text-base text-gray-600 leading-relaxed font-normal pl-0.5">`;
       html += `          ${formatTextContent(item.message)}`;
       html += `        </p>`;
       html += `      </div>`;
@@ -318,12 +320,12 @@ export function formatBatchResultHtml(options: {
 
 export function formatAlertErrorMessage(raw: string): string {
   if (!raw || typeof raw !== "string") {
-    return `<p class="text-center text-[#464653]">Đã xảy ra lỗi không xác định.</p>`;
+    return `<p class="text-center text-gray-600">Đã xảy ra lỗi không xác định.</p>`;
   }
 
   let text = raw.trim();
   if (!text) {
-    return `<p class="text-center text-[#464653]">Đã xảy ra lỗi không xác định.</p>`;
+    return `<p class="text-center text-gray-600">Đã xảy ra lỗi không xác định.</p>`;
   }
 
   // 1. Extract guidance / advice at the end
@@ -400,7 +402,7 @@ export function formatAlertErrorMessage(raw: string): string {
       }
     }
 
-    let html = `<div class="space-y-3.5 text-left text-base sm:text-lg leading-relaxed text-[#464653] max-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">`;
+    let html = `<div class="space-y-3.5 text-left text-base sm:text-lg leading-relaxed text-gray-600 max-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">`;
 
     for (const [groupLabel, items] of groups.entries()) {
       html += `<div class="rounded-2xl border border-[#ffdad6] bg-[#fff5f5]/80 p-4 sm:p-5 space-y-3 shadow-2xs">`;
@@ -451,7 +453,7 @@ export function formatAlertErrorMessage(raw: string): string {
       itemLines = lines.slice(1);
     }
 
-    let html = `<div class="space-y-3.5 text-left text-base sm:text-lg leading-relaxed text-[#464653] max-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">`;
+    let html = `<div class="space-y-3.5 text-left text-base sm:text-lg leading-relaxed text-gray-600 max-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">`;
     html += `<div class="rounded-2xl border border-[#ffdad6] bg-[#fff5f5]/80 p-4 sm:p-5 space-y-3 shadow-2xs">`;
     if (title) {
       html += `  <div class="flex items-center gap-2.5 font-bold text-[#93000a] text-base sm:text-lg">`;
@@ -482,7 +484,7 @@ export function formatAlertErrorMessage(raw: string): string {
 
   // 5. Multiple lines without bullets (e.g. error lines)
   if (lines.length > 1) {
-    let html = `<div class="space-y-2.5 text-left text-base sm:text-lg leading-relaxed text-[#464653] max-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">`;
+    let html = `<div class="space-y-2.5 text-left text-base sm:text-lg leading-relaxed text-gray-600 max-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">`;
     for (const line of lines) {
       html += `<div class="rounded-2xl border border-[#ffdad6] bg-[#fff5f5]/80 p-3.5 sm:p-4 text-[#93000a] text-base sm:text-[17px] leading-relaxed shadow-2xs">`;
       html += `  <span>${formatTextContent(line)}</span>`;
@@ -503,7 +505,7 @@ export function formatAlertErrorMessage(raw: string): string {
   // 6. Semicolon-separated multiple items
   const semiItems = text.split(/;\s+/).map((s) => s.trim()).filter(Boolean);
   if (semiItems.length >= 2) {
-    let html = `<div class="space-y-3.5 text-left text-base sm:text-lg leading-relaxed text-[#464653] max-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">`;
+    let html = `<div class="space-y-3.5 text-left text-base sm:text-lg leading-relaxed text-gray-600 max-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">`;
     html += `<div class="rounded-2xl border border-[#ffdad6] bg-[#fff5f5]/80 p-4 sm:p-5 space-y-2.5 shadow-2xs">`;
     html += `<ul class="space-y-2.5">`;
     for (const item of semiItems) {
@@ -527,8 +529,8 @@ export function formatAlertErrorMessage(raw: string): string {
 
   // 7. Single / Simple message with guidance
   if (guidance) {
-    let html = `<div class="space-y-3.5 text-left text-base sm:text-lg leading-relaxed text-[#464653]">`;
-    html += `<p class="text-center font-medium text-[#1a1c1c] text-base sm:text-lg max-w-[56ch] mx-auto text-pretty">${formatTextContent(text)}</p>`;
+    let html = `<div class="space-y-3.5 text-left text-base sm:text-lg leading-relaxed text-gray-600">`;
+    html += `<p class="text-center font-medium text-gray-800 text-base sm:text-lg max-w-[56ch] mx-auto text-pretty">${formatTextContent(text)}</p>`;
     html += `<div class="flex items-start gap-3 rounded-2xl border border-[#fed65b]/90 bg-[#fffbeb] p-3.5 sm:p-4 text-[#735c00] shadow-2xs">`;
     html += `  <span class="text-lg shrink-0 select-none mt-0.5">💡</span>`;
     html += `  <div class="text-sm sm:text-base font-medium leading-relaxed">`;
@@ -539,7 +541,7 @@ export function formatAlertErrorMessage(raw: string): string {
   }
 
   // 8. Pure single text
-  return `<p class="text-center text-base sm:text-lg font-normal text-[#464653] leading-relaxed max-w-[56ch] mx-auto text-pretty">${formatTextContent(text)}</p>`;
+  return `<p class="text-center text-base sm:text-lg font-normal text-gray-600 leading-relaxed max-w-[56ch] mx-auto text-pretty">${formatTextContent(text)}</p>`;
 }
 
 export function extractErrorMessage(value: unknown): string {
@@ -627,6 +629,8 @@ export function showWarningAlert(
     titleText: preventOrphans(title),
     ...content,
     icon: "warning",
+    timer: isHtml ? 4000 : 2500,
+    timerProgressBar: true,
     showConfirmButton: true,
     confirmButtonText: "OK",
     customClass: {

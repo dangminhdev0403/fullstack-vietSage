@@ -116,6 +116,8 @@ export class ReservationsService {
       createdByUserId: actorUserId,
       roomId,
       roomTypeId: dto.roomTypeId,
+      guestCount: dto.guestCount,
+      notes: dto.notes,
       autoAssign: dto.autoAssign,
       roomAllocationService: this.roomAllocationService,
       nightlyRateSnapshot,
@@ -176,6 +178,9 @@ export class ReservationsService {
       reservationId,
       roomId: dto.roomId,
       actorUserId,
+      ...(dto.expectedUpdatedAt !== undefined ? { expectedUpdatedAt: dto.expectedUpdatedAt } : {}),
+      ...(dto.expectedRoomId !== undefined ? { expectedRoomId: dto.expectedRoomId } : {}),
+      ...(this.roomAllocationService ? { roomAllocationService: this.roomAllocationService } : {}),
       ...(nightlyRateSnapshot !== undefined ? { nightlyRateSnapshot } : {}),
     });
     if (!reservation) {
@@ -200,6 +205,14 @@ export class ReservationsService {
       hotelId,
       reservationId,
     );
+    if (reservation) {
+      if (
+        reservation.status === ReservationStatus.CANCELLED ||
+        reservation.status === ReservationStatus.NO_SHOW
+      ) {
+        throw new ConflictException("Đặt phòng đã bị hủy hoặc báo vắng mặt");
+      }
+    }
     if (reservation && reservation.roomId) {
       await this.hotelAccessService.assertRoomAccess(
         actorUserId,

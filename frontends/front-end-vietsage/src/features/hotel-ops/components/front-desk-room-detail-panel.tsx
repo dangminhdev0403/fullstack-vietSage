@@ -69,6 +69,336 @@ function calculateNights(start?: string | Date | null, end?: string | Date | nul
   return Math.max(1, nights);
 }
 
+export type RoomCompatibilityData = {
+  id?: string;
+  roomNumber?: string | null;
+  type?: string | null;
+  roomTypeName?: string | null;
+  capacity?: number | string | null;
+  maxOccupancy?: number | string | null;
+  floor?: string | number | null;
+  zone?: string | null;
+  notes?: string | null;
+  physicalStatus?: string | null;
+  projectedStatus?: string | null;
+  statusConflictCode?: string | null;
+  status?: string | null;
+  activeStay?: HotelStaySummary | null;
+  projectedStay?: HotelStaySummary | null;
+  projectedReservation?: HotelReservationSummary | null;
+  upcomingReservation?: HotelReservationSummary | null;
+};
+
+export type ResolvedRoomStatus =
+  | "all"
+  | "available"
+  | "occupied"
+  | "reserved"
+  | "overdue"
+  | "processing"
+  | "maintenance"
+  | "blocked";
+
+export type ResolvedPhysicalStatus =
+  | "clean"
+  | "dirty"
+  | "cleaning"
+  | "inspecting"
+  | "out_of_service";
+
+export type RoomStatusVisual = {
+  status: ResolvedRoomStatus;
+  label: string;
+  icon: string;
+  badgeClass: string;
+  textColor: string;
+};
+
+export type PhysicalStatusVisual = {
+  status: ResolvedPhysicalStatus;
+  label: string;
+  icon: string;
+  badgeClass: string;
+};
+
+export type StatusConflictVisual = {
+  hasConflict: boolean;
+  code: string | null;
+  label: string;
+  icon: string;
+  badgeClass: string;
+};
+
+export function resolveRoomStatusModel(
+  room?: RoomCompatibilityData | null,
+  options?: { isFuture?: boolean; nowTimestamp?: number },
+): {
+  operational: RoomStatusVisual;
+  physical: PhysicalStatusVisual;
+  conflict: StatusConflictVisual;
+} {
+  const now = options?.nowTimestamp ?? Date.now();
+  const isFuture = Boolean(options?.isFuture);
+
+  // 1. Conflict detection from server compatibility field
+  const rawConflictCode = room?.statusConflictCode?.trim() || null;
+  const hasConflict = Boolean(rawConflictCode);
+  let conflictLabel = "Phát hiện xung đột trạng thái";
+  if (rawConflictCode) {
+    const ucCode = rawConflictCode.toUpperCase();
+    if (ucCode.includes("DIRTY") && ucCode.includes("OCCUPIED")) {
+      conflictLabel = "Xung đột: Phòng đang ở nhưng chưa dọn";
+    } else if (ucCode.includes("CLEAN") && ucCode.includes("OCCUPIED")) {
+      conflictLabel = "Xung đột: Phòng báo sạch nhưng có khách ở";
+    } else if (ucCode.includes("OVERDUE")) {
+      conflictLabel = "Xung đột: Quá hạn trả phòng";
+    } else {
+      conflictLabel = `Xung đột trạng thái (${rawConflictCode})`;
+    }
+  }
+  const conflict: StatusConflictVisual = {
+    hasConflict,
+    code: rawConflictCode,
+    label: conflictLabel,
+    icon: "warning",
+    badgeClass: "bg-amber-100 text-amber-950 border border-amber-300",
+  };
+
+  // 2. Operational Status resolution (no local competing state beyond explicit legacy fallback)
+  const stay = room?.activeStay;
+  const isOverdue = Boolean(
+    stay &&
+      !stay.checkedOutAt &&
+      stay.plannedCheckOutAt &&
+      new Date(stay.plannedCheckOutAt).getTime() < now &&
+      ["ACTIVE", "CHECKED_IN", "CHECKOUT_PENDING"].includes(
+        (stay.status || "").toUpperCase(),
+      ),
+  );
+
+  let opStatus: ResolvedRoomStatus = "available";
+
+  if (isOverdue) {
+    opStatus = "overdue";
+  } else if (isFuture) {
+    const proj = (room?.projectedStatus || room?.status || "").toUpperCase();
+    if (proj === "OCCUPIED") opStatus = "occupied";
+    else if (
+      proj === "RESERVED" ||
+      (!room?.activeStay && Boolean(room?.projectedReservation))
+    )
+      opStatus = "reserved";
+    else if (proj === "PROCESSING") opStatus = "processing";
+    else if (proj === "BLOCKED") opStatus = "blocked";
+    else if (proj === "MAINTENANCE" || proj === "OUT_OF_SERVICE")
+      opStatus = "maintenance";
+    else if (room?.projectedReservation) opStatus = "reserved";
+    else opStatus = "available";
+  } else {
+    // Normal / current date
+    const projectedUc = room?.projectedStatus?.toUpperCase();
+    const statusUc = room?.status?.toUpperCase();
+
+    if (room?.activeStay || statusUc === "OCCUPIED" || projectedUc === "OCCUPIED") {
+      opStatus = "occupied";
+    } else if (
+      statusUc === "RESERVED" ||
+      projectedUc === "RESERVED" ||
+      (!room?.activeStay && Boolean(room?.projectedReservation))
+    ) {
+      opStatus = "reserved";
+    } else if (statusUc === "PROCESSING" || projectedUc === "PROCESSING") {
+      opStatus = "processing";
+    } else if (statusUc === "BLOCKED" || projectedUc === "BLOCKED") {
+      opStatus = "blocked";
+    } else if (
+      statusUc === "MAINTENANCE" ||
+      statusUc === "OUT_OF_SERVICE" ||
+      projectedUc === "MAINTENANCE" ||
+      projectedUc === "OUT_OF_SERVICE"
+    ) {
+      opStatus = "maintenance";
+    } else {
+      opStatus = "available";
+    }
+  }
+
+  const operationalMap: Record<
+    ResolvedRoomStatus,
+    { label: string; icon: string; badgeClass: string; textColor: string }
+  > = {
+    all: {
+      label: "TẤT CẢ",
+      icon: "apps",
+      badgeClass: "bg-slate-100 text-slate-800 border-slate-300",
+      textColor: "text-slate-800",
+    },
+    available: {
+      label: "TRỐNG",
+      icon: "check_circle",
+      badgeClass: "bg-emerald-50 text-emerald-800 border-emerald-300",
+      textColor: "text-emerald-700",
+    },
+    occupied: {
+      label: "ĐANG Ở",
+      icon: "person",
+      badgeClass: "bg-sky-50 text-sky-800 border-sky-300",
+      textColor: "text-sky-700",
+    },
+    reserved: {
+      label: "ĐÃ ĐẶT TRƯỚC",
+      icon: "event",
+      badgeClass: "bg-purple-50 text-purple-800 border-purple-300",
+      textColor: "text-purple-700",
+    },
+    overdue: {
+      label: "QUÁ HẠN TRẢ",
+      icon: "warning",
+      badgeClass: "bg-rose-50 text-rose-700 border-rose-300",
+      textColor: "text-rose-700",
+    },
+    processing: {
+      label: "CHỜ DỌN",
+      icon: "cleaning_services",
+      badgeClass: "bg-amber-50 text-amber-900 border-amber-300",
+      textColor: "text-amber-700",
+    },
+    maintenance: {
+      label: "BẢO TRÌ",
+      icon: "build",
+      badgeClass: "bg-rose-50 text-rose-800 border-rose-300",
+      textColor: "text-rose-800",
+    },
+    blocked: {
+      label: "ĐÃ KHÓA",
+      icon: "lock",
+      badgeClass: "bg-slate-100 text-slate-800 border-slate-300",
+      textColor: "text-slate-800",
+    },
+  };
+
+  const opVisualInfo = operationalMap[opStatus] || operationalMap.available;
+  const operational: RoomStatusVisual = {
+    status: opStatus,
+    ...opVisualInfo,
+  };
+
+  // 3. Physical Status resolution
+  const rawPhys = (room?.physicalStatus || "").toUpperCase();
+  let physStatus: ResolvedPhysicalStatus = "clean";
+  let physLabel = "Sạch";
+  let physIcon = "check_circle";
+  let physBadge = "bg-emerald-50 text-emerald-800 border-emerald-300";
+
+  if (rawPhys === "DIRTY" || rawPhys === "CHỜ DỌN") {
+    physStatus = "dirty";
+    physLabel = "Chưa dọn";
+    physIcon = "cleaning_services";
+    physBadge = "bg-amber-50 text-amber-900 border-amber-300";
+  } else if (rawPhys === "CLEANING" || rawPhys === "PROCESSING" || rawPhys === "ĐANG DỌN") {
+    physStatus = "cleaning";
+    physLabel = "Đang dọn";
+    physIcon = "hourglass_empty";
+    physBadge = "bg-sky-50 text-sky-800 border-sky-300";
+  } else if (rawPhys === "INSPECTING" || rawPhys === "KIỂM TRA") {
+    physStatus = "inspecting";
+    physLabel = "Chờ kiểm tra";
+    physIcon = "fact_check";
+    physBadge = "bg-indigo-50 text-indigo-800 border-indigo-300";
+  } else if (rawPhys === "OUT_OF_SERVICE" || rawPhys === "MAINTENANCE" || rawPhys === "BẢO TRÌ") {
+    physStatus = "out_of_service";
+    physLabel = "Bảo trì";
+    physIcon = "build";
+    physBadge = "bg-rose-50 text-rose-800 border-rose-300";
+  } else if (rawPhys === "CLEAN" || rawPhys === "READY" || rawPhys === "SẠCH") {
+    physStatus = "clean";
+    physLabel = "Sạch";
+    physIcon = "check_circle";
+    physBadge = "bg-emerald-50 text-emerald-800 border-emerald-300";
+  } else {
+    // Legacy fallback
+    if (opStatus === "processing") {
+      physStatus = "dirty";
+      physLabel = "Chưa dọn";
+      physIcon = "cleaning_services";
+      physBadge = "bg-amber-50 text-amber-900 border-amber-300";
+    } else if (opStatus === "maintenance") {
+      physStatus = "out_of_service";
+      physLabel = "Bảo trì";
+      physIcon = "build";
+      physBadge = "bg-rose-50 text-rose-800 border-rose-300";
+    } else {
+      physStatus = "clean";
+      physLabel = "Sạch";
+      physIcon = "check_circle";
+      physBadge = "bg-emerald-50 text-emerald-800 border-emerald-300";
+    }
+  }
+
+  const physical: PhysicalStatusVisual = {
+    status: physStatus,
+    label: physLabel,
+    icon: physIcon,
+    badgeClass: physBadge,
+  };
+
+  return {
+    operational,
+    physical,
+    conflict,
+  };
+}
+
+export function formatRoomDisplay(room?: RoomCompatibilityData | null) {
+  const roomNumber = room?.roomNumber?.trim() || (room?.id?.trim() ?? "—");
+  const type = room?.type?.trim() || room?.roomTypeName?.trim() || "—";
+  const roomCapacity = room?.maxOccupancy ?? room?.capacity;
+  const capacity =
+    roomCapacity !== null &&
+    roomCapacity !== undefined &&
+    String(roomCapacity).trim() !== "" &&
+    Number(roomCapacity) > 0
+      ? `${roomCapacity} khách`
+      : "—";
+  const floor =
+    room?.floor !== null &&
+    room?.floor !== undefined &&
+    String(room.floor).trim() !== ""
+      ? `Tầng ${room.floor}`
+      : "—";
+  const zone =
+    room?.zone !== null &&
+    room?.zone !== undefined &&
+    String(room.zone).trim() !== ""
+      ? `Khu ${String(room.zone).trim()}`
+      : "—";
+  const notes =
+    room?.notes !== null &&
+    room?.notes !== undefined &&
+    String(room.notes).trim() !== ""
+      ? String(room.notes).trim()
+      : "—";
+
+  return {
+    roomNumber,
+    type,
+    capacity,
+    floor,
+    zone,
+    notes,
+  };
+}
+
+export function formatBookingInterval(
+  start?: string | Date | null,
+  end?: string | Date | null,
+): string {
+  if (!start && !end) return "—";
+  if (!start) return `Trả: ${formatDateTime(end)}`;
+  if (!end) return `Nhận: ${formatDateTime(start)}`;
+  return `${formatDateTime(start)} ➔ ${formatDateTime(end)}`;
+}
+
 function formatReservationStatus(status?: string | null): { label: string; className: string } {
   const s = (status || "").toUpperCase();
   if (s === "ARRIVAL_READY" || s === "READY") {
@@ -293,6 +623,33 @@ export function FrontDeskRoomDetailPanel({
 
   const roomNumberDisplay = room?.roomNumber || room?.id || "";
 
+  const roomStatusModel = useMemo(() => {
+    return resolveRoomStatusModel(room as RoomCompatibilityData, {
+      isFuture: isFutureDate,
+      nowTimestamp,
+    });
+  }, [room, isFutureDate, nowTimestamp]);
+
+  const displayData = useMemo(() => {
+    return formatRoomDisplay(room as RoomCompatibilityData);
+  }, [room]);
+
+  const bookingInterval = useMemo(() => {
+    if (stay) {
+      return formatBookingInterval(
+        stay.checkedInAt ?? stay.plannedCheckInAt,
+        stay.plannedCheckOutAt,
+      );
+    }
+    if (reservation) {
+      return formatBookingInterval(
+        reservation.plannedCheckInAt,
+        reservation.plannedCheckOutAt,
+      );
+    }
+    return "—";
+  }, [stay, reservation]);
+
   // Safe Checkout navigation to Billing workspace
   function handleGoToCheckout() {
     const params = new URLSearchParams();
@@ -365,26 +722,37 @@ export function FrontDeskRoomDetailPanel({
                   </button>
                 </span>
               ) : null}
-              {isOverdue ? (
-                <span className="rounded-lg bg-rose-50 text-rose-700 border border-rose-300 px-3 py-1 text-sm font-black uppercase tracking-wider">
-                  Quá hạn trả
-                </span>
-              ) : isOccupiedMode ? (
-                <span className="rounded-lg bg-sky-50 text-sky-800 border border-sky-300 px-3 py-1 text-sm font-black uppercase tracking-wider">
-                  Đang ở
-                </span>
-              ) : isReservedMode ? (
-                <span className="rounded-lg bg-purple-100 text-purple-900 border border-purple-300 px-3 py-1 text-sm font-black uppercase tracking-wider">
-                  Đã đặt trước
-                </span>
-              ) : (
-                <span className="rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1 text-sm font-black uppercase tracking-wider">
-                  {room.status || "Trống"}
+              {/* Text + Icon + Color status */}
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-sm font-black uppercase tracking-wider border shadow-2xs whitespace-nowrap ${roomStatusModel.operational.badgeClass}`}
+              >
+                <VsIcon name={roomStatusModel.operational.icon} className="text-base shrink-0" />
+                <span>{roomStatusModel.operational.label}</span>
+              </span>
+
+              {/* Physical status badge */}
+              <span
+                className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold border shadow-2xs whitespace-nowrap ${roomStatusModel.physical.badgeClass}`}
+                title={`Tình trạng buồng phòng: ${roomStatusModel.physical.label}`}
+              >
+                <VsIcon name={roomStatusModel.physical.icon} className="text-xs shrink-0" />
+                <span>{roomStatusModel.physical.label}</span>
+              </span>
+
+              {/* Conflict indicator badge */}
+              {roomStatusModel.conflict.hasConflict && (
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold border shadow-2xs whitespace-nowrap ${roomStatusModel.conflict.badgeClass}`}
+                  title={roomStatusModel.conflict.label}
+                >
+                  <VsIcon name={roomStatusModel.conflict.icon} className="text-xs text-amber-600 shrink-0" />
+                  <span>{roomStatusModel.conflict.label}</span>
                 </span>
               )}
+
             </div>
             <p id={descId} className="text-sm font-bold text-slate-600 mt-1">
-              {room.type ?? "Tiêu chuẩn"} {room.floor ? `· Tầng ${room.floor}` : ""}{" "}
+              {displayData.type} · {displayData.floor} · {displayData.zone}{" "}
               {businessDate ? `· Ngày: ${businessDate}` : ""}
             </p>
           </div>
@@ -410,6 +778,62 @@ export function FrontDeskRoomDetailPanel({
               </span>
             </div>
           )}
+
+          {/* Status Conflict Warning Alert */}
+          {roomStatusModel.conflict.hasConflict && (
+            <div className="flex items-center gap-2.5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs sm:text-sm text-amber-950 font-medium shadow-2xs">
+              <VsIcon name="warning" className="text-base text-amber-600 shrink-0" />
+              <span>
+                <strong>{roomStatusModel.conflict.label}:</strong> Vui lòng rà soát giữa dữ liệu vật lý buồng phòng và lịch đặt trước khi phân bổ khách.
+              </span>
+            </div>
+          )}
+
+          {/* Room Profile & Compatibility Spec Grid */}
+          <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+              <div className="flex items-center gap-2">
+                <VsIcon name="meeting_room" className="text-slate-700 text-lg" />
+                <h3 className="text-sm font-black uppercase tracking-wider text-slate-800">
+                  Thông tin phòng & Vận hành
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-500">
+                  Khoảng đặt: <strong className="text-slate-800">{bookingInterval}</strong>
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 text-xs">
+              <div className="rounded-lg bg-white p-2.5 border border-slate-200/80 shadow-2xs">
+                <span className="text-slate-500 block font-medium">Số phòng</span>
+                <span className="font-bold text-slate-900 text-sm">{displayData.roomNumber}</span>
+              </div>
+              <div className="rounded-lg bg-white p-2.5 border border-slate-200/80 shadow-2xs">
+                <span className="text-slate-500 block font-medium">Loại phòng</span>
+                <span className="font-bold text-slate-900 text-sm truncate">{displayData.type}</span>
+              </div>
+              <div className="rounded-lg bg-white p-2.5 border border-slate-200/80 shadow-2xs">
+                <span className="text-slate-500 block font-medium">Sức chứa</span>
+                <span className="font-bold text-slate-900 text-sm">{displayData.capacity}</span>
+              </div>
+              <div className="rounded-lg bg-white p-2.5 border border-slate-200/80 shadow-2xs">
+                <span className="text-slate-500 block font-medium">Tầng</span>
+                <span className="font-bold text-slate-900 text-sm">{displayData.floor}</span>
+              </div>
+              <div className="rounded-lg bg-white p-2.5 border border-slate-200/80 shadow-2xs">
+                <span className="text-slate-500 block font-medium">Phân khu</span>
+                <span className="font-bold text-slate-900 text-sm">{displayData.zone}</span>
+              </div>
+              <div className="rounded-lg bg-white p-2.5 border border-slate-200/80 shadow-2xs">
+                <span className="text-slate-500 block font-medium">Ghi chú</span>
+                <span className="font-bold text-slate-900 text-xs truncate" title={displayData.notes}>
+                  {displayData.notes}
+                </span>
+              </div>
+            </div>
+          </section>
 
           {/* OCCUPIED / OVERDUE STAY CONTEXT */}
           {isOccupiedMode && stay && (

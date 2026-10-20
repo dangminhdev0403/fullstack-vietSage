@@ -121,7 +121,7 @@ test("StaffRoomsClient renders purple reserved styling and collision guard for r
 
   // Check that effectiveStatus switches to "reserved" when room has reservation
   assert.match(clientSource, /const hasReservation = !hasActiveStay && Boolean\(resDetails\);/);
-  assert.match(clientSource, /const effectiveStatus: RoomStatusFilter = hasReservation \? "reserved" : rawEffectiveStatus;/);
+  assert.match(clientSource, /const effectiveStatus: RoomStatusFilter = hasReservation\s*\?\s*"reserved"\s*:\s*rawEffectiveStatus;/);
 
   // Check that the room card displays "ĐÃ ĐẶT TRƯỚC" in purple
   assert.match(clientSource, /effectiveStatus === "reserved"/);
@@ -137,6 +137,6 @@ test("StaffRoomsClient renders purple reserved styling and collision guard for r
   assert.match(clientSource, /Phòng \$\{getRoomNumber\(room\)\} đã có khách đặt trước!/);
 
   // Check arrival prop is passed to FrontDeskRoomDetailPanel
-  assert.match(clientSource, /arrival=\{selectedContextRoom \? todayArrivalByRoomId\.get\(selectedContextRoom\.id\)/);
+  assert.match(clientSource, /arrival=\{\s*selectedContextRoom\s*\?\s*todayArrivalByRoomId\.get\(selectedContextRoom\.id\)/);
 });
 

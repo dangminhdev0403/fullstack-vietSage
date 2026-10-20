@@ -10,8 +10,10 @@ export function AppToaster() {
       closeButton
       expand={false}
       visibleToasts={4}
+      duration={2200}
       toastOptions={{
         className: "!font-sans !rounded-2xl text-sm",
+        duration: 2200,
       }}
     />
   );

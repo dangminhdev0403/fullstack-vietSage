@@ -6970,6 +6970,18 @@
                     "type": "string",
                     "nullable": true
                   },
+                  "roomTypeId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "guestCount": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true
+                  },
                   "nightlyRateSnapshot": {
                     "type": "string",
                     "nullable": true
@@ -7004,6 +7016,18 @@
                       "type": "string",
                       "nullable": true
                     },
+                    "roomTypeId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "guestCount": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "notes": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "nightlyRateSnapshot": {
                       "type": "string",
                       "nullable": true
@@ -7023,7 +7047,9 @@
                       "enum": [
                         "CONFIRMED",
                         "ARRIVAL_READY",
-                        "CHECKED_IN"
+                        "CHECKED_IN",
+                        "CANCELLED",
+                        "NO_SHOW"
                       ]
                     },
                     "plannedCheckInAt": {
@@ -7143,6 +7169,18 @@
                             "type": "string",
                             "nullable": true
                           },
+                          "roomTypeId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "guestCount": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "notes": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "nightlyRateSnapshot": {
                             "type": "string",
                             "nullable": true
@@ -7162,7 +7200,9 @@
                             "enum": [
                               "CONFIRMED",
                               "ARRIVAL_READY",
-                              "CHECKED_IN"
+                              "CHECKED_IN",
+                              "CANCELLED",
+                              "NO_SHOW"
                             ]
                           },
                           "plannedCheckInAt": {
@@ -7228,6 +7268,13 @@
                   "nightlyRateSnapshot": {
                     "type": "string",
                     "nullable": true
+                  },
+                  "expectedUpdatedAt": {
+                    "type": "string"
+                  },
+                  "expectedRoomId": {
+                    "type": "string",
+                    "nullable": true
                   }
                 }
               }
@@ -7259,6 +7306,18 @@
                       "type": "string",
                       "nullable": true
                     },
+                    "roomTypeId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "guestCount": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "notes": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "nightlyRateSnapshot": {
                       "type": "string",
                       "nullable": true
@@ -7278,7 +7337,9 @@
                       "enum": [
                         "CONFIRMED",
                         "ARRIVAL_READY",
-                        "CHECKED_IN"
+                        "CHECKED_IN",
+                        "CANCELLED",
+                        "NO_SHOW"
                       ]
                     },
                     "plannedCheckInAt": {
@@ -7358,6 +7419,25 @@
                     "items": {
                       "type": "object"
                     }
+                  },
+                  "allowEarlyCheckIn": {
+                    "type": "boolean"
+                  },
+                  "allowLateCheckIn": {
+                    "type": "boolean"
+                  },
+                  "confirmEarlyCheckIn": {
+                    "type": "boolean"
+                  },
+                  "confirmLateCheckIn": {
+                    "type": "boolean"
+                  },
+                  "expectedUpdatedAt": {
+                    "type": "string"
+                  },
+                  "expectedRoomId": {
+                    "type": "string",
+                    "nullable": true
                   }
                 }
               }
@@ -7472,6 +7552,238 @@
         ]
       }
     },
+    "/hotels/{hotelId}/reservations/{reservationId}/cancel": {
+      "post": {
+        "operationId": "ReservationsController_cancelReservation",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reservationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Đã hủy đặt phòng và giải phóng gán phòng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "hotelId",
+                    "reservationCode",
+                    "guestDisplayName",
+                    "status"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "hotelId": {
+                      "type": "string"
+                    },
+                    "roomId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "roomTypeId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "guestCount": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "notes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "nightlyRateSnapshot": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "reservationCode": {
+                      "type": "string"
+                    },
+                    "guestDisplayName": {
+                      "type": "string"
+                    },
+                    "guestPhone": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "CONFIRMED",
+                        "ARRIVAL_READY",
+                        "CHECKED_IN",
+                        "CANCELLED",
+                        "NO_SHOW"
+                      ]
+                    },
+                    "plannedCheckInAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "plannedCheckOutAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/reservations/{reservationId}/no-show": {
+      "post": {
+        "operationId": "ReservationsController_markNoShow",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reservationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Đã đánh dấu khách vắng mặt (No-show) và giải phóng phòng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "hotelId",
+                    "reservationCode",
+                    "guestDisplayName",
+                    "status"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "hotelId": {
+                      "type": "string"
+                    },
+                    "roomId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "roomTypeId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "guestCount": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "notes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "nightlyRateSnapshot": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "reservationCode": {
+                      "type": "string"
+                    },
+                    "guestDisplayName": {
+                      "type": "string"
+                    },
+                    "guestPhone": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "CONFIRMED",
+                        "ARRIVAL_READY",
+                        "CHECKED_IN",
+                        "CANCELLED",
+                        "NO_SHOW"
+                      ]
+                    },
+                    "plannedCheckInAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "plannedCheckOutAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      }
+    },
     "/hotels/{hotelId}/reservations/bulk": {
       "post": {
         "operationId": "ReservationsController_createBulkReservations",
@@ -7530,6 +7842,18 @@
                     "type": "string",
                     "nullable": true
                   },
+                  "roomTypeId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "guestCount": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true
+                  },
                   "nightlyRateSnapshot": {
                     "type": "string",
                     "nullable": true
@@ -7576,6 +7900,18 @@
                             "type": "string",
                             "nullable": true
                           },
+                          "roomTypeId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "guestCount": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "notes": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "nightlyRateSnapshot": {
                             "type": "string",
                             "nullable": true
@@ -7595,7 +7931,9 @@
                             "enum": [
                               "CONFIRMED",
                               "ARRIVAL_READY",
-                              "CHECKED_IN"
+                              "CHECKED_IN",
+                              "CANCELLED",
+                              "NO_SHOW"
                             ]
                           },
                           "plannedCheckInAt": {
@@ -7613,6 +7951,104 @@
                 }
               }
             }
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/room-plan": {
+      "get": {
+        "operationId": "ReservationsController_getRoomPlan",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Đã lấy kế hoạch phòng"
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/reservations/{reservationId}/placement": {
+      "put": {
+        "operationId": "ReservationsController_updateReservationPlacement",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reservationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "targetRoomId",
+                  "expectedUpdatedAt"
+                ],
+                "properties": {
+                  "targetRoomId": {
+                    "type": "string"
+                  },
+                  "expectedUpdatedAt": {
+                    "type": "string"
+                  },
+                  "swapWithReservationId": {
+                    "type": "string"
+                  },
+                  "swapExpectedUpdatedAt": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Đã cập nhật vị trí đặt phòng"
           }
         },
         "tags": [
@@ -8821,6 +9257,18 @@
                   "forceSwitch": {
                     "type": "boolean",
                     "description": "When true, closes the current session and switches this device to the scanned room."
+                  },
+                  "locale": {
+                    "type": "string",
+                    "enum": [
+                      "vi",
+                      "en",
+                      "zh",
+                      "ko",
+                      "ru",
+                      "hi"
+                    ],
+                    "description": "Optional preferred language code for the guest session."
                   }
                 }
               }
@@ -15882,6 +16330,202 @@
         },
         "tags": [
           "channel-manager"
+        ]
+      }
+    },
+    "/channel-manager/direct-booking/holds": {
+      "post": {
+        "operationId": "DirectBookingController_createHold[0]",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "channel-manager-direct-booking"
+        ]
+      }
+    },
+    "/api/v1/channel-manager/direct-booking/holds": {
+      "post": {
+        "operationId": "DirectBookingController_createHold[1]",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "channel-manager-direct-booking"
+        ]
+      }
+    },
+    "/channel-manager/direct-booking/holds/{id}/confirm": {
+      "post": {
+        "operationId": "DirectBookingController_confirmHold[0]",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "channel-manager-direct-booking"
+        ]
+      }
+    },
+    "/channel-manager/direct-booking/holds/confirm": {
+      "post": {
+        "operationId": "DirectBookingController_confirmHold[1]",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "channel-manager-direct-booking"
+        ]
+      }
+    },
+    "/api/v1/channel-manager/direct-booking/holds/{id}/confirm": {
+      "post": {
+        "operationId": "DirectBookingController_confirmHold[2]",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "channel-manager-direct-booking"
+        ]
+      }
+    },
+    "/api/v1/channel-manager/direct-booking/holds/confirm": {
+      "post": {
+        "operationId": "DirectBookingController_confirmHold[3]",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "channel-manager-direct-booking"
+        ]
+      }
+    },
+    "/channel-manager/direct-booking/holds/{id}/release": {
+      "post": {
+        "operationId": "DirectBookingController_releaseHold[0]",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "channel-manager-direct-booking"
+        ]
+      }
+    },
+    "/channel-manager/direct-booking/holds/release": {
+      "post": {
+        "operationId": "DirectBookingController_releaseHold[1]",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "channel-manager-direct-booking"
+        ]
+      }
+    },
+    "/api/v1/channel-manager/direct-booking/holds/{id}/release": {
+      "post": {
+        "operationId": "DirectBookingController_releaseHold[2]",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "channel-manager-direct-booking"
+        ]
+      }
+    },
+    "/api/v1/channel-manager/direct-booking/holds/release": {
+      "post": {
+        "operationId": "DirectBookingController_releaseHold[3]",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "channel-manager-direct-booking"
+        ]
+      }
+    },
+    "/channel-manager/direct-booking/status": {
+      "get": {
+        "operationId": "DirectBookingController_getStatus[0]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "channel-manager-direct-booking"
+        ]
+      }
+    },
+    "/api/v1/channel-manager/direct-booking/status": {
+      "get": {
+        "operationId": "DirectBookingController_getStatus[1]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "channel-manager-direct-booking"
+        ]
+      }
+    },
+    "/channel-manager/direct-booking/catalog-export": {
+      "post": {
+        "operationId": "DirectBookingController_exportCatalog[0]",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "channel-manager-direct-booking"
+        ]
+      }
+    },
+    "/api/v1/channel-manager/direct-booking/catalog-export": {
+      "post": {
+        "operationId": "DirectBookingController_exportCatalog[1]",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "channel-manager-direct-booking"
         ]
       }
     }

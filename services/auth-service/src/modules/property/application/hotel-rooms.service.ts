@@ -96,7 +96,12 @@ export class HotelRoomsService {
     dto: CreateRoomTypeBodyInput,
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    return this.hotelRoomsRepository.createRoomType(hotelId, dto.name, dto.basePrice);
+    return this.hotelRoomsRepository.createRoomType(
+      hotelId,
+      dto.name,
+      dto.basePrice,
+      dto.maxOccupancy,
+    );
   }
 
   async updateRoomTypePrice(
@@ -104,10 +109,16 @@ export class HotelRoomsService {
     activeRoleId: string,
     hotelId: string,
     roomTypeId: string,
-    basePrice: number,
+    basePrice?: number,
+    maxOccupancy?: number | null,
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    return this.hotelRoomsRepository.updateRoomTypePrice(hotelId, roomTypeId, basePrice);
+    return this.hotelRoomsRepository.updateRoomTypePrice(
+      hotelId,
+      roomTypeId,
+      basePrice,
+      maxOccupancy,
+    );
   }
   async createRoom(
     actorUserId: string,
@@ -143,6 +154,7 @@ export class HotelRoomsService {
       code: roomCode,
       roomNumber: dto.roomNumber.trim(),
       floor: dto.floor?.trim(),
+      zone: dto.zone === null ? null : dto.zone?.trim(),
       type: dto.type?.trim(),
       roomTypeId: dto.roomTypeId,
       newRoomType: dto.newRoomType,
@@ -255,6 +267,10 @@ export class HotelRoomsService {
 
     if (query.floor) {
       where.floor = { equals: query.floor.trim(), mode: "insensitive" };
+    }
+
+    if (query.zone) {
+      (where as any).zone = { equals: query.zone.trim(), mode: "insensitive" };
     }
 
     if (query.type) {
@@ -423,6 +439,7 @@ export class HotelRoomsService {
     const room = await this.hotelRoomsRepository.updateRoomInHotel(hotelId, roomId, {
       roomNumber: dto.roomNumber?.trim(),
       floor: dto.floor === null ? null : dto.floor?.trim(),
+      zone: dto.zone === null ? null : dto.zone?.trim(),
       ...(selectedType
         ? { type: selectedType.name, roomType: { connect: { id: selectedType.id } } }
         : {}),
@@ -952,14 +969,18 @@ export class HotelRoomsService {
       code: row.code,
       roomNumber: row.roomNumber,
       floor: row.floor,
+      zone: (row as any).zone ?? null,
       type: row.type,
       roomTypeId: row.roomTypeId,
+      maxOccupancy: (row as any).maxOccupancy ?? (row as any).roomType?.maxOccupancy ?? null,
       price: row.price,
       maxActiveGuestDevices: row.maxActiveGuestDevices ?? 3,
       activeGuestDeviceCount: row.activeGuestDeviceCount,
       status: row.status,
-      businessDate: (row as any).businessDate ?? null,
+      physicalStatus: (row as any).physicalStatus ?? row.status,
       projectedStatus: (row as any).projectedStatus ?? row.status,
+      statusConflictCode: (row as any).statusConflictCode ?? null,
+      businessDate: (row as any).businessDate ?? null,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       qr: latestQr ? this.toQrData(latestQr) : null,
@@ -986,12 +1007,15 @@ export class HotelRoomsService {
     roomId?: string | null;
     roomTypeSnapshot?: string | null;
     reservationCode: string;
+    groupCode?: string | null;
     guestDisplayName: string;
     guestPhone?: string | null;
     status: string;
     plannedCheckInAt: Date;
     plannedCheckOutAt: Date;
     nightlyRateSnapshot?: Prisma.Decimal | number | string | null;
+    guestCount?: number | null;
+    notes?: string | null;
     assignedAt?: Date | null;
     assignedByUserId?: string | null;
     checkedInAt?: Date | null;
@@ -1009,12 +1033,15 @@ export class HotelRoomsService {
       roomId: row.roomId ?? null,
       roomTypeSnapshot: row.roomTypeSnapshot ?? null,
       reservationCode: row.reservationCode,
+      groupCode: (row as any).groupCode ?? null,
       guestDisplayName: row.guestDisplayName,
       guestPhone: row.guestPhone ?? null,
       status: row.status,
       plannedCheckInAt: row.plannedCheckInAt,
       plannedCheckOutAt: row.plannedCheckOutAt,
       nightlyRateSnapshot,
+      guestCount: (row as any).guestCount ?? null,
+      notes: (row as any).notes ?? null,
       assignedAt: row.assignedAt ?? null,
       assignedByUserId: row.assignedByUserId ?? null,
       checkedInAt: row.checkedInAt ?? null,

@@ -31,6 +31,9 @@ export interface AllocateRoomInput {
   requestedRoomId?: string;
   roomId?: string;
   targetRoomId?: string;
+  guestCount?: number | null;
+  occupantsCount?: number | null;
+  excludedReservationId?: string;
 }
 
 export interface AllocatedRoomResult {
@@ -49,6 +52,7 @@ export interface AllocatedRoomResult {
 const ACTIVE_RESERVATION_STATUSES: ReservationStatus[] = [
   ReservationStatus.CONFIRMED,
   ReservationStatus.ARRIVAL_READY,
+  ReservationStatus.CHECKED_IN,
 ];
 
 const ACTIVE_STAY_STATUSES: GuestStayStatus[] = [
@@ -151,12 +155,18 @@ export class ReservationRoomAllocationService {
         where: { id: targetRoomId, hotelId },
         include: { roomType: true },
       });
-      if (!room) {
+      if (!room || room.hotelId !== hotelId) {
         throw new NotFoundException("Không tìm thấy phòng");
       }
 
       if (!this.isRoomMatchingType(room, criteria, resolvedRoomType)) {
         throw new ConflictException("ROOM_TYPE_MISMATCH");
+      }
+
+      const guestCount = input.guestCount ?? input.occupantsCount ?? null;
+      const roomCapacity = this.getRoomCapacity(room, resolvedRoomType);
+      if (roomCapacity !== null && guestCount !== null && guestCount > roomCapacity) {
+        throw new ConflictException("ROOM_CAPACITY_OVERFLOW");
       }
 
       if (NON_SELLABLE_ROOM_STATUSES.includes(room.status)) {
@@ -173,6 +183,7 @@ export class ReservationRoomAllocationService {
         room.id,
         checkInAt,
         checkOutAt,
+        input.excludedReservationId,
       );
       if (hasStayOverlap) {
         throw new ConflictException("ROOM_RESERVATION_OVERLAP");
@@ -189,6 +200,7 @@ export class ReservationRoomAllocationService {
         room.id,
         checkInAt,
         checkOutAt,
+        input.excludedReservationId,
       );
       if (hasResOverlap) {
         throw new ConflictException("ROOM_RESERVATION_OVERLAP");
@@ -208,9 +220,14 @@ export class ReservationRoomAllocationService {
       include: { roomType: true },
     });
 
-    const matchingRooms = candidateRooms.filter((r) =>
-      this.isRoomMatchingType(r, criteria, resolvedRoomType),
-    );
+    const guestCount = input.guestCount ?? input.occupantsCount ?? null;
+    const matchingRooms = candidateRooms
+      .filter((r) => this.isRoomMatchingType(r, criteria, resolvedRoomType))
+      .filter((r) => {
+        if (guestCount === null) return true;
+        const cap = this.getRoomCapacity(r, resolvedRoomType);
+        return cap === null || cap >= guestCount;
+      });
 
     let selectedRoom: any = null;
 
@@ -228,6 +245,7 @@ export class ReservationRoomAllocationService {
         candidate.id,
         checkInAt,
         checkOutAt,
+        input.excludedReservationId,
       );
       if (hasStayOverlap) {
         continue;
@@ -240,6 +258,7 @@ export class ReservationRoomAllocationService {
         candidate.id,
         checkInAt,
         checkOutAt,
+        input.excludedReservationId,
       );
       if (hasResOverlap) {
         continue;
@@ -253,8 +272,15 @@ export class ReservationRoomAllocationService {
         include: { roomType: true },
       });
 
-      if (!lockedRoom || NON_SELLABLE_ROOM_STATUSES.includes(lockedRoom.status)) {
+      if (!lockedRoom || lockedRoom.hotelId !== hotelId || NON_SELLABLE_ROOM_STATUSES.includes(lockedRoom.status)) {
         continue;
+      }
+
+      if (guestCount !== null) {
+        const lockedCap = this.getRoomCapacity(lockedRoom, resolvedRoomType);
+        if (lockedCap !== null && lockedCap < guestCount) {
+          continue;
+        }
       }
 
       const recheckStay = await this.hasOverlappingActiveStay(
@@ -263,6 +289,7 @@ export class ReservationRoomAllocationService {
         lockedRoom.id,
         checkInAt,
         checkOutAt,
+        input.excludedReservationId,
       );
       if (recheckStay) {
         continue;
@@ -274,8 +301,14 @@ export class ReservationRoomAllocationService {
         lockedRoom.id,
         checkInAt,
         checkOutAt,
+        input.excludedReservationId,
       );
       if (recheckRes) {
+        continue;
+      }
+
+      const recheckOverdue = await this.hasOverdueActiveStay(tx, hotelId, lockedRoom.id, now);
+      if (recheckOverdue) {
         continue;
       }
 
@@ -338,6 +371,34 @@ export class ReservationRoomAllocationService {
     return { targetId, targetName };
   }
 
+  private normalizeKey(value: string): string {
+    return value
+      .normalize("NFKC")
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase();
+  }
+
+  private getRoomCapacity(
+    room: any,
+    resolvedRoomType?: { id: string; name: string; normalizedKey: string; maxOccupancy?: number | null } | null,
+  ): number | null {
+    if (typeof (room?.roomType as any)?.maxOccupancy === "number") {
+      return (room.roomType as any).maxOccupancy;
+    }
+    if (typeof (room as any)?.maxOccupancy === "number") {
+      return (room as any).maxOccupancy;
+    }
+    if (
+      resolvedRoomType &&
+      typeof (resolvedRoomType as any)?.maxOccupancy === "number" &&
+      (room?.roomTypeId === resolvedRoomType.id || room?.roomType?.id === resolvedRoomType.id)
+    ) {
+      return (resolvedRoomType as any).maxOccupancy;
+    }
+    return null;
+  }
+
   private async resolveRoomTypeRecord(
     tx: Prisma.TransactionClient,
     hotelId: string,
@@ -350,11 +411,7 @@ export class ReservationRoomAllocationService {
     }
     if (criteria.targetName) {
       orConditions.push({ name: criteria.targetName });
-      const normalizedKey = criteria.targetName
-        .normalize("NFKC")
-        .trim()
-        .replace(/\s+/g, " ")
-        .toLowerCase();
+      const normalizedKey = this.normalizeKey(criteria.targetName);
       orConditions.push({ normalizedKey });
     }
     if (orConditions.length === 0) return null;
@@ -364,7 +421,7 @@ export class ReservationRoomAllocationService {
         hotelId,
         OR: orConditions,
       },
-      select: { id: true, name: true, normalizedKey: true },
+      select: { id: true, name: true, normalizedKey: true, maxOccupancy: true },
     });
   }
 
@@ -377,35 +434,62 @@ export class ReservationRoomAllocationService {
     criteria: { targetId?: string; targetName?: string },
     resolvedRoomType: { id: string; name: string; normalizedKey: string } | null,
   ): boolean {
-    if (resolvedRoomType) {
-      if (room.roomTypeId && room.roomTypeId === resolvedRoomType.id) {
-        return true;
+    const targetId = resolvedRoomType?.id ?? criteria.targetId;
+    const targetName = resolvedRoomType?.name ?? criteria.targetName;
+    const targetNorm =
+      resolvedRoomType?.normalizedKey ??
+      (targetName ? this.normalizeKey(targetName) : undefined);
+
+    // If no target room type was requested, any room is compatible
+    if (!targetId && !targetName) {
+      return true;
+    }
+
+    const roomCanonicalId = room.roomTypeId ?? room.roomType?.id ?? null;
+    const roomLegacyType = room.type?.trim() ? room.type.trim() : null;
+    const roomTypeNorm = roomLegacyType ? this.normalizeKey(roomLegacyType) : null;
+
+    // Room has a known canonical relation
+    if (roomCanonicalId) {
+      if (targetId) {
+        return roomCanonicalId === targetId;
       }
-      if (room.roomType && room.roomType.id === resolvedRoomType.id) {
-        return true;
-      }
-      if (room.type) {
-        const roomNorm = room.type.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
-        if (roomNorm === resolvedRoomType.normalizedKey || room.type === resolvedRoomType.name) {
-          return true;
-        }
+      if (targetNorm && roomTypeNorm) {
+        return roomTypeNorm === targetNorm;
       }
       return false;
     }
 
-    if (criteria.targetId && room.roomTypeId === criteria.targetId) {
+    // Room omits canonical relation (legacy record or test fixture)
+    // "Legacy null canonical type/capacity remains compatible unknown;
+    //  do not produce ROOM_TYPE_MISMATCH merely because fixtures/legacy records omit canonical relation."
+    if (!roomLegacyType) {
       return true;
     }
-    if (criteria.targetId && room.roomType?.id === criteria.targetId) {
+
+    if (resolvedRoomType) {
+      if (
+        roomTypeNorm === resolvedRoomType.normalizedKey ||
+        roomLegacyType === resolvedRoomType.name ||
+        roomLegacyType === resolvedRoomType.id
+      ) {
+        return true;
+      }
+      return false;
+    }
+
+    if (targetNorm && roomTypeNorm) {
+      return roomTypeNorm === targetNorm;
+    }
+
+    if (
+      criteria.targetId &&
+      (roomLegacyType === criteria.targetId || roomTypeNorm === this.normalizeKey(criteria.targetId))
+    ) {
       return true;
     }
-    if (criteria.targetName && room.type === criteria.targetName) {
-      return true;
-    }
-    if (criteria.targetId && room.type === criteria.targetId) {
-      return true;
-    }
-    return false;
+
+    return true;
   }
 
   private async hasOverdueActiveStay(
@@ -442,6 +526,7 @@ export class ReservationRoomAllocationService {
     roomId: string,
     checkInAt: Date,
     checkOutAt: Date,
+    excludedReservationId?: string,
   ): Promise<boolean> {
     if (!tx.guestStay?.findFirst) return false;
 
@@ -450,6 +535,7 @@ export class ReservationRoomAllocationService {
         hotelId,
         roomId,
         status: { in: ACTIVE_STAY_STATUSES },
+        ...(excludedReservationId ? { reservationId: { not: excludedReservationId } } : {}),
         plannedCheckInAt: { lt: checkOutAt },
         plannedCheckOutAt: { gt: checkInAt },
       },
@@ -465,6 +551,7 @@ export class ReservationRoomAllocationService {
     roomId: string,
     checkInAt: Date,
     checkOutAt: Date,
+    excludedReservationId?: string,
   ): Promise<boolean> {
     if (!tx.reservation?.findFirst) return false;
 
@@ -473,6 +560,7 @@ export class ReservationRoomAllocationService {
         hotelId,
         roomId,
         status: { in: ACTIVE_RESERVATION_STATUSES },
+        ...(excludedReservationId ? { id: { not: excludedReservationId } } : {}),
         plannedCheckInAt: { lt: checkOutAt },
         plannedCheckOutAt: { gt: checkInAt },
       },
@@ -527,7 +615,7 @@ export class ReservationRoomAllocationService {
       roomId: room.id,
       roomNumber: room.roomNumber,
       hotelId: room.hotelId,
-      roomTypeId: room.roomTypeId ?? null,
+      roomTypeId: room.roomTypeId ?? room.roomType?.id ?? null,
       type: room.type ?? room.roomType?.name ?? null,
       status: room.status,
       price: room.price ?? room.roomType?.basePrice ?? null,

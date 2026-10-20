@@ -22,7 +22,13 @@ import { CheckInWorkspace } from "@/features/local-biometric/components/check-in
 import type { CheckInStayFields } from "@/features/local-biometric/types/check-in-workspace";
 import { BrandedRoomQr } from "@/features/hotel-ops/components/branded-room-qr";
 import { formatFriendlyCheckInError } from "@/features/hotel-ops/utils/check-in-error";
-import { FrontDeskRoomDetailPanel } from "@/features/hotel-ops/components/front-desk-room-detail-panel";
+import {
+  FrontDeskRoomDetailPanel,
+  formatBookingInterval,
+  formatRoomDisplay,
+  resolveRoomStatusModel,
+  type RoomCompatibilityData,
+} from "@/features/hotel-ops/components/front-desk-room-detail-panel";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import {
@@ -640,6 +646,7 @@ export function StaffRoomsClient({
   const [query, setQuery] = useState(initialQuery ?? "");
   const [floor, setFloor] = useState("all");
   const [type, setType] = useState("all");
+  const [zone, setZone] = useState("all");
   const [housekeepingViewMode, setHousekeepingViewMode] = useState<
     "tasklist" | "grid"
   >("tasklist");
@@ -664,6 +671,7 @@ export function StaffRoomsClient({
     inputQuery.trim() ||
     floor !== "all" ||
     type !== "all" ||
+    zone !== "all" ||
     status !== defaultStatus,
   );
 
@@ -671,6 +679,7 @@ export function StaffRoomsClient({
     setInputQuery("");
     setFloor("all");
     setType("all");
+    setZone("all");
     setStatus(defaultStatus);
     setPage(1);
   };
@@ -1401,6 +1410,16 @@ export function StaffRoomsClient({
     return [...new Set(rawTypes)].sort((a, b) => a.localeCompare(b));
   }, [roomsPage?.types, initialRoomsPage.types]);
 
+  const zones = useMemo(() => {
+    const all = roomsPage?.items ?? initialRoomsPage.items ?? [];
+    const set = new Set<string>();
+    for (const r of all) {
+      const z = (r as any).zone;
+      if (z && String(z).trim()) set.add(String(z).trim());
+    }
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [roomsPage?.items, initialRoomsPage.items]);
+
   const roomTypeSummaryList = useMemo(() => {
     const allRooms = roomsPage?.items ?? initialRoomsPage.items ?? [];
     const map = new Map<
@@ -2037,7 +2056,7 @@ export function StaffRoomsClient({
     return null;
   }
 
-  const filteredRooms =
+  const rawFilteredRooms =
     isFutureDate && status !== "all"
       ? rooms.filter((r) => getEffectiveRoomStatus(r, true) === status)
       : status === "reserved"
@@ -2060,6 +2079,13 @@ export function StaffRoomsClient({
               return getRoomStatus(r) === "available";
             })
           : rooms;
+
+  const filteredRooms =
+    zone !== "all"
+      ? rawFilteredRooms.filter(
+          (r) => String((r as any).zone || "").trim() === zone,
+        )
+      : rawFilteredRooms;
 
   async function confirmRoomReady(room: HotelRoomSummary) {
     const roomNum = getRoomNumber(room);
@@ -3258,6 +3284,10 @@ export function StaffRoomsClient({
     const effectiveStatus: RoomStatusFilter = hasReservation
       ? "reserved"
       : rawEffectiveStatus;
+    const roomStatusModel = resolveRoomStatusModel(room as RoomCompatibilityData, {
+      isFuture: isFutureDate,
+    });
+    const displayData = formatRoomDisplay(room as RoomCompatibilityData);
     const matchedOccupant =
       !isFutureDate && inputQuery.trim()
         ? room.activeStay?.occupants?.find((occ) =>
@@ -4313,6 +4343,23 @@ export function StaffRoomsClient({
               {types.map((value) => (
                 <option key={value} value={value}>
                   {value}
+                </option>
+              ))}
+            </select>
+
+            {/* Zone Select */}
+            <select
+              value={zone}
+              onChange={(event) => {
+                setZone(event.target.value);
+                setPage(1);
+              }}
+              className="h-10 shrink-0 rounded-xl border border-slate-300 hover:border-slate-400 bg-white px-3 text-sm font-bold text-slate-800 focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 shadow-2xs min-w-[145px] cursor-pointer transition min-h-[40px]"
+            >
+              <option value="all">Phân khu: Tất cả</option>
+              {zones.map((value) => (
+                <option key={value} value={value}>
+                  Khu {value}
                 </option>
               ))}
             </select>

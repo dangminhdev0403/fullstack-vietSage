@@ -147,6 +147,89 @@ describe("ReservationsService front-desk lifecycle", () => {
     });
   });
 
+  it("assigns room through injected allocation service when provided", async () => {
+    const mockAllocation = { allocateRoom: jest.fn() };
+    const repository = createRepository();
+    const accessService = {
+      assertHotelAccess: jest.fn().mockResolvedValue({ id: "hotel-1", tenantId: "tenant-1" }),
+      resolveRoomScope: jest.fn().mockResolvedValue({ hotel: { id: "hotel-1" }, allowedRoomId: null }),
+      assertRoomAccess: jest.fn().mockResolvedValue({ id: "hotel-1" }),
+    };
+    const codesService = { generateEntityCode: jest.fn() };
+    const service = new ReservationsService(
+      repository as never,
+      codesService as never,
+      accessService as never,
+      undefined,
+      mockAllocation as never,
+    );
+
+    await service.assignRoom("actor-1", "active-role", "hotel-1", "reservation-1", {
+      roomId: "room-1",
+      expectedUpdatedAt: "2026-08-01T10:00:00.000Z",
+      expectedRoomId: "room-old",
+    });
+
+    expect(repository.assignRoom).toHaveBeenCalledWith({
+      hotelId: "hotel-1",
+      reservationId: "reservation-1",
+      roomId: "room-1",
+      actorUserId: "actor-1",
+      expectedUpdatedAt: "2026-08-01T10:00:00.000Z",
+      expectedRoomId: "room-old",
+      roomAllocationService: mockAllocation,
+    });
+  });
+
+  it("blocks checkIn when reservation is CANCELLED or NO_SHOW", async () => {
+    const { service } = createService(
+      createRepository({
+        findReservationById: jest
+          .fn()
+          .mockResolvedValueOnce({
+            id: "res-cancelled",
+            hotelId: "hotel-1",
+            status: "CANCELLED",
+          })
+          .mockResolvedValueOnce({
+            id: "res-noshow",
+            hotelId: "hotel-1",
+            status: "NO_SHOW",
+          }),
+      }),
+    );
+
+    await expect(
+      service.checkIn("actor-1", "active-role", "hotel-1", "res-cancelled"),
+    ).rejects.toThrow(new ConflictException("Đặt phòng đã bị hủy hoặc báo vắng mặt"));
+
+    await expect(
+      service.checkIn("actor-1", "active-role", "hotel-1", "res-noshow"),
+    ).rejects.toThrow(new ConflictException("Đặt phòng đã bị hủy hoặc báo vắng mặt"));
+  });
+
+  it("persists and returns roomTypeId, guestCount, and notes on reservation creation", async () => {
+    const { service, repository } = createService();
+
+    await service.createReservation("actor-1", "active-role", "hotel-1", {
+      guestDisplayName: "Le Van C",
+      plannedCheckInAt: new Date("2026-08-01T07:00:00.000Z"),
+      plannedCheckOutAt: new Date("2026-08-03T05:00:00.000Z"),
+      roomTypeId: "type-deluxe",
+      guestCount: 2,
+      notes: "Late arrival requested",
+    });
+
+    expect(repository.createReservation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hotelId: "hotel-1",
+        roomTypeId: "type-deluxe",
+        guestCount: 2,
+        notes: "Late arrival requested",
+      }),
+    );
+  });
+
   it("maps missing reservation during assignment to 404", async () => {
     const { service } = createService(
       createRepository({ assignRoom: jest.fn().mockResolvedValue(null) }),

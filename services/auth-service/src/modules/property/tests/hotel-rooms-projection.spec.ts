@@ -215,4 +215,246 @@ describe("Authoritative Selected-Date Room Projection", () => {
     expect(room.projectedStay).toBeDefined();
     expect(room.projectedStay.id).toBe("stay-overdue");
   });
+
+  it("persists and returns Room.zone and RoomType.maxOccupancy", async () => {
+    const roomWithZone = {
+      id: "room-zone-1",
+      hotelId: "hotel-1",
+      code: "VSH_ROOM_0201",
+      roomNumber: "201",
+      floor: "2",
+      zone: "Khu Villa Ho Boi",
+      type: "DELUXE_VILLA",
+      roomTypeId: "rt-villa",
+      roomType: {
+        id: "rt-villa",
+        name: "DELUXE_VILLA",
+        basePrice: new Prisma.Decimal(2500000),
+        maxOccupancy: 4,
+      },
+      price: new Prisma.Decimal(2500000),
+      maxActiveGuestDevices: 4,
+      status: RoomStatus.AVAILABLE,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      qrCodes: [],
+      guestStays: [],
+    };
+
+    const prisma = createMockPrisma({
+      room: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([roomWithZone]),
+        groupBy: jest.fn().mockResolvedValue([]),
+      },
+    });
+
+    const repository = new HotelRoomsRepository(prisma as any);
+    const result = await repository.listRooms({ hotelId: "hotel-1" }, 0, 20);
+
+    expect(result.items).toHaveLength(1);
+    const item = result.items[0];
+    expect(item.zone).toBe("Khu Villa Ho Boi");
+    expect(item.maxOccupancy).toBe(4);
+    expect(item.physicalStatus).toBe(RoomStatus.AVAILABLE);
+    expect(item.projectedStatus).toBe(RoomStatus.AVAILABLE);
+  });
+
+  it("keeps legacy null capacity and room type unknown (null), not falsely zero", async () => {
+    const legacyRoom = {
+      id: "room-legacy-1",
+      hotelId: "hotel-1",
+      code: "VSH_ROOM_0099",
+      roomNumber: "99",
+      floor: null,
+      zone: null,
+      type: "LEGACY_ROOM",
+      roomTypeId: null,
+      roomType: null,
+      price: new Prisma.Decimal(500000),
+      maxActiveGuestDevices: 2,
+      status: RoomStatus.AVAILABLE,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      qrCodes: [],
+      guestStays: [],
+    };
+
+    const prisma = createMockPrisma({
+      room: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([legacyRoom]),
+        groupBy: jest.fn().mockResolvedValue([]),
+      },
+      roomType: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    });
+
+    const repository = new HotelRoomsRepository(prisma as any);
+    const result = await repository.listRooms({ hotelId: "hotel-1" }, 0, 20);
+    const item = result.items[0];
+    expect(item.maxOccupancy).toBeNull();
+    expect(item.maxOccupancy).not.toBe(0);
+    expect(item.zone).toBeNull();
+
+    prisma.room.findMany = jest.fn().mockResolvedValue([legacyRoom]);
+    const types = await repository.listRoomTypes("hotel-1");
+    expect(types).toHaveLength(1);
+    expect(types[0].maxOccupancy).toBeNull();
+    expect(types[0].maxOccupancy).not.toBe(0);
+  });
+
+  it("does not mutate physical room status for future booking", async () => {
+    const futureCheckIn = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const futureCheckOut = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+
+    const tx = {
+      room: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "room-101",
+          hotelId: "hotel-1",
+          status: RoomStatus.AVAILABLE,
+          roomTypeId: "rt-deluxe",
+          roomType: { id: "rt-deluxe", maxOccupancy: 2 },
+        }),
+        updateMany: jest.fn(),
+      },
+      guestStay: {
+        create: jest.fn().mockResolvedValue({
+          id: "stay-future-1",
+          hotelId: "hotel-1",
+          roomId: "room-101",
+          reservationCode: "VSH_RES_FUT_1",
+          status: GuestStayStatus.RESERVED,
+        }),
+      },
+      folio: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn(),
+      },
+      domainEvent: {
+        create: jest.fn(),
+      },
+    };
+
+    const prisma = {
+      $transaction: jest.fn(async (cb: (client: any) => any) => cb(tx)),
+    };
+
+    const repository = new HotelRoomsRepository(prisma as any);
+    await repository.createStay({
+      hotelId: "hotel-1",
+      roomId: "room-101",
+      guestDisplayName: "Future Guest",
+      plannedCheckInAt: futureCheckIn,
+      plannedCheckOutAt: futureCheckOut,
+      createdByUserId: "user-1",
+      tenantId: "tenant-1",
+      generateReservationCode: async () => "VSH_RES_FUT_1",
+      generateFolioNumber: async () => "FOL-001",
+    });
+
+    expect(tx.room.updateMany).not.toHaveBeenCalled();
+    expect(tx.guestStay.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: GuestStayStatus.RESERVED,
+          plannedCheckInAt: futureCheckIn,
+        }),
+      }),
+    );
+  });
+
+  it("respects half-open reservation intervals [checkIn, checkOut) so arriving reservation on date D projects accurately", async () => {
+    const resArriving = {
+      id: "res-arriving",
+      hotelId: "hotel-1",
+      roomId: "room-101",
+      reservationCode: "RES-ARRIVING",
+      guestDisplayName: "Khach Den Ngay 20",
+      status: ReservationStatus.CONFIRMED,
+      plannedCheckInAt: new Date("2026-11-20T07:00:00.000Z"),
+      plannedCheckOutAt: new Date("2026-11-22T05:00:00.000Z"),
+      nightlyRateSnapshot: new Prisma.Decimal(1000000),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const prisma = createMockPrisma({
+      reservation: {
+        findMany: jest.fn().mockResolvedValue([resArriving]),
+      },
+      guestStay: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    });
+
+    const repository = new HotelRoomsRepository(prisma as any);
+    const result = await repository.listRooms({ hotelId: "hotel-1" }, 0, 20, {
+      businessDate: "2026-11-20",
+      timezone: "Asia/Ho_Chi_Minh",
+    });
+
+    const room = result.items[0];
+    expect(room.projectedStatus).toBe(RoomStatus.RESERVED);
+    expect(room.projectedReservation.reservationCode).toBe("RES-ARRIVING");
+    expect(room.statusConflictCode).toBeNull();
+  });
+
+  it("detects status conflicts: NON_SELLABLE_OCCUPIED_CONFLICT and AVAILABLE_WITH_ACTIVE_STAY_CONFLICT", async () => {
+    const activeStay = {
+      id: "stay-active",
+      hotelId: "hotel-1",
+      roomId: "room-101",
+      status: GuestStayStatus.ACTIVE,
+      plannedCheckInAt: new Date(),
+      plannedCheckOutAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      checkedInAt: new Date(),
+      checkedOutAt: null,
+      occupants: [],
+    };
+
+    const prisma1 = createMockPrisma({
+      room: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: "room-101",
+            hotelId: "hotel-1",
+            roomNumber: "101",
+            status: RoomStatus.MAINTENANCE,
+            guestStays: [activeStay],
+            qrCodes: [],
+          },
+        ]),
+        groupBy: jest.fn().mockResolvedValue([]),
+      },
+    });
+
+    const repo1 = new HotelRoomsRepository(prisma1 as any);
+    const result1 = await repo1.listRooms({ hotelId: "hotel-1" }, 0, 20);
+    expect(result1.items[0].statusConflictCode).toBe("NON_SELLABLE_OCCUPIED_CONFLICT");
+
+    const prisma2 = createMockPrisma({
+      room: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: "room-101",
+            hotelId: "hotel-1",
+            roomNumber: "101",
+            status: RoomStatus.AVAILABLE,
+            guestStays: [activeStay],
+            qrCodes: [],
+          },
+        ]),
+        groupBy: jest.fn().mockResolvedValue([]),
+      },
+    });
+
+    const repo2 = new HotelRoomsRepository(prisma2 as any);
+    const result2 = await repo2.listRooms({ hotelId: "hotel-1" }, 0, 20);
+    expect(result2.items[0].statusConflictCode).toBe("AVAILABLE_WITH_ACTIVE_STAY_CONFLICT");
+  });
 });

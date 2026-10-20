@@ -17,7 +17,7 @@ export function ServiceTenantRealtimeNotifier() {
         toast.success("Realtime đối tác đã kết nối", {
           id: "service-tenant-realtime-ready",
           description: "Thông báo đơn hàng dịch vụ mới sẽ xuất hiện tự động.",
-          duration: 3000,
+          duration: 2000,
         });
       },
       onExternalOrderCreated: (event: unknown) => {

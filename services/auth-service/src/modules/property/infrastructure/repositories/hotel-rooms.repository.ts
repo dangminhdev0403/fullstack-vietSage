@@ -23,7 +23,7 @@ export function getBusinessDateRange(
   dateStr: string,
   timeZone?: string | null,
 ): { start: Date; end: Date } {
-  const tz = timeZone || "Asia/Ho_Chi_Minh";
+  const tz = (!timeZone || timeZone === "Asia/Saigon") ? "Asia/Ho_Chi_Minh" : timeZone;
   const [year, month, day] = dateStr.split("-").map(Number);
 
   function parseZoned(
@@ -102,6 +102,7 @@ export class HotelRoomsRepository {
         id: type.id,
         name: type.name,
         basePrice: type.basePrice === null ? null : Number(type.basePrice),
+        maxOccupancy: (type as any).maxOccupancy ?? null,
         readiness:
           type.basePrice !== null && Number(type.basePrice) > 0
             ? ("READY" as const)
@@ -118,13 +119,19 @@ export class HotelRoomsRepository {
         id: `legacy:${key}`,
         name: value.name,
         basePrice: null,
+        maxOccupancy: null,
         readiness: "MISSING_PRICE" as const,
         roomCount: value.count,
       })),
     ];
   }
 
-  async createRoomType(hotelId: string, name: string, basePrice: number) {
+  async createRoomType(
+    hotelId: string,
+    name: string,
+    basePrice: number,
+    maxOccupancy?: number | null,
+  ) {
     const normalized = HotelRoomsRepository.normalizeType(name);
     if (!normalized.name) throw new BadRequestException("Tên loại phòng không được để trống");
     if (normalized.name.length > 80 || normalized.normalizedKey.length > 80) {
@@ -142,13 +149,21 @@ export class HotelRoomsRepository {
 
       if (!item) {
         item = await tx.roomType.create({
-          data: { hotelId, ...normalized, basePrice },
+          data: {
+            hotelId,
+            ...normalized,
+            basePrice,
+            ...(maxOccupancy !== undefined ? { maxOccupancy } : {}),
+          },
         });
         created = true;
       } else {
         item = await tx.roomType.update({
           where: { id: item.id },
-          data: { basePrice },
+          data: {
+            basePrice,
+            ...(maxOccupancy !== undefined ? { maxOccupancy } : {}),
+          },
         });
       }
 
@@ -179,8 +194,13 @@ export class HotelRoomsRepository {
     });
   }
 
-  async updateRoomTypePrice(hotelId: string, roomTypeId: string, basePrice: number) {
-    if (!basePrice || basePrice <= 0) {
+  async updateRoomTypePrice(
+    hotelId: string,
+    roomTypeId: string,
+    basePrice?: number,
+    maxOccupancy?: number | null,
+  ) {
+    if (basePrice !== undefined && (!basePrice || basePrice <= 0)) {
       throw new BadRequestException("Giá gốc loại phòng phải lớn hơn 0");
     }
     return await this.prisma.$transaction(async (tx) => {
@@ -191,31 +211,36 @@ export class HotelRoomsRepository {
 
       const updatedType = await tx.roomType.update({
         where: { id: roomTypeId },
-        data: { basePrice },
+        data: {
+          ...(basePrice !== undefined ? { basePrice } : {}),
+          ...(maxOccupancy !== undefined ? { maxOccupancy } : {}),
+        },
       });
 
-      await tx.room.updateMany({
-        where: { hotelId, roomTypeId },
-        data: { price: basePrice },
-      });
-
-      const legacyRooms = await tx.room.findMany({
-        where: { hotelId, roomTypeId: null, type: { not: null } },
-        select: { id: true, type: true },
-      });
-      const matchingIds = legacyRooms
-        .filter(
-          (room) =>
-            room.type &&
-            HotelRoomsRepository.normalizeType(room.type).normalizedKey === type.normalizedKey,
-        )
-        .map((room) => room.id);
-
-      if (matchingIds.length > 0) {
+      if (basePrice !== undefined) {
         await tx.room.updateMany({
-          where: { id: { in: matchingIds } },
-          data: { roomTypeId: type.id, price: basePrice },
+          where: { hotelId, roomTypeId },
+          data: { price: basePrice },
         });
+
+        const legacyRooms = await tx.room.findMany({
+          where: { hotelId, roomTypeId: null, type: { not: null } },
+          select: { id: true, type: true },
+        });
+        const matchingIds = legacyRooms
+          .filter(
+            (room) =>
+              room.type &&
+              HotelRoomsRepository.normalizeType(room.type).normalizedKey === type.normalizedKey,
+          )
+          .map((room) => room.id);
+
+        if (matchingIds.length > 0) {
+          await tx.room.updateMany({
+            where: { id: { in: matchingIds } },
+            data: { roomTypeId: type.id, price: basePrice },
+          });
+        }
       }
 
       return { ...(await this.roomTypeItem(updatedType)), channexSync: "NOT_PUSHED" as const };
@@ -228,11 +253,13 @@ export class HotelRoomsRepository {
     name: string;
     normalizedKey: string;
     basePrice: Prisma.Decimal | null;
+    maxOccupancy?: number | null;
   }) {
     return {
       id: type.id,
       name: type.name,
       basePrice: type.basePrice === null ? null : Number(type.basePrice),
+      maxOccupancy: type.maxOccupancy ?? null,
       readiness:
         type.basePrice !== null && Number(type.basePrice) > 0
           ? ("READY" as const)
@@ -274,9 +301,10 @@ export class HotelRoomsRepository {
     code: string;
     roomNumber: string;
     floor?: string;
+    zone?: string | null;
     type?: string;
     roomTypeId?: string;
-    newRoomType?: { name: string; basePrice: number };
+    newRoomType?: { name: string; basePrice: number; maxOccupancy?: number | null };
     price?: number;
     maxActiveGuestDevices?: number;
     publicCode: string;
@@ -335,8 +363,19 @@ export class HotelRoomsRepository {
                   normalizedKey: normalized.normalizedKey,
                 },
               },
-              create: { hotelId: input.hotelId, ...normalized, basePrice },
-              update: {},
+              create: {
+                hotelId: input.hotelId,
+                ...normalized,
+                basePrice,
+                ...(input.newRoomType?.maxOccupancy !== undefined
+                  ? { maxOccupancy: input.newRoomType.maxOccupancy }
+                  : {}),
+              },
+              update: {
+                ...(input.newRoomType?.maxOccupancy !== undefined
+                  ? { maxOccupancy: input.newRoomType.maxOccupancy }
+                  : {}),
+              },
             });
           }
         }
@@ -351,6 +390,7 @@ export class HotelRoomsRepository {
             code: input.code,
             roomNumber: input.roomNumber,
             floor: input.floor,
+            zone: input.zone ?? null,
             type: roomType.name,
             roomTypeId: roomType.id,
             price: input.price ?? roomType.basePrice,
@@ -452,13 +492,23 @@ export class HotelRoomsRepository {
     const items = await this.withActiveGuestDeviceCounts(this.prisma, rows);
 
     if (projectionOptions?.businessDate) {
+      let timezone = projectionOptions.timezone;
+      if (!timezone && this.prisma.hotel?.findUnique) {
+        const hotel = await this.prisma.hotel.findUnique({
+          where: { id: hotelId },
+          select: { timezone: true },
+        });
+        timezone = hotel?.timezone ?? undefined;
+      }
+
       const { start: dateStart, end: dateEnd } = getBusinessDateRange(
         projectionOptions.businessDate,
-        projectionOptions.timezone,
+        timezone,
       );
       const roomIds = items.map((r) => r.id);
 
       const now = new Date();
+      const isViewingToday = dateStart <= now && now < dateEnd;
       const isViewingTodayOrPast = dateStart <= now;
 
       const overlappingStays =
@@ -477,7 +527,7 @@ export class HotelRoomsRepository {
                 plannedCheckInAt: { lt: dateEnd },
                 OR: [
                   { plannedCheckOutAt: { gt: dateStart } },
-                  ...(isViewingTodayOrPast ? [{ checkedOutAt: null }] : []),
+                  ...(isViewingToday ? [{ checkedOutAt: null }] : []),
                 ],
               },
               select: {
@@ -515,7 +565,7 @@ export class HotelRoomsRepository {
         const stayStart = stay.checkedInAt ?? stay.plannedCheckInAt;
         const stayEnd =
           stay.checkedOutAt ??
-          (isViewingTodayOrPast && stay.plannedCheckOutAt < now ? now : stay.plannedCheckOutAt);
+          (isViewingToday && stay.plannedCheckOutAt < now ? now : stay.plannedCheckOutAt);
         if (stayStart < dateEnd && stayEnd > dateStart) {
           if (!staysByRoomId.has(stay.roomId)) {
             staysByRoomId.set(stay.roomId, stay);
@@ -686,8 +736,45 @@ export class HotelRoomsRepository {
             sourceType: "RESERVATION",
           };
         }
+        item.physicalStatus = item.status;
         item.projectedStatus = projectedStatus;
         item.businessDate = projectionOptions.businessDate;
+        item.maxOccupancy = (item as any).roomType?.maxOccupancy ?? null;
+        item.zone = (item as any).zone ?? null;
+
+        let statusConflictCode: string | null = null;
+        const activeStay = item.guestStays?.[0];
+        const now = new Date();
+        const isOverdue =
+          isViewingTodayOrPast &&
+          activeStay &&
+          !activeStay.checkedOutAt &&
+          activeStay.plannedCheckOutAt &&
+          new Date(activeStay.plannedCheckOutAt).getTime() < now.getTime() &&
+          (activeStay.status === GuestStayStatus.ACTIVE ||
+            activeStay.status === GuestStayStatus.CHECKED_IN ||
+            activeStay.status === GuestStayStatus.CHECKOUT_PENDING);
+
+        if (isOverdue) {
+          statusConflictCode = "OVERDUE_STAY_CONFLICT";
+        } else if (
+          (item.status === RoomStatus.MAINTENANCE ||
+            item.status === RoomStatus.BLOCKED ||
+            item.status === RoomStatus.OUT_OF_SERVICE) &&
+          (activeStay || item.projectedReservation)
+        ) {
+          statusConflictCode = "NON_SELLABLE_OCCUPIED_CONFLICT";
+        } else if (item.status === RoomStatus.AVAILABLE && activeStay) {
+          statusConflictCode = "AVAILABLE_WITH_ACTIVE_STAY_CONFLICT";
+        } else if (
+          item.status === RoomStatus.OCCUPIED &&
+          !activeStay &&
+          !item.projectedStay &&
+          isViewingTodayOrPast
+        ) {
+          statusConflictCode = "OCCUPIED_WITHOUT_ACTIVE_STAY_CONFLICT";
+        }
+        item.statusConflictCode = statusConflictCode;
       }
     } else {
       const roomIds = items.map((i) => i.id);
@@ -705,7 +792,7 @@ export class HotelRoomsRepository {
                   roomId: { in: roomIds },
                   status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY] },
                   plannedCheckInAt: { lte: now },
-                  plannedCheckOutAt: { gte: now },
+                  plannedCheckOutAt: { gt: now },
                 },
                 select: {
                   id: true,
@@ -735,6 +822,8 @@ export class HotelRoomsRepository {
                   hotelId,
                   roomId: { in: roomIds },
                   status: GuestStayStatus.RESERVED,
+                  plannedCheckInAt: { lte: now },
+                  plannedCheckOutAt: { gt: now },
                 },
                 select: {
                   id: true,
@@ -815,8 +904,12 @@ export class HotelRoomsRepository {
       }
 
       for (const item of items) {
+        item.physicalStatus = item.status;
         item.projectedStatus = item.status;
         item.businessDate = null;
+        item.maxOccupancy = (item as any).roomType?.maxOccupancy ?? null;
+        item.zone = (item as any).zone ?? null;
+
         if (reservationsByRoomId.has(item.id)) {
           item.projectedReservation = {
             ...reservationsByRoomId.get(item.id),
@@ -841,6 +934,34 @@ export class HotelRoomsRepository {
             sourceType: "RESERVATION",
           };
         }
+
+        let statusConflictCode: string | null = null;
+        const activeStay = item.guestStays?.[0];
+        const now = new Date();
+        const isOverdue =
+          activeStay &&
+          !activeStay.checkedOutAt &&
+          activeStay.plannedCheckOutAt &&
+          new Date(activeStay.plannedCheckOutAt).getTime() < now.getTime() &&
+          (activeStay.status === GuestStayStatus.ACTIVE ||
+            activeStay.status === GuestStayStatus.CHECKED_IN ||
+            activeStay.status === GuestStayStatus.CHECKOUT_PENDING);
+
+        if (isOverdue) {
+          statusConflictCode = "OVERDUE_STAY_CONFLICT";
+        } else if (
+          (item.status === RoomStatus.MAINTENANCE ||
+            item.status === RoomStatus.BLOCKED ||
+            item.status === RoomStatus.OUT_OF_SERVICE) &&
+          (activeStay || item.projectedReservation)
+        ) {
+          statusConflictCode = "NON_SELLABLE_OCCUPIED_CONFLICT";
+        } else if (item.status === RoomStatus.AVAILABLE && activeStay) {
+          statusConflictCode = "AVAILABLE_WITH_ACTIVE_STAY_CONFLICT";
+        } else if (item.status === RoomStatus.OCCUPIED && !activeStay && !item.projectedStay) {
+          statusConflictCode = "OCCUPIED_WITHOUT_ACTIVE_STAY_CONFLICT";
+        }
+        item.statusConflictCode = statusConflictCode;
       }
     }
 
@@ -1002,31 +1123,64 @@ export class HotelRoomsRepository {
       .map((room) => room.guestStays[0]?.id)
       .filter((stayId): stayId is string => Boolean(stayId));
 
-    if (activeStayIds.length === 0) {
-      return rooms.map((room) => ({ ...room, activeGuestDeviceCount: 0 }));
+    let countByStayId: ReadonlyMap<string, number> = new Map<string, number>();
+    if (activeStayIds.length > 0 && tx.guestSession?.findMany) {
+      const sessions = await tx.guestSession.findMany({
+        where: {
+          stayId: { in: activeStayIds },
+          status: { in: [GuestSessionStatus.ACTIVE, GuestSessionStatus.IDLE] },
+          closedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        select: {
+          id: true,
+          stayId: true,
+          deviceFingerprintHash: true,
+          ipHash: true,
+          userAgent: true,
+        },
+      });
+      countByStayId = countDistinctGuestDevicesByStay(sessions);
     }
 
-    const sessions = await tx.guestSession.findMany({
-      where: {
-        stayId: { in: activeStayIds },
-        status: { in: [GuestSessionStatus.ACTIVE, GuestSessionStatus.IDLE] },
-        closedAt: null,
-        expiresAt: { gt: new Date() },
-      },
-      select: {
-        id: true,
-        stayId: true,
-        deviceFingerprintHash: true,
-        ipHash: true,
-        userAgent: true,
-      },
-    });
-    const countByStayId = countDistinctGuestDevicesByStay(sessions);
+    return rooms.map((room) => {
+      const activeStay = room.guestStays[0];
+      const now = new Date();
+      const isOverdue =
+        activeStay &&
+        !activeStay.checkedOutAt &&
+        activeStay.plannedCheckOutAt &&
+        new Date(activeStay.plannedCheckOutAt).getTime() < now.getTime() &&
+        (activeStay.status === GuestStayStatus.ACTIVE ||
+          activeStay.status === GuestStayStatus.CHECKED_IN ||
+          activeStay.status === GuestStayStatus.CHECKOUT_PENDING);
 
-    return rooms.map((room) => ({
-      ...room,
-      activeGuestDeviceCount: countByStayId.get(room.guestStays[0]?.id ?? "") ?? 0,
-    }));
+      let statusConflictCode: string | null = null;
+      if (isOverdue) {
+        statusConflictCode = "OVERDUE_STAY_CONFLICT";
+      } else if (
+        (room.status === RoomStatus.MAINTENANCE ||
+          room.status === RoomStatus.BLOCKED ||
+          room.status === RoomStatus.OUT_OF_SERVICE) &&
+        activeStay
+      ) {
+        statusConflictCode = "NON_SELLABLE_OCCUPIED_CONFLICT";
+      } else if (room.status === RoomStatus.AVAILABLE && activeStay) {
+        statusConflictCode = "AVAILABLE_WITH_ACTIVE_STAY_CONFLICT";
+      } else if (room.status === RoomStatus.OCCUPIED && !activeStay) {
+        statusConflictCode = "OCCUPIED_WITHOUT_ACTIVE_STAY_CONFLICT";
+      }
+
+      return {
+        ...room,
+        physicalStatus: (room as any).physicalStatus ?? room.status,
+        projectedStatus: (room as any).projectedStatus ?? room.status,
+        statusConflictCode: (room as any).statusConflictCode ?? statusConflictCode,
+        zone: (room as any).zone ?? null,
+        maxOccupancy: (room as any).roomType?.maxOccupancy ?? null,
+        activeGuestDeviceCount: countByStayId.get(room.guestStays[0]?.id ?? "") ?? 0,
+      };
+    });
   }
 
   async findRoomInHotel(hotelId: string, roomId: string) {
@@ -1068,6 +1222,40 @@ export class HotelRoomsRepository {
     generateFolioNumber: (tx: Prisma.TransactionClient) => Promise<string>;
   }) {
     return this.prisma.$transaction(async (tx) => {
+      if (input.plannedCheckOutAt <= input.plannedCheckInAt) {
+        throw new BadRequestException("Thời gian check-out phải sau thời gian check-in");
+      }
+
+      const room = await tx.room.findFirst({
+        where: { id: input.roomId, hotelId: input.hotelId },
+        select: {
+          id: true,
+          status: true,
+          roomTypeId: true,
+          roomType: { select: { id: true, maxOccupancy: true } },
+        },
+      });
+
+      if (!room) {
+        throw new NotFoundException("Không tìm thấy phòng");
+      }
+
+      const primaryName = input.guestDisplayName.trim();
+      const rawExtraOccupants = (input.occupants ?? []).filter(
+        (occ) =>
+          occ.fullName.trim() &&
+          !(
+            occ.fullName.trim() === primaryName &&
+            (!occ.identityNumber?.trim() ||
+              occ.identityNumber?.trim() === (input.guestIdentityNumber?.trim() ?? ""))
+          ),
+      );
+      const totalOccupants = 1 + rawExtraOccupants.length;
+      const roomCapacity = (room as any)?.roomType?.maxOccupancy;
+      if (roomCapacity != null && totalOccupants > roomCapacity) {
+        throw new ConflictException("ROOM_CAPACITY_OVERFLOW");
+      }
+
       const reservationCode = await input.generateReservationCode(tx);
       const stay = await tx.guestStay.create({
         data: {
@@ -1144,7 +1332,9 @@ export class HotelRoomsRepository {
         generateFolioNumber: input.generateFolioNumber,
       });
 
-      if (tx.room?.updateMany) {
+      const now = new Date();
+      const isFuture = input.plannedCheckInAt > now;
+      if (!isFuture && tx.room?.updateMany) {
         const reservedRoom = await tx.room.updateMany({
           where: { id: input.roomId, hotelId: input.hotelId, status: RoomStatus.AVAILABLE },
           data: { status: RoomStatus.RESERVED },
@@ -1329,6 +1519,34 @@ export class HotelRoomsRepository {
         payload: { roomQrCodeId: activeQr.id, roomId: input.roomId, stayId: stay.id },
       });
 
+      if (tx.auditLog?.create) {
+        let tenantId: string | undefined = input.tenantId;
+        if (!tenantId && tx.hotel?.findUnique) {
+          const hotel = await tx.hotel.findUnique({
+            where: { id: input.hotelId },
+            select: { tenantId: true },
+          });
+          tenantId = hotel?.tenantId ?? undefined;
+        }
+        if (tenantId) {
+          await tx.auditLog.create({
+            data: {
+              actorId: input.actorUserId,
+              tenantId,
+              action: "GUEST_CHECKED_IN",
+              entityType: "GuestStay",
+              entityId: stay.id,
+              metadata: {
+                stayId: stay.id,
+                roomId: input.roomId,
+                checkedInAt: now.toISOString(),
+                actorUserId: input.actorUserId,
+              },
+            },
+          });
+        }
+      }
+
       return { stay, roomQrCode: activeQr };
     });
   }
@@ -1376,7 +1594,12 @@ export class HotelRoomsRepository {
 
       const room = await tx.room.findFirst({
         where: { id: input.roomId, hotelId: input.hotelId },
-        select: { id: true, status: true },
+        select: {
+          id: true,
+          status: true,
+          roomTypeId: true,
+          roomType: { select: { id: true, maxOccupancy: true } },
+        },
       });
 
       if (!room) {
@@ -1385,6 +1608,22 @@ export class HotelRoomsRepository {
 
       if (room.status !== RoomStatus.AVAILABLE) {
         throw new ConflictException("Phòng không khả dụng để check-in");
+      }
+
+      const primaryName = input.guestDisplayName.trim();
+      const rawExtraOccupants = (input.occupants ?? []).filter(
+        (occ) =>
+          occ.fullName.trim() &&
+          !(
+            occ.fullName.trim() === primaryName &&
+            (!occ.identityNumber?.trim() ||
+              occ.identityNumber?.trim() === (input.guestIdentityNumber?.trim() ?? ""))
+          ),
+      );
+      const totalOccupants = 1 + rawExtraOccupants.length;
+      const roomCapacity = (room as any)?.roomType?.maxOccupancy;
+      if (roomCapacity != null && totalOccupants > roomCapacity) {
+        throw new ConflictException("ROOM_CAPACITY_OVERFLOW");
       }
 
       if (tx.reservation?.findFirst) {
@@ -1533,6 +1772,34 @@ export class HotelRoomsRepository {
         tenantId: input.tenantId,
         payload: { roomQrCodeId: activeQr.id, roomId: input.roomId, stayId: stay.id },
       });
+
+      if (tx.auditLog?.create) {
+        let tenantId: string | undefined = input.tenantId;
+        if (!tenantId && tx.hotel?.findUnique) {
+          const hotel = await tx.hotel.findUnique({
+            where: { id: input.hotelId },
+            select: { tenantId: true },
+          });
+          tenantId = hotel?.tenantId ?? undefined;
+        }
+        if (tenantId) {
+          await tx.auditLog.create({
+            data: {
+              actorId: input.actorUserId,
+              tenantId,
+              action: "GUEST_CHECKED_IN",
+              entityType: "GuestStay",
+              entityId: stay.id,
+              metadata: {
+                stayId: stay.id,
+                roomId: input.roomId,
+                checkedInAt: now.toISOString(),
+                actorUserId: input.actorUserId,
+              },
+            },
+          });
+        }
+      }
 
       return { stay, roomQrCode: activeQr };
     });

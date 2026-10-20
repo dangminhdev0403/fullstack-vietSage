@@ -1176,7 +1176,33 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
 
               const confirmed = await showConfirmDialog({
                 title: "Xác nhận nhận phòng?",
-                text: `Làm thủ tục nhận phòng ${room.roomNumber} cho ${fields.guestDisplayName || "khách lưu trú"}${normalizedOccupants.length > 0 ? ` cùng ${normalizedOccupants.length} khách đi cùng` : ""} và gửi thông tin lên hệ thống?`,
+                text: (() => {
+                  const partyCount = 1 + normalizedOccupants.length;
+                  const reservationCode = (initialStayFields as { reservationCode?: string })?.reservationCode;
+                  const inSchedule = (initialStayFields as { plannedCheckInAt?: string })?.plannedCheckInAt
+                    ? toDisplayVnDate((initialStayFields as { plannedCheckInAt?: string }).plannedCheckInAt)
+                    : "Hôm nay";
+                  const outSchedule = fields.plannedCheckOutAt
+                    ? toDisplayVnDate(fields.plannedCheckOutAt)
+                    : "Theo quy định";
+                  const notesText =
+                    (initialStayFields as { notes?: string })?.notes ||
+                    (room as { notes?: string })?.notes ||
+                    "Không có ghi chú";
+                  const roomCapacity =
+                    (room as { capacity?: string | number })?.capacity ?? "2 khách";
+
+                  return [
+                    `• Khách đại diện: ${fields.guestDisplayName || "Chưa nhập tên"}${fields.guestPhone ? ` (${fields.guestPhone})` : ""}`,
+                    `• Mã đặt phòng: ${reservationCode ? `#${reservationCode}` : "Khách vãng lai"}`,
+                    `• Phòng: Phòng ${room.roomNumber}`,
+                    `• Hạng phòng: ${room.type || "Tiêu chuẩn"}`,
+                    `• Sức chứa: ${roomCapacity}`,
+                    `• Lịch trình: ${inSchedule} – ${outSchedule}`,
+                    `• Đoàn lưu trú: ${partyCount} khách (1 chính${normalizedOccupants.length > 0 ? ` + ${normalizedOccupants.length} đi cùng` : ""})`,
+                    `• Ghi chú: ${notesText}`,
+                  ].join("\n");
+                })(),
                 confirmText: "Hoàn tất nhận phòng",
                 cancelText: "Hủy bỏ",
                 reverseButtons: false,

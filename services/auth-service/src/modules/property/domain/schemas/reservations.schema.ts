@@ -32,6 +32,8 @@ export const createReservationBodySchema = z
     roomId: z.string().trim().min(1).nullable().optional(),
     roomTypeId: z.string().trim().min(1).optional(),
     autoAssign: z.boolean().optional(),
+    guestCount: z.coerce.number().int().min(1).max(50).optional(),
+    notes: z.string().trim().max(500).optional(),
     rate: nightlyRateSnapshotSchema,
     nightlyRateSnapshot: nightlyRateSnapshotSchema,
   })
@@ -60,6 +62,8 @@ export const assignReservationRoomBodySchema = z
     roomId: z.string().trim().min(1),
     rate: nightlyRateSnapshotSchema,
     nightlyRateSnapshot: nightlyRateSnapshotSchema,
+    expectedUpdatedAt: z.coerce.date().or(z.string()).optional(),
+    expectedRoomId: z.string().trim().min(1).nullable().optional(),
   })
   .strict();
 
@@ -80,6 +84,11 @@ export const checkInReservationBodySchema = z
     plannedCheckOutAt: z.coerce.date().optional(),
     occupants: z.array(stayOccupantInputSchema).optional(),
     allowEarlyCheckIn: z.boolean().optional(),
+    allowLateCheckIn: z.boolean().optional(),
+    confirmEarlyCheckIn: z.boolean().optional(),
+    confirmLateCheckIn: z.boolean().optional(),
+    expectedUpdatedAt: z.coerce.date().or(z.string()).optional(),
+    expectedRoomId: z.string().trim().min(1).nullable().optional(),
   })
   .strict();
 

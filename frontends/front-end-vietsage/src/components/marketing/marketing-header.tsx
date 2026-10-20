@@ -416,13 +416,6 @@ export function MarketingHeader({
                         <span className="text-base leading-none">{opt.flag}</span>
                         <span>{opt.nativeName}</span>
                       </span>
-                      <span
-                        className={`text-xs font-mono px-1.5 py-0.5 rounded ${
-                          opt.code === activeLocale ? 'bg-[#b8872f]/25 text-[#f3c66b]' : 'bg-[#123d2a]/5 text-[#627064]'
-                        }`}
-                      >
-                        {opt.code === 'vi' ? 'VN' : opt.code === 'en' ? 'EN' : opt.badge}
-                      </span>
                     </button>
                   </li>
                 ))}

@@ -63,7 +63,7 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
         toast.success("Realtime đã kết nối", {
           id: "owner-realtime-ready",
           description: "Thông báo yêu cầu mới sẽ xuất hiện tự động.",
-          duration: 3_000,
+          duration: 2000,
         });
       },
       onCreated: (request: StaffRequestListItem) => {

@@ -64,17 +64,28 @@ export const roomStatusSchema = z.preprocess(
 
 export const roomTypeNameSchema = z.string().trim().min(1).max(80);
 export const basePriceSchema = z.number().finite().positive().max(9_999_999_999.99);
+export const roomMaxOccupancySchema = z.coerce
+  .number({ message: "Sức chứa phải là số" })
+  .int("Sức chứa phải là số nguyên")
+  .min(1, "Sức chứa tối thiểu là 1 người")
+  .max(50, "Sức chứa tối đa là 50 người");
+
 export const createRoomTypeBodySchema = z
   .object({
     name: roomTypeNameSchema,
     basePrice: basePriceSchema,
+    maxOccupancy: roomMaxOccupancySchema.nullable().optional(),
   })
   .strict();
 export const updateRoomTypePriceBodySchema = z
   .object({
-    basePrice: basePriceSchema,
+    basePrice: basePriceSchema.optional(),
+    maxOccupancy: roomMaxOccupancySchema.nullable().optional(),
   })
-  .strict();
+  .strict()
+  .refine((data) => data.basePrice !== undefined || data.maxOccupancy !== undefined, {
+    message: "Cần ít nhất giá cơ sở hoặc sức chứa để cập nhật",
+  });
 
 export const createRoomBodySchema = z
   .object({
@@ -84,6 +95,7 @@ export const createRoomBodySchema = z
       .min(1, "Số phòng không được để trống")
       .max(40, "Số phòng tối đa 40 ký tự"),
     floor: z.string().trim().max(40, "Tên tầng tối đa 40 ký tự").optional(),
+    zone: z.string().trim().max(80, "Tên khu vực tối đa 80 ký tự").nullable().optional(),
     type: roomTypeNameSchema.optional(),
     roomTypeId: z.string().trim().min(1).optional(),
     newRoomType: createRoomTypeBodySchema.optional(),
@@ -126,6 +138,7 @@ export const updateRoomBodySchema = z
       .max(40, "Số phòng tối đa 40 ký tự")
       .optional(),
     floor: z.string().trim().max(40, "Tên tầng tối đa 40 ký tự").nullable().optional(),
+    zone: z.string().trim().max(80, "Tên khu vực tối đa 80 ký tự").nullable().optional(),
     type: z.string().trim().max(80, "Loại phòng tối đa 80 ký tự").nullable().optional(),
     roomTypeId: z.string().trim().min(1).optional(),
     price: z.coerce
@@ -205,6 +218,7 @@ export const listRoomsQuerySchema = z
       .optional(),
     q: z.string().max(80, "Từ khóa quá dài").optional(),
     floor: z.string().max(40, "Tên tầng quá dài").optional(),
+    zone: z.string().max(80, "Tên khu vực quá dài").optional(),
     type: z.string().max(80, "Loại phòng quá dài").optional(),
     vipOnly: z.preprocess((val) => val === "true" || val === true, z.boolean()).optional(),
     unassignedOnly: z.preprocess((val) => val === "true" || val === true, z.boolean()).optional(),

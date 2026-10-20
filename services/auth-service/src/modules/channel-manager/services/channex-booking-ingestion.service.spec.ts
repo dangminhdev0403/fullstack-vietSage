@@ -251,8 +251,10 @@ describe("ChannexBookingIngestionService - Automatic Room Allocation & Ingestion
       const secondResData = prisma.reservation.create.mock.calls[1][0].data;
 
       expect(firstResData.roomId).toBe("room-101");
+      expect(firstResData.roomTypeId).toBe(deluxeLocalId);
       expect(firstResData.assignedAt).toBeInstanceOf(Date);
       expect(secondResData.roomId).toBe("room-102");
+      expect(secondResData.roomTypeId).toBe(deluxeLocalId);
       expect(secondResData.assignedAt).toBeInstanceOf(Date);
       expect(firstResData.roomId).not.toBe(secondResData.roomId);
 
@@ -769,6 +771,160 @@ describe("ChannexBookingIngestionService - Automatic Room Allocation & Ingestion
           roomType: "DeLuXe",
         }),
       ).rejects.toThrow("Phát hiện xung đột hạng phòng (case-insensitive collision)");
+    });
+  });
+
+  describe("11. Normalized reservation writer: canonical roomTypeId, authoritative party size, and physical room status isolation", () => {
+    it("persists canonical roomTypeId and authoritative provider party size (guestCount) when occupancy is present", async () => {
+      const revisionWithOccupancy: ChannexRevisionItem = {
+        id: "rev-occ-1",
+        type: "booking_revision",
+        attributes: {
+          booking_id: "book-uuid-occ",
+          property_id: propertyChannexId,
+          status: "new",
+          ota_name: "Booking.com",
+          ota_reservation_code: "BK-OCC-1",
+          arrival_date: "2026-11-01",
+          departure_date: "2026-11-05",
+          amount: "3000000",
+          currency: "VND",
+          customer: {
+            name: "Le",
+            surname: "Van C",
+          },
+          rooms: [
+            {
+              room_type_id: roomTypeChannexId,
+              rate_plan_id: "rp-1",
+              checkin_date: "2026-11-01",
+              checkout_date: "2026-11-05",
+              amount: "3000000",
+              occupancy: { adults: 2, children: 1, infants: 0 },
+            },
+          ],
+        },
+      };
+
+      allocationService.allocateRoom.mockResolvedValueOnce({
+        id: "room-101",
+        roomId: "room-101",
+        roomNumber: "101",
+        hotelId,
+        roomTypeId: deluxeLocalId,
+        type: "Deluxe King",
+        status: RoomStatus.AVAILABLE,
+        price: 3000000,
+        floor: "1",
+        room: null,
+      });
+
+      const outcome = await service.processSingleRevision(revisionWithOccupancy);
+
+      expect(outcome.action).toBe("CREATED");
+      // Allocation service receives party size (guestCount = 3)
+      expect(allocationService.allocateRoom).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          hotelId,
+          roomTypeId: deluxeLocalId,
+          guestCount: 3,
+        }),
+      );
+
+      // Reservation record created with canonical roomTypeId and guestCount = 3
+      const resData = prisma.reservation.create.mock.calls[0][0].data;
+      expect(resData.roomTypeId).toBe(deluxeLocalId);
+      expect(resData.guestCount).toBe(3);
+    });
+
+    it("does not persist guestCount when provider segment contains no occupancy data", async () => {
+      allocationService.allocateRoom.mockResolvedValueOnce({
+        id: "room-101",
+        roomId: "room-101",
+        roomNumber: "101",
+        hotelId,
+        roomTypeId: deluxeLocalId,
+        type: "Deluxe King",
+        status: RoomStatus.AVAILABLE,
+        price: 2500000,
+        floor: "1",
+        room: null,
+      });
+
+      await service.processSingleRevision(sampleSingleRoomRevision);
+
+      const resData = prisma.reservation.create.mock.calls[0][0].data;
+      expect(resData.roomTypeId).toBe(deluxeLocalId);
+      expect(resData.guestCount).toBeUndefined();
+    });
+
+    it("never toggles physical Room.status on create or cancel, and cancellation never frees OCCUPIED/maintenance rooms", async () => {
+      // Mock room update to spy on whether physical room status is modified
+      prisma.room = {
+        update: jest.fn(),
+      };
+
+      allocationService.allocateRoom.mockResolvedValueOnce({
+        id: "room-101",
+        roomId: "room-101",
+        roomNumber: "101",
+        hotelId,
+        roomTypeId: deluxeLocalId,
+        type: "Deluxe King",
+        status: RoomStatus.AVAILABLE,
+        price: 2500000,
+        floor: "1",
+        room: null,
+      });
+
+      // 1. Create booking revision
+      await service.processSingleRevision(sampleSingleRoomRevision);
+      expect(prisma.room.update).not.toHaveBeenCalled();
+
+      // 2. Cancel booking revision where room is OCCUPIED
+      prisma.reservation.findMany = jest.fn().mockResolvedValueOnce([
+        { roomId: "room-101", room: { roomNumber: "101", status: RoomStatus.OCCUPIED } },
+      ]);
+      prisma.channexMapping.findFirst.mockImplementation(async ({ where }: { where: any }) => {
+        if (where.kind === "property") return { hotelId };
+        if (where.kind === "booking") {
+          return {
+            localId: "res-1",
+            hotelId,
+            channexId: "book-uuid-single",
+            metadata: {
+              reservationIds: ["res-1"],
+              otaReservationCode: "BK-12345",
+            },
+          };
+        }
+        return null;
+      });
+
+      const cancelOutcome = await service.processSingleRevision({
+        id: "rev-cancel-occupied",
+        type: "booking_revision",
+        attributes: {
+          booking_id: "book-uuid-single",
+          property_id: propertyChannexId,
+          status: "cancelled",
+          arrival_date: "2026-11-01",
+          departure_date: "2026-11-05",
+          amount: "2500000",
+          currency: "VND",
+        },
+      });
+
+      expect(cancelOutcome.action).toBe("CANCELLED");
+      // Reservation is marked CANCELLED
+      expect(prisma.reservation.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { status: ReservationStatus.CANCELLED },
+        }),
+      );
+      // Physical Room.status is NEVER modified (never frees OCCUPIED/maintenance)
+      expect(prisma.room.update).not.toHaveBeenCalled();
     });
   });
 });

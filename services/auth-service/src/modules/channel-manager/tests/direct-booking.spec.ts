@@ -69,7 +69,7 @@ describe("Channel Manager Direct Booking & Auto Room Allocation Module", () => {
           hotelId: input.hotelId,
           roomTypeId: input.roomTypeId,
           type: "DELUXE",
-          status: RoomStatus.RESERVED,
+          status: RoomStatus.AVAILABLE,
           price: 1200000,
           floor: "3",
           room: { id: "room_302", roomNumber: "302", floor: "3" },
@@ -325,7 +325,7 @@ describe("Channel Manager Direct Booking & Auto Room Allocation Module", () => {
         hold_id: holdId,
         booking_id: bookingId,
         status: "CONFIRMED",
-        room_status: "RESERVED",
+        room_status: "AVAILABLE",
         assigned_room: {
           room_number: "302",
           floor: 3,
@@ -333,20 +333,21 @@ describe("Channel Manager Direct Booking & Auto Room Allocation Module", () => {
       });
       expect(data.confirmed_at).toBeDefined();
 
-      // KIỂM TRA BẤT BIẾN QUAN TRỌNG:
-      // Trạng thái phòng cập nhật trong DB là RoomStatus.RESERVED
-      expect(mockPrisma.room.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: "room_302" },
-          data: { status: RoomStatus.RESERVED },
-        }),
-      );
+      // BẤT BIẾN: Tạo/xác nhận reservation KHÔNG toggle Room.status vật lý thành RESERVED
+      expect(mockPrisma.room.update).not.toHaveBeenCalled();
 
       // TUYỆT ĐỐI KHÔNG ĐƯỢC CÓ TRẠNG THÁI OCCUPIED
       expect(data.room_status).not.toBe("OCCUPIED");
-      expect(mockPrisma.room.update).not.toHaveBeenCalledWith(
+
+      // BẤT BIẾN: Lưu trữ canonical roomTypeId trong Reservation
+      expect(mockPrisma.reservation.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: { status: RoomStatus.OCCUPIED },
+          data: expect.objectContaining({
+            hotelId,
+            roomId: "room_302",
+            roomTypeId,
+            roomTypeSnapshot: "DELUXE",
+          }),
         }),
       );
 
@@ -361,7 +362,43 @@ describe("Channel Manager Direct Booking & Auto Room Allocation Module", () => {
       );
     });
 
-    it("phát sự kiện realtime channel_booking.created và room_status.updated khi confirm hold thành công", async () => {
+    it("lưu trữ canonical roomTypeId và authoritative provider party size (guestCount) khi có", async () => {
+      const holdRes = await directBookingService.createHold({
+        hotel_id: hotelId,
+        room_type_id: roomTypeId,
+        check_in_date: "2026-11-10",
+        check_out_date: "2026-11-12",
+        rooms_count: 1,
+        guest: {
+          name: "Tran Thi B",
+          phone: "0987654321",
+        },
+        guest_count: 2,
+      } as any);
+
+      const holdId = holdRes.hold_id;
+      const bookingId = "bk_ota_party_002";
+
+      await directBookingService.confirmHold(holdId, bookingId);
+
+      expect(mockPrisma.reservation.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            roomTypeId,
+            guestCount: 2,
+          }),
+        }),
+      );
+
+      expect(mockRoomAllocationService.allocateRoom).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          guestCount: 2,
+        }),
+      );
+    });
+
+    it("phát sự kiện realtime channel_booking.created khi confirm hold thành công và không phát room_status.updated", async () => {
       const emitBookingSpy = jest.spyOn(RequestRealtimeEmitter, "emitChannelBookingCreated").mockImplementation(() => {});
       const emitRoomSpy = jest.spyOn(RequestRealtimeEmitter, "emitRoomStatusUpdated").mockImplementation(() => {});
 
@@ -392,14 +429,8 @@ describe("Channel Manager Direct Booking & Auto Room Allocation Module", () => {
         }),
       );
 
-      expect(emitRoomSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          hotelId,
-          roomId: "room_302",
-          roomNumber: "302",
-          status: RoomStatus.RESERVED,
-        }),
-      );
+      // BẤT BIẾN: Không toggle Room.status -> emitRoomStatusUpdated không được gọi
+      expect(emitRoomSpy).not.toHaveBeenCalled();
 
       emitBookingSpy.mockRestore();
       emitRoomSpy.mockRestore();
@@ -521,7 +552,7 @@ describe("Channel Manager Direct Booking & Auto Room Allocation Module", () => {
       expect(statusRes.data.confirmed).toBe(true);
       expect(statusRes.data.booking_id).toBe(bookingId);
       expect(statusRes.data.status).toBe("CONFIRMED");
-      expect(statusRes.data.room_status).toBe("RESERVED");
+      expect(statusRes.data.room_status).toBe("AVAILABLE");
       expect(statusRes.data.assigned_room.room_number).toBe("302");
     });
 

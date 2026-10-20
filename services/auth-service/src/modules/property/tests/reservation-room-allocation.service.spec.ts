@@ -94,6 +94,7 @@ describe("ReservationRoomAllocationService", () => {
             reservations.find((res) => {
               if (where.hotelId && res.hotelId !== where.hotelId) return false;
               if (where.roomId && res.roomId !== where.roomId) return false;
+              if (where.id?.not && res.id === where.id.not) return false;
               if (where.status?.in && !where.status.in.includes(res.status)) return false;
               // Check half-open overlap: plannedCheckInAt < checkOutAt && plannedCheckOutAt > checkInAt
               const checkInAt = where.plannedCheckOutAt?.gt;
@@ -116,6 +117,7 @@ describe("ReservationRoomAllocationService", () => {
             guestStays.find((stay) => {
               if (where.hotelId && stay.hotelId !== where.hotelId) return false;
               if (where.roomId && stay.roomId !== where.roomId) return false;
+              if (where.reservationId?.not && stay.reservationId === where.reservationId.not) return false;
               if (where.status?.in && !where.status.in.includes(stay.status)) return false;
               if (where.checkedOutAt === null && stay.checkedOutAt !== null) return false;
               if (where.plannedCheckOutAt?.lt) {
@@ -666,4 +668,314 @@ describe("ReservationRoomAllocationService", () => {
       ).rejects.toThrow(new NotFoundException("Không tìm thấy phòng"));
     });
   });
+
+  describe("Legacy null canonical type and unknown target handling", () => {
+    it("does not produce ROOM_TYPE_MISMATCH when target room is a legacy record omitting canonical relation", async () => {
+      const legacyRoom = {
+        id: "room-legacy-1",
+        hotelId,
+        roomNumber: "101",
+        roomTypeId: null,
+        type: null,
+        status: RoomStatus.AVAILABLE,
+        price: new Prisma.Decimal("100.00"),
+      };
+
+      const tx = createMockTx({ rooms: [legacyRoom] });
+
+      const result = await service.allocateRoom(tx as any, {
+        hotelId,
+        roomTypeId: deluxeType.id,
+        requestedRoomId: "room-legacy-1",
+        interval: {
+          checkInAt: new Date("2026-11-01T14:00:00Z"),
+          checkOutAt: new Date("2026-11-03T12:00:00Z"),
+        },
+        mode: "manual",
+      });
+
+      expect(result.id).toBe("room-legacy-1");
+      expect(result.roomNumber).toBe("101");
+    });
+
+    it("auto mode allocates legacy room with omitted canonical relation as compatible unknown", async () => {
+      const legacyRoom = {
+        id: "room-legacy-1",
+        hotelId,
+        roomNumber: "101",
+        roomTypeId: null,
+        type: null,
+        status: RoomStatus.AVAILABLE,
+      };
+
+      const tx = createMockTx({ rooms: [legacyRoom] });
+
+      const result = await service.allocateRoom(tx as any, {
+        hotelId,
+        roomTypeId: deluxeType.id,
+        interval: {
+          checkInAt: new Date("2026-11-01T14:00:00Z"),
+          checkOutAt: new Date("2026-11-03T12:00:00Z"),
+        },
+        mode: "auto",
+      });
+
+      expect(result.id).toBe("room-legacy-1");
+    });
+
+    it("matches room when requested type is unknown/omitted", async () => {
+      const room = {
+        id: "room-101",
+        hotelId,
+        roomNumber: "101",
+        roomTypeId: deluxeType.id,
+        type: deluxeType.name,
+        status: RoomStatus.AVAILABLE,
+      };
+
+      const tx = createMockTx({ rooms: [room] });
+
+      const result = await service.allocateRoom(tx as any, {
+        hotelId,
+        interval: {
+          checkInAt: new Date("2026-11-01T14:00:00Z"),
+          checkOutAt: new Date("2026-11-03T12:00:00Z"),
+        },
+        mode: "auto",
+      });
+
+      expect(result.id).toBe("room-101");
+    });
+
+    it("matches legacy room when room.type matches resolved canonical room type name", async () => {
+      const legacyRoom = {
+        id: "room-101",
+        hotelId,
+        roomNumber: "101",
+        roomTypeId: null,
+        type: "Deluxe Double",
+        status: RoomStatus.AVAILABLE,
+      };
+
+      const tx = createMockTx({ rooms: [legacyRoom] });
+
+      const result = await service.allocateRoom(tx as any, {
+        hotelId,
+        roomTypeId: deluxeType.id,
+        requestedRoomId: "room-101",
+        interval: {
+          checkInAt: new Date("2026-11-01T14:00:00Z"),
+          checkOutAt: new Date("2026-11-03T12:00:00Z"),
+        },
+        mode: "manual",
+      });
+
+      expect(result.id).toBe("room-101");
+    });
+  });
+
+  describe("Room capacity validation and legacy null capacity", () => {
+    it("manual mode throws ROOM_CAPACITY_OVERFLOW when guestCount exceeds room capacity", async () => {
+      const room = {
+        id: "room-101",
+        hotelId,
+        roomNumber: "101",
+        roomTypeId: deluxeType.id,
+        roomType: { ...deluxeType, maxOccupancy: 2 },
+        status: RoomStatus.AVAILABLE,
+      };
+
+      const tx = createMockTx({ rooms: [room] });
+
+      await expect(
+        service.allocateRoom(tx as any, {
+          hotelId,
+          requestedRoomId: "room-101",
+          guestCount: 3,
+          interval: {
+            checkInAt: new Date("2026-11-01T14:00:00Z"),
+            checkOutAt: new Date("2026-11-03T12:00:00Z"),
+          },
+          mode: "manual",
+        }),
+      ).rejects.toThrow(new ConflictException("ROOM_CAPACITY_OVERFLOW"));
+    });
+
+    it("auto mode filters out rooms with insufficient capacity and selects one with adequate capacity", async () => {
+      const smallRoom = {
+        id: "room-101",
+        hotelId,
+        roomNumber: "101",
+        roomTypeId: deluxeType.id,
+        roomType: { ...deluxeType, maxOccupancy: 2 },
+        status: RoomStatus.AVAILABLE,
+      };
+      const largeRoom = {
+        id: "room-102",
+        hotelId,
+        roomNumber: "102",
+        roomTypeId: deluxeType.id,
+        roomType: { ...deluxeType, maxOccupancy: 4 },
+        status: RoomStatus.AVAILABLE,
+      };
+
+      const tx = createMockTx({ rooms: [smallRoom, largeRoom] });
+
+      const result = await service.allocateRoom(tx as any, {
+        hotelId,
+        guestCount: 3,
+        interval: {
+          checkInAt: new Date("2026-11-01T14:00:00Z"),
+          checkOutAt: new Date("2026-11-03T12:00:00Z"),
+        },
+        mode: "auto",
+      });
+
+      expect(result.id).toBe("room-102");
+    });
+
+    it("legacy room with null capacity remains compatible unknown when guestCount is specified", async () => {
+      const legacyRoom = {
+        id: "room-101",
+        hotelId,
+        roomNumber: "101",
+        roomTypeId: null,
+        roomType: null,
+        maxOccupancy: null,
+        status: RoomStatus.AVAILABLE,
+      };
+
+      const tx = createMockTx({ rooms: [legacyRoom] });
+
+      const result = await service.allocateRoom(tx as any, {
+        hotelId,
+        guestCount: 4,
+        requestedRoomId: "room-101",
+        interval: {
+          checkInAt: new Date("2026-11-01T14:00:00Z"),
+          checkOutAt: new Date("2026-11-03T12:00:00Z"),
+        },
+        mode: "manual",
+      });
+
+      expect(result.id).toBe("room-101");
+    });
+  });
+
+  describe("Hotel scope validation", () => {
+    it("manual mode throws NotFoundException if room belongs to another hotel", async () => {
+      const foreignRoom = {
+        id: "room-other-hotel",
+        hotelId: "hotel-test-2",
+        roomNumber: "101",
+        status: RoomStatus.AVAILABLE,
+      };
+
+      const tx = createMockTx({ rooms: [foreignRoom] });
+
+      await expect(
+        service.allocateRoom(tx as any, {
+          hotelId: "hotel-test-1",
+          requestedRoomId: "room-other-hotel",
+          interval: {
+            checkInAt: new Date("2026-11-01T14:00:00Z"),
+            checkOutAt: new Date("2026-11-03T12:00:00Z"),
+          },
+          mode: "manual",
+        }),
+      ).rejects.toThrow(new NotFoundException("Không tìm thấy phòng"));
+    });
+
+    it("auto mode excludes rooms from different hotel", async () => {
+      const foreignRoom = {
+        id: "room-other-hotel",
+        hotelId: "hotel-test-2",
+        roomNumber: "101",
+        status: RoomStatus.AVAILABLE,
+      };
+
+      const tx = createMockTx({ rooms: [foreignRoom] });
+
+      await expect(
+        service.allocateRoom(tx as any, {
+          hotelId: "hotel-test-1",
+          interval: {
+            checkInAt: new Date("2026-11-01T14:00:00Z"),
+            checkOutAt: new Date("2026-11-03T12:00:00Z"),
+          },
+          mode: "auto",
+        }),
+      ).rejects.toThrow(new ConflictException("NO_AVAILABLE_ROOM"));
+    });
+  });
+
+  describe("Overdue active stay in manual mode", () => {
+    it("manual mode throws ROOM_OVERDUE_STAY_CONFLICT when requested room has an overdue active stay", async () => {
+      const now = new Date();
+      const room = {
+        id: "room-101",
+        hotelId,
+        roomNumber: "101",
+        status: RoomStatus.OCCUPIED,
+      };
+      const overdueStay = {
+        id: "stay-overdue",
+        hotelId,
+        roomId: "room-101",
+        status: GuestStayStatus.ACTIVE,
+        plannedCheckInAt: new Date(now.getTime() - 48 * 3600000),
+        plannedCheckOutAt: new Date(now.getTime() - 2 * 3600000),
+        checkedOutAt: null,
+      };
+
+      const tx = createMockTx({ rooms: [room], guestStays: [overdueStay] });
+
+      await expect(
+        service.allocateRoom(tx as any, {
+          hotelId,
+          requestedRoomId: "room-101",
+          interval: {
+            checkInAt: new Date(now.getTime() + 3600000),
+            checkOutAt: new Date(now.getTime() + 24 * 3600000),
+          },
+          mode: "manual",
+        }),
+      ).rejects.toThrow(new ConflictException("ROOM_OVERDUE_STAY_CONFLICT"));
+    });
+  });
+
+  describe("Excluded reservation ID handling", () => {
+    it("does not conflict with existing reservation when excludedReservationId matches", async () => {
+      const room = {
+        id: "room-101",
+        hotelId,
+        roomNumber: "101",
+        status: RoomStatus.AVAILABLE,
+      };
+      const existingRes = {
+        id: "res-self",
+        hotelId,
+        roomId: "room-101",
+        status: ReservationStatus.CONFIRMED,
+        plannedCheckInAt: new Date("2026-11-01T14:00:00Z"),
+        plannedCheckOutAt: new Date("2026-11-05T12:00:00Z"),
+      };
+
+      const tx = createMockTx({ rooms: [room], reservations: [existingRes] });
+
+      const result = await service.allocateRoom(tx as any, {
+        hotelId,
+        requestedRoomId: "room-101",
+        excludedReservationId: "res-self",
+        interval: {
+          checkInAt: new Date("2026-11-02T14:00:00Z"),
+          checkOutAt: new Date("2026-11-04T12:00:00Z"),
+        },
+        mode: "manual",
+      });
+
+      expect(result.id).toBe("room-101");
+    });
+  });
+
 });

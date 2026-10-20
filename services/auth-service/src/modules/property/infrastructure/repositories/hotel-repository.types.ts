@@ -35,6 +35,14 @@ export const roomListInclude = {
     },
     take: 1,
   },
+  roomType: {
+    select: {
+      id: true,
+      name: true,
+      basePrice: true,
+      maxOccupancy: true,
+    },
+  },
 } satisfies Prisma.RoomInclude;
 
 export type HotelDetailRow = Prisma.HotelGetPayload<{ include: typeof hotelDetailInclude }>;
@@ -44,7 +52,11 @@ export type RoomListRow = Prisma.RoomGetPayload<{ include: typeof roomListInclud
   projectedReservation?: any;
   upcomingReservation?: any;
   projectedStatus?: RoomStatus;
+  physicalStatus?: RoomStatus;
+  statusConflictCode?: string | null;
   businessDate?: string | null;
+  maxOccupancy?: number | null;
+  zone?: string | null;
 };
 
 export const serviceItemInclude = {

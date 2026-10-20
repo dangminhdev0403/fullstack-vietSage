@@ -1060,15 +1060,17 @@ model BiometricWorkstation {
 }
 
 model RoomType {
-  id            String   @id @default(cuid())
+  id            String        @id @default(cuid())
   hotelId       String
-  name          String   @db.VarChar(80)
-  normalizedKey String   @db.VarChar(80)
-  basePrice     Decimal? @db.Decimal(12, 2)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  hotel         Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  name          String        @db.VarChar(80)
+  normalizedKey String        @db.VarChar(80)
+  basePrice     Decimal?      @db.Decimal(12, 2)
+  maxOccupancy  Int?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  hotel         Hotel         @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   rooms         Room[]
+  reservations  Reservation[]
 
   @@unique([hotelId, normalizedKey])
 }
@@ -1080,6 +1082,7 @@ model Room {
   code                  String                    @unique @db.VarChar(80)
   roomNumber            String                    @db.VarChar(40)
   floor                 String?                   @db.VarChar(40)
+  zone                  String?
   type                  String?                   @db.VarChar(80)
   price                 Decimal?                  @db.Decimal(12, 2)
   maxActiveGuestDevices Int?
@@ -1128,33 +1131,38 @@ model RoomQRCode {
 }
 
 model Reservation {
-  id                String            @id @default(cuid())
-  hotelId           String
-  roomId            String?
-  roomTypeSnapshot  String?           @db.VarChar(80)
-  reservationCode   String            @db.VarChar(80)
-  groupCode         String?           @db.VarChar(80)
-  guestDisplayName  String            @db.VarChar(120)
-  guestPhone        String?           @db.VarChar(40)
-  status            ReservationStatus @default(CONFIRMED)
-  plannedCheckInAt  DateTime
-  plannedCheckOutAt DateTime
-  nightlyRateSnapshot Decimal?        @db.Decimal(12, 2)
-  assignedAt        DateTime?
-  assignedByUserId  String?
-  checkedInAt       DateTime?
-  checkedInByUserId String?
-  createdByUserId   String?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  hotel             Hotel             @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  room              Room?             @relation(fields: [roomId], references: [id], onDelete: SetNull)
-  stay              GuestStay?
+  id                  String            @id @default(cuid())
+  hotelId             String
+  roomId              String?
+  roomTypeId          String?
+  roomTypeSnapshot    String?           @db.VarChar(80)
+  reservationCode     String            @db.VarChar(80)
+  groupCode           String?           @db.VarChar(80)
+  guestDisplayName    String            @db.VarChar(120)
+  guestPhone          String?           @db.VarChar(40)
+  status              ReservationStatus @default(CONFIRMED)
+  plannedCheckInAt    DateTime
+  plannedCheckOutAt   DateTime
+  nightlyRateSnapshot Decimal?          @db.Decimal(12, 2)
+  guestCount          Int?
+  notes               String?
+  assignedAt          DateTime?
+  assignedByUserId    String?
+  checkedInAt         DateTime?
+  checkedInByUserId   String?
+  createdByUserId     String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  hotel               Hotel             @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room                Room?             @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  roomType            RoomType?         @relation(fields: [roomTypeId], references: [id], onDelete: SetNull)
+  stay                GuestStay?
 
   @@unique([hotelId, reservationCode])
   @@index([hotelId, status, plannedCheckInAt])
   @@index([roomId, status, plannedCheckInAt, plannedCheckOutAt])
   @@index([hotelId, groupCode])
+  @@index([hotelId, roomTypeId])
 }
 
 model GuestStay {

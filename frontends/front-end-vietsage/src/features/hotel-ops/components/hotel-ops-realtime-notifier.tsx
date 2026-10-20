@@ -34,7 +34,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         toast.success("Realtime đã kết nối", {
           id: `hotel-ops-realtime-ready-${hotelId}`,
           description: "Yêu cầu và tin nhắn mới sẽ cập nhật tự động.",
-          duration: 3000,
+          duration: 2000,
         });
       },
       onCreated: (request: StaffRequestListItem) => {
@@ -75,7 +75,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
             {
               id: `hotel-ops-request-cancelled-${request.id}`,
               description: `Khách hàng vừa hủy yêu cầu ${request.displayName ?? ""}`,
-              duration: 3000,
+              duration: 2000,
               action: {
                 label: "Xem ngay",
                 onClick: () => {
@@ -117,7 +117,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
             toast.info("Có tin nhắn mới từ khách", {
               id: `hotel-ops-message-${raw.message.id ?? Date.now()}`,
               description: `Phòng ${raw.thread?.roomNumber ?? ""}: ${raw.message.body ?? ""}`,
-              duration: 3000,
+              duration: 2000,
               action: {
                 label: "Xem tin nhắn",
                 onClick: () => {
@@ -153,7 +153,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         toast.success("Có yêu cầu dịch vụ đối tác mới", {
           id: `hotel-ops-ext-order-created-${raw?.orderId ?? Date.now()}`,
           description: `${roomLabel} - ${guestName}: ${serviceName}`,
-          duration: 3000,
+          duration: 2000,
           action: {
             label: "Xem ngay",
             onClick: () => {

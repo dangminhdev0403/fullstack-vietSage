@@ -77,6 +77,14 @@ describe("ReservationsRepository arrival reads", () => {
 });
 
 describe("ReservationsRepository transactional lifecycle", () => {
+  beforeAll(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date("2026-08-01T12:00:00.000Z"));
+  });
+
+  afterAll(() => {
+    jest.useRealTimers();
+  });
   it("rejects an overlapping active reservation without mutating the room", async () => {
     const reservation = {
       id: "reservation-1",
@@ -507,7 +515,330 @@ describe("ReservationsRepository transactional lifecycle", () => {
         generateFolioNumber: jest.fn(),
         timezone: "Asia/Ho_Chi_Minh",
       }),
-    ).rejects.toThrow(new ConflictException("EARLY_CHECK_IN_NOT_ALLOWED"));
+    ).rejects.toThrow(new ConflictException("EARLY_CHECK_IN_CONFIRMATION_REQUIRED"));
+  });
+
+  it("succeeds early check-in on confirmed retry with confirmEarlyCheckIn = true", async () => {
+    const futureDate = new Date(Date.now() + 86400000 * 5);
+    const reservation = {
+      id: "res-future-confirmed",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      reservationCode: "VSH_RES_EARLY",
+      guestDisplayName: "Early Guest",
+      status: ReservationStatus.ARRIVAL_READY,
+      plannedCheckInAt: futureDate,
+      hotel: { timezone: "Asia/Ho_Chi_Minh" },
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: {
+        findFirst: jest.fn().mockResolvedValue(reservation),
+        update: jest
+          .fn()
+          .mockResolvedValue({ ...reservation, status: ReservationStatus.CHECKED_IN }),
+      },
+      room: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "room-1",
+          status: RoomStatus.AVAILABLE,
+          price: new Prisma.Decimal(1000000),
+        }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      guestStay: {
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({ id: "stay-early", status: "ACTIVE" }),
+      },
+      folio: {
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({ id: "folio-early", status: "OPEN" }),
+      },
+      roomQRCode: {
+        findFirst: jest.fn().mockResolvedValue({ id: "qr-1", version: 1 }),
+        updateMany: jest.fn(),
+        update: jest.fn().mockResolvedValue({ id: "qr-1", status: "ACTIVE" }),
+      },
+      domainEvent: { create: jest.fn() },
+    };
+    const { repository } = createRepository(tx);
+
+    const result = await repository.checkInReservation({
+      hotelId: "hotel-1",
+      tenantId: "tenant-1",
+      reservationId: "res-future-confirmed",
+      actorUserId: "actor-1",
+      accessCodeHash: "hash",
+      accessCodeExpiresAt: new Date(),
+      generateFolioNumber: jest.fn().mockResolvedValue("FOL-EARLY"),
+      timezone: "Asia/Ho_Chi_Minh",
+      dto: { confirmEarlyCheckIn: true },
+    });
+
+    expect(result.reservation.status).toBe(ReservationStatus.CHECKED_IN);
+    expect(result.stay.status).toBe("ACTIVE");
+  });
+
+  it("rejects late check-in when plannedCheckInAt was in the past and requires confirmation", async () => {
+    const pastDate = new Date("2026-07-20T10:00:00.000Z");
+    const reservation = {
+      id: "res-past",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      status: ReservationStatus.ARRIVAL_READY,
+      plannedCheckInAt: pastDate,
+      hotel: { timezone: "Asia/Ho_Chi_Minh" },
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: { findFirst: jest.fn().mockResolvedValue(reservation) },
+    };
+    const { repository } = createRepository(tx);
+
+    await expect(
+      repository.checkInReservation({
+        hotelId: "hotel-1",
+        tenantId: "tenant-1",
+        reservationId: "res-past",
+        actorUserId: "actor-1",
+        accessCodeHash: "hash",
+        accessCodeExpiresAt: new Date(),
+        generateFolioNumber: jest.fn(),
+        timezone: "Asia/Ho_Chi_Minh",
+      }),
+    ).rejects.toThrow(new ConflictException("LATE_CHECK_IN_CONFIRMATION_REQUIRED"));
+  });
+
+  it("succeeds late check-in on confirmed retry with confirmLateCheckIn = true", async () => {
+    const pastDate = new Date("2026-07-20T10:00:00.000Z");
+    const reservation = {
+      id: "res-past-confirmed",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      reservationCode: "VSH_RES_LATE",
+      guestDisplayName: "Late Guest",
+      status: ReservationStatus.ARRIVAL_READY,
+      plannedCheckInAt: pastDate,
+      hotel: { timezone: "Asia/Ho_Chi_Minh" },
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: {
+        findFirst: jest.fn().mockResolvedValue(reservation),
+        update: jest
+          .fn()
+          .mockResolvedValue({ ...reservation, status: ReservationStatus.CHECKED_IN }),
+      },
+      room: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "room-1",
+          status: RoomStatus.AVAILABLE,
+          price: new Prisma.Decimal(1000000),
+        }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      guestStay: {
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({ id: "stay-late", status: "ACTIVE" }),
+      },
+      folio: {
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({ id: "folio-late", status: "OPEN" }),
+      },
+      roomQRCode: {
+        findFirst: jest.fn().mockResolvedValue({ id: "qr-1", version: 1 }),
+        updateMany: jest.fn(),
+        update: jest.fn().mockResolvedValue({ id: "qr-1", status: "ACTIVE" }),
+      },
+      domainEvent: { create: jest.fn() },
+    };
+    const { repository } = createRepository(tx);
+
+    const result = await repository.checkInReservation({
+      hotelId: "hotel-1",
+      tenantId: "tenant-1",
+      reservationId: "res-past-confirmed",
+      actorUserId: "actor-1",
+      accessCodeHash: "hash",
+      accessCodeExpiresAt: new Date(),
+      generateFolioNumber: jest.fn().mockResolvedValue("FOL-LATE"),
+      timezone: "Asia/Ho_Chi_Minh",
+      dto: { confirmLateCheckIn: true },
+    });
+
+    expect(result.reservation.status).toBe(ReservationStatus.CHECKED_IN);
+    expect(result.stay.status).toBe("ACTIVE");
+  });
+
+  it("blocks check-in when reservation is CANCELLED or NO_SHOW", async () => {
+    const cancelledRes = {
+      id: "res-cancelled",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      status: ReservationStatus.CANCELLED,
+      hotel: { timezone: "Asia/Ho_Chi_Minh" },
+    };
+    const noShowRes = {
+      id: "res-noshow",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      status: ReservationStatus.NO_SHOW,
+      hotel: { timezone: "Asia/Ho_Chi_Minh" },
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValueOnce(cancelledRes)
+          .mockResolvedValueOnce(noShowRes),
+      },
+    };
+    const { repository } = createRepository(tx);
+
+    await expect(
+      repository.checkInReservation({
+        hotelId: "hotel-1",
+        tenantId: "tenant-1",
+        reservationId: "res-cancelled",
+        actorUserId: "actor-1",
+        accessCodeHash: "hash",
+        accessCodeExpiresAt: new Date(),
+        generateFolioNumber: jest.fn(),
+      }),
+    ).rejects.toThrow(new ConflictException("RESERVATION_CANCELLED"));
+
+    await expect(
+      repository.checkInReservation({
+        hotelId: "hotel-1",
+        tenantId: "tenant-1",
+        reservationId: "res-noshow",
+        actorUserId: "actor-1",
+        accessCodeHash: "hash",
+        accessCodeExpiresAt: new Date(),
+        generateFolioNumber: jest.fn(),
+      }),
+    ).rejects.toThrow(new ConflictException("RESERVATION_NO_SHOW"));
+  });
+
+  it("blocks check-in when expectedUpdatedAt or expectedRoomId is stale", async () => {
+    const reservation = {
+      id: "res-stale",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      status: ReservationStatus.ARRIVAL_READY,
+      updatedAt: new Date("2026-08-01T10:00:00.000Z"),
+      hotel: { timezone: "Asia/Ho_Chi_Minh" },
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: { findFirst: jest.fn().mockResolvedValue(reservation) },
+    };
+    const { repository } = createRepository(tx);
+
+    await expect(
+      repository.checkInReservation({
+        hotelId: "hotel-1",
+        tenantId: "tenant-1",
+        reservationId: "res-stale",
+        actorUserId: "actor-1",
+        accessCodeHash: "hash",
+        accessCodeExpiresAt: new Date(),
+        generateFolioNumber: jest.fn(),
+        dto: { expectedUpdatedAt: new Date("2026-08-01T09:00:00.000Z") },
+      }),
+    ).rejects.toThrow(new ConflictException("STALE_RESERVATION_RECORD"));
+
+    await expect(
+      repository.checkInReservation({
+        hotelId: "hotel-1",
+        tenantId: "tenant-1",
+        reservationId: "res-stale",
+        actorUserId: "actor-1",
+        accessCodeHash: "hash",
+        accessCodeExpiresAt: new Date(),
+        generateFolioNumber: jest.fn(),
+        dto: { expectedRoomId: "room-different" },
+      }),
+    ).rejects.toThrow(new ConflictException("STALE_ROOM_ASSIGNMENT"));
+  });
+
+  it("blocks assignRoom when expectedUpdatedAt or expectedRoomId is stale", async () => {
+    const reservation = {
+      id: "res-stale-assign",
+      hotelId: "hotel-1",
+      roomId: "room-old",
+      status: ReservationStatus.CONFIRMED,
+      updatedAt: new Date("2026-08-01T10:00:00.000Z"),
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: { findFirst: jest.fn().mockResolvedValue(reservation) },
+    };
+    const { repository } = createRepository(tx);
+
+    await expect(
+      repository.assignRoom({
+        hotelId: "hotel-1",
+        reservationId: "res-stale-assign",
+        roomId: "room-new",
+        actorUserId: "actor-1",
+        expectedUpdatedAt: new Date("2026-08-01T08:00:00.000Z"),
+      }),
+    ).rejects.toThrow(new ConflictException("STALE_RESERVATION_RECORD"));
+
+    await expect(
+      repository.assignRoom({
+        hotelId: "hotel-1",
+        reservationId: "res-stale-assign",
+        roomId: "room-new",
+        actorUserId: "actor-1",
+        expectedRoomId: "room-wrong",
+      }),
+    ).rejects.toThrow(new ConflictException("STALE_ROOM_ASSIGNMENT"));
+  });
+
+  it("blocks assignRoom when reservation is CANCELLED or NO_SHOW", async () => {
+    const cancelledRes = {
+      id: "res-cancelled",
+      hotelId: "hotel-1",
+      roomId: null,
+      status: ReservationStatus.CANCELLED,
+    };
+    const noShowRes = {
+      id: "res-noshow",
+      hotelId: "hotel-1",
+      roomId: null,
+      status: ReservationStatus.NO_SHOW,
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValueOnce(cancelledRes)
+          .mockResolvedValueOnce(noShowRes),
+      },
+    };
+    const { repository } = createRepository(tx);
+
+    await expect(
+      repository.assignRoom({
+        hotelId: "hotel-1",
+        reservationId: "res-cancelled",
+        roomId: "room-1",
+        actorUserId: "actor-1",
+      }),
+    ).rejects.toThrow(new ConflictException("RESERVATION_CANCELLED"));
+
+    await expect(
+      repository.assignRoom({
+        hotelId: "hotel-1",
+        reservationId: "res-noshow",
+        roomId: "room-1",
+        actorUserId: "actor-1",
+      }),
+    ).rejects.toThrow(new ConflictException("RESERVATION_NO_SHOW"));
   });
 
   it("check-in snapshots explicit reservation nightlyRateSnapshot to guest stay", async () => {

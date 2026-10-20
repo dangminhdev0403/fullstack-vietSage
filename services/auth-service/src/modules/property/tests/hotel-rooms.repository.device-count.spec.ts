@@ -1,3 +1,14 @@
+process.env.NODE_ENV = process.env.NODE_ENV || "test";
+process.env.PORT = process.env.PORT || "8080";
+process.env.DATABASE_URL =
+  process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/vietsage_auth";
+process.env.JWT_ACCESS_SECRET =
+  process.env.JWT_ACCESS_SECRET || "replace-with-local-docker-access-secret-at-least-32-chars";
+process.env.JWT_REFRESH_SECRET =
+  process.env.JWT_REFRESH_SECRET || "replace-with-local-docker-refresh-secret-at-least-32-chars";
+process.env.JWT_ACCESS_TTL = process.env.JWT_ACCESS_TTL || "15m";
+process.env.JWT_REFRESH_TTL = process.env.JWT_REFRESH_TTL || "30d";
+
 import { ConflictException } from "@nestjs/common";
 import { GuestSessionStatus, RoomStatus } from "@prisma/client";
 import { HotelRoomsRepository } from "../infrastructure/repositories/hotel-rooms.repository";

@@ -17,7 +17,7 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { CodesService } from "../../codes/codes-public";
-import { ReservationRoomAllocationService } from "../../property/application/reservation-room-allocation.service";
+import { ReservationRoomAllocationService } from "../../property/property-public";
 import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 import {
   CatalogExportDto,
@@ -52,6 +52,7 @@ export interface DirectBookingHold {
     room_number: string;
     floor: number | string | null;
   };
+  guestCount?: number;
 }
 
 export interface DirectBookingConfirmResult {
@@ -60,7 +61,7 @@ export interface DirectBookingConfirmResult {
   hold_id: string;
   booking_id: string;
   status: "CONFIRMED";
-  room_status: "RESERVED";
+  room_status: RoomStatus | string;
   assigned_room: {
     room_id?: string;
     room_number: string;
@@ -303,6 +304,15 @@ export class DirectBookingService {
     const holdId = `hld_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
     const expiresAt = new Date(now + ttl_minutes * 60 * 1000);
 
+    const rawPartySize =
+      (dto as any).guest_count ??
+      (dto as any).guestCount ??
+      (dto as any).party_size ??
+      (dto as any).partySize ??
+      (dto as any).occupantsCount;
+    const holdGuestCount =
+      typeof rawPartySize === "number" && rawPartySize > 0 ? rawPartySize : undefined;
+
     const holdRecord: DirectBookingHold = {
       holdId,
       hotelId,
@@ -311,6 +321,7 @@ export class DirectBookingService {
       checkOutDate,
       roomsCount: requestedRoomsCount,
       guest,
+      guestCount: holdGuestCount,
       ttlMinutes: ttl_minutes,
       expiresAt,
       status: "HELD",
@@ -384,6 +395,15 @@ export class DirectBookingService {
         fallbackMeta.room_type_id,
       );
 
+      const rawFallbackPartySize =
+        (fallbackMeta as any).guest_count ??
+        (fallbackMeta as any).guestCount ??
+        (fallbackMeta as any).party_size;
+      const fallbackGuestCount =
+        typeof rawFallbackPartySize === "number" && rawFallbackPartySize > 0
+          ? rawFallbackPartySize
+          : undefined;
+
       const reconstructedHold: DirectBookingHold = {
         holdId,
         hotelId: effectiveHotelId,
@@ -392,6 +412,7 @@ export class DirectBookingService {
         checkOutDate: fallbackMeta.check_out_date,
         roomsCount: 1,
         guest: fallbackMeta.guest,
+        guestCount: fallbackGuestCount,
         ttlMinutes: 30,
         expiresAt: new Date(Date.now() + 30 * 60 * 1000), // extend TTL for reconstruction
         status: 'HELD',
@@ -433,6 +454,10 @@ export class DirectBookingService {
     const checkInAt = parseVietnamDate(hold.checkInDate, "14:00:00");
     const checkOutAt = parseVietnamDate(hold.checkOutDate, "12:00:00");
 
+    const effectivePartySize =
+      hold.guestCount ??
+      ((fallbackMeta as any)?.guest_count ?? (fallbackMeta as any)?.guestCount);
+
     // Thực thi transaction xác nhận đặt phòng và tự gán phòng
     const confirmResult = await this.prisma.$transaction(async (tx) => {
       // Gọi ReservationRoomAllocationService với mode: 'auto'
@@ -441,6 +466,7 @@ export class DirectBookingService {
         roomTypeId: hold.roomTypeId,
         interval: { checkInAt, checkOutAt },
         mode: "auto",
+        ...(effectivePartySize ? { guestCount: effectivePartySize } : {}),
       });
 
       // Tạo mã đặt phòng
@@ -455,11 +481,33 @@ export class DirectBookingService {
         reservationCode = `VS-${bookingId.slice(0, 8).toUpperCase()}`;
       }
 
-      // Tạo bản ghi Reservation trong Prisma với status: CONFIRMED
+      // Resolve canonical roomTypeId if possible
+      let canonicalRoomTypeId: string | null = allocated.roomTypeId || null;
+      if (!canonicalRoomTypeId && tx.roomType?.findFirst) {
+        const rt = await tx.roomType.findFirst({
+          where: {
+            hotelId: hold.hotelId,
+            OR: [
+              { id: hold.roomTypeId },
+              { normalizedKey: hold.roomTypeId.toLowerCase().trim() },
+              { name: { equals: hold.roomTypeId.trim(), mode: "insensitive" } },
+            ],
+          },
+          select: { id: true },
+        });
+        if (rt) {
+          canonicalRoomTypeId = rt.id;
+        }
+      }
+      // Legacy allocations may not have a canonical room-type row yet. Keep the
+      // nullable FK empty instead of persisting an external/type-name identifier.
+
+      // Tạo bản ghi Reservation trong Prisma với status: ARRIVAL_READY
       const reservation = await tx.reservation.create({
         data: {
           hotelId: hold.hotelId,
           roomId: allocated.roomId,
+          roomTypeId: canonicalRoomTypeId,
           reservationCode,
           guestDisplayName: hold.guest?.name || "OTA Guest",
           guestPhone: hold.guest?.phone || null,
@@ -468,15 +516,9 @@ export class DirectBookingService {
           status: ReservationStatus.ARRIVAL_READY,
           assignedAt: new Date(),
           roomTypeSnapshot: allocated.type || hold.roomTypeId,
+          ...(effectivePartySize ? { guestCount: effectivePartySize } : {}),
         },
         include: { room: true },
-      });
-
-      // BẮT BUỘC: Cập nhật trạng thái phòng vật lý thành RoomStatus.RESERVED
-      // TUYỆT ĐỐI KHÔNG ĐƯỢC để OCCUPIED trước check-in thực tế
-      await tx.room.update({
-        where: { id: allocated.roomId },
-        data: { status: RoomStatus.RESERVED },
       });
 
       let floorVal: number | string | null = null;
@@ -493,7 +535,7 @@ export class DirectBookingService {
         hold_id: hold.holdId,
         booking_id: bookingId,
         status: "CONFIRMED",
-        room_status: "RESERVED",
+        room_status: allocated.status || "AVAILABLE",
         assigned_room: {
           room_id: allocated.roomId,
           room_number: allocated.roomNumber,
@@ -537,17 +579,6 @@ export class DirectBookingService {
         amount: effectiveAmount,
         currency: effectiveCurrency,
       });
-
-      if (confirmResult.assigned_room?.room_id) {
-        RequestRealtimeEmitter.emitRoomStatusUpdated({
-          hotelId: hold.hotelId,
-          roomId: confirmResult.assigned_room.room_id,
-          roomNumber: confirmResult.assigned_room.room_number,
-          status: RoomStatus.RESERVED,
-          previousStatus: RoomStatus.AVAILABLE,
-          updatedAt: confirmResult.confirmed_at,
-        });
-      }
     } catch (emitErr) {
       this.logger.warn(`[DirectBooking] Lỗi khi phát realtime event cho booking ${bookingId}: ${emitErr}`);
     }
@@ -652,7 +683,7 @@ export class DirectBookingService {
           reservation_code: dbReservation.reservationCode,
           booking_id: bookingId,
           status: dbReservation.status,
-          room_status: dbReservation.room?.status || "RESERVED",
+          room_status: dbReservation.room?.status || "AVAILABLE",
           assigned_room: dbReservation.room
             ? {
                 room_number: dbReservation.room.roomNumber,
