@@ -18,6 +18,10 @@ const roomsRouteSource = readFileSync(
   new URL("../../app/api/hotel-ops/hotels/[hotelId]/rooms/route.ts", import.meta.url),
   "utf8",
 );
+const tapeChartSource = readFileSync(
+  new URL("./components/tape-chart/tape-chart-view.tsx", import.meta.url),
+  "utf8",
+);
 
 test("FrontDeskRoomDetailPanel enforces accessibility and dialog contract", () => {
   // Accessible modal attributes
@@ -150,5 +154,12 @@ test("resolveRoomStatusModel proves backend projection is authoritative over loc
   assert.match(panelSource, /projected === "BLOCKED"[\s\S]*?opStatus = "blocked"/);
   assert.match(panelSource, /projected === "MAINTENANCE"[\s\S]*?opStatus = "maintenance"/);
   assert.match(panelSource, /opStatus = "available"/);
+});
+
+test("TapeChart group reservation wires the bulk callback without guessing occupancy", () => {
+  assert.match(tapeChartSource, /onOpenBulkReservation,\s*onCheckOutStay/);
+  assert.match(tapeChartSource, /draft\.rooms\.length > 1 && onOpenBulkReservation/);
+  assert.doesNotMatch(tapeChartSource, /maxOccupancy \|\| 2/);
+  assert.doesNotMatch(tapeChartSource, /rooms\.length \* 2/);
 });
 

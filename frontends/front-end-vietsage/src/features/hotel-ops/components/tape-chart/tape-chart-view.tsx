@@ -52,7 +52,6 @@ export interface DraftBookingSelection {
   startDay: string;
   endDay: string;
   nights: number;
-  guestCount?: number;
 }
 
 export interface ActiveDragRange {
@@ -489,17 +488,6 @@ function DraggableRoomRow({
                   +
                 </button>
 
-                {/* Guest Capacity Badge (1 lead guest for advance booking) */}
-                <div
-                  className="hidden sm:flex items-center gap-0.5 bg-black/25 px-1.5 py-0.5 rounded text-xs font-bold text-amber-200 whitespace-nowrap"
-                  title="Ước tính số khách tiêu chuẩn (1 người đại diện đặt trước, phân bổ phòng chi tiết khi check-in)"
-                >
-                  <VsIcon name="person" className="text-xs" />
-                  <span>
-                    {draftSelection.guestCount || (isGroup ? draftSelection.rooms.length * 2 : 2)}
-                  </span>
-                </div>
-
                 <button
                   type="button"
                   onClick={(e) => {
@@ -862,6 +850,7 @@ export function TapeChartView({
   businessDate,
   onOpenCheckIn,
   onOpenQuickReservation,
+  onOpenBulkReservation,
   onCheckOutStay,
   onRefresh,
 }: TapeChartViewProps) {
@@ -1446,7 +1435,6 @@ export function TapeChartView({
         startDay: ymd,
         endDay: nextDay,
         nights: 1,
-        guestCount: room.maxOccupancy || 2,
       });
     },
     [blocksByRoomId],
@@ -1523,11 +1511,6 @@ export function TapeChartView({
         }
       }
 
-      const totalGuests = selectedRooms.reduce(
-        (acc, r) => acc + (r.maxOccupancy || 2),
-        0,
-      );
-
       setActiveDragRange((prev) =>
         prev
           ? {
@@ -1546,7 +1529,6 @@ export function TapeChartView({
         startDay: start,
         endDay: end,
         nights,
-        guestCount: totalGuests,
       });
     },
     [activeDragRange, blocksByRoomId, orderedFilteredRooms, collapsedCategories],
