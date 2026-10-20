@@ -94,7 +94,15 @@ describe("guest stay CCCD identity", () => {
         findFirst: jest.fn().mockResolvedValue({ id: "folio-1" }),
         create: jest.fn(),
       },
-      room: { update: jest.fn() },
+      room: {
+        update: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue({
+          id: "room-1",
+          status: "AVAILABLE",
+          roomTypeId: "type-1",
+          roomType: { id: "type-1", maxOccupancy: 10 },
+        }),
+      },
       domainEvent: { create: jest.fn() },
     };
     const prisma = {
@@ -143,7 +151,15 @@ describe("guest stay CCCD identity", () => {
         findFirst: jest.fn().mockResolvedValue({ id: "folio-1" }),
         create: jest.fn(),
       },
-      room: { update: jest.fn() },
+      room: {
+        update: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue({
+          id: "room-1",
+          status: "AVAILABLE",
+          roomTypeId: "type-1",
+          roomType: { id: "type-1", maxOccupancy: 10 },
+        }),
+      },
       domainEvent: { create: jest.fn() },
     };
     const prisma = {
@@ -188,7 +204,15 @@ describe("guest stay CCCD identity", () => {
         findFirst: jest.fn().mockResolvedValue({ id: "folio-1" }),
         create: jest.fn(),
       },
-      room: { update: jest.fn() },
+      room: {
+        update: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue({
+          id: "room-1",
+          status: "AVAILABLE",
+          roomTypeId: "type-1",
+          roomType: { id: "type-1", maxOccupancy: 10 },
+        }),
+      },
       domainEvent: { create: jest.fn() },
     };
     const prisma = {

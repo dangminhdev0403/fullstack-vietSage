@@ -118,13 +118,21 @@ describe("hotel room type price boundary", () => {
       hotel: {
         findUnique: jest.fn().mockResolvedValue({
           id: "hotel-a",
-          rooms: [{ id: "room-1", type: "Suite", price: 2_200_000 }],
+          rooms: [{ id: "room-1", roomNumber: "101", type: "", price: 0 }],
           roomTypes: [],
         }),
       },
-      channelConnection: { create: jest.fn() },
+      channelConnection: { create: jest.fn(), findFirst: jest.fn().mockResolvedValue(null) },
+      channexMapping: {
+        findMany: jest.fn().mockResolvedValue([]),
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
     };
-    const provider = { createProperty: jest.fn(), updateProperty: jest.fn() };
+    const provider = {
+      createProperty: jest.fn(),
+      updateProperty: jest.fn(),
+      getBaseUrl: jest.fn().mockReturnValue("https://staging.channex.io/api/v1"),
+    };
     const sync = new ChannexSyncService(prisma as never, provider as never);
     await expect(sync.syncContent("hotel-a")).rejects.toThrow(BadRequestException);
     expect(prisma.channelConnection.create).not.toHaveBeenCalled();
@@ -196,10 +204,15 @@ describe("hotel room type price boundary", () => {
           { kind: "room_type", localId: "Suite", channexId: "remote-old" },
           { kind: "room_type", localId: "catalog-suite", channexId: "remote-new" },
         ]),
+        findUnique: jest.fn().mockResolvedValue(null),
       },
-      channelConnection: { create: jest.fn() },
+      channelConnection: { create: jest.fn(), findFirst: jest.fn().mockResolvedValue(null) },
     };
-    const provider = { createProperty: jest.fn(), updateProperty: jest.fn() };
+    const provider = {
+      createProperty: jest.fn(),
+      updateProperty: jest.fn(),
+      getBaseUrl: jest.fn().mockReturnValue("https://staging.channex.io/api/v1"),
+    };
     const sync = new ChannexSyncService(prisma as never, provider as never);
     await expect(sync.syncContent("hotel-a")).rejects.toThrow("xung đột");
     expect(prisma.channelConnection.create).not.toHaveBeenCalled();

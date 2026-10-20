@@ -28,6 +28,12 @@ describe("HotelsRepository stay creation", () => {
         })),
       },
       room: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "room-1",
+          status: "AVAILABLE",
+          roomTypeId: "type-1",
+          roomType: { id: "type-1", maxOccupancy: 2 },
+        }),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       folio: {

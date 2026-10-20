@@ -4,6 +4,7 @@ import { MODULE_METADATA } from "@nestjs/common/constants";
 import { HotelAccessService } from "../application/hotel-access.service";
 import { HotelStayOccupantsReadService } from "../application/hotel-stay-occupants-read.service";
 import { HotelFeatureEntitlementsService } from "../application/hotel-feature-entitlements.service";
+import { ReservationRoomAllocationService } from "../application/reservation-room-allocation.service";
 import { PropertyModule } from "../property.module";
 import { HotelCoreRepository } from "../infrastructure/repositories/hotel-core.repository";
 import { HotelsRepository } from "../infrastructure/repositories/hotels.repository";
@@ -16,6 +17,7 @@ describe("PropertyModule public boundary", () => {
       HotelAccessService,
       HotelStayOccupantsReadService,
       HotelFeatureEntitlementsService,
+      ReservationRoomAllocationService,
       "RESERVATION_ROOM_ALLOCATION_SERVICE",
     ]);
     expect(moduleExports).not.toContain(HotelsRepository);
