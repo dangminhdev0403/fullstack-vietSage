@@ -86,6 +86,53 @@ const MATRIX_DATA: MatrixRow[] = [
   },
 ];
 
+const TRUST_INDICATORS = [
+  {
+    id: "fast-setup",
+    title: "Triển khai nhanh",
+    subtitle: "1 – 7 ngày sẵn sàng",
+    badgeTheme: "emerald",
+    icon: (
+      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+      </svg>
+    ),
+  },
+  {
+    id: "transparent-costs",
+    title: "Không chi phí ẩn",
+    subtitle: "Minh bạch 100%",
+    badgeTheme: "emerald",
+    icon: (
+      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+      </svg>
+    ),
+  },
+  {
+    id: "scalable",
+    title: "Linh hoạt mở rộng",
+    subtitle: "Nâng cấp bất cứ lúc nào",
+    badgeTheme: "emerald",
+    icon: (
+      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+      </svg>
+    ),
+  },
+  {
+    id: "support-247",
+    title: "Hỗ trợ 24/7",
+    subtitle: "Đồng hành trọn đời",
+    badgeTheme: "amber",
+    icon: (
+      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+      </svg>
+    ),
+  },
+];
+
 const TIERS = [
   {
     id: "basic",
@@ -424,68 +471,52 @@ export default function GiaPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-20 space-y-16 text-slate-800">
         {/* SECTION 1: HERO HEADER */}
-        <section className="text-center max-w-3xl mx-auto space-y-5" data-purpose="hero-section">
-          <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-900 text-sm font-bold tracking-wide uppercase whitespace-nowrap shadow-xs">
-            BẢNG GIÁ VIETSAGE
+        <section className="space-y-8" data-purpose="hero-section">
+          <div className="text-center max-w-3xl mx-auto space-y-4 sm:space-y-5">
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-50 border border-amber-200/90 text-amber-900 text-xs sm:text-sm font-bold tracking-wide uppercase whitespace-nowrap shadow-2xs">
+              BẢNG GIÁ VIETSAGE
+            </div>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight text-balance">
+              Chi phí minh bạch.{" "}
+              <span className="bg-gradient-to-r from-amber-600 to-amber-700 bg-clip-text text-transparent">
+                Linh hoạt theo quy mô.
+              </span>
+            </h1>
+            <p className="text-slate-600 text-base sm:text-lg lg:text-xl text-pretty leading-relaxed">
+              Lựa chọn giải pháp phù hợp với số lượng phòng và nhu cầu vận hành thực tế của khách sạn của bạn.
+            </p>
           </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight text-balance">
-            Chi phí minh bạch.{" "}
-            <span className="bg-gradient-to-r from-amber-600 to-amber-700 bg-clip-text text-transparent">
-              Linh hoạt theo quy mô.
-            </span>
-          </h1>
-          <p className="text-slate-600 text-base sm:text-lg lg:text-xl text-pretty leading-relaxed">
-            Lựa chọn giải pháp phù hợp với số lượng phòng và nhu cầu vận hành thực tế của khách sạn của bạn.
-          </p>
 
           {/* Quick Trust Indicators */}
-          <div className="pt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-left">
-            <div className="flex items-center gap-3.5 p-3.5 rounded-xl bg-white border border-slate-100 shadow-sm">
-              <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-sm font-bold text-slate-800 whitespace-nowrap">Triển khai nhanh</div>
-                <div className="text-xs sm:text-sm text-slate-500 whitespace-nowrap">1 – 7 ngày sẵn sàng</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3.5 p-3.5 rounded-xl bg-white border border-slate-100 shadow-sm">
-              <div className="w-10 h-10 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-sm font-bold text-slate-800 whitespace-nowrap">Không chi phí ẩn</div>
-                <div className="text-xs sm:text-sm text-slate-500 whitespace-nowrap">Minh bạch 100%</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3.5 p-3.5 rounded-xl bg-white border border-slate-100 shadow-sm">
-              <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-sm font-bold text-slate-800 whitespace-nowrap">Linh hoạt mở rộng</div>
-                <div className="text-xs sm:text-sm text-slate-500 whitespace-nowrap">Nâng cấp bất cứ lúc nào</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3.5 p-3.5 rounded-xl bg-white border border-slate-100 shadow-sm">
-              <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-sm font-bold text-slate-800 whitespace-nowrap">Hỗ trợ 24/7</div>
-                <div className="text-xs sm:text-sm text-slate-500 whitespace-nowrap">Đồng hành trọn đời</div>
-              </div>
+          <div className="max-w-5xl mx-auto w-full">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-left">
+              {TRUST_INDICATORS.map((indicator) => {
+                const isAmber = indicator.badgeTheme === "amber";
+                return (
+                  <div
+                    key={indicator.id}
+                    className="group flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3.5 p-3 sm:p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all min-w-0"
+                  >
+                    <div
+                      className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center shrink-0 border transition-transform duration-200 group-hover:scale-105 ${
+                        isAmber
+                          ? "bg-amber-50 text-amber-800 border-amber-100/80"
+                          : "bg-emerald-50 text-emerald-800 border-emerald-100/80"
+                      }`}
+                    >
+                      {indicator.icon}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs sm:text-sm font-bold text-slate-900 leading-tight truncate">
+                        {indicator.title}
+                      </div>
+                      <div className="text-xs text-slate-500 leading-tight mt-0.5 text-pretty">
+                        {indicator.subtitle}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>
