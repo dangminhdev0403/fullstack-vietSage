@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useRef } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import {
@@ -29,30 +29,7 @@ export function WorkspaceProfileProvider({
     children: ReactNode;
   }
 >) {
-  // Synchronously seed the store during the initial render pass so child components
-  // can immediately read fresh profile data before the first commit/effect.
-  const isInitializedRef = useRef<boolean | null>(null);
-  if (isInitializedRef.current == null) {
-    isInitializedRef.current = true;
-    const current = useWorkspaceProfileStore.getState();
-    if (
-      current.profileName !== profileName ||
-      current.roleName !== roleName ||
-      current.hotelName !== hotelName ||
-      current.accessibleHotels !== accessibleHotels ||
-      current.permissions !== permissions
-    ) {
-      useWorkspaceProfileStore.setState({
-        profileName,
-        roleName,
-        hotelName,
-        accessibleHotels,
-        permissions,
-      });
-    }
-  }
-
-  // Keep Zustand store in sync on subsequent prop changes
+  // Keep Zustand store in sync on prop changes (runs in effect phase, avoiding render-phase store updates)
   useEffect(() => {
     useWorkspaceProfileStore.getState().setProfile({
       profileName,
@@ -82,6 +59,7 @@ export function WorkspaceProfileProvider({
 }
 
 export function useWorkspaceProfile(): WorkspaceProfile {
+  const contextProfile = useContext(WorkspaceProfileContext);
   const storeProfile = useWorkspaceProfileStore(
     useShallow((state) => ({
       profileName: state.profileName,
@@ -91,16 +69,14 @@ export function useWorkspaceProfile(): WorkspaceProfile {
       permissions: state.permissions,
     })),
   );
-  const contextProfile = useContext(WorkspaceProfileContext);
 
-  // Return Zustand store profile with fallback to React Context if store state is empty
+  // Return React Context if available from WorkspaceProfileProvider, otherwise fall back to Zustand store
   if (
-    !storeProfile.profileName &&
-    !storeProfile.roleName &&
-    !storeProfile.hotelName &&
-    (!storeProfile.accessibleHotels || storeProfile.accessibleHotels.length === 0) &&
-    (!storeProfile.permissions || storeProfile.permissions.length === 0) &&
-    (contextProfile.profileName || contextProfile.roleName || contextProfile.hotelName)
+    contextProfile.profileName ||
+    contextProfile.roleName ||
+    contextProfile.hotelName ||
+    (contextProfile.accessibleHotels && contextProfile.accessibleHotels.length > 0) ||
+    (contextProfile.permissions && contextProfile.permissions.length > 0)
   ) {
     return contextProfile;
   }

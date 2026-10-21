@@ -4698,7 +4698,7 @@ export function StaffRoomsClient({
               {/* Left: Quick Floor Jump Pills */}
               <div className="flex flex-wrap items-center gap-2">
                 <span className="flex items-center gap-1.5 text-xs font-black text-slate-700 mr-1 pl-1 whitespace-nowrap">
-                  <VsIcon name="layers" className="text-sm text-sky-600" />
+                  <VsIcon name="apartment" className="text-sm text-sky-600" />
                   <span>Xem nhanh tầng:</span>
                 </span>
 
@@ -4826,7 +4826,10 @@ export function StaffRoomsClient({
                     >
                       <div className="flex items-center gap-2">
                         <span className="flex size-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800">
-                          <VsIcon name="layers" className="text-base" />
+                          <VsIcon
+                            name={isCollapsed ? "expand_more" : "expand_less"}
+                            className="text-base"
+                          />
                         </span>
                         <h3 className="font-extrabold text-base text-slate-900 text-balance">
                           {floorTitle}
@@ -4898,7 +4901,9 @@ export function StaffRoomsClient({
                   <div
                     key={floorTitle}
                     id={`floor-group-${encodeURIComponent(floorTitle)}`}
-                    className="scroll-mt-36 rounded-2xl border border-slate-200/90 bg-white/70 p-3 sm:p-4.5 shadow-2xs transition-all"
+                    className={`scroll-mt-36 rounded-2xl border border-slate-200/90 bg-white/70 shadow-2xs transition-all ${
+                      isCollapsed ? "p-3 sm:px-4.5 sm:py-3.5" : "p-3 sm:p-4.5"
+                    }`}
                   >
                     {/* Floor Header Bar (Clickable Accordion) */}
                     <div
@@ -4911,7 +4916,11 @@ export function StaffRoomsClient({
                           toggleFloorCollapse(floorTitle);
                         }
                       }}
-                      className="group flex flex-wrap items-center justify-between gap-3 pb-2.5 cursor-pointer select-none border-b border-slate-100 hover:border-slate-300 transition-colors"
+                      className={`group flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none transition-colors ${
+                        isCollapsed
+                          ? "pb-0 border-b-0"
+                          : "pb-2.5 border-b border-slate-100 hover:border-slate-300"
+                      }`}
                       title={
                         isCollapsed
                           ? "Bấm để mở rộng danh sách phòng tầng này"
@@ -4922,7 +4931,10 @@ export function StaffRoomsClient({
                       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                         <div className="flex items-center gap-2">
                           <span className="flex size-7 items-center justify-center rounded-lg bg-sky-100 text-sky-800 group-hover:bg-sky-200 transition">
-                            <VsIcon name="layers" className="text-base" />
+                            <VsIcon
+                              name={isCollapsed ? "expand_more" : "expand_less"}
+                              className="text-base"
+                            />
                           </span>
                           <h3 className="font-black text-sm sm:text-base text-slate-900 tracking-tight text-balance">
                             {floorTitle}
@@ -4988,13 +5000,9 @@ export function StaffRoomsClient({
                     </div>
 
                     {/* Room Grid for this floor */}
-                    {!isCollapsed ? (
+                    {!isCollapsed && (
                       <div className="mt-3.5 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-5">
                         {floorRooms.map((room) => renderRoomCard(room))}
-                      </div>
-                    ) : (
-                      <div className="mt-2 py-2 px-3 text-center text-xs font-medium text-slate-500 italic bg-slate-50/60 rounded-xl border border-dashed border-slate-200">
-                        Đang thu gọn {floorRooms.length} phòng của {floorTitle}. Nhấn vào thanh tiêu đề để mở rộng.
                       </div>
                     )}
                   </div>
