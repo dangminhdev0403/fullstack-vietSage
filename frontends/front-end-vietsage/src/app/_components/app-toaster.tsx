@@ -6,7 +6,7 @@ export function AppToaster() {
   return (
     <Toaster
       position="top-right"
-      richColors
+      theme="light"
       closeButton
       expand={false}
       visibleToasts={4}

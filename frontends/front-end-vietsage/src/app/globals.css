@@ -409,8 +409,9 @@ p.text-center {
 /* 2. Warning - Vibrant Amber & Warm Honey */
 .swal2-icon.swal2-warning {
   border-color: #f59e0b !important;
-  color: #b45309 !important;
   background: #fffbeb !important;
+  color: #b45309 !important;
+
   box-shadow:
     0 0 0 6px rgba(245, 158, 11, 0.14),
     0 10px 24px -4px rgba(245, 158, 11, 0.2) !important;
@@ -427,6 +428,7 @@ p.text-center {
   border-color: #f87171 !important;
   color: #dc2626 !important;
   background: #fef2f2 !important;
+
   box-shadow:
     0 0 0 6px rgba(239, 68, 68, 0.14),
     0 10px 24px -4px rgba(239, 68, 68, 0.22) !important;
@@ -508,37 +510,200 @@ p.text-center {
 }
 
 /* =====================================================================
-   SONNER TOAST LUXURY VIETSAGE STYLING
+   SONNER TOAST LUXURY VIETSAGE STYLING (BRIGHT, LUMINOUS & FRIENDLY)
    ===================================================================== */
+
+[data-sonner-toaster] {
+  --normal-bg: #ffffff;
+  --normal-border: #e2e8f0;
+  --normal-text: #0f172a;
+
+  --success-bg: #ffffff;
+  --success-border: #a7f3d0;
+  --success-text: #10b981;
+
+  --info-bg: #ffffff;
+  --info-border: #bae6fd;
+  --info-text: #0ea5e9;
+
+  --warning-bg: #ffffff;
+  --warning-border: #fde68a;
+  --warning-text: #f59e0b;
+
+  --error-bg: #ffffff;
+  --error-border: #fecaca;
+  --error-text: #ef4444;
+}
+
 [data-sonner-toaster] [data-sonner-toast] {
   font-family: var(--font-be-vietnam-pro), "Be Vietnam Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-  border-radius: 16px !important;
-  box-shadow: 0 12px 32px -6px rgba(15, 26, 23, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 18px !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 14px 34px -6px rgba(0, 0, 0, 0.08), 0 4px 14px -2px rgba(0, 0, 0, 0.03), 0 0 0 1px rgba(0, 0, 0, 0.03) !important;
+  padding: 14px 18px !important;
+  gap: 12px !important;
+  color: #0f172a !important;
 }
 
-[data-sonner-toaster] [data-sonner-toast][data-type="success"] {
-  background: #f0fdf4 !important;
-  border-color: #bbf7d0 !important;
-  color: #15803d !important;
+/* Typographic hierarchy: Crisp dark charcoal title + readable friendly slate description */
+[data-sonner-toaster] [data-sonner-toast] [data-title] {
+  color: #0f172a !important;
+  font-weight: 650 !important;
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+  letter-spacing: -0.01em !important;
+  text-wrap: balance !important;
 }
 
-[data-sonner-toaster] [data-sonner-toast][data-type="error"] {
-  background: #fef2f2 !important;
-  border-color: #fecaca !important;
-  color: #b91c1c !important;
+[data-sonner-toaster] [data-sonner-toast] [data-description] {
+  color: #475569 !important;
+  font-weight: 450 !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+  text-wrap: pretty !important;
 }
 
-[data-sonner-toaster] [data-sonner-toast][data-type="warning"] {
-  background: #fffbeb !important;
-  border-color: #fde68a !important;
-  color: #b45309 !important;
+/* Icon polish: Bright, luminous, high-contrast seals with soft ambient dropshadow */
+[data-sonner-toaster] [data-sonner-toast] [data-icon] {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 22px !important;
+  height: 22px !important;
+  margin-right: 2px !important;
 }
 
-[data-sonner-toaster] [data-sonner-toast][data-type="info"] {
-  background: #f0f9ff !important;
-  border-color: #bae6fd !important;
-  color: #0284c7 !important;
+[data-sonner-toaster] [data-sonner-toast] [data-icon] svg {
+  width: 22px !important;
+  height: 22px !important;
 }
+
+/* 1. Success Toast - Bright Luminous Emerald */
+[data-sonner-toaster] [data-sonner-toast][data-type="success"],
+[data-rich-colors="true"][data-sonner-toast][data-type="success"] {
+  background: #ffffff !important;
+  border-color: #86efac !important;
+  box-shadow: 0 14px 34px -6px rgba(16, 185, 129, 0.16), 0 4px 14px -2px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(16, 185, 129, 0.2) !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="success"] [data-icon] {
+  color: #10b981 !important;
+  filter: drop-shadow(0 2px 6px rgba(16, 185, 129, 0.35)) !important;
+}
+
+/* 2. Error Toast - Bright Vivid Ruby Crimson */
+[data-sonner-toaster] [data-sonner-toast][data-type="error"],
+[data-rich-colors="true"][data-sonner-toast][data-type="error"] {
+  background: #ffffff !important;
+  border-color: #fca5a5 !important;
+  box-shadow: 0 14px 34px -6px rgba(239, 68, 68, 0.16), 0 4px 14px -2px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(239, 68, 68, 0.2) !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="error"] [data-icon] {
+  color: #ef4444 !important;
+  filter: drop-shadow(0 2px 6px rgba(239, 68, 68, 0.35)) !important;
+}
+
+/* 3. Warning Toast - Warm Luminous Amber */
+[data-sonner-toaster] [data-sonner-toast][data-type="warning"],
+[data-rich-colors="true"][data-sonner-toast][data-type="warning"] {
+  background: #ffffff !important;
+  border-color: #fcd34d !important;
+  box-shadow: 0 14px 34px -6px rgba(245, 158, 11, 0.16), 0 4px 14px -2px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(245, 158, 11, 0.2) !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="warning"] [data-icon] {
+  color: #f59e0b !important;
+  filter: drop-shadow(0 2px 6px rgba(245, 158, 11, 0.35)) !important;
+}
+
+/* 4. Info Toast - Crisp Sky Azure */
+[data-sonner-toaster] [data-sonner-toast][data-type="info"],
+[data-rich-colors="true"][data-sonner-toast][data-type="info"] {
+  background: #ffffff !important;
+  border-color: #7dd3fc !important;
+  box-shadow: 0 14px 34px -6px rgba(14, 165, 233, 0.16), 0 4px 14px -2px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(14, 165, 233, 0.2) !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="info"] [data-icon] {
+  color: #0ea5e9 !important;
+  filter: drop-shadow(0 2px 6px rgba(14, 165, 233, 0.35)) !important;
+}
+
+/* Close Button: Clean, luminous floating white disc */
+[data-sonner-toaster] [data-sonner-toast] [data-close-button] {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #94a3b8 !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast] [data-close-button]:hover {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  transform: scale(1.08) !important;
+}
+
+/* Interactive Action Buttons: Rounded pills with clear semantic intent */
+[data-sonner-toaster] [data-sonner-toast] [data-button] {
+  font-family: inherit !important;
+  font-weight: 600 !important;
+  font-size: 12.5px !important;
+  border-radius: 9999px !important;
+  padding: 6px 14px !important;
+  height: auto !important;
+  min-height: 30px !important;
+  transition: all 0.15s ease !important;
+  cursor: pointer !important;
+  border: 0 !important;
+  white-space: nowrap !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="success"] [data-button] {
+  background: #10b981 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3) !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="success"] [data-button]:hover {
+  background: #059669 !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="error"] [data-button] {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3) !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="error"] [data-button]:hover {
+  background: #dc2626 !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="warning"] [data-button] {
+  background: #f59e0b !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3) !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="warning"] [data-button]:hover {
+  background: #d97706 !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="info"] [data-button] {
+  background: #0ea5e9 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3) !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="info"] [data-button]:hover {
+  background: #0284c7 !important;
+}
+
+
 
 .swal2-popup.vs-service-confirm-popup {
   width: min(92vw, 480px);
@@ -642,7 +807,9 @@ p.text-center {
 }
 
 @media (max-width: 480px) {
-  .swal2-popup.vs-service-confirm-popup {
+
+
+.swal2-popup.vs-service-confirm-popup {
     padding: 1.25rem 1.1rem 1.2rem;
   }
 
@@ -1185,14 +1352,15 @@ p.text-center {
 }
 
 .swal2-confirm.vs-urgent-alert-confirm {
-  background: #31130f;
+  background: #dc2626;
   color: #fff8ee;
-  box-shadow: 0 14px 28px rgba(49, 19, 15, 0.18);
+  box-shadow: 0 14px 28px rgba(220, 38, 38, 0.28);
 }
 
 .swal2-confirm.vs-urgent-alert-confirm:hover {
   transform: translateY(-1px);
-  box-shadow: 0 18px 34px rgba(49, 19, 15, 0.23);
+  background: #b91c1c;
+  box-shadow: 0 18px 34px rgba(220, 38, 38, 0.35);
 }
 
 .swal2-cancel.vs-urgent-alert-cancel {

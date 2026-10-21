@@ -28,6 +28,11 @@ Before writing any code, agents MUST reuse the project's standard architectural 
     - Cấm chạy `graphify update` cho các sửa đổi UI/CSS/copy nhỏ.
     - Cấm chạy migrations/seed/db scripts cho frontend tasks.
     - Cấm format diện rộng toàn bộ dự án (`prettier --write .`).
+- **Task Domain Boundary Lock (Khóa cứng miền tác vụ - Chống mở rộng phạm vi)**:
+  - Khi thực hiện tác vụ Database (insert/seed/query), chạy script VPS, Docker, SSH:
+    - **MÃ NGUỒN LÀ READ-ONLY**: CẤM SỬA bất kỳ file mã nguồn ứng dụng nào (`.ts`, `.tsx`, `.js`, guards, services, controllers, store, components). Chỉ đọc schema/migration khi cần biết cấu trúc bảng.
+    - **CHỐNG TRÀN LỖI (Zero Failure Drift)**: Lệnh VPS/DB lỗi (Exit code 1) phải sửa lỗi tại chỗ (stderr, syntax, SSH, env). CẤM lấy cớ để lục lọi và sửa `authorization.guard.ts` hay `authorization.service.ts`.
+    - **DỪNG LẠI & HỎI USER (Stop & Report Gate)**: Nếu nghi ngờ code ứng dụng ẩn dữ liệu, BẮT BUỘC DỪNG LẠI và báo cáo User trước khi can thiệp vào mã nguồn.
 
 ## Strict Audit Mode
 
