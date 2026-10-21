@@ -50,10 +50,13 @@ export async function PUT(request: Request, context: Params) {
     );
   }
 
+  const cleanReservationId = reservationId.replace(/^res-/, "");
+  const cleanSwapWithReservationId = parsed.data.swapWithReservationId?.replace(/^res-/, "");
+
   const backendPayload = {
     targetRoomId: parsed.data.targetRoomId,
     expectedUpdatedAt: parsed.data.expectedUpdatedAt,
-    ...(parsed.data.swapWithReservationId ? { swapWithReservationId: parsed.data.swapWithReservationId } : {}),
+    ...(cleanSwapWithReservationId ? { swapWithReservationId: cleanSwapWithReservationId } : {}),
     ...(parsed.data.swapExpectedUpdatedAt || parsed.data.expectedSwapUpdatedAt
       ? {
           swapExpectedUpdatedAt:
@@ -64,7 +67,7 @@ export async function PUT(request: Request, context: Params) {
 
   try {
     const data = await executeHotelOpsBackendRequest("update reservation placement", (accessToken) =>
-      hotelOpsService.updateReservationPlacement(hotelId, reservationId, backendPayload, { accessToken }),
+      hotelOpsService.updateReservationPlacement(hotelId, cleanReservationId, backendPayload, { accessToken }),
     );
 
     return successResponse(data);

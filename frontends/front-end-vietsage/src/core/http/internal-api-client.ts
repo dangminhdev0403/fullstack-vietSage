@@ -85,7 +85,10 @@ function readInternalApiErrorMessage(payload: unknown, status: number): string {
     }
   }
   if (typeof payload === "string" && payload.trim()) {
-    return payload.trim();
+    const text = payload.trim();
+    if (!text.startsWith("<") && !text.toLowerCase().includes("<!doctype") && !text.toLowerCase().includes("<html")) {
+      return text;
+    }
   }
   if (status === 409) return "Thông tin đối tác hoặc danh mục đã tồn tại trên hệ thống (Lỗi trùng lặp).";
   if (status === 400) return "Thông tin nhập chưa đúng hoặc không hợp lệ.";

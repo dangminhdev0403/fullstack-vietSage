@@ -32,6 +32,17 @@ export default async function StaffRoomsPage({
   const initialArrivalRange = getFirst(resolvedSearchParams.range);
   const initialQuery = getFirst(resolvedSearchParams.q);
   const initialStatus = getFirst(resolvedSearchParams.status);
+  const initialViewParam = getFirst(resolvedSearchParams.view) || getFirst(resolvedSearchParams.tab);
+  const initialView =
+    initialViewParam === "tape-chart" ||
+    initialViewParam === "room-plan" ||
+    initialViewParam === "plan"
+      ? ("tape-chart" as const)
+      : initialViewParam === "grid" || initialViewParam === "rooms"
+        ? ("grid" as const)
+        : undefined;
+  const initialStartDate = getFirst(resolvedSearchParams.startDate);
+  const initialViewMode = getFirst(resolvedSearchParams.viewMode) as "week" | "biweek" | "month" | undefined;
   const callbackUrl = `/hotels/${hotelId}/rooms` as const;
   const session = await auth();
   assertCanAccessHotelOps(session, callbackUrl);
@@ -191,6 +202,9 @@ export default async function StaffRoomsPage({
           initialArrivalRange={initialArrivalRange}
           initialQuery={initialQuery}
           initialStatus={initialStatus}
+          initialView={initialView}
+          initialStartDate={initialStartDate}
+          initialViewMode={initialViewMode}
           isHousekeeping={isHousekeeping}
           enabledFeatures={
             context.accessibleHotels.find((hotel) => hotel.id === hotelId)

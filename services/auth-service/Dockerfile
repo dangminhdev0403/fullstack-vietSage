@@ -9,7 +9,7 @@ COPY prisma ./prisma
 RUN npx prisma generate
 
 COPY . .
-RUN NODE_OPTIONS=--max-old-space-size=4096 npm run build && npm prune --omit=dev
+RUN NODE_OPTIONS=--max-old-space-size=4096 npm run build && npm prune --omit=dev && npm install prisma@7.9.1 --no-save
 
 FROM node:22-alpine AS runtime
 

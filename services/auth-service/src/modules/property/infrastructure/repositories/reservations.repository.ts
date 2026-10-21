@@ -1496,9 +1496,12 @@ export class ReservationsRepository {
     swapExpectedUpdatedAt?: string;
     actorUserId: string;
   }) {
+    const reservationId = input.reservationId.replace(/^res-/, "");
+    const swapWithReservationId = input.swapWithReservationId?.replace(/^res-/, "");
+
     return this.runSerializable(async (tx) => {
-      const mode = input.swapWithReservationId ? "SWAP" : "MOVE";
-      const resIds = [input.reservationId, input.swapWithReservationId]
+      const mode = swapWithReservationId ? "SWAP" : "MOVE";
+      const resIds = [reservationId, swapWithReservationId]
         .filter((id): id is string => Boolean(id))
         .sort();
 
@@ -1511,7 +1514,7 @@ export class ReservationsRepository {
       }
 
       const sourceRes = await tx.reservation.findFirst({
-        where: { id: input.reservationId, hotelId: input.hotelId },
+        where: { id: reservationId, hotelId: input.hotelId },
         include: { room: true },
       });
       if (!sourceRes) {
@@ -1543,9 +1546,9 @@ export class ReservationsRepository {
       }
 
       let swapRes: any = null;
-      if (input.swapWithReservationId) {
+      if (swapWithReservationId) {
         swapRes = await tx.reservation.findFirst({
-          where: { id: input.swapWithReservationId, hotelId: input.hotelId },
+          where: { id: swapWithReservationId, hotelId: input.hotelId },
           include: { room: true },
         });
         if (!swapRes) {

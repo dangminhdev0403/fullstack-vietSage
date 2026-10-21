@@ -1,10 +1,12 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   SwalVietSage,
+  escapeHtml,
+  formatEarlyCheckInConfirmHtml,
   showConfirmDialog,
   showErrorAlert,
   showSuccessAlert,
@@ -41,11 +43,12 @@ import type {
   HotelRoomSummary,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { TapeChartView } from "@/features/hotel-ops/components/tape-chart/tape-chart-view";
+import { useRoomViewStore } from "@/features/hotel-ops/store/room-view-store";
 import { channelManagerResource } from "@/features/channel-manager/api/channel-manager.resource";
 import type { SimulatedBookingItem } from "@/features/channel-manager/types/channel-manager.types";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 
-type Props = {
+export type StaffRoomsClientProps = {
   hotelId: string;
   initialRoomsPage: HotelOpsPage<HotelRoomSummary>;
   initialByStatus?: {
@@ -68,6 +71,9 @@ type Props = {
   initialStatus?: RoomStatusFilter | string;
   isHousekeeping?: boolean;
   enabledFeatures?: readonly string[];
+  initialView?: "grid" | "tape-chart";
+  initialStartDate?: string;
+  initialViewMode?: "week" | "biweek" | "month";
 };
 
 type RoomStatusFilter =
@@ -592,7 +598,10 @@ export function StaffRoomsClient({
   initialStatus,
   isHousekeeping = false,
   enabledFeatures,
-}: Props) {
+  initialView,
+  initialStartDate,
+  initialViewMode,
+}: StaffRoomsClientProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const apiBase = `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}`;
@@ -713,9 +722,82 @@ export function StaffRoomsClient({
     useState<HotelRoomSummary | null>(null);
 
   // Operational View Mode: "grid" (Sơ đồ phòng) vs "tape-chart" (Kế hoạch phòng)
+  const storedViewMode = useRoomViewStore((s) => s.viewModeMap[hotelId]);
+  const setStoredViewMode = useRoomViewStore((s) => s.setViewMode);
+
   const [operationalViewMode, setOperationalViewMode] = useState<
     "grid" | "tape-chart"
-  >("grid");
+  >(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const urlView = sp.get("view") || sp.get("tab");
+      if (
+        urlView === "tape-chart" ||
+        urlView === "room-plan" ||
+        urlView === "plan"
+      ) {
+        return "tape-chart";
+      }
+      if (urlView === "grid" || urlView === "rooms") {
+        return "grid";
+      }
+    }
+    if (initialView) return initialView;
+    if (storedViewMode) return storedViewMode;
+    return "grid";
+  });
+
+  const handleOperationalViewModeChange = useCallback(
+    (mode: "grid" | "tape-chart") => {
+      setOperationalViewMode(mode);
+      setStoredViewMode(hotelId, mode);
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        if (mode === "tape-chart") {
+          url.searchParams.set("view", "tape-chart");
+        } else {
+          url.searchParams.delete("view");
+          url.searchParams.delete("tab");
+          url.searchParams.delete("startDate");
+          url.searchParams.delete("viewMode");
+        }
+        window.history.replaceState(null, "", url.toString());
+      }
+    },
+    [hotelId, setStoredViewMode],
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const syncFromUrl = () => {
+      const sp = new URLSearchParams(window.location.search);
+      const urlView = sp.get("view") || sp.get("tab");
+      if (
+        urlView === "tape-chart" ||
+        urlView === "room-plan" ||
+        urlView === "plan"
+      ) {
+        setOperationalViewMode("tape-chart");
+      } else if (urlView === "grid" || urlView === "rooms") {
+        setOperationalViewMode("grid");
+      }
+    };
+    window.addEventListener("popstate", syncFromUrl);
+    return () => window.removeEventListener("popstate", syncFromUrl);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && operationalViewMode === "tape-chart") {
+      const url = new URL(window.location.href);
+      if (
+        url.searchParams.get("view") !== "tape-chart" &&
+        url.searchParams.get("tab") !== "room-plan"
+      ) {
+        url.searchParams.set("view", "tape-chart");
+        window.history.replaceState(null, "", url.toString());
+      }
+    }
+  }, [operationalViewMode]);
 
   // Future Reservation State
   const [isReservationOpen, setIsReservationOpen] = useState(
@@ -1547,10 +1629,16 @@ export function StaffRoomsClient({
   const roomPool = Array.from(roomPoolMap.values());
 
   const bulkCandidateRooms = roomPool.map((room) => {
+    const physicalStatus = getRoomStatus(room);
+    const isOverdueNow =
+      physicalStatus === "overdue" ||
+      Boolean(room.statusConflictCode?.toUpperCase().includes("OVERDUE"));
+    const isOverdueConflict =
+      isOverdueNow && Boolean(bulkCheckInDate && bulkCheckInDate <= todayYmd);
     const isConflicting =
       isRoomConflictingForDates(room, bulkCheckInDate, bulkCheckOutDate) ||
-      bulkConflictRoomIds.has(room.id);
-    const physicalStatus = getRoomStatus(room);
+      bulkConflictRoomIds.has(room.id) ||
+      isOverdueConflict;
     const isUnavailable =
       physicalStatus === "maintenance" || physicalStatus === "blocked";
     return {
@@ -2409,7 +2497,27 @@ export function StaffRoomsClient({
       void showConfirmDialog({
         icon: "warning",
         title: `Phòng ${getRoomNumber(room)} đã có khách đặt trước!`,
-        text: `Khách "${guestName}" đã được giữ chỗ phòng này (Nhận phòng: ${checkInTime}). Bạn có muốn làm thủ tục nhận phòng cho khách đặt trước này không?`,
+        html: `
+          <div class="w-full text-left space-y-3 font-sans pt-1">
+            <div class="rounded-2xl border border-amber-200/90 bg-amber-50/70 p-3.5 sm:p-4 space-y-2.5 shadow-2xs">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-semibold text-amber-800">Phòng thao tác</span>
+                <span class="px-2.5 py-0.5 rounded-lg bg-white border border-amber-300 text-amber-900 font-bold text-xs sm:text-sm">Phòng ${escapeHtml(getRoomNumber(room))}</span>
+              </div>
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-semibold text-amber-800">Khách đã đặt trước</span>
+                <strong class="text-slate-900 text-sm font-bold truncate max-w-[200px]">${escapeHtml(guestName)}</strong>
+              </div>
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-semibold text-amber-800">Giờ nhận dự kiến</span>
+                <span class="font-bold text-slate-700 text-xs sm:text-sm">${escapeHtml(checkInTime)}</span>
+              </div>
+            </div>
+            <p class="text-xs text-slate-600 text-pretty">
+              Phòng này đã có đơn giữ chỗ trong hôm nay. Bạn có muốn làm thủ tục nhận phòng cho khách đặt trước này không?
+            </p>
+          </div>
+        `,
         confirmText: `Nhận phòng cho ${guestName}`,
         cancelText: "Hủy bỏ",
       }).then((confirmation) => {
@@ -2984,9 +3092,17 @@ export function StaffRoomsClient({
             title: isEarlyConfirmation
               ? "Xác nhận nhận phòng sớm?"
               : "Xác nhận nhận phòng muộn?",
-            text: isEarlyConfirmation
-              ? "Đơn đặt phòng này có ngày nhận phòng dự kiến trong tương lai. Bạn có muốn cho phép khách làm thủ tục nhận phòng sớm ngay bây giờ không?"
-              : "Ngày nhận phòng dự kiến đã qua. Bạn có muốn tiếp tục làm thủ tục nhận phòng muộn không?",
+            html: formatEarlyCheckInConfirmHtml({
+              guestName:
+                activeReservationCheckIn?.guestDisplayName ||
+                fields.guestDisplayName ||
+                "Khách đặt trước",
+              roomNumber: selectedRoom
+                ? getRoomNumber(selectedRoom)
+                : "Phòng đã chọn",
+              scheduledDate: "Theo lịch hẹn",
+              isEarly: isEarlyConfirmation,
+            }),
             confirmText: isEarlyConfirmation
               ? "Đồng ý nhận phòng sớm"
               : "Đồng ý nhận phòng muộn",
@@ -4213,7 +4329,7 @@ export function StaffRoomsClient({
               <div className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-slate-100 p-1 shadow-2xs">
                 <button
                   type="button"
-                  onClick={() => setOperationalViewMode("grid")}
+                  onClick={() => handleOperationalViewModeChange("grid")}
                   className={`inline-flex h-full items-center gap-1.5 rounded-lg px-3 text-xs font-bold transition cursor-pointer ${
                     operationalViewMode === "grid"
                       ? "bg-white text-sky-800 shadow-xs font-black border border-slate-200"
@@ -4226,7 +4342,7 @@ export function StaffRoomsClient({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setOperationalViewMode("tape-chart")}
+                  onClick={() => handleOperationalViewModeChange("tape-chart")}
                   className={`inline-flex h-full items-center gap-1.5 rounded-lg px-3 text-xs font-bold transition cursor-pointer ${
                     operationalViewMode === "tape-chart"
                       ? "bg-white text-purple-800 shadow-xs font-black border border-slate-200"
@@ -4426,12 +4542,60 @@ export function StaffRoomsClient({
           rooms={rooms}
           arrivalsList={arrivalsList}
           businessDate={businessDate}
+          initialStartDate={initialStartDate}
+          initialViewMode={initialViewMode}
+          canCheckInStay={canCheckInStay}
+          canManageRooms={canManageRooms}
+          readOnly={false}
+          roleScope="staff"
+          onSelectRoom={(room) => {
+            const fullRoom =
+              rooms.find((r) => r.id === room.id) ??
+              (room as unknown as HotelRoomSummary);
+            setSelectedRoom(fullRoom);
+          }}
+          onToggleRoomBlocked={async (room) => {
+            const fullRoom =
+              rooms.find((r) => r.id === room.id) ??
+              (room as unknown as HotelRoomSummary);
+            await toggleRoomBlocked(fullRoom);
+          }}
+          onProcessingRoomClick={async (room) => {
+            const fullRoom =
+              rooms.find((r) => r.id === room.id) ??
+              (room as unknown as HotelRoomSummary);
+            await handleProcessingRoomClick(fullRoom);
+          }}
           onOpenCheckIn={(room) => {
             setSelectedRoom(room);
             setActiveReservationCheckIn(null);
             setCustomCheckInInitialFields(null);
             setSubmitError(undefined);
             setIsCheckInOpen(true);
+          }}
+          onCheckInReservation={(block) => {
+            const room = rooms.find((r) => r.id === block.roomId);
+            if (!room) {
+              void showWarningAlert(
+                "Không tìm thấy phòng",
+                "Phòng được gán không tồn tại trong danh sách phòng.",
+              );
+              return;
+            }
+            const matchingArrival = arrivalsList?.find(
+              (a) => a.id === block.reservationId || a.reservationCode === block.reservationCode,
+            );
+            if (matchingArrival) {
+              handleCheckInArrival(matchingArrival);
+            } else {
+              handleCheckInReservationGeneric(room, {
+                guestDisplayName: block.guestName,
+                guestPhone: block.phone,
+                plannedCheckOutAt: `${block.endDate}T12:00:00+07:00`,
+                reservationCode: block.reservationCode || undefined,
+                arrival: null,
+              });
+            }
           }}
           onOpenQuickReservation={(room, initialDate, initialEndDate) => {
             if (room) {
@@ -4462,24 +4626,28 @@ export function StaffRoomsClient({
             setBulkCheckInDate(checkInDate);
             setBulkCheckOutDate(checkOutDate);
             setBulkLeadName("");
+            setBulkRoomCustomPrices({});
+            setBulkUniformPrice("");
             setIsBulkModalOpen(true);
           }}
           onCheckOutStay={async (stayId, roomNum) => {
             try {
-              await requestInternalApiEnvelope(
-                `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/stays/${encodeURIComponent(stayId)}/check-out`,
-                { method: "POST" },
-              );
-              await showSuccessAlert(
-                `Trả phòng P.${roomNum} thành công`,
-                "Phòng đã chuyển sang trạng thái chờ dọn dẹp.",
-              );
-              await invalidateHotelRealtimeQueries(queryClient, hotelId);
-              void refetch();
-            } catch (err) {
-              await showErrorAlert(
-                "Không thể trả phòng",
-                err instanceof Error ? err.message : "Vui lòng thử lại.",
+              // Tìm active folio của lượt lưu trú để điều hướng chính xác vào Folio thanh toán
+              const activeFolioRes = await requestInternalApiEnvelope<{ id?: string; folioNumber?: string }>(
+                `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/billing/stays/${encodeURIComponent(stayId)}/active-folio`,
+                { method: "GET" },
+              ).catch(() => null);
+
+              const folioId = activeFolioRes?.data?.id;
+              const params = new URLSearchParams();
+              if (folioId) params.set("folioId", folioId);
+              params.set("stayId", stayId);
+              if (roomNum) params.set("roomNumber", roomNum);
+
+              router.push(`/hotels/${encodeURIComponent(hotelId)}/billing?${params.toString()}`);
+            } catch {
+              router.push(
+                `/hotels/${encodeURIComponent(hotelId)}/billing?stayId=${encodeURIComponent(stayId)}&roomNumber=${encodeURIComponent(roomNum)}`,
               );
             }
           }}
@@ -5891,18 +6059,32 @@ export function StaffRoomsClient({
                                   room.id,
                                 );
                                 const isPhysicallyOverdue =
-                                  getRoomStatus(room) === "overdue";
+                                  getRoomStatus(room) === "overdue" ||
+                                  Boolean(room.statusConflictCode?.toUpperCase().includes("OVERDUE"));
+
+                                const typeFallbackPrice =
+                                  roomTypeSummaryList.find(
+                                    (rt) =>
+                                      rt.name === (room.type || "Tiêu chuẩn") ||
+                                      rt.roomTypeId === room.roomTypeId,
+                                  )?.price ?? null;
+
+                                const defaultRoomPrice =
+                                  typeof room.price === "number" && room.price > 0
+                                    ? room.price
+                                    : typeof typeFallbackPrice === "number" && typeFallbackPrice > 0
+                                      ? typeFallbackPrice
+                                      : 0;
+
                                 const customPrice = bulkRoomCustomPrices[room.id];
                                 const currentPrice =
                                   customPrice !== undefined && customPrice !== null
                                     ? customPrice
-                                    : typeof room.price === "number"
-                                      ? room.price
-                                      : 0;
+                                    : defaultRoomPrice;
                                 const isPriceCustomized =
                                   customPrice !== undefined &&
                                   customPrice !== null &&
-                                  customPrice !== room.price;
+                                  customPrice !== defaultRoomPrice;
 
                                 return (
                                   <div
@@ -5954,6 +6136,10 @@ export function StaffRoomsClient({
                                         {isConflictRoom ? (
                                           <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200 whitespace-nowrap">
                                             Xung đột
+                                          </span>
+                                        ) : isPhysicallyOverdue ? (
+                                          <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200 whitespace-nowrap">
+                                            Quá hạn trả
                                           </span>
                                         ) : isConflicting ? (
                                           <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200 whitespace-nowrap">
@@ -6019,8 +6205,8 @@ export function StaffRoomsClient({
                                             Giá gốc:
                                           </span>
                                           <span className="font-semibold text-slate-700 whitespace-nowrap">
-                                            {room.price
-                                              ? `${formatMoney({ price: room.price, currency: "VND" })}/đêm`
+                                            {defaultRoomPrice > 0
+                                              ? `${formatMoney({ price: defaultRoomPrice, currency: "VND" })}/đêm`
                                               : "Chưa có giá"}
                                           </span>
                                         </div>

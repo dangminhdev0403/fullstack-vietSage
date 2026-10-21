@@ -232,6 +232,12 @@ export function StaffBillingWorkspaceClient({
   );
   const [prevSelectedFolioId, setPrevSelectedFolioId] =
     useState(selectedFolioId);
+
+  useEffect(() => {
+    if (initialFolio?.id && initialFolio.id !== selectedFolioId) {
+      setSelectedFolioId(initialFolio.id);
+    }
+  }, [initialFolio?.id, selectedFolioId]);
   const [summary, setSummary] = useState<FolioSummary | null>(
     initialFolio ?? null,
   );

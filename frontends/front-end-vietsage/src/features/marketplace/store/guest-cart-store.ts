@@ -31,6 +31,37 @@ export type GuestCartStore = {
   getItemCount: () => number;
 };
 
+const memoryStorage = new Map<string, string>();
+
+const safeStorage = {
+  getItem: (name: string): string | null => {
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        return window.localStorage.getItem(name);
+      }
+    } catch {}
+    return memoryStorage.get(name) ?? null;
+  },
+  setItem: (name: string, value: string): void => {
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.setItem(name, value);
+        return;
+      }
+    } catch {}
+    memoryStorage.set(name, value);
+  },
+  removeItem: (name: string): void => {
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.removeItem(name);
+        return;
+      }
+    } catch {}
+    memoryStorage.delete(name);
+  },
+};
+
 export const useGuestCartStore = create<GuestCartStore>()(
   persist(
     (set, get) => ({
@@ -111,7 +142,7 @@ export const useGuestCartStore = create<GuestCartStore>()(
     }),
     {
       name: "vietsage.guest-marketplace-cart.v1",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeStorage),
       partialize: (state) => ({ items: state.items }),
     },
   ),

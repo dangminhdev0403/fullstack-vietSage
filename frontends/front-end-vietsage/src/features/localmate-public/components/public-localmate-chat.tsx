@@ -1115,8 +1115,8 @@ export function PublicLocalMateChat({
       if (effectiveCandidateKey) {
         setActiveCandidateKey(effectiveCandidateKey);
       }
-    } catch (err) {
-      console.error("[LocalMateChat] send error:", err);
+    } catch {
+      // Suppressed devtool log
       setMessages((current) => [
         ...current,
         {

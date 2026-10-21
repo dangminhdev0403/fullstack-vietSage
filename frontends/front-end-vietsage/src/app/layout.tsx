@@ -59,6 +59,18 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               if (typeof window !== 'undefined') {
+                ${
+                  process.env.NODE_ENV === "production"
+                    ? `
+                try {
+                  window.console.log = function() {};
+                  window.console.debug = function() {};
+                  window.console.info = function() {};
+                  window.console.warn = function() {};
+                } catch (_) {}
+                `
+                    : ""
+                }
                 window.zaloJSV2 = window.zaloJSV2 || {};
                 var origOnError = window.onerror;
                 window.onerror = function(msg, url, line, col, error) {

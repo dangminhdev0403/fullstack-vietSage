@@ -432,7 +432,7 @@ export class ReservationsService {
       hotelId,
       dto.targetRoomId,
     );
-    return this.reservationsRepository.updateReservationPlacement({
+    const result = await this.reservationsRepository.updateReservationPlacement({
       hotelId,
       tenantId: hotel.tenantId,
       reservationId,
@@ -442,6 +442,18 @@ export class ReservationsService {
       swapExpectedUpdatedAt: dto.swapExpectedUpdatedAt,
       actorUserId,
     });
+    try {
+      RequestRealtimeEmitter.emitRoomStatusUpdated({
+        hotelId,
+        roomId: dto.targetRoomId,
+        status: RoomStatus.RESERVED,
+        previousStatus: RoomStatus.RESERVED,
+        updatedAt: new Date(),
+      });
+    } catch {
+      // Non-blocking realtime emission
+    }
+    return result;
   }
 
   async updateReservationDates(

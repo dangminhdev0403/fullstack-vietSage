@@ -1,5 +1,5 @@
 const SENSITIVE_KEY_PATTERN =
-  /password|passcode|token|authorization|cookie|secret|qr|publiccode|accesscode|hash|credential|sessiontoken/i;
+  /password|passcode|token|authorization|cookie|secret|qr|publiccode|accesscode|hash|credential|sessiontoken|apikey|api_key|privatekey|clientsecret|cardnumber|cvv|cvc|nationalid|idcard|cccd|otp|pin\b/i;
 
 const MASK = "[REDACTED]";
 

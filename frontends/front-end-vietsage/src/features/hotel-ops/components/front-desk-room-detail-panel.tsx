@@ -174,9 +174,9 @@ export function resolveRoomStatusModel(
     )
       opStatus = "reserved";
     else if (projected === "PROCESSING") opStatus = "processing";
-    else if (projected === "BLOCKED") opStatus = "blocked";
-    else if (projected === "MAINTENANCE" || projected === "OUT_OF_SERVICE")
-      opStatus = "maintenance";
+    else if (projected === "BLOCKED" || projected === "OUT_OF_SERVICE")
+      opStatus = "blocked";
+    else if (projected === "MAINTENANCE") opStatus = "maintenance";
     else opStatus = "available";
   } else {
     // Compatibility fallback for older room responses.
@@ -191,13 +191,12 @@ export function resolveRoomStatusModel(
       opStatus = "reserved";
     } else if (statusUc === "PROCESSING") {
       opStatus = "processing";
-    } else if (statusUc === "BLOCKED") {
-      opStatus = "blocked";
     } else if (
+      statusUc === "BLOCKED" ||
       statusUc === "MAINTENANCE" ||
       statusUc === "OUT_OF_SERVICE"
     ) {
-      opStatus = "maintenance";
+      opStatus = "blocked";
     } else {
       opStatus = "available";
     }

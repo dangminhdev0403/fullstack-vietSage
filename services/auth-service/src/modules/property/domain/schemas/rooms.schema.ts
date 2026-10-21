@@ -14,9 +14,15 @@ function preprocessRoomStatus(val: unknown): unknown {
     return RoomStatus.AVAILABLE;
   if (upper === "DIRTY" || upper === "CHỜ DỌN" || upper === "CLEANING" || upper === "PROCESSING")
     return RoomStatus.PROCESSING;
-  if (upper === "BẢO TRÌ" || upper === "MAINTENANCE" || upper === "OUT_OF_SERVICE")
-    return RoomStatus.MAINTENANCE;
-  if (upper === "KHÓA" || upper === "ĐÃ KHÓA" || upper === "BLOCKED") return RoomStatus.BLOCKED;
+  if (
+    upper === "BẢO TRÌ" ||
+    upper === "MAINTENANCE" ||
+    upper === "KHÓA" ||
+    upper === "ĐÃ KHÓA" ||
+    upper === "BLOCKED"
+  )
+    return RoomStatus.BLOCKED;
+  if (upper === "OUT_OF_SERVICE") return RoomStatus.OUT_OF_SERVICE;
   return upper;
 }
 

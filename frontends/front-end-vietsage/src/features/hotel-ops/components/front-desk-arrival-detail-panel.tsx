@@ -19,6 +19,11 @@ import {
   isLateCheckInError,
 } from "@/features/hotel-ops/utils/check-in-error";
 import {
+  escapeHtml,
+  formatCancelReservationConfirmHtml,
+  formatEarlyCheckInConfirmHtml,
+  formatNoShowConfirmHtml,
+  formatRoomAssignmentConfirmHtml,
   showConfirmDialog,
   showErrorAlert,
   showSuccessAlert,
@@ -195,7 +200,12 @@ export function FrontDeskArrivalDetailPanel({
     const confirm = await showConfirmDialog({
       icon: "question",
       title: "Xác nhận gán phòng?",
-      text: `Khách hàng: ${arrival.guestDisplayName}\n${roomName}`,
+      html: formatRoomAssignmentConfirmHtml({
+        guestDisplayName: arrival.guestDisplayName,
+        reservationCode: arrival.reservationCode,
+        roomName,
+        roomTypeName: arrival.room?.type || null,
+      }),
       confirmText: "Gán phòng",
       cancelText: "Hủy bỏ",
       reverseButtons: false,
@@ -334,9 +344,13 @@ export function FrontDeskArrivalDetailPanel({
         const warningConfirm = await showConfirmDialog({
           icon: "warning",
           title: isEarly ? "Xác nhận nhận phòng sớm?" : "Xác nhận nhận phòng quá hạn?",
-          text: isEarly
-            ? "Đơn đặt phòng này có ngày nhận phòng dự kiến trong tương lai. Bạn có muốn cho phép khách làm thủ tục nhận phòng sớm ngay bây giờ không?"
-            : "Đơn đặt phòng này đã quá hạn nhận phòng dự kiến. Bạn có muốn cho phép khách tiếp tục làm thủ tục nhận phòng trễ không?",
+          html: formatEarlyCheckInConfirmHtml({
+            guestName: arrival.guestDisplayName,
+            roomNumber: arrival.room?.roomNumber || "Chưa gán",
+            scheduledDate: arrival.plannedCheckInAt ? arrival.plannedCheckInAt.slice(0, 10) : "Theo lịch hẹn",
+            reservationCode: arrival.reservationCode,
+            isEarly,
+          }),
           confirmText: isEarly ? "Đồng ý nhận phòng sớm" : "Đồng ý nhận phòng trễ",
           cancelText: "Hủy bỏ",
           reverseButtons: false,
@@ -411,10 +425,15 @@ export function FrontDeskArrivalDetailPanel({
     const confirm = await showConfirmDialog({
       icon: "warning",
       title: "Xác nhận hủy đặt phòng?",
-      text: `Đơn đặt phòng #${arrival.reservationCode} của khách "${arrival.guestDisplayName}" sẽ bị hủy. Phòng đã gán (nếu có) sẽ được giải phóng ngay lập tức để đón khách khác.`,
+      html: formatCancelReservationConfirmHtml({
+        guestName: arrival.guestDisplayName,
+        reservationCode: arrival.reservationCode,
+        roomNumber: arrival.room?.roomNumber || null,
+      }),
       confirmText: "Hủy đặt phòng",
       cancelText: "Giữ lại",
       reverseButtons: false,
+      confirmVariant: "danger",
     });
 
     if (!confirm.isConfirmed) return;
@@ -453,7 +472,11 @@ export function FrontDeskArrivalDetailPanel({
     const confirm = await showConfirmDialog({
       icon: "warning",
       title: "Xác nhận báo vắng mặt (No-show)?",
-      text: `Xác nhận khách "${arrival.guestDisplayName}" (Đơn #${arrival.reservationCode}) không đến nhận phòng? Phòng sẽ được giải phóng ngay lập tức để phục vụ khách khác.`,
+      html: formatNoShowConfirmHtml({
+        guestName: arrival.guestDisplayName,
+        reservationCode: arrival.reservationCode,
+        roomNumber: arrival.room?.roomNumber || null,
+      }),
       confirmText: "Báo vắng mặt",
       cancelText: "Hủy bỏ",
       reverseButtons: false,

@@ -1588,6 +1588,8 @@ export function OwnerRoomsClient({
           <TapeChartView
             hotelId={hotelId}
             rooms={rooms}
+            readOnly={true}
+            roleScope="tenant"
             onRefresh={() => {
               void refetchRooms();
             }}
