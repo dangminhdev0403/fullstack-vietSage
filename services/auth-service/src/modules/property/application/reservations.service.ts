@@ -23,6 +23,7 @@ import type {
   MarkNoShowDto,
   RoomPlanQueryInput,
   UpdateReservationPlacementBodyInput,
+  UpdateReservationDatesBodyInput,
 } from "../domain/schemas/reservations.schema";
 import { ReservationsRepository } from "../infrastructure/repositories/reservations.repository";
 import { getBusinessDateRange } from "../infrastructure/repositories/hotel-rooms.repository";
@@ -441,5 +442,42 @@ export class ReservationsService {
       swapExpectedUpdatedAt: dto.swapExpectedUpdatedAt,
       actorUserId,
     });
+  }
+
+  async updateReservationDates(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    reservationId: string,
+    dto: UpdateReservationDatesBodyInput,
+  ) {
+    const hotel = await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
+    const updated = await this.reservationsRepository.updateReservationDates({
+      hotelId,
+      tenantId: hotel.tenantId,
+      reservationId,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      plannedCheckInAt: dto.plannedCheckInAt,
+      plannedCheckOutAt: dto.plannedCheckOutAt,
+      expectedUpdatedAt: dto.expectedUpdatedAt,
+      actorUserId,
+    });
+    try {
+      RequestRealtimeEmitter.emitRoomStatusUpdated({
+        hotelId,
+        roomId: updated.roomId || "",
+        status: RoomStatus.RESERVED,
+        previousStatus: RoomStatus.RESERVED,
+        updatedAt: new Date(),
+      });
+    } catch {
+      // Non-blocking realtime emission
+    }
+    return updated;
   }
 }

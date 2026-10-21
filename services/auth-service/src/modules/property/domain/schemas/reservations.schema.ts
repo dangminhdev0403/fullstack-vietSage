@@ -239,3 +239,25 @@ export const updateReservationPlacementBodySchema = z
 export type UpdateReservationPlacementBodyInput = z.infer<
   typeof updateReservationPlacementBodySchema
 >;
+
+export const updateReservationDatesBodySchema = z
+  .object({
+    startDate: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "startDate phải có định dạng YYYY-MM-DD")
+      .optional(),
+    endDate: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "endDate phải có định dạng YYYY-MM-DD")
+      .optional(),
+    plannedCheckInAt: z.coerce.date().optional(),
+    plannedCheckOutAt: z.coerce.date().optional(),
+    expectedUpdatedAt: z.string().trim().min(1, "expectedUpdatedAt là bắt buộc"),
+  })
+  .strict();
+
+export type UpdateReservationDatesBodyInput = z.infer<
+  typeof updateReservationDatesBodySchema
+>;

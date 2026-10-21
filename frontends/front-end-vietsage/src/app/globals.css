@@ -321,9 +321,9 @@ p.text-center {
    SWEETALERT2 LUXURY HOSPITALITY THEME & ICON ENHANCEMENTS (VIETSAGE)
    ===================================================================== */
 .swal2-container {
-  backdrop-filter: blur(12px) saturate(130%);
-  -webkit-backdrop-filter: blur(12px) saturate(130%);
-  background: rgba(15, 26, 23, 0.52) !important;
+  backdrop-filter: blur(8px) saturate(120%);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  background: rgba(15, 26, 23, 0.28) !important;
   transition: backdrop-filter 0.25s ease-out, background-color 0.25s ease-out;
 }
 
@@ -341,9 +341,9 @@ p.text-center {
 .swal2-popup {
   position: relative;
   box-shadow:
-    0 25px 60px -12px rgba(28, 56, 49, 0.18),
-    0 0 0 1px rgba(37, 72, 63, 0.08),
-    0 8px 24px -4px rgba(0, 0, 0, 0.04) !important;
+    0 24px 48px -12px rgba(15, 26, 23, 0.12),
+    0 0 0 1px rgba(0, 0, 0, 0.05),
+    0 8px 24px -4px rgba(0, 0, 0, 0.03) !important;
   border-radius: 28px !important;
   font-family: var(--font-be-vietnam-pro), "Be Vietnam Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
   background: #ffffff !important;
@@ -360,7 +360,7 @@ p.text-center {
   left: 20%;
   right: 20%;
   height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(37, 72, 63, 0.28), transparent);
+  background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.4), transparent);
   pointer-events: none;
   border-radius: 9999px;
 }
@@ -377,14 +377,16 @@ p.text-center {
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease !important;
 }
 
-/* 1. Success - Signature VietSage Deep Sage */
+/* 1. Success - Bright Luminous Emerald */
 .swal2-icon.swal2-success {
-  border-color: #25483f !important;
-  color: #25483f !important;
-  background: #eaf2ee !important;
+  border-color: #10b981 !important;
+  color: #059669 !important;
+
+
+  background: #ecfdf5 !important;
   box-shadow:
-    0 0 0 6px rgba(37, 72, 63, 0.08),
-    0 10px 24px -4px rgba(37, 72, 63, 0.2) !important;
+
+    0 0 0 6px rgba(16, 185, 129, 0.14), 0 10px 24px -4px rgba(16, 185, 129, 0.22) !important;
 }
 
 .swal2-icon.swal2-success .swal2-success-ring {
@@ -399,78 +401,81 @@ p.text-center {
 }
 
 .swal2-icon.swal2-success [class^="swal2-success-line"] {
-  background-color: #1c3831 !important;
+  background-color: #059669 !important;
   border-radius: 9999px !important;
   height: 3.5px !important;
 }
 
-/* 2. Warning - VietSage Warm Amber & Muted Gold */
+/* 2. Warning - Vibrant Amber & Warm Honey */
 .swal2-icon.swal2-warning {
-  border-color: #d97706 !important;
-  color: #92400e !important;
-  background: #fef8ee !important;
+  border-color: #f59e0b !important;
+  color: #b45309 !important;
+  background: #fffbeb !important;
   box-shadow:
-    0 0 0 6px rgba(217, 119, 6, 0.08),
-    0 10px 24px -4px rgba(180, 83, 9, 0.18) !important;
+    0 0 0 6px rgba(245, 158, 11, 0.14),
+    0 10px 24px -4px rgba(245, 158, 11, 0.2) !important;
 }
 
 .swal2-icon.swal2-warning .swal2-icon-content {
-  color: #92400e !important;
+  color: #b45309 !important;
   font-family: var(--font-be-vietnam-pro), sans-serif !important;
   font-weight: 800 !important;
 }
 
-/* 3. Error - VietSage Heritage Crimson */
+/* 3. Error - Vivid Ruby Crimson */
 .swal2-icon.swal2-error {
-  border-color: #ba1a1a !important;
-  color: #ba1a1a !important;
-  background: #fdf2f2 !important;
+  border-color: #f87171 !important;
+  color: #dc2626 !important;
+  background: #fef2f2 !important;
   box-shadow:
-    0 0 0 6px rgba(186, 26, 26, 0.08),
-    0 10px 24px -4px rgba(186, 26, 26, 0.2) !important;
+    0 0 0 6px rgba(239, 68, 68, 0.14),
+    0 10px 24px -4px rgba(239, 68, 68, 0.22) !important;
 }
 
 .swal2-icon.swal2-error [class^="swal2-x-mark-line"] {
-  background-color: #93000a !important;
+  background-color: #dc2626 !important;
   border-radius: 9999px !important;
   height: 3.5px !important;
 }
 
-/* 4. Info - VietSage Maritime Slate / Teal */
+/* 4. Info - Crisp Ocean Blue / Azure */
 .swal2-icon.swal2-info {
-  border-color: #0f766e !important;
-  color: #0f766e !important;
-  background: #f0fdfa !important;
+  border-color: #38bdf8 !important;
+  color: #0284c7 !important;
+  background: #f0f9ff !important;
   box-shadow:
-    0 0 0 6px rgba(15, 118, 110, 0.08),
-    0 10px 24px -4px rgba(15, 118, 110, 0.18) !important;
+    0 0 0 6px rgba(14, 165, 233, 0.14),
+    0 10px 24px -4px rgba(14, 165, 233, 0.2) !important;
 }
 
 .swal2-icon.swal2-info .swal2-icon-content {
-  color: #0f766e !important;
+  color: #0284c7 !important;
   font-family: var(--font-be-vietnam-pro), sans-serif !important;
   font-weight: 800 !important;
 }
 
-/* 5. Question - VietSage Sage Charcoal */
+/* 5. Question - Clean Cobalt Sky */
 .swal2-icon.swal2-question {
-  border-color: #25483f !important;
-  color: #25483f !important;
-  background: #f0f4f2 !important;
+  border-color: #60a5fa !important;
+  color: #2563eb !important;
+
+
+  background: #eff6ff !important;
   box-shadow:
-    0 0 0 6px rgba(37, 72, 63, 0.08),
-    0 10px 24px -4px rgba(37, 72, 63, 0.16) !important;
+
+
+    0 0 0 6px rgba(37, 99, 235, 0.14), 0 10px 24px -4px rgba(37, 99, 235, 0.18) !important;
 }
 
 .swal2-icon.swal2-question .swal2-icon-content {
-  color: #1c3831 !important;
+  color: #2563eb !important;
   font-family: var(--font-be-vietnam-pro), sans-serif !important;
   font-weight: 800 !important;
 }
 
 /* 6. Loader - VietSage Signature Loading Spinner */
 .swal2-loader {
-  border-color: #25483f transparent #25483f transparent !important;
+  border-color: #10b981 transparent #10b981 transparent !important;
   width: 2.5rem !important;
   height: 2.5rem !important;
   margin: 1.25rem auto !important;
@@ -478,7 +483,7 @@ p.text-center {
 
 /* 7. Timer Progress Bar */
 .swal2-timer-progress-bar {
-  background: linear-gradient(90deg, #1c3831, #25483f, #735c00) !important;
+  background: linear-gradient(90deg, #10b981, #059669, #34d399) !important;
   height: 3px !important;
   border-radius: 9999px !important;
 }
@@ -498,7 +503,7 @@ p.text-center {
 
 .swal2-confirm:focus-visible,
 .swal2-cancel:focus-visible {
-  outline: 2px solid #25483f !important;
+  outline: 2px solid #10b981 !important;
   outline-offset: 2px !important;
 }
 
@@ -508,31 +513,31 @@ p.text-center {
 [data-sonner-toaster] [data-sonner-toast] {
   font-family: var(--font-be-vietnam-pro), "Be Vietnam Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
   border-radius: 16px !important;
-  box-shadow: 0 16px 36px -8px rgba(28, 56, 49, 0.16), 0 0 0 1px rgba(37, 72, 63, 0.06) !important;
+  box-shadow: 0 12px 32px -6px rgba(15, 26, 23, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
 }
 
 [data-sonner-toaster] [data-sonner-toast][data-type="success"] {
-  background: #f2f7f4 !important;
-  border-color: #c2dcd2 !important;
-  color: #0f241e !important;
+  background: #f0fdf4 !important;
+  border-color: #bbf7d0 !important;
+  color: #15803d !important;
 }
 
 [data-sonner-toaster] [data-sonner-toast][data-type="error"] {
-  background: #fff5f5 !important;
-  border-color: #ffdad6 !important;
-  color: #93000a !important;
+  background: #fef2f2 !important;
+  border-color: #fecaca !important;
+  color: #b91c1c !important;
 }
 
 [data-sonner-toaster] [data-sonner-toast][data-type="warning"] {
   background: #fffbeb !important;
   border-color: #fde68a !important;
-  color: #92400e !important;
+  color: #b45309 !important;
 }
 
 [data-sonner-toaster] [data-sonner-toast][data-type="info"] {
-  background: #f0fdfa !important;
-  border-color: #99f6e4 !important;
-  color: #0f766e !important;
+  background: #f0f9ff !important;
+  border-color: #bae6fd !important;
+  color: #0284c7 !important;
 }
 
 .swal2-popup.vs-service-confirm-popup {

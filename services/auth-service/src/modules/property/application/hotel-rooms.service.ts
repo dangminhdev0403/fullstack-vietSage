@@ -715,10 +715,38 @@ export class HotelRoomsService {
       throw new BadRequestException("Thời gian check-out mới phải sau thời gian check-in");
     }
 
+    if (dto.plannedCheckOutAt && dto.plannedCheckOutAt > stay.plannedCheckOutAt) {
+      const nextReservation = await this.hotelRoomsRepository.findNextReservationInRoom(
+        hotelId,
+        stay.roomId,
+        stay.plannedCheckInAt,
+        dto.plannedCheckOutAt,
+      );
+      if (nextReservation) {
+        const nextDate = nextReservation.plannedCheckInAt.toISOString().slice(0, 10);
+        throw new ConflictException(
+          `Không thể gia hạn: Phòng đã có lịch đặt của khách ${nextReservation.guestDisplayName} từ ngày ${nextDate}`,
+        );
+      }
+    }
+
     const updated = await this.hotelRoomsRepository.updateStay(hotelId, stayId, dto);
     if (!updated) {
       throw new NotFoundException("Không tìm thấy lượt lưu trú");
     }
+
+    try {
+      RequestRealtimeEmitter.emitRoomStatusUpdated({
+        hotelId,
+        roomId: stay.roomId,
+        status: RoomStatus.OCCUPIED,
+        previousStatus: RoomStatus.OCCUPIED,
+        updatedAt: new Date(),
+      });
+    } catch {
+      // Non-blocking realtime emission
+    }
+
     return this.toStayData(updated);
   }
 

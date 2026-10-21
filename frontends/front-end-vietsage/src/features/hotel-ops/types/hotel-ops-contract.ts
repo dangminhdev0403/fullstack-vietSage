@@ -634,6 +634,8 @@ export type RoomPlanRoom = {
   roomTypeId: string | null;
   roomTypeName: string | null;
   status: string;
+  physicalStatus?: string;
+  statusConflictCode?: string | null;
   price?: number | null;
 };
 
@@ -673,9 +675,8 @@ export type RoomPlanResponse = {
 
 export type UpdateReservationPlacementInput = {
   targetRoomId: string;
-  mode: "MOVE" | "SWAP";
   expectedUpdatedAt: string;
   swapWithReservationId?: string;
-  expectedSwapUpdatedAt?: string;
+  swapExpectedUpdatedAt?: string;
 };
 

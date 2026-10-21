@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
@@ -26,6 +26,7 @@ import {
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import {
+  escapeHtml,
   showConfirmDialog,
   showErrorAlert,
   showSuccessAlert,
@@ -43,6 +44,17 @@ import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-r
 import { useRoomOrderStore } from "@/features/hotel-ops/store/room-order-store";
 
 export type TapeChartViewMode = "week" | "month";
+
+export interface ActiveBlockResize {
+  block: RoomPlanBlock;
+  direction: "start" | "end";
+  currentGhostStartDay: string;
+  currentGhostEndDay: string;
+  nights: number;
+  initialNights: number;
+  diffNights: number;
+  conflictWarning: string | null;
+}
 
 export interface DraftBookingSelection {
   roomId: string;
@@ -232,6 +244,8 @@ interface DraggableRoomRowProps {
   onAdjustDraftDays: (delta: number) => void;
   onConfirmDraft: (draft: DraftBookingSelection) => void;
   onCancelDraft: () => void;
+  activeBlockResize?: ActiveBlockResize | null;
+  onStartBlockResize?: (block: RoomPlanBlock, direction: "start" | "end", e: React.MouseEvent) => void;
 }
 
 function DraggableRoomRow({
@@ -253,6 +267,8 @@ function DraggableRoomRow({
   onAdjustDraftDays,
   onConfirmDraft,
   onCancelDraft,
+  activeBlockResize,
+  onStartBlockResize,
 }: DraggableRoomRowProps) {
   const {
     attributes,
@@ -274,6 +290,15 @@ function DraggableRoomRow({
     (b) => b.kind === "STAY" && b.startDate <= todayYmd && b.endDate > todayYmd,
   );
 
+  const isHardVetoRoom =
+    room.status === "MAINTENANCE" ||
+    room.status === "BLOCKED" ||
+    room.status === "OUT_OF_SERVICE";
+  const isProcessing =
+    room.status === "DIRTY" ||
+    room.status === "CLEANING" ||
+    room.status === "INSPECTION";
+
   return (
     <div
       ref={setNodeRef}
@@ -281,24 +306,44 @@ function DraggableRoomRow({
       onDragOver={(e) => handleDragOverCell(e, room.id)}
       onDragLeave={() => handleDragLeaveCell(room.id)}
       onDrop={(e) => void handleDropOnRoom(e, room)}
-      className={`group flex border-b border-slate-100 hover:bg-slate-50/60 transition min-h-[46px] select-none relative ${
+      className={`group flex border-b border-slate-100 hover:bg-slate-50/60 transition min-h-[46px] select-none relative w-full ${
         dragOverCellKey === room.id
           ? "bg-emerald-50 ring-2 ring-emerald-500 ring-inset"
-          : ""
+          : isHardVetoRoom
+            ? "bg-slate-200/80 hover:bg-slate-200"
+            : isProcessing
+              ? "bg-amber-100/70 hover:bg-amber-100/90"
+              : ""
       }`}
     >
       {/* Left Room Info Column */}
       <div
         {...attributes}
         {...listeners}
-        className="sticky left-0 z-10 w-48 shrink-0 border-r border-slate-200 bg-white group-hover:bg-slate-50 px-3 py-2 flex items-center justify-between shadow-xs cursor-grab active:cursor-grabbing"
+        className={`sticky left-0 z-10 w-48 min-w-[192px] max-w-[192px] shrink-0 border-r border-slate-200 px-3 py-2 flex items-center justify-between shadow-xs cursor-grab active:cursor-grabbing ${
+          isHardVetoRoom
+            ? "bg-slate-200/90 group-hover:bg-slate-200"
+            : isProcessing
+              ? "bg-amber-100/90 group-hover:bg-amber-100"
+              : "bg-white group-hover:bg-slate-50"
+        }`}
         title="Kéo thả để đổi thứ tự phòng"
       >
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0">
           <span className="font-black text-sm text-slate-900 truncate">
             P.{room.roomNumber}
           </span>
-          {isOccupiedToday && (
+          {isHardVetoRoom && (
+            <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-slate-300 text-slate-900 whitespace-nowrap">
+              Khóa
+            </span>
+          )}
+          {isProcessing && (
+            <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-amber-200 text-amber-950 whitespace-nowrap">
+              Chờ dọn
+            </span>
+          )}
+          {isOccupiedToday && !isHardVetoRoom && !isProcessing && (
             <span
               className="size-2 rounded-full bg-emerald-500 shrink-0"
               title="Đang có khách lưu trú"
@@ -311,7 +356,7 @@ function DraggableRoomRow({
       </div>
 
       {/* Timeline Day Grid with Floating Bookings */}
-      <div className="relative flex flex-1">
+      <div className="relative flex flex-1 min-w-0">
         {/* Day Cell Grid Lines */}
         {daysList.map((day) => {
           const isCellOccupied = roomBlocks.some(
@@ -333,7 +378,7 @@ function DraggableRoomRow({
               data-cell-day="true"
               onMouseDown={(e) => {
                 if (e.button !== 0) return;
-                if (isCellOccupied) return;
+                if (isCellOccupied || isHardVetoRoom) return;
                 e.preventDefault();
                 e.stopPropagation();
                 onStartDragRange(room, day.ymd);
@@ -343,17 +388,19 @@ function DraggableRoomRow({
                   onHoverDragDay(room, day.ymd);
                 }
               }}
-              className={`flex-1 min-w-[70px] border-r border-slate-100 relative group/cell select-none transition-colors ${
+              className={`flex-1 min-w-[100px] border-r border-slate-100 relative group/cell select-none transition-colors ${
                 isDraftCell
                   ? "bg-purple-100/60 ring-1 ring-inset ring-purple-300"
-                  : day.isToday
-                    ? "bg-sky-50/30"
-                    : day.isWeekend
-                      ? "bg-amber-50/40"
-                      : ""
-              } ${!isCellOccupied ? "cursor-pointer hover:bg-purple-50/50" : ""}`}
+                  : isHardVetoRoom
+                    ? "bg-slate-200/75 cursor-not-allowed"
+                    : isProcessing
+                      ? "bg-amber-100/60"
+                      : day.isToday
+                        ? "bg-sky-50/30"
+                        : ""
+              } ${!isCellOccupied && !isHardVetoRoom ? "cursor-pointer hover:bg-purple-50/50" : ""}`}
             >
-              {!isCellOccupied && !isDraftCell && !isDraggingRange && (
+              {!isCellOccupied && !isDraftCell && !isDraggingRange && !isHardVetoRoom && (
                 <div
                   className="absolute inset-1 hidden group-hover/cell:flex items-center justify-center rounded-lg border border-dashed border-purple-400 bg-purple-50/80 text-purple-700 text-xs font-bold shadow-2xs hover:bg-purple-100 transition z-10 pointer-events-none"
                   title={`Click hoặc kéo để đặt trước P.${room.roomNumber} từ ${day.dateNum}`}
@@ -534,6 +581,78 @@ function DraggableRoomRow({
           );
         })()}
 
+        {/* Active Block Resize Ghost Overlay */}
+        {activeBlockResize &&
+          activeBlockResize.block.roomId === room.id &&
+          (() => {
+            const ghostStartIndex = daysList.findIndex(
+              (d) => d.ymd >= activeBlockResize.currentGhostStartDay,
+            );
+            const ghostEndIndex = daysList.findIndex(
+              (d) => d.ymd >= activeBlockResize.currentGhostEndDay,
+            );
+            if (
+              activeBlockResize.currentGhostEndDay < daysList[0].ymd ||
+              activeBlockResize.currentGhostStartDay > daysList[daysList.length - 1].ymd
+            ) {
+              return null;
+            }
+
+            const ghostLeftPct =
+              ghostStartIndex === -1 ? 0 : (ghostStartIndex / daysList.length) * 100;
+            const ghostWidthPct =
+              ghostEndIndex === -1
+                ? 100 - ghostLeftPct
+                : Math.max(
+                    (1 / daysList.length) * 100,
+                    (Math.max(1, ghostEndIndex - Math.max(0, ghostStartIndex)) /
+                      daysList.length) *
+                      100,
+                  );
+
+            const isGhostOverdue = activeBlockResize.block.status === "OVERDUE";
+            const isGhostStay = activeBlockResize.block.kind === "STAY";
+
+            return (
+              <div
+                key="ghost-resize-preview"
+                style={{
+                  left: `calc(${ghostLeftPct}% + 4px)`,
+                  width: `calc(${ghostWidthPct}% - 8px)`,
+                  top: "4px",
+                  bottom: "4px",
+                }}
+                className={`absolute z-30 flex items-center justify-between px-2.5 rounded-lg border-2 border-dashed shadow-md select-none pointer-events-none transition-all ${
+                  isGhostOverdue
+                    ? "border-rose-500 bg-rose-500/25 text-rose-950 ring-2 ring-rose-400/40"
+                    : isGhostStay
+                      ? "border-emerald-500 bg-emerald-500/25 text-emerald-950 ring-2 ring-emerald-400/40"
+                      : "border-purple-500 bg-purple-500/25 text-purple-950 ring-2 ring-purple-400/40"
+                }`}
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="font-bold text-xs whitespace-nowrap bg-white/95 text-slate-900 px-1.5 py-0.5 rounded shadow-2xs">
+                    {activeBlockResize.diffNights > 0
+                      ? `+${activeBlockResize.diffNights} đêm`
+                      : activeBlockResize.diffNights < 0
+                        ? `${activeBlockResize.diffNights} đêm`
+                        : `${activeBlockResize.nights} đêm`}
+                  </span>
+                  <span className="text-xs font-bold whitespace-nowrap text-white hidden sm:inline drop-shadow">
+                    {activeBlockResize.direction === "end"
+                      ? `Đến ${activeBlockResize.currentGhostEndDay}`
+                      : `Từ ${activeBlockResize.currentGhostStartDay}`}
+                  </span>
+                </div>
+                {activeBlockResize.conflictWarning && (
+                  <span className="text-xs font-bold text-rose-800 bg-white/95 px-1.5 py-0.5 rounded shadow-2xs whitespace-nowrap truncate max-w-[200px]">
+                    ⚠️ {activeBlockResize.conflictWarning}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
+
         {/* Booking Bars Overlay */}
         {roomBlocks.map((b) => {
           const startIndex = daysList.findIndex((d) => d.ymd >= b.startDate);
@@ -567,6 +686,8 @@ function DraggableRoomRow({
 
           const isOverdue = b.status === "OVERDUE";
           const isStay = b.kind === "STAY";
+          const canResizeRight = isStay || isOverdue || b.kind === "RESERVATION";
+          const canResizeLeft = b.kind === "RESERVATION";
 
           // Màu thanh theo trạng thái: Đang ở (xanh lá), Đặt trước (tím), Quá hạn (đỏ)
           const barBg = isOverdue
@@ -591,15 +712,36 @@ function DraggableRoomRow({
                 top: "5px",
                 bottom: "5px",
               }}
-              className={`absolute z-10 flex items-center gap-1.5 px-2.5 rounded-lg border shadow-xs transition-all text-xs font-bold overflow-hidden select-none ${barBg} ${
+              className={`absolute z-10 flex items-center gap-1.5 px-2.5 rounded-lg border shadow-xs transition-all text-xs font-bold overflow-hidden select-none relative ${barBg} ${
                 b.movable
                   ? "cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-purple-300"
                   : "cursor-pointer"
               }`}
               title={`${b.guestName}${b.guestCount && b.guestCount > 1 ? ` (${b.guestCount} khách)` : ""}${!isDirect ? ` • ${channelBadge.label}` : ""}${
                 b.movable ? " • Kéo thả để đổi phòng" : ""
-              }`}
+              }${canResizeRight ? " • Kéo mép phải để gia hạn lưu trú" : ""}`}
             >
+              {/* Left Edge Resize Handle (Đổi ngày nhận phòng cho Đặt trước) */}
+              {canResizeLeft && onStartBlockResize && (
+                <div
+                  role="slider"
+                  aria-label="Kéo mép trái để điều chỉnh ngày nhận phòng"
+                  title="Kéo mép trái để đổi ngày nhận phòng"
+                  onMouseDown={(e) => {
+                    if (e.button !== 0) return;
+                    e.stopPropagation();
+                    onStartBlockResize(b, "start", e);
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedBlock(b);
+                  }}
+                  className="absolute left-0 top-0 bottom-0 w-2 hover:w-2.5 cursor-col-resize z-20 group/lhandle flex items-center justify-start pl-0.5 hover:bg-black/25 transition rounded-l-lg"
+                >
+                  <div className="w-0.5 h-3 rounded-full bg-white/60 group-hover/lhandle:bg-white transition-all shadow-xs" />
+                </div>
+              )}
+
               {/* Chỉ hiển thị badge kênh nếu là đơn OTA (Booking.com, Agoda, Airbnb,...). Bỏ tag Trực tiếp to đùng */}
               {!isDirect && (
                 <span
@@ -608,10 +750,36 @@ function DraggableRoomRow({
                   {channelBadge.label}
                 </span>
               )}
-              <span className="truncate font-black whitespace-nowrap text-left">
-                {b.guestName}
-                {b.guestCount && b.guestCount > 1 ? ` (${b.guestCount} khách)` : ""}
+              <span className="truncate font-black whitespace-nowrap text-left flex-1 min-w-0">
+                {b.guestName.replace(/^OTA[-_ ]?[A-Za-z0-9]+[-_ ]?:?[-_ ]?/i, "").trim() || b.guestName}
               </span>
+
+              {/* Right Edge Resize Handle (Gia hạn lưu trú hoặc đổi ngày trả phòng) */}
+              {canResizeRight && onStartBlockResize && (
+                <div
+                  role="slider"
+                  aria-label="Kéo mép phải để gia hạn lưu trú hoặc điều chỉnh ngày trả phòng"
+                  title={
+                    isOverdue
+                      ? "Kéo mép phải để gia hạn lưu trú cho khách quá hạn"
+                      : isStay
+                        ? "Kéo mép phải để gia hạn thời gian lưu trú"
+                        : "Kéo mép phải để đổi ngày trả phòng"
+                  }
+                  onMouseDown={(e) => {
+                    if (e.button !== 0) return;
+                    e.stopPropagation();
+                    onStartBlockResize(b, "end", e);
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedBlock(b);
+                  }}
+                  className="absolute right-0 top-0 bottom-0 w-2.5 hover:w-3 cursor-col-resize z-20 group/rhandle flex items-center justify-end pr-0.5 hover:bg-black/25 transition rounded-r-lg"
+                >
+                  <div className="w-1 h-3 rounded-full bg-white/60 group-hover/rhandle:bg-white transition-all shadow-xs" />
+                </div>
+              )}
             </button>
           );
         })}
@@ -648,6 +816,8 @@ interface CategoryRoomTableProps {
   onAdjustDraftDays: (delta: number) => void;
   onConfirmDraft: (draft: DraftBookingSelection) => void;
   onCancelDraft: () => void;
+  activeBlockResize?: ActiveBlockResize | null;
+  onStartBlockResize?: (block: RoomPlanBlock, direction: "start" | "end", e: React.MouseEvent) => void;
 }
 
 function CategoryRoomTable({
@@ -672,6 +842,8 @@ function CategoryRoomTable({
   onAdjustDraftDays,
   onConfirmDraft,
   onCancelDraft,
+  activeBlockResize,
+  onStartBlockResize,
 }: CategoryRoomTableProps) {
   // TanStack table instance for headless table model
   const columns = useMemo<ColumnDef<RoomPlanRoom>[]>(
@@ -714,10 +886,10 @@ function CategoryRoomTable({
   }, [catRooms]);
 
   return (
-    <div className="border-b-2 border-slate-200">
+    <div className="border-b-2 border-slate-200 w-full">
       {/* Category Header Row */}
-      <div className="flex bg-slate-100/90 border-b border-slate-200 py-2 font-bold text-xs sticky top-[41px] z-20">
-        <div className="sticky left-0 z-20 w-48 shrink-0 bg-slate-100/90 px-3 flex flex-col justify-center">
+      <div className="flex bg-slate-100/90 border-b border-slate-200 py-2 font-bold text-xs sticky top-[41px] z-20 w-full">
+        <div className="sticky left-0 z-20 w-48 min-w-[192px] max-w-[192px] shrink-0 bg-slate-100/90 px-3 flex flex-col justify-center">
           <div className="flex items-center justify-between">
             <button
               type="button"
@@ -764,7 +936,7 @@ function CategoryRoomTable({
           </div>
         </div>
 
-        <div className="flex flex-1 cursor-pointer" onClick={onToggleCollapse}>
+        <div className="flex flex-1 min-w-0 cursor-pointer" onClick={onToggleCollapse}>
           {daysList.map((day) => {
             const occupiedCount = catRooms.reduce((acc, room) => {
               const blocks = blocksByRoomId.get(room.id) || [];
@@ -779,12 +951,8 @@ function CategoryRoomTable({
             return (
               <div
                 key={day.ymd}
-                className={`flex-1 min-w-[70px] border-r border-slate-200/60 px-1 py-1 text-center text-xs flex flex-col justify-center items-center ${
-                  day.isToday
-                    ? "bg-sky-50/50"
-                    : day.isWeekend
-                      ? "bg-amber-100/30"
-                      : ""
+                className={`flex-1 min-w-[100px] border-r border-slate-200/60 px-1 py-1 text-center text-xs flex flex-col justify-center items-center ${
+                  day.isToday ? "bg-sky-50/50" : ""
                 }`}
               >
                 <span
@@ -836,6 +1004,8 @@ function CategoryRoomTable({
               onAdjustDraftDays={onAdjustDraftDays}
               onConfirmDraft={onConfirmDraft}
               onCancelDraft={onCancelDraft}
+              activeBlockResize={activeBlockResize}
+              onStartBlockResize={onStartBlockResize}
             />
           ))}
         </SortableContext>
@@ -911,17 +1081,16 @@ export function TapeChartView({
     mutationFn: (vars: {
       reservationId: string;
       targetRoomId: string;
-      mode: "MOVE" | "SWAP";
+      mode?: "MOVE" | "SWAP";
       expectedUpdatedAt: string;
       swapWithReservationId?: string;
-      expectedSwapUpdatedAt?: string;
+      swapExpectedUpdatedAt?: string;
     }) =>
       roomPlanRepository.updatePlacement(hotelId, vars.reservationId, {
         targetRoomId: vars.targetRoomId,
-        mode: vars.mode,
         expectedUpdatedAt: vars.expectedUpdatedAt,
         swapWithReservationId: vars.swapWithReservationId,
-        expectedSwapUpdatedAt: vars.expectedSwapUpdatedAt,
+        swapExpectedUpdatedAt: vars.swapExpectedUpdatedAt,
       }),
     onSuccess: async () => {
       await Promise.all([
@@ -1285,6 +1454,19 @@ export function TapeChartView({
 
     if (payload.fromRoomId === targetRoom.id) return;
 
+    // Check if target room is locked/maintenance
+    const isTargetLocked =
+      targetRoom.status === "MAINTENANCE" ||
+      targetRoom.status === "BLOCKED" ||
+      targetRoom.status === "OUT_OF_SERVICE";
+    if (isTargetLocked) {
+      void showErrorAlert(
+        "Phòng đang bị khóa / bảo trì",
+        `Phòng ${targetRoom.roomNumber} đang ở trạng thái khóa hoặc bảo trì, không thể xếp phòng cho khách.`,
+      );
+      return;
+    }
+
     // Check same room type
     const sourceTypeId = payload.roomTypeId;
     const targetTypeId = targetRoom.roomTypeId;
@@ -1319,7 +1501,7 @@ export function TapeChartView({
             mode: "SWAP",
             expectedUpdatedAt: payload.expectedUpdatedAt,
             swapWithReservationId: conflictBlock.reservationId,
-            expectedSwapUpdatedAt: conflictBlock.expectedUpdatedAt,
+            swapExpectedUpdatedAt: conflictBlock.expectedUpdatedAt,
           });
         }
       } else {
@@ -1331,11 +1513,20 @@ export function TapeChartView({
       return;
     }
 
-    // Simple Move
+    // Simple Move with dirty room warning
+    const isDirtyOrCleaning =
+      targetRoom.status === "DIRTY" ||
+      targetRoom.status === "CLEANING" ||
+      targetRoom.status === "INSPECTION";
+
     const moveRes = await showConfirmDialog({
-      title: `Chuyển đơn sang phòng ${targetRoom.roomNumber}?`,
-      text: `Xác nhận chuyển đơn của khách "${payload.guestName}" từ P.${payload.fromRoomNumber} sang P.${targetRoom.roomNumber} (${payload.startDate} -> ${payload.endDate})?`,
-      confirmText: "Đồng ý chuyển",
+      title: isDirtyOrCleaning
+        ? `Xếp vào phòng đang chờ dọn (P.${targetRoom.roomNumber})?`
+        : `Chuyển đơn sang phòng ${targetRoom.roomNumber}?`,
+      text: isDirtyOrCleaning
+        ? `Lưu ý: Phòng ${targetRoom.roomNumber} đang ở trạng thái chờ dọn dẹp. Vui lòng kiểm tra với bộ phận buồng phòng trước khi khách nhận phòng.\n\nXác nhận chuyển đơn của khách "${payload.guestName}" từ P.${payload.fromRoomNumber} sang P.${targetRoom.roomNumber} (${payload.startDate} -> ${payload.endDate})?`
+        : `Xác nhận chuyển đơn của khách "${payload.guestName}" từ P.${payload.fromRoomNumber} sang P.${targetRoom.roomNumber} (${payload.startDate} -> ${payload.endDate})?`,
+      confirmText: isDirtyOrCleaning ? "Vẫn chuyển phòng" : "Đồng ý chuyển",
       cancelText: "Hủy",
     });
 
@@ -1387,6 +1578,9 @@ export function TapeChartView({
       if (e.key === "Escape") {
         setDraftSelection(null);
         setActiveDragRange(null);
+        setActiveBlockResize(null);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -1600,6 +1794,330 @@ export function TapeChartView({
     setActiveDragRange(null);
   }, []);
 
+  // ── Active Booking Resize Engine (Kéo dài gia hạn lưu trú & đổi ngày đặt phòng) ──
+  const [activeBlockResize, setActiveBlockResize] = useState<ActiveBlockResize | null>(null);
+  const activeBlockResizeRef = useRef<ActiveBlockResize | null>(null);
+  activeBlockResizeRef.current = activeBlockResize;
+  const isBlockResizingMovedRef = useRef<boolean>(false);
+
+  // Extend stay mutation
+  const extendStayMutation = useMutation({
+    mutationFn: (vars: {
+      stayId: string;
+      plannedCheckOutAt: string;
+      newEndDate: string;
+    }) => roomPlanRepository.extendStay(hotelId, vars.stayId, vars.plannedCheckOutAt),
+    onSuccess: async (_, vars) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["vietsage", "room-plan"] }),
+        queryClient.invalidateQueries({ queryKey: ["vietsage", "staff-rooms"] }),
+        queryClient.invalidateQueries({ queryKey: ["vietsage", "owner-rooms"] }),
+      ]);
+      if (onRefresh) onRefresh();
+      await showSuccessAlert(
+        "Gia hạn lưu trú thành công",
+        `Đã gia hạn lưu trú đến ngày ${vars.newEndDate}.`,
+      );
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Không thể gia hạn lưu trú. Vui lòng thử lại.";
+      void showErrorAlert("Lỗi gia hạn", msg);
+    },
+  });
+
+  // Update reservation dates mutation
+  const updateReservationDatesMutation = useMutation({
+    mutationFn: (vars: {
+      reservationId: string;
+      startDate: string;
+      endDate: string;
+      expectedUpdatedAt: string;
+    }) =>
+      roomPlanRepository.updateReservationDates(hotelId, vars.reservationId, {
+        startDate: vars.startDate,
+        endDate: vars.endDate,
+        expectedUpdatedAt: vars.expectedUpdatedAt,
+      }),
+    onSuccess: async (_, vars) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["vietsage", "room-plan"] }),
+        queryClient.invalidateQueries({ queryKey: ["vietsage", "staff-rooms"] }),
+        queryClient.invalidateQueries({ queryKey: ["vietsage", "owner-rooms"] }),
+      ]);
+      if (onRefresh) onRefresh();
+      await showSuccessAlert(
+        "Cập nhật ngày thành công",
+        `Đã điều chỉnh lịch đặt phòng từ ${vars.startDate} đến ${vars.endDate}.`,
+      );
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Không thể đổi ngày đặt phòng. Vui lòng thử lại.";
+      void showErrorAlert("Lỗi đổi ngày", msg);
+    },
+  });
+
+  const handlePointerMoveBlockResize = useCallback(
+    (e: MouseEvent | PointerEvent) => {
+      const current = activeBlockResizeRef.current;
+      if (!current) return;
+      isBlockResizingMovedRef.current = true;
+
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const cell = el?.closest?.('[data-cell-day="true"]') as HTMLElement | null;
+      const targetDay = cell?.getAttribute("data-day-ymd");
+      if (!targetDay) return;
+
+      const block = current.block;
+      const direction = current.direction;
+      const otherBlocks = (blocksByRoomId.get(block.roomId) || []).filter(
+        (b) => b.id !== block.id,
+      );
+
+      let newStart = current.currentGhostStartDay;
+      let newEnd = current.currentGhostEndDay;
+      let warning: string | null = null;
+
+      if (direction === "end") {
+        let candidateEnd = addDaysYmd(targetDay, 1);
+        const minEnd = addDaysYmd(block.startDate, 1);
+        if (candidateEnd < minEnd) {
+          candidateEnd = minEnd;
+        }
+
+        // Clamp at next block's startDate on the same room
+        const nextBlocks = otherBlocks
+          .filter((b) => b.startDate >= block.startDate)
+          .sort((a, b) => a.startDate.localeCompare(b.startDate));
+
+        if (nextBlocks.length > 0) {
+          const firstNext = nextBlocks[0];
+          if (candidateEnd > firstNext.startDate) {
+            candidateEnd = firstNext.startDate;
+            warning = `Chạm đơn của ${firstNext.guestName} từ ${firstNext.startDate}`;
+          }
+        }
+
+        newEnd = candidateEnd;
+      } else if (direction === "start") {
+        let candidateStart = targetDay;
+        const maxStart = addDaysYmd(block.endDate, -1);
+        if (candidateStart > maxStart) {
+          candidateStart = maxStart;
+        }
+
+        // Clamp at previous block's endDate on the same room
+        const prevBlocks = otherBlocks
+          .filter((b) => b.endDate <= block.endDate)
+          .sort((a, b) => b.endDate.localeCompare(a.endDate));
+
+        if (prevBlocks.length > 0) {
+          const firstPrev = prevBlocks[0];
+          if (candidateStart < firstPrev.endDate) {
+            candidateStart = firstPrev.endDate;
+            warning = `Chạm đơn của ${firstPrev.guestName} đến ${firstPrev.endDate}`;
+          }
+        }
+
+        newStart = candidateStart;
+      }
+
+      const nights = calculateNights(newStart, newEnd);
+      const diffNights = nights - current.initialNights;
+
+      if (
+        newStart !== current.currentGhostStartDay ||
+        newEnd !== current.currentGhostEndDay ||
+        warning !== current.conflictWarning
+      ) {
+        setActiveBlockResize({
+          ...current,
+          currentGhostStartDay: newStart,
+          currentGhostEndDay: newEnd,
+          nights,
+          diffNights,
+          conflictWarning: warning,
+        });
+      }
+    },
+    [blocksByRoomId],
+  );
+
+  const handleGlobalBlockResizeMouseUp = useCallback(async () => {
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    window.removeEventListener("mousemove", handlePointerMoveBlockResize as EventListener);
+    window.removeEventListener("mouseup", handleGlobalBlockResizeMouseUp as EventListener);
+
+    const resizeData = activeBlockResizeRef.current;
+    setActiveBlockResize(null);
+    if (!resizeData || !isBlockResizingMovedRef.current) return;
+
+    const { block, direction, currentGhostStartDay, currentGhostEndDay, nights, diffNights } = resizeData;
+
+    // Check if dates actually changed
+    const hasChanged =
+      (direction === "end" && currentGhostEndDay !== block.endDate) ||
+      (direction === "start" && currentGhostStartDay !== block.startDate);
+
+    if (!hasChanged) return;
+
+    // Handle Stay / Overdue: Extend Stay
+    if (block.kind === "STAY" || block.status === "OVERDUE") {
+      const stayId = block.guestStayId || block.reservationId;
+      if (!stayId) return;
+
+      const rate = block.nightlyRate || 0;
+      const additionalCost = diffNights > 0 ? rate * diffNights : 0;
+
+      const confirmRes = await showConfirmDialog({
+        title: `Gia hạn lưu trú P.${block.roomNumber}?`,
+        icon: "question",
+        html: `
+          <div class="space-y-3 pt-1 text-left">
+            <div class="rounded-xl bg-slate-50 border border-slate-200/90 p-3 space-y-2">
+              <div class="flex items-center justify-between text-xs font-semibold text-slate-500">
+                <span>Khách lưu trú</span>
+                <strong class="text-slate-900 text-sm font-bold truncate max-w-[180px]">${escapeHtml(block.guestName)}</strong>
+              </div>
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-500">Hạn trả phòng</span>
+                <div class="flex items-center gap-1.5 font-bold">
+                  <span class="line-through text-slate-400">${block.endDate}</span>
+                  <span class="text-emerald-600">➔</span>
+                  <span class="text-emerald-800 bg-emerald-100/90 border border-emerald-300 px-2 py-0.5 rounded-md">${currentGhostEndDay}</span>
+                </div>
+              </div>
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-500">Số đêm gia hạn</span>
+                <span class="font-bold text-slate-900 text-sm">+${diffNights} đêm (Tổng: ${nights} đêm)</span>
+              </div>
+              ${
+                rate > 0 && diffNights > 0
+                  ? `
+                <div class="flex items-center justify-between text-xs pt-1.5 border-t border-slate-200">
+                  <span class="font-bold text-slate-700">Tiền phòng phát sinh</span>
+                  <span class="font-black text-emerald-800 text-sm">${formatVnd(additionalCost)}</span>
+                </div>
+              `
+                  : ""
+              }
+            </div>
+            <p class="text-xs text-slate-500 text-pretty">
+              Hệ thống sẽ cập nhật trạng thái phòng thành Đang ở bình thường và ghi nhận số đêm lưu trú mới.
+            </p>
+          </div>
+        `,
+        confirmText: "Đồng ý gia hạn",
+        cancelText: "Hủy",
+      });
+
+      if (confirmRes.isConfirmed) {
+        extendStayMutation.mutate({
+          stayId,
+          plannedCheckOutAt: `${currentGhostEndDay}T12:00:00.000Z`,
+          newEndDate: currentGhostEndDay,
+        });
+      }
+      return;
+    }
+
+    // Handle Reservation: Adjust Dates
+    if (block.kind === "RESERVATION" && block.reservationId) {
+      const confirmRes = await showConfirmDialog({
+        title: `Điều chỉnh ngày đặt phòng P.${block.roomNumber}?`,
+        icon: "question",
+        html: `
+          <div class="space-y-3 pt-1 text-left">
+            <div class="rounded-xl bg-slate-50 border border-slate-200/90 p-3 space-y-2">
+              <div class="flex items-center justify-between text-xs font-semibold text-slate-500">
+                <span>Khách hàng</span>
+                <strong class="text-slate-900 text-sm font-bold truncate max-w-[180px]">${escapeHtml(block.guestName)}</strong>
+              </div>
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-500">Ngày nhận phòng</span>
+                <div class="flex items-center gap-1.5 font-bold">
+                  ${
+                    currentGhostStartDay !== block.startDate
+                      ? `<span class="line-through text-slate-400">${block.startDate}</span>
+                         <span class="text-purple-600">➔</span>
+                         <span class="text-purple-800 bg-purple-100 border border-purple-300 px-2 py-0.5 rounded-md">${currentGhostStartDay}</span>`
+                      : `<span class="text-slate-800">${block.startDate}</span>`
+                  }
+                </div>
+              </div>
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-500">Ngày trả phòng</span>
+                <div class="flex items-center gap-1.5 font-bold">
+                  ${
+                    currentGhostEndDay !== block.endDate
+                      ? `<span class="line-through text-slate-400">${block.endDate}</span>
+                         <span class="text-purple-600">➔</span>
+                         <span class="text-purple-800 bg-purple-100 border border-purple-300 px-2 py-0.5 rounded-md">${currentGhostEndDay}</span>`
+                      : `<span class="text-slate-800">${block.endDate}</span>`
+                  }
+                </div>
+              </div>
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-500">Tổng số đêm</span>
+                <span class="font-bold text-slate-900 text-sm">${nights} đêm (${diffNights >= 0 ? `+${diffNights}` : diffNights} đêm)</span>
+              </div>
+            </div>
+            <p class="text-xs text-slate-500 text-pretty">
+              Hệ thống sẽ cập nhật ngày nhận/trả phòng và đồng bộ trực tiếp lên sơ đồ buồng phòng.
+            </p>
+          </div>
+        `,
+        confirmText: "Xác nhận đổi ngày",
+        cancelText: "Hủy",
+      });
+
+      if (confirmRes.isConfirmed) {
+        updateReservationDatesMutation.mutate({
+          reservationId: block.reservationId,
+          startDate: currentGhostStartDay,
+          endDate: currentGhostEndDay,
+          expectedUpdatedAt: block.expectedUpdatedAt,
+        });
+      }
+    }
+  }, [handlePointerMoveBlockResize, extendStayMutation, updateReservationDatesMutation]);
+
+  const handleStartBlockResize = useCallback(
+    (block: RoomPlanBlock, direction: "start" | "end", e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      isBlockResizingMovedRef.current = false;
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+
+      const initialNights = block.nights;
+      setActiveBlockResize({
+        block,
+        direction,
+        currentGhostStartDay: block.startDate,
+        currentGhostEndDay: block.endDate,
+        nights: initialNights,
+        initialNights,
+        diffNights: 0,
+        conflictWarning: null,
+      });
+
+      window.addEventListener("mousemove", handlePointerMoveBlockResize as EventListener);
+      window.addEventListener("mouseup", handleGlobalBlockResizeMouseUp as EventListener);
+    },
+    [handlePointerMoveBlockResize, handleGlobalBlockResizeMouseUp],
+  );
+
+  useEffect(() => {
+    return () => {
+      window.removeEventListener("mousemove", handlePointerMoveBlockResize as EventListener);
+      window.removeEventListener("mouseup", handleGlobalBlockResizeMouseUp as EventListener);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [handlePointerMoveBlockResize, handleGlobalBlockResizeMouseUp]);
+
   return (
     <div className="space-y-4">
       {/* ── Top Control & Filter Bar ───────────────────────────────── */}
@@ -1774,11 +2292,11 @@ export function TapeChartView({
       <div className="relative rounded-2xl border border-slate-200/90 bg-white shadow-xs overflow-hidden">
         {/* Main Grid View - Giữ trọn 100% chiều rộng, hỗ trợ cuộn dọc cố định tiêu đề */}
         <div className="overflow-x-auto min-w-0 max-h-[calc(100vh-210px)] overflow-y-auto">
-          <div className="min-w-[800px]">
+          <div className="min-w-[800px] w-full">
             {/* Header Dates Row */}
-            <div className="flex border-b border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 sticky top-0 z-30 shadow-xs">
+            <div className="flex border-b border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 sticky top-0 z-30 shadow-xs w-full">
               {/* Room Column Header */}
-              <div className="sticky left-0 z-40 w-48 shrink-0 border-r border-slate-200 bg-slate-100/95 px-3 py-2 flex items-center justify-between shadow-xs">
+              <div className="sticky left-0 z-40 w-48 min-w-[192px] max-w-[192px] shrink-0 border-r border-slate-200 bg-slate-100/95 px-3 py-2 flex items-center justify-between shadow-xs">
                 <button
                   type="button"
                   onClick={toggleAllCategories}
@@ -1799,15 +2317,15 @@ export function TapeChartView({
               </div>
 
               {/* Day Header Cells */}
-              <div className="flex flex-1">
+              <div className="flex flex-1 min-w-0">
                 {daysList.map((day) => (
                   <div
                     key={day.ymd}
-                    className={`flex-1 min-w-[70px] border-r border-slate-200/60 px-1 py-1.5 text-center transition ${
+                    className={`flex-1 min-w-[100px] border-r border-slate-200/60 px-1 py-1.5 text-center transition ${
                       day.isToday
                         ? "bg-sky-100/60 text-sky-950 font-black ring-1 ring-inset ring-sky-300"
                         : day.isWeekend
-                          ? "bg-amber-100/40 text-amber-950 font-bold"
+                          ? "bg-amber-100/70 text-amber-950 font-bold"
                           : "text-slate-700"
                     }`}
                   >
@@ -1868,6 +2386,8 @@ export function TapeChartView({
                   onAdjustDraftDays={handleAdjustDraftDays}
                   onConfirmDraft={handleConfirmDraft}
                   onCancelDraft={handleCancelDraft}
+                  activeBlockResize={activeBlockResize}
+                  onStartBlockResize={handleStartBlockResize}
                 />
               ))}
             </DndContext>
@@ -2392,7 +2912,7 @@ export function TapeChartView({
                       mode: "SWAP",
                       expectedUpdatedAt: placementSourceBlock.expectedUpdatedAt,
                       swapWithReservationId: conflict.reservationId,
-                      expectedSwapUpdatedAt: conflict.expectedUpdatedAt,
+                      swapExpectedUpdatedAt: conflict.expectedUpdatedAt,
                     });
                   } else {
                     placementMutation.mutate({

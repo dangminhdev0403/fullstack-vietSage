@@ -27,6 +27,13 @@ const ACTIVE_STAY_STATUSES: GuestStayStatus[] = [
   GuestStayStatus.CHECKED_IN,
   GuestStayStatus.ACTIVE,
   GuestStayStatus.CHECKOUT_PENDING,
+  GuestStayStatus.RESERVED,
+];
+
+const ACTIVE_IN_HOUSE_STAY_STATUSES: GuestStayStatus[] = [
+  GuestStayStatus.CHECKED_IN,
+  GuestStayStatus.ACTIVE,
+  GuestStayStatus.CHECKOUT_PENDING,
 ];
 
 const NON_SELLABLE_ROOM_STATUSES: RoomStatus[] = [
@@ -1189,7 +1196,9 @@ export class ReservationsRepository {
       };
     }
 
-    const [reservations, stays] = await Promise.all([
+    const now = new Date();
+
+    const [reservations, stays, currentActiveStays] = await Promise.all([
       this.prisma.reservation.findMany({
         where: {
           hotelId: input.hotelId,
@@ -1217,9 +1226,31 @@ export class ReservationsRepository {
         where: {
           hotelId: input.hotelId,
           roomId: { in: roomIds },
-          status: { in: ACTIVE_STAY_STATUSES },
-          plannedCheckInAt: { lte: input.to },
-          plannedCheckOutAt: { gte: input.from },
+          OR: [
+            {
+              status: {
+                in: [
+                  GuestStayStatus.CHECKED_IN,
+                  GuestStayStatus.ACTIVE,
+                  GuestStayStatus.CHECKOUT_PENDING,
+                  GuestStayStatus.RESERVED,
+                ],
+              },
+              plannedCheckInAt: { lte: input.to },
+              plannedCheckOutAt: { gte: input.from },
+            },
+            {
+              status: {
+                in: [
+                  GuestStayStatus.CHECKED_IN,
+                  GuestStayStatus.ACTIVE,
+                  GuestStayStatus.CHECKOUT_PENDING,
+                ],
+              },
+              checkedOutAt: null,
+              plannedCheckOutAt: { lt: now },
+            },
+          ],
         },
         include: {
           room: {
@@ -1233,11 +1264,42 @@ export class ReservationsRepository {
         },
         orderBy: { plannedCheckInAt: "asc" },
       }),
+      this.prisma.guestStay.findMany({
+        where: {
+          hotelId: input.hotelId,
+          roomId: { in: roomIds },
+          status: {
+            in: [
+              GuestStayStatus.CHECKED_IN,
+              GuestStayStatus.ACTIVE,
+              GuestStayStatus.CHECKOUT_PENDING,
+            ],
+          },
+          checkedOutAt: null,
+        },
+        select: {
+          id: true,
+          roomId: true,
+          status: true,
+          plannedCheckOutAt: true,
+        },
+      }),
     ]);
 
     const staysByResId = new Set(
       stays.map((s) => s.reservationId).filter((id): id is string => Boolean(id)),
     );
+
+    const activeStayByRoomId = new Map<string, (typeof currentActiveStays)[0]>();
+    const overdueStayByRoomId = new Map<string, (typeof currentActiveStays)[0]>();
+    for (const stay of currentActiveStays) {
+      if (!activeStayByRoomId.has(stay.roomId)) {
+        activeStayByRoomId.set(stay.roomId, stay);
+      }
+      if (stay.plannedCheckOutAt && stay.plannedCheckOutAt.getTime() < now.getTime()) {
+        overdueStayByRoomId.set(stay.roomId, stay);
+      }
+    }
 
     const blocks: Array<{
       id: string;
@@ -1326,9 +1388,18 @@ export class ReservationsRepository {
     for (const s of stays) {
       const checkIn = s.checkedInAt ?? s.plannedCheckInAt;
       const checkOut = s.plannedCheckOutAt;
+      const isOverdue =
+        !s.checkedOutAt &&
+        s.plannedCheckOutAt &&
+        s.plannedCheckOutAt.getTime() < now.getTime() &&
+        (s.status === GuestStayStatus.ACTIVE ||
+          s.status === GuestStayStatus.CHECKED_IN ||
+          s.status === GuestStayStatus.CHECKOUT_PENDING);
+
+      const effectiveEnd = isOverdue && checkOut.getTime() < now.getTime() ? now : checkOut;
       const nights = Math.max(
         1,
-        Math.round((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)),
+        Math.round((effectiveEnd.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)),
       );
       const isOta = Boolean(s.reservationCode?.startsWith("OTA"));
       const channelName = isOta
@@ -1357,14 +1428,14 @@ export class ReservationsRepository {
         phone: s.guestPhone,
         guestPhone: s.guestPhone,
         guestCount,
-        status: s.status,
+        status: isOverdue ? "OVERDUE" : s.status,
         source: isOta ? "OTA" : "DIRECT",
         channel: channelName,
         channelName,
         startDate: checkIn.toISOString().slice(0, 10),
-        endDate: checkOut.toISOString().slice(0, 10),
+        endDate: effectiveEnd.toISOString().slice(0, 10),
         startAt: checkIn.toISOString(),
-        endAt: checkOut.toISOString(),
+        endAt: effectiveEnd.toISOString(),
         nights,
         nightlyRate,
         nightlyRateSnapshot: s.nightlyRateSnapshot ? s.nightlyRateSnapshot.toString() : null,
@@ -1379,15 +1450,38 @@ export class ReservationsRepository {
       timezone: "Asia/Ho_Chi_Minh",
       from: input.from.toISOString().slice(0, 10),
       to: input.to.toISOString().slice(0, 10),
-      rooms: rooms.map((r) => ({
-        id: r.id,
-        roomNumber: r.roomNumber,
-        floor: r.floor,
-        roomTypeId: r.roomTypeId,
-        roomTypeName: r.roomType?.name ?? r.type ?? null,
-        status: r.status,
-        price: r.price ? Number(r.price) : null,
-      })),
+      rooms: rooms.map((r) => {
+        let statusConflictCode: string | null = null;
+        const roomStay = activeStayByRoomId.get(r.id);
+        const hasReservation = reservations.some((res) => res.roomId === r.id);
+
+        if (overdueStayByRoomId.has(r.id)) {
+          statusConflictCode = "OVERDUE_STAY_CONFLICT";
+        } else if (
+          (r.status === RoomStatus.MAINTENANCE ||
+            r.status === RoomStatus.BLOCKED ||
+            r.status === RoomStatus.OUT_OF_SERVICE) &&
+          (roomStay || hasReservation)
+        ) {
+          statusConflictCode = "NON_SELLABLE_OCCUPIED_CONFLICT";
+        } else if (r.status === RoomStatus.AVAILABLE && roomStay) {
+          statusConflictCode = "AVAILABLE_WITH_ACTIVE_STAY_CONFLICT";
+        } else if (r.status === RoomStatus.OCCUPIED && !roomStay) {
+          statusConflictCode = "OCCUPIED_WITHOUT_ACTIVE_STAY_CONFLICT";
+        }
+
+        return {
+          id: r.id,
+          roomNumber: r.roomNumber,
+          floor: r.floor,
+          roomTypeId: r.roomTypeId,
+          roomTypeName: r.roomType?.name ?? r.type ?? null,
+          status: r.status,
+          physicalStatus: r.status,
+          statusConflictCode,
+          price: r.price ? Number(r.price) : null,
+        };
+      }),
       blocks,
     };
   }
@@ -1440,7 +1534,7 @@ export class ReservationsRepository {
       const sourceStay = await tx.guestStay.findFirst({
         where: {
           reservationId: sourceRes.id,
-          status: { in: ACTIVE_STAY_STATUSES },
+          status: { in: ACTIVE_IN_HOUSE_STAY_STATUSES },
         },
         select: { id: true },
       });
@@ -1473,7 +1567,7 @@ export class ReservationsRepository {
         const swapStay = await tx.guestStay.findFirst({
           where: {
             reservationId: swapRes.id,
-            status: { in: ACTIVE_STAY_STATUSES },
+            status: { in: ACTIVE_IN_HOUSE_STAY_STATUSES },
           },
           select: { id: true },
         });
@@ -1691,6 +1785,117 @@ export class ReservationsRepository {
         };
       }
     }, "RESERVATION_PLACEMENT_CONCURRENCY_CONFLICT");
+  }
+
+  async updateReservationDates(input: {
+    hotelId: string;
+    tenantId: string;
+    reservationId: string;
+    startDate?: string;
+    endDate?: string;
+    plannedCheckInAt?: Date;
+    plannedCheckOutAt?: Date;
+    expectedUpdatedAt: string;
+    actorUserId: string;
+  }) {
+    return this.runSerializable(async (tx) => {
+      const res = await tx.reservation.findFirst({
+        where: { id: input.reservationId, hotelId: input.hotelId },
+        include: { room: true },
+      });
+      if (!res) {
+        throw new NotFoundException("Không tìm thấy đặt phòng");
+      }
+      if (!ACTIVE_RESERVATION_STATUSES.includes(res.status)) {
+        throw new BadRequestException("Chỉ có thể điều chỉnh ngày cho đặt phòng đang hoạt động");
+      }
+
+      const currentExpected = new Date(input.expectedUpdatedAt).getTime();
+      const actualUpdated = res.updatedAt.getTime();
+      if (!isNaN(currentExpected) && Math.abs(actualUpdated - currentExpected) > 2000) {
+        throw new ConflictException("Dữ liệu đặt phòng đã thay đổi bởi người khác, vui lòng tải lại");
+      }
+
+      let newCheckIn = input.plannedCheckInAt;
+      if (!newCheckIn && input.startDate) {
+        newCheckIn = new Date(`${input.startDate}T14:00:00.000Z`);
+      }
+      if (!newCheckIn) {
+        newCheckIn = res.plannedCheckInAt;
+      }
+
+      let newCheckOut = input.plannedCheckOutAt;
+      if (!newCheckOut && input.endDate) {
+        newCheckOut = new Date(`${input.endDate}T12:00:00.000Z`);
+      }
+      if (!newCheckOut) {
+        newCheckOut = res.plannedCheckOutAt;
+      }
+
+      if (newCheckIn >= newCheckOut) {
+        throw new BadRequestException("Ngày trả phòng phải sau ngày nhận phòng");
+      }
+
+      // If room is assigned, verify no collisions
+      if (res.roomId) {
+        const stayOverlap = await tx.guestStay.findFirst({
+          where: {
+            hotelId: input.hotelId,
+            roomId: res.roomId,
+            status: { in: ACTIVE_STAY_STATUSES },
+            plannedCheckInAt: { lt: newCheckOut },
+            plannedCheckOutAt: { gt: newCheckIn },
+          },
+          select: { id: true },
+        });
+        if (stayOverlap) {
+          throw new ConflictException("Phòng đã có khách lưu trú trùng khoảng thời gian mới");
+        }
+
+        const resOverlap = await tx.reservation.findFirst({
+          where: {
+            hotelId: input.hotelId,
+            roomId: res.roomId,
+            id: { not: res.id },
+            status: { in: ACTIVE_RESERVATION_STATUSES },
+            plannedCheckInAt: { lt: newCheckOut },
+            plannedCheckOutAt: { gt: newCheckIn },
+          },
+          select: { id: true },
+        });
+        if (resOverlap) {
+          throw new ConflictException("Phòng đã có đơn đặt phòng khác trùng khoảng thời gian mới");
+        }
+      }
+
+      const updated = await tx.reservation.update({
+        where: { id: res.id },
+        data: {
+          plannedCheckInAt: newCheckIn,
+          plannedCheckOutAt: newCheckOut,
+        },
+        include: { room: true },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId: input.actorUserId,
+          tenantId: input.tenantId,
+          action: "RESERVATION_DATES_UPDATED",
+          entityType: "Reservation",
+          entityId: res.id,
+          metadata: {
+            reservationId: res.id,
+            previousCheckIn: res.plannedCheckInAt.toISOString(),
+            previousCheckOut: res.plannedCheckOutAt.toISOString(),
+            newCheckIn: newCheckIn.toISOString(),
+            newCheckOut: newCheckOut.toISOString(),
+          },
+        },
+      });
+
+      return updated;
+    }, "RESERVATION_DATES_CONCURRENCY_CONFLICT");
   }
 
   private async runSerializable<T>(

@@ -20,9 +20,10 @@ const paramsSchema = z.object({
 
 const bodySchema = z.object({
   targetRoomId: z.string().trim().min(1, "Thiếu phòng đích (targetRoomId)"),
-  mode: z.enum(["MOVE", "SWAP"]),
+  mode: z.enum(["MOVE", "SWAP"]).optional(),
   expectedUpdatedAt: z.string().datetime({ message: "expectedUpdatedAt phải là ISO datetime hợp lệ" }),
   swapWithReservationId: z.string().trim().min(1).optional(),
+  swapExpectedUpdatedAt: z.string().datetime().optional(),
   expectedSwapUpdatedAt: z.string().datetime().optional(),
 });
 
@@ -49,9 +50,21 @@ export async function PUT(request: Request, context: Params) {
     );
   }
 
+  const backendPayload = {
+    targetRoomId: parsed.data.targetRoomId,
+    expectedUpdatedAt: parsed.data.expectedUpdatedAt,
+    ...(parsed.data.swapWithReservationId ? { swapWithReservationId: parsed.data.swapWithReservationId } : {}),
+    ...(parsed.data.swapExpectedUpdatedAt || parsed.data.expectedSwapUpdatedAt
+      ? {
+          swapExpectedUpdatedAt:
+            parsed.data.swapExpectedUpdatedAt || parsed.data.expectedSwapUpdatedAt,
+        }
+      : {}),
+  };
+
   try {
     const data = await executeHotelOpsBackendRequest("update reservation placement", (accessToken) =>
-      hotelOpsService.updateReservationPlacement(hotelId, reservationId, parsed.data, { accessToken }),
+      hotelOpsService.updateReservationPlacement(hotelId, reservationId, backendPayload, { accessToken }),
     );
 
     return successResponse(data);

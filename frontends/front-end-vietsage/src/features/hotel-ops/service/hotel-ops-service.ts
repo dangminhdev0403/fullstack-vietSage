@@ -909,6 +909,28 @@ export class HotelOpsService {
     });
     return unwrapApiEnvelope<unknown>(payload).data;
   }
+
+  async updateReservationDates(
+    hotelId: string,
+    reservationId: string,
+    body: {
+      startDate?: string;
+      endDate?: string;
+      plannedCheckInAt?: string;
+      plannedCheckOutAt?: string;
+      expectedUpdatedAt: string;
+    },
+    options: AuthRequestOptions = {},
+  ): Promise<unknown> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "PATCH",
+      path: hotelPath(hotelId, `/reservations/${encodeURIComponent(reservationId)}/dates`),
+      body,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<unknown>(payload).data;
+  }
 }
 
 export function createHotelOpsService(

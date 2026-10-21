@@ -1370,6 +1370,30 @@ export class HotelRoomsRepository {
     });
   }
 
+  async findNextReservationInRoom(
+    hotelId: string,
+    roomId: string,
+    afterDate: Date,
+    beforeDate: Date,
+  ) {
+    return this.prisma.reservation.findFirst({
+      where: {
+        hotelId,
+        roomId,
+        status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY] },
+        plannedCheckInAt: {
+          gte: afterDate,
+          lt: beforeDate,
+        },
+      },
+      select: {
+        id: true,
+        guestDisplayName: true,
+        plannedCheckInAt: true,
+      },
+    });
+  }
+
   async findBlockingBillingFolio(hotelId: string, stayId: string) {
     return this.prisma.folio.findFirst({
       where: {

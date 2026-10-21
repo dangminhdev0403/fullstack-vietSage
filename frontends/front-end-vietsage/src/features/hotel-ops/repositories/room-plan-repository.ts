@@ -39,4 +39,38 @@ export const roomPlanRepository = {
       },
     );
   },
+
+  async extendStay(
+    hotelId: string,
+    stayId: string,
+    plannedCheckOutAt: string,
+  ): Promise<unknown> {
+    return requestInternalApi<unknown>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/stays/${encodeURIComponent(stayId)}`,
+      {
+        method: "PATCH",
+        body: { plannedCheckOutAt },
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  },
+
+  async updateReservationDates(
+    hotelId: string,
+    reservationId: string,
+    body: {
+      startDate?: string;
+      endDate?: string;
+      expectedUpdatedAt: string;
+    },
+  ): Promise<unknown> {
+    return requestInternalApi<unknown>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(reservationId)}/dates`,
+      {
+        method: "PATCH",
+        body,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  },
 };

@@ -1579,4 +1579,91 @@ describe("ReservationsRepository transactional lifecycle", () => {
       expect(knownBlock?.guestCount).toBe(3);
     });
   });
+
+  describe("updateReservationDates transactional lifecycle", () => {
+    it("updates reservation planned dates and creates audit log", async () => {
+      const res = {
+        id: "res-1",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        status: ReservationStatus.CONFIRMED,
+        plannedCheckInAt: new Date("2026-10-21T14:00:00.000Z"),
+        plannedCheckOutAt: new Date("2026-10-23T12:00:00.000Z"),
+        updatedAt: new Date("2026-10-21T00:00:00.000Z"),
+      };
+      const tx = {
+        reservation: {
+          findFirst: jest.fn().mockImplementation(({ where }) => {
+            if (where.id === "res-1") return Promise.resolve(res);
+            return Promise.resolve(null);
+          }),
+          update: jest.fn().mockResolvedValue({
+            ...res,
+            plannedCheckOutAt: new Date("2026-10-25T12:00:00.000Z"),
+          }),
+        },
+        guestStay: {
+          findFirst: jest.fn().mockResolvedValue(null),
+        },
+        auditLog: {
+          create: jest.fn().mockResolvedValue({ id: "audit-1" }),
+        },
+      };
+      const prisma = {
+        $transaction: jest.fn().mockImplementation(async (cb) => cb(tx)),
+      };
+      const repository = new ReservationsRepository(prisma as never);
+
+      const result = await repository.updateReservationDates({
+        hotelId: "hotel-1",
+        tenantId: "tenant-1",
+        reservationId: "res-1",
+        endDate: "2026-10-25",
+        expectedUpdatedAt: "2026-10-21T00:00:00.000Z",
+        actorUserId: "user-1",
+      });
+
+      expect(result.plannedCheckOutAt).toEqual(new Date("2026-10-25T12:00:00.000Z"));
+      expect(tx.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            action: "RESERVATION_DATES_UPDATED",
+            entityId: "res-1",
+          }),
+        }),
+      );
+    });
+
+    it("rejects date update when new check-in is after check-out", async () => {
+      const res = {
+        id: "res-1",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        status: ReservationStatus.CONFIRMED,
+        plannedCheckInAt: new Date("2026-10-21T14:00:00.000Z"),
+        plannedCheckOutAt: new Date("2026-10-23T12:00:00.000Z"),
+        updatedAt: new Date("2026-10-21T00:00:00.000Z"),
+      };
+      const tx = {
+        reservation: {
+          findFirst: jest.fn().mockResolvedValue(res),
+        },
+      };
+      const prisma = {
+        $transaction: jest.fn().mockImplementation(async (cb) => cb(tx)),
+      };
+      const repository = new ReservationsRepository(prisma as never);
+
+      await expect(
+        repository.updateReservationDates({
+          hotelId: "hotel-1",
+          tenantId: "tenant-1",
+          reservationId: "res-1",
+          startDate: "2026-10-24",
+          expectedUpdatedAt: "2026-10-21T00:00:00.000Z",
+          actorUserId: "user-1",
+        }),
+      ).rejects.toThrow("Ngày trả phòng phải sau ngày nhận phòng");
+    });
+  });
 });

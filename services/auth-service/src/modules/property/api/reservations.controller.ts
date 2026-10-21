@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query, Req } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Put, Query, Req } from "@nestjs/common";
 import {
   ApiBody,
   ApiCreatedResponse,
@@ -24,6 +24,7 @@ import {
   markNoShowBodySchema,
   roomPlanQuerySchema,
   updateReservationPlacementBodySchema,
+  updateReservationDatesBodySchema,
 } from "../domain/schemas/reservations.schema";
 import { hotelIdParamSchema, reservationIdParamSchema } from "../domain/schemas/shared.schema";
 
@@ -454,6 +455,43 @@ export class ReservationsController {
     const reservationId = parseWithZod(reservationIdParamSchema, reservationIdParam);
     const dto = parseWithZod(updateReservationPlacementBodySchema, body);
     return this.reservationsService.updateReservationPlacement(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      reservationId,
+      dto,
+    );
+  }
+
+  @RequirePermission("hotel.reservations.manage")
+  @SuccessMessage("Cập nhật ngày đặt phòng thành công")
+  @ApiDescript("Điều chỉnh ngày nhận/trả phòng của đơn đặt")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "reservationId", type: String })
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        startDate: { type: "string", example: "2026-10-22" },
+        endDate: { type: "string", example: "2026-10-25" },
+        plannedCheckInAt: { type: "string", format: "date-time" },
+        plannedCheckOutAt: { type: "string", format: "date-time" },
+        expectedUpdatedAt: { type: "string" },
+      },
+      required: ["expectedUpdatedAt"],
+    },
+  })
+  @Patch(":hotelId/reservations/:reservationId/dates")
+  async updateReservationDates(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("reservationId") reservationIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const reservationId = parseWithZod(reservationIdParamSchema, reservationIdParam);
+    const dto = parseWithZod(updateReservationDatesBodySchema, body);
+    return this.reservationsService.updateReservationDates(
       request.user.userId,
       request.user.roleId,
       hotelId,

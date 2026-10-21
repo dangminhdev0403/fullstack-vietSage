@@ -1600,53 +1600,56 @@ export function OwnerRoomsClient({
 
       <section className="space-y-5">
         {surfaceMode === "operations" && (
-        <div className="overflow-hidden rounded-3xl border border-[#d7bd61]/40 bg-[linear-gradient(135deg,#173d34,#25483f_52%,#f4d36f)] p-[1px] shadow-[0_24px_70px_rgba(31,61,53,0.18)]">
-          <div className="grid gap-5 rounded-3xl bg-[#f9f4e8] p-5 lg:grid-cols-[1fr_auto] lg:items-center">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8a6a13]">
-                QR Command Center
-              </p>
-              <h2 className="mt-2 text-2xl font-black text-[#173d34]">
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-[#e5d8b8] bg-gradient-to-br from-[#fbf8f1] via-[#f7f2e4] to-[#f3ecda] p-5 sm:p-6 lg:p-7 shadow-[0_8px_30px_-6px_rgba(115,92,0,0.06),0_1px_2px_rgba(0,0,0,0.03)]">
+          <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[#f4d36f]/15 blur-3xl" aria-hidden="true" />
+          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-2xl min-w-0 flex-1 space-y-1.5">
+              <div className="inline-flex items-center gap-1.5">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#8a6a13]" aria-hidden="true" />
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8a6a13]">
+                  QR Command Center
+                </p>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#173d34] text-balance">
                 Kích hoạt, xuất và đổi toàn bộ mã QR
               </h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-[#5e6a62]">
+              <p className="text-sm leading-relaxed text-[#526056] text-pretty">
                 Tạo/kích hoạt QR cho tất cả phòng trước khi check-in, xuất bộ QR
                 để in, hoặc xoay vòng mã để vô hiệu hóa các bản in cũ. Mọi thao
                 tác hàng loạt đều yêu cầu xác nhận.
               </p>
             </div>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
               <button
                 type="button"
                 onClick={() => void activateAllQrCodes()}
                 disabled={isBulkQrBusy}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#173d34] px-5 text-sm font-black text-white shadow-[0_14px_32px_rgba(23,61,52,0.2)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#173d34] px-4.5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#204a40] hover:shadow-sm active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap"
               >
-                <VsIcon name="task_alt" className="text-[20px]" />
-                Kích hoạt toàn bộ QR
+                <VsIcon name="task_alt" className="text-lg" />
+                <span>Kích hoạt toàn bộ QR</span>
               </button>
               <button
                 type="button"
                 onClick={() => void exportAllQrCodes()}
                 disabled={isBulkQrBusy}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-5 text-sm font-black text-[#25483f] shadow-[0_14px_32px_rgba(31,61,53,0.14)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#d8ca9f] bg-white px-4.5 py-2.5 text-sm font-semibold text-[#173d34] shadow-xs transition hover:bg-[#faf7ee] hover:border-[#cbba88] hover:shadow-sm active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap"
               >
-                <VsIcon name="download" className="text-[20px]" />
-                Xuất toàn bộ QR
+                <VsIcon name="download" className="text-lg" />
+                <span>Xuất toàn bộ QR</span>
               </button>
               <button
                 type="button"
                 onClick={() => void rotateAllQrCodes()}
                 disabled={isBulkQrBusy}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#ba1a1a] px-5 text-sm font-black text-white shadow-[0_14px_32px_rgba(186,26,26,0.2)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#ba1a1a] px-4.5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#a31515] hover:shadow-sm active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap"
               >
-                <VsIcon name="history" className="text-[20px]" />
-                Đổi toàn bộ QR
+                <VsIcon name="history" className="text-lg" />
+                <span>Đổi toàn bộ QR</span>
               </button>
             </div>
           </div>
         </div>
-
         )}
 
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
