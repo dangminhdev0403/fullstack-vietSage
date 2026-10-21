@@ -22,8 +22,8 @@ const routePolicies: readonly RoutePolicy[] = [
   { prefix: "/finance", roles: ["admin"] },
   { prefix: "/localmate", roles: ["admin"] },
   { prefix: "/owner", roles: ["tenant_owner"] },
-  { prefix: "/staff", roles: ["staff", "admin"] },
-  { prefix: "/hotels", roles: ["staff", "admin"] },
+  { prefix: "/staff", roles: ["staff", "admin", "tenant_owner"] },
+  { prefix: "/hotels", roles: ["staff", "admin", "tenant_owner"] },
   { prefix: "/service", roles: ["staff"] },
   { prefix: "/g", roles: ["guest", "staff", "admin"] },
 ];
@@ -168,8 +168,7 @@ export function canAccessPathByRoles(
       if (
         matchesPrefix(pathname, "/staff") ||
         matchesPrefix(pathname, "/admin") ||
-        matchesPrefix(pathname, "/finance") ||
-        matchesPrefix(pathname, "/hotels")
+        matchesPrefix(pathname, "/finance")
       ) {
         return false;
       }

@@ -57,8 +57,11 @@ test("buildWorkspaceNavigation produces complete owner navigation structure", ()
   });
   assert.deepEqual(ownerItems.map((item) => item.key), [
     "owner.home",
+    "staff.dashboard",
     "owner.hotel.billing",
-    "owner.hotel.rooms",
+    "staff.rooms",
+    "staff.front-desk",
+    "staff.requests",
     "owner.hotel.profile",
     "owner.hotel.settings",
   ]);

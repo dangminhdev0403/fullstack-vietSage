@@ -33,7 +33,8 @@ export default async function HotelsLayout({ children }: { children: ReactNode }
 
   if (
     !hasAppRole([session.activeRoleCode], "staff") &&
-    !hasAppRole([session.activeRoleCode], "admin")
+    !hasAppRole([session.activeRoleCode], "admin") &&
+    !hasAppRole([session.activeRoleCode], "tenant_owner")
   ) {
     notFound();
   }

@@ -164,19 +164,34 @@ test("builds owner sidebar with operational modules and hotel settings", () => {
     [
       { key: "owner.home", href: "/owner/dashboard", label: "Tổng quan" },
       {
+        key: "staff.dashboard",
+        href: "/hotels/hotel-1/dashboard",
+        label: "Điều hành hôm nay",
+      },
+      {
         key: "owner.hotel.billing",
         href: "/owner/hotels/hotel-1/billing",
         label: "Tài chính & đối soát",
       },
       {
-        key: "owner.hotel.rooms",
-        href: "/owner/hotels/hotel-1/rooms",
-        label: "Phòng & QR",
+        key: "staff.rooms",
+        href: "/hotels/hotel-1/rooms",
+        label: "Sơ đồ phòng & Check In",
+      },
+      {
+        key: "staff.front-desk",
+        href: "/hotels/hotel-1/front-desk",
+        label: "Quản lý khách lưu trú",
       },
       {
         key: "owner.hotel.channel-manager",
         href: "/owner/hotels/hotel-1/channel-manager",
         label: "Kho Phòng & Kênh Bán",
+      },
+      {
+        key: "staff.kbtt",
+        href: "/hotels/hotel-1/kbtt",
+        label: "Khai báo tạm trú",
       },
       {
         key: "owner.hotel.profile",
@@ -190,6 +205,66 @@ test("builds owner sidebar with operational modules and hotel settings", () => {
       },
     ],
   );
+});
+
+test("builds full-featured owner sidebar including all front-desk operations and staff delegation", () => {
+  const navigation = buildWorkspaceNavigation({
+    persona: "owner",
+    permissions: [
+      "hotel.dashboard.view",
+      "hotel.billing.view",
+      "hotel.revenue-protection.view",
+      "hotel.marketplace.revenue.view",
+      "hotel.rooms.view",
+      "hotel.rooms.manage",
+      "hotel.rooms.qr.manage",
+      "hotel.stays.check-in",
+      "hotel.stays.manage",
+      "hotel.reservations.view",
+      "hotel.reservations.manage",
+      "hotel.requests.view",
+      "hotel.requests.manage",
+      "hotel.messages.view",
+      "hotel.messages.manage",
+      "hotel.kbtt.declarations.view",
+      "hotel.kbtt.declarations.manage",
+      "hotel.channels.view",
+      "hotel.channels.manage",
+      "hotel.services.view",
+      "hotel.services.manage",
+      "hotel.local-partners.view",
+      "hotel.local-partners.manage",
+      "hotel.staff.view",
+      "hotel.staff.manage",
+      "hotel.profile.view",
+      "hotel.profile.manage",
+    ],
+    hotelId: "hotel-1",
+    enabledFeatures: ["hotel.channel_manager", "frontdesk.hn2n_cccd_scanner"],
+  });
+
+  const keys = navigation.map((item) => item.key);
+
+  // Receptionist & Operational tools are fully included
+  assert.ok(keys.includes("staff.dashboard"));
+  assert.ok(keys.includes("staff.rooms"));
+  assert.ok(keys.includes("staff.front-desk"));
+  assert.ok(keys.includes("staff.requests"));
+  assert.ok(keys.includes("staff.messages"));
+  assert.ok(keys.includes("staff.kbtt"));
+  assert.ok(keys.includes("staff.biometric"));
+  // Operational services & partners are managed centrally in Hotel Settings for owners
+  assert.ok(!keys.includes("staff.services"));
+  assert.ok(!keys.includes("staff.partners"));
+
+  // Owner management, channel manager & centralized hotel settings
+  assert.ok(keys.includes("owner.home"));
+  assert.ok(keys.includes("owner.hotel.billing"));
+  assert.ok(!keys.includes("owner.hotel.rooms"));
+  assert.ok(keys.includes("owner.hotel.channel-manager"));
+  assert.ok(!keys.includes("owner.hotel.staff"));
+  assert.ok(keys.includes("owner.hotel.profile"));
+  assert.ok(keys.includes("owner.hotel.settings"));
 });
 
 test("toggles channel manager in owner and staff navigation based on hotel feature flag", () => {

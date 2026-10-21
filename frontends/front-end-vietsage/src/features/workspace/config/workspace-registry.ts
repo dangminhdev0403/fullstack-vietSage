@@ -310,7 +310,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     href: "/owner/hotels/{hotelId}/billing",
     label: "Tài chính & đối soát",
     icon: "payments",
-    order: 20,
+    order: 15,
     section: "OVERVIEW",
     requiresHotel: true,
     anyCapabilities: [
@@ -320,31 +320,12 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     ],
   },
   {
-    key: "owner.hotel.rooms",
-    personas: ["owner"],
-    href: "/owner/hotels/{hotelId}/rooms",
-    label: "Phòng & QR",
-    icon: "qr_code",
-    order: 30,
-    section: "OPERATIONS",
-    requiresHotel: true,
-    anyCapabilities: [
-      "hotel.rooms.view",
-      "hotel.rooms.manage",
-      "hotel.rooms.qr.manage",
-      "hotel.profile.view",
-      "hotel.profile.manage",
-      "hotel.reservations.view",
-      "hotel.reservations.manage",
-    ],
-  },
-  {
     key: "owner.hotel.channel-manager",
     personas: ["owner"],
     href: "/owner/hotels/{hotelId}/channel-manager",
     label: "Kho Phòng & Kênh Bán",
     icon: "sync_alt",
-    order: 35,
+    order: 26,
     section: "OPERATIONS",
     requiresHotel: true,
     requiresFeature: HOTEL_CHANNEL_MANAGER,
@@ -400,25 +381,26 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     ],
   },
 
-  // Staff Navigation (Cấu hình trước, Xử lý sau)
+  // Staff & Unified Receptionist / Hotel Ops Navigation
   {
     key: "staff.dashboard",
-    personas: STAFF_PERSONAS,
+    personas: ["owner", ...STAFF_PERSONAS],
     href: "/hotels/{hotelId}/dashboard",
     label: "Điều hành hôm nay",
     icon: "space_dashboard",
-    order: 10,
+    order: 12,
     section: "OVERVIEW",
     requiresHotel: true,
     anyCapabilities: ["hotel.dashboard.view"],
   },
   {
     key: "staff.rooms",
-    personas: ["manager", "front_desk", "housekeeping"],
+    personas: ["owner", "manager", "front_desk", "housekeeping"],
     href: "/hotels/{hotelId}/rooms",
-    label: "Phòng & Check In",
+    label: "Sơ đồ phòng & Check In",
     labelByPersona: {
       housekeeping: "Sơ đồ phòng & Buồng phòng",
+      owner: "Sơ đồ phòng & Check In",
     },
     icon: "bed",
     order: 20,
@@ -426,6 +408,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     requiresHotel: true,
     anyCapabilities: [
       "hotel.rooms.view",
+      "hotel.rooms.manage",
       "hotel.rooms.status.manage",
       "hotel.rooms.ready.confirm",
       "hotel.stays.check-in",
@@ -436,7 +419,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
   },
   {
     key: "staff.front-desk",
-    personas: ["manager", "front_desk"],
+    personas: ["owner", "manager", "front_desk"],
     href: "/hotels/{hotelId}/front-desk",
     label: "Quản lý khách lưu trú",
     icon: "concierge",
@@ -447,6 +430,8 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
       "hotel.reservations.view",
       "hotel.reservations.manage",
       "hotel.rooms.view",
+      "hotel.rooms.manage",
+      "hotel.stays.manage",
     ],
   },
   {
@@ -475,7 +460,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
   },
   {
     key: "staff.requests",
-    personas: STAFF_PERSONAS,
+    personas: ["owner", ...STAFF_PERSONAS],
     href: "/hotels/{hotelId}/requests",
     label: "Xử lý yêu cầu",
     icon: "assignment",
@@ -490,7 +475,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
   },
   {
     key: "staff.messages",
-    personas: STAFF_PERSONAS,
+    personas: ["owner", ...STAFF_PERSONAS],
     href: "/hotels/{hotelId}/messages",
     label: "Tin nhắn phòng",
     icon: "support_agent",
@@ -501,7 +486,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
   },
   {
     key: "staff.kbtt",
-    personas: ["manager", "front_desk"],
+    personas: ["owner", "manager", "front_desk"],
     href: "/hotels/{hotelId}/kbtt",
     label: "Khai báo tạm trú",
     icon: "verified_user",
@@ -511,6 +496,8 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     anyCapabilities: [
       "hotel.kbtt.declarations.view",
       "hotel.kbtt.declarations.manage",
+      "hotel.kbtt.view",
+      "hotel.kbtt.manage",
     ],
   },
   {
@@ -530,7 +517,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
   },
   {
     key: "staff.biometric",
-    personas: ["manager", "front_desk"],
+    personas: ["owner", "manager", "front_desk"],
     href: "/hotels/{hotelId}/biometric",
     label: "Máy quét CCCD",
     icon: "badge",
@@ -546,7 +533,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     href: "/hotels/{hotelId}/services",
     label: "Quản lý dịch vụ",
     icon: "room_service",
-    order: 70,
+    order: 50,
     section: "OPERATIONS",
     requiresHotel: true,
     anyCapabilities: ["hotel.services.view", "hotel.services.manage"],
@@ -557,7 +544,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     href: "/hotels/{hotelId}/partners",
     label: "Đối tác địa phương",
     icon: "handshake",
-    order: 80,
+    order: 55,
     section: "OPERATIONS",
     requiresHotel: true,
     anyCapabilities: [
@@ -657,7 +644,7 @@ const WIDGETS: readonly WorkspaceWidgetDefinition[] = [
   },
   {
     key: "requests.active",
-    personas: STAFF_PERSONAS,
+    personas: ["owner", ...STAFF_PERSONAS],
     title: "Yêu cầu đang hoạt động",
     description: "Các yêu cầu cần tiếp tục xử lý.",
     icon: "assignment",
@@ -668,7 +655,7 @@ const WIDGETS: readonly WorkspaceWidgetDefinition[] = [
   },
   {
     key: "requests.new",
-    personas: STAFF_PERSONAS,
+    personas: ["owner", ...STAFF_PERSONAS],
     title: "Yêu cầu mới",
     description: "Các yêu cầu vừa được tạo.",
     icon: "notifications_active",
@@ -679,7 +666,7 @@ const WIDGETS: readonly WorkspaceWidgetDefinition[] = [
   },
   {
     key: "services.categories",
-    personas: ["manager", "food_beverage"],
+    personas: ["owner", "manager", "food_beverage"],
     title: "Nhóm dịch vụ",
     description: "Số nhóm dịch vụ đang quản lý.",
     icon: "category",
@@ -690,7 +677,7 @@ const WIDGETS: readonly WorkspaceWidgetDefinition[] = [
   },
   {
     key: "services.items",
-    personas: ["manager", "food_beverage"],
+    personas: ["owner", "manager", "food_beverage"],
     title: "Dịch vụ",
     description: "Số dịch vụ trong catalog.",
     icon: "room_service",
@@ -701,7 +688,7 @@ const WIDGETS: readonly WorkspaceWidgetDefinition[] = [
   },
   {
     key: "requests.feed",
-    personas: STAFF_PERSONAS,
+    personas: ["owner", ...STAFF_PERSONAS],
     title: "Yêu cầu gần đây",
     description: "Hàng đợi công việc theo khách sạn.",
     icon: "view_list",
