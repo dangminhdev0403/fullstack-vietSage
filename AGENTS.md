@@ -28,11 +28,12 @@ Before writing any code, agents MUST reuse the project's standard architectural 
     - Cấm chạy `graphify update` cho các sửa đổi UI/CSS/copy nhỏ.
     - Cấm chạy migrations/seed/db scripts cho frontend tasks.
     - Cấm format diện rộng toàn bộ dự án (`prettier --write .`).
-- **Task Domain Boundary Lock (Khóa cứng miền tác vụ - Chống mở rộng phạm vi)**:
-  - Khi thực hiện tác vụ Database (insert/seed/query), chạy script VPS, Docker, SSH:
-    - **MÃ NGUỒN LÀ READ-ONLY**: CẤM SỬA bất kỳ file mã nguồn ứng dụng nào (`.ts`, `.tsx`, `.js`, guards, services, controllers, store, components). Chỉ đọc schema/migration khi cần biết cấu trúc bảng.
-    - **CHỐNG TRÀN LỖI (Zero Failure Drift)**: Lệnh VPS/DB lỗi (Exit code 1) phải sửa lỗi tại chỗ (stderr, syntax, SSH, env). CẤM lấy cớ để lục lọi và sửa `authorization.guard.ts` hay `authorization.service.ts`.
-    - **DỪNG LẠI & HỎI USER (Stop & Report Gate)**: Nếu nghi ngờ code ứng dụng ẩn dữ liệu, BẮT BUỘC DỪNG LẠI và báo cáo User trước khi can thiệp vào mã nguồn.
+- **Nguyên tắc cốt lõi: Bảo gì làm nấy - Không làm lan man (Strict Prompt Fidelity & Zero Scope Drift)**:
+  - **Chỉ làm đúng việc được giao**: User bảo kiểm tra -> CHỈ kiểm tra; bảo thêm data -> CHỈ thêm data; bảo sửa file A -> CHỈ sửa file A; bảo chạy lệnh X -> CHỈ chạy lệnh X. Cấm tự ý suy diễn, cấm "nghĩ hộ", cấm "tiện tay làm thêm".
+  - **Hoàn thành là dừng ngay**: Xong việc được giao lập tức dừng gọi tool và báo cáo, cấm chạy thêm lệnh kiểm tra ngoài lề hoặc tìm kiếm loanh quanh.
+  - **Phát hiện ngoài lề: CHỈ BÁO CÁO, CẤM TỰ SỬA**: Mọi phát hiện lỗi khác, guard ẩn data, permission... BẮT BUỘC chỉ báo cáo trong tin nhắn, cấm tự ý đi sửa tiếp khi chưa có lệnh rõ ràng.
+  - **Khoanh vùng lỗi cùng miền (Zero Failure Drift)**: Lệnh nào lỗi thì kiểm tra và sửa đúng lệnh/môi trường đó (stderr, syntax, SSH, env). CẤM lấy cớ lỗi để nhảy sang bới móc hay sửa các file/tầng khác.
+  - **Codebase Freeze khi làm DB/VPS/Ops**: Khi thực hiện tác vụ Database (insert/seed/query), chạy script VPS, Docker, SSH: CẤM SỬA bất kỳ file mã nguồn ứng dụng nào (`.ts`, `.tsx`, `.js`, guards, services, controllers, store, components). Mã nguồn là READ-ONLY.
 
 ## Strict Audit Mode
 

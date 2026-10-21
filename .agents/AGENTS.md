@@ -164,8 +164,13 @@ A "module completed" includes examples such as:
 ## Focused Scope Gate & Anti-Expansion Standard (Cổng Đóng Băng Phạm Vi Bắt Buộc)
 
 > [!CAUTION]
-> **CẤM TUYỆT ĐỐI TỰ Ý MỞ RỘNG PHẠM VI (SCOPE EXPLOSION BAN)**
-> 1. **Chặn ranh giới tầng & Miền tác vụ (Boundary Stop & Domain Isolation)**:
+> **NGUYÊN TẮC CỐT LÕI: BẢO GÌ LÀM NẤY - KHÔNG LÀM LAN MAN (STRICT PROMPT FIDELITY & ZERO SCOPE DRIFT)**
+> 1. **Chỉ làm đúng việc được giao (Zero Unsolicited Proactivity)**:
+>    - Bảo gì làm nấy. Tuyệt đối không tự suy diễn, không "tiện tay làm thêm".
+>    - Bảo kiểm tra -> CHỈ kiểm tra; bảo thêm data -> CHỈ thêm data; bảo sửa file A -> CHỈ sửa file A; bảo chạy lệnh X -> CHỈ chạy lệnh X.
+>    - Hoàn thành là dừng ngay: Xong việc được giao lập tức dừng gọi tool và báo cáo, cấm chạy thêm lệnh kiểm tra thừa thãi hay tìm kiếm vu vơ.
+>    - Phát hiện ngoài lề: CHỈ BÁO CÁO, CẤM TỰ SỬA. Dù thấy bug khác hay logic filter ẩn data, BẮT BUỘC chỉ báo cáo trong tin nhắn, cấm tự ý sửa khi chưa có lệnh.
+> 2. **Chặn ranh giới tầng & Miền tác vụ (Boundary Stop & Domain Isolation)**:
 >    - **Task Database / Data / Seed / VPS Ops / Docker / Shell Scripts**:
 >      * **CODEBASE FREEZE**: CẤM SỬA bất kỳ file mã nguồn ứng dụng nào (`.ts`, `.tsx`, `.js`, guards, services, controllers, store, components). Mã nguồn là READ-ONLY (chỉ đọc schema để tra cứu cấu trúc bảng).
 >      * **CHỐNG TRÀN LỖI (Zero Failure Drift)**: Lệnh VPS/DB script lỗi (`Exit code != 0`) phải kiểm tra và sửa tại môi trường VPS/DB (stderr, syntax, SSH, env). CẤM lấy cớ đi lục lọi và sửa `authorization.guard.ts` hay `authorization.service.ts`.
@@ -173,8 +178,8 @@ A "module completed" includes examples such as:
 >    - **Task UI / Alert UI / Styling / Copy / Layout**: CHỈ ĐƯỢC CHẠM vào 1-2 file UI đích (`.tsx`, `.css`).
 >      * **NGHIÊM CẤM**: Chạm vào backend (`services/**`, controllers, repositories, Prisma, OpenAPI, BFF). Nếu UI nhận lỗi từ backend -> Xử lý hiển thị toast/alert thân thiện tại UI, **TUYỆT ĐỐI KHÔNG trace error để nhảy sang sửa backend**.
 >      * **Task Alert UI / Toast**: Sửa alert toast/dialog/duration. CẤM lan sang `tape-chart`, `front-desk-arrival-detail-panel`, `front-desk-room-detail-panel`, `swal.ts` (trừ khi chính file đó được giao).
-> 2. **Hạn ngạch file (File Quota)**: Tối đa **1 - 3 files** cho một task. Chạm đến file thứ 4 khi không có lệnh là vi phạm nghiêm trọng.
-> 3. **Diệt đọc - suy nghĩ - đọc lại luẩn quẩn (Zero-Waste Read Budget & Anti-Loop)**:
+> 3. **Hạn ngạch file (File Quota)**: Tối đa **1 - 3 files** cho một task. Chạm đến file thứ 4 khi không có lệnh là vi phạm nghiêm trọng.
+> 4. **Diệt đọc - suy nghĩ - đọc lại luẩn quẩn (Zero-Waste Read Budget & Anti-Loop)**:
 >    - **Miễn trừ đọc docs**: Với task UI, alert, CSS, copy, fix bug cục bộ, hoặc task DB/Ops: **CẤM đọc lại `AGENTS.md`, `ARCHITECTURE.md`, `RULES.md`** (đã có trong System Prompt).
 >    - **Đọc tối đa 1-3 file đích**: Đọc đúng vị trí cần sửa (`StartLine`/`EndLine`).
 >    - **Zero Re-Reading**: CẤM gọi `read_file` lần thứ 2 trên cùng một file trong cùng một session.

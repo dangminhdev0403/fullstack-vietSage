@@ -2,7 +2,11 @@
 
 This rule is mandatory for all agents (Codex, Antigravity, and any automated runner) working in `fullstack-vietSage`.
 
-## 0. Focused Scope Gate & Anti-Expansion (Bắt buộc trước khi đụng code)
+## 0. NGUYÊN TẮC BẤT BIẾN: BẢO GÌ LÀM NẤY - KHÔNG LÀM LAN MAN (STRICT PROMPT FIDELITY)
+- **Chỉ làm đúng việc được giao**: User bảo kiểm tra -> CHỈ kiểm tra; bảo thêm data -> CHỈ thêm data; bảo sửa file A -> CHỈ sửa file A; bảo chạy lệnh X -> CHỈ chạy lệnh X. Cấm tự suy diễn, cấm tiện tay làm thêm.
+- **Hoàn thành là dừng ngay**: Xong việc là dừng gọi tool và báo cáo ngay, cấm chạy thêm lệnh kiểm tra thừa thãi hay quét bới loanh quanh.
+- **Phát hiện ngoài lề: CHỈ BÁO CÁO, CẤM TỰ SỬA**: Mọi phát hiện lỗi khác, guard ẩn data, permission... BẮT BUỘC chỉ báo cáo trong tin nhắn, cấm tự ý đi sửa tiếp khi chưa có lệnh.
+- **Khoanh vùng lỗi cùng miền**: Lệnh nào lỗi thì kiểm tra đúng lệnh/môi trường đó. CẤM lấy cớ lỗi để nhảy sang bới móc các file/tầng khác.
 - **Task Alert UI / Toast / Notification / Dialog / Feedback**:
   * CHỈ sửa file toaster/alert hoặc đúng component gọi alert (Ví dụ: duration, styling, wording).
   * **NGHIÊM CẤM**: Chạm vào backend repository (`reservations.repository.ts`, `hotel-rooms.repository.ts`), BFF route, OpenAPI schema, Prisma schema, hay các màn hình/panel khác (`tape-chart`, `front-desk-arrival-detail-panel`, `front-desk-room-detail-panel`, `swal.ts`).
