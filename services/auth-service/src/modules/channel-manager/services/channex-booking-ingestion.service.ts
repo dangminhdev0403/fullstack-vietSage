@@ -318,7 +318,12 @@ export class ChannexBookingIngestionService {
                     ? (roomTypeMapping.metadata as { title: string }).title
                     : (roomTypeMapping?.localId ?? null));
 
-                let candidateRoom: { id: string; roomNumber?: string; roomTypeId?: string | null } | null = null;
+                let candidateRoom: {
+                  id: string;
+                  roomNumber?: string;
+                  roomTypeId?: string | null;
+                  price?: Prisma.Decimal | number | null;
+                } | null = null;
                 let partySize: number | null = null;
                 const occ = (segment as any)?.occupancy;
                 if (occ && typeof occ === "object") {
@@ -354,6 +359,7 @@ export class ChannexBookingIngestionService {
                         id: allocated.roomId ?? allocated.id,
                         roomNumber: allocated.roomNumber,
                         roomTypeId: allocated.roomTypeId ?? null,
+                        price: allocated.price,
                       };
                     }
                   } catch (allocError) {
@@ -376,6 +382,25 @@ export class ChannexBookingIngestionService {
 
                 const canonicalRoomTypeId =
                   mappedCatalogType?.id ?? candidateRoom?.roomTypeId ?? null;
+                if (attrs.currency?.toUpperCase() !== "VND") {
+                  throw new BadRequestException("UNSUPPORTED_BOOKING_CURRENCY");
+                }
+                let segmentTotal: Prisma.Decimal;
+                try {
+                  segmentTotal = new Prisma.Decimal(segment.amount);
+                } catch {
+                  throw new BadRequestException("INVALID_BOOKING_AMOUNT");
+                }
+                if (segmentTotal.isNegative()) {
+                  throw new BadRequestException("INVALID_BOOKING_AMOUNT");
+                }
+                const nights = Math.max(
+                  1,
+                  Math.round(
+                    (plannedCheckOutAt.getTime() - plannedCheckInAt.getTime()) / 86400000,
+                  ),
+                );
+                const nightlyRateSnapshot = segmentTotal.div(nights).toDecimalPlaces(2).toFixed(2);
                 const suffix = segments.length > 1 ? `-${index + 1}` : "";
                 const reservationData: any = {
                   hotelId,
@@ -389,6 +414,8 @@ export class ChannexBookingIngestionService {
                   status: ReservationStatus.CONFIRMED,
                   plannedCheckInAt,
                   plannedCheckOutAt,
+                  baseNightlyRateSnapshot: candidateRoom?.price ?? null,
+                  nightlyRateSnapshot,
                   assignedAt: candidateRoom ? new Date() : null,
                   ...(partySize != null ? { guestCount: partySize } : {}),
                 };

@@ -1206,6 +1206,7 @@ export class HotelRoomsRepository {
     guestResidencePlace?: string;
     plannedCheckInAt: Date;
     plannedCheckOutAt: Date;
+    nightlyRateSnapshot?: Prisma.Decimal | number | string | null;
     createdByUserId: string;
     tenantId: string;
     occupants?: Array<{
@@ -1231,6 +1232,7 @@ export class HotelRoomsRepository {
         select: {
           id: true,
           status: true,
+          price: true,
           roomTypeId: true,
           roomType: { select: { id: true, maxOccupancy: true } },
         },
@@ -1257,6 +1259,8 @@ export class HotelRoomsRepository {
       }
 
       const reservationCode = await input.generateReservationCode(tx);
+      const appliedNightlyRate =
+        input.nightlyRateSnapshot !== undefined ? input.nightlyRateSnapshot : room.price;
       const stay = await tx.guestStay.create({
         data: {
           hotelId: input.hotelId,
@@ -1271,6 +1275,8 @@ export class HotelRoomsRepository {
           guestResidencePlace: input.guestResidencePlace,
           plannedCheckInAt: input.plannedCheckInAt,
           plannedCheckOutAt: input.plannedCheckOutAt,
+          baseNightlyRateSnapshot: room.price,
+          nightlyRateSnapshot: appliedNightlyRate,
           createdByUserId: input.createdByUserId,
           status: GuestStayStatus.RESERVED,
           occupants: {
@@ -1406,7 +1412,7 @@ export class HotelRoomsRepository {
 
       const room = await tx.room.findFirst({
         where: { id: input.roomId, hotelId: input.hotelId },
-        select: { id: true, status: true },
+        select: { id: true, status: true, price: true },
       });
 
       if (!room) {
@@ -1459,6 +1465,9 @@ export class HotelRoomsRepository {
           status: GuestStayStatus.ACTIVE,
           checkedInAt: now,
           activatedAt: now,
+          baseNightlyRateSnapshot:
+            stayForCheckIn.baseNightlyRateSnapshot ?? room.price ?? stayForCheckIn.nightlyRateSnapshot,
+          nightlyRateSnapshot: stayForCheckIn.nightlyRateSnapshot ?? room.price,
           accessCodeHash: input.accessCodeHash,
           accessCodeExpiresAt: input.accessCodeExpiresAt,
         },
@@ -1563,6 +1572,7 @@ export class HotelRoomsRepository {
     guestResidencePlace?: string;
     plannedCheckInAt: Date;
     plannedCheckOutAt: Date;
+    nightlyRateSnapshot?: Prisma.Decimal | number | string | null;
     createdByUserId: string;
     accessCodeHash: string;
     accessCodeExpiresAt: Date;
@@ -1597,6 +1607,7 @@ export class HotelRoomsRepository {
         select: {
           id: true,
           status: true,
+          price: true,
           roomTypeId: true,
           roomType: { select: { id: true, maxOccupancy: true } },
         },
@@ -1648,6 +1659,8 @@ export class HotelRoomsRepository {
       });
 
       const reservationCode = await input.generateReservationCode(tx);
+      const appliedNightlyRate =
+        input.nightlyRateSnapshot !== undefined ? input.nightlyRateSnapshot : room.price;
       const stay = await tx.guestStay.create({
         data: {
           hotelId: input.hotelId,
@@ -1662,6 +1675,8 @@ export class HotelRoomsRepository {
           guestResidencePlace: input.guestResidencePlace,
           plannedCheckInAt: input.plannedCheckInAt,
           plannedCheckOutAt: input.plannedCheckOutAt,
+          baseNightlyRateSnapshot: room.price,
+          nightlyRateSnapshot: appliedNightlyRate,
           createdByUserId: input.createdByUserId,
           status: GuestStayStatus.ACTIVE,
           checkedInAt: now,

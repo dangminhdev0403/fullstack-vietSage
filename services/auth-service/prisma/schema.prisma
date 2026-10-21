@@ -1143,7 +1143,8 @@ model Reservation {
   status              ReservationStatus @default(CONFIRMED)
   plannedCheckInAt    DateTime
   plannedCheckOutAt   DateTime
-  nightlyRateSnapshot Decimal?          @db.Decimal(12, 2)
+  baseNightlyRateSnapshot Decimal?          @db.Decimal(12, 2)
+  nightlyRateSnapshot     Decimal?          @db.Decimal(12, 2)
   guestCount          Int?
   notes               String?
   assignedAt          DateTime?
@@ -1181,6 +1182,7 @@ model GuestStay {
   status                      GuestStayStatus              @default(RESERVED)
   plannedCheckInAt            DateTime
   plannedCheckOutAt           DateTime
+  baseNightlyRateSnapshot     Decimal?                     @db.Decimal(12, 2)
   nightlyRateSnapshot         Decimal?                     @db.Decimal(12, 2)
   checkedInAt                 DateTime?
   activatedAt                 DateTime?

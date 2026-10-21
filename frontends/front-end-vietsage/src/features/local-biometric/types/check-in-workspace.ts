@@ -29,6 +29,7 @@ export type CheckInStayFields = {
   occupants?: CheckInOccupantField[];
   reservationCode?: string;
   plannedCheckInAt?: string;
+  nightlyRateSnapshot?: number;
   notes?: string;
 };
 

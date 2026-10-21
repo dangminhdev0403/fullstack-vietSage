@@ -12,6 +12,7 @@ import {
 type Params = { params: Promise<{ hotelId: string; reservationId: string }> };
 const schema = z.object({
   roomId: z.string().trim().min(1),
+  nightlyRateSnapshot: z.coerce.number().min(0).optional(),
   expectedUpdatedAt: z.string().datetime().optional(),
   expectedRoomId: z.string().trim().min(1).nullable().optional(),
 }).strict();

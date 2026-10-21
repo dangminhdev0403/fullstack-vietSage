@@ -286,6 +286,12 @@ export const createStayBodySchema = z
     guestResidencePlace: z.string().trim().max(500, "Địa chỉ tối đa 500 ký tự").optional(),
     plannedCheckInAt: z.coerce.date({ message: "Ngày nhận phòng không hợp lệ" }),
     plannedCheckOutAt: z.coerce.date({ message: "Ngày trả phòng không hợp lệ" }),
+    nightlyRateSnapshot: z.coerce
+      .number()
+      .finite()
+      .nonnegative("Giá phòng không được là số âm")
+      .max(999_999_999_999.99)
+      .optional(),
     occupants: z.array(stayOccupantInputSchema).optional(),
   })
   .strict()

@@ -348,6 +348,10 @@ export function StaffBillingWorkspaceClient({
     return 0;
   }, [activeItems, selectedFolio, estimatedRoomChargeData]);
 
+  const roomRateComparison =
+    activeSummary?.roomRateComparison ?? selectedFolio?.roomRateComparison ?? null;
+  const roomRateDifference = toNumber(roomRateComparison?.totalDifference ?? 0);
+
   const hotelServiceChargeTotal = useMemo(() => {
     return activeItems
       .filter(
@@ -1214,6 +1218,54 @@ export function StaffBillingWorkspaceClient({
                 {formatMoney(roomChargeTotal, currency)}
               </dd>
             </div>
+
+            {roomRateComparison ? (
+              <div className="space-y-2 rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/70 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-sm font-bold text-[#fce8b3]">Giá gốc tiền phòng</dt>
+                  <dd className="text-base font-black text-white">
+                    {formatMoney(toNumber(roomRateComparison.baseSubtotal), currency)}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between gap-3 border-t border-[#d4af37]/25 pt-2">
+                  <dt
+                    className={`text-sm font-extrabold ${
+                      roomRateDifference > 0
+                        ? "text-amber-300"
+                        : roomRateDifference < 0
+                          ? "text-emerald-300"
+                          : "text-[#fce8b3]"
+                    }`}
+                  >
+                    {roomRateDifference > 0
+                      ? "Tăng so với giá gốc"
+                      : roomRateDifference < 0
+                        ? "Giảm so với giá gốc"
+                        : "Không đổi so với giá gốc"}
+                  </dt>
+                  <dd
+                    className={`text-base font-black ${
+                      roomRateDifference > 0
+                        ? "text-amber-300"
+                        : roomRateDifference < 0
+                          ? "text-emerald-300"
+                          : "text-white"
+                    }`}
+                  >
+                    {roomRateDifference > 0 ? "+" : roomRateDifference < 0 ? "−" : ""}
+                    {formatMoney(Math.abs(roomRateDifference), currency)}
+                  </dd>
+                </div>
+                <p className="text-sm text-[#fce8b3]">
+                  {roomRateComparison.direction === "UNCHANGED"
+                    ? `${estimatedRoomChargeData?.nights ?? 1} đêm cùng giá gốc.`
+                    : `${estimatedRoomChargeData?.nights ?? 1} đêm × ${formatMoney(
+                        Math.abs(toNumber(roomRateComparison.nightlyDifference)),
+                        currency,
+                      )} mỗi đêm.`}
+                </p>
+              </div>
+            ) : null}
 
             {/* Dịch vụ khách sạn (Internal) */}
             <div className="flex justify-between items-center">

@@ -178,13 +178,14 @@ export class ReservationsRepository {
 
       for (const roomId of uniqueRoomIds) {
         const reservationCode = await input.generateReservationCode(tx);
+        const room = rooms.find((candidate) => candidate.id === roomId)!;
         const specificRate = input.roomRates?.[roomId] ?? allocatedRoomRates.get(roomId);
         const effectiveRaw =
           specificRate !== undefined
             ? specificRate
             : input.nightlyRateSnapshot !== undefined
               ? input.nightlyRateSnapshot
-              : null;
+              : room.price;
 
         const nightlyRateSnapshot =
           effectiveRaw !== undefined && effectiveRaw !== null
@@ -204,6 +205,7 @@ export class ReservationsRepository {
           status: ReservationStatus.ARRIVAL_READY,
           assignedAt: now,
           assignedByUserId: input.createdByUserId,
+          baseNightlyRateSnapshot: room.price,
           nightlyRateSnapshot,
         };
 
@@ -337,8 +339,9 @@ export class ReservationsRepository {
             status: ReservationStatus.ARRIVAL_READY,
             assignedAt: new Date(),
             assignedByUserId: input.createdByUserId,
+            baseNightlyRateSnapshot: room.price,
             nightlyRateSnapshot:
-              input.nightlyRateSnapshot !== undefined ? input.nightlyRateSnapshot : null,
+              input.nightlyRateSnapshot !== undefined ? input.nightlyRateSnapshot : room.price,
           },
           include: { room: true, roomType: true },
         });
@@ -461,17 +464,19 @@ export class ReservationsRepository {
         }
       }
 
+      let assignedRoomPrice: Prisma.Decimal | number | string | null | undefined;
       if (input.roomAllocationService) {
         let roomTypeId = reservation.roomTypeId ?? undefined;
         if (!roomTypeId) {
           const targetRoom = await tx.room.findFirst({
             where: { id: input.roomId, hotelId: input.hotelId },
-            select: { roomTypeId: true, type: true },
+            select: { roomTypeId: true, type: true, price: true },
           });
           roomTypeId = targetRoom?.roomTypeId ?? targetRoom?.type ?? undefined;
+          assignedRoomPrice = targetRoom?.price;
         }
 
-        await input.roomAllocationService.allocateRoom(tx, {
+        const allocated = await input.roomAllocationService.allocateRoom(tx, {
           hotelId: input.hotelId,
           mode: "manual",
           requestedRoomId: input.roomId,
@@ -483,6 +488,14 @@ export class ReservationsRepository {
           guestCount: reservation.guestCount,
           excludedReservationId: reservation.id,
         });
+        assignedRoomPrice ??= allocated?.price;
+        if (assignedRoomPrice === null || assignedRoomPrice === undefined) {
+          const targetRoom = await tx.room.findFirst({
+            where: { id: input.roomId, hotelId: input.hotelId },
+            select: { price: true },
+          });
+          assignedRoomPrice = targetRoom?.price;
+        }
       } else {
         await tx.$queryRawUnsafe(
           'SELECT id FROM "Room" WHERE id = $1 AND "hotelId" = $2 FOR UPDATE',
@@ -503,6 +516,7 @@ export class ReservationsRepository {
         if (!room) {
           throw new NotFoundException("Không tìm thấy phòng");
         }
+        assignedRoomPrice = room.price;
         if (NON_SELLABLE_ROOM_STATUSES.includes(room.status)) {
           throw new ConflictException("ROOM_NOT_AVAILABLE");
         }
@@ -564,9 +578,16 @@ export class ReservationsRepository {
           status: ReservationStatus.ARRIVAL_READY,
           assignedAt: new Date(),
           assignedByUserId: input.actorUserId,
+          ...(reservation.baseNightlyRateSnapshot === null ||
+          reservation.baseNightlyRateSnapshot === undefined
+            ? { baseNightlyRateSnapshot: assignedRoomPrice ?? null }
+            : {}),
           ...(input.nightlyRateSnapshot !== undefined
             ? { nightlyRateSnapshot: input.nightlyRateSnapshot }
-            : {}),
+            : reservation.nightlyRateSnapshot === null ||
+                reservation.nightlyRateSnapshot === undefined
+              ? { nightlyRateSnapshot: assignedRoomPrice ?? null }
+              : {}),
         },
         include: { room: true, roomType: true },
       });
@@ -839,6 +860,8 @@ export class ReservationsRepository {
           status: GuestStayStatus.ACTIVE,
           plannedCheckInAt: reservation.plannedCheckInAt,
           plannedCheckOutAt,
+          baseNightlyRateSnapshot:
+            reservation.baseNightlyRateSnapshot ?? room.price ?? stayRate,
           nightlyRateSnapshot: stayRate,
           checkedInAt: now,
           activatedAt: now,

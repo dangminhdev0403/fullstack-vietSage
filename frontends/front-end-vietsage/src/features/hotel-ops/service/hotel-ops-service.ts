@@ -157,6 +157,7 @@ export class HotelOpsService {
     reservationId: string,
     body: {
       roomId: string;
+      nightlyRateSnapshot?: number;
       expectedUpdatedAt?: string;
       expectedRoomId?: string | null;
     },

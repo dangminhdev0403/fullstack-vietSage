@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { HotelsRepository } from "../infrastructure/repositories/hotels.repository";
@@ -405,7 +406,11 @@ describe("HotelsRepository check-in QR creation", () => {
     };
     const tx = {
       room: {
-        findFirst: jest.fn().mockResolvedValue({ id: "room-1", status: "AVAILABLE" }),
+        findFirst: jest.fn().mockResolvedValue({
+          id: "room-1",
+          status: "AVAILABLE",
+          price: new Prisma.Decimal(800000),
+        }),
         updateMany: jest
           .fn()
           .mockResolvedValueOnce({ count: 1 })
@@ -449,6 +454,12 @@ describe("HotelsRepository check-in QR creation", () => {
       stay: { id: "stay-1" },
       roomQrCode: { id: "qr-1", status: "ACTIVE" },
     });
+    expect(tx.guestStay.create.mock.calls[0][0].data).toEqual(
+      expect.objectContaining({
+        baseNightlyRateSnapshot: new Prisma.Decimal(800000),
+        nightlyRateSnapshot: new Prisma.Decimal(800000),
+      }),
+    );
     await expect(repository.createAndCheckInStay(input)).rejects.toThrow(
       new ConflictException("Phòng đang được check-in bởi yêu cầu khác"),
     );

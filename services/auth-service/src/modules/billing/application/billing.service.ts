@@ -148,6 +148,15 @@ export class BillingService {
           nightlyRate: Prisma.Decimal;
           subtotal: Prisma.Decimal;
           roomNumber: string | null;
+          rateComparison: {
+            direction: "INCREASE" | "DECREASE" | "UNCHANGED";
+            baseNightlyRate: Prisma.Decimal;
+            appliedNightlyRate: Prisma.Decimal;
+            nightlyDifference: Prisma.Decimal;
+            baseSubtotal: Prisma.Decimal;
+            appliedSubtotal: Prisma.Decimal;
+            totalDifference: Prisma.Decimal;
+          } | null;
         } | null = null;
 
         if (folio.status === FolioStatus.OPEN && !invoice) {
@@ -166,6 +175,7 @@ export class BillingService {
           discount: folio.discountAmount,
           total,
           estimatedRoomCharge,
+          roomRateComparison: estimatedRoomCharge?.rateComparison ?? null,
         };
       }),
     };
@@ -201,6 +211,7 @@ export class BillingService {
       itemCount: summary.itemCount,
       serviceCount: summary.serviceCount,
       roomChargeCount: summary.roomChargeCount,
+      roomRateComparison: summary.roomRateComparison,
       isStale: summary.isStale,
       requiresRecalculation: summary.requiresRecalculation,
       hasDuplicateOpenFolios: summary.hasDuplicateOpenFolios,
@@ -621,12 +632,7 @@ export class BillingService {
 
     let subtotal = result.folio.subtotalAmount;
     let total = result.folio.totalAmount;
-    let estimatedRoomCharge: {
-      nights: number;
-      nightlyRate: Prisma.Decimal;
-      subtotal: Prisma.Decimal;
-      roomNumber: string | null;
-    } | null = null;
+    let estimatedRoomCharge: ReturnType<BillingService["calculateEstimatedRoomCharge"]> | null = null;
 
     if (
       result.folio.status === FolioStatus.OPEN &&
@@ -650,6 +656,11 @@ export class BillingService {
       discount: result.folio.discountAmount,
       total,
       estimatedRoomCharge,
+      roomRateComparison:
+        estimatedRoomCharge?.rateComparison ??
+        (Boolean((result.folio as any).room)
+          ? this.calculateEstimatedRoomCharge(result.folio).rateComparison
+          : null),
       ...counts,
       isStale,
       requiresRecalculation,
@@ -1459,8 +1470,10 @@ export class BillingService {
     room?: { roomNumber?: string | null; price?: Prisma.Decimal | number | null } | null;
     stay?: {
       checkedInAt?: Date | string | null;
+      checkedOutAt?: Date | string | null;
       plannedCheckInAt?: Date | string | null;
       plannedCheckOutAt?: Date | string | null;
+      baseNightlyRateSnapshot?: Prisma.Decimal | number | string | null;
       nightlyRateSnapshot?: Prisma.Decimal | number | string | null;
     } | null;
   }) {
@@ -1472,7 +1485,7 @@ export class BillingService {
       new Date();
     const chargeStart = rawStart instanceof Date ? rawStart : new Date(rawStart);
 
-    const rawEnd = folio.stay?.plannedCheckOutAt;
+    const rawEnd = folio.stay?.checkedOutAt ?? folio.stay?.plannedCheckOutAt;
     const chargeEnd = rawEnd
       ? new Date(
           Math.min(Date.now(), (rawEnd instanceof Date ? rawEnd : new Date(rawEnd)).getTime()),
@@ -1490,12 +1503,35 @@ export class BillingService {
     const diffMs = Math.max(0, chargeEnd.getTime() - chargeStart.getTime());
     const nights = Math.max(1, Math.ceil(diffMs / 86400000));
     const subtotal = unitPrice.mul(nights);
+    const baseNightlyRate =
+      folio.stay?.baseNightlyRateSnapshot !== null &&
+      folio.stay?.baseNightlyRateSnapshot !== undefined
+        ? new Prisma.Decimal(folio.stay.baseNightlyRateSnapshot)
+        : null;
+    const nightlyDifference = baseNightlyRate ? unitPrice.sub(baseNightlyRate) : null;
+    const rateComparison =
+      baseNightlyRate && nightlyDifference
+        ? {
+            direction: (nightlyDifference.gt(0)
+              ? "INCREASE"
+              : nightlyDifference.lt(0)
+                ? "DECREASE"
+                : "UNCHANGED") as "INCREASE" | "DECREASE" | "UNCHANGED",
+            baseNightlyRate,
+            appliedNightlyRate: unitPrice,
+            nightlyDifference,
+            baseSubtotal: baseNightlyRate.mul(nights),
+            appliedSubtotal: subtotal,
+            totalDifference: nightlyDifference.mul(nights),
+          }
+        : null;
 
     return {
       nights,
       nightlyRate: unitPrice,
       subtotal,
       roomNumber: folio.room?.roomNumber ?? null,
+      rateComparison,
     };
   }
 
@@ -1535,7 +1571,10 @@ export class BillingService {
           stayId: folio.stayId,
           roomId: folio.roomId,
           roomNumber: folio.room.roomNumber,
+          baseNightlyRate: est.rateComparison?.baseNightlyRate ?? null,
           nightlyRate: unitPrice,
+          nightlyDifference: est.rateComparison?.nightlyDifference ?? null,
+          totalDifference: est.rateComparison?.totalDifference ?? null,
           chargeStart: chargeStart.toISOString(),
           chargeEnd: chargeEnd.toISOString(),
           nights,

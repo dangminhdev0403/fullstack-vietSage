@@ -1221,6 +1221,8 @@ describe("BillingService checkout safety", () => {
             checkedInAt: new Date("2026-07-17T14:00:00.000Z"),
             plannedCheckInAt: new Date("2026-07-17T14:00:00.000Z"),
             plannedCheckOutAt: new Date("2026-07-18T12:00:00.000Z"),
+            baseNightlyRateSnapshot: new Prisma.Decimal(800000),
+            nightlyRateSnapshot: new Prisma.Decimal(600000),
           },
         },
       }),
@@ -1238,6 +1240,15 @@ describe("BillingService checkout safety", () => {
     expect(summary.estimatedRoomCharge?.nights).toBe(1);
     expect(summary.estimatedRoomCharge?.nightlyRate).toEqual(new Prisma.Decimal(600000));
     expect(summary.estimatedRoomCharge?.subtotal).toEqual(new Prisma.Decimal(600000));
+    expect(summary.roomRateComparison).toEqual({
+      direction: "DECREASE",
+      baseNightlyRate: new Prisma.Decimal(800000),
+      appliedNightlyRate: new Prisma.Decimal(600000),
+      nightlyDifference: new Prisma.Decimal(-200000),
+      baseSubtotal: new Prisma.Decimal(800000),
+      appliedSubtotal: new Prisma.Decimal(600000),
+      totalDifference: new Prisma.Decimal(-200000),
+    });
     expect(summary.subtotal).toEqual(new Prisma.Decimal(600000));
     expect(summary.total).toEqual(new Prisma.Decimal(600000));
   });
@@ -1256,19 +1267,29 @@ describe("BillingService checkout safety", () => {
     expect(confirmManualPaymentPermission).toBe("hotel.billing.checkout");
   });
 
-  it("BillingService calculateEstimatedRoomCharge prioritizes stay.nightlyRateSnapshot over room.price", () => {
+  it("BillingService calculateEstimatedRoomCharge compares the applied rate with its base snapshot", () => {
     const service = createService({});
     const charge = service.calculateEstimatedRoomCharge({
-      room: { roomNumber: "101", price: new Prisma.Decimal(800000) },
+      room: { roomNumber: "101", price: new Prisma.Decimal(2000000) },
       stay: {
         checkedInAt: new Date("2026-07-17T14:00:00.000Z"),
         plannedCheckOutAt: new Date("2026-07-18T12:00:00.000Z"),
+        baseNightlyRateSnapshot: new Prisma.Decimal(800000),
         nightlyRateSnapshot: new Prisma.Decimal(650000),
       },
     });
 
     expect(charge.nightlyRate).toEqual(new Prisma.Decimal(650000));
     expect(charge.subtotal).toEqual(new Prisma.Decimal(650000));
+    expect(charge.rateComparison).toEqual({
+      direction: "DECREASE",
+      baseNightlyRate: new Prisma.Decimal(800000),
+      appliedNightlyRate: new Prisma.Decimal(650000),
+      nightlyDifference: new Prisma.Decimal(-150000),
+      baseSubtotal: new Prisma.Decimal(800000),
+      appliedSubtotal: new Prisma.Decimal(650000),
+      totalDifference: new Prisma.Decimal(-150000),
+    });
   });
 
   it("BillingService calculateEstimatedRoomCharge ensures room-price edits cannot alter stay charge when stay snapshot exists", () => {

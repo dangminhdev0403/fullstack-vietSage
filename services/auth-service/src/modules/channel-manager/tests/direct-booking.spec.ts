@@ -347,6 +347,8 @@ describe("Channel Manager Direct Booking & Auto Room Allocation Module", () => {
             roomId: "room_302",
             roomTypeId,
             roomTypeSnapshot: "DELUXE",
+            baseNightlyRateSnapshot: 1200000,
+            nightlyRateSnapshot: 1200000,
           }),
         }),
       );

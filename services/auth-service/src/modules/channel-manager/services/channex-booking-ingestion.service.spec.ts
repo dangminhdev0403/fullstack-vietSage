@@ -253,9 +253,11 @@ describe("ChannexBookingIngestionService - Automatic Room Allocation & Ingestion
       expect(firstResData.roomId).toBe("room-101");
       expect(firstResData.roomTypeId).toBe(deluxeLocalId);
       expect(firstResData.assignedAt).toBeInstanceOf(Date);
+      expect(firstResData.nightlyRateSnapshot).toBe("625000.00");
       expect(secondResData.roomId).toBe("room-102");
       expect(secondResData.roomTypeId).toBe(deluxeLocalId);
       expect(secondResData.assignedAt).toBeInstanceOf(Date);
+      expect(secondResData.nightlyRateSnapshot).toBe("625000.00");
       expect(firstResData.roomId).not.toBe(secondResData.roomId);
 
       // Verify mapping metadata reflects all assigned

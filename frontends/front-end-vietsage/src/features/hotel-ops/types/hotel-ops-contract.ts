@@ -181,6 +181,13 @@ export type HotelCheckInResult = {
   accessCode: string;
 };
 
+export type AssignReservationRoomInput = {
+  roomId: string;
+  nightlyRateSnapshot?: number;
+  expectedUpdatedAt?: string;
+  expectedRoomId?: string | null;
+};
+
 export type HotelReservationInput = {
   guestDisplayName: string;
   guestPhone?: string;
@@ -491,6 +498,7 @@ export type CreateHotelStayInput = {
   guestResidencePlace?: string;
   plannedCheckInAt: string;
   plannedCheckOutAt: string;
+  nightlyRateSnapshot?: number;
   occupants?: Array<{
     fullName: string;
     phone?: string;

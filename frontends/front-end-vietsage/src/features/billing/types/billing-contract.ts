@@ -31,6 +31,15 @@ export type FolioSummary = {
     subtotal: MoneyValue;
     roomNumber?: string | null;
   } | null;
+  roomRateComparison?: {
+    direction: "INCREASE" | "DECREASE" | "UNCHANGED";
+    baseNightlyRate: MoneyValue;
+    appliedNightlyRate: MoneyValue;
+    nightlyDifference: MoneyValue;
+    baseSubtotal: MoneyValue;
+    appliedSubtotal: MoneyValue;
+    totalDifference: MoneyValue;
+  } | null;
 };
 
 export type FolioListItem = FolioSummary & {
@@ -52,8 +61,11 @@ export type FolioListItem = FolioSummary & {
     reservationCode?: string | null;
     guestDisplayName?: string | null;
     checkedInAt?: string | null;
+    checkedOutAt?: string | null;
     plannedCheckInAt?: string | null;
     plannedCheckOutAt?: string | null;
+    baseNightlyRateSnapshot?: MoneyValue | null;
+    nightlyRateSnapshot?: MoneyValue | null;
   } | null;
   estimatedRoomCharge?: {
     nights: number;

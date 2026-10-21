@@ -61,6 +61,11 @@ test("Billing parseFormattedNumber and calculation regression tests", async (t) 
     assert.ok(code.includes('item.itemType === "DISCOUNT"'), "Must distinguish DISCOUNT itemType in table");
     // Must display applied discount row in golden checkout card
     assert.ok(code.includes("Giảm giá đã áp dụng"), "Must display applied discount breakdown row");
+    assert.ok(code.includes("Giá gốc tiền phòng"), "Must display the snapshotted base room charge");
+    assert.ok(
+      code.includes("Tăng so với giá gốc") && code.includes("Giảm so với giá gốc"),
+      "Must label room-rate increase and decrease clearly",
+    );
   });
 
   await t.test("Invoice detail pages display discount with negative indicator", () => {

@@ -851,6 +851,7 @@ describe("ReservationsRepository transactional lifecycle", () => {
       status: ReservationStatus.ARRIVAL_READY,
       plannedCheckInAt: new Date("2026-08-01T07:00:00.000Z"),
       plannedCheckOutAt: new Date("2026-08-03T05:00:00.000Z"),
+      baseNightlyRateSnapshot: new Prisma.Decimal(900000),
       nightlyRateSnapshot: new Prisma.Decimal(1250000),
       hotel: { timezone: "Asia/Ho_Chi_Minh" },
     };
@@ -900,6 +901,7 @@ describe("ReservationsRepository transactional lifecycle", () => {
 
     expect(tx.guestStay.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
+        baseNightlyRateSnapshot: new Prisma.Decimal(900000),
         nightlyRateSnapshot: new Prisma.Decimal(1250000),
       }),
     });

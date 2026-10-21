@@ -453,6 +453,16 @@ export class DirectBookingService {
 
     const checkInAt = parseVietnamDate(hold.checkInDate, "14:00:00");
     const checkOutAt = parseVietnamDate(hold.checkOutDate, "12:00:00");
+    const effectiveAmount = fallbackMeta?.amount ?? amount;
+    const effectiveCurrency = (fallbackMeta?.currency ?? currency ?? "VND").toUpperCase();
+    if (effectiveCurrency !== "VND") {
+      throw new BadRequestException("UNSUPPORTED_BOOKING_CURRENCY");
+    }
+    const nights = Math.max(1, Math.round((checkOutAt.getTime() - checkInAt.getTime()) / 86400000));
+    const nightlyRateSnapshot =
+      effectiveAmount !== undefined
+        ? new Prisma.Decimal(effectiveAmount).div(nights).toDecimalPlaces(2)
+        : null;
 
     const effectivePartySize =
       hold.guestCount ??
@@ -513,6 +523,8 @@ export class DirectBookingService {
           guestPhone: hold.guest?.phone || null,
           plannedCheckInAt: checkInAt,
           plannedCheckOutAt: checkOutAt,
+          baseNightlyRateSnapshot: allocated.price ?? null,
+          nightlyRateSnapshot: nightlyRateSnapshot ?? allocated.price ?? null,
           status: ReservationStatus.ARRIVAL_READY,
           assignedAt: new Date(),
           roomTypeSnapshot: allocated.type || hold.roomTypeId,
