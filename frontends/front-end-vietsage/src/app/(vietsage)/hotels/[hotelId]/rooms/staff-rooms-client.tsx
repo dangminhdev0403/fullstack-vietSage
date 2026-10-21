@@ -639,6 +639,27 @@ export function StaffRoomsClient({
   const [floor, setFloor] = useState("all");
   const [type, setType] = useState("all");
   const [zone, setZone] = useState("all");
+  const [collapsedFloors, setCollapsedFloors] = useState<Set<string>>(new Set());
+
+  const toggleFloorCollapse = (floorTitle: string) => {
+    setCollapsedFloors((prev) => {
+      const next = new Set(prev);
+      if (next.has(floorTitle)) {
+        next.delete(floorTitle);
+      } else {
+        next.add(floorTitle);
+      }
+      return next;
+    });
+  };
+
+  const collapseAllFloors = (allFloorTitles: string[]) => {
+    setCollapsedFloors(new Set(allFloorTitles));
+  };
+
+  const expandAllFloors = () => {
+    setCollapsedFloors(new Set());
+  };
   const [housekeepingViewMode, setHousekeepingViewMode] = useState<
     "tasklist" | "grid"
   >("tasklist");
@@ -3899,6 +3920,13 @@ export function StaffRoomsClient({
     list.push(room);
     roomsByFloorMap.set(flKey, list);
   }
+  for (const [, list] of roomsByFloorMap) {
+    list.sort((a, b) =>
+      getRoomNumber(a).localeCompare(getRoomNumber(b), undefined, {
+        numeric: true,
+      }),
+    );
+  }
   const roomsByFloor = Array.from(roomsByFloorMap.entries()).sort(([a], [b]) =>
     a.localeCompare(b, undefined, { numeric: true }),
   );
@@ -4663,55 +4691,315 @@ export function StaffRoomsClient({
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--primary)] border-t-transparent" />
             </div>
           )}
+
+          {/* Floor Navigation & Bulk Actions Toolbar */}
+          {roomsByFloor.length > 0 && (
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white/90 p-2.5 sm:px-4 shadow-2xs backdrop-blur-xs">
+              {/* Left: Quick Floor Jump Pills */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="flex items-center gap-1.5 text-xs font-black text-slate-700 mr-1 pl-1 whitespace-nowrap">
+                  <VsIcon name="layers" className="text-sm text-sky-600" />
+                  <span>Xem nhanh tầng:</span>
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (floor !== "all") {
+                      setFloor("all");
+                      setPage(1);
+                    }
+                    expandAllFloors();
+                    window.scrollTo({ top: 380, behavior: "smooth" });
+                  }}
+                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    floor === "all"
+                      ? "bg-slate-900 text-white shadow-xs"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900"
+                  }`}
+                  title="Hiển thị tất cả các tầng"
+                >
+                  <span>Tất cả</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-xs font-black ${
+                      floor === "all"
+                        ? "bg-white/20 text-white"
+                        : "bg-slate-200 text-slate-700"
+                    }`}
+                  >
+                    {filteredRooms.length}
+                  </span>
+                </button>
+
+                {roomsByFloor.map(([floorTitle, floorRooms]) => {
+                  const isCollapsed = collapsedFloors.has(floorTitle);
+                  return (
+                    <button
+                      key={floorTitle}
+                      type="button"
+                      onClick={() => {
+                        if (isCollapsed) {
+                          setCollapsedFloors((prev) => {
+                            const next = new Set(prev);
+                            next.delete(floorTitle);
+                            return next;
+                          });
+                        }
+                        const targetId = `floor-group-${encodeURIComponent(floorTitle)}`;
+                        const el = document.getElementById(targetId);
+                        if (el) {
+                          el.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }
+                      }}
+                      className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                        isCollapsed
+                          ? "bg-slate-100 text-slate-500 hover:bg-slate-200 border border-dashed border-slate-300"
+                          : "bg-sky-50 text-sky-800 hover:bg-sky-100 border border-sky-200/80 shadow-2xs"
+                      }`}
+                      title={`Nhảy tới ${floorTitle} (${isCollapsed ? "Đang thu gọn" : "Đang mở rộng"})`}
+                    >
+                      <span>{floorTitle}</span>
+                      <span
+                        className={`rounded-full px-1.5 py-0.2 text-xs font-black ${
+                          isCollapsed
+                            ? "bg-slate-200 text-slate-600"
+                            : "bg-white text-sky-900 border border-sky-200"
+                        }`}
+                      >
+                        {floorRooms.length}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Right: Expand / Collapse All Bulk Actions */}
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  type="button"
+                  onClick={() => collapseAllFloors(roomsByFloor.map(([f]) => f))}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition-all cursor-pointer whitespace-nowrap active:scale-98"
+                  title="Thu gọn danh sách tất cả các tầng"
+                >
+                  <VsIcon name="unfold_less" className="text-sm text-slate-500" />
+                  <span>Thu gọn tất cả</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={expandAllFloors}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition-all cursor-pointer whitespace-nowrap active:scale-98"
+                  title="Mở rộng danh sách tất cả các tầng"
+                >
+                  <VsIcon name="unfold_more" className="text-sm text-slate-500" />
+                  <span>Mở rộng tất cả</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {isHousekeeping && housekeepingViewMode === "tasklist" ? (
             <div className="space-y-6">
               {roomsByFloor.map(([floorTitle, floorRooms]) => {
                 const processingCount = floorRooms.filter(
                   (r) => getEffectiveRoomStatus(r, false) === "processing",
                 ).length;
+                const isCollapsed = collapsedFloors.has(floorTitle);
 
                 return (
-                  <div key={floorTitle} className="space-y-3">
-                    <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <div
+                    key={floorTitle}
+                    id={`floor-group-${encodeURIComponent(floorTitle)}`}
+                    className="space-y-3 scroll-mt-36"
+                  >
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => toggleFloorCollapse(floorTitle)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          toggleFloorCollapse(floorTitle);
+                        }
+                      }}
+                      className="group flex items-center justify-between border-b border-slate-200 pb-2 cursor-pointer select-none"
+                    >
                       <div className="flex items-center gap-2">
                         <span className="flex size-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800">
                           <VsIcon name="layers" className="text-base" />
                         </span>
-                        <h3 className="font-extrabold text-base text-slate-900">
+                        <h3 className="font-extrabold text-base text-slate-900 text-balance">
                           {floorTitle}
                         </h3>
-                        <span className="text-xs text-slate-500 font-semibold">
+                        <span className="text-xs text-slate-500 font-semibold whitespace-nowrap">
                           ({floorRooms.length} phòng)
                         </span>
                       </div>
-                      {processingCount > 0 ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 px-3 py-0.5 text-xs font-black">
+                      <div className="flex items-center gap-2">
+                        {processingCount > 0 ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 px-3 py-0.5 text-xs font-black whitespace-nowrap">
+                            <VsIcon
+                              name="cleaning_services"
+                              className="text-xs"
+                            />
+                            <span>{processingCount} phòng cần dọn</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-emerald-800 text-xs font-bold whitespace-nowrap">
+                            <VsIcon name="check" className="text-sm" />
+                            <span>Đã dọn xong</span>
+                          </span>
+                        )}
+                        <span className="flex size-7 items-center justify-center rounded-lg bg-slate-100 group-hover:bg-slate-200 transition">
                           <VsIcon
-                            name="cleaning_services"
-                            className="text-xs"
+                            name={isCollapsed ? "expand_more" : "expand_less"}
+                            className="text-base text-slate-600"
                           />
-                          <span>{processingCount} phòng cần dọn</span>
                         </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-emerald-800 text-xs font-bold">
-                          <VsIcon name="check" className="text-sm" />
-                          <span>Đã dọn xong</span>
-                        </span>
-                      )}
+                      </div>
                     </div>
 
-                    <div className="space-y-2.5">
-                      {floorRooms.map((room) =>
-                        renderHousekeepingTaskCard(room),
-                      )}
-                    </div>
+                    {!isCollapsed ? (
+                      <div className="space-y-2.5">
+                        {floorRooms.map((room) =>
+                          renderHousekeepingTaskCard(room),
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 );
               })}
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-5">
-              {filteredRooms.map((room) => renderRoomCard(room))}
+            <div className="space-y-6">
+              {roomsByFloor.map(([floorTitle, floorRooms]) => {
+                const isCollapsed = collapsedFloors.has(floorTitle);
+                const availableCount = floorRooms.filter(
+                  (r) => getEffectiveRoomStatus(r, isFutureDate) === "available",
+                ).length;
+                const occupiedCount = floorRooms.filter(
+                  (r) => getEffectiveRoomStatus(r, isFutureDate) === "occupied",
+                ).length;
+                const reservedCount = floorRooms.filter(
+                  (r) => getEffectiveRoomStatus(r, isFutureDate) === "reserved",
+                ).length;
+                const processingCount = floorRooms.filter(
+                  (r) => getEffectiveRoomStatus(r, isFutureDate) === "processing",
+                ).length;
+                const overdueCount = floorRooms.filter(
+                  (r) => getEffectiveRoomStatus(r, isFutureDate) === "overdue",
+                ).length;
+                const maintenanceCount = floorRooms.filter((r) => {
+                  const s = getEffectiveRoomStatus(r, isFutureDate);
+                  return s === "maintenance" || s === "blocked";
+                }).length;
+
+                return (
+                  <div
+                    key={floorTitle}
+                    id={`floor-group-${encodeURIComponent(floorTitle)}`}
+                    className="scroll-mt-36 rounded-2xl border border-slate-200/90 bg-white/70 p-3 sm:p-4.5 shadow-2xs transition-all"
+                  >
+                    {/* Floor Header Bar (Clickable Accordion) */}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => toggleFloorCollapse(floorTitle)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          toggleFloorCollapse(floorTitle);
+                        }
+                      }}
+                      className="group flex flex-wrap items-center justify-between gap-3 pb-2.5 cursor-pointer select-none border-b border-slate-100 hover:border-slate-300 transition-colors"
+                      title={
+                        isCollapsed
+                          ? "Bấm để mở rộng danh sách phòng tầng này"
+                          : "Bấm để thu gọn danh sách phòng tầng này"
+                      }
+                    >
+                      {/* Left: Floor Badge & Title & Status Counts */}
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="flex size-7 items-center justify-center rounded-lg bg-sky-100 text-sky-800 group-hover:bg-sky-200 transition">
+                            <VsIcon name="layers" className="text-base" />
+                          </span>
+                          <h3 className="font-black text-sm sm:text-base text-slate-900 tracking-tight text-balance">
+                            {floorTitle}
+                          </h3>
+                          <span className="text-xs text-slate-500 font-bold whitespace-nowrap">
+                            ({floorRooms.length} phòng)
+                          </span>
+                        </div>
+
+                        {/* Status Breakdown Pills */}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {availableCount > 0 && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+                              <span className="size-1.5 rounded-full bg-emerald-500" />
+                              {availableCount} sẵn sàng
+                            </span>
+                          )}
+                          {occupiedCount > 0 && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200/80 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+                              <span className="size-1.5 rounded-full bg-blue-500" />
+                              {occupiedCount} đang ở
+                            </span>
+                          )}
+                          {reservedCount > 0 && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 text-purple-800 border border-purple-200/80 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+                              <span className="size-1.5 rounded-full bg-purple-500" />
+                              {reservedCount} đặt trước
+                            </span>
+                          )}
+                          {processingCount > 0 && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-900 border border-amber-200/80 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+                              <span className="size-1.5 rounded-full bg-amber-500" />
+                              {processingCount} chờ dọn
+                            </span>
+                          )}
+                          {overdueCount > 0 && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 text-rose-900 border border-rose-200/80 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+                              <span className="size-1.5 rounded-full bg-rose-500 animate-pulse" />
+                              {overdueCount} quá hạn
+                            </span>
+                          )}
+                          {maintenanceCount > 0 && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+                              <span className="size-1.5 rounded-full bg-slate-400" />
+                              {maintenanceCount} khóa/bảo trì
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Right: Accordion Toggle Action */}
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600 group-hover:text-slate-900 transition">
+                        <span className="hidden sm:inline whitespace-nowrap">
+                          {isCollapsed ? "Mở rộng" : "Thu gọn"}
+                        </span>
+                        <span className="flex size-7 items-center justify-center rounded-lg bg-slate-100 group-hover:bg-slate-200 transition">
+                          <VsIcon
+                            name={isCollapsed ? "expand_more" : "expand_less"}
+                            className="text-base text-slate-600 group-hover:text-slate-900"
+                          />
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Room Grid for this floor */}
+                    {!isCollapsed ? (
+                      <div className="mt-3.5 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-5">
+                        {floorRooms.map((room) => renderRoomCard(room))}
+                      </div>
+                    ) : (
+                      <div className="mt-2 py-2 px-3 text-center text-xs font-medium text-slate-500 italic bg-slate-50/60 rounded-xl border border-dashed border-slate-200">
+                        Đang thu gọn {floorRooms.length} phòng của {floorTitle}. Nhấn vào thanh tiêu đề để mở rộng.
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
