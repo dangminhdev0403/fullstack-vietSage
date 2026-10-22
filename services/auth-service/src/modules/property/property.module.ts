@@ -6,6 +6,8 @@ import { PrismaModule } from "../../prisma/prisma.module";
 import { HotelAccessService } from "./application/hotel-access.service";
 import { HotelDashboardController } from "./api/hotel-dashboard.controller";
 import { HotelDashboardService } from "./application/hotel-dashboard.service";
+import { HotelReportsController } from "./api/hotel-reports.controller";
+import { HotelReportsService } from "./application/hotel-reports.service";
 import { HotelRoomsController } from "./api/hotel-rooms.controller";
 import { HotelRoomsService } from "./application/hotel-rooms.service";
 import { HotelServicesController } from "./api/hotel-services.controller";
@@ -35,6 +37,7 @@ import { ReservationRoomAllocationService } from "./application/reservation-room
     HotelRoomsController,
     HotelServicesController,
     HotelDashboardController,
+    HotelReportsController,
     ReservationsController,
     HotelStaffAssignmentsController,
   ],
@@ -43,6 +46,7 @@ import { ReservationRoomAllocationService } from "./application/reservation-room
     HotelRoomsService,
     HotelServicesService,
     HotelDashboardService,
+    HotelReportsService,
     HotelAccessService,
     HotelCoreRepository,
     HotelRoomsRepository,

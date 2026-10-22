@@ -1,6 +1,7 @@
 import { unwrapApiEnvelope } from "@/core/http/api-envelope";
 import { parseServiceCatalogSyncResponse } from "@/features/hotel-ops/service/service-catalog-sync-response";
 import { HttpClient, type HttpQuery } from "@/core/http/http-client";
+import type { GetHotelReportsQuery, HotelReportsData } from "@/features/hotel-reports/types/hotel-reports-contract";
 import type {
   BulkReservationInput,
   BulkReservationResult,
@@ -87,6 +88,21 @@ export class HotelOpsService {
     });
 
     return unwrapApiEnvelope<HotelDashboard>(payload).data;
+  }
+
+  async getReports(
+    hotelId: string,
+    options: { query?: GetHotelReportsQuery } & AuthRequestOptions = {},
+  ): Promise<HotelReportsData> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, "/reports"),
+      query: options.query as HttpQuery,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+
+    return unwrapApiEnvelope<HotelReportsData>(payload).data;
   }
 
   async listRooms(

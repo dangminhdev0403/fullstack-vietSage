@@ -243,6 +243,16 @@ Read:
 - Do not create architecture/rules/plans docs outside the canonical docs folders.
 - Do not modify any `package.json` unless explicitly approved by the user.
 - Do not add dependencies unless explicitly approved by the user.
+- **Root Execution Standard (Zero-CD Policy for Agents & Developers)**:
+  - **CẤM TUYỆT ĐỐI**: Chạy lệnh `cd` để nhảy vào thư mục con rồi mới gọi lệnh (`cd frontends/... && pnpm dev`).
+  - **BẮT BUỘC thực thi ngay tại root workspace**:
+    - Chạy Frontend Dev: `pnpm dev:front` (hoặc `pnpm -C frontends/front-end-vietsage dev`)
+    - Chạy Backend Dev (NestJS): `pnpm dev:api` (hoặc `pnpm -C services/auth-service start:dev`)
+    - Build Frontend / API: `pnpm build:front` / `pnpm build:api`
+    - Lint Frontend / API: `pnpm lint:front` / `pnpm lint:api`
+    - Smoke Test Frontend: `pnpm smoke:front`
+    - Database Docker: `pnpm db:up` / `pnpm db:down`
+    - Prisma ORM: `pnpm prisma:generate` / `pnpm prisma:studio`
 - **Frontend Dropdown Rule**: Forms selecting entities (hotels, rooms, users) MUST render a `<select>` dropdown with human-readable names and codes. Never ask users to manually type raw UUID strings.
 - **Frontend Navigation Compatibility**: When adding workspace navigation definitions in `workspace-registry.ts`, include active session fallback capabilities so active JWT sessions display navigation immediately without needing re-login.
 - **SweetAlert2 Standard**: Use `SwalVietSage` (`src/libs/swal.ts`) for all confirm dialogs and alert notifications. Confirm dialogs must use `reverseButtons: false` (Confirm left, Cancel right). Success alerts must show the OK button (`showConfirmButton: true`, `confirmButtonText: "OK"`). Error alerts must extract human-readable error details from backend response payloads, suppressing raw status codes.

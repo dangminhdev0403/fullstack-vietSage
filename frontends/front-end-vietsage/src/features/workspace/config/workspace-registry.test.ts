@@ -174,6 +174,11 @@ test("builds owner sidebar with operational modules and hotel settings", () => {
         label: "Tài chính & đối soát",
       },
       {
+        key: "owner.hotel.reports",
+        href: "/owner/hotels/hotel-1/reports",
+        label: "Báo cáo & Phân tích",
+      },
+      {
         key: "staff.rooms",
         href: "/hotels/hotel-1/rooms",
         label: "Sơ đồ phòng & Check In",
@@ -260,6 +265,7 @@ test("builds full-featured owner sidebar including all front-desk operations and
   // Owner management, channel manager & centralized hotel settings
   assert.ok(keys.includes("owner.home"));
   assert.ok(keys.includes("owner.hotel.billing"));
+  assert.ok(keys.includes("owner.hotel.reports"));
   assert.ok(!keys.includes("owner.hotel.rooms"));
   assert.ok(keys.includes("owner.hotel.channel-manager"));
   assert.ok(!keys.includes("owner.hotel.staff"));

@@ -28,6 +28,16 @@ Before writing any code, agents MUST reuse the project's standard architectural 
     - Cấm chạy `graphify update` cho các sửa đổi UI/CSS/copy nhỏ.
     - Cấm chạy migrations/seed/db scripts cho frontend tasks.
     - Cấm format diện rộng toàn bộ dự án (`prettier --write .`).
+- **Root Execution Standard (Zero-CD Policy for Agents & Developers)**:
+  - **CẤM TUYỆT ĐỐI**: Chạy lệnh `cd` để nhảy vào thư mục con rồi mới gọi lệnh (`cd frontends/... && pnpm dev`).
+  - **BẮT BUỘC thực thi ngay tại root workspace**:
+    - Chạy Frontend Dev: `pnpm dev:front` (hoặc `pnpm -C frontends/front-end-vietsage dev`)
+    - Chạy Backend Dev (NestJS): `pnpm dev:api` (hoặc `pnpm -C services/auth-service start:dev`)
+    - Build Frontend / API: `pnpm build:front` / `pnpm build:api`
+    - Lint Frontend / API: `pnpm lint:front` / `pnpm lint:api`
+    - Smoke Test Frontend: `pnpm smoke:front`
+    - Database Docker: `pnpm db:up` / `pnpm db:down`
+    - Prisma ORM: `pnpm prisma:generate` / `pnpm prisma:studio`
 - **Nguyên tắc cốt lõi: Bảo gì làm nấy - Không làm lan man (Strict Prompt Fidelity & Zero Scope Drift)**:
   - **Chỉ làm đúng việc được giao**: User bảo kiểm tra -> CHỈ kiểm tra; bảo thêm data -> CHỈ thêm data; bảo sửa file A -> CHỈ sửa file A; bảo chạy lệnh X -> CHỈ chạy lệnh X. Cấm tự ý suy diễn, cấm "nghĩ hộ", cấm "tiện tay làm thêm".
   - **Hoàn thành là dừng ngay**: Xong việc được giao lập tức dừng gọi tool và báo cáo, cấm chạy thêm lệnh kiểm tra ngoài lề hoặc tìm kiếm loanh quanh.

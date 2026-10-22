@@ -368,6 +368,10 @@ export class ReservationRoomAllocationService {
       targetName = input.roomType.name;
     }
 
+    if (targetId && !targetName) {
+      targetName = targetId;
+    }
+
     return { targetId, targetName };
   }
 
@@ -408,11 +412,12 @@ export class ReservationRoomAllocationService {
     const orConditions: Prisma.RoomTypeWhereInput[] = [];
     if (criteria.targetId) {
       orConditions.push({ id: criteria.targetId });
+      orConditions.push({ name: criteria.targetId });
+      orConditions.push({ normalizedKey: this.normalizeKey(criteria.targetId) });
     }
-    if (criteria.targetName) {
+    if (criteria.targetName && criteria.targetName !== criteria.targetId) {
       orConditions.push({ name: criteria.targetName });
-      const normalizedKey = this.normalizeKey(criteria.targetName);
-      orConditions.push({ normalizedKey });
+      orConditions.push({ normalizedKey: this.normalizeKey(criteria.targetName) });
     }
     if (orConditions.length === 0) return null;
 
@@ -451,11 +456,23 @@ export class ReservationRoomAllocationService {
 
     // Room has a known canonical relation
     if (roomCanonicalId) {
-      if (targetId) {
-        return roomCanonicalId === targetId;
+      if (targetId && roomCanonicalId === targetId) {
+        return true;
       }
-      if (targetNorm && roomTypeNorm) {
-        return roomTypeNorm === targetNorm;
+      if (resolvedRoomType && roomCanonicalId === resolvedRoomType.id) {
+        return true;
+      }
+      if (targetNorm && roomTypeNorm && roomTypeNorm === targetNorm) {
+        return true;
+      }
+      if (targetName && (roomLegacyType === targetName || room.roomType?.name === targetName)) {
+        return true;
+      }
+      if (
+        criteria.targetId &&
+        (roomLegacyType === criteria.targetId || roomTypeNorm === this.normalizeKey(criteria.targetId))
+      ) {
+        return true;
       }
       return false;
     }

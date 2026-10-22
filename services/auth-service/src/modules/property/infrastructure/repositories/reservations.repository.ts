@@ -73,21 +73,30 @@ export class ReservationsRepository {
       const allocatedRoomRates = new Map<string, Prisma.Decimal | number | string | null>();
       if (input.allocations && input.allocations.length > 0) {
         if (!input.roomAllocationService) {
-          throw new BadRequestException("Dá»‹ch vá»¥ tá»± Ä‘á»™ng phÃ¢n bá»• phÃ²ng khÃ´ng kháº£ dá»¥ng");
+          throw new BadRequestException("Dịch vụ tự động phân bổ phòng không khả dụng");
         }
         for (const alloc of input.allocations) {
           const allocRate = alloc.rate !== undefined ? alloc.rate : alloc.nightlyRateSnapshot;
           for (let i = 0; i < alloc.quantity; i++) {
-            const allocated = await input.roomAllocationService.allocateRoom(tx, {
-              hotelId: input.hotelId,
-              roomTypeId: alloc.roomTypeId,
-              interval: { checkInAt: input.checkInDate, checkOutAt: input.checkOutDate },
-              excludedRoomIds: resolvedRoomIds,
-              mode: "auto",
-            });
-            resolvedRoomIds.push(allocated.roomId);
-            if (allocRate !== undefined) {
-              allocatedRoomRates.set(allocated.roomId, allocRate);
+            try {
+              const allocated = await input.roomAllocationService.allocateRoom(tx, {
+                hotelId: input.hotelId,
+                roomTypeId: alloc.roomTypeId,
+                interval: { checkInAt: input.checkInDate, checkOutAt: input.checkOutDate },
+                excludedRoomIds: resolvedRoomIds,
+                mode: "auto",
+              });
+              resolvedRoomIds.push(allocated.roomId);
+              if (allocRate !== undefined) {
+                allocatedRoomRates.set(allocated.roomId, allocRate);
+              }
+            } catch (err) {
+              if (err instanceof ConflictException && err.message === "NO_AVAILABLE_ROOM") {
+                throw new ConflictException(
+                  `Không đủ phòng trống thuộc loại đã chọn trong khoảng thời gian này (đã gán ${i}/${alloc.quantity} phòng). Vui lòng giảm số lượng hoặc chọn ngày khác.`,
+                );
+              }
+              throw err;
             }
           }
         }
@@ -95,7 +104,7 @@ export class ReservationsRepository {
 
       const uniqueRoomIds = Array.from(new Set(resolvedRoomIds));
       if (uniqueRoomIds.length < 1 || uniqueRoomIds.length > 50) {
-        throw new BadRequestException("Sá»‘ lÆ°á»£ng phÃ²ng Ä‘áº·t pháº£i tá»« 1 Ä‘áº¿n 50 phÃ²ng");
+        throw new BadRequestException("Số lượng phòng đặt phải từ 1 đến 50 phòng");
       }
 
       // Sorted locking to eliminate deadlock risks across concurrent transactions
@@ -998,10 +1007,10 @@ export class ReservationsRepository {
         where: { id: input.reservationId, hotelId: input.hotelId },
       });
       if (!reservation) {
-        throw new NotFoundException("KhÃ´ng tÃ¬m tháº¥y Ä‘áº·t phÃ²ng");
+        throw new NotFoundException("Không tìm thấy đặt phòng");
       }
       if (reservation.status === ReservationStatus.CHECKED_IN) {
-        throw new ConflictException("KhÃ´ng thá»ƒ há»§y Ä‘áº·t phÃ²ng Ä‘Ã£ check-in");
+        throw new ConflictException("Không thể hủy đặt phòng đã check-in");
       }
       if (
         reservation.status === ReservationStatus.CANCELLED ||
@@ -1013,7 +1022,7 @@ export class ReservationsRepository {
         reservation.status !== ReservationStatus.CONFIRMED &&
         reservation.status !== ReservationStatus.ARRIVAL_READY
       ) {
-        throw new ConflictException("Tráº¡ng thÃ¡i Ä‘áº·t phÃ²ng khÃ´ng há»£p lá»‡ Ä‘á»ƒ há»§y");
+        throw new ConflictException("Trạng thái đặt phòng không hợp lệ để hủy");
       }
 
       const now = new Date();
@@ -1083,10 +1092,10 @@ export class ReservationsRepository {
         where: { id: input.reservationId, hotelId: input.hotelId },
       });
       if (!reservation) {
-        throw new NotFoundException("KhÃ´ng tÃ¬m tháº¥y Ä‘áº·t phÃ²ng");
+        throw new NotFoundException("Không tìm thấy đặt phòng");
       }
       if (reservation.status === ReservationStatus.CHECKED_IN) {
-        throw new ConflictException("KhÃ´ng thá»ƒ bÃ¡o váº¯ng máº·t Ä‘áº·t phÃ²ng Ä‘Ã£ check-in");
+        throw new ConflictException("Không thể báo vắng mặt đặt phòng đã check-in");
       }
       if (
         reservation.status === ReservationStatus.CANCELLED ||
@@ -1098,7 +1107,7 @@ export class ReservationsRepository {
         reservation.status !== ReservationStatus.CONFIRMED &&
         reservation.status !== ReservationStatus.ARRIVAL_READY
       ) {
-        throw new ConflictException("Tráº¡ng thÃ¡i Ä‘áº·t phÃ²ng khÃ´ng há»£p lá»‡ Ä‘á»ƒ bÃ¡o váº¯ng máº·t");
+        throw new ConflictException("Trạng thái đặt phòng không hợp lệ để báo vắng mặt");
       }
 
       const now = new Date();
@@ -1518,7 +1527,7 @@ export class ReservationsRepository {
         include: { room: true },
       });
       if (!sourceRes) {
-        throw new NotFoundException("KhÃ´ng tÃ¬m tháº¥y Ä‘áº·t phÃ²ng");
+        throw new NotFoundException("Không tìm thấy đặt phòng");
       }
 
       if (sourceRes.updatedAt.toISOString() !== input.expectedUpdatedAt) {
@@ -1526,7 +1535,7 @@ export class ReservationsRepository {
       }
 
       if (!ACTIVE_RESERVATION_STATUSES.includes(sourceRes.status)) {
-        throw new ConflictException("Chá»‰ cÃ³ thá»ƒ chuyá»ƒn Ä‘áº·t phÃ²ng chÆ°a nháº­n phÃ²ng");
+        throw new ConflictException("Chỉ có thể chuyển đặt phòng chưa nhận phòng");
       }
 
       if (!sourceRes.roomId) {
@@ -1542,7 +1551,7 @@ export class ReservationsRepository {
         select: { id: true },
       });
       if (sourceStay) {
-        throw new ConflictException("KhÃ´ng thá»ƒ chuyá»ƒn Ä‘áº·t phÃ²ng Ä‘Ã£ cÃ³ lÆ°á»£t lÆ°u trÃº Ä‘ang hoáº¡t Ä‘á»™ng");
+        throw new ConflictException("Không thể chuyển đặt phòng đã có lượt lưu trú đang hoạt động");
       }
 
       let swapRes: any = null;
@@ -1552,7 +1561,7 @@ export class ReservationsRepository {
           include: { room: true },
         });
         if (!swapRes) {
-          throw new NotFoundException("KhÃ´ng tÃ¬m tháº¥y Ä‘áº·t phÃ²ng Ä‘á»‘i á»©ng");
+          throw new NotFoundException("Không tìm thấy đặt phòng đối ứng");
         }
         if (
           input.swapExpectedUpdatedAt &&
@@ -1561,7 +1570,7 @@ export class ReservationsRepository {
           throw new ConflictException("Dá»¯ liá»‡u Ä‘áº·t phÃ²ng Ä‘á»‘i á»©ng Ä‘Ã£ thay Ä‘á»•i, vui lÃ²ng lÃ m má»›i");
         }
         if (!ACTIVE_RESERVATION_STATUSES.includes(swapRes.status)) {
-          throw new ConflictException("Chá»‰ cÃ³ thá»ƒ trÃ¡o Ä‘á»•i Ä‘áº·t phÃ²ng chÆ°a nháº­n phÃ²ng");
+          throw new ConflictException("Chỉ có thể tráo đổi đặt phòng chưa nhận phòng");
         }
         if (!swapRes.roomId) {
           throw new BadRequestException("Äáº·t phÃ²ng Ä‘á»‘i á»©ng chÆ°a cÃ³ phÃ²ng Ä‘Æ°á»£c gÃ¡n");
@@ -1575,7 +1584,7 @@ export class ReservationsRepository {
           select: { id: true },
         });
         if (swapStay) {
-          throw new ConflictException("KhÃ´ng thá»ƒ trÃ¡o Ä‘áº·t phÃ²ng Ä‘Ã£ cÃ³ lÆ°á»£t lÆ°u trÃº Ä‘ang hoáº¡t Ä‘á»™ng");
+          throw new ConflictException("Không thể tráo đặt phòng đã có lượt lưu trú đang hoạt động");
         }
       }
 
@@ -1600,11 +1609,11 @@ export class ReservationsRepository {
       ]);
 
       if (!sourceRoom || !targetRoom) {
-        throw new NotFoundException("KhÃ´ng tÃ¬m tháº¥y phÃ²ng tÆ°Æ¡ng á»©ng");
+        throw new NotFoundException("Không tìm thấy phòng tương ứng");
       }
 
       if (NON_SELLABLE_ROOM_STATUSES.includes(targetRoom.status)) {
-        throw new ConflictException("PhÃ²ng Ä‘Ã­ch Ä‘ang á»Ÿ tráº¡ng thÃ¡i khÃ´ng thá»ƒ sá»­ dá»¥ng");
+        throw new ConflictException("Phòng đích đang ở trạng thái không thể sử dụng");
       }
 
       const sameType =
@@ -1614,7 +1623,7 @@ export class ReservationsRepository {
         (sourceRoom.type && targetRoom.type && sourceRoom.type === targetRoom.type);
 
       if (!sameType) {
-        throw new ConflictException("Chá»‰ Ä‘Æ°á»£c chuyá»ƒn hoáº·c trÃ¡o giá»¯a cÃ¡c phÃ²ng cÃ¹ng loáº¡i");
+        throw new ConflictException("Chỉ được chuyển hoặc tráo giữa các phòng cùng loại");
       }
 
       const now = new Date();
@@ -1724,7 +1733,7 @@ export class ReservationsRepository {
           select: { id: true },
         });
         if (sourceResOverlap) {
-          throw new ConflictException("Xung Ä‘á»™t lá»‹ch Ä‘áº·t phÃ²ng táº¡i phÃ²ng nguá»“n khi trÃ¡o Ä‘á»•i");
+          throw new ConflictException("Xung đột lịch đặt phòng tại phòng nguồn khi tráo đổi");
         }
 
         const targetResOverlap = await tx.reservation.findFirst({
@@ -1739,7 +1748,7 @@ export class ReservationsRepository {
           select: { id: true },
         });
         if (targetResOverlap) {
-          throw new ConflictException("Xung Ä‘á»™t lá»‹ch Ä‘áº·t phÃ²ng táº¡i phÃ²ng Ä‘Ã­ch khi trÃ¡o Ä‘á»•i");
+          throw new ConflictException("Xung đột lịch đặt phòng tại phòng đích khi tráo đổi");
         }
 
         const [updatedSource, updatedSwap] = await Promise.all([
@@ -1924,6 +1933,16 @@ export class ReservationsRepository {
   }
 
   private isRetryableConcurrencyError(error: unknown): boolean {
+    if (error instanceof ConflictException) {
+      const response = error.getResponse();
+      const message = typeof response === "string" ? response : (response as any)?.message;
+      if (message === "RESERVATION_ROOM_ASSIGNMENT_CONCURRENCY_CONFLICT") {
+        return true;
+      }
+    }
+    const err = error as any;
+    if (err?.code === "40001" || err?.code === "40P01") return true;
+
     if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false;
     if (error.code === "P2034") return true;
     if (error.code !== "P2002") return false;

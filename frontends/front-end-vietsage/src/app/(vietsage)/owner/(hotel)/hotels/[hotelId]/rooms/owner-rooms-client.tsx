@@ -44,7 +44,6 @@ import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/inval
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import { RoomDetailDrawer } from "@/features/hotel-ops/components/room-detail-drawer";
 import { RoomTypesCatalogModal } from "@/features/hotel-ops/components/room-types-catalog-modal";
-import { TapeChartView } from "@/features/hotel-ops/components/tape-chart/tape-chart-view";
 
 type Props = {
   hotelId: string;
@@ -58,7 +57,6 @@ type RoomSortKey =
   | "type"
   | "floor"
   | "price"
-  | "maxActiveGuestDevices"
   | "qr";
 
 type RoomFormState = {
@@ -196,20 +194,11 @@ function roomSearchText(room: HotelRoomSummary): string {
     room.floor,
     room.type,
     room.status,
-    room.maxActiveGuestDevices,
     getQrStatus(room),
   ]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
-}
-
-function getResolvedMaxActiveGuestDevices(room: HotelRoomSummary): number {
-  return room.maxActiveGuestDevices ?? 3;
-}
-
-function getActiveGuestDeviceCount(room: HotelRoomSummary): number {
-  return room.activeGuestDeviceCount ?? 0;
 }
 
 function getQrMeta(room: HotelRoomSummary) {
@@ -320,10 +309,6 @@ function compareRooms(
 
   if (key === "price") {
     result = (getRoomPrice(left) ?? 0) - (getRoomPrice(right) ?? 0);
-  } else if (key === "maxActiveGuestDevices") {
-    result =
-      getResolvedMaxActiveGuestDevices(left) -
-      getResolvedMaxActiveGuestDevices(right);
   } else if (key === "qr") {
     result = getQrStatus(left).localeCompare(getQrStatus(right), "vi", {
       sensitivity: "base",
@@ -385,39 +370,52 @@ export function OwnerRoomsClient({
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const qrCodeRef = useRef<SVGSVGElement | null>(null);
-  const rawTab = (searchParams?.get("tab") || "").toLowerCase();
-  const initialActiveTab: "rooms" | "room-plan" =
-    rawTab === "room-plan" || rawTab === "plan" ? "room-plan" : "rooms";
-
-  const [activeSurfaceTab, setActiveSurfaceTab] = useState<"rooms" | "room-plan">(initialActiveTab);
 
   useEffect(() => {
-    const tabParam = searchParams?.get("tab");
-    if (tabParam === "room-plan" || tabParam === "plan") {
-      setActiveSurfaceTab("room-plan");
-    } else if (tabParam === "rooms") {
-      setActiveSurfaceTab("rooms");
-    }
-  }, [searchParams]);
-
-  const handleTabChange = (tab: "rooms" | "room-plan") => {
-    setActiveSurfaceTab(tab);
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
-      if (tab === "room-plan") {
-        url.searchParams.set("tab", "room-plan");
-      } else {
-        url.searchParams.delete("tab");
+      let changed = false;
+      if (url.searchParams.has("startDate")) {
+        url.searchParams.delete("startDate");
+        changed = true;
       }
-      window.history.replaceState(null, "", url.toString());
+      if (url.searchParams.has("viewMode")) {
+        url.searchParams.delete("viewMode");
+        changed = true;
+      }
+      if (changed) {
+        window.history.replaceState(null, "", url.toString());
+      }
     }
-  };
+  }, []);
+
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [query, setQuery] = useState("");
   const [floorFilter, setFloorFilter] = useState("");
   const [qrStatusFilter, setQrStatusFilter] = useState("");
   const [roomStatusFilter, setRoomStatusFilter] = useState("");
   const [roomTypeFilter, setRoomTypeFilter] = useState("");
+  const [expandedFloors, setExpandedFloors] = useState<Set<string>>(new Set());
+
+  const toggleFloorCollapse = (floorTitle: string) => {
+    setExpandedFloors((prev) => {
+      const next = new Set(prev);
+      if (next.has(floorTitle)) {
+        next.delete(floorTitle);
+      } else {
+        next.add(floorTitle);
+      }
+      return next;
+    });
+  };
+
+  const collapseAllFloors = () => {
+    setExpandedFloors(new Set());
+  };
+
+  const expandAllFloors = (allFloorTitles?: string[]) => {
+    setExpandedFloors(new Set(allFloorTitles ?? roomsByFloor.map(([f]) => f)));
+  };
   const [roomForm, setRoomForm] = useState<RoomFormState | null>(null);
   const [sortKey, setSortKey] = useState<RoomSortKey>("roomNumber");
   const [sortDirection, setSortDirection] =
@@ -468,8 +466,9 @@ export function OwnerRoomsClient({
           floors: initialFloors,
         }
       : undefined,
-    refetchInterval: 10_000,
+    refetchInterval: false,
     refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
   });
   const roomTypesScope = ownerRoomTypesResource.bind({ hotelId });
   const { data: roomTypeData, refetch: refetchRoomTypes, isLoading: roomTypesLoading, isError: roomTypesError } =
@@ -479,17 +478,11 @@ export function OwnerRoomsClient({
   const catalog = roomTypeData?.items ?? [];
   const selectedRoomType = catalog.find((item) => item.id === roomForm?.roomTypeId);
 
-  // Realtime updates for channel bookings and hotel events
+  // Realtime updates for room status events
   useOwnerRequestRealtime(
     hotelId,
     useMemo(
       () => ({
-        onChannelBookingCreated: () => {
-          void refetchRooms();
-        },
-        onChannelBookingCancelled: () => {
-          void refetchRooms();
-        },
         onRoomStatusUpdated: () => {
           void refetchRooms();
         },
@@ -601,7 +594,9 @@ export function OwnerRoomsClient({
       }
       map.get(floorKey)!.push(room);
     }
-    return Array.from(map.entries());
+    return Array.from(map.entries()).sort(([a], [b]) =>
+      a.localeCompare(b, undefined, { numeric: true }),
+    );
   }, [sortedRooms]);
 
   const stats = useMemo(() => {
@@ -979,7 +974,7 @@ export function OwnerRoomsClient({
     const confirmed = await showConfirmDialog({
       icon: "question",
       title: `Xuất ${qrRooms.length} mã QR?`,
-      text: "Hệ thống sẽ chuyển sang trang in/lưu PDF gồm toàn bộ QR hiện có.",
+      text: "Hệ thống sẽ mở trang in/lưu PDF gồm toàn bộ QR hiện có trên tab mới.",
       confirmText: "Xuất QR",
       cancelText: "Hủy",
     });
@@ -988,7 +983,9 @@ export function OwnerRoomsClient({
       return;
     }
 
-    router.push(`/owner/hotels/${hotelId}/rooms/qr-export`);
+    if (typeof window !== "undefined") {
+      window.open(`/owner/hotels/${encodeURIComponent(hotelId)}/rooms/qr-export`, "_blank");
+    }
   }
   async function rotateAllQrCodes() {
     const qrRooms = getRoomsWithQr();
@@ -1175,19 +1172,10 @@ export function OwnerRoomsClient({
     {
       key: "price",
       sortable: true,
-      header: "Gi\u00e1 ph\u00f2ng",
+      header: "Giá phòng",
       className: "px-6 py-5 font-semibold text-[var(--on-surface)]",
       headerClassName: "px-6 py-5",
       cell: (room) => formatVnd(room.price),
-    },
-    {
-      key: "maxActiveGuestDevices",
-      sortable: true,
-      header: "Thiết bị",
-      className: "whitespace-nowrap px-4 py-5 text-[var(--on-surface)]",
-      headerClassName: "px-4 py-5",
-      cell: (room) =>
-        `${getActiveGuestDeviceCount(room)} / ${getResolvedMaxActiveGuestDevices(room)}`,
     },
     {
       key: "status",
@@ -1431,15 +1419,6 @@ export function OwnerRoomsClient({
           <VsIcon name="table_rows" className="text-base" />
           <span>Bảng chi tiết</span>
         </button>
-        <button
-          type="button"
-          onClick={() => handleTabChange("room-plan")}
-          className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer border border-purple-200 bg-purple-50 text-purple-900 hover:bg-purple-100 hover:border-purple-300"
-          title="Xem dạng Bảng kế hoạch phòng trực quan theo trục thời gian (Tape Chart)"
-        >
-          <VsIcon name="calendar_view_week" className="text-base text-purple-700" />
-          <span>Kế hoạch phòng</span>
-        </button>
       </div>
     </div>
   );
@@ -1462,7 +1441,7 @@ export function OwnerRoomsClient({
               Quản lý phòng &amp; QR
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--on-surface-variant)] text-pretty">
-              Cấu hình thông tin phòng, giá niêm yết, mã QR GuestOS và theo dõi bảng kế hoạch phòng theo trục thời gian trực quan.
+              Cấu hình thông tin phòng, giá niêm yết, trạng thái phòng và mã QR GuestOS.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -1516,10 +1495,10 @@ export function OwnerRoomsClient({
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--outline-variant)] pb-4">
           <div>
             <h2 className="text-lg font-bold text-[var(--primary)] text-balance">
-              Cấu hình phòng &amp; Bảng kế hoạch
+              Cấu hình phòng &amp; Mã QR
             </h2>
             <p className="text-xs text-[var(--on-surface-variant)] text-pretty">
-              Quản lý danh mục phòng vật lý, mã QR và xem kế hoạch xếp phòng trực quan.
+              Quản lý danh mục phòng vật lý, giá niêm yết, trạng thái phòng và mã QR GuestOS.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -1544,61 +1523,7 @@ export function OwnerRoomsClient({
         </div>
       )}
 
-      <nav
-        role="tablist"
-        aria-label="Chế độ quản lý phòng"
-        className="flex gap-2 border-b border-[#e5ddcd] pb-px"
-      >
-        <button
-          type="button"
-          role="tab"
-          id="tab-rooms"
-          aria-controls="panel-rooms"
-          aria-selected={activeSurfaceTab === "rooms"}
-          onClick={() => handleTabChange("rooms")}
-          className={`min-h-11 flex items-center gap-2 rounded-t-xl border-b-2 px-4 py-2.5 text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
-            activeSurfaceTab === "rooms"
-              ? "border-[#735c00] bg-white text-[#735c00] shadow-2xs font-black"
-              : "border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-          }`}
-        >
-          <VsIcon name="meeting_room" className="text-base" />
-          <span>Danh mục phòng &amp; QR</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="tab-room-plan"
-          aria-controls="panel-room-plan"
-          aria-selected={activeSurfaceTab === "room-plan"}
-          onClick={() => handleTabChange("room-plan")}
-          className={`min-h-11 flex items-center gap-2 rounded-t-xl border-b-2 px-4 py-2.5 text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
-            activeSurfaceTab === "room-plan"
-              ? "border-[#735c00] bg-white text-[#735c00] shadow-2xs font-black"
-              : "border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-          }`}
-        >
-          <VsIcon name="calendar_view_week" className="text-base" />
-          <span>Bảng kế hoạch phòng</span>
-        </button>
-      </nav>
-
-      {activeSurfaceTab === "room-plan" ? (
-        <div id="panel-room-plan" role="tabpanel" aria-labelledby="tab-room-plan">
-          <TapeChartView
-            hotelId={hotelId}
-            rooms={rooms}
-            readOnly={true}
-            roleScope="tenant"
-            onRefresh={() => {
-              void refetchRooms();
-            }}
-          />
-        </div>
-      ) : null}
-
-      {activeSurfaceTab === "rooms" && (
-        <div id="panel-rooms" role="tabpanel" aria-labelledby="tab-rooms" className="space-y-8">
+      <div className="space-y-8">
 
       <section className="space-y-5">
         {surfaceMode === "operations" && (
@@ -1699,31 +1624,220 @@ export function OwnerRoomsClient({
                 </p>
               </div>
             ) : (
-              roomsByFloor.map(([floorName, floorRooms]) => (
-                <div key={floorName} className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-[var(--outline-variant)]/60 pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className="grid h-8 w-8 place-items-center rounded-xl bg-[var(--surface-container-high)] text-[var(--primary)] font-bold text-sm">
-                        <VsIcon name="layers" className="text-base" />
+              <>
+                {roomsByFloor.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-slate-50/80 p-2.5 sm:px-4 shadow-2xs backdrop-blur-xs mb-6">
+                    {/* Left: Quick Floor Jump Pills */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="flex items-center gap-1.5 text-xs font-black text-slate-700 mr-1 pl-1 whitespace-nowrap">
+                        <VsIcon name="apartment" className="text-sm text-sky-600" />
+                        <span>Xem nhanh tầng:</span>
                       </span>
-                      <h3 className="text-lg font-bold text-[var(--primary)]">{floorName}</h3>
-                      <span className="rounded-full bg-[var(--surface-container-high)] px-2.5 py-0.5 text-xs font-bold text-[var(--on-surface-variant)]">
-                        {floorRooms.length} phòng
-                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (floorFilter) {
+                            setFloorFilter("");
+                            setPage(1);
+                          }
+                          expandAllFloors();
+                          window.scrollTo({ top: 380, behavior: "smooth" });
+                        }}
+                        className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                          !floorFilter
+                            ? "bg-slate-900 text-white shadow-xs"
+                            : "bg-white text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200"
+                        }`}
+                        title="Hiển thị tất cả các tầng"
+                      >
+                        <span>Tất cả</span>
+                        <span
+                          className={`rounded-full px-1.5 py-0.2 text-xs font-black ${
+                            !floorFilter
+                              ? "bg-white/20 text-white"
+                              : "bg-slate-100 text-slate-700"
+                          }`}
+                        >
+                          {sortedRooms.length}
+                        </span>
+                      </button>
+
+                      {roomsByFloor.map(([floorName, floorRooms]) => {
+                        const isExpanded = expandedFloors.has(floorName);
+                        const isCollapsed = !isExpanded;
+                        return (
+                          <button
+                            key={floorName}
+                            type="button"
+                            onClick={() => {
+                              if (!isExpanded) {
+                                setExpandedFloors((prev) => new Set(prev).add(floorName));
+                              }
+                              const targetId = `owner-floor-${encodeURIComponent(floorName)}`;
+                              const el = document.getElementById(targetId);
+                              if (el) {
+                                el.scrollIntoView({ behavior: "smooth", block: "start" });
+                              }
+                            }}
+                            className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                              isCollapsed
+                                ? "bg-white text-slate-500 hover:bg-slate-100 border border-dashed border-slate-300"
+                                : "bg-sky-50 text-sky-800 hover:bg-sky-100 border border-sky-200/80 shadow-2xs"
+                            }`}
+                            title={`Nhảy tới ${floorName} (${isCollapsed ? "Đang thu gọn" : "Đang mở rộng"})`}
+                          >
+                            <span>{floorName}</span>
+                            <span
+                              className={`rounded-full px-1.5 py-0.2 text-xs font-black ${
+                                isCollapsed
+                                  ? "bg-slate-100 text-slate-600"
+                                  : "bg-white text-sky-900 border border-sky-200"
+                              }`}
+                            >
+                              {floorRooms.length}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-[var(--on-surface-variant)]">
-                      <span className="flex items-center gap-1 font-semibold text-emerald-700">
-                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                        {floorRooms.filter(r => (r.status?.toUpperCase() || "AVAILABLE") === "AVAILABLE").length} Trống
-                      </span>
-                      <span className="flex items-center gap-1 font-semibold text-blue-700">
-                        <span className="h-2 w-2 rounded-full bg-blue-500" />
-                        {floorRooms.filter(r => r.status?.toUpperCase() === "OCCUPIED").length} Đang ở
-                      </span>
+
+                    {/* Right: Expand / Collapse All Bulk Actions */}
+                    <div className="flex items-center gap-2 ml-auto">
+                      <button
+                        type="button"
+                        onClick={collapseAllFloors}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition-all cursor-pointer whitespace-nowrap active:scale-98"
+                        title="Thu gọn danh sách tất cả các tầng"
+                      >
+                        <VsIcon name="unfold_less" className="text-sm text-slate-500" />
+                        <span>Thu gọn tất cả</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => expandAllFloors(roomsByFloor.map(([f]) => f))}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition-all cursor-pointer whitespace-nowrap active:scale-98"
+                        title="Mở rộng danh sách tất cả các tầng"
+                      >
+                        <VsIcon name="unfold_more" className="text-sm text-slate-500" />
+                        <span>Mở rộng tất cả</span>
+                      </button>
                     </div>
                   </div>
+                )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-4 gap-4">
+                {roomsByFloor.map(([floorName, floorRooms]) => {
+                  const isExpanded = expandedFloors.has(floorName);
+                  const isCollapsed = !isExpanded;
+                  const availableCount = floorRooms.filter(
+                    (r) => (r.status?.toUpperCase() || "AVAILABLE") === "AVAILABLE",
+                  ).length;
+                  const occupiedCount = floorRooms.filter(
+                    (r) => r.status?.toUpperCase() === "OCCUPIED",
+                  ).length;
+                  const processingCount = floorRooms.filter(
+                    (r) => r.status?.toUpperCase() === "PROCESSING",
+                  ).length;
+                  const maintenanceCount = floorRooms.filter(
+                    (r) =>
+                      r.status?.toUpperCase() === "MAINTENANCE" ||
+                      r.status?.toUpperCase() === "BLOCKED",
+                  ).length;
+
+                  return (
+                    <div
+                      key={floorName}
+                      id={`owner-floor-${encodeURIComponent(floorName)}`}
+                      className={`scroll-mt-36 rounded-2xl border border-slate-200/90 bg-white/70 shadow-2xs transition-all ${
+                        isCollapsed ? "p-3 sm:px-4.5 sm:py-3.5" : "p-3 sm:p-4.5"
+                      }`}
+                    >
+                      {/* Floor Header Bar (Clickable Accordion) */}
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => toggleFloorCollapse(floorName)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            toggleFloorCollapse(floorName);
+                          }
+                        }}
+                        className={`group flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none transition-colors ${
+                          isCollapsed
+                            ? "pb-0 border-b-0"
+                            : "pb-2.5 border-b border-slate-100 hover:border-slate-300"
+                        }`}
+                        title={
+                          isCollapsed
+                            ? "Bấm để mở rộng danh sách phòng tầng này"
+                            : "Bấm để thu gọn danh sách phòng tầng này"
+                        }
+                      >
+                        {/* Left: Floor Icon + Title + Counts */}
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                          <div className="flex items-center gap-2">
+                            <span className="flex size-7 items-center justify-center rounded-lg bg-sky-100 text-sky-800 group-hover:bg-sky-200 transition">
+                              <VsIcon
+                                name={isCollapsed ? "expand_more" : "expand_less"}
+                                className="text-base"
+                              />
+                            </span>
+                            <h3 className="font-black text-sm sm:text-base text-slate-900 tracking-tight text-balance">
+                              {floorName}
+                            </h3>
+                            <span className="text-xs text-slate-500 font-bold whitespace-nowrap">
+                              ({floorRooms.length} phòng)
+                            </span>
+                          </div>
+
+                          {/* Status Breakdown Pills */}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {availableCount > 0 && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+                                <span className="size-1.5 rounded-full bg-emerald-500" />
+                                {availableCount} Trống
+                              </span>
+                            )}
+                            {occupiedCount > 0 && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200/80 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+                                <span className="size-1.5 rounded-full bg-blue-500" />
+                                {occupiedCount} Đang ở
+                              </span>
+                            )}
+                            {processingCount > 0 && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-900 border border-amber-200/80 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+                                <span className="size-1.5 rounded-full bg-amber-500" />
+                                {processingCount} Chờ dọn
+                              </span>
+                            )}
+                            {maintenanceCount > 0 && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+                                <span className="size-1.5 rounded-full bg-slate-400" />
+                                {maintenanceCount} Đã khóa / Bảo trì
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Right: Accordion Toggle Action */}
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600 group-hover:text-slate-900 transition">
+                          <span className="hidden sm:inline whitespace-nowrap">
+                            {isCollapsed ? "Mở rộng" : "Thu gọn"}
+                          </span>
+                          <span className="flex size-7 items-center justify-center rounded-lg bg-slate-100 group-hover:bg-slate-200 transition">
+                            <VsIcon
+                              name={isCollapsed ? "expand_more" : "expand_less"}
+                              className="text-base text-slate-600 group-hover:text-slate-900"
+                            />
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Room Grid for this floor */}
+                      {!isCollapsed && (
+                        <div className="mt-3.5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-4 gap-4">
                     {floorRooms.map((room) => {
                       const roomStatus = room.status?.toUpperCase() || "AVAILABLE";
                       const statusMeta = getRoomStatusMeta(room);
@@ -1776,7 +1890,7 @@ export function OwnerRoomsClient({
                               </span>
                             </div>
 
-                            <div className="my-3 space-y-1.5 border-t border-[var(--outline-variant)]/40 pt-2.5">
+                            <div className="my-3 space-y-2 border-t border-[var(--outline-variant)]/40 pt-2.5">
                               <div className="flex items-baseline justify-between text-xs">
                                 <span className="text-[var(--on-surface-variant)]">Giá niêm yết:</span>
                                 <strong className="font-bold text-emerald-800 tabular-nums">
@@ -1784,16 +1898,10 @@ export function OwnerRoomsClient({
                                 </strong>
                               </div>
 
-                              {room.activeStay?.guestDisplayName ? (
-                                <div className="flex items-center gap-1.5 rounded-lg bg-blue-100/80 px-2 py-1 text-xs font-bold text-blue-900 truncate">
-                                  <VsIcon name="person" className="text-sm shrink-0" />
-                                  <span className="truncate">{room.activeStay.guestDisplayName}</span>
-                                </div>
-                              ) : null}
-
-                              <div className="flex items-center justify-between text-xs pt-1">
+                              <div className="flex items-center justify-between text-xs pt-0.5">
+                                <span className="text-[var(--on-surface-variant)]">Mã QR:</span>
                                 <span
-                                  className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-bold ${
+                                  className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-bold ${
                                     qrIsActive
                                       ? "bg-green-100 text-green-800"
                                       : "bg-slate-100 text-slate-700"
@@ -1801,9 +1909,6 @@ export function OwnerRoomsClient({
                                 >
                                   <VsIcon name="qr_code" className="text-xs" />
                                   {qrMeta.label}
-                                </span>
-                                <span className="text-slate-600 font-medium">
-                                  {getActiveGuestDeviceCount(room)}/{getResolvedMaxActiveGuestDevices(room)} thiết bị
                                 </span>
                               </div>
                             </div>
@@ -1883,10 +1988,13 @@ export function OwnerRoomsClient({
                         </div>
                       );
                     })}
-                  </div>
+                    </div>
+                  )}
                 </div>
-              ))
-            )}
+              );
+            })}
+          </>
+        )}
           </div>
         </div>
       ) : (
@@ -1919,8 +2027,7 @@ export function OwnerRoomsClient({
         />
       )}
 
-        </div>
-      )}
+      </div>
 
       <RoomDetailDrawer
         room={selectedDetailRoom}

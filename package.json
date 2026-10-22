@@ -1,4 +1,19 @@
 {
+  "name": "fullstack-vietsage-root",
+  "private": true,
+  "scripts": {
+    "dev:front": "pnpm -C frontends/front-end-vietsage dev",
+    "dev:api": "pnpm -C services/auth-service start:dev",
+    "build:front": "pnpm -C frontends/front-end-vietsage build",
+    "build:api": "pnpm -C services/auth-service build",
+    "lint:front": "pnpm -C frontends/front-end-vietsage lint",
+    "lint:api": "pnpm -C services/auth-service lint",
+    "smoke:front": "pnpm -C frontends/front-end-vietsage smoke:build",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "prisma:generate": "pnpm -C services/auth-service prisma:generate",
+    "prisma:studio": "pnpm -C services/auth-service prisma:studio"
+  },
   "dependencies": {
     "@dangminhdev04032005/query-resource": "^0.1.1"
   }

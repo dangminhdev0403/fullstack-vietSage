@@ -320,6 +320,20 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     ],
   },
   {
+    key: "owner.hotel.reports",
+    personas: ["owner"],
+    href: "/owner/hotels/{hotelId}/reports",
+    label: "Báo cáo & Phân tích",
+    icon: "analytics",
+    order: 18,
+    section: "OVERVIEW",
+    requiresHotel: true,
+    anyCapabilities: [
+      "hotel.dashboard.view",
+      "hotel.billing.view",
+    ],
+  },
+  {
     key: "owner.hotel.channel-manager",
     personas: ["owner"],
     href: "/owner/hotels/{hotelId}/channel-manager",
@@ -513,6 +527,20 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
       "hotel.billing.view",
       "hotel.billing.manage",
       "hotel.billing.checkout",
+    ],
+  },
+  {
+    key: "staff.reports",
+    personas: ["manager", "front_desk"],
+    href: "/hotels/{hotelId}/reports",
+    label: "Báo cáo & Phân tích",
+    icon: "analytics",
+    order: 52,
+    section: "ADMINISTRATION",
+    requiresHotel: true,
+    anyCapabilities: [
+      "hotel.dashboard.view",
+      "hotel.billing.view",
     ],
   },
   {

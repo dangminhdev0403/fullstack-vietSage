@@ -51,7 +51,7 @@ import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-r
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import { useRoomOrderStore } from "@/features/hotel-ops/store/room-order-store";
 
-export type TapeChartViewMode = "week" | "biweek";
+export type TapeChartViewMode = "week" | "biweek" | "month";
 
 export interface ActiveBlockResize {
   block: RoomPlanBlock;
@@ -1166,6 +1166,7 @@ function CategoryRoomTable({
             }, 0);
             const avail = Math.max(0, catRooms.length - occupiedCount);
             const isSoldOut = avail === 0 && catRooms.length > 0;
+            const occPercent = catRooms.length > 0 ? Math.round((occupiedCount / catRooms.length) * 100) : 0;
 
             return (
               <div
@@ -1173,18 +1174,24 @@ function CategoryRoomTable({
                 className={`flex-1 min-w-[100px] border-r border-slate-200/60 px-1 py-1 text-center text-xs flex flex-col justify-center items-center ${
                   day.isToday ? "bg-sky-50/50" : ""
                 }`}
+                title={`Hạng ${cat} ngày ${day.dateNum}: ${occupiedCount}/${catRooms.length} có khách (${occPercent}%), còn ${avail} phòng trống`}
               >
-                <span
-                  className={`inline-block px-1.5 py-0.5 rounded text-xs font-black whitespace-nowrap ${
-                    isSoldOut
-                      ? "bg-rose-100 text-rose-800"
-                      : avail < 2
-                        ? "bg-amber-100 text-amber-900"
-                        : "text-slate-700"
-                  }`}
-                >
-                  {avail} trống
-                </span>
+                <div className="flex items-center justify-center gap-1">
+                  <span
+                    className={`inline-block px-1.5 py-0.5 rounded text-xs font-black whitespace-nowrap ${
+                      isSoldOut
+                        ? "bg-rose-100 text-rose-800"
+                        : avail < 2
+                          ? "bg-amber-100 text-amber-900"
+                          : "text-slate-700"
+                    }`}
+                  >
+                    {avail} trống
+                  </span>
+                  <span className="text-xs text-slate-500 font-bold whitespace-nowrap">
+                    ({occPercent}%)
+                  </span>
+                </div>
                 {catPrice !== null && (
                   <span className="text-xs text-slate-400 font-semibold mt-0.5 whitespace-nowrap">
                     {formatVnd(catPrice)}
@@ -1284,18 +1291,12 @@ export function TapeChartView({
     if (typeof window !== "undefined") {
       const sp = new URLSearchParams(window.location.search);
       const urlMode = sp.get("viewMode");
-      if (urlMode === "biweek" || urlMode === "week") {
+      if (urlMode === "biweek" || urlMode === "week" || urlMode === "month") {
         return urlMode;
       }
-      if (urlMode === "month") {
-        return "biweek";
-      }
     }
-    if (initialViewMode === "biweek" || initialViewMode === "week") {
+    if (initialViewMode === "biweek" || initialViewMode === "week" || initialViewMode === "month") {
       return initialViewMode;
-    }
-    if (initialViewMode === "month") {
-      return "biweek";
     }
     return "week";
   });
@@ -1311,8 +1312,8 @@ export function TapeChartView({
         url.searchParams.set("view", "tape-chart");
       }
       url.searchParams.set("startDate", newDate);
-      if (newMode === "biweek") {
-        url.searchParams.set("viewMode", "biweek");
+      if (newMode !== "week") {
+        url.searchParams.set("viewMode", newMode);
       } else {
         url.searchParams.delete("viewMode");
       }
@@ -1348,8 +1349,8 @@ export function TapeChartView({
   // Drag over drop target highlighting
   const [dragOverCellKey, setDragOverCellKey] = useState<string | null>(null);
 
-  // Compute number of days based on view mode (Week = 7, Biweek = 14)
-  const numDays = viewMode === "week" ? 7 : 14;
+  // Compute number of days based on view mode (Week = 7, Biweek = 14, Month = 30)
+  const numDays = viewMode === "week" ? 7 : viewMode === "biweek" ? 14 : 30;
   const endDate = useMemo(() => addDaysYmd(startDate, numDays - 1), [startDate, numDays]);
 
   // Query Room Plan from backend
@@ -1666,6 +1667,68 @@ export function TapeChartView({
     return map;
   }, [allBlocks]);
 
+  // Date picker ref and trigger handler to allow clicking to jump to any date
+  const dateInputRef = useRef<HTMLInputElement>(null);
+
+  const handleOpenDatePicker = useCallback(() => {
+    if (dateInputRef.current) {
+      if (typeof dateInputRef.current.showPicker === "function") {
+        try {
+          dateInputRef.current.showPicker();
+          return;
+        } catch {
+          // Fallback if browser security denies showPicker
+        }
+      }
+      dateInputRef.current.focus();
+    }
+  }, []);
+
+  // Room occupancy stats (Công suất phòng toàn khách sạn theo từng ngày và trung bình cả kỳ)
+  const periodOccupancyStats = useMemo(() => {
+    const roomsToCount = orderedFilteredRooms.length > 0 ? orderedFilteredRooms : allRooms;
+    const totalRooms = roomsToCount.length;
+    if (totalRooms === 0 || daysList.length === 0) {
+      return { daily: [], avgPercent: 0, todayPercent: 0, todayOccupied: 0, totalRooms: 0 };
+    }
+
+    let totalOccupiedSum = 0;
+    let todayOccupied = 0;
+    let todayPercent = 0;
+
+    const daily = daysList.map((day) => {
+      const occupied = roomsToCount.reduce((acc, room) => {
+        const blocks = blocksByRoomId.get(room.id) || [];
+        const isOccupied = blocks.some(
+          (b) => b.startDate <= day.ymd && b.endDate > day.ymd && b.status !== "CANCELLED",
+        );
+        return acc + (isOccupied ? 1 : 0);
+      }, 0);
+
+      const percent = Math.round((occupied / totalRooms) * 100);
+      totalOccupiedSum += occupied;
+
+      if (day.isToday) {
+        todayOccupied = occupied;
+        todayPercent = percent;
+      }
+
+      return {
+        ymd: day.ymd,
+        dayLabel: day.dayLabel,
+        dateNum: day.dateNum,
+        isToday: day.isToday,
+        occupied,
+        available: Math.max(0, totalRooms - occupied),
+        percent,
+      };
+    });
+
+    const avgPercent = Math.round(totalOccupiedSum / (totalRooms * daysList.length) * 100);
+
+    return { daily, avgPercent, todayPercent, todayOccupied, totalRooms };
+  }, [allRooms, orderedFilteredRooms, blocksByRoomId, daysList]);
+
   // Navigation handlers with 1-day overlap as requested by user
   // When viewMode is week (7 days), stepping is 6 days so the last day of the previous view
   // (e.g. 20/10) becomes the first day of the next view, maintaining continuity.
@@ -1723,7 +1786,7 @@ export function TapeChartView({
         handleGoToday();
       } else if (e.key === "w" || e.key === "W") {
         e.preventDefault();
-        setViewMode((v) => (v === "week" ? "biweek" : "week"));
+        setViewMode((v) => (v === "week" ? "biweek" : v === "biweek" ? "month" : "week"));
       }
     }
 
@@ -2805,23 +2868,28 @@ export function TapeChartView({
           )}
 
           {/* Date Range Display & Jump Picker */}
-          <div className="flex items-center gap-2 pl-1">
-            <label
-              className="relative flex items-center gap-1.5 cursor-pointer bg-slate-50 hover:bg-slate-100 border border-slate-200/80 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-800 shadow-2xs transition"
-              title="Click để chọn ngày xem trên lịch"
+          <div className="relative flex items-center gap-2 pl-1">
+            <button
+              type="button"
+              onClick={handleOpenDatePicker}
+              className="relative inline-flex items-center gap-1.5 cursor-pointer bg-white hover:bg-slate-50 border border-slate-300 hover:border-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-800 shadow-2xs transition group"
+              title="Nhấp để chọn ngày xem trên sơ đồ buồng phòng"
             >
-              <VsIcon name="calendar_month" className="text-sm text-emerald-800" />
+              <VsIcon name="calendar_month" className="text-sm text-emerald-800 group-hover:scale-110 transition-transform" />
               <span>{dateRangeDisplay}</span>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => {
-                  if (e.target.value) setStartDate(e.target.value);
-                }}
-                className="sr-only"
-                aria-label="Chọn ngày bắt đầu xem"
-              />
-            </label>
+              <VsIcon name="arrow_drop_down" className="text-sm text-slate-400 group-hover:text-slate-700 -ml-0.5" />
+            </button>
+            <input
+              ref={dateInputRef}
+              type="date"
+              value={startDate}
+              onChange={(e) => {
+                if (e.target.value) setStartDate(e.target.value);
+              }}
+              className="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
+              tabIndex={-1}
+              aria-label="Chọn ngày bắt đầu xem"
+            />
             {isPlanFetching && (
               <span className="inline-flex items-center gap-1 text-xs text-emerald-700 font-semibold animate-pulse">
                 <span className="size-1.5 rounded-full bg-emerald-600" />
@@ -2829,6 +2897,22 @@ export function TapeChartView({
               </span>
             )}
           </div>
+
+          {/* Overall Period Occupancy Summary Pill */}
+          {periodOccupancyStats.totalRooms > 0 && (
+            <div
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-900 border border-emerald-200/90 shadow-2xs whitespace-nowrap"
+              title={`Công suất trung bình cả kỳ (${numDays} ngày): ${periodOccupancyStats.avgPercent}% • Hôm nay: ${periodOccupancyStats.todayPercent}% (${periodOccupancyStats.todayOccupied}/${periodOccupancyStats.totalRooms} phòng)`}
+            >
+              <VsIcon name="pie_chart" className="text-sm text-emerald-700" />
+              <span>
+                Công suất TB: <strong className="font-black text-emerald-950">{periodOccupancyStats.avgPercent}%</strong>
+              </span>
+              <span className="text-emerald-700 font-medium">
+                ({periodOccupancyStats.todayOccupied}/{periodOccupancyStats.totalRooms} hôm nay)
+              </span>
+            </div>
+          )}
 
           {/* Overdue Rooms Alert Pill */}
           {overdueRooms.length > 0 && (
@@ -2867,7 +2951,7 @@ export function TapeChartView({
 
         {/* Right: View Mode & Filters */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Week / Biweek Toggle */}
+          {/* Week / Biweek / Month Toggle */}
           <div className="inline-flex rounded-md border border-slate-200 bg-slate-100 p-0.5 shadow-inner">
             <button
               type="button"
@@ -2890,6 +2974,17 @@ export function TapeChartView({
               }`}
             >
               14 ngày
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("month")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition cursor-pointer whitespace-nowrap ${
+                viewMode === "month"
+                  ? "bg-white text-slate-900 shadow-2xs font-black"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              30 ngày
             </button>
           </div>
 
@@ -2986,68 +3081,132 @@ export function TapeChartView({
         {/* Main Grid View - Giữ trọn 100% chiều rộng, hỗ trợ cuộn dọc cố định tiêu đề */}
         <div className="overflow-x-auto min-w-0 max-h-[calc(100vh-210px)] overflow-y-auto">
           <div className="min-w-[800px] w-full">
-            {/* Header Dates Row */}
-            <div className="flex border-b border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 sticky top-0 z-30 shadow-xs w-full">
-              {/* Room Column Header */}
-              <div className="sticky left-0 z-40 w-48 min-w-[192px] max-w-[192px] shrink-0 border-r border-slate-200 bg-slate-100/95 px-3 py-2 flex items-center justify-between shadow-xs">
-                <button
-                  type="button"
-                  onClick={toggleAllCategories}
-                  className="flex items-center gap-1.5 uppercase tracking-wider text-slate-600 hover:text-slate-900 text-xs font-bold transition cursor-pointer"
-                  title={
-                    allCollapsed
-                      ? "Mở rộng tất cả danh sách phòng"
-                      : "Thu gọn tất cả danh sách phòng"
-                  }
-                >
-                  <VsIcon
-                    name={allCollapsed ? "chevron_right" : "chevron_down"}
-                    className="text-xs text-slate-500 shrink-0"
-                  />
-                  <span>Phòng ({filteredRooms.length})</span>
-                </button>
-                <span className="text-xs text-slate-400">Tầng</span>
+            {/* Sticky Header: Dates Row + Occupancy Row */}
+            <div className="sticky top-0 z-30 bg-slate-50 border-b border-slate-200 shadow-xs w-full">
+              {/* Header Dates Row */}
+              <div className="flex border-b border-slate-200/80 text-xs font-bold text-slate-700 w-full">
+                {/* Room Column Header */}
+                <div className="sticky left-0 z-40 w-48 min-w-[192px] max-w-[192px] shrink-0 border-r border-slate-200 bg-slate-100/95 px-3 py-2 flex items-center justify-between shadow-xs">
+                  <button
+                    type="button"
+                    onClick={toggleAllCategories}
+                    className="flex items-center gap-1.5 uppercase tracking-wider text-slate-600 hover:text-slate-900 text-xs font-bold transition cursor-pointer"
+                    title={
+                      allCollapsed
+                        ? "Mở rộng tất cả danh sách phòng"
+                        : "Thu gọn tất cả danh sách phòng"
+                    }
+                  >
+                    <VsIcon
+                      name={allCollapsed ? "chevron_right" : "chevron_down"}
+                      className="text-xs text-slate-500 shrink-0"
+                    />
+                    <span>Phòng ({filteredRooms.length})</span>
+                  </button>
+                  <span className="text-xs text-slate-400">Tầng</span>
+                </div>
+
+                {/* Day Header Cells */}
+                <div className="flex flex-1 min-w-0">
+                  {daysList.map((day) => (
+                    <div
+                      key={day.ymd}
+                      data-header-day="true"
+                      data-day-ymd={day.ymd}
+                      className={`flex-1 min-w-[100px] border-r border-slate-200/60 px-1 py-1.5 text-center transition ${
+                        day.isToday
+                          ? "bg-sky-100/60 text-sky-950 font-black ring-1 ring-inset ring-sky-300"
+                          : day.isWeekend
+                            ? "bg-amber-100/70 text-amber-950 font-bold"
+                            : "text-slate-700"
+                      }`}
+                    >
+                      <div
+                        className={`text-xs uppercase tracking-tight ${
+                          day.isToday
+                            ? "text-sky-800 font-bold"
+                            : day.isWeekend
+                              ? "text-amber-800 font-bold"
+                              : "text-slate-500"
+                        }`}
+                      >
+                        {day.dayLabel}
+                      </div>
+                      <div
+                        className={`text-xs font-bold ${
+                          day.isToday
+                            ? "text-sky-950"
+                            : day.isWeekend
+                              ? "text-amber-950"
+                              : "text-slate-800"
+                        }`}
+                      >
+                        {day.dateNum}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              {/* Day Header Cells */}
-              <div className="flex flex-1 min-w-0">
-                {daysList.map((day) => (
-                  <div
-                    key={day.ymd}
-                    data-header-day="true"
-                    data-day-ymd={day.ymd}
-                    className={`flex-1 min-w-[100px] border-r border-slate-200/60 px-1 py-1.5 text-center transition ${
-                      day.isToday
-                        ? "bg-sky-100/60 text-sky-950 font-black ring-1 ring-inset ring-sky-300"
-                        : day.isWeekend
-                          ? "bg-amber-100/70 text-amber-950 font-bold"
-                          : "text-slate-700"
-                    }`}
-                  >
-                    <div
-                      className={`text-xs uppercase tracking-tight ${
-                        day.isToday
-                          ? "text-sky-800 font-bold"
-                          : day.isWeekend
-                            ? "text-amber-800 font-bold"
-                            : "text-slate-500"
-                      }`}
-                    >
-                      {day.dayLabel}
-                    </div>
-                    <div
-                      className={`text-xs font-bold ${
-                        day.isToday
-                          ? "text-sky-950"
-                          : day.isWeekend
-                            ? "text-amber-950"
-                            : "text-slate-800"
-                      }`}
-                    >
-                      {day.dateNum}
-                    </div>
+              {/* Occupancy Summary Row (Hàng Công suất phòng) */}
+              <div className="flex bg-slate-50/95 text-xs font-bold text-slate-700 w-full">
+                {/* Sticky Left: Title & Average */}
+                <div className="sticky left-0 z-40 w-48 min-w-[192px] max-w-[192px] shrink-0 border-r border-slate-200 bg-emerald-50/95 px-3 py-1.5 flex items-center justify-between shadow-xs">
+                  <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-emerald-950">
+                    <VsIcon name="analytics" className="text-sm text-emerald-700 shrink-0" />
+                    <span>Công suất phòng</span>
                   </div>
-                ))}
+                  <span
+                    className="rounded-full bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 text-xs font-black text-emerald-800 whitespace-nowrap"
+                    title={`Công suất trung bình cả kỳ: ${periodOccupancyStats.avgPercent}%`}
+                  >
+                    TB {periodOccupancyStats.avgPercent}%
+                  </span>
+                </div>
+
+                {/* Day Cells: Occupancy % and Count */}
+                <div className="flex flex-1 min-w-0">
+                  {periodOccupancyStats.daily.map((stat) => (
+                    <div
+                      key={`occ-${stat.ymd}`}
+                      className={`flex-1 min-w-[100px] border-r border-slate-200/60 px-1 py-1 text-center flex flex-col justify-center items-center transition ${
+                        stat.isToday
+                          ? "bg-sky-50/90 text-sky-950 font-black"
+                          : "bg-slate-50/60 text-slate-700"
+                      }`}
+                      title={`Ngày ${stat.dateNum}: Công suất ${stat.percent}% (${stat.occupied}/${periodOccupancyStats.totalRooms} phòng có khách, ${stat.available} phòng trống)`}
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        <span
+                          className={`inline-block px-1.5 py-0.5 rounded text-xs font-black whitespace-nowrap ${
+                            stat.percent >= 80
+                              ? "bg-rose-100 text-rose-800"
+                              : stat.percent >= 50
+                                ? "bg-emerald-100 text-emerald-800 font-bold"
+                                : "text-slate-700 font-bold"
+                          }`}
+                        >
+                          {stat.percent}%
+                        </span>
+                        <span className="text-xs text-slate-500 font-semibold whitespace-nowrap">
+                          ({stat.occupied}/{periodOccupancyStats.totalRooms})
+                        </span>
+                      </div>
+                      <div className="w-full max-w-[56px] h-1 bg-slate-200 rounded-full mt-0.5 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${
+                            stat.percent >= 80
+                              ? "bg-rose-500"
+                              : stat.percent >= 50
+                                ? "bg-emerald-600"
+                                : "bg-sky-500"
+                          }`}
+                          style={{ width: `${Math.min(100, stat.percent)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 

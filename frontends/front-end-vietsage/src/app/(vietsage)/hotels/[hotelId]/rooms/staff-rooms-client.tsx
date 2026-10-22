@@ -29,6 +29,7 @@ import {
   resolveRoomStatusModel,
 } from "@/features/hotel-ops/components/front-desk-room-detail-panel";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
+import { roomPlanResource } from "@/features/hotel-ops/resources/room-plan-resource";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import {
   filterExtraOccupants,
@@ -41,6 +42,7 @@ import type {
   HotelCheckInResult,
   HotelOpsPage,
   HotelRoomSummary,
+  RoomPlanBlock,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { TapeChartView } from "@/features/hotel-ops/components/tape-chart/tape-chart-view";
 import { useRoomViewStore } from "@/features/hotel-ops/store/room-view-store";
@@ -114,11 +116,45 @@ function localDateTime(offsetDays: number, hour: number): string {
 function formatDateTime(value: string | null | undefined): string {
   if (!value) return "-";
   return new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function toVietnamDateString(
+  dateVal: string | Date | null | undefined,
+): string | null {
+  if (!dateVal) return null;
+  try {
+    const d = typeof dateVal === "string" ? new Date(dateVal) : dateVal;
+    if (isNaN(d.getTime())) return null;
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(d);
+  } catch {
+    return null;
+  }
+}
+
+function formatTimeOnly(value: string | null | undefined): string {
+  if (!value) return "";
+  try {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return "";
+    return new Intl.DateTimeFormat("vi-VN", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(d);
+  } catch {
+    return "";
+  }
 }
 
 function formatPriceInput(value: string | number | null | undefined): string {
@@ -633,16 +669,16 @@ export function StaffRoomsClient({
     !isHousekeeping && Boolean(businessDate && businessDate > todayYmd);
 
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(25);
+  const [pageSize, setPageSize] = useState<number>(100);
   const [inputQuery, setInputQuery] = useState(initialQuery ?? "");
   const [query, setQuery] = useState(initialQuery ?? "");
   const [floor, setFloor] = useState("all");
   const [type, setType] = useState("all");
   const [zone, setZone] = useState("all");
-  const [collapsedFloors, setCollapsedFloors] = useState<Set<string>>(new Set());
+  const [expandedFloors, setExpandedFloors] = useState<Set<string>>(new Set());
 
   const toggleFloorCollapse = (floorTitle: string) => {
-    setCollapsedFloors((prev) => {
+    setExpandedFloors((prev) => {
       const next = new Set(prev);
       if (next.has(floorTitle)) {
         next.delete(floorTitle);
@@ -653,12 +689,12 @@ export function StaffRoomsClient({
     });
   };
 
-  const collapseAllFloors = (allFloorTitles: string[]) => {
-    setCollapsedFloors(new Set(allFloorTitles));
+  const collapseAllFloors = () => {
+    setExpandedFloors(new Set());
   };
 
-  const expandAllFloors = () => {
-    setCollapsedFloors(new Set());
+  const expandAllFloors = (allFloorTitles: string[]) => {
+    setExpandedFloors(new Set(allFloorTitles));
   };
   const [housekeepingViewMode, setHousekeepingViewMode] = useState<
     "tasklist" | "grid"
@@ -709,6 +745,14 @@ export function StaffRoomsClient({
     useState<HotelRoomSummary | null>(null);
   const cardTriggerRefMap = useRef<Map<string, HTMLElement>>(new Map());
   const activeTriggerRef = useRef<HTMLElement | null>(null);
+  const floorScrollRefMap = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  const scrollFloorRow = (floorTitle: string, offset: number) => {
+    const el = floorScrollRefMap.current.get(floorTitle);
+    if (el) {
+      el.scrollBy({ left: offset, behavior: "smooth" });
+    }
+  };
 
   function openRoomContextPanel(
     room: HotelRoomSummary,
@@ -897,6 +941,48 @@ export function StaffRoomsClient({
   );
   const isBulkSubmitting = bulkReservationsMutation.isPending;
 
+  const roomPlanScope = useMemo(
+    () => roomPlanResource.bind({ hotelId }),
+    [hotelId],
+  );
+
+  const bulkPlanQueryRange = useMemo(() => {
+    if (
+      !bulkCheckInDate ||
+      !bulkCheckOutDate ||
+      bulkCheckInDate >= bulkCheckOutDate
+    ) {
+      return { from: todayYmd, to: todayYmd };
+    }
+    const inTime = new Date(`${bulkCheckInDate}T00:00:00.000Z`).getTime();
+    const outTime = new Date(`${bulkCheckOutDate}T00:00:00.000Z`).getTime();
+    const diffDays = Math.round((outTime - inTime) / (1000 * 60 * 60 * 24));
+    if (diffDays > 30) {
+      const maxTo = new Date(inTime + 30 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
+      return { from: bulkCheckInDate, to: maxTo };
+    }
+    return { from: bulkCheckInDate, to: bulkCheckOutDate };
+  }, [bulkCheckInDate, bulkCheckOutDate, todayYmd]);
+
+  const shouldQueryBulkPlan =
+    isBulkModalOpen &&
+    Boolean(
+      bulkCheckInDate &&
+        bulkCheckOutDate &&
+        bulkCheckInDate < bulkCheckOutDate,
+    );
+
+  const { data: bulkPlanData, isFetching: isBulkPlanFetching } = useQuery({
+    ...roomPlanScope.queries.plan.options({
+      from: bulkPlanQueryRange.from,
+      to: bulkPlanQueryRange.to,
+    }),
+    enabled: shouldQueryBulkPlan,
+    staleTime: 30_000,
+  });
+
   function openBulkReservationModal() {
     if (isHousekeeping) return;
     const defaultIn =
@@ -925,9 +1011,16 @@ export function StaffRoomsClient({
     setIsBulkModalOpen(true);
   }
 
-  function incrementRoomTypeCount(roomTypeId: string) {
+  function incrementRoomTypeCount(roomTypeId: string, maxAvailable?: number) {
     setBulkRoomTypeCounts((prev) => {
       const current = prev[roomTypeId] || 0;
+      if (typeof maxAvailable === "number" && current >= maxAvailable) {
+        void showWarningAlert(
+          "Không đủ phòng trống",
+          `Loại phòng này hiện chỉ còn ${maxAvailable} phòng trống trong khoảng thời gian đã chọn.`,
+        );
+        return prev;
+      }
       const total = Object.values(prev).reduce((a, b) => a + b, 0);
       if (total >= 50) {
         void showWarningAlert("Giới hạn", "Chỉ được đặt tối đa 50 phòng trong một lần đặt theo đoàn.");
@@ -1465,7 +1558,7 @@ export function StaffRoomsClient({
     placeholderData: keepPreviousData,
     initialData:
       page === 1 &&
-      pageSize === 25 &&
+      pageSize === 100 &&
       !query &&
       status === defaultStatus &&
       floor === "all" &&
@@ -1474,15 +1567,15 @@ export function StaffRoomsClient({
         (isHousekeeping ? todayYmd : initialBusinessDate || todayYmd)
         ? {
             ...initialRoomsPage,
-            items: initialRoomsPage.items.slice(0, 25),
+            items: initialRoomsPage.items.slice(0, 100),
             total: initialRoomsPage.total ?? initialRoomsPage.items.length,
             totalPages: Math.max(
               1,
               Math.ceil(
-                (initialRoomsPage.total ?? initialRoomsPage.items.length) / 25,
+                (initialRoomsPage.total ?? initialRoomsPage.items.length) / 100,
               ),
             ),
-            limit: 25,
+            limit: 100,
           }
         : undefined,
   });
@@ -1512,42 +1605,6 @@ export function StaffRoomsClient({
       if (z && String(z).trim()) set.add(String(z).trim());
     }
     return [...set].sort((a, b) => a.localeCompare(b));
-  }, [roomsPage?.items, initialRoomsPage.items]);
-
-  const roomTypeSummaryList = useMemo(() => {
-    const allRooms = roomsPage?.items ?? initialRoomsPage.items ?? [];
-    const map = new Map<
-      string,
-      {
-        roomTypeId: string;
-        name: string;
-        availableCount: number;
-        price: number | null;
-      }
-    >();
-    for (const r of allRooms) {
-      const name = r.type || "Tiêu chuẩn";
-      const roomTypeId = r.roomTypeId || name;
-      const existing = map.get(name);
-      const isAvailable =
-        r.status === "AVAILABLE" && !r.activeStay && !r.upcomingReservation;
-      if (!existing) {
-        map.set(name, {
-          roomTypeId,
-          name,
-          availableCount: isAvailable ? 1 : 0,
-          price: typeof r.price === "number" ? r.price : null,
-        });
-      } else {
-        if (isAvailable) {
-          existing.availableCount += 1;
-        }
-        if (!existing.price && typeof r.price === "number") {
-          existing.price = r.price;
-        }
-      }
-    }
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [roomsPage?.items, initialRoomsPage.items]);
 
   const selectedReservationRoom = rooms.find((r) => r.id === reservationRoomId);
@@ -1580,95 +1637,362 @@ export function StaffRoomsClient({
     return true;
   });
 
+  const boundChannelResource = useMemo(
+    () => channelManagerResource.bind({ hotelId, roleScope: "owner" }),
+    [hotelId],
+  );
+
+  const { data: otaBookings = [] } = useQuery({
+    ...boundChannelResource.queries.simulatedBookings.options(
+      undefined as never,
+    ),
+    enabled: !isHousekeeping,
+    refetchInterval: isHousekeeping ? false : 30_000,
+    staleTime: 10_000,
+  });
+
+  const { incomingOtaByRoomNumber } = useMemo(() => {
+    const map = new Map<string, SimulatedBookingItem>();
+
+    for (const b of otaBookings) {
+      if (b.status === "CANCELLED") continue;
+      const isTodayArrival = Boolean(
+        b.checkInDate &&
+        b.checkOutDate &&
+        b.checkInDate <= todayYmd &&
+        b.checkOutDate >= todayYmd,
+      );
+      const notCheckedIn =
+        !b.stayStatus ||
+        b.stayStatus === "PENDING" ||
+        b.stayStatus === "CANCELLED";
+
+      if (b.status === "CONFIRMED" && notCheckedIn && isTodayArrival) {
+        if (b.roomNumber) {
+          map.set(b.roomNumber.trim().toUpperCase(), b);
+        }
+      }
+    }
+
+    return {
+      incomingOtaByRoomNumber: map,
+    };
+  }, [otaBookings, todayYmd]);
+
   function isRoomConflictingForDates(
     r: HotelRoomSummary,
     checkInStr: string,
     checkOutStr: string,
+    planBlocks?: RoomPlanBlock[],
   ): boolean {
     if (!checkInStr || !checkOutStr) return false;
-    const checkInTime = new Date(checkInStr).getTime();
-    const checkOutTime = new Date(checkOutStr).getTime();
+
+    const inYmd = checkInStr.includes("T")
+      ? checkInStr.slice(0, 10)
+      : checkInStr;
+    const outYmd = checkOutStr.includes("T")
+      ? checkOutStr.slice(0, 10)
+      : checkOutStr;
+
+    if (inYmd >= outYmd) return false;
+
+    const checkInTime = checkInStr.includes("T")
+      ? new Date(checkInStr).getTime()
+      : new Date(`${inYmd}T14:00:00+07:00`).getTime();
+    const checkOutTime = checkOutStr.includes("T")
+      ? new Date(checkOutStr).getTime()
+      : new Date(`${outYmd}T12:00:00+07:00`).getTime();
+
     if (
       isNaN(checkInTime) ||
       isNaN(checkOutTime) ||
       checkOutTime <= checkInTime
-    )
+    ) {
       return false;
+    }
 
+    // 1. Scoped query from bulkPlanData.blocks: kiểm tra giao thoa chính xác khoảng ngày
+    if (planBlocks && planBlocks.length > 0) {
+      for (const block of planBlocks) {
+        if (block.roomId !== r.id) continue;
+        if (block.status === "CANCELLED" || block.status === "NO_SHOW") continue;
+        const bStart = block.startDate ? block.startDate.slice(0, 10) : "";
+        const bEnd = block.endDate ? block.endDate.slice(0, 10) : "";
+        if (bStart && bEnd && inYmd < bEnd && outYmd > bStart) {
+          return true;
+        }
+      }
+    }
+
+    const physicalStatus = getRoomStatus(r);
+    const isTodayOrPast = inYmd <= todayYmd;
+
+    // 2. Case: Đặt trong hiện tại (check-in hôm nay)
+    // Nếu khách nhận phòng ngay hôm nay: các phòng đang có khách ở, quá hạn trả, hoặc đang chờ dọn dẹp đều chưa thể nhận phòng
+    if (isTodayOrPast) {
+      if (
+        physicalStatus === "occupied" ||
+        physicalStatus === "overdue" ||
+        physicalStatus === "processing" ||
+        Boolean(r.activeStay && !r.activeStay.checkedOutAt)
+      ) {
+        return true;
+      }
+    }
+
+    // 3. Khách đang lưu trú (activeStay)
     if (
       r.activeStay &&
       !r.activeStay.checkedOutAt &&
       r.activeStay.plannedCheckOutAt
     ) {
+      const stayEndStr = toVietnamDateString(r.activeStay.plannedCheckOutAt);
+      const stayStartStr =
+        toVietnamDateString(
+          r.activeStay.checkedInAt ?? r.activeStay.plannedCheckInAt,
+        ) ?? todayYmd;
+
+      if (stayEndStr && inYmd < stayEndStr && outYmd > stayStartStr) {
+        return true;
+      }
+
       const sEnd = new Date(r.activeStay.plannedCheckOutAt).getTime();
       const sStart = r.activeStay.checkedInAt
         ? new Date(r.activeStay.checkedInAt).getTime()
         : r.activeStay.plannedCheckInAt
           ? new Date(r.activeStay.plannedCheckInAt).getTime()
           : 0;
-      if (sStart < checkOutTime && sEnd > checkInTime) return true;
+      if (sStart < checkOutTime && sEnd > checkInTime) {
+        return true;
+      }
     }
+
+    // 4. Lịch đặt trước đã phân bổ phòng (projectedReservation)
     if (
       r.projectedReservation?.plannedCheckInAt &&
       r.projectedReservation?.plannedCheckOutAt
     ) {
+      const pIn = toVietnamDateString(r.projectedReservation.plannedCheckInAt);
+      const pOut = toVietnamDateString(r.projectedReservation.plannedCheckOutAt);
+      if (pIn && pOut && inYmd < pOut && outYmd > pIn) {
+        return true;
+      }
       const resStart = new Date(
         r.projectedReservation.plannedCheckInAt,
       ).getTime();
       const resEnd = new Date(
         r.projectedReservation.plannedCheckOutAt,
       ).getTime();
-      if (resStart < checkOutTime && resEnd > checkInTime) return true;
+      if (resStart < checkOutTime && resEnd > checkInTime) {
+        return true;
+      }
     }
+
+    // 5. Lịch đặt trước sắp tới (upcomingReservation)
     if (
       r.upcomingReservation?.plannedCheckInAt &&
       r.upcomingReservation?.plannedCheckOutAt
     ) {
+      const uIn = toVietnamDateString(r.upcomingReservation.plannedCheckInAt);
+      const uOut = toVietnamDateString(r.upcomingReservation.plannedCheckOutAt);
+      if (uIn && uOut && inYmd < uOut && outYmd > uIn) {
+        return true;
+      }
       const resStart = new Date(
         r.upcomingReservation.plannedCheckInAt,
       ).getTime();
       const resEnd = new Date(
         r.upcomingReservation.plannedCheckOutAt,
       ).getTime();
-      if (resStart < checkOutTime && resEnd > checkInTime) return true;
+      if (resStart < checkOutTime && resEnd > checkInTime) {
+        return true;
+      }
     }
-    return arrivalsList.some((arr) => {
-      if (arr.roomId !== r.id || arr.status === "CHECKED_IN") return false;
-      const aStart = new Date(arr.plannedCheckInAt).getTime();
-      const aEnd = new Date(arr.plannedCheckOutAt).getTime();
-      return aStart < checkOutTime && aEnd > checkInTime;
+
+    // 6. Danh sách khách đặt trước (arrivalsList)
+    for (const arr of arrivalsList) {
+      if (arr.roomId !== r.id) continue;
+      if (
+        arr.status === "CHECKED_IN" ||
+        arr.status === "CANCELLED" ||
+        arr.status === "NO_SHOW"
+      ) {
+        continue;
+      }
+      const aStart = toVietnamDateString(arr.plannedCheckInAt);
+      const aEnd = toVietnamDateString(arr.plannedCheckOutAt);
+      if (aStart && aEnd && inYmd < aEnd && outYmd > aStart) {
+        return true;
+      }
+      const aStartTime = new Date(arr.plannedCheckInAt).getTime();
+      const aEndTime = new Date(arr.plannedCheckOutAt).getTime();
+      if (aStartTime < checkOutTime && aEndTime > checkInTime) {
+        return true;
+      }
+    }
+
+    // 7. Kênh OTA
+    if (otaBookings && otaBookings.length > 0) {
+      const roomNum = getRoomNumber(r).toUpperCase();
+      for (const ota of otaBookings) {
+        if (ota.status === "CANCELLED" || !ota.roomNumber) continue;
+        if (ota.roomNumber.trim().toUpperCase() !== roomNum) continue;
+        const oIn = ota.checkInDate ? ota.checkInDate.slice(0, 10) : "";
+        const oOut = ota.checkOutDate ? ota.checkOutDate.slice(0, 10) : "";
+        if (oIn && oOut && inYmd < oOut && outYmd > oIn) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  const roomPoolMap = useMemo(() => {
+    const map = new Map<string, HotelRoomSummary>();
+    for (const r of initialRoomsPage.items) {
+      map.set(r.id, r);
+    }
+    for (const r of rooms) {
+      map.set(r.id, r);
+    }
+    if (bulkPlanData?.rooms) {
+      for (const pr of bulkPlanData.rooms) {
+        if (!map.has(pr.id)) {
+          map.set(pr.id, {
+            id: pr.id,
+            hotelId,
+            roomNumber: pr.roomNumber,
+            floor: pr.floor,
+            type: pr.roomTypeName || pr.type,
+            roomTypeId: pr.roomTypeId || undefined,
+            status: pr.status as any,
+            physicalStatus: pr.physicalStatus || pr.status,
+            price: pr.price ?? null,
+            createdAt: "",
+            updatedAt: "",
+          } as HotelRoomSummary);
+        }
+      }
+    }
+    return map;
+  }, [initialRoomsPage.items, rooms, bulkPlanData?.rooms, hotelId]);
+
+  const roomPool = useMemo(() => Array.from(roomPoolMap.values()), [roomPoolMap]);
+
+  const bulkCandidateRooms = useMemo(() => {
+    return roomPool.map((room) => {
+      const physicalStatus = getRoomStatus(room);
+      const isOverdueNow =
+        physicalStatus === "overdue" ||
+        Boolean(room.statusConflictCode?.toUpperCase().includes("OVERDUE"));
+      const isOverdueConflict =
+        isOverdueNow && Boolean(bulkCheckInDate && bulkCheckInDate <= todayYmd);
+      const isConflicting =
+        isRoomConflictingForDates(
+          room,
+          bulkCheckInDate,
+          bulkCheckOutDate,
+          bulkPlanData?.blocks,
+        ) ||
+        bulkConflictRoomIds.has(room.id) ||
+        isOverdueConflict;
+      const isUnavailable =
+        physicalStatus === "maintenance" || physicalStatus === "blocked";
+      return {
+        room,
+        isConflicting,
+        isUnavailable,
+        isSelectable: !isConflicting && !isUnavailable,
+      };
     });
-  }
+  }, [
+    roomPool,
+    bulkCheckInDate,
+    bulkCheckOutDate,
+    bulkConflictRoomIds,
+    bulkPlanData?.blocks,
+    todayYmd,
+    arrivalsList,
+    otaBookings,
+  ]);
 
-  const roomPoolMap = new Map<string, HotelRoomSummary>();
-  for (const r of initialRoomsPage.items) {
-    roomPoolMap.set(r.id, r);
-  }
-  for (const r of rooms) {
-    roomPoolMap.set(r.id, r);
-  }
-  const roomPool = Array.from(roomPoolMap.values());
+  const roomTypeSummaryList = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        roomTypeId: string;
+        name: string;
+        availableCount: number;
+        totalCount: number;
+        price: number | null;
+      }
+    >();
 
-  const bulkCandidateRooms = roomPool.map((room) => {
-    const physicalStatus = getRoomStatus(room);
-    const isOverdueNow =
-      physicalStatus === "overdue" ||
-      Boolean(room.statusConflictCode?.toUpperCase().includes("OVERDUE"));
-    const isOverdueConflict =
-      isOverdueNow && Boolean(bulkCheckInDate && bulkCheckInDate <= todayYmd);
-    const isConflicting =
-      isRoomConflictingForDates(room, bulkCheckInDate, bulkCheckOutDate) ||
-      bulkConflictRoomIds.has(room.id) ||
-      isOverdueConflict;
-    const isUnavailable =
-      physicalStatus === "maintenance" || physicalStatus === "blocked";
-    return {
-      room,
-      isConflicting,
-      isUnavailable,
-      isSelectable: !isConflicting && !isUnavailable,
-    };
-  });
+    for (const { room, isSelectable } of bulkCandidateRooms) {
+      const name = room.type?.trim() || "Tiêu chuẩn";
+      const roomTypeId = room.roomTypeId || name;
+      const existing = map.get(name);
+      const roomPrice = typeof room.price === "number" ? room.price : null;
+
+      if (!existing) {
+        map.set(name, {
+          roomTypeId,
+          name,
+          availableCount: isSelectable ? 1 : 0,
+          totalCount: 1,
+          price: roomPrice,
+        });
+      } else {
+        existing.totalCount += 1;
+        if (isSelectable) {
+          existing.availableCount += 1;
+        }
+        if (existing.roomTypeId === name && room.roomTypeId) {
+          existing.roomTypeId = room.roomTypeId;
+        }
+        if (!existing.price && roomPrice) {
+          existing.price = roomPrice;
+        }
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [bulkCandidateRooms]);
+
+  const bulkTotalAutoCount = useMemo(
+    () => Object.values(bulkRoomTypeCounts).reduce((a, b) => a + b, 0),
+    [bulkRoomTypeCounts],
+  );
+
+  const hasOverallocatedRoomType = useMemo(
+    () =>
+      roomTypeSummaryList.some(
+        (rt) => (bulkRoomTypeCounts[rt.roomTypeId] || 0) > rt.availableCount,
+      ),
+    [roomTypeSummaryList, bulkRoomTypeCounts],
+  );
+
+  useEffect(() => {
+    if (!isBulkModalOpen) return;
+    setBulkRoomTypeCounts((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const [rtId, count] of Object.entries(next)) {
+        const rt = roomTypeSummaryList.find((item) => item.roomTypeId === rtId);
+        const max = rt?.availableCount ?? 0;
+        if (count > max) {
+          changed = true;
+          if (max <= 0) {
+            delete next[rtId];
+          } else {
+            next[rtId] = max;
+          }
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [roomTypeSummaryList, isBulkModalOpen]);
 
   const filteredBulkRooms = bulkCandidateRooms.filter(({ room }) => {
     if (bulkFloorFilter !== "all" && room.floor !== bulkFloorFilter)
@@ -1779,6 +2103,17 @@ export function StaffRoomsClient({
         );
         return;
       }
+
+      for (const rt of roomTypeSummaryList) {
+        const count = bulkRoomTypeCounts[rt.roomTypeId] || 0;
+        if (count > rt.availableCount) {
+          await showWarningAlert(
+            "Không đủ phòng trống",
+            `Loại phòng "${rt.name}" chỉ còn ${rt.availableCount} phòng trống trong khoảng thời gian đã chọn (bạn đang chọn ${count} phòng). Vui lòng giảm số lượng hoặc chọn ngày khác.`,
+          );
+          return;
+        }
+      }
     } else {
       if (bulkSelectedRoomIds.size < 1) {
         await showWarningAlert(
@@ -1803,8 +2138,9 @@ export function StaffRoomsClient({
             .filter(([_, count]) => count > 0)
             .map(([roomTypeId, quantity]) => {
               const customRate = bulkRoomTypeCustomPrices[roomTypeId];
+              const rt = roomTypeSummaryList.find((item) => item.roomTypeId === roomTypeId);
               return {
-                roomTypeId,
+                roomTypeId: rt?.roomTypeId ?? roomTypeId,
                 quantity,
                 ...(customRate !== undefined && customRate !== null
                   ? { rate: customRate }
@@ -1905,6 +2241,7 @@ export function StaffRoomsClient({
         data?: {
           code?: string;
           detail?: string;
+          message?: string;
           unavailableRoomIds?: string[];
           conflictRoomIds?: string[];
           roomIds?: string[];
@@ -1930,21 +2267,20 @@ export function StaffRoomsClient({
           .map((id) => rooms.find((r) => r.id === id)?.roomNumber || id)
           .filter(Boolean);
 
+        const conflictDetailMsg =
+          conflictRoomNames.length > 0
+            ? `Các phòng sau đã bị trùng lịch hoặc không khả dụng: <strong>${conflictRoomNames.join(", ")}</strong>.`
+            : errorObj.data?.detail ||
+              errorObj.data?.message ||
+              errorObj.message ||
+              "Một số phòng đã chọn bị trùng lịch hoặc không khả dụng trong khoảng thời gian này.";
+
         await SwalVietSage.fire({
           icon: "warning",
           title: "Xung đột lịch đặt phòng",
           html: `
             <div style="text-align:left;font-size:14px;color:#334155;display:flex;flex-direction:column;gap:10px;">
-              <p>${errorObj.data?.detail || "Một số phòng đã chọn bị trùng lịch hoặc không khả dụng trong khoảng thời gian này."}</p>
-              ${
-                conflictRoomNames.length > 0
-                  ? `
-                <div style="padding:10px 14px;background:#fff1f2;border:1px solid #fecdd3;border-radius:10px;color:#9f1239;">
-                  <strong>Phòng bị xung đột:</strong> ${conflictRoomNames.join(", ")}
-                </div>
-              `
-                  : ""
-              }
+              <p>${conflictDetailMsg}</p>
               <p style="font-size:12px;color:#64748b;">Form đặt phòng vẫn được giữ nguyên. Vui lòng bỏ chọn các phòng xung đột hoặc đổi thời gian nhận/trả phòng.</p>
             </div>
           `,
@@ -1953,6 +2289,7 @@ export function StaffRoomsClient({
       } else {
         const msg =
           errorObj?.data?.detail ||
+          errorObj?.data?.message ||
           errorObj?.message ||
           "Không thể tạo đặt phòng hàng loạt. Vui lòng kiểm tra lại.";
         await showErrorAlert("Lỗi đặt phòng", msg);
@@ -2201,48 +2538,6 @@ export function StaffRoomsClient({
       );
     }
   }
-
-  const boundChannelResource = useMemo(
-    () => channelManagerResource.bind({ hotelId, roleScope: "owner" }),
-    [hotelId],
-  );
-
-  const { data: otaBookings = [] } = useQuery({
-    ...boundChannelResource.queries.simulatedBookings.options(
-      undefined as never,
-    ),
-    enabled: !isHousekeeping,
-    refetchInterval: isHousekeeping ? false : 30_000,
-    staleTime: 10_000,
-  });
-
-  const { incomingOtaByRoomNumber } = useMemo(() => {
-    const map = new Map<string, SimulatedBookingItem>();
-
-    for (const b of otaBookings) {
-      if (b.status === "CANCELLED") continue;
-      const isTodayArrival = Boolean(
-        b.checkInDate &&
-        b.checkOutDate &&
-        b.checkInDate <= todayYmd &&
-        b.checkOutDate >= todayYmd,
-      );
-      const notCheckedIn =
-        !b.stayStatus ||
-        b.stayStatus === "PENDING" ||
-        b.stayStatus === "CANCELLED";
-
-      if (b.status === "CONFIRMED" && notCheckedIn && isTodayArrival) {
-        if (b.roomNumber) {
-          map.set(b.roomNumber.trim().toUpperCase(), b);
-        }
-      }
-    }
-
-    return {
-      incomingOtaByRoomNumber: map,
-    };
-  }, [otaBookings, todayYmd]);
 
   let reservationConflict: { room: HotelRoomSummary; message: string } | null =
     null;
@@ -3389,21 +3684,116 @@ export function StaffRoomsClient({
     );
   }
 
+  function cleanGuestDisplayName(name?: string | null): string {
+    if (!name) return "";
+    return name
+      .replace(
+        /\s*\((?:Đang ở|Đến hôm nay|Quá hạn[^)]*|Giữ chỗ[^)]*|Check-in[^)]*|Check-out[^)]*|Khách[^)]*|Lưu trú[^)]*)\)/gi,
+        "",
+      )
+      .trim();
+  }
+
   function renderRoomCard(room: HotelRoomSummary) {
     const rawEffectiveStatus = getEffectiveRoomStatus(room, isFutureDate);
     const effectiveStatus: RoomStatusFilter = rawEffectiveStatus;
     const physicalStatus = getRoomStatus(room);
-    const hasActiveStay = Boolean(room.activeStay || room.projectedStay);
-    const isPhysicallyBusy =
-      physicalStatus === "occupied" ||
-      physicalStatus === "overdue" ||
-      hasActiveStay;
+    const stay = isFutureDate
+      ? room.projectedStay || room.activeStay
+      : room.activeStay;
+    const hasActiveStay = Boolean(stay && !stay.checkedOutAt);
+    const isOverdue =
+      !isFutureDate &&
+      (isOverdueCheckOut(room) || rawEffectiveStatus === "overdue");
     const incomingOta = incomingOtaByRoomNumber.get(
       getRoomNumber(room).toUpperCase(),
     );
     const isVip = /suite|vip|premium|penthouse/i.test(room.type ?? "");
     const resDetails = getRoomReservationDetails(room);
-    const isReserved = effectiveStatus === "reserved";
+
+    const targetYmd = businessDate || todayYmd;
+    const stayCheckOutYmd = toVietnamDateString(stay?.plannedCheckOutAt);
+    const isOutToday = hasActiveStay && stayCheckOutYmd === targetYmd;
+
+    const todayArrival = todayArrivalByRoomId.get(room.id);
+    const arrivalCheckInYmd =
+      toVietnamDateString(todayArrival?.plannedCheckInAt) ||
+      toVietnamDateString(resDetails?.plannedCheckInAt) ||
+      toVietnamDateString(incomingOta?.checkInDate) ||
+      toVietnamDateString(room.upcomingReservation?.plannedCheckInAt);
+
+    const isInToday = Boolean(
+      todayArrival ||
+        incomingOta ||
+        (resDetails && resDetails.isReservedToday) ||
+        (arrivalCheckInYmd && arrivalCheckInYmd === targetYmd) ||
+        effectiveStatus === "reserved",
+    );
+
+    const incomingGuestName =
+      todayArrival?.guestDisplayName ||
+      resDetails?.guestDisplayName ||
+      incomingOta?.guestName ||
+      (arrivalCheckInYmd === targetYmd
+        ? room.upcomingReservation?.guestDisplayName
+        : null);
+
+    const incomingCheckInAt =
+      todayArrival?.plannedCheckInAt ||
+      resDetails?.plannedCheckInAt ||
+      incomingOta?.checkInDate ||
+      room.upcomingReservation?.plannedCheckInAt;
+
+    const incomingPhone =
+      todayArrival?.guestPhone ||
+      resDetails?.guestPhone ||
+      (arrivalCheckInYmd === targetYmd
+        ? room.upcomingReservation?.guestPhone
+        : null) ||
+      room.upcomingReservation?.guestPhone ||
+      null;
+
+    const incomingCheckOutAt =
+      todayArrival?.plannedCheckOutAt ||
+      resDetails?.plannedCheckOutAt ||
+      incomingOta?.checkOutDate ||
+      room.upcomingReservation?.plannedCheckOutAt;
+
+    const incomingSource = incomingOta
+      ? `OTA · ${incomingOta.otaName}`
+      : null;
+
+    // Phân loại trạng thái lưu trú vận hành theo yêu cầu của lễ tân
+    let stateCategory:
+      | "turnaround"
+      | "departing_today"
+      | "arriving_today"
+      | "occupied"
+      | "overdue"
+      | "available"
+      | "processing"
+      | "blocked"
+      | "maintenance";
+
+    if (isOverdue) {
+      stateCategory = "overdue";
+    } else if (hasActiveStay && isOutToday && isInToday) {
+      stateCategory = "turnaround";
+    } else if (hasActiveStay && isOutToday) {
+      stateCategory = "departing_today";
+    } else if (hasActiveStay) {
+      stateCategory = "occupied";
+    } else if (isInToday || effectiveStatus === "reserved") {
+      stateCategory = "arriving_today";
+    } else if (effectiveStatus === "processing") {
+      stateCategory = "processing";
+    } else if (effectiveStatus === "blocked") {
+      stateCategory = "blocked";
+    } else if (effectiveStatus === "maintenance") {
+      stateCategory = "maintenance";
+    } else {
+      stateCategory = "available";
+    }
 
     const matchedOccupant =
       !isFutureDate && inputQuery.trim()
@@ -3413,6 +3803,33 @@ export function StaffRoomsClient({
               .includes(inputQuery.trim().toLowerCase()),
           )
         : null;
+
+    let cardClass = "";
+    if (stateCategory === "turnaround") {
+      cardClass =
+        "border-2 border-amber-400 hover:border-amber-500 bg-gradient-to-b from-amber-50/80 via-white to-purple-50/40 text-slate-950 shadow-xs hover:shadow-md hover:shadow-amber-500/10";
+    } else if (stateCategory === "departing_today") {
+      cardClass =
+        "border-2 border-amber-300 hover:border-amber-400 bg-gradient-to-b from-amber-50/70 via-white to-amber-50/20 text-slate-950 shadow-xs hover:shadow-md hover:shadow-amber-500/10";
+    } else if (stateCategory === "arriving_today") {
+      cardClass =
+        "border-2 border-purple-300 hover:border-purple-400 bg-gradient-to-b from-purple-50/70 via-white to-purple-50/20 text-slate-950 shadow-xs hover:shadow-md hover:shadow-purple-500/10";
+    } else if (stateCategory === "occupied") {
+      cardClass =
+        "border-2 border-sky-300 hover:border-sky-400 bg-gradient-to-b from-sky-50/70 via-white to-blue-50/20 text-slate-950 shadow-xs hover:shadow-md hover:shadow-sky-500/10";
+    } else if (stateCategory === "overdue") {
+      cardClass =
+        "border-2 border-rose-300 hover:border-rose-400 bg-gradient-to-b from-rose-50/70 via-white to-rose-50/20 text-slate-950 shadow-xs hover:shadow-md hover:shadow-rose-500/10";
+    } else if (stateCategory === "processing") {
+      cardClass =
+        "border-2 border-amber-300 hover:border-amber-400 bg-gradient-to-b from-amber-50/60 via-white to-amber-50/20 text-slate-950 shadow-xs hover:shadow-md hover:shadow-amber-500/10";
+    } else if (stateCategory === "blocked" || stateCategory === "maintenance") {
+      cardClass =
+        "border-2 border-slate-300 hover:border-slate-400 bg-gradient-to-b from-slate-100/80 via-white to-slate-50/40 text-slate-950 shadow-xs hover:shadow-md";
+    } else {
+      cardClass =
+        "border-2 border-emerald-300 hover:border-emerald-400 bg-gradient-to-b from-emerald-50/70 via-white to-emerald-50/20 text-slate-950 shadow-xs hover:shadow-md hover:shadow-emerald-500/10";
+    }
 
     return (
       <div
@@ -3430,484 +3847,482 @@ export function StaffRoomsClient({
           }
         }}
         onClick={(e) => handleCardClick(room, e.currentTarget)}
-        className={`relative flex flex-col justify-between h-full min-h-[240px] rounded-2xl border p-5 text-left transition-all cursor-pointer ${roomCardClass(effectiveStatus)}`}
+        className={`relative flex flex-col justify-between h-[310px] min-h-[310px] rounded-2xl p-4 text-left transition-all cursor-pointer select-none ${cardClass}`}
       >
         {renderRoomAmbientGlow(effectiveStatus)}
-        {/* Header */}
+
+        {/* Header: Room Number, Room Type, VIP/Capacity Badge */}
         <div className="relative z-10 flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h3 className="vs-display text-3xl font-bold tracking-tight text-slate-950">
+            <h3 className="vs-display text-2xl font-black tracking-tight text-slate-950">
               {getRoomNumber(room)}
             </h3>
-            <p className="text-sm font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
+            <p className="text-xs font-bold text-slate-600 mt-0.5 truncate">
               {room.type ?? "Tiêu chuẩn"}
             </p>
           </div>
-          <span
-            className={
-              isVip
-                ? "rounded-full bg-amber-100 text-amber-950 border border-amber-300 px-3 py-1 text-xs font-black tracking-wider shrink-0 whitespace-nowrap"
-                : "rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 px-3 py-1 text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0 whitespace-nowrap"
-            }
-          >
-            {isVip
-              ? "VIP"
-              : room.floor
-                ? `Tầng ${room.floor}`
-                : roomStatusLabel(effectiveStatus)}
-          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {isVip ? (
+              <span className="rounded-full bg-amber-100 text-amber-950 border border-amber-300 px-2.5 py-0.5 text-xs font-black tracking-wider whitespace-nowrap">
+                VIP
+              </span>
+            ) : room.maxOccupancy ? (
+              <span className="rounded-full bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 text-xs font-semibold whitespace-nowrap">
+                {room.maxOccupancy} khách
+              </span>
+            ) : null}
+          </div>
         </div>
 
-        {/* Middle Body */}
-        <div className="relative z-10 my-3 flex-1 flex flex-col justify-center">
-          {effectiveStatus === "overdue" ? (
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-rose-600">
-                <VsIcon
-                  name="warning"
-                  className="text-sm text-rose-600 shrink-0"
-                />
-                <span>Cảnh báo quá hạn</span>
-              </div>
-              <div className="mt-0.5 flex items-center gap-1.5 text-sm font-black text-slate-950">
-                <VsIcon
-                  name="error"
-                  className="text-sm text-rose-600 shrink-0"
-                />
-                <span className="truncate">
-                  {isFutureDate
-                    ? "Phòng đang quá hạn trả thực tế hôm nay"
-                    : (room.activeStay?.guestDisplayName ??
-                      "Khách chưa trả phòng")}
-                </span>
-              </div>
-              {matchedOccupant && !isFutureDate ? (
-                <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-950 bg-rose-100 border border-rose-300 px-2 py-0.5 rounded-md w-fit">
-                  <VsIcon
-                    name="group"
-                    className="text-xs text-rose-700 shrink-0"
-                  />
-                  <span>
-                    Khách ở cùng: <strong>{matchedOccupant.fullName}</strong>
-                  </span>
-                </span>
-              ) : null}
-              {!isFutureDate && room.activeStay?.plannedCheckOutAt ? (
-                <span className="text-xs font-bold text-rose-700">
-                  Hạn trả: {formatDateTime(room.activeStay.plannedCheckOutAt)}
-                </span>
-              ) : null}
+        {/* Status Pill Badge */}
+        <div className="relative z-10 mt-2">
+          {stateCategory === "turnaround" ? (
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 text-amber-950 border border-amber-300 px-2.5 py-0.5 text-xs font-black shadow-2xs whitespace-nowrap">
+              <span className="size-2 rounded-full bg-amber-500 animate-pulse" />
+              <span>Khách out & in tiếp theo</span>
             </div>
-          ) : effectiveStatus === "reserved" || isReserved ? (
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-purple-700">
-                <VsIcon
-                  name="event"
-                  className="text-sm text-purple-600 shrink-0"
-                />
-                <span>Đã đặt trước</span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <div className="mt-0.5 flex items-center gap-1.5 text-slate-950 font-black text-sm">
-                  <VsIcon
-                    name="person"
-                    className="text-base text-purple-600 shrink-0"
-                  />
-                  <span className="truncate">
-                    {resDetails?.guestDisplayName ||
-                      room.projectedReservation?.guestDisplayName ||
-                      "Khách đặt trước"}
-                  </span>
-                </div>
-                {resDetails?.plannedCheckInAt ||
-                room.projectedReservation?.plannedCheckInAt ? (
-                  <span className="text-xs font-semibold text-purple-900">
-                    Nhận phòng:{" "}
-                    {formatDateTime(
-                      resDetails?.plannedCheckInAt ||
-                        room.projectedReservation?.plannedCheckInAt,
-                    )}
-                  </span>
-                ) : null}
-              </div>
+          ) : stateCategory === "departing_today" ? (
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200 px-2.5 py-0.5 text-xs font-black whitespace-nowrap">
+              <span className="size-2 rounded-full bg-amber-500" />
+              <span>Khách out hôm nay</span>
             </div>
-          ) : effectiveStatus === "occupied" ? (
-            <div className="flex flex-col gap-1">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-                Trạng thái vận hành
-              </p>
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 text-slate-950 font-black text-sm">
-                  <VsIcon
-                    name="person"
-                    className="text-base text-sky-600 shrink-0"
-                  />
-                  <span className="truncate">
-                    {isFutureDate
-                      ? "Đã có lịch lưu trú tương lai"
-                      : (room.activeStay?.guestDisplayName ??
-                        "Khách lưu trú (Đã nhận phòng)")}
-                  </span>
-                </div>
-                {matchedOccupant && !isFutureDate ? (
-                  <span className="inline-flex items-center gap-1 text-xs font-bold text-sky-950 bg-sky-100 border border-sky-300 px-2 py-0.5 rounded-md w-fit">
-                    <VsIcon
-                      name="group"
-                      className="text-xs text-sky-700 shrink-0"
-                    />
-                    <span>
-                      Khách ở cùng: <strong>{matchedOccupant.fullName}</strong>
-                    </span>
-                  </span>
-                ) : null}
-                {!isFutureDate && room.activeStay?.plannedCheckOutAt ? (
-                  <span className="text-xs font-semibold text-slate-600">
-                    Trả phòng:{" "}
-                    {formatDateTime(room.activeStay.plannedCheckOutAt)}
-                  </span>
-                ) : null}
-              </div>
+          ) : stateCategory === "arriving_today" ? (
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-purple-50 text-purple-900 border border-purple-200 px-2.5 py-0.5 text-xs font-black whitespace-nowrap">
+              <span className="size-2 rounded-full bg-purple-600" />
+              <span>Khách in hôm nay</span>
+            </div>
+          ) : stateCategory === "occupied" ? (
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 text-blue-900 border border-blue-200 px-2.5 py-0.5 text-xs font-black whitespace-nowrap">
+              <span className="size-2 rounded-full bg-blue-600" />
+              <span>Có khách đang ở</span>
+            </div>
+          ) : stateCategory === "overdue" ? (
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 text-rose-950 border border-rose-300 px-2.5 py-0.5 text-xs font-black whitespace-nowrap animate-pulse">
+              <VsIcon name="warning" className="text-xs text-rose-600 shrink-0" />
+              <span>Quá hạn trả phòng</span>
+            </div>
+          ) : stateCategory === "processing" ? (
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200 px-2.5 py-0.5 text-xs font-black whitespace-nowrap">
+              <VsIcon
+                name="cleaning_services"
+                className="text-xs text-amber-600 shrink-0"
+              />
+              <span>Chờ dọn buồng phòng</span>
+            </div>
+          ) : stateCategory === "blocked" ? (
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+              <VsIcon name="lock" className="text-xs text-slate-600 shrink-0" />
+              <span>Đã khóa phòng</span>
+            </div>
+          ) : stateCategory === "maintenance" ? (
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+              <VsIcon name="build" className="text-xs text-slate-600 shrink-0" />
+              <span>Đang bảo trì</span>
             </div>
           ) : (
-            <>
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-                Trạng thái vận hành
-              </p>
-              <div className="mt-1 font-bold text-slate-950 dark:text-slate-100 text-sm flex items-center gap-1.5">
-                {isFutureDate && isPhysicallyBusy ? (
-                  physicalStatus === "overdue" ? (
-                    <div className="flex items-center gap-1.5 text-rose-700">
-                      <VsIcon
-                        name="warning"
-                        className="text-base text-rose-600 shrink-0"
-                      />
-                      <span>Quá hạn trả phòng · Chưa check-out</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5 text-sky-800">
-                      <VsIcon
-                        name="person"
-                        className="text-base text-sky-600 shrink-0"
-                      />
-                      <span>Đang có khách lưu trú</span>
-                    </div>
-                  )
-                ) : isFutureDate && physicalStatus === "processing" ? (
-                  <div className="flex items-center gap-1.5 text-amber-700">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-900 border border-emerald-200 px-2.5 py-0.5 text-xs font-black whitespace-nowrap">
+              <span className="size-2 rounded-full bg-emerald-500" />
+              <span>Sẵn sàng đón khách</span>
+            </div>
+          )}
+        </div>
+
+        {/* Middle Body: Guest Info & Check-in / Check-out Dates */}
+        <div className="relative z-10 my-2 flex-1 flex flex-col justify-center">
+          {stateCategory === "turnaround" ? (
+            <div className="flex flex-col gap-1.5 text-xs">
+              <div className="rounded-xl bg-amber-50/90 border border-amber-200/80 p-2">
+                <div className="flex items-center justify-between gap-1">
+                  <div className="flex items-center gap-1.5 font-extrabold text-amber-950 truncate min-w-0 flex-1">
                     <VsIcon
-                      name="cleaning_services"
-                      className="text-base text-amber-600 shrink-0"
+                      name="logout"
+                      className="text-xs text-amber-600 shrink-0"
                     />
-                    <span>Đang chờ dọn dẹp</span>
+                    <span className="truncate">
+                      {cleanGuestDisplayName(stay?.guestDisplayName) || "Khách đang ở"}
+                    </span>
+                    {stay?.guestPhone && (
+                      <span className="text-amber-900/80 font-bold shrink-0 whitespace-nowrap">
+                        · {stay.guestPhone}
+                      </span>
+                    )}
                   </div>
-                ) : effectiveStatus === "processing" ? (
-                  <>
+                  <span className="text-amber-800 font-black whitespace-nowrap shrink-0">
+                    Out: {formatTimeOnly(stay?.plannedCheckOutAt) || "12:00"}
+                  </span>
+                </div>
+              </div>
+              <div className="rounded-xl bg-purple-50/90 border border-purple-200/80 p-2">
+                <div className="flex items-center justify-between gap-1">
+                  <div className="flex items-center gap-1.5 font-extrabold text-purple-950 truncate min-w-0 flex-1">
                     <VsIcon
-                      name="cleaning_services"
-                      className="text-base text-amber-600 shrink-0"
+                      name="login"
+                      className="text-xs text-purple-600 shrink-0"
                     />
-                    <span>Chờ dọn dẹp buồng phòng</span>
-                  </>
-                ) : effectiveStatus === "available" ? (
-                  !isFutureDate && incomingOta ? (
-                    <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-1.5 text-slate-950 font-black text-sm">
-                        <VsIcon
-                          name="book_online"
-                          className="text-base text-sky-600 shrink-0"
-                        />
-                        <span className="truncate">
-                          {incomingOta.guestName}
-                        </span>
-                      </div>
-                      <span className="text-xs font-bold text-sky-700">
-                        🛎️ {incomingOta.otaName} · Đến hôm nay
+                    <span className="truncate">
+                      {cleanGuestDisplayName(incomingGuestName) || "Khách đặt trước"}
+                    </span>
+                    {incomingPhone && (
+                      <span className="text-purple-900/80 font-bold shrink-0 whitespace-nowrap">
+                        · {incomingPhone}
                       </span>
-                    </div>
-                  ) : room.upcomingReservation ? (
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-1.5 text-emerald-700 font-bold text-sm">
-                        <VsIcon
-                          name="check_circle"
-                          className="text-base text-emerald-600 shrink-0"
-                        />
-                        <span>Sẵn sàng đón khách</span>
-                      </div>
-                      <span
-                        className="inline-flex items-center gap-1 text-xs font-bold text-purple-900 bg-purple-100 border border-purple-200 px-2 py-0.5 rounded-md w-fit"
-                        title={`Đã có lịch đặt trước: ${room.upcomingReservation.guestDisplayName}`}
-                      >
-                        <VsIcon
-                          name="event"
-                          className="text-xs text-purple-700 shrink-0"
-                        />
-                        <span>
-                          Có lịch từ{" "}
-                          {formatDateTime(
-                            room.upcomingReservation.plannedCheckInAt,
-                          )}
-                        </span>
-                      </span>
-                    </div>
-                  ) : (
-                    <>
-                      <VsIcon
-                        name="check_circle"
-                        className="text-base text-emerald-600 shrink-0"
-                      />
-                      <span>Sẵn sàng đón khách</span>
-                    </>
-                  )
-                ) : effectiveStatus === "blocked" ? (
-                  <>
-                    <VsIcon
-                      name="lock"
-                      className="text-base text-slate-700 shrink-0"
-                    />
-                    <span>Đã khóa phòng</span>
-                  </>
-                ) : (
-                  <>
-                    <VsIcon
-                      name="build"
-                      className="text-base text-rose-600 shrink-0"
-                    />
-                    <span>Đang bảo trì / Tạm ngưng</span>
-                  </>
+                    )}
+                  </div>
+                  <span className="text-purple-800 font-black whitespace-nowrap shrink-0">
+                    In: {formatTimeOnly(incomingCheckInAt) || "14:00"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : stateCategory === "departing_today" ||
+            stateCategory === "occupied" ||
+            stateCategory === "overdue" ? (
+            <div className="flex flex-col gap-1.5 text-xs">
+              <div className="flex items-center gap-1.5 text-slate-900 min-w-0">
+                <VsIcon
+                  name="person"
+                  className="text-sm text-sky-600 shrink-0"
+                />
+                <span className="truncate text-sm font-extrabold">
+                  {cleanGuestDisplayName(stay?.guestDisplayName) || "Khách lưu trú"}
+                </span>
+                {stay?.guestPhone && (
+                  <span className="text-xs font-bold text-slate-600 shrink-0 whitespace-nowrap">
+                    · {stay.guestPhone}
+                  </span>
                 )}
               </div>
-            </>
+              {matchedOccupant && (
+                <div className="text-xs font-bold text-sky-900 bg-sky-100/80 px-2 py-0.5 rounded-md w-fit truncate">
+                  Đi cùng: {matchedOccupant.fullName}
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-slate-50 border border-slate-200/80 p-2 text-xs">
+                <div>
+                  <span className="text-xs font-bold text-slate-500 block">
+                    Check-in
+                  </span>
+                  <span className="font-extrabold text-slate-800 whitespace-nowrap">
+                    {formatDateTime(stay?.checkedInAt || stay?.plannedCheckInAt)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-500 block">
+                    Check-out
+                  </span>
+                  <span
+                    className={`font-extrabold whitespace-nowrap ${
+                      stateCategory === "departing_today"
+                        ? "text-amber-800 bg-amber-100 px-1 py-0.5 rounded"
+                        : stateCategory === "overdue"
+                          ? "text-rose-800 bg-rose-100 px-1 py-0.5 rounded animate-pulse"
+                          : "text-slate-800"
+                    }`}
+                  >
+                    {formatDateTime(stay?.plannedCheckOutAt)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : stateCategory === "arriving_today" ? (
+            <div className="flex flex-col gap-1.5 text-xs">
+              <div className="flex items-center justify-between gap-1 min-w-0">
+                <div className="flex items-center gap-1.5 text-purple-950 min-w-0 flex-1">
+                  <VsIcon
+                    name="person"
+                    className="text-sm text-purple-600 shrink-0"
+                  />
+                  <span className="truncate text-sm font-extrabold">
+                    {cleanGuestDisplayName(incomingGuestName) || "Khách đặt trước"}
+                  </span>
+                  {incomingPhone && (
+                    <span className="text-xs font-bold text-purple-800 shrink-0 whitespace-nowrap">
+                      · {incomingPhone}
+                    </span>
+                  )}
+                </div>
+                {incomingSource && (
+                  <span className="text-xs font-bold text-purple-700 whitespace-nowrap bg-purple-100 px-1.5 py-0.5 rounded shrink-0">
+                    {incomingSource}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-purple-50/70 border border-purple-200/80 p-2 text-xs">
+                <div>
+                  <span className="text-xs font-bold text-purple-700 block">
+                    Dự kiến đến
+                  </span>
+                  <span className="font-extrabold text-purple-950 whitespace-nowrap">
+                    {formatDateTime(incomingCheckInAt)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-purple-700 block">
+                    Dự kiến trả
+                  </span>
+                  <span className="font-extrabold text-purple-900 whitespace-nowrap">
+                    {formatDateTime(incomingCheckOutAt)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : stateCategory === "available" ? (
+            <div className="flex flex-col gap-1 text-xs justify-center">
+              {room.upcomingReservation ? (
+                <div className="rounded-xl bg-purple-50/70 border border-purple-200/80 p-2 space-y-1">
+                  <div className="flex items-center gap-1.5 text-purple-900 font-extrabold truncate min-w-0">
+                    <VsIcon
+                      name="event"
+                      className="text-xs text-purple-600 shrink-0"
+                    />
+                    <span className="truncate">
+                      Lịch: {cleanGuestDisplayName(room.upcomingReservation.guestDisplayName)}
+                    </span>
+                    {room.upcomingReservation.guestPhone && (
+                      <span className="text-purple-800 font-bold shrink-0 whitespace-nowrap">
+                        · {room.upcomingReservation.guestPhone}
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 text-xs">
+                    <div>
+                      <span className="text-purple-600 font-medium block">
+                        Nhận:
+                      </span>
+                      <span className="font-bold text-purple-950 whitespace-nowrap">
+                        {formatDateTime(
+                          room.upcomingReservation.plannedCheckInAt,
+                        )}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-purple-600 font-medium block">
+                        Trả:
+                      </span>
+                      <span className="font-bold text-purple-950 whitespace-nowrap">
+                        {formatDateTime(
+                          room.upcomingReservation.plannedCheckOutAt,
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-2 text-center text-emerald-800">
+                  <VsIcon
+                    name="check_circle"
+                    className="text-2xl text-emerald-500 mb-0.5"
+                  />
+                  <p className="font-bold text-xs text-emerald-950">
+                    Phòng sạch & Sẵn sàng
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Chưa có lịch đặt hôm nay
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : stateCategory === "processing" ? (
+            <div className="flex flex-col items-center justify-center py-2 text-center text-amber-900">
+              <VsIcon
+                name="cleaning_services"
+                className="text-2xl text-amber-500 mb-0.5"
+              />
+              <p className="font-bold text-xs text-amber-950">
+                Chờ buồng phòng dọn dẹp
+              </p>
+              <p className="text-xs text-slate-500">
+                {isInToday
+                  ? "Có khách sắp nhận hôm nay!"
+                  : "Chưa hoàn tất vệ sinh"}
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-2 text-center text-slate-700">
+              <VsIcon
+                name={stateCategory === "blocked" ? "lock" : "build"}
+                className="text-2xl text-slate-400 mb-0.5"
+              />
+              <p className="font-bold text-xs text-slate-900">
+                {stateCategory === "blocked"
+                  ? "Đã khóa phòng"
+                  : "Đang bảo trì"}
+              </p>
+              <p className="text-xs text-slate-500">
+                Tạm thời ngừng đón khách
+              </p>
+            </div>
           )}
         </div>
 
-        {/* Footer */}
+        {/* Footer: Direct Touch Action Buttons (Box bỏ giá theo yêu cầu) */}
         <div className="relative z-10 mt-auto border-t border-slate-200/80 pt-2.5">
-          {/* Price - Separate Centered Row without Box */}
-          {!isHousekeeping ? (
-            <div className="flex items-center justify-center py-1 text-center">
-              <span
-                className={
-                  room.price && Number(room.price) > 0
-                    ? "text-base sm:text-lg font-black text-amber-600 dark:text-amber-400 tracking-tight tabular-nums"
-                    : "text-xs font-bold text-slate-500 uppercase tracking-wider"
-                }
-                title={
-                  room.price && Number(room.price) > 0
-                    ? `Giá phòng: ${formatMoney({ price: room.price ?? null, currency: "VND" })}`
-                    : room.type
-                      ? `Loại: ${room.type}`
-                      : `Phòng ${getRoomNumber(room)}`
-                }
-              >
-                {room.price && Number(room.price) > 0
-                  ? formatMoney({ price: room.price ?? null, currency: "VND" })
-                  : room.type
-                    ? room.type
-                    : "Giá linh hoạt"}
-              </span>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center py-1 text-center">
-              <span className="text-sm font-bold text-slate-700">
-                {room.type ?? "Tiêu chuẩn"}
-              </span>
-            </div>
-          )}
-
-          {isFutureDate && room.projectedStatus ? (
-            <div className="mt-1 flex flex-col items-center justify-center gap-0.5 text-center">
-              <span
-                className={`${roomStatusBadgeClass(effectiveStatus)} shrink-0 whitespace-nowrap`}
-              >
-                Dự kiến: {roomStatusLabel(effectiveStatus)}
-              </span>
-              <p className="text-xs text-slate-500 font-medium">
-                Thực tế hiện tại:{" "}
-                <span className="font-bold text-slate-700">
-                  {roomStatusLabel(physicalStatus)}
-                </span>
-              </p>
-            </div>
-          ) : null}
-
-          {/* Direct Touch Action Buttons - min-h-[44px] */}
-          <div className="mt-3 flex flex-col gap-2">
-            {isHousekeeping ? (
-              effectiveStatus === "processing" ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void confirmRoomReady(room);
-                  }}
-                  className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-sm shadow-sm transition active:scale-[0.98] cursor-pointer"
-                >
-                  <VsIcon name="check_circle" className="text-base shrink-0" />
-                  <span>Xác nhận phòng đã dọn xong</span>
-                </button>
-              ) : (
-                <div className="flex w-full min-h-[44px] items-center justify-center rounded-xl bg-slate-100 text-slate-700 text-sm font-bold border border-slate-200">
-                  <span>Trạng thái: {roomStatusLabel(effectiveStatus)}</span>
-                </div>
-              )
-            ) : isFutureDate ? (
-              effectiveStatus === "available" &&
-              !isPhysicallyBusy &&
-              physicalStatus === "available" ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openFutureReservationModal(room);
-                  }}
-                  className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-sm shadow-sm transition active:scale-[0.98] cursor-pointer"
-                >
-                  <VsIcon name="event" className="text-base shrink-0" />
-                  <span>Đặt trước phòng này</span>
-                </button>
-              ) : isReserved ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openRoomContextPanel(room, e.currentTarget);
-                  }}
-                  className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-sm shadow-sm transition active:scale-[0.98] cursor-pointer"
-                >
-                  <VsIcon
-                    name="event_available"
-                    className="text-base shrink-0"
-                  />
-                  <span>Chi tiết đặt phòng</span>
-                </button>
-              ) : isPhysicallyBusy ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openRoomContextPanel(room, e.currentTarget);
-                  }}
-                  className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-extrabold text-sm shadow-sm transition active:scale-[0.98] cursor-pointer"
-                >
-                  <VsIcon name="info" className="text-base shrink-0" />
-                  <span>Chưa check-out · Xem chi tiết</span>
-                </button>
-              ) : physicalStatus === "processing" ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openRoomContextPanel(room, e.currentTarget);
-                  }}
-                  className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-amber-700 hover:bg-amber-800 text-white font-extrabold text-sm shadow-sm transition active:scale-[0.98] cursor-pointer"
-                >
-                  <VsIcon
-                    name="cleaning_services"
-                    className="text-base shrink-0"
-                  />
-                  <span>Chờ dọn dẹp · Xem chi tiết</span>
-                </button>
-              ) : (
-                <div className="flex w-full min-h-[44px] items-center justify-center rounded-xl bg-slate-200/80 text-slate-700 text-sm font-bold border border-slate-300">
-                  <span>Đã có lịch đặt / Đang bận</span>
-                </div>
-              )
-            ) : // Realtime / Today actions
-            effectiveStatus === "available" ? (
-              incomingOta && canManageStays ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void handleOtaFastCheckIn(incomingOta, room);
-                  }}
-                  className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-sky-700 hover:bg-sky-800 text-white font-extrabold text-sm shadow-sm transition active:scale-[0.98] cursor-pointer"
-                >
-                  <VsIcon name="book_online" className="text-base shrink-0" />
-                  <span>Nhận phòng {incomingOta.otaName}</span>
-                </button>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openWalkIn(room);
-                    }}
-                    className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-sm shadow-sm transition active:scale-[0.98] cursor-pointer"
-                  >
-                    <VsIcon name="login" className="text-base shrink-0" />
-                    <span>Nhận phòng</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openFutureReservationModal(room);
-                    }}
-                    className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
-                  >
-                    <VsIcon name="event" className="text-base shrink-0" />
-                    <span>Đặt trước</span>
-                  </button>
-                </div>
-              )
-            ) : effectiveStatus === "processing" ? (
-              renderRoomStatusHoverMenu(room, "processing")
-            ) : effectiveStatus === "reserved" || isReserved ? (
+          {isHousekeeping ? (
+            effectiveStatus === "processing" ? (
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (resDetails) {
-                    if (resDetails.arrival) {
-                      handleCheckInArrival(resDetails.arrival);
-                    } else {
-                      handleCheckInReservationGeneric(room, resDetails);
-                    }
-                  } else {
-                    openRoomContextPanel(room, e.currentTarget);
-                  }
+                  void confirmRoomReady(room);
                 }}
-                className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-sm shadow-sm transition active:scale-[0.98] cursor-pointer"
-                title={`Làm thủ tục nhận phòng cho khách ${resDetails?.guestDisplayName || "đặt trước"}`}
+                className="flex w-full min-h-[40px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
+              >
+                <VsIcon name="check_circle" className="text-base shrink-0" />
+                <span>Xác nhận phòng đã dọn xong</span>
+              </button>
+            ) : (
+              <div className="flex w-full min-h-[40px] items-center justify-center rounded-xl bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200">
+                <span>Trạng thái: {roomStatusLabel(effectiveStatus)}</span>
+              </div>
+            )
+          ) : stateCategory === "available" ? (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openWalkIn(room);
+                }}
+                className="flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
               >
                 <VsIcon name="login" className="text-base shrink-0" />
                 <span>Nhận phòng</span>
               </button>
-            ) : effectiveStatus === "occupied" ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openFutureReservationModal(room);
+                }}
+                className="flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer"
+              >
+                <VsIcon name="event" className="text-base shrink-0" />
+                <span>Đặt trước</span>
+              </button>
+            </div>
+          ) : stateCategory === "turnaround" ? (
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   openRoomContextPanel(room, e.currentTarget);
                 }}
-                className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-extrabold text-sm shadow-sm transition active:scale-[0.98] cursor-pointer"
+                className="flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
               >
-                <VsIcon name="info" className="text-base shrink-0" />
-                <span>Chi tiết & hóa đơn</span>
+                <VsIcon name="logout" className="text-base shrink-0" />
+                <span>Trả phòng</span>
               </button>
-            ) : effectiveStatus === "overdue" ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (resDetails?.arrival) {
+                    handleCheckInArrival(resDetails.arrival);
+                  } else {
+                    openRoomContextPanel(room, e.currentTarget);
+                  }
+                }}
+                className="flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
+              >
+                <VsIcon name="login" className="text-base shrink-0" />
+                <span>Nhận phòng</span>
+              </button>
+            </div>
+          ) : stateCategory === "departing_today" ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                openRoomContextPanel(room, e.currentTarget);
+              }}
+              className="flex w-full min-h-[40px] items-center justify-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
+            >
+              <VsIcon name="logout" className="text-base shrink-0" />
+              <span>Chi tiết & Trả phòng</span>
+            </button>
+          ) : stateCategory === "arriving_today" ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (incomingOta && canManageStays) {
+                  void handleOtaFastCheckIn(incomingOta, room);
+                } else if (resDetails?.arrival) {
+                  handleCheckInArrival(resDetails.arrival);
+                } else if (resDetails) {
+                  handleCheckInReservationGeneric(room, resDetails);
+                } else {
+                  openRoomContextPanel(room, e.currentTarget);
+                }
+              }}
+              className="flex w-full min-h-[40px] items-center justify-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
+            >
+              <VsIcon name="login" className="text-base shrink-0" />
+              <span>Làm thủ tục nhận phòng</span>
+            </button>
+          ) : stateCategory === "occupied" ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                openRoomContextPanel(room, e.currentTarget);
+              }}
+              className="flex w-full min-h-[40px] items-center justify-center gap-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-extrabold text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
+            >
+              <VsIcon name="info" className="text-base shrink-0" />
+              <span>Chi tiết lưu trú & Hóa đơn</span>
+            </button>
+          ) : stateCategory === "overdue" ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                openRoomContextPanel(room, e.currentTarget);
+              }}
+              className="flex w-full min-h-[40px] items-center justify-center gap-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-extrabold text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
+            >
+              <VsIcon name="warning" className="text-base shrink-0" />
+              <span>Xử lý trả phòng quá hạn</span>
+            </button>
+          ) : stateCategory === "processing" ? (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void confirmRoomReady(room);
+                }}
+                className="flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
+              >
+                <VsIcon name="check" className="text-base shrink-0" />
+                <span>Đã dọn xong</span>
+              </button>
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   openRoomContextPanel(room, e.currentTarget);
                 }}
-                className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl border-2 border-rose-300 hover:border-rose-400 bg-rose-50/50 hover:bg-rose-100/70 text-rose-950 font-bold text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                className="flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer"
               >
-                <VsIcon
-                  name="error_outline"
-                  className="text-base shrink-0 text-rose-600"
-                />
-                <span>Xử lý trả phòng quá hạn</span>
+                <VsIcon name="tune" className="text-base shrink-0" />
+                <span>Chi tiết</span>
               </button>
-            ) : effectiveStatus === "blocked" ? (
-              renderRoomStatusHoverMenu(room, "blocked")
-            ) : effectiveStatus === "maintenance" ? (
-              renderRoomStatusHoverMenu(room, "maintenance")
-            ) : null}
-          </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                openRoomContextPanel(room, e.currentTarget);
+              }}
+              className="flex w-full min-h-[40px] items-center justify-center gap-2 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer"
+            >
+              <VsIcon name="tune" className="text-base shrink-0" />
+              <span>Cập nhật trạng thái</span>
+            </button>
+          )}
         </div>
       </div>
     );
@@ -4672,11 +5087,16 @@ export function StaffRoomsClient({
               params.set("stayId", stayId);
               if (roomNum) params.set("roomNumber", roomNum);
 
-              router.push(`/hotels/${encodeURIComponent(hotelId)}/billing?${params.toString()}`);
+              if (typeof window !== "undefined") {
+                window.open(`/hotels/${encodeURIComponent(hotelId)}/billing?${params.toString()}`, "_blank");
+              }
             } catch {
-              router.push(
-                `/hotels/${encodeURIComponent(hotelId)}/billing?stayId=${encodeURIComponent(stayId)}&roomNumber=${encodeURIComponent(roomNum)}`,
-              );
+              if (typeof window !== "undefined") {
+                window.open(
+                  `/hotels/${encodeURIComponent(hotelId)}/billing?stayId=${encodeURIComponent(stayId)}&roomNumber=${encodeURIComponent(roomNum)}`,
+                  "_blank",
+                );
+              }
             }
           }}
           onRefresh={() => {
@@ -4692,7 +5112,7 @@ export function StaffRoomsClient({
             </div>
           )}
 
-          {/* Floor Navigation & Bulk Actions Toolbar */}
+          {/* Floor Navigation & Horizontal Layout Toolbar */}
           {roomsByFloor.length > 0 && (
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white/90 p-2.5 sm:px-4 shadow-2xs backdrop-blur-xs">
               {/* Left: Quick Floor Jump Pills */}
@@ -4709,7 +5129,6 @@ export function StaffRoomsClient({
                       setFloor("all");
                       setPage(1);
                     }
-                    expandAllFloors();
                     window.scrollTo({ top: 380, behavior: "smooth" });
                   }}
                   className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
@@ -4732,40 +5151,22 @@ export function StaffRoomsClient({
                 </button>
 
                 {roomsByFloor.map(([floorTitle, floorRooms]) => {
-                  const isCollapsed = collapsedFloors.has(floorTitle);
                   return (
                     <button
                       key={floorTitle}
                       type="button"
                       onClick={() => {
-                        if (isCollapsed) {
-                          setCollapsedFloors((prev) => {
-                            const next = new Set(prev);
-                            next.delete(floorTitle);
-                            return next;
-                          });
-                        }
                         const targetId = `floor-group-${encodeURIComponent(floorTitle)}`;
                         const el = document.getElementById(targetId);
                         if (el) {
                           el.scrollIntoView({ behavior: "smooth", block: "start" });
                         }
                       }}
-                      className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                        isCollapsed
-                          ? "bg-slate-100 text-slate-500 hover:bg-slate-200 border border-dashed border-slate-300"
-                          : "bg-sky-50 text-sky-800 hover:bg-sky-100 border border-sky-200/80 shadow-2xs"
-                      }`}
-                      title={`Nhảy tới ${floorTitle} (${isCollapsed ? "Đang thu gọn" : "Đang mở rộng"})`}
+                      className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap bg-sky-50 text-sky-800 hover:bg-sky-100 border border-sky-200/80 shadow-2xs"
+                      title={`Nhảy tới ${floorTitle}`}
                     >
                       <span>{floorTitle}</span>
-                      <span
-                        className={`rounded-full px-1.5 py-0.2 text-xs font-black ${
-                          isCollapsed
-                            ? "bg-slate-200 text-slate-600"
-                            : "bg-white text-sky-900 border border-sky-200"
-                        }`}
-                      >
+                      <span className="rounded-full px-1.5 py-0.2 text-xs font-black bg-white text-sky-900 border border-sky-200">
                         {floorRooms.length}
                       </span>
                     </button>
@@ -4773,27 +5174,12 @@ export function StaffRoomsClient({
                 })}
               </div>
 
-              {/* Right: Expand / Collapse All Bulk Actions */}
+              {/* Right: Layout indicator (1 hàng 1 tầng · Cuộn ngang) */}
               <div className="flex items-center gap-2 ml-auto">
-                <button
-                  type="button"
-                  onClick={() => collapseAllFloors(roomsByFloor.map(([f]) => f))}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition-all cursor-pointer whitespace-nowrap active:scale-98"
-                  title="Thu gọn danh sách tất cả các tầng"
-                >
-                  <VsIcon name="unfold_less" className="text-sm text-slate-500" />
-                  <span>Thu gọn tất cả</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={expandAllFloors}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition-all cursor-pointer whitespace-nowrap active:scale-98"
-                  title="Mở rộng danh sách tất cả các tầng"
-                >
-                  <VsIcon name="unfold_more" className="text-sm text-slate-500" />
-                  <span>Mở rộng tất cả</span>
-                </button>
+                <span className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 border border-slate-200/80 px-3 py-1.5 text-xs font-bold text-slate-700 whitespace-nowrap">
+                  <VsIcon name="swap_horiz" className="text-sm text-sky-600" />
+                  <span>1 hàng 1 tầng · Cuộn ngang</span>
+                </span>
               </div>
             </div>
           )}
@@ -4804,7 +5190,8 @@ export function StaffRoomsClient({
                 const processingCount = floorRooms.filter(
                   (r) => getEffectiveRoomStatus(r, false) === "processing",
                 ).length;
-                const isCollapsed = collapsedFloors.has(floorTitle);
+                const isExpanded = expandedFloors.has(floorTitle);
+                const isCollapsed = !isExpanded;
 
                 return (
                   <div
@@ -4874,9 +5261,8 @@ export function StaffRoomsClient({
               })}
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-5">
               {roomsByFloor.map(([floorTitle, floorRooms]) => {
-                const isCollapsed = collapsedFloors.has(floorTitle);
                 const availableCount = floorRooms.filter(
                   (r) => getEffectiveRoomStatus(r, isFutureDate) === "available",
                 ).length;
@@ -4901,40 +5287,15 @@ export function StaffRoomsClient({
                   <div
                     key={floorTitle}
                     id={`floor-group-${encodeURIComponent(floorTitle)}`}
-                    className={`scroll-mt-36 rounded-2xl border border-slate-200/90 bg-white/70 shadow-2xs transition-all ${
-                      isCollapsed ? "p-3 sm:px-4.5 sm:py-3.5" : "p-3 sm:p-4.5"
-                    }`}
+                    className="scroll-mt-36 rounded-2xl border border-slate-200/90 bg-white/80 p-3 sm:p-4 shadow-2xs backdrop-blur-xs"
                   >
-                    {/* Floor Header Bar (Clickable Accordion) */}
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => toggleFloorCollapse(floorTitle)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          toggleFloorCollapse(floorTitle);
-                        }
-                      }}
-                      className={`group flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none transition-colors ${
-                        isCollapsed
-                          ? "pb-0 border-b-0"
-                          : "pb-2.5 border-b border-slate-100 hover:border-slate-300"
-                      }`}
-                      title={
-                        isCollapsed
-                          ? "Bấm để mở rộng danh sách phòng tầng này"
-                          : "Bấm để thu gọn danh sách phòng tầng này"
-                      }
-                    >
-                      {/* Left: Floor Badge & Title & Status Counts */}
+                    {/* Floor Header Bar (1 Hàng 1 Tầng - Bỏ accordion/dropdown) */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                      {/* Left: Floor Badge & Title & Status Breakdown Pills */}
                       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                         <div className="flex items-center gap-2">
-                          <span className="flex size-7 items-center justify-center rounded-lg bg-sky-100 text-sky-800 group-hover:bg-sky-200 transition">
-                            <VsIcon
-                              name={isCollapsed ? "expand_more" : "expand_less"}
-                              className="text-base"
-                            />
+                          <span className="flex size-7 items-center justify-center rounded-lg bg-sky-100 text-sky-800 font-black text-xs">
+                            <VsIcon name="apartment" className="text-sm" />
                           </span>
                           <h3 className="font-black text-sm sm:text-base text-slate-900 tracking-tight text-balance">
                             {floorTitle}
@@ -4985,26 +5346,50 @@ export function StaffRoomsClient({
                         </div>
                       </div>
 
-                      {/* Right: Accordion Toggle Action */}
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600 group-hover:text-slate-900 transition">
-                        <span className="hidden sm:inline whitespace-nowrap">
-                          {isCollapsed ? "Mở rộng" : "Thu gọn"}
-                        </span>
-                        <span className="flex size-7 items-center justify-center rounded-lg bg-slate-100 group-hover:bg-slate-200 transition">
+                      {/* Right: Scroll Navigation Controls */}
+                      <div className="flex items-center gap-1.5 ml-auto">
+                        <button
+                          type="button"
+                          onClick={() => scrollFloorRow(floorTitle, -320)}
+                          className="flex size-7 sm:size-8 items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 shadow-2xs transition active:scale-95 cursor-pointer"
+                          title="Cuộn sang trái"
+                        >
                           <VsIcon
-                            name={isCollapsed ? "expand_more" : "expand_less"}
-                            className="text-base text-slate-600 group-hover:text-slate-900"
+                            name="chevron_left"
+                            className="text-base sm:text-lg"
                           />
-                        </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => scrollFloorRow(floorTitle, 320)}
+                          className="flex size-7 sm:size-8 items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 shadow-2xs transition active:scale-95 cursor-pointer"
+                          title="Cuộn sang phải"
+                        >
+                          <VsIcon
+                            name="chevron_right"
+                            className="text-base sm:text-lg"
+                          />
+                        </button>
                       </div>
                     </div>
 
-                    {/* Room Grid for this floor */}
-                    {!isCollapsed && (
-                      <div className="mt-3.5 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-5">
-                        {floorRooms.map((room) => renderRoomCard(room))}
-                      </div>
-                    )}
+                    {/* Room Single Row (1 hàng 1 tầng - cuộn ngang) */}
+                    <div
+                      ref={(el) => {
+                        if (el) floorScrollRefMap.current.set(floorTitle, el);
+                        else floorScrollRefMap.current.delete(floorTitle);
+                      }}
+                      className="mt-3.5 flex gap-3.5 overflow-x-auto pb-3 pt-1 scroll-smooth snap-x scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100/60 hover:scrollbar-thumb-slate-400"
+                    >
+                      {floorRooms.map((room) => (
+                        <div
+                          key={room.id}
+                          className="w-[290px] sm:w-[310px] shrink-0 snap-start"
+                        >
+                          {renderRoomCard(room)}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 );
               })}
@@ -5098,60 +5483,61 @@ export function StaffRoomsClient({
         </div>
 
         {/* Pagination & Display Controls */}
-        <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl border border-slate-300 bg-white p-3.5 sm:px-5 shadow-2xs">
-          <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
-            <div className="flex items-center gap-1.5 font-bold">
-              <span>Hiển thị</span>
-              <strong className="text-slate-950 font-black">
-                {totalItems === 0
-                  ? 0
-                  : `${(page - 1) * pageSize + 1} - ${Math.min(page * pageSize, totalItems)}`}
-              </strong>
-              <span>trên</span>
-              <strong className="text-slate-950 font-black">
-                {totalItems}
-              </strong>
-              <span>phòng</span>
+        {totalPages > 1 && (
+          <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl border border-slate-300 bg-white p-3.5 sm:px-5 shadow-2xs">
+            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
+              <div className="flex items-center gap-1.5 font-bold">
+                <span>Hiển thị</span>
+                <strong className="text-slate-950 font-black">
+                  {totalItems === 0
+                    ? 0
+                    : `${(page - 1) * pageSize + 1} - ${Math.min(page * pageSize, totalItems)}`}
+                </strong>
+                <span>trên</span>
+                <strong className="text-slate-950 font-black">
+                  {totalItems}
+                </strong>
+                <span>phòng</span>
+              </div>
+
+              <div className="flex items-center gap-1.5 pl-3 border-l border-slate-300">
+                <label
+                  htmlFor="room-page-size"
+                  className="text-xs font-semibold text-slate-600"
+                >
+                  Mỗi trang:
+                </label>
+                <select
+                  id="room-page-size"
+                  value={pageSize}
+                  onChange={(e) => {
+                    const newSize = Number(e.target.value);
+                    setPageSize(newSize);
+                    setPage(1);
+                  }}
+                  className="h-8 rounded-lg border border-slate-300 bg-white px-2 text-xs font-bold text-slate-800 focus:border-blue-900 outline-none cursor-pointer"
+                >
+                  <option value={100}>100 phòng (Xem tất cả)</option>
+                  <option value={50}>50 phòng</option>
+                  <option value={30}>30 phòng</option>
+                  <option value={25}>25 phòng</option>
+                  <option value={15}>15 phòng</option>
+                </select>
+              </div>
             </div>
 
-            <div className="flex items-center gap-1.5 pl-3 border-l border-slate-300">
-              <label
-                htmlFor="room-page-size"
-                className="text-xs font-semibold text-slate-600"
-              >
-                Mỗi trang:
-              </label>
-              <select
-                id="room-page-size"
-                value={pageSize}
-                onChange={(e) => {
-                  const newSize = Number(e.target.value);
-                  setPageSize(newSize);
-                  setPage(1);
-                }}
-                className="h-8 rounded-lg border border-slate-300 bg-white px-2 text-xs font-bold text-slate-800 focus:border-blue-900 outline-none cursor-pointer"
-              >
-                <option value={15}>15 phòng</option>
-                <option value={20}>20 phòng</option>
-                <option value={25}>25 phòng</option>
-                <option value={30}>30 phòng</option>
-                <option value={50}>50 phòng</option>
-                <option value={100}>100 phòng</option>
-              </select>
+            <div className="flex items-center justify-center sm:justify-end gap-2">
+              {renderPaginationButtons(
+                page,
+                Math.max(1, totalPages),
+                (newPage) => {
+                  setPage(newPage);
+                  window.scrollTo({ top: 380, behavior: "smooth" });
+                },
+              )}
             </div>
           </div>
-
-          <div className="flex items-center justify-center sm:justify-end gap-2">
-            {renderPaginationButtons(
-              page,
-              Math.max(1, totalPages),
-              (newPage) => {
-                setPage(newPage);
-                window.scrollTo({ top: 380, behavior: "smooth" });
-              },
-            )}
-          </div>
-        </div>
+        )}
       </section>
       )}
 
@@ -6085,11 +6471,19 @@ export function StaffRoomsClient({
 
                   {bulkMode === "auto" ? (
                     <div className="flex-1 overflow-y-auto py-3 space-y-3 min-h-0 pr-1.5">
-                      <div className="p-3 bg-purple-50/60 border border-purple-200/80 rounded-xl text-xs sm:text-sm text-purple-900 flex items-start gap-2">
-                        <VsIcon name="info" className="text-base text-purple-700 shrink-0 mt-0.5" />
-                        <span className="text-pretty">
-                          Chọn số lượng theo từng loại phòng và tùy chỉnh giá đặt cho đoàn. Hệ thống sẽ tự động gán các phòng còn trống phù hợp.
-                        </span>
+                      <div className="p-3 bg-purple-50/60 border border-purple-200/80 rounded-xl text-xs sm:text-sm text-purple-900 flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2 min-w-0">
+                          <VsIcon name="info" className="text-base text-purple-700 shrink-0 mt-0.5" />
+                          <span className="text-pretty">
+                            Chọn số lượng theo từng loại phòng và tùy chỉnh giá đặt cho đoàn. Hệ thống sẽ tự động gán các phòng còn trống phù hợp.
+                          </span>
+                        </div>
+                        {isBulkPlanFetching ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-700 bg-purple-100/90 border border-purple-200 px-2.5 py-1 rounded-lg shrink-0 whitespace-nowrap">
+                            <div className="h-3 w-3 animate-spin rounded-full border-2 border-purple-700 border-t-transparent" />
+                            Đang kiểm tra lịch trống...
+                          </span>
+                        ) : null}
                       </div>
 
                       {roomTypeSummaryList.length === 0 ? (
@@ -6119,7 +6513,13 @@ export function StaffRoomsClient({
                                   </div>
                                   <span className="text-xs text-slate-500 block mt-0.5">
                                     Hiện còn{" "}
-                                    <strong className="text-emerald-700 font-bold">
+                                    <strong
+                                      className={`font-bold ${
+                                        rt.availableCount > 0
+                                          ? "text-emerald-700"
+                                          : "text-rose-600"
+                                      }`}
+                                    >
                                       {rt.availableCount}
                                     </strong>{" "}
                                     phòng trống
@@ -6167,8 +6567,9 @@ export function StaffRoomsClient({
                                     </span>
                                     <button
                                       type="button"
-                                      onClick={() => incrementRoomTypeCount(rt.roomTypeId)}
-                                      className="w-8 h-8 rounded-lg bg-purple-700 hover:bg-purple-800 text-white flex items-center justify-center font-black transition cursor-pointer"
+                                      onClick={() => incrementRoomTypeCount(rt.roomTypeId, rt.availableCount)}
+                                      disabled={count >= rt.availableCount || bulkTotalAutoCount >= 50}
+                                      className="w-8 h-8 rounded-lg bg-purple-700 hover:bg-purple-800 text-white flex items-center justify-center font-black disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
                                     >
                                       +
                                     </button>
@@ -6591,14 +6992,9 @@ export function StaffRoomsClient({
                           !bulkCheckOutDate ||
                           bulkCheckInDate >= bulkCheckOutDate ||
                           (bulkMode === "auto"
-                            ? Object.values(bulkRoomTypeCounts).reduce(
-                                (a, b) => a + b,
-                                0,
-                              ) < 1 ||
-                              Object.values(bulkRoomTypeCounts).reduce(
-                                (a, b) => a + b,
-                                0,
-                              ) > 50
+                            ? bulkTotalAutoCount < 1 ||
+                              bulkTotalAutoCount > 50 ||
+                              hasOverallocatedRoomType
                             : bulkSelectedRoomIds.size < 1 ||
                               bulkSelectedRoomIds.size > 50)
                         }
@@ -6612,10 +7008,7 @@ export function StaffRoomsClient({
                         ) : bulkMode === "auto" ? (
                           <span>
                             Tự động gán & Đặt (
-                            {Object.values(bulkRoomTypeCounts).reduce(
-                              (a, b) => a + b,
-                              0,
-                            )}{" "}
+                            {bulkTotalAutoCount}{" "}
                             phòng)
                           </span>
                         ) : (
