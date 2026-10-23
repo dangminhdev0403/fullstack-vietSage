@@ -81,6 +81,7 @@ describe("BillingService checkout safety", () => {
             plannedCheckInAt: new Date("2026-07-17T10:00:00.000Z"),
             plannedCheckOutAt: new Date("2026-09-29T05:00:00.000Z"),
             checkedInAt: new Date("2026-07-18T09:40:00.000Z"),
+            nightlyRateSnapshot: new Prisma.Decimal(100),
           },
         }),
         update: jest.fn().mockResolvedValue({}),
@@ -132,7 +133,9 @@ describe("BillingService checkout safety", () => {
     };
     const service = createService(prisma, repository);
 
-    await service.issueInvoice("user-1", "active-role", "hotel-1", "folio-1");
+    await service.issueInvoice("user-1", "active-role", "hotel-1", "folio-1", {
+      isEarlyDeparture: true,
+    });
 
     expect(Reflect.get(service, "codesService").generateEntityCode).toHaveBeenCalledWith(
       "INVOICE",
@@ -670,6 +673,7 @@ describe("BillingService checkout safety", () => {
           checkedInAt: new Date("2026-07-16T10:00:00.000Z"),
           plannedCheckInAt: new Date("2026-07-16T10:00:00.000Z"),
           plannedCheckOutAt: new Date("2026-07-17T10:00:00.000Z"),
+          nightlyRateSnapshot: new Prisma.Decimal(100),
         },
       },
       "user-1",
@@ -712,9 +716,11 @@ describe("BillingService checkout safety", () => {
           checkedInAt: new Date("2026-07-18T09:40:00.000Z"),
           plannedCheckInAt: new Date("2026-07-18T09:40:00.000Z"),
           plannedCheckOutAt: new Date("2026-09-29T05:00:00.000Z"),
+          nightlyRateSnapshot: new Prisma.Decimal(100),
         },
       },
       "user-1",
+      { isEarlyDeparture: true },
     );
 
     expect(tx.folioItem.update).toHaveBeenCalledWith({
@@ -1308,7 +1314,7 @@ describe("BillingService checkout safety", () => {
     expect(charge.subtotal).toEqual(new Prisma.Decimal(650000));
   });
 
-  it("BillingService calculateEstimatedRoomCharge treats 0 as free stay (subtotal 0) and null falls back to room price", () => {
+  it("BillingService calculateEstimatedRoomCharge treats 0 as free stay (subtotal 0) and rejects missing rate snapshot (H3)", () => {
     const service = createService({});
     // 0 is free stay
     const freeCharge = service.calculateEstimatedRoomCharge({
@@ -1322,29 +1328,29 @@ describe("BillingService checkout safety", () => {
     expect(freeCharge.nightlyRate).toEqual(new Prisma.Decimal(0));
     expect(freeCharge.subtotal).toEqual(new Prisma.Decimal(0));
 
-    // null falls back to room price
-    const fallbackCharge = service.calculateEstimatedRoomCharge({
-      room: { roomNumber: "101", price: new Prisma.Decimal(750000) },
-      stay: {
-        checkedInAt: new Date("2026-07-17T14:00:00.000Z"),
-        plannedCheckOutAt: new Date("2026-07-18T12:00:00.000Z"),
-        nightlyRateSnapshot: null,
-      },
-    });
-    expect(fallbackCharge.nightlyRate).toEqual(new Prisma.Decimal(750000));
-    expect(fallbackCharge.subtotal).toEqual(new Prisma.Decimal(750000));
+    // null rejects instead of falling back to room price (H3)
+    expect(() =>
+      service.calculateEstimatedRoomCharge({
+        room: { roomNumber: "101", price: new Prisma.Decimal(750000) },
+        stay: {
+          checkedInAt: new Date("2026-07-17T14:00:00.000Z"),
+          plannedCheckOutAt: new Date("2026-07-18T12:00:00.000Z"),
+          nightlyRateSnapshot: null,
+        },
+      }),
+    ).toThrow(ConflictException);
 
-    // null stay snapshot and null room price falls back to default 500,000
-    const defaultCharge = service.calculateEstimatedRoomCharge({
-      room: { roomNumber: "101", price: null },
-      stay: {
-        checkedInAt: new Date("2026-07-17T14:00:00.000Z"),
-        plannedCheckOutAt: new Date("2026-07-18T12:00:00.000Z"),
-        nightlyRateSnapshot: null,
-      },
-    });
-    expect(defaultCharge.nightlyRate).toEqual(new Prisma.Decimal(500000));
-    expect(defaultCharge.subtotal).toEqual(new Prisma.Decimal(500000));
+    // null stay snapshot and null room price rejects instead of fallback 500,000 (H3)
+    expect(() =>
+      service.calculateEstimatedRoomCharge({
+        room: { roomNumber: "101", price: null },
+        stay: {
+          checkedInAt: new Date("2026-07-17T14:00:00.000Z"),
+          plannedCheckOutAt: new Date("2026-07-18T12:00:00.000Z"),
+          nightlyRateSnapshot: null,
+        },
+      }),
+    ).toThrow(ConflictException);
   });
 
   it("calculateEstimatedRoomCharge prevents phantom night overcharging on early check-in (AUDIT-BILLING-001)", () => {
@@ -1377,5 +1383,119 @@ describe("BillingService checkout safety", () => {
     });
     expect(charge.plannedNights).toBe(5);
     expect(charge.plannedSubtotal).toEqual(new Prisma.Decimal(3000000));
+  });
+
+  it("H1: calculateEstimatedRoomCharge uses committed nights by default and explicit early departure intent for shortening", () => {
+    const service = createService({});
+    jest.useFakeTimers().setSystemTime(new Date("2026-10-21T10:00:00.000Z"));
+
+    const defaultCharge = service.calculateEstimatedRoomCharge({
+      room: { roomNumber: "101", price: new Prisma.Decimal(500000) },
+      stay: {
+        plannedCheckInAt: new Date("2026-10-20T14:00:00.000Z"),
+        plannedCheckOutAt: new Date("2026-10-25T12:00:00.000Z"),
+        checkedInAt: new Date("2026-10-20T14:00:00.000Z"),
+        nightlyRateSnapshot: new Prisma.Decimal(500000),
+      },
+    });
+    expect(defaultCharge.nights).toBe(5);
+    expect(defaultCharge.subtotal).toEqual(new Prisma.Decimal(2500000));
+
+    const earlyCharge = service.calculateEstimatedRoomCharge(
+      {
+        room: { roomNumber: "101", price: new Prisma.Decimal(500000) },
+        stay: {
+          plannedCheckInAt: new Date("2026-10-20T14:00:00.000Z"),
+          plannedCheckOutAt: new Date("2026-10-25T12:00:00.000Z"),
+          checkedInAt: new Date("2026-10-20T14:00:00.000Z"),
+          nightlyRateSnapshot: new Prisma.Decimal(500000),
+        },
+      },
+      { isEarlyDeparture: true },
+    );
+    expect(earlyCharge.nights).toBe(1);
+    expect(earlyCharge.subtotal).toEqual(new Prisma.Decimal(500000));
+  });
+
+  it("H4: addFolioItem rejects discount/adjustment that makes total negative", async () => {
+    const tx = {
+      folio: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "folio-1",
+          hotelId: "hotel-1",
+          stayId: "stay-1",
+          roomId: "room-1",
+          status: FolioStatus.OPEN,
+          currency: "VND",
+          room: { id: "room-1" },
+          stay: {
+            plannedCheckInAt: new Date("2026-10-20T14:00:00.000Z"),
+            plannedCheckOutAt: new Date("2026-10-21T12:00:00.000Z"),
+            checkedInAt: new Date("2026-10-20T14:00:00.000Z"),
+            nightlyRateSnapshot: new Prisma.Decimal(500000),
+          },
+        }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      folioItem: {
+        create: jest.fn().mockResolvedValue({ id: "item-discount" }),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            itemType: "DISCOUNT",
+            subtotalSnapshot: new Prisma.Decimal(0),
+            taxAmountSnapshot: new Prisma.Decimal(0),
+            discountAmountSnapshot: new Prisma.Decimal(600000),
+            totalSnapshot: new Prisma.Decimal(-600000),
+          },
+        ]),
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn((cb: any) => cb(tx)),
+    };
+    const service = createService(prisma);
+
+    await expect(
+      service.addFolioItem("user-1", "role-1", "hotel-1", "folio-1", {
+        itemType: "DISCOUNT" as any,
+        name: "Discount VIP",
+        amount: 600000,
+        quantity: 1,
+      }),
+    ).rejects.toThrow("DISCOUNT_MAKES_TOTAL_NEGATIVE");
+  });
+
+  it("C1: validateFolioForCheckout rejects folio with mismatched item currency", async () => {
+    const prisma = {
+      folioItem: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "item-mismatch",
+          currency: "USD",
+        }),
+      },
+    };
+    const repository = {
+      getFolioSummary: jest.fn().mockResolvedValue({
+        latestItemPostedAt: null,
+        grouped: [],
+        folio: {
+          id: "folio-1",
+          hotelId: "hotel-1",
+          stayId: "stay-1",
+          status: FolioStatus.OPEN,
+          currency: "VND",
+          subtotalAmount: new Prisma.Decimal(100),
+          taxAmount: new Prisma.Decimal(0),
+          discountAmount: new Prisma.Decimal(0),
+          totalAmount: new Prisma.Decimal(100),
+          updatedAt: new Date(),
+        },
+      }),
+    };
+    const service = createService(prisma, repository);
+
+    await expect(
+      service.validateFolioForCheckout("hotel-1", "folio-1"),
+    ).rejects.toThrow(ConflictException);
   });
 });

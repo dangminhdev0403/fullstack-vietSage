@@ -400,6 +400,9 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     key: "staff.dashboard",
     personas: ["owner", ...STAFF_PERSONAS],
     href: "/hotels/{hotelId}/dashboard",
+    hrefByPersona: {
+      owner: "/owner/hotels/{hotelId}/dashboard",
+    },
     label: "Điều hành hôm nay",
     icon: "space_dashboard",
     order: 12,
@@ -411,6 +414,9 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     key: "staff.rooms",
     personas: ["owner", "manager", "front_desk", "housekeeping"],
     href: "/hotels/{hotelId}/rooms",
+    hrefByPersona: {
+      owner: "/owner/hotels/{hotelId}/rooms",
+    },
     label: "Sơ đồ phòng & Check In",
     labelByPersona: {
       housekeeping: "Sơ đồ phòng & Buồng phòng",
@@ -435,6 +441,9 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     key: "staff.front-desk",
     personas: ["owner", "manager", "front_desk"],
     href: "/hotels/{hotelId}/front-desk",
+    hrefByPersona: {
+      owner: "/owner/hotels/{hotelId}/front-desk",
+    },
     label: "Quản lý khách lưu trú",
     icon: "concierge",
     order: 22,
@@ -476,6 +485,9 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     key: "staff.requests",
     personas: ["owner", ...STAFF_PERSONAS],
     href: "/hotels/{hotelId}/requests",
+    hrefByPersona: {
+      owner: "/owner/hotels/{hotelId}/requests",
+    },
     label: "Xử lý yêu cầu",
     icon: "assignment",
     order: 30,
@@ -491,6 +503,9 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     key: "staff.messages",
     personas: ["owner", ...STAFF_PERSONAS],
     href: "/hotels/{hotelId}/messages",
+    hrefByPersona: {
+      owner: "/owner/hotels/{hotelId}/messages",
+    },
     label: "Tin nhắn phòng",
     icon: "support_agent",
     order: 40,
@@ -502,6 +517,9 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     key: "staff.kbtt",
     personas: ["owner", "manager", "front_desk"],
     href: "/hotels/{hotelId}/kbtt",
+    hrefByPersona: {
+      owner: "/owner/hotels/{hotelId}/kbtt",
+    },
     label: "Khai báo tạm trú",
     icon: "verified_user",
     order: 45,
@@ -547,6 +565,9 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     key: "staff.biometric",
     personas: ["owner", "manager", "front_desk"],
     href: "/hotels/{hotelId}/biometric",
+    hrefByPersona: {
+      owner: "/owner/hotels/{hotelId}/biometric",
+    },
     label: "Máy quét CCCD",
     icon: "badge",
     order: 60,
@@ -858,7 +879,8 @@ export function buildWorkspaceNavigation(input: {
     )
     .sort((first, second) => first.order - second.order)
     .flatMap((item) => {
-      const resolvedPath = resolvePath(item.href, hotelId);
+      const itemHref = item.hrefByPersona?.[persona] ?? item.href;
+      const resolvedPath = resolvePath(itemHref, hotelId);
       if (!resolvedPath) return [];
       return [
         {

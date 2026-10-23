@@ -38,6 +38,7 @@ type FrontDeskTab = "arrivals" | "in-house";
 type PageProps = {
   params: Promise<{ hotelId: string }>;
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
+  baseRoutePrefix?: `/${string}`;
 };
 
 function first(value: string | string[] | undefined): string | undefined {
@@ -52,12 +53,13 @@ function positivePage(value: string | undefined): number {
 function frontDeskHref(
   hotelId: string,
   input: { tab: FrontDeskTab; range?: ArrivalRange; q?: string; page?: number },
+  baseRoutePrefix = "/hotels",
 ): string {
   const query = new URLSearchParams({ tab: input.tab });
   if (input.range && input.tab === "arrivals") query.set("range", input.range);
   if (input.q) query.set("q", input.q);
   if (input.page && input.page > 1) query.set("page", String(input.page));
-  return `/hotels/${encodeURIComponent(hotelId)}/front-desk?${query.toString()}`;
+  return `${baseRoutePrefix}/${encodeURIComponent(hotelId)}/front-desk?${query.toString()}`;
 }
 
 
@@ -68,6 +70,7 @@ function Pagination({
   q,
   page,
   total,
+  baseRoutePrefix = "/hotels",
 }: {
   hotelId: string;
   tab: FrontDeskTab;
@@ -75,6 +78,7 @@ function Pagination({
   q: string;
   page: number;
   total: number;
+  baseRoutePrefix?: `/${string}`;
 }) {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   if (totalPages === 1) return null;
@@ -87,7 +91,7 @@ function Pagination({
       {page > 1 ? (
         <Link
           className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-2xs transition-all hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900"
-          href={frontDeskHref(hotelId, { tab, range, q, page: page - 1 })}
+          href={frontDeskHref(hotelId, { tab, range, q, page: page - 1 }, baseRoutePrefix)}
         >
           <VsIcon name="arrow_back" className="h-4 w-4" />
           <span>Trang trước</span>
@@ -101,7 +105,7 @@ function Pagination({
       {page < totalPages ? (
         <Link
           className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-2xs transition-all hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900"
-          href={frontDeskHref(hotelId, { tab, range, q, page: page + 1 })}
+          href={frontDeskHref(hotelId, { tab, range, q, page: page + 1 }, baseRoutePrefix)}
         >
           <span>Trang sau</span>
           <VsIcon name="arrow_forward" className="h-4 w-4" />
@@ -113,17 +117,17 @@ function Pagination({
   );
 }
 
-export default async function FrontDeskPage({ params, searchParams }: PageProps) {
+export default async function FrontDeskPage({ params, searchParams, baseRoutePrefix = "/hotels" }: PageProps) {
   const { hotelId } = await params;
   const query = (await searchParams) ?? {};
-  const callbackUrl = `/hotels/${hotelId}/front-desk` as const;
+  const callbackUrl = `${baseRoutePrefix}/${hotelId}/front-desk` as `/${string}`;
   const session = await auth();
   assertCanAccessHotelOps(session, callbackUrl);
   const tokens = await requireHotelOpsServerTokens(callbackUrl);
   const context = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
   const userPersona = resolveWorkspacePersona(context.activeRole.code);
   if (userPersona === "housekeeping") {
-    redirect(`/hotels/${encodeURIComponent(hotelId)}/rooms?status=processing`);
+    redirect(`${baseRoutePrefix}/${encodeURIComponent(hotelId)}/rooms?status=processing`);
   }
 
   const canViewArrivals = context.permissions.includes("hotel.reservations.view");
@@ -255,7 +259,7 @@ export default async function FrontDeskPage({ params, searchParams }: PageProps)
                   ? "border border-slate-200 bg-white text-blue-700 shadow-xs"
                   : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
               }`}
-              href={frontDeskHref(hotelId, { tab: "in-house" })}
+              href={frontDeskHref(hotelId, { tab: "in-house" }, baseRoutePrefix)}
             >
               <VsIcon name="person" className="h-4 w-4" />
               <span>Khách đang lưu trú</span>
@@ -274,7 +278,7 @@ export default async function FrontDeskPage({ params, searchParams }: PageProps)
                   ? "border border-slate-200 bg-white text-blue-700 shadow-xs"
                   : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
               }`}
-              href={frontDeskHref(hotelId, { tab: "arrivals", range: "today" })}
+              href={frontDeskHref(hotelId, { tab: "arrivals", range: "today" }, baseRoutePrefix)}
             >
               <VsIcon name="calendar_today" className="h-4 w-4" />
               <span>Khách đặt trước</span>
@@ -304,7 +308,7 @@ export default async function FrontDeskPage({ params, searchParams }: PageProps)
                       ? "border-2 border-blue-600 bg-blue-50 text-blue-800 shadow-2xs"
                       : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                   }`}
-                  href={frontDeskHref(hotelId, { tab, arrivals: undefined, range: value, q } as Parameters<typeof frontDeskHref>[1])}
+                  href={frontDeskHref(hotelId, { tab, arrivals: undefined, range: value, q } as Parameters<typeof frontDeskHref>[1], baseRoutePrefix)}
                 >
                   {isActive ? (
                     <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
@@ -348,7 +352,7 @@ export default async function FrontDeskPage({ params, searchParams }: PageProps)
         {q ? (
           <Link
             className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 hover:text-slate-900"
-            href={frontDeskHref(hotelId, { tab, range })}
+            href={frontDeskHref(hotelId, { tab, range }, baseRoutePrefix)}
           >
             <VsIcon name="close" className="h-4 w-4" />
             <span>Xóa tìm kiếm</span>
@@ -381,7 +385,7 @@ export default async function FrontDeskPage({ params, searchParams }: PageProps)
           {tab === "arrivals" && canOperateArrivals ? (
             <Link
               className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 text-xs font-semibold text-slate-700 shadow-2xs transition-all hover:bg-slate-50 hover:text-slate-900"
-              href={`/hotels/${encodeURIComponent(hotelId)}/rooms?flow=arrivals&range=${range}`}
+              href={`${baseRoutePrefix}/${encodeURIComponent(hotelId)}/rooms?flow=arrivals&range=${range}`}
             >
               <VsIcon name="grid_view" className="h-4 w-4 text-slate-500" />
               <span>Xem trên sơ đồ phòng</span>
@@ -404,14 +408,14 @@ export default async function FrontDeskPage({ params, searchParams }: PageProps)
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
               <Link
                 className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-xs transition-all hover:bg-blue-700"
-                href={frontDeskHref(hotelId, { tab, range, q, page })}
+                href={frontDeskHref(hotelId, { tab, range, q, page }, baseRoutePrefix)}
               >
                 <VsIcon name="refresh" className="h-4 w-4" />
                 <span>Thử lại ngay</span>
               </Link>
               <Link
                 className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 hover:text-slate-900"
-                href={`/hotels/${encodeURIComponent(hotelId)}/rooms`}
+                href={`${baseRoutePrefix}/${encodeURIComponent(hotelId)}/rooms`}
               >
                 <span>Về sơ đồ phòng</span>
               </Link>
@@ -448,7 +452,7 @@ export default async function FrontDeskPage({ params, searchParams }: PageProps)
                 {q ? (
                   <Link
                     className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-xs transition-all hover:bg-blue-700"
-                    href={frontDeskHref(hotelId, { tab, range })}
+                    href={frontDeskHref(hotelId, { tab, range }, baseRoutePrefix)}
                   >
                     <VsIcon name="close" className="h-4 w-4" />
                     <span>Xóa bộ lọc tìm kiếm</span>
@@ -458,7 +462,7 @@ export default async function FrontDeskPage({ params, searchParams }: PageProps)
                     {range === "today" ? (
                       <Link
                         className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border-2 border-blue-600 bg-white px-4 text-sm font-bold text-blue-700 transition-all hover:bg-blue-50"
-                        href={frontDeskHref(hotelId, { tab, range: "tomorrow" })}
+                        href={frontDeskHref(hotelId, { tab, range: "tomorrow" }, baseRoutePrefix)}
                       >
                         <span>Xem khách ngày mai</span>
                         <VsIcon name="arrow_forward" className="h-4 w-4" />
@@ -467,7 +471,7 @@ export default async function FrontDeskPage({ params, searchParams }: PageProps)
                     {context.permissions.includes("hotel.reservations.manage") ? (
                       <Link
                         className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-xs transition-all hover:bg-blue-700"
-                        href={`/hotels/${encodeURIComponent(hotelId)}/rooms?flow=reservation&businessDate=${encodeURIComponent(dateRange.from)}`}
+                        href={`${baseRoutePrefix}/${encodeURIComponent(hotelId)}/rooms?flow=reservation&businessDate=${encodeURIComponent(dateRange.from)}`}
                       >
                         <VsIcon name="calendar_today" className="h-4 w-4" />
                         <span>Tạo đặt phòng mới</span>
@@ -508,7 +512,7 @@ export default async function FrontDeskPage({ params, searchParams }: PageProps)
               <div className="mt-5">
                 <Link
                   className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-xs transition-all hover:bg-blue-700"
-                  href={frontDeskHref(hotelId, { tab, range })}
+                  href={frontDeskHref(hotelId, { tab, range }, baseRoutePrefix)}
                 >
                   <VsIcon name="close" className="h-4 w-4" />
                   <span>Xóa bộ lọc tìm kiếm</span>
@@ -526,6 +530,7 @@ export default async function FrontDeskPage({ params, searchParams }: PageProps)
             range={range}
             tab={tab}
             total={total}
+            baseRoutePrefix={baseRoutePrefix}
           />
         ) : null}
       </section>

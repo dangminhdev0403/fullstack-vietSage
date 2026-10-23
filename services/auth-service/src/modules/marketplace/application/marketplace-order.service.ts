@@ -1387,7 +1387,7 @@ export class MarketplaceOrderService {
       let settlement: Awaited<ReturnType<typeof tx.marketplaceSettlement.upsert>> | null = null;
       if (!order.assignedLocalMateProfileId) {
         const partnerSubtotal =
-          order.partnerSubtotal && !order.partnerSubtotal.isZero()
+          order.partnerSubtotal != null
             ? order.partnerSubtotal
             : order.totalAmount;
         const hotelRevenue = order.hotelServiceFeeAmount ?? new Prisma.Decimal(0);
@@ -1640,7 +1640,7 @@ export class MarketplaceOrderService {
 
         if (!order.assignedLocalMateProfileId) {
           const gross =
-            order.partnerSubtotal && !order.partnerSubtotal.isZero()
+            order.partnerSubtotal != null
               ? order.partnerSubtotal
               : order.totalAmount;
 
@@ -1876,7 +1876,7 @@ export class MarketplaceOrderService {
       if (body.toStatus === "COMPLETED" && !order.assignedLocalMateProfileId) {
         requireHotelOrderScope(order);
         const partnerSubtotal =
-          order.partnerSubtotal && !order.partnerSubtotal.isZero()
+          order.partnerSubtotal != null
             ? order.partnerSubtotal
             : order.totalAmount;
         const hotelRevenue = order.hotelServiceFeeAmount ?? new Prisma.Decimal(0);
@@ -2032,7 +2032,7 @@ export class MarketplaceOrderService {
     const partnerName = partnerProfile?.displayName ?? "Đối tác dịch vụ";
 
     const partnerSubtotal =
-      order.partnerSubtotal && !order.partnerSubtotal.isZero()
+      order.partnerSubtotal != null
         ? order.partnerSubtotal
         : order.unitPriceSnapshot.mul(order.quantity);
 
@@ -2041,7 +2041,7 @@ export class MarketplaceOrderService {
       calculateOnSiteServiceFee(partnerSubtotal, order.serviceModeSnapshot);
 
     const customerTotalAmount =
-      order.customerTotalAmount && !order.customerTotalAmount.isZero()
+      order.customerTotalAmount != null
         ? order.customerTotalAmount
         : partnerSubtotal.add(hotelServiceFeeAmount);
 
@@ -2080,7 +2080,9 @@ export class MarketplaceOrderService {
       });
     }
 
-    const hotelServiceFeeRate = calculateFeePercentage(partnerSubtotal, hotelServiceFeeAmount);
+    const hotelServiceFeeRate = partnerSubtotal.isZero()
+      ? 0
+      : calculateFeePercentage(partnerSubtotal, hotelServiceFeeAmount);
 
     // 2. Separate hotel service fee item
     if (hotelServiceFeeAmount.gt(0)) {
@@ -2179,7 +2181,7 @@ export class MarketplaceOrderService {
     const grossSalesAmount = completedOrders.reduce(
       (acc, o) =>
         acc.add(
-          o.partnerSubtotal && !o.partnerSubtotal.isZero() ? o.partnerSubtotal : o.totalAmount,
+          o.partnerSubtotal != null ? o.partnerSubtotal : o.totalAmount,
         ),
       new Prisma.Decimal(0),
     );

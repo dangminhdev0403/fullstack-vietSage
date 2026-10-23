@@ -36,6 +36,7 @@ export type WorkspaceNavigationDefinition = Omit<DashboardNavItem, "href"> & {
   requiresFeature?: CanonicalHotelFeatureKey;
   hideWhenHotelSelected?: boolean;
   labelByPersona?: Partial<Record<WorkspacePersona, string>>;
+  hrefByPersona?: Partial<Record<WorkspacePersona, `/${string}`>>;
 };
 
 export type WorkspaceWidgetSize = "compact" | "standard" | "wide";

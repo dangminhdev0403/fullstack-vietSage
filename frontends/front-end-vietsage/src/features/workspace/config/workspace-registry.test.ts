@@ -165,7 +165,7 @@ test("builds owner sidebar with operational modules and hotel settings", () => {
       { key: "owner.home", href: "/owner/dashboard", label: "Tổng quan" },
       {
         key: "staff.dashboard",
-        href: "/hotels/hotel-1/dashboard",
+        href: "/owner/hotels/hotel-1/dashboard",
         label: "Điều hành hôm nay",
       },
       {
@@ -180,12 +180,12 @@ test("builds owner sidebar with operational modules and hotel settings", () => {
       },
       {
         key: "staff.rooms",
-        href: "/hotels/hotel-1/rooms",
+        href: "/owner/hotels/hotel-1/rooms",
         label: "Sơ đồ phòng & Check In",
       },
       {
         key: "staff.front-desk",
-        href: "/hotels/hotel-1/front-desk",
+        href: "/owner/hotels/hotel-1/front-desk",
         label: "Quản lý khách lưu trú",
       },
       {
@@ -195,7 +195,7 @@ test("builds owner sidebar with operational modules and hotel settings", () => {
       },
       {
         key: "staff.kbtt",
-        href: "/hotels/hotel-1/kbtt",
+        href: "/owner/hotels/hotel-1/kbtt",
         label: "Khai báo tạm trú",
       },
       {

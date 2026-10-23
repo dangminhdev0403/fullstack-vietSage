@@ -1,13 +1,47 @@
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
+import { auth } from "@/auth";
+import {
+  assertCanAccessHotelOps,
+  canUseHotelId,
+  requireHotelOpsServerTokens,
+} from "@/features/hotel-ops/utils/hotel-route-auth";
+import { KbttDeclarationsPage } from "@/features/kbtt/components/kbtt-declarations-page";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+
+type PageProps = {
+  params: Promise<{ hotelId: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
 
 export const dynamic = "force-dynamic";
 
-export default async function OwnerKbttPage({
-  params,
-}: {
-  params: Promise<{ hotelId: string }>;
-  searchParams?: Promise<{ tab?: string }>;
-}) {
-  const { hotelId } = await params;
-  redirect(`/owner/hotels/${encodeURIComponent(hotelId)}/settings?tab=integrations`);
+export default async function OwnerKbttPage({ params }: PageProps) {
+  const { hotelId } = await Promise.resolve(params);
+  const callbackUrl = `/owner/hotels/${hotelId}/kbtt` as const;
+  const session = await auth();
+  assertCanAccessHotelOps(session, callbackUrl);
+  const tokens = await requireHotelOpsServerTokens(callbackUrl);
+  const context = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
+
+  const canViewDeclarations = context.permissions.some((permission) =>
+    ["hotel.kbtt.declarations.view", "hotel.kbtt.declarations.manage"].includes(permission),
+  );
+
+  const canManageDeclarations = context.permissions.includes("hotel.kbtt.declarations.manage");
+
+  if (!canUseHotelId(context, hotelId) || !canViewDeclarations) {
+    notFound();
+  }
+
+  const canConfigure = context.permissions.some((permission) =>
+    ["hotel.kbtt.view", "hotel.kbtt.manage"].includes(permission),
+  );
+
+  return (
+    <KbttDeclarationsPage
+      hotelId={hotelId}
+      canManage={canManageDeclarations}
+      canConfigure={canConfigure}
+    />
+  );
 }

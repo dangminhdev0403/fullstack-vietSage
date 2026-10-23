@@ -345,6 +345,11 @@ export class HotelRequestsRepository {
       throw new ConflictException("Không tìm thấy folio đang mở cho lượt lưu trú");
     }
 
+    const serviceCurrency = request.serviceItem.category.currency ?? folio.currency;
+    if (serviceCurrency !== folio.currency) {
+      throw new ConflictException("Đơn vị tiền tệ của dịch vụ không khớp với folio");
+    }
+
     const unitPrice =
       request.serviceItem.priceOverride ?? request.serviceItem.category.defaultPrice;
     const quantity = Math.max(request.quantity ?? 1, 1);
@@ -387,7 +392,7 @@ export class HotelRequestsRepository {
         discountAmountSnapshot: zero,
         subtotalSnapshot: subtotal,
         totalSnapshot: subtotal,
-        currency: request.serviceItem.category.currency ?? folio.currency,
+        currency: folio.currency,
         billingSourceSnapshot: {
           guestRequestId: request.id,
           serviceItemId: request.serviceItem.id,

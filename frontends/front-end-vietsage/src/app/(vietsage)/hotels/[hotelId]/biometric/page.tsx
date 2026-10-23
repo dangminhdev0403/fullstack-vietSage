@@ -13,12 +13,12 @@ import {
   hasHotelFeature,
 } from "@/features/hotel-features/hotel-features";
 
-type PageProps = { params: Promise<{ hotelId: string }> };
+type PageProps = { params: Promise<{ hotelId: string }>; baseRoutePrefix?: `/${string}` };
 export const dynamic = "force-dynamic";
 
-export default async function StaffHotelBiometricPage({ params }: PageProps) {
+export default async function StaffHotelBiometricPage({ params, baseRoutePrefix = "/hotels" }: PageProps) {
   const { hotelId } = await Promise.resolve(params);
-  const callbackUrl = `/hotels/${hotelId}/biometric` as const;
+  const callbackUrl = `${baseRoutePrefix}/${hotelId}/biometric` as `/${string}`;
   const session = await auth();
   assertCanAccessHotelOps(session, callbackUrl);
   const tokens = await requireHotelOpsServerTokens(callbackUrl);
@@ -68,7 +68,7 @@ export default async function StaffHotelBiometricPage({ params }: PageProps) {
 
         <div className="flex items-center gap-3">
           <Link
-            href={`/hotels/${hotelId}/rooms`}
+            href={`${baseRoutePrefix}/${hotelId}/rooms`}
             className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#000080] px-5 py-2.5 text-sm font-bold text-white shadow-2xs transition-colors hover:bg-[#000060]"
           >
             <svg
@@ -119,7 +119,7 @@ export default async function StaffHotelBiometricPage({ params }: PageProps) {
           </p>
           <div className="mt-6 flex justify-center gap-3">
             <Link
-              href={`/hotels/${hotelId}/rooms`}
+              href={`${baseRoutePrefix}/${hotelId}/rooms`}
               className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-amber-800 px-5 py-2.5 text-sm font-bold text-white shadow-2xs transition-colors hover:bg-amber-900"
             >
               <span>Về Sơ đồ phòng & Check-in</span>

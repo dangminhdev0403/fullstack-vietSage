@@ -3,6 +3,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
+function resolveRepoFile(relPath: string): string {
+  const direct = path.join(process.cwd(), relPath);
+  if (fs.existsSync(direct)) return direct;
+  const frontendPath = path.join(process.cwd(), "frontends/front-end-vietsage", relPath);
+  if (fs.existsSync(frontendPath)) return frontendPath;
+  return direct;
+}
+
 function parseFormattedNumber(value: unknown): number {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
   if (typeof value === "string") {
@@ -47,8 +55,7 @@ test("Billing parseFormattedNumber and calculation regression tests", async (t) 
   });
 
   await t.test("StaffBillingWorkspaceClient preserves existing folio discount in computed total", () => {
-    const clientFile = path.join(
-      process.cwd(),
+    const clientFile = resolveRepoFile(
       "src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx",
     );
     const code = fs.readFileSync(clientFile, "utf-8");
@@ -69,12 +76,10 @@ test("Billing parseFormattedNumber and calculation regression tests", async (t) 
   });
 
   await t.test("Invoice detail pages display discount with negative indicator", () => {
-    const staffInvoiceFile = path.join(
-      process.cwd(),
+    const staffInvoiceFile = resolveRepoFile(
       "src/app/(vietsage)/hotels/[hotelId]/billing/invoices/[invoiceId]/page.tsx",
     );
-    const ownerInvoiceFile = path.join(
-      process.cwd(),
+    const ownerInvoiceFile = resolveRepoFile(
       "src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/billing/invoices/[invoiceId]/page.tsx",
     );
     const staffCode = fs.readFileSync(staffInvoiceFile, "utf-8");
@@ -82,5 +87,54 @@ test("Billing parseFormattedNumber and calculation regression tests", async (t) 
 
     assert.ok(staffCode.includes("`-${formatMoney(invoice.discountAmount"), "Staff invoice must show - for discount");
     assert.ok(ownerCode.includes("`-${formatMoney(invoice.discountAmount"), "Owner invoice must show - for discount");
+  });
+
+  await t.test("H6: isCashSettlementAllowed blocks settlement when received cash is below amount due", () => {
+    function isCashSettlementAllowed(
+      cashGivenInput: string | number,
+      amountDue: number,
+    ): boolean {
+      if (cashGivenInput === "" || cashGivenInput === null || cashGivenInput === undefined) {
+        return true;
+      }
+      const cash = parseFormattedNumber(cashGivenInput);
+      return cash >= amountDue;
+    }
+
+    assert.strictEqual(isCashSettlementAllowed("100.000", 500000), false, "100k cash < 500k due must be rejected");
+    assert.strictEqual(isCashSettlementAllowed("0", 500000), false, "0 cash < 500k due must be rejected");
+    assert.strictEqual(isCashSettlementAllowed("499.999", 500000), false, "499.999 cash < 500k due must be rejected");
+    assert.strictEqual(isCashSettlementAllowed("500.000", 500000), true, "500k cash == 500k due must be allowed");
+    assert.strictEqual(isCashSettlementAllowed("1.000.000", 500000), true, "1M cash > 500k due must be allowed");
+    assert.strictEqual(isCashSettlementAllowed("", 500000), true, "Empty input (no change calculator) allows checkout");
+
+    const clientFile = resolveRepoFile(
+      "src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx",
+    );
+    const code = fs.readFileSync(clientFile, "utf-8");
+    assert.ok(code.includes("isCashSettlementAllowed"), "Workspace client must export and enforce isCashSettlementAllowed");
+    assert.ok(
+      code.includes("!isCashSettlementAllowed(cashGivenInput, computedTotal)"),
+      "Workspace client must disable button or block checkout when cash is insufficient",
+    );
+  });
+
+  await t.test("H3: StaffBillingWorkspaceClient does not fall back to 500000 or current-room price", () => {
+    const clientFile = resolveRepoFile(
+      "src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx",
+    );
+    const code = fs.readFileSync(clientFile, "utf-8");
+    assert.ok(!code.includes("price > 0 ? price : 500000"), "Must not fall back to 500000 in estimatedRoomChargeData");
+  });
+
+  await t.test("H4: StaffBillingWorkspaceClient rejects discounts that make total negative", () => {
+    const clientFile = resolveRepoFile(
+      "src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx",
+    );
+    const code = fs.readFileSync(clientFile, "utf-8");
+    assert.ok(
+      code.includes("Số tiền giảm giá không được làm tổng tiền trở thành số âm"),
+      "Must validate that discount does not cause negative total",
+    );
   });
 });

@@ -128,4 +128,60 @@ describe("Checkout Service Reconciliation & Idempotent Billing TDD", () => {
       }),
     });
   });
+
+  it("C1: rejects reconciliation when service currency does not match folio currency", async () => {
+    const prismaMock: any = {
+      invoice: { findFirst: jest.fn().mockResolvedValue(null) },
+      $transaction: jest.fn().mockImplementation(async (cb) => {
+        const txMock: any = {
+          $queryRawUnsafe: jest.fn(),
+          folio: {
+            findFirst: jest.fn().mockResolvedValue({
+              id: "folio-1",
+              stayId: "stay-1",
+              currency: "VND",
+              status: "OPEN",
+            }),
+          },
+          invoice: { findFirst: jest.fn().mockResolvedValue(null) },
+          guestRequest: {
+            findMany: jest.fn().mockResolvedValue([
+              {
+                id: "req-active-1",
+                title: "Spa package",
+                status: "CREATED",
+                quantity: 1,
+                unitPrice: 50,
+                serviceItem: {
+                  name: "Spa package",
+                  priceOverride: 50,
+                  category: { currency: "USD" },
+                },
+                room: { roomNumber: "101" },
+              },
+            ]),
+          },
+          folioItem: {
+            findFirst: jest.fn().mockResolvedValue(null),
+          },
+        };
+        return cb(txMock);
+      }),
+    };
+
+    const service = new BillingService(
+      {} as any,
+      { assertHotelAccess: jest.fn() } as any,
+      prismaMock,
+      { generateEntityCode: jest.fn().mockResolvedValue("INV-001") } as any,
+      { log: jest.fn(), warn: jest.fn() } as any,
+    );
+    (service as any).validateFolioForCheckout = jest.fn().mockResolvedValue({});
+
+    await expect(
+      service.issueInvoice("user-1", "role-1", "hotel-1", "folio-1", {
+        reconciliations: [{ requestId: "req-active-1", action: "provided" }],
+      }),
+    ).rejects.toThrow("Đơn vị tiền tệ của dịch vụ không khớp với folio");
+  });
 });

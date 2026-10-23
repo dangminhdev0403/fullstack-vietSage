@@ -27,17 +27,24 @@ function percent(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function attentionRoute(hotelId: string, item: { type: string; id: string; action: { route: string } }): string {
-  if (item.type.includes("request")) return `/hotels/${hotelId}/requests?requestId=${encodeURIComponent(item.id)}`;
-  if (item.type.includes("checkout")) return `/hotels/${hotelId}/billing`;
-  if (item.type.includes("room")) return `/hotels/${hotelId}/rooms`;
-  if (item.action.route.startsWith(`/hotels/${hotelId}/`)) return item.action.route;
-  return `/hotels/${hotelId}/dashboard`;
+function attentionRoute(
+  hotelId: string,
+  item: { type: string; id: string; action: { route: string } },
+  basePrefix: string = "/hotels",
+): string {
+  if (item.type.includes("request")) return `${basePrefix}/${hotelId}/requests?requestId=${encodeURIComponent(item.id)}`;
+  if (item.type.includes("checkout")) return `${basePrefix}/${hotelId}/billing`;
+  if (item.type.includes("room")) return `${basePrefix}/${hotelId}/rooms`;
+  if (item.action.route.startsWith(`${basePrefix}/${hotelId}/`)) return item.action.route;
+  return `${basePrefix}/${hotelId}/dashboard`;
 }
 
-export default async function StaffHotelDashboardPage({ params }: PageProps) {
+export default async function StaffHotelDashboardPage({
+  params,
+  baseRoutePrefix = "/hotels",
+}: PageProps & { baseRoutePrefix?: string }) {
   const { hotelId } = await Promise.resolve(params);
-  const callbackUrl = `/hotels/${hotelId}/dashboard` as const;
+  const callbackUrl = `${baseRoutePrefix}/${hotelId}/dashboard` as `/${string}`;
   const session = await auth();
   assertCanAccessHotelOps(session, callbackUrl);
   const tokens = await requireHotelOpsServerTokens(callbackUrl);
@@ -203,7 +210,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
             <div className="mt-1 flex items-center justify-between text-xs">
               <span className="text-[#991b1b] font-medium">Chưa chốt hóa đơn</span>
               <Link
-                href={`/hotels/${hotelId}/billing`}
+                href={`${baseRoutePrefix}/${hotelId}/billing`}
                 prefetch={true}
                 className="font-bold text-[#b91c1c] hover:underline"
               >
@@ -323,7 +330,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
 
         <div className="grid gap-4 sm:grid-cols-3">
           <Link
-            href={`/hotels/${hotelId}/rooms?businessDate=${tomorrowYmd}`}
+            href={`${baseRoutePrefix}/${hotelId}/rooms?businessDate=${tomorrowYmd}`}
             prefetch={true}
             className="group flex min-h-[96px] items-center gap-4 rounded-xl border-2 border-amber-200/80 bg-white p-4.5 sm:p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-500 hover:shadow-md active:scale-[0.98]"
           >
@@ -337,7 +344,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
           </Link>
 
           <Link
-            href={`/hotels/${hotelId}/rooms?status=processing`}
+            href={`${baseRoutePrefix}/${hotelId}/rooms?status=processing`}
             prefetch={true}
             className="group flex min-h-[96px] items-center gap-4 rounded-xl border-2 border-amber-200/80 bg-white p-4.5 sm:p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-500 hover:shadow-md active:scale-[0.98]"
           >
@@ -351,7 +358,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
           </Link>
 
           <Link
-            href={`/hotels/${hotelId}/rooms?flow=reservation`}
+            href={`${baseRoutePrefix}/${hotelId}/rooms?flow=reservation`}
             prefetch={true}
             className="group flex min-h-[96px] items-center gap-4 rounded-xl border-2 border-amber-200/80 bg-white p-4.5 sm:p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-500 hover:shadow-md active:scale-[0.98]"
           >
@@ -388,7 +395,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
                       Không nhận phòng sớm
                     </span>
                     <Link
-                      href={`/hotels/${hotelId}/rooms?businessDate=${tomorrowYmd}`}
+                      href={`${baseRoutePrefix}/${hotelId}/rooms?businessDate=${tomorrowYmd}`}
                       className="inline-flex min-h-[44px] items-center rounded-xl bg-amber-800 px-4 py-2 text-sm font-bold text-white shadow-2xs transition-colors hover:bg-amber-900"
                     >
                       Xem &amp; Gán phòng
@@ -405,12 +412,12 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
         <article>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="vs-display text-2xl font-semibold text-[var(--primary)]">Yêu cầu của khách <span className="text-[var(--error)]">•</span></h2>
-            <Link href={`/hotels/${hotelId}/requests`} prefetch={true} className="text-sm font-bold text-[var(--primary)]">Xem tất cả</Link>
+            <Link href={`${baseRoutePrefix}/${hotelId}/requests`} prefetch={true} className="text-sm font-bold text-[var(--primary)]">Xem tất cả</Link>
           </div>
           <div className="overflow-hidden rounded-xl bg-white shadow-sm">
             <div className="grid grid-cols-[0.5fr_1.5fr_0.8fr_0.8fr] border-b border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-5 py-4 text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]"><span>Phòng</span><span>Loại yêu cầu</span><span>Thời gian</span><span>Trạng thái</span></div>
             {dashboard.attention.slice(0, 5).map((item) => (
-              <Link key={`${item.type}-${item.id}`} href={attentionRoute(hotelId, item)} prefetch={true} className="grid grid-cols-[0.5fr_1.5fr_0.8fr_0.8fr] items-center border-b border-[var(--outline-variant)]/50 px-5 py-4 text-sm transition hover:bg-[var(--surface-container-low)]">
+              <Link key={`${item.type}-${item.id}`} href={attentionRoute(hotelId, item, baseRoutePrefix)} prefetch={true} className="grid grid-cols-[0.5fr_1.5fr_0.8fr_0.8fr] items-center border-b border-[var(--outline-variant)]/50 px-5 py-4 text-sm transition hover:bg-[var(--surface-container-low)]">
                 <span className="font-bold text-[var(--primary)]">{item.title.match(/\d+/)?.[0] ?? "-"}</span><span className="font-semibold text-[var(--on-surface)]">{item.title}</span><span className="text-sm text-[var(--on-surface-variant)]">{formatTime(item.createdAt)}</span><span className="w-fit rounded-full bg-[var(--primary-fixed)] px-2.5 py-1 text-xs font-bold uppercase text-[var(--on-primary-fixed-variant)]">{item.priority}</span>
               </Link>
             ))}

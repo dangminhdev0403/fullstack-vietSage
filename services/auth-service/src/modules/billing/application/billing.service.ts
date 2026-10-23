@@ -160,9 +160,13 @@ export class BillingService {
         } | null = null;
 
         if (folio.status === FolioStatus.OPEN && !invoice) {
-          estimatedRoomCharge = this.calculateEstimatedRoomCharge(folio);
-          subtotal = subtotal.add(estimatedRoomCharge.subtotal);
-          total = total.add(estimatedRoomCharge.subtotal);
+          try {
+            estimatedRoomCharge = this.calculateEstimatedRoomCharge(folio);
+            subtotal = subtotal.add(estimatedRoomCharge.subtotal);
+            total = total.add(estimatedRoomCharge.subtotal);
+          } catch {
+            estimatedRoomCharge = null;
+          }
         }
 
         return {
@@ -370,6 +374,28 @@ export class BillingService {
         where: { hotelId, folioId, voidedAt: null },
       });
       const totals = this.computeTotalsFromFolioItems(folioItems);
+
+      let effectiveTotal = totals.totalAmount;
+      const hasRoomChargeItem = folioItems.some(
+        (it) => it.itemType === FolioItemType.ROOM_CHARGE,
+      );
+      if (!hasRoomChargeItem) {
+        const fullFolio = await tx.folio.findFirst({
+          where: { id: folioId },
+          include: { room: true, stay: true },
+        });
+        if (fullFolio?.stay?.nightlyRateSnapshot != null) {
+          try {
+            const est = this.calculateEstimatedRoomCharge(fullFolio);
+            effectiveTotal = effectiveTotal.add(est.subtotal);
+          } catch {
+            // Ignore if calculation not available
+          }
+        }
+      }
+      if (effectiveTotal.lt(0)) {
+        throw new BadRequestException("DISCOUNT_MAKES_TOTAL_NEGATIVE");
+      }
       await tx.folio.update({
         where: { id: folioId },
         data: {
@@ -434,6 +460,28 @@ export class BillingService {
         where: { hotelId, folioId, voidedAt: null },
       });
       const totals = this.computeTotalsFromFolioItems(folioItems);
+
+      let effectiveTotal = totals.totalAmount;
+      const hasRoomChargeItem = folioItems.some(
+        (it) => it.itemType === FolioItemType.ROOM_CHARGE,
+      );
+      if (!hasRoomChargeItem) {
+        const fullFolio = await tx.folio.findFirst({
+          where: { id: folioId },
+          include: { room: true, stay: true },
+        });
+        if (fullFolio?.stay?.nightlyRateSnapshot != null) {
+          try {
+            const est = this.calculateEstimatedRoomCharge(fullFolio);
+            effectiveTotal = effectiveTotal.add(est.subtotal);
+          } catch {
+            // Ignore if calculation not available
+          }
+        }
+      }
+      if (effectiveTotal.lt(0)) {
+        throw new BadRequestException("DISCOUNT_MAKES_TOTAL_NEGATIVE");
+      }
       await tx.folio.update({
         where: { id: folioId },
         data: {
@@ -577,6 +625,24 @@ export class BillingService {
       throw new ConflictException("FOLIO_STALE_MUST_RECALCULATE_BEFORE_CHECKOUT");
     }
 
+    if (summary.total.lt(0)) {
+      throw new ConflictException("FOLIO_TOTAL_CANNOT_BE_NEGATIVE");
+    }
+
+    if (this.prisma.folioItem?.findFirst) {
+      const mismatchedItem = await this.prisma.folioItem.findFirst({
+        where: {
+          hotelId,
+          folioId,
+          voidedAt: null,
+          currency: { not: summary.currency },
+        },
+      });
+      if (mismatchedItem) {
+        throw new ConflictException("FOLIO_CURRENCY_MISMATCH");
+      }
+    }
+
     return summary;
   }
 
@@ -610,7 +676,12 @@ export class BillingService {
             stayId: result.folio.stayId,
             status: { in: [...activeGuestRequestStatuses] },
           },
-          include: { serviceItem: true, room: true },
+          include: {
+        serviceItem: {
+          include: { category: true },
+        },
+        room: true,
+      },
           orderBy: { createdAt: "asc" },
         })
       : [];
@@ -820,7 +891,37 @@ export class BillingService {
           where: { hotelId, folioId, voidedAt: null },
           orderBy: [{ postedAt: "asc" }, { id: "asc" }],
         });
+
+        const mismatchedItem = folioItems.find(
+          (item) => item.currency && item.currency !== folio.currency,
+        );
+        if (mismatchedItem) {
+          throw new ConflictException("FOLIO_CURRENCY_MISMATCH");
+        }
+
         const totals = this.computeTotalsFromFolioItems(folioItems);
+
+      let effectiveTotal = totals.totalAmount;
+      const hasRoomChargeItem = folioItems.some(
+        (it) => it.itemType === FolioItemType.ROOM_CHARGE,
+      );
+      if (!hasRoomChargeItem) {
+        const fullFolio = await tx.folio.findFirst({
+          where: { id: folioId },
+          include: { room: true, stay: true },
+        });
+        if (fullFolio?.stay?.nightlyRateSnapshot != null) {
+          try {
+            const est = this.calculateEstimatedRoomCharge(fullFolio);
+            effectiveTotal = effectiveTotal.add(est.subtotal);
+          } catch {
+            // Ignore if calculation not available
+          }
+        }
+      }
+      if (effectiveTotal.lt(0)) {
+        throw new BadRequestException("DISCOUNT_MAKES_TOTAL_NEGATIVE");
+      }
         const snapshot = {
           issuedAt: new Date().toISOString(),
           hotel: folio.hotel,
@@ -1470,19 +1571,30 @@ export class BillingService {
     return null;
   }
 
-  calculateEstimatedRoomCharge(folio: {
-    openedAt?: Date | string | null;
-    createdAt?: Date | string;
-    room?: { roomNumber?: string | null; price?: Prisma.Decimal | number | null } | null;
-    stay?: {
-      checkedInAt?: Date | string | null;
-      checkedOutAt?: Date | string | null;
-      plannedCheckInAt?: Date | string | null;
-      plannedCheckOutAt?: Date | string | null;
-      baseNightlyRateSnapshot?: Prisma.Decimal | number | string | null;
-      nightlyRateSnapshot?: Prisma.Decimal | number | string | null;
-    } | null;
-  }) {
+  calculateEstimatedRoomCharge(
+    folio: {
+      openedAt?: Date | string | null;
+      createdAt?: Date | string;
+      room?: { roomNumber?: string | null; price?: Prisma.Decimal | number | null } | null;
+      stay?: {
+        checkedInAt?: Date | string | null;
+        checkedOutAt?: Date | string | null;
+        plannedCheckInAt?: Date | string | null;
+        plannedCheckOutAt?: Date | string | null;
+        baseNightlyRateSnapshot?: Prisma.Decimal | number | string | null;
+        nightlyRateSnapshot?: Prisma.Decimal | number | string | null;
+      } | null;
+    },
+    options?: { isEarlyDeparture?: boolean },
+  ) {
+    if (
+      folio.stay?.nightlyRateSnapshot === null ||
+      folio.stay?.nightlyRateSnapshot === undefined
+    ) {
+      throw new ConflictException("MISSING_AGREED_ROOM_RATE_SNAPSHOT");
+    }
+    const unitPrice = new Prisma.Decimal(folio.stay.nightlyRateSnapshot);
+
     const rawStart =
       folio.stay?.checkedInAt ??
       folio.stay?.plannedCheckInAt ??
@@ -1491,24 +1603,30 @@ export class BillingService {
       new Date();
     const chargeStart = rawStart instanceof Date ? rawStart : new Date(rawStart);
 
-    const rawEnd = folio.stay?.checkedOutAt ?? folio.stay?.plannedCheckOutAt;
-    const chargeEnd = rawEnd
-      ? new Date(
-          Math.min(Date.now(), (rawEnd instanceof Date ? rawEnd : new Date(rawEnd)).getTime()),
-        )
+    const plannedStart = folio.stay?.plannedCheckInAt
+      ? (folio.stay.plannedCheckInAt instanceof Date
+          ? folio.stay.plannedCheckInAt
+          : new Date(folio.stay.plannedCheckInAt))
+      : chargeStart;
+    const rawPlannedEnd = folio.stay?.plannedCheckOutAt;
+    const committedEnd = rawPlannedEnd
+      ? (rawPlannedEnd instanceof Date ? rawPlannedEnd : new Date(rawPlannedEnd))
+      : chargeStart;
+    const committedDiffMs = Math.max(0, committedEnd.getTime() - plannedStart.getTime());
+    const plannedNights = Math.max(1, Math.round(committedDiffMs / 86400000));
+    const plannedSubtotal = unitPrice.mul(plannedNights);
+
+    const actualEndRaw = folio.stay?.checkedOutAt;
+    const actualEnd = actualEndRaw
+      ? (actualEndRaw instanceof Date ? actualEndRaw : new Date(actualEndRaw))
       : new Date();
+    const elapsedDiffMs = Math.max(0, actualEnd.getTime() - chargeStart.getTime());
+    const elapsedNights = Math.max(1, Math.round(elapsedDiffMs / 86400000));
 
-    const defaultPrice = new Prisma.Decimal(500000);
-    const unitPrice =
-      folio.stay?.nightlyRateSnapshot !== null && folio.stay?.nightlyRateSnapshot !== undefined
-        ? new Prisma.Decimal(folio.stay.nightlyRateSnapshot)
-        : folio.room?.price !== null && folio.room?.price !== undefined
-          ? new Prisma.Decimal(folio.room.price)
-          : defaultPrice;
+    const isEarlyDeparture = options?.isEarlyDeparture === true;
+    const nights = isEarlyDeparture ? elapsedNights : plannedNights;
+    const chargeEnd = isEarlyDeparture ? actualEnd : committedEnd;
 
-    // Use Math.round to prevent phantom night double-billing on early check-in or brief checkout delays
-    const diffMs = Math.max(0, chargeEnd.getTime() - chargeStart.getTime());
-    const nights = Math.max(1, Math.round(diffMs / 86400000));
     const subtotal = unitPrice.mul(nights);
     const baseNightlyRate =
       folio.stay?.baseNightlyRateSnapshot !== null &&
@@ -1533,16 +1651,6 @@ export class BillingService {
           }
         : null;
 
-    const plannedStart = folio.stay?.plannedCheckInAt
-      ? new Date(folio.stay.plannedCheckInAt)
-      : chargeStart;
-    const plannedEnd = folio.stay?.plannedCheckOutAt
-      ? new Date(folio.stay.plannedCheckOutAt)
-      : (rawEnd ? new Date(rawEnd) : chargeEnd);
-    const plannedDiffMs = Math.max(0, plannedEnd.getTime() - plannedStart.getTime());
-    const plannedNights = Math.max(1, Math.round(plannedDiffMs / 86400000));
-    const plannedSubtotal = unitPrice.mul(plannedNights);
-
     return {
       nights,
       nightlyRate: unitPrice,
@@ -1551,6 +1659,7 @@ export class BillingService {
       rateComparison,
       plannedNights,
       plannedSubtotal,
+      chargeEnd,
     };
   }
 
@@ -1575,9 +1684,9 @@ export class BillingService {
         voidedAt: null,
       },
     });
-    const est = this.calculateEstimatedRoomCharge(folio);
+    const est = this.calculateEstimatedRoomCharge(folio, options);
     const chargeStart = folio.stay.checkedInAt ?? folio.stay.plannedCheckInAt;
-    const chargeEnd = new Date(Math.min(Date.now(), folio.stay.plannedCheckOutAt.getTime()));
+    const chargeEnd = est.chargeEnd;
     const unitPrice = est.nightlyRate;
     const nights = est.nights;
     const subtotal = est.subtotal;
@@ -1598,6 +1707,7 @@ export class BillingService {
           chargeStart: chargeStart.toISOString(),
           chargeEnd: chargeEnd.toISOString(),
           nights,
+          isEarlyDeparture: Boolean(options?.isEarlyDeparture),
         }),
       ) as Prisma.InputJsonValue,
     };
@@ -1683,7 +1793,12 @@ export class BillingService {
           in: [...activeGuestRequestStatuses],
         },
       },
-      include: { serviceItem: true, room: true },
+      include: {
+        serviceItem: {
+          include: { category: true },
+        },
+        room: true,
+      },
     });
 
     if (!activeRequests.length) return;
@@ -1729,6 +1844,11 @@ export class BillingService {
           });
         }
       } else if (rec.action === "provided") {
+        const serviceCurrency = req.serviceItem?.category?.currency ?? folio.currency;
+        if (serviceCurrency !== folio.currency) {
+          throw new ConflictException("Đơn vị tiền tệ của dịch vụ không khớp với folio");
+        }
+
         const existingItem = await tx.folioItem.findFirst({
           where: {
             folioId: folio.id,

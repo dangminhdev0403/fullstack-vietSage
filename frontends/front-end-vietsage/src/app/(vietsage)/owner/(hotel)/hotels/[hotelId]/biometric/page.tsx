@@ -1,8 +1,9 @@
-import { redirect } from "next/navigation";
+import StaffHotelBiometricPage from "@/app/(vietsage)/hotels/[hotelId]/biometric/page";
+
+export const dynamic = "force-dynamic";
 
 type PageProps = { params: Promise<{ hotelId: string }> };
 
 export default async function OwnerHotelBiometricPage({ params }: PageProps) {
-  const { hotelId } = await Promise.resolve(params);
-  redirect(`/owner/hotels/${encodeURIComponent(hotelId)}/rooms`);
+  return <StaffHotelBiometricPage params={params} baseRoutePrefix="/owner/hotels" />;
 }

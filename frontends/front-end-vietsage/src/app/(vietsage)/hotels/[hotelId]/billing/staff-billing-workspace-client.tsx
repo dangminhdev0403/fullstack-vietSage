@@ -70,6 +70,17 @@ function parseFormattedNumber(value: unknown): number {
 
 const toNumber = parseFormattedNumber;
 
+export function isCashSettlementAllowed(
+  cashGivenInput: string | number,
+  amountDue: number,
+): boolean {
+  if (cashGivenInput === "" || cashGivenInput === null || cashGivenInput === undefined) {
+    return true;
+  }
+  const cash = parseFormattedNumber(cashGivenInput);
+  return cash >= amountDue;
+}
+
 function formatNumberInput(value: string | number): string {
   if (value === "" || value === null || value === undefined) return "";
   const rawDigits = String(value).replace(/\D/g, "");
@@ -316,26 +327,18 @@ export function StaffBillingWorkspaceClient({
 
   const estimatedRoomChargeData = useMemo(() => {
     if (activeSummary?.estimatedRoomCharge) {
+
       return {
         nights: Number(activeSummary.estimatedRoomCharge.nights || 1),
-        nightlyRate: toNumber(activeSummary.estimatedRoomCharge.nightlyRate || 500000),
-        subtotal: toNumber(activeSummary.estimatedRoomCharge.subtotal || 500000),
+        nightlyRate: toNumber(activeSummary.estimatedRoomCharge.nightlyRate),
+        subtotal: toNumber(activeSummary.estimatedRoomCharge.subtotal),
       };
     }
     if (selectedFolio?.estimatedRoomCharge) {
       return {
         nights: Number(selectedFolio.estimatedRoomCharge.nights || 1),
-        nightlyRate: toNumber(selectedFolio.estimatedRoomCharge.nightlyRate || 500000),
-        subtotal: toNumber(selectedFolio.estimatedRoomCharge.subtotal || 500000),
-      };
-    }
-    if (selectedFolio?.status === "OPEN") {
-      const price = toNumber(selectedFolio?.room?.price ?? 500000);
-      const nightlyRate = price > 0 ? price : 500000;
-      return {
-        nights: 1,
-        nightlyRate,
-        subtotal: nightlyRate,
+        nightlyRate: toNumber(selectedFolio.estimatedRoomCharge.nightlyRate),
+        subtotal: toNumber(selectedFolio.estimatedRoomCharge.subtotal),
       };
     }
     return null;
@@ -513,6 +516,22 @@ export function StaffBillingWorkspaceClient({
     if (unresolved) {
       setCheckoutError(
         `Vui lòng xác nhận xử lý dịch vụ “${unresolved.name}” trước khi xuất hóa đơn.`,
+      );
+      return;
+    }
+
+    const discountCheck = parseAmountOrPercentage(discountInput, subtotal);
+    if (
+      discountCheck.amount > 0 &&
+      subtotal + tax - existingDiscountTotal + surchargeVal - discountCheck.amount < 0
+    ) {
+      setCheckoutError("Số tiền giảm giá không được làm tổng tiền trở thành số âm.");
+      return;
+    }
+
+    if (!isCashSettlementAllowed(cashGivenInput, computedTotal)) {
+      setCheckoutError(
+        `Số tiền mặt nhận (${formatMoney(parseFormattedNumber(cashGivenInput), currency)}) không đủ để thanh toán tổng tiền (${formatMoney(computedTotal, currency)}).`,
       );
       return;
     }
@@ -1643,7 +1662,12 @@ export function StaffBillingWorkspaceClient({
             <button
               type="button"
               onClick={() => void issueInvoiceAndCollect()}
-              disabled={!selectedFolioId || !canManage || saving}
+              disabled={
+                !selectedFolioId ||
+                !canManage ||
+                saving ||
+                !isCashSettlementAllowed(cashGivenInput, computedTotal)
+              }
               className="mt-4 w-full inline-flex h-13 items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-[#fbbf24] via-[#f59e0b] to-[#d97706] px-4 text-base sm:text-lg font-semibold text-[#1c1204] shadow-xl shadow-amber-950/60 transition hover:from-[#f59e0b] hover:to-[#b45309] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
             >
               <VsIcon

@@ -181,6 +181,88 @@ describe("Marketplace orders", () => {
     );
   });
 
+  it("H8: preserves legitimate zero marketplace amounts when posting to stay folio", async () => {
+    const order = {
+      id: "order-free",
+      hotelId: "hotel-1",
+      stayId: "stay-1",
+      serviceId: "service-free",
+      serviceTenantId: "provider-1",
+      status: "ACKNOWLEDGED",
+      version: 1,
+      quantity: 1,
+      unitPriceSnapshot: new Prisma.Decimal(100),
+      partnerSubtotal: new Prisma.Decimal(0),
+      customerTotalAmount: new Prisma.Decimal(0),
+      totalAmount: new Prisma.Decimal(0),
+      currency: "VND",
+      serviceNameSnapshot: "Free welcome drink",
+      serviceModeSnapshot: "DELIVERY_TO_HOTEL",
+      capacityReservationStatus: "RESERVED",
+    };
+    const folioItemCreate = jest.fn().mockResolvedValue({ id: "item-free" });
+    const tx = {
+      marketplaceOrder: {
+        findFirst: jest.fn().mockResolvedValue(order),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ ...order, status: "COMPLETED" }),
+      },
+      hotelServiceLink: {
+        findUnique: jest.fn().mockResolvedValue({ commissionRate: new Prisma.Decimal("10.00") }),
+      },
+      marketplaceRevenueEntry: {
+        upsert: jest.fn().mockResolvedValue({}),
+      },
+      marketplaceSettlement: { upsert: jest.fn().mockResolvedValue({}) },
+      marketplaceOrderEvent: { create: jest.fn().mockResolvedValue({}) },
+      folio: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: "folio-1", roomId: "room-1", currency: "VND" }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      folioItem: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: folioItemCreate,
+        findMany: jest.fn().mockResolvedValue([
+          {
+            subtotalSnapshot: new Prisma.Decimal(0),
+            taxAmountSnapshot: new Prisma.Decimal(0),
+            discountAmountSnapshot: new Prisma.Decimal(0),
+            totalSnapshot: new Prisma.Decimal(0),
+          },
+        ]),
+      },
+    };
+    const prisma = {
+      marketplaceOrder: {
+        findUnique: jest.fn().mockResolvedValue({
+          ...order,
+          status: "COMPLETED",
+          orderNumber: "ORD-FREE",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          version: 2,
+          stay: { guestDisplayName: "John Guest", room: { id: "room-1", roomNumber: "101" } },
+        }),
+      },
+      $transaction: (fn: any) => fn(tx),
+    };
+    const portal = { tenantId: jest.fn().mockResolvedValue("provider-1") };
+    const service = new MarketplaceOrderService(prisma as never, portal as never);
+
+    await service.transitionServiceOrder("provider-user", "order-free", { toStatus: "COMPLETED" });
+
+    expect(folioItemCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          subtotalSnapshot: new Prisma.Decimal(0),
+          totalSnapshot: new Prisma.Decimal(0),
+        }),
+      }),
+    );
+  });
+
   it("fails atomically when finite capacity cannot be reserved", async () => {
     const tx = {
       marketplaceService: {
