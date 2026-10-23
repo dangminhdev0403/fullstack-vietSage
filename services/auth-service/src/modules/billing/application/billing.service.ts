@@ -663,6 +663,11 @@ export class BillingService {
           : null),
       ...counts,
       isStale,
+      isOverdue: Boolean(
+        result.folio.status === FolioStatus.OPEN &&
+          (result.folio as any)?.stay?.plannedCheckOutAt &&
+          new Date((result.folio as any).stay.plannedCheckOutAt).getTime() < Date.now(),
+      ),
       requiresRecalculation,
       hasDuplicateOpenFolios: false,
       activeServiceRequests: activeServiceRequests.map((request) => ({
@@ -689,6 +694,7 @@ export class BillingService {
         action: "provided" | "cancelled";
         cancelReason?: string;
       }>;
+      isEarlyDeparture?: boolean;
     },
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
@@ -809,7 +815,7 @@ export class BillingService {
 
         const invoiceNumber = await this.codesService.generateEntityCode("INVOICE", tx);
 
-        await this.ensureRoomChargeFolioItem(tx, folio, actorUserId);
+        await this.ensureRoomChargeFolioItem(tx, folio, actorUserId, options);
         const folioItems = await tx.folioItem.findMany({
           where: { hotelId, folioId, voidedAt: null },
           orderBy: [{ postedAt: "asc" }, { id: "asc" }],
@@ -1500,8 +1506,9 @@ export class BillingService {
           ? new Prisma.Decimal(folio.room.price)
           : defaultPrice;
 
+    // Use Math.round to prevent phantom night double-billing on early check-in or brief checkout delays
     const diffMs = Math.max(0, chargeEnd.getTime() - chargeStart.getTime());
-    const nights = Math.max(1, Math.ceil(diffMs / 86400000));
+    const nights = Math.max(1, Math.round(diffMs / 86400000));
     const subtotal = unitPrice.mul(nights);
     const baseNightlyRate =
       folio.stay?.baseNightlyRateSnapshot !== null &&
@@ -1526,12 +1533,24 @@ export class BillingService {
           }
         : null;
 
+    const plannedStart = folio.stay?.plannedCheckInAt
+      ? new Date(folio.stay.plannedCheckInAt)
+      : chargeStart;
+    const plannedEnd = folio.stay?.plannedCheckOutAt
+      ? new Date(folio.stay.plannedCheckOutAt)
+      : (rawEnd ? new Date(rawEnd) : chargeEnd);
+    const plannedDiffMs = Math.max(0, plannedEnd.getTime() - plannedStart.getTime());
+    const plannedNights = Math.max(1, Math.round(plannedDiffMs / 86400000));
+    const plannedSubtotal = unitPrice.mul(plannedNights);
+
     return {
       nights,
       nightlyRate: unitPrice,
       subtotal,
       roomNumber: folio.room?.roomNumber ?? null,
       rateComparison,
+      plannedNights,
+      plannedSubtotal,
     };
   }
 
@@ -1541,6 +1560,7 @@ export class BillingService {
       include: { room: true; stay: true; hotel: { select: { id: true; name: true } } };
     }>,
     actorUserId: string,
+    options?: { isEarlyDeparture?: boolean },
   ) {
     if (folio.status !== FolioStatus.OPEN) {
       throw new ConflictException("ROOM_CHARGE_RECALCULATION_REQUIRES_OPEN_FOLIO");

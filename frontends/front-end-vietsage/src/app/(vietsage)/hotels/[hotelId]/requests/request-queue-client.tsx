@@ -1202,7 +1202,7 @@ export function RequestQueueClient({
       html: `
         <div style="text-align:left;font-size:13px;color:#334155;line-height:1.6;display:grid;gap:8px;padding-top:4px;">
           <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;">
-            <p style="margin:0 0 4px 0;font-size:11px;font-weight:800;text-transform:uppercase;color:#64748b">Dịch vụ yêu cầu (${items.length}):</p>
+            <p style="margin:0 0 4px 0;font-size:12px;font-weight:800;text-transform:uppercase;color:#64748b">Dịch vụ yêu cầu (${items.length}):</p>
             ${itemsSummaryHtml}
           </div>
           <p style="margin:0"><b>Đối tác:</b> ${order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ"}</p>
@@ -1212,16 +1212,11 @@ export function RequestQueueClient({
             <div style="display:flex;justify-content:space-between"><span>Phí khách sạn (10%):</span><b style="color:#0284c7">+${financials.hotelFee.toLocaleString("vi-VN")} ${financials.currency}</b></div>
             <div style="display:flex;justify-content:space-between;border-top:1px solid #86efac;padding-top:4px;margin-top:2px;font-size:13px"><span style="font-weight:700">Tổng thu khách:</span><b style="color:#047857">${financials.customerTotal.toLocaleString("vi-VN")} ${financials.currency}</b></div>
           </div>
-          <div style="margin-top:6px;padding:10px 12px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;font-size:12px;color:#065f46">
-            ⚡ <b>Hệ thống sẽ tự động:</b><br/>
-            • Tạo mã phiếu dịch vụ<br/>
-            • Gửi thông báo tức thời trực tiếp tới đối tác & khách hàng.
-          </div>
         </div>
       `,
       icon: "question",
       showCancelButton: true,
-      confirmButtonText: "✓ Tiếp nhận đơn",
+      confirmButtonText: "Tiếp nhận đơn",
       cancelButtonText: "Quay lại",
       reverseButtons: false,
     });
@@ -1262,13 +1257,13 @@ export function RequestQueueClient({
           <p style="margin:0"><b>Khách / Phòng:</b> Phòng ${order.stay?.room?.roomNumber ?? "-"} (${order.stay?.guestDisplayName ?? "Khách lưu trú"})</p>
           <p style="margin:0"><b>Giá trị đơn:</b> ${financials.customerTotal.toLocaleString("vi-VN")} ${financials.currency}</p>
           <div style="margin-top:6px;padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;font-size:12px;color:#991b1b">
-            ⚠️ <b>Lưu ý:</b> Đơn hàng này sẽ bị hủy. Thông báo hủy sẽ gửi tức thời đến đối tác & khách hàng.
+            Đơn hàng sẽ bị hủy và gửi thông báo tới đối tác & khách hàng.
           </div>
         </div>
       `,
       icon: "warning",
       showCancelButton: true,
-      confirmButtonText: "× Hủy đơn hàng",
+      confirmButtonText: "Hủy đơn hàng",
       cancelButtonText: "Quay lại",
       customClass: {
         confirmButton:

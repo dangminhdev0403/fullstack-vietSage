@@ -114,11 +114,11 @@ export function OwnerNearbyProvidersClient({
     void SwalVietSage.fire({
       title: `<span style="font-size:22px; font-weight:800; color:#0f172a;">${displayName}</span>`,
       html: `
-        <div style="text-align:left; font-size:15px; color:#334155; line-height:1.7;">
-          <p style="margin-bottom:8px;">📍 <b>Địa chỉ:</b> ${address}</p>
-          <p style="margin-bottom:8px;">📞 <b>Số điện thoại:</b> ${phone}</p>
-          <p style="margin-bottom:8px;">⚡ <b>Bán kính vị trí:</b> ${distance} km</p>
-          <p style="margin-bottom:8px;">🔗 <b>Trạng thái kết nối:</b> ${
+        <div style="text-align:left; font-size:14px; color:#334155; line-height:1.6;">
+          <p style="margin-bottom:6px;"><b>Địa chỉ:</b> ${address}</p>
+          <p style="margin-bottom:6px;"><b>Số điện thoại:</b> ${phone}</p>
+          <p style="margin-bottom:6px;"><b>Khoảng cách:</b> ${distance} km</p>
+          <p style="margin-bottom:6px;"><b>Trạng thái:</b> ${
             provider.linked
               ? "<span style='color:#047857; font-weight:700;'>Đã kết nối</span>"
               : "<span style='color:#059669; font-weight:600;'>Sẵn sàng</span>"

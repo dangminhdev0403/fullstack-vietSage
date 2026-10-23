@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
@@ -250,7 +250,8 @@ interface DraggableRoomRowProps {
   readOnly?: boolean;
   roomBlocks: RoomPlanBlock[];
   dragOverCellKey: string | null;
-  handleDragOverCell: (e: React.DragEvent, cellKey: string) => void;
+  dragOverDayYmd?: string | null;
+  handleDragOverCell: (e: React.DragEvent, cellKey: string, dayYmd?: string) => void;
   handleDragLeaveCell: (cellKey: string) => void;
   handleDropOnRoom: (e: React.DragEvent, room: RoomPlanRoom) => void;
   handleDragStart: (e: React.DragEvent, block: RoomPlanBlock) => void;
@@ -261,6 +262,9 @@ interface DraggableRoomRowProps {
   onProcessingRoomClick?: (room: RoomPlanRoom) => Promise<void> | void;
   draftSelection: DraftBookingSelection | null;
   isDraggingRange: boolean;
+  activeDragRange?: ActiveDragRange | null;
+  draggedBlock?: DraggedReservationPayload | null;
+  handleDragEnd?: () => void;
   onStartDragRange: (room: RoomPlanRoom, ymd: string, clientX?: number, clientY?: number) => void;
   onHoverDragDay: (room: RoomPlanRoom, ymd: string) => void;
   onAdjustDraftDays: (delta: number) => void;
@@ -270,13 +274,16 @@ interface DraggableRoomRowProps {
   onStartBlockResize?: (block: RoomPlanBlock, direction: "start" | "end", e: React.MouseEvent) => void;
 }
 
-function DraggableRoomRow({
+const EMPTY_BLOCKS: RoomPlanBlock[] = [];
+
+const DraggableRoomRow = memo(function DraggableRoomRow({
   room,
   daysList,
   todayYmd = getTodayInVietnam(),
   readOnly = false,
   roomBlocks,
   dragOverCellKey,
+  dragOverDayYmd,
   handleDragOverCell,
   handleDragLeaveCell,
   handleDropOnRoom,
@@ -288,6 +295,9 @@ function DraggableRoomRow({
   onProcessingRoomClick,
   draftSelection,
   isDraggingRange,
+  activeDragRange,
+  draggedBlock,
+  handleDragEnd,
   onStartDragRange,
   onHoverDragDay,
   onAdjustDraftDays,
@@ -343,22 +353,23 @@ function DraggableRoomRow({
           e.dataTransfer.dropEffect = "none";
           return;
         }
-        handleDragOverCell(e, room.id);
-      }}
-      onDragLeave={() => {
-        if (readOnly) return;
-        handleDragLeaveCell(room.id);
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        const cell = (e.target as HTMLElement | null)?.closest?.('[data-cell-day="true"]');
+        const dayYmd = cell?.getAttribute?.("data-day-ymd") || undefined;
+        handleDragOverCell(e, room.id, dayYmd);
       }}
       onDrop={(e) => {
         if (readOnly || isHardVetoRoom) {
           e.preventDefault();
           return;
         }
+        e.preventDefault();
         void handleDropOnRoom(e, room);
       }}
       className={`group flex border-b border-slate-100 hover:bg-slate-50/60 transition min-h-[46px] select-none relative w-full ${
         !readOnly && dragOverCellKey === room.id && !isHardVetoRoom
-          ? "bg-emerald-50 ring-2 ring-emerald-500 ring-inset"
+          ? "bg-emerald-50/20 ring-1 ring-emerald-400/40"
           : isHardVetoRoom
             ? "bg-slate-200/80 hover:bg-slate-200"
             : isProcessing
@@ -466,18 +477,121 @@ function DraggableRoomRow({
           const isCellOccupied = roomBlocks.some(
             (b) => b.startDate <= day.ymd && b.endDate > day.ymd,
           );
-          const isRoomInDraft = Boolean(
-            draftSelection && draftSelection.rooms.some((r) => r.id === room.id),
-          );
           const isPastDay = day.ymd < todayYmd;
+
+          const isRoomInDraft = Boolean(
+            (draftSelection && draftSelection.rooms.some((r) => r.id === room.id)) ||
+              (!draftSelection &&
+                activeDragRange &&
+                activeDragRange.anchorRoom.id === room.id),
+          );
+
+          const effectiveStartDay =
+            draftSelection?.startDay ??
+            (activeDragRange && activeDragRange.anchorRoom.id === room.id
+              ? activeDragRange.anchorDay < activeDragRange.currentDay
+                ? activeDragRange.anchorDay
+                : activeDragRange.currentDay
+              : null);
+
+          const effectiveEndDay =
+            draftSelection?.endDay ??
+            (activeDragRange && activeDragRange.anchorRoom.id === room.id
+              ? addDaysYmd(
+                  activeDragRange.anchorDay < activeDragRange.currentDay
+                    ? activeDragRange.currentDay
+                    : activeDragRange.anchorDay,
+                  1,
+                )
+              : null);
+
+          const isFirstRoomInDraft =
+            !draftSelection || draftSelection.rooms[0]?.id === room.id;
+          const isLastRoomInDraft =
+            !draftSelection ||
+            draftSelection.rooms[draftSelection.rooms.length - 1]?.id === room.id;
+
           const isDraftCell = Boolean(
             !isHardVetoRoom &&
               !isPastDay &&
               isRoomInDraft &&
-              draftSelection &&
-              day.ymd >= draftSelection.startDay &&
-              day.ymd < draftSelection.endDay,
+              effectiveStartDay &&
+              effectiveEndDay &&
+              day.ymd >= effectiveStartDay &&
+              day.ymd < effectiveEndDay,
           );
+
+          const isRoomDndTarget = Boolean(
+            !readOnly &&
+              !isHardVetoRoom &&
+              draggedBlock &&
+              dragOverCellKey === room.id,
+          );
+          const isDndCell = Boolean(
+            isRoomDndTarget &&
+              draggedBlock &&
+              day.ymd >= draggedBlock.startDate &&
+              day.ymd < draggedBlock.endDate,
+          );
+          const isDndConflict = isDndCell && isCellOccupied;
+
+          // Check if cursor is directly hovering over this cell during drag-and-drop
+          const isCursorHoveredCell = Boolean(
+            !readOnly &&
+              !isHardVetoRoom &&
+              dragOverCellKey === room.id &&
+              dragOverDayYmd === day.ymd,
+          );
+
+          const isDraftStart = Boolean(
+            effectiveStartDay && day.ymd === effectiveStartDay,
+          );
+          const isDraftEnd = Boolean(
+            effectiveEndDay && addDaysYmd(day.ymd, 1) === effectiveEndDay,
+          );
+
+          const isDndStart = Boolean(
+            draggedBlock && day.ymd === draggedBlock.startDate,
+          );
+          const isDndEnd = Boolean(
+            draggedBlock && addDaysYmd(day.ymd, 1) === draggedBlock.endDate,
+          );
+
+          // Compute frame borders for draft selection (hiện khung rõ ràng ở các ô được kéo vào)
+          const draftBorderClasses = isDraftCell
+            ? `${isFirstRoomInDraft ? "border-t-2 border-emerald-500" : "border-t border-dashed border-emerald-300/40"} ${
+                isLastRoomInDraft ? "border-b-2 border-emerald-500" : "border-b border-dashed border-emerald-300/40"
+              } ${isDraftStart ? "border-l-2 border-emerald-500" : ""} ${
+                isDraftEnd ? "border-r-2 border-emerald-500" : "border-r border-dashed border-emerald-300/80"
+              } bg-emerald-50/80 ${
+                isFirstRoomInDraft && isDraftStart ? "rounded-tl-md" : ""
+              } ${
+                isFirstRoomInDraft && isDraftEnd ? "rounded-tr-md" : ""
+              } ${
+                isLastRoomInDraft && isDraftStart ? "rounded-bl-md" : ""
+              } ${
+                isLastRoomInDraft && isDraftEnd ? "rounded-br-md" : ""
+              }`
+            : "";
+
+          // Compute frame borders for dnd target (kéo thả block đổi phòng)
+          const dndBorderClasses = isDndCell
+            ? `${isDndConflict ? "border-t-2 border-b-2 border-rose-500 bg-rose-100/75" : "border-t-2 border-b-2 border-emerald-500 bg-emerald-100/75"} ${
+                isDndStart
+                  ? isDndConflict
+                    ? "border-l-2 border-rose-500 rounded-l-md"
+                    : "border-l-2 border-emerald-500 rounded-l-md"
+                  : ""
+              } ${
+                isDndEnd
+                  ? isDndConflict
+                    ? "border-r-2 border-rose-500 rounded-r-md"
+                    : "border-r-2 border-emerald-500 rounded-r-md"
+                  : isDndConflict
+                    ? "border-r border-dashed border-rose-300/80"
+                    : "border-r border-dashed border-emerald-300/80"
+              }`
+            : "";
 
           return (
             <div
@@ -497,21 +611,64 @@ function DraggableRoomRow({
                   onHoverDragDay(room, day.ymd);
                 }
               }}
-              className={`flex-1 min-w-[100px] border-r border-slate-100 relative group/cell select-none transition-colors ${
-                isDraftCell
-                  ? "bg-purple-50/40"
-                  : isHardVetoRoom
-                    ? "bg-slate-200/75 cursor-not-allowed"
-                    : isProcessing
-                      ? "bg-amber-100/60"
-                      : day.isToday
-                        ? "bg-sky-50/30"
-                        : isPastDay
-                          ? "bg-slate-100/40 cursor-default"
-                          : ""
+              className={`flex-1 min-w-[100px] relative group/cell select-none transition-colors ${
+                isCursorHoveredCell
+                  ? "ring-2 ring-inset ring-emerald-600 bg-emerald-100/90 shadow-sm z-20 rounded-md border-r border-emerald-400"
+                  : isDraftCell
+                    ? draftBorderClasses
+                    : isDndCell
+                      ? dndBorderClasses
+                      : `border-r ${
+                          dragOverCellKey === room.id
+                            ? "border-slate-300/80 bg-slate-50/50"
+                            : "border-slate-100"
+                        } ${
+                          isHardVetoRoom
+                            ? "bg-slate-200/75 cursor-not-allowed"
+                            : isProcessing
+                              ? "bg-amber-100/60"
+                              : day.isToday
+                                ? "bg-sky-50/30"
+                                : isPastDay
+                                  ? "bg-slate-100/40 cursor-default"
+                                  : ""
+                        }`
               } ${!readOnly && !isCellOccupied && !isHardVetoRoom && !isPastDay ? "cursor-pointer hover:bg-slate-100/50" : ""}`}
             >
-              {!readOnly && !isCellOccupied && !isDraftCell && !isDraggingRange && !isHardVetoRoom && !isPastDay && (
+              {/* Visible date frame badge when dragging / selecting */}
+              {isDraftCell && !isCellOccupied && (
+                <div className="absolute inset-x-1 top-1 flex items-center justify-center pointer-events-none z-10">
+                  <span className="px-1.5 py-0.5 rounded text-xs font-black bg-white/95 text-emerald-900 shadow-2xs border border-emerald-300 whitespace-nowrap">
+                    {day.dateNum}
+                  </span>
+                </div>
+              )}
+
+              {/* Active cursor hovered cell badge during drag and drop */}
+              {isCursorHoveredCell && !isDndConflict && (
+                <div className="absolute inset-x-1 top-1 flex items-center justify-center pointer-events-none z-20">
+                  <span className="px-1.5 py-0.5 rounded text-xs font-black bg-emerald-600 text-white shadow-xs border border-emerald-500 whitespace-nowrap">
+                    ↓ {day.dateNum}
+                  </span>
+                </div>
+              )}
+
+              {/* DND drop target date badge */}
+              {isDndCell && !isCursorHoveredCell && (
+                <div className="absolute inset-x-1 top-1 flex items-center justify-center pointer-events-none z-10">
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-xs font-black shadow-2xs border whitespace-nowrap ${
+                      isDndConflict
+                        ? "bg-rose-50 text-rose-900 border-rose-300"
+                        : "bg-emerald-50 text-emerald-900 border-emerald-300"
+                    }`}
+                  >
+                    {isDndConflict ? "⚠️ Trùng lịch" : day.dateNum}
+                  </span>
+                </div>
+              )}
+
+              {!readOnly && !isCellOccupied && !isDraftCell && !isDndCell && !isDraggingRange && !isHardVetoRoom && !isPastDay && (
                 <div
                   className="absolute inset-1 hidden group-hover/cell:flex items-center justify-center rounded border border-dashed border-slate-300 bg-white/95 text-slate-700 text-xs font-semibold shadow-2xs transition z-10 pointer-events-none"
                   title={`Click hoặc kéo để giữ phòng P.${room.roomNumber} từ ${day.dateNum}`}
@@ -636,89 +793,93 @@ function DraggableRoomRow({
                 top: !isGroup ? "5px" : isFirstInGroup ? "4px" : "0px",
                 bottom: !isGroup ? "5px" : isLastInGroup ? "4px" : "-1px",
               }}
-              className={`absolute z-20 flex items-center justify-between px-2.5 bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 text-white select-none animate-in fade-in zoom-in-95 duration-150 ${
-                !isGroup
-                  ? "rounded-md border-2 border-purple-400 ring-2 ring-purple-500/40 shadow-md"
-                  : isFirstInGroup
-                    ? "rounded-t-md rounded-b-none border-t-2 border-l-2 border-r-2 border-purple-600 border-b border-purple-500/60 shadow-md"
-                    : isLastInGroup
-                      ? "rounded-b-md rounded-t-none border-b-2 border-l-2 border-r-2 border-purple-600 border-t border-purple-500/60 shadow-md"
-                      : "rounded-none border-l-2 border-r-2 border-purple-600 border-t border-purple-500/60 border-b border-purple-500/60 shadow-md"
+              className={`absolute z-20 flex items-center justify-between px-2.5 select-none animate-in fade-in zoom-in-95 duration-150 ${
+                isDraggingRange
+                  ? "bg-emerald-600/20 border-2 border-emerald-500 text-emerald-950 backdrop-blur-[1px] shadow-xs pointer-events-none"
+                  : "bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 text-white pointer-events-auto shadow-md"
               } ${
-                isDraggingRange ? "pointer-events-none" : "pointer-events-auto"
+                !isGroup
+                  ? "rounded-md"
+                  : isFirstInGroup
+                    ? "rounded-t-md rounded-b-none border-t-2 border-l-2 border-r-2"
+                    : isLastInGroup
+                      ? "rounded-b-md rounded-t-none border-b-2 border-l-2 border-r-2"
+                      : "rounded-none border-l-2 border-r-2"
               }`}
             >
               {/* Left label / nights & group summary */}
               <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
                 <VsIcon
                   name={isGroup ? "group_add" : "bookmark_add"}
-                  className="text-sm shrink-0 text-amber-300"
+                  className={`text-sm shrink-0 ${isDraggingRange ? "text-emerald-700" : "text-amber-300"}`}
                 />
-                <span className="text-xs font-black truncate whitespace-nowrap">
-                  {isGroup ? `Đoàn: ${draftSelection.rooms.length} phòng` : `Đặt trước`}: {draftSelection.nights} đêm
+                <span className={`text-xs font-black truncate whitespace-nowrap ${isDraggingRange ? "text-emerald-950" : "text-white"}`}>
+                  {isGroup ? `Đoàn: ${draftSelection.rooms.length} phòng` : isDraggingRange ? "Đang chọn vùng" : "Đặt trước"}: {draftSelection.nights} đêm
                 </span>
               </div>
 
-              {/* Quick Stepper, Guest Count & Confirm buttons */}
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAdjustDraftDays(-1);
-                  }}
-                  disabled={draftSelection.nights <= 1}
-                  className="size-5 rounded flex items-center justify-center bg-white/20 hover:bg-white/30 text-white font-bold text-xs disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
-                  title="Giảm 1 đêm"
-                >
-                  -
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAdjustDraftDays(1);
-                  }}
-                  className="size-5 rounded flex items-center justify-center bg-white/20 hover:bg-white/30 text-white font-bold text-xs cursor-pointer"
-                  title="Kéo dài thêm 1 đêm"
-                >
-                  +
-                </button>
+              {/* Quick Stepper, Guest Count & Confirm buttons (chỉ hiện khi đã chọn xong khoảng ngày) */}
+              {!isDraggingRange && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAdjustDraftDays(-1);
+                    }}
+                    disabled={draftSelection.nights <= 1}
+                    className="size-5 rounded flex items-center justify-center bg-white/20 hover:bg-white/30 text-white font-bold text-xs disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                    title="Giảm 1 đêm"
+                  >
+                    -
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAdjustDraftDays(1);
+                    }}
+                    className="size-5 rounded flex items-center justify-center bg-white/20 hover:bg-white/30 text-white font-bold text-xs cursor-pointer"
+                    title="Kéo dài thêm 1 đêm"
+                  >
+                    +
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void onConfirmDraft(draftSelection);
-                  }}
-                  className={`ml-1 px-2.5 py-0.5 rounded-md text-white text-xs font-black shadow-xs flex items-center gap-1 cursor-pointer whitespace-nowrap transition ${
-                    isProcessing
-                      ? "bg-amber-600 hover:bg-amber-700"
-                      : "bg-emerald-500 hover:bg-emerald-600"
-                  }`}
-                  title={
-                    isProcessing
-                      ? "Cần xác nhận dọn phòng trước khi đặt"
-                      : isGroup
-                        ? "Xác nhận đặt trước cho cả đoàn (1 người đại diện)"
-                        : "Xác nhận tạo đặt trước"
-                  }
-                >
-                  <VsIcon name={isProcessing ? "cleaning_services" : "check"} className="text-xs" />
-                  <span>{isProcessing ? "Dọn phòng & Đặt" : isGroup ? `Đặt ${draftSelection.rooms.length} phòng` : "Đặt trước"}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onCancelDraft();
-                  }}
-                  className="size-5 rounded flex items-center justify-center text-white/80 hover:text-white hover:bg-white/20 cursor-pointer ml-0.5"
-                  title="Hủy chọn"
-                >
-                  ✕
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void onConfirmDraft(draftSelection);
+                    }}
+                    className={`ml-1 px-2.5 py-0.5 rounded-md text-white text-xs font-black shadow-xs flex items-center gap-1 cursor-pointer whitespace-nowrap transition ${
+                      isProcessing
+                        ? "bg-amber-600 hover:bg-amber-700"
+                        : "bg-emerald-500 hover:bg-emerald-600"
+                    }`}
+                    title={
+                      isProcessing
+                        ? "Cần xác nhận dọn phòng trước khi đặt"
+                        : isGroup
+                          ? "Xác nhận đặt trước cho cả đoàn (1 người đại diện)"
+                          : "Xác nhận tạo đặt trước"
+                    }
+                  >
+                    <VsIcon name={isProcessing ? "cleaning_services" : "check"} className="text-xs" />
+                    <span>{isProcessing ? "Dọn phòng & Đặt" : isGroup ? `Đặt ${draftSelection.rooms.length} phòng` : "Đặt trước"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCancelDraft();
+                    }}
+                    className="size-5 rounded flex items-center justify-center text-white/80 hover:text-white hover:bg-white/20 cursor-pointer ml-0.5"
+                    title="Hủy chọn"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
 
               {/* Floating Tooltip Header above the bar for clear date readability */}
               <div className={`absolute ${!isGroup || isFirstInGroup ? "-top-8" : "-bottom-8"} left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-slate-900/95 text-white px-2.5 py-0.5 rounded-full text-xs font-bold shadow-xl border border-slate-700 whitespace-nowrap pointer-events-none`}>
@@ -906,6 +1067,9 @@ function DraggableRoomRow({
                 }
                 handleDragStart(e, b);
               }}
+              onDragEnd={() => {
+                handleDragEnd?.();
+              }}
               onClick={(e) => {
                 e.stopPropagation();
                 setSelectedBlock(b);
@@ -1032,7 +1196,7 @@ function DraggableRoomRow({
       </div>
     </div>
   );
-}
+});
 
 interface CategoryRoomTableProps {
   cat: string;
@@ -1048,7 +1212,8 @@ interface CategoryRoomTableProps {
   readOnly?: boolean;
   blocksByRoomId: Map<string, RoomPlanBlock[]>;
   dragOverCellKey: string | null;
-  handleDragOverCell: (e: React.DragEvent, cellKey: string) => void;
+  dragOverDayYmd?: string | null;
+  handleDragOverCell: (e: React.DragEvent, cellKey: string, dayYmd?: string) => void;
   handleDragLeaveCell: (cellKey: string) => void;
   handleDropOnRoom: (e: React.DragEvent, room: RoomPlanRoom) => void;
   handleDragStart: (e: React.DragEvent, block: RoomPlanBlock) => void;
@@ -1061,6 +1226,9 @@ interface CategoryRoomTableProps {
   onToggleCollapse: () => void;
   draftSelection: DraftBookingSelection | null;
   isDraggingRange: boolean;
+  activeDragRange?: ActiveDragRange | null;
+  draggedBlock?: DraggedReservationPayload | null;
+  handleDragEnd?: () => void;
   onStartDragRange: (room: RoomPlanRoom, ymd: string, clientX?: number, clientY?: number) => void;
   onHoverDragDay: (room: RoomPlanRoom, ymd: string) => void;
   onAdjustDraftDays: (delta: number) => void;
@@ -1078,6 +1246,7 @@ function CategoryRoomTable({
   readOnly = false,
   blocksByRoomId,
   dragOverCellKey,
+  dragOverDayYmd,
   handleDragOverCell,
   handleDragLeaveCell,
   handleDropOnRoom,
@@ -1091,6 +1260,9 @@ function CategoryRoomTable({
   onToggleCollapse,
   draftSelection,
   isDraggingRange,
+  activeDragRange,
+  draggedBlock,
+  handleDragEnd,
   onStartDragRange,
   onHoverDragDay,
   onAdjustDraftDays,
@@ -1216,12 +1388,14 @@ function CategoryRoomTable({
               daysList={daysList}
               todayYmd={todayYmd}
               readOnly={readOnly}
-              roomBlocks={blocksByRoomId.get(row.original.id) || []}
+              roomBlocks={blocksByRoomId.get(row.original.id) || EMPTY_BLOCKS}
               dragOverCellKey={dragOverCellKey}
+              dragOverDayYmd={dragOverDayYmd}
               handleDragOverCell={handleDragOverCell}
               handleDragLeaveCell={handleDragLeaveCell}
               handleDropOnRoom={handleDropOnRoom}
               handleDragStart={handleDragStart}
+              handleDragEnd={handleDragEnd}
               setSelectedBlock={setSelectedBlock}
               onOpenCheckIn={onOpenCheckIn}
               onSelectRoom={onSelectRoom}
@@ -1229,6 +1403,8 @@ function CategoryRoomTable({
               onProcessingRoomClick={onProcessingRoomClick}
               draftSelection={draftSelection}
               isDraggingRange={isDraggingRange}
+              activeDragRange={activeDragRange}
+              draggedBlock={draggedBlock}
               onStartDragRange={onStartDragRange}
               onHoverDragDay={onHoverDragDay}
               onAdjustDraftDays={onAdjustDraftDays}
@@ -1348,6 +1524,8 @@ export function TapeChartView({
 
   // Drag over drop target highlighting
   const [dragOverCellKey, setDragOverCellKey] = useState<string | null>(null);
+  const [dragOverDayYmd, setDragOverDayYmd] = useState<string | null>(null);
+  const [draggedBlock, setDraggedBlock] = useState<DraggedReservationPayload | null>(null);
 
   // Compute number of days based on view mode (Week = 7, Biweek = 14, Month = 30)
   const numDays = viewMode === "week" ? 7 : viewMode === "biweek" ? 14 : 30;
@@ -1887,26 +2065,53 @@ export function TapeChartView({
       expectedUpdatedAt: block.expectedUpdatedAt,
     };
 
+    setDraggedBlock(payload);
+
     e.dataTransfer.setData("application/json", JSON.stringify(payload));
     e.dataTransfer.setData("text/plain", JSON.stringify(payload));
     e.dataTransfer.effectAllowed = "move";
   };
 
-  const handleDragOverCell = (e: React.DragEvent, cellKey: string) => {
+  const lastDragOverRef = useRef<{ roomId: string; dayYmd?: string }>({ roomId: "" });
+  const dragOverRafRef = useRef<number | null>(null);
+
+  const handleDragEnd = useCallback(() => {
+    if (dragOverRafRef.current !== null) {
+      cancelAnimationFrame(dragOverRafRef.current);
+      dragOverRafRef.current = null;
+    }
+    lastDragOverRef.current = { roomId: "" };
+    setDraggedBlock(null);
+    setDragOverCellKey(null);
+    setDragOverDayYmd(null);
+  }, []);
+
+  const handleDragOverCell = useCallback((e: React.DragEvent, cellKey: string, dayYmd?: string) => {
     if (isReadOnly) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
-    if (dragOverCellKey !== cellKey) {
-      setDragOverCellKey(cellKey);
-    }
-  };
 
-  const handleDragLeaveCell = (cellKey: string) => {
-    if (isReadOnly) return;
-    if (dragOverCellKey === cellKey) {
-      setDragOverCellKey(null);
+    if (
+      lastDragOverRef.current.roomId === cellKey &&
+      lastDragOverRef.current.dayYmd === dayYmd
+    ) {
+      return;
     }
-  };
+
+    lastDragOverRef.current = { roomId: cellKey, dayYmd };
+
+    if (dragOverRafRef.current !== null) {
+      cancelAnimationFrame(dragOverRafRef.current);
+    }
+    dragOverRafRef.current = requestAnimationFrame(() => {
+      setDragOverCellKey(cellKey);
+      setDragOverDayYmd(dayYmd ?? null);
+    });
+  }, [isReadOnly]);
+
+  const handleDragLeaveCell = useCallback((_cellKey: string) => {
+    // No-op to avoid state flickering when moving across cell boundaries within a room
+  }, []);
 
   const handleDropOnRoom = async (e: React.DragEvent, targetRoom: RoomPlanRoom) => {
     if (isReadOnly) {
@@ -1914,7 +2119,14 @@ export function TapeChartView({
       return;
     }
     e.preventDefault();
+    if (dragOverRafRef.current !== null) {
+      cancelAnimationFrame(dragOverRafRef.current);
+      dragOverRafRef.current = null;
+    }
+    lastDragOverRef.current = { roomId: "" };
     setDragOverCellKey(null);
+    setDragOverDayYmd(null);
+    setDraggedBlock(null);
 
     const rawData =
       e.dataTransfer.getData("application/json") ||
@@ -2074,6 +2286,40 @@ export function TapeChartView({
   const hasDraggedRef = useRef<boolean>(false);
   const clickAnchorRef = useRef<{ room: RoomPlanRoom; ymd: string } | null>(null);
 
+  // Active highlight date range from range drag, draft selection, or dragged reservation block
+  const activeHighlightedDateRange = useMemo<{
+    startDay: string;
+    endDay: string;
+  } | null>(() => {
+    if (draftSelection) {
+      return {
+        startDay: draftSelection.startDay,
+        endDay: draftSelection.endDay,
+      };
+    }
+    if (activeDragRange) {
+      const start =
+        activeDragRange.anchorDay < activeDragRange.currentDay
+          ? activeDragRange.anchorDay
+          : activeDragRange.currentDay;
+      const endCandidate =
+        activeDragRange.anchorDay < activeDragRange.currentDay
+          ? activeDragRange.currentDay
+          : activeDragRange.anchorDay;
+      return {
+        startDay: start,
+        endDay: addDaysYmd(endCandidate, 1),
+      };
+    }
+    if (draggedBlock && dragOverCellKey) {
+      return {
+        startDay: draggedBlock.startDate,
+        endDay: draggedBlock.endDate,
+      };
+    }
+    return null;
+  }, [draftSelection, activeDragRange, draggedBlock, dragOverCellKey]);
+
   const onOpenQuickReservationRef = useRef(onOpenQuickReservation);
   onOpenQuickReservationRef.current = onOpenQuickReservation;
 
@@ -2147,6 +2393,9 @@ export function TapeChartView({
       if (e.key === "Escape") {
         setDraftSelection(null);
         setActiveDragRange(null);
+        setDraggedBlock(null);
+        setDragOverCellKey(null);
+        setDragOverDayYmd(null);
         clickAnchorRef.current = null;
         dragStartPosRef.current = null;
         hasDraggedRef.current = false;
@@ -2236,6 +2485,15 @@ export function TapeChartView({
 
       const anchorDay = activeDragRange.anchorDay;
       const anchorRoom = activeDragRange.anchorRoom;
+
+      // Nếu đã kéo và con trỏ vẫn ở chính phòng & ngày hiện tại: bỏ qua để tránh render lặp
+      if (
+        hasDraggedRef.current &&
+        activeDragRange.currentRoom.id === room.id &&
+        activeDragRange.currentDay === targetYmd
+      ) {
+        return;
+      }
 
       // Nếu vẫn ở chính ô bắt đầu và chưa từng kéo ra ngoài: bỏ qua
       if (
@@ -2353,33 +2611,49 @@ export function TapeChartView({
   useEffect(() => {
     if (isReadOnly || !activeDragRange) return;
 
+    let rangeRafId: number | null = null;
+    let lastClientX = 0;
+    let lastClientY = 0;
+
     const handlePointerMoveRange = (e: MouseEvent | PointerEvent) => {
-      // Chỉ kích hoạt chế độ kéo nếu con trỏ chuột di chuyển đáng kể (> 8px)
-      if (dragStartPosRef.current && !hasDraggedRef.current) {
-        const dx = Math.abs(e.clientX - dragStartPosRef.current.x);
-        const dy = Math.abs(e.clientY - dragStartPosRef.current.y);
-        if (dx < 8 && dy < 8) {
-          return;
+      lastClientX = e.clientX;
+      lastClientY = e.clientY;
+
+      if (rangeRafId !== null) return;
+
+      rangeRafId = requestAnimationFrame(() => {
+        rangeRafId = null;
+
+        // Chỉ kích hoạt chế độ kéo nếu con trỏ chuột di chuyển đáng kể (> 8px)
+        if (dragStartPosRef.current && !hasDraggedRef.current) {
+          const dx = Math.abs(lastClientX - dragStartPosRef.current.x);
+          const dy = Math.abs(lastClientY - dragStartPosRef.current.y);
+          if (dx < 8 && dy < 8) {
+            return;
+          }
         }
-      }
 
-      const elements = document.elementsFromPoint(e.clientX, e.clientY);
-      const cell = elements.find((el) => el.getAttribute?.("data-cell-day") === "true") as HTMLElement | undefined;
-      const targetDay = cell?.getAttribute("data-day-ymd");
+        const elements = document.elementsFromPoint(lastClientX, lastClientY);
+        const cell = elements.find((el) => el.getAttribute?.("data-cell-day") === "true") as HTMLElement | undefined;
+        const targetDay = cell?.getAttribute("data-day-ymd");
 
-      const rowEl = elements.find((el) => el.getAttribute?.("data-room-row") === "true") as HTMLElement | undefined;
-      const targetRoomId = rowEl?.getAttribute("data-room-id");
+        const rowEl = elements.find((el) => el.getAttribute?.("data-room-row") === "true") as HTMLElement | undefined;
+        const targetRoomId = rowEl?.getAttribute("data-room-id");
 
-      if (targetDay && targetRoomId) {
-        const targetRoom = orderedFilteredRooms.find((r) => r.id === targetRoomId);
-        if (targetRoom) {
-          handleHoverDragDay(targetRoom, targetDay);
+        if (targetDay && targetRoomId) {
+          const targetRoom = orderedFilteredRooms.find((r) => r.id === targetRoomId);
+          if (targetRoom) {
+            handleHoverDragDay(targetRoom, targetDay);
+          }
         }
-      }
+      });
     };
 
     window.addEventListener("mousemove", handlePointerMoveRange);
     return () => {
+      if (rangeRafId !== null) {
+        cancelAnimationFrame(rangeRafId);
+      }
       window.removeEventListener("mousemove", handlePointerMoveRange);
     };
   }, [activeDragRange, handleHoverDragDay, orderedFilteredRooms, isReadOnly]);
@@ -3108,43 +3382,63 @@ export function TapeChartView({
 
                 {/* Day Header Cells */}
                 <div className="flex flex-1 min-w-0">
-                  {daysList.map((day) => (
-                    <div
-                      key={day.ymd}
-                      data-header-day="true"
-                      data-day-ymd={day.ymd}
-                      className={`flex-1 min-w-[100px] border-r border-slate-200/60 px-1 py-1.5 text-center transition ${
-                        day.isToday
-                          ? "bg-sky-100/60 text-sky-950 font-black ring-1 ring-inset ring-sky-300"
-                          : day.isWeekend
-                            ? "bg-amber-100/70 text-amber-950 font-bold"
-                            : "text-slate-700"
-                      }`}
-                    >
+                  {daysList.map((day) => {
+                    const isDayInActiveSelection = Boolean(
+                      (activeHighlightedDateRange &&
+                        day.ymd >= activeHighlightedDateRange.startDay &&
+                        day.ymd < activeHighlightedDateRange.endDay) ||
+                      (dragOverCellKey && dragOverDayYmd === day.ymd),
+                    );
+
+                    return (
                       <div
-                        className={`text-xs uppercase tracking-tight ${
-                          day.isToday
-                            ? "text-sky-800 font-bold"
-                            : day.isWeekend
-                              ? "text-amber-800 font-bold"
-                              : "text-slate-500"
+                        key={day.ymd}
+                        data-header-day="true"
+                        data-day-ymd={day.ymd}
+                        className={`flex-1 min-w-[100px] border-r border-slate-200/60 px-1 py-1.5 text-center transition ${
+                          isDayInActiveSelection
+                            ? "bg-emerald-100/90 text-emerald-950 font-black ring-2 ring-inset ring-emerald-500 shadow-xs border-b-2 border-emerald-600"
+                            : day.isToday
+                              ? "bg-sky-100/60 text-sky-950 font-black ring-1 ring-inset ring-sky-300"
+                              : day.isWeekend
+                                ? "bg-amber-100/70 text-amber-950 font-bold"
+                                : "text-slate-700"
                         }`}
                       >
-                        {day.dayLabel}
+                        <div
+                          className={`text-xs uppercase tracking-tight ${
+                            isDayInActiveSelection
+                              ? "text-emerald-800 font-black"
+                              : day.isToday
+                                ? "text-sky-800 font-bold"
+                                : day.isWeekend
+                                  ? "text-amber-800 font-bold"
+                                  : "text-slate-500"
+                          }`}
+                        >
+                          {day.dayLabel}
+                        </div>
+                        <div
+                          className={`text-xs font-bold ${
+                            isDayInActiveSelection
+                              ? "text-emerald-950 font-black"
+                              : day.isToday
+                                ? "text-sky-950"
+                                : day.isWeekend
+                                  ? "text-amber-950"
+                                  : "text-slate-800"
+                          }`}
+                        >
+                          {day.dateNum}
+                        </div>
+                        {isDayInActiveSelection && (
+                          <div className="flex justify-center mt-0.5">
+                            <span className="size-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                          </div>
+                        )}
                       </div>
-                      <div
-                        className={`text-xs font-bold ${
-                          day.isToday
-                            ? "text-sky-950"
-                            : day.isWeekend
-                              ? "text-amber-950"
-                              : "text-slate-800"
-                        }`}
-                      >
-                        {day.dateNum}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -3227,10 +3521,12 @@ export function TapeChartView({
                   readOnly={isReadOnly}
                   blocksByRoomId={blocksByRoomId}
                   dragOverCellKey={dragOverCellKey}
+                  dragOverDayYmd={dragOverDayYmd}
                   handleDragOverCell={handleDragOverCell}
                   handleDragLeaveCell={handleDragLeaveCell}
                   handleDropOnRoom={handleDropOnRoom}
                   handleDragStart={handleDragStart}
+                  handleDragEnd={handleDragEnd}
                   setSelectedBlock={handleSelectBlock}
                   onOpenCheckIn={onOpenCheckIn}
                   onSelectRoom={onSelectRoom}
@@ -3240,6 +3536,8 @@ export function TapeChartView({
                   onToggleCollapse={() => toggleCategory(categoryName)}
                   draftSelection={draftSelection}
                   isDraggingRange={Boolean(activeDragRange)}
+                  activeDragRange={activeDragRange}
+                  draggedBlock={draggedBlock}
                   onStartDragRange={handleStartDragRange}
                   onHoverDragDay={handleHoverDragDay}
                   onAdjustDraftDays={handleAdjustDraftDays}

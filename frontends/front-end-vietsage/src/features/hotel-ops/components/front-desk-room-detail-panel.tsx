@@ -1033,7 +1033,13 @@ export function FrontDeskRoomDetailPanel({
                           <div className="flex justify-between text-slate-700">
                             <span className="font-medium">
                               Tiền phòng (
-                              {folioContext.summary.estimatedRoomCharge.nights} đêm):
+                              {folioContext.summary.estimatedRoomCharge.nights}
+                              {folioContext.summary.estimatedRoomCharge.plannedNights &&
+                              folioContext.summary.estimatedRoomCharge.plannedNights >
+                                folioContext.summary.estimatedRoomCharge.nights
+                                ? `/${folioContext.summary.estimatedRoomCharge.plannedNights}`
+                                : ""}{" "}
+                              đêm):
                             </span>
                             <span className="font-bold text-slate-900">
                               {formatVnd(folioContext.summary.estimatedRoomCharge.subtotal)}

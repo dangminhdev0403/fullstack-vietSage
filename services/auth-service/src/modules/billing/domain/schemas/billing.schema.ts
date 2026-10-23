@@ -59,6 +59,7 @@ export const issueInvoiceBodySchema = z
         }),
       )
       .default([]),
+    isEarlyDeparture: z.boolean().optional(),
   })
   .strict();
 
@@ -110,3 +111,4 @@ export const paymentWebhookBodySchema = z
 
 export type ListFoliosQueryInput = z.infer<typeof listFoliosQuerySchema>;
 export type ListFolioItemsQueryInput = z.infer<typeof listFolioItemsQuerySchema>;
+export type IssueInvoiceBodyInput = z.infer<typeof issueInvoiceBodySchema>;

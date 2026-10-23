@@ -184,6 +184,9 @@ A "module completed" includes examples such as:
 >    - **Đọc tối đa 1-3 file đích**: Đọc đúng vị trí cần sửa (`StartLine`/`EndLine`).
 >    - **Zero Re-Reading**: CẤM gọi `read_file` lần thứ 2 trên cùng một file trong cùng một session.
 >    - **Đọc là Sửa / Thực thi ngay**: Đọc file đích -> lập diff ngắn nhất -> gọi `edit_file` ngay. Không đọc lan man 5-10 file để "ngẫm nghĩ".
+> 5. **Cấm tuyệt đối dùng Terminal/Bash để đọc file (Chống popup hỏi quyền liên tục)**:
+>    - **BẮT BUỘC dùng native tool (`read_file`, `edit_file`)** để xem nội dung hoặc chỉnh sửa file.
+>    - **CẤM TUYỆT ĐỐI** gọi terminal (`run_command`, `Bash`) chạy các script ad-hoc như `node -e "const fs = ..."` hoặc `python -c "..."` chỉ để đọc file, đếm dòng hay duyệt code. Hành vi này khiến IDE liên tục bật popup hỏi quyền xác nhận làm phiền người dùng.
 
 ## Required Reading Before Changes
 

@@ -1346,4 +1346,36 @@ describe("BillingService checkout safety", () => {
     expect(defaultCharge.nightlyRate).toEqual(new Prisma.Decimal(500000));
     expect(defaultCharge.subtotal).toEqual(new Prisma.Decimal(500000));
   });
+
+  it("calculateEstimatedRoomCharge prevents phantom night overcharging on early check-in (AUDIT-BILLING-001)", () => {
+    const service = createService({});
+    // Checked in early at 11:30 AM (2.5h early), checkout at 11:45 AM next day (15m late) -> total 24h15m = 24.25h
+    const charge = service.calculateEstimatedRoomCharge({
+      room: { roomNumber: "101", price: new Prisma.Decimal(500000) },
+      stay: {
+        checkedInAt: new Date("2026-10-20T11:30:00.000Z"),
+        plannedCheckOutAt: new Date("2026-10-21T11:45:00.000Z"),
+        nightlyRateSnapshot: new Prisma.Decimal(500000),
+      },
+    });
+    // Must remain 1 night, NOT inflated to 2 nights
+    expect(charge.nights).toBe(1);
+    expect(charge.subtotal).toEqual(new Prisma.Decimal(500000));
+  });
+
+  it("calculateEstimatedRoomCharge calculates plannedNights and plannedSubtotal for multi-night stays (AUDIT-BILLING-002)", () => {
+    const service = createService({});
+    // 5-night stay from Oct 20 14:00 to Oct 25 12:00
+    const charge = service.calculateEstimatedRoomCharge({
+      room: { roomNumber: "101", price: new Prisma.Decimal(600000) },
+      stay: {
+        plannedCheckInAt: new Date("2026-10-20T14:00:00.000Z"),
+        plannedCheckOutAt: new Date("2026-10-25T12:00:00.000Z"),
+        checkedInAt: new Date("2026-10-20T14:00:00.000Z"),
+        nightlyRateSnapshot: new Prisma.Decimal(600000),
+      },
+    });
+    expect(charge.plannedNights).toBe(5);
+    expect(charge.plannedSubtotal).toEqual(new Prisma.Decimal(3000000));
+  });
 });

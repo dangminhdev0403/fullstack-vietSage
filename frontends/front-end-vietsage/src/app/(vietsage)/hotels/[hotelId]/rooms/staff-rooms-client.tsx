@@ -1345,9 +1345,6 @@ export function StaffRoomsClient({
             <div style="font-size:14px;color:#475569;text-align:left;line-height:1.6">
               ${conflictDetail}
             </div>
-            <div style="margin-top:16px;padding:12px;background:#fef2f2;border-radius:10px;border:1px solid #fecaca;font-size:13px;color:#991b1b;text-align:left">
-              💡 <strong>Gợi ý:</strong> Bạn có thể đổi sang phòng trống khác hoặc điều chỉnh ngày nhận/trả phòng trên biểu mẫu đặt phòng.
-            </div>
           `,
           confirmButtonText: "Đổi phòng / Đổi ngày",
           showCancelButton: true,
@@ -1864,10 +1861,10 @@ export function StaffRoomsClient({
             hotelId,
             roomNumber: pr.roomNumber,
             floor: pr.floor,
-            type: pr.roomTypeName || pr.type,
+            type: pr.roomTypeName || (pr as { type?: string }).type || "Tiêu chuẩn",
             roomTypeId: pr.roomTypeId || undefined,
             status: pr.status as any,
-            physicalStatus: pr.physicalStatus || pr.status,
+            physicalStatus: (pr as { physicalStatus?: string }).physicalStatus || pr.status,
             price: pr.price ?? null,
             createdAt: "",
             updatedAt: "",
@@ -2170,19 +2167,26 @@ export function StaffRoomsClient({
         ? Number(bulkUniformPrice.replace(/\D/g, ""))
         : undefined;
 
+      const formattedCheckIn = bulkCheckInDate.includes("T")
+        ? bulkCheckInDate
+        : `${bulkCheckInDate}T14:00:00+07:00`;
+      const formattedCheckOut = bulkCheckOutDate.includes("T")
+        ? bulkCheckOutDate
+        : `${bulkCheckOutDate}T12:00:00+07:00`;
+
       const payload: BulkReservationInput = isAuto
         ? {
             leadGuestName: trimmedLeadName,
-            checkInDate: bulkCheckInDate,
-            checkOutDate: bulkCheckOutDate,
+            checkInDate: formattedCheckIn,
+            checkOutDate: formattedCheckOut,
             allocations,
             autoAssign: true,
             ...(uniformRateNum !== undefined ? { rate: uniformRateNum } : {}),
           }
         : {
             leadGuestName: trimmedLeadName,
-            checkInDate: bulkCheckInDate,
-            checkOutDate: bulkCheckOutDate,
+            checkInDate: formattedCheckIn,
+            checkOutDate: formattedCheckOut,
             roomIds: Array.from(bulkSelectedRoomIds),
             roomRates,
             ...(uniformRateNum !== undefined ? { rate: uniformRateNum } : {}),
@@ -2206,30 +2210,39 @@ export function StaffRoomsClient({
         icon: "success",
         title: "Tạo đặt trước thành công!",
         html: `
-          <div style="text-align:left;font-size:14px;color:#334155;display:flex;flex-direction:column;gap:8px;">
-            <p>Đã tạo thành công <strong>${result.reservations.length}</strong> đặt phòng cho đoàn <strong>${trimmedLeadName}</strong>.</p>
-            <div style="padding:10px 14px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;display:flex;align-items:center;justify-content:between;gap:12px;">
-              <div>
-                <span style="font-size:11px;color:#6d28d9;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;display:block;">Mã đoàn (Group Code)</span>
-                <strong style="font-size:18px;color:#4c1d95;letter-spacing:1px;font-family:monospace;">${result.groupCode}</strong>
+          <div style="font-size:14px;color:#334155;display:flex;flex-direction:column;gap:14px;margin-top:2px;">
+            <p style="margin:0;text-align:center;color:#475569;font-size:14px;line-height:1.5;">
+              Đã tạo thành công <strong>${result.reservations.length}</strong> đặt phòng${trimmedLeadName ? ` cho đoàn <strong>${trimmedLeadName}</strong>` : ""}.
+            </p>
+            <div style="padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <div style="text-align:left;">
+                <span style="font-size:12px;color:#64748b;font-weight:500;display:block;margin-bottom:2px;">Mã đoàn</span>
+                <strong style="font-size:16px;color:#0f172a;letter-spacing:0.5px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;">${result.groupCode}</strong>
               </div>
-              <button id="swal-btn-copy-bulk-code" type="button" style="padding:6px 14px;border-radius:8px;background:#6d28d9;color:#fff;font-weight:700;font-size:12px;border:none;cursor:pointer;transition:all 0.15s ease;">
-                Sao chép
+              <button id="swal-btn-copy-bulk-code" type="button" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:#ffffff;border:1px solid #cbd5e1;color:#1e293b;font-weight:600;font-size:12px;cursor:pointer;transition:all 0.15s ease;box-shadow:0 1px 2px rgba(0,0,0,0.05);white-space:nowrap;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                <span id="swal-copy-label">Sao chép</span>
               </button>
             </div>
-            <p style="font-size:12px;color:#64748b;">Mỗi phòng là một đặt phòng độc lập và có thể làm thủ tục nhận phòng (check-in) riêng biệt khi khách đến.</p>
           </div>
         `,
         showConfirmButton: true,
         confirmButtonText: "Hoàn tất",
         didOpen: () => {
           const btn = document.getElementById("swal-btn-copy-bulk-code");
+          const label = document.getElementById("swal-copy-label");
           if (btn) {
             btn.addEventListener("click", () => {
               void navigator.clipboard.writeText(result.groupCode);
-              btn.innerText = "Đã sao chép!";
+              if (label) label.innerText = "Đã sao chép";
+              btn.style.borderColor = "#86efac";
+              btn.style.color = "#166534";
+              btn.style.backgroundColor = "#f0fdf4";
               setTimeout(() => {
-                btn.innerText = "Sao chép";
+                if (label) label.innerText = "Sao chép";
+                btn.style.borderColor = "#cbd5e1";
+                btn.style.color = "#1e293b";
+                btn.style.backgroundColor = "#ffffff";
               }, 2000);
             });
           }
@@ -2264,27 +2277,48 @@ export function StaffRoomsClient({
         setBulkConflictRoomIds(conflictSet);
 
         const conflictRoomNames = Array.from(conflictSet)
-          .map((id) => rooms.find((r) => r.id === id)?.roomNumber || id)
-          .filter(Boolean);
+          .map((id) => {
+            const found = roomPoolMap.get(id) || rooms.find((r) => r.id === id);
+            if (found?.roomNumber) {
+              return `P.${found.roomNumber}`;
+            }
+            if (/^\d+[A-Za-z]?$/.test(id)) {
+              return `P.${id}`;
+            }
+            return null;
+          })
+          .filter((name): name is string => Boolean(name));
 
-        const conflictDetailMsg =
-          conflictRoomNames.length > 0
-            ? `Các phòng sau đã bị trùng lịch hoặc không khả dụng: <strong>${conflictRoomNames.join(", ")}</strong>.`
-            : errorObj.data?.detail ||
-              errorObj.data?.message ||
-              errorObj.message ||
-              "Một số phòng đã chọn bị trùng lịch hoặc không khả dụng trong khoảng thời gian này.";
+        let conflictDetailMsg = "";
+        if (conflictRoomNames.length > 0) {
+          conflictDetailMsg = `Các phòng sau đã có lịch đặt hoặc không khả dụng trong khoảng thời gian này: <strong>${conflictRoomNames.join(", ")}</strong>.`;
+        } else {
+          const rawMsg =
+            errorObj.data?.detail ||
+            errorObj.data?.message ||
+            errorObj.message;
+          if (
+            !rawMsg ||
+            rawMsg === "BULK_RESERVATION_CONFLICT" ||
+            rawMsg === "ROOM_RESERVATION_OVERLAP" ||
+            rawMsg === "ROOM_NOT_AVAILABLE"
+          ) {
+            conflictDetailMsg =
+              "Một số phòng đã chọn bị trùng lịch đặt hoặc không khả dụng trong khoảng thời gian này.";
+          } else {
+            conflictDetailMsg = rawMsg;
+          }
+        }
 
         await SwalVietSage.fire({
           icon: "warning",
           title: "Xung đột lịch đặt phòng",
           html: `
-            <div style="text-align:left;font-size:14px;color:#334155;display:flex;flex-direction:column;gap:10px;">
-              <p>${conflictDetailMsg}</p>
-              <p style="font-size:12px;color:#64748b;">Form đặt phòng vẫn được giữ nguyên. Vui lòng bỏ chọn các phòng xung đột hoặc đổi thời gian nhận/trả phòng.</p>
+            <div style="text-align:left;font-size:14px;color:#334155;line-height:1.6;">
+              <p style="margin:0;">${conflictDetailMsg}</p>
             </div>
           `,
-          confirmButtonText: "Đã hiểu, quay lại form",
+          confirmButtonText: "Đã hiểu",
         });
       } else {
         const msg =
@@ -2946,28 +2980,28 @@ export function StaffRoomsClient({
     await SwalVietSage.fire({
       title: `Cập nhật trạng thái phòng ${roomNum}`,
       html: `
-        <div style="font-size:14px;color:#475569;margin-bottom:16px">Phòng <strong>${roomNum}</strong> hiện đang ở trạng thái <span style="color:#d97706;font-weight:700">CHỜ DỌN</span>. Chọn thao tác bên dưới:</div>
-        <div style="display:flex;flex-direction:column;gap:10px">
-          <button id="swal-btn-available" style="padding:12px 16px;border-radius:12px;background:#059669;color:#fff;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;transition:all 0.15s ease">
-            ✅ Đã dọn xong → Chuyển sang TRỐNG
+        <div style="font-size:14px;color:#475569;margin-bottom:14px;text-align:center;">Phòng <strong>${roomNum}</strong> đang ở trạng thái <strong>Chờ dọn dẹp</strong>. Chọn thao tác:</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button id="swal-btn-available" style="padding:10px 16px;border-radius:10px;background:#059669;color:#ffffff;font-weight:600;font-size:13px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.15s ease;">
+            Đã dọn xong (Chuyển sang Trống)
           </button>
           ${
             canCheckInStay || canManageStays
               ? `
-          <button id="swal-btn-ready-checkin" style="padding:12px 16px;border-radius:12px;background:#7c3aed;color:#fff;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;transition:all 0.15s ease">
-            🔑 Xác nhận sạch & Mở nhận phòng ngay
+          <button id="swal-btn-ready-checkin" style="padding:10px 16px;border-radius:10px;background:#ffffff;border:1px solid #cbd5e1;color:#1e293b;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s ease;">
+            Xác nhận sạch & mở nhận phòng ngay
           </button>
           `
               : ""
           }
-          <button id="swal-btn-maintenance" style="padding:12px 16px;border-radius:12px;background:#475569;color:#fff;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;transition:all 0.15s ease">
-            🛠️ Chuyển sang BẢO TRÌ
+          <button id="swal-btn-maintenance" style="padding:10px 16px;border-radius:10px;background:#ffffff;border:1px solid #cbd5e1;color:#1e293b;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s ease;">
+            Chuyển sang bảo trì
           </button>
           ${
             canManageRooms
               ? `
-          <button id="swal-btn-blocked" style="padding:12px 16px;border-radius:12px;background:#be123c;color:#fff;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;transition:all 0.15s ease">
-            🔒 KHÓA PHÒNG
+          <button id="swal-btn-blocked" style="padding:10px 16px;border-radius:10px;background:#ffffff;border:1px solid #fecaca;color:#b91c1c;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s ease;">
+            Khóa phòng tạm thời
           </button>
           `
               : ""
@@ -3026,16 +3060,16 @@ export function StaffRoomsClient({
     await SwalVietSage.fire({
       title: `Cập nhật trạng thái phòng ${roomNum}`,
       html: `
-        <div style="font-size:14px;color:#475569;margin-bottom:16px">Phòng <strong>${roomNum}</strong> hiện đang ở trạng thái <span style="color:#ba1a1a;font-weight:700">ĐÃ KHÓA</span>. Chọn thao tác bên dưới:</div>
-        <div style="display:flex;flex-direction:column;gap:10px">
-          <button id="swal-btn-available" style="padding:12px 16px;border-radius:12px;background:#059669;color:#fff;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;transition:all 0.15s ease">
-            🔓 Mở khóa phòng → Chuyển sang TRỐNG
+        <div style="font-size:14px;color:#475569;margin-bottom:14px;text-align:center;">Phòng <strong>${roomNum}</strong> đang ở trạng thái <strong>Đã khóa</strong>. Chọn thao tác:</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button id="swal-btn-available" style="padding:10px 16px;border-radius:10px;background:#059669;color:#ffffff;font-weight:600;font-size:13px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.15s ease;">
+            Mở khóa phòng (Chuyển sang Trống)
           </button>
-          <button id="swal-btn-maintenance" style="padding:12px 16px;border-radius:12px;background:#475569;color:#fff;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;transition:all 0.15s ease">
-            🛠️ Chuyển sang BẢO TRÌ
+          <button id="swal-btn-maintenance" style="padding:10px 16px;border-radius:10px;background:#ffffff;border:1px solid #cbd5e1;color:#1e293b;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s ease;">
+            Chuyển sang bảo trì
           </button>
-          <button id="swal-btn-processing" style="padding:12px 16px;border-radius:12px;background:#d97706;color:#fff;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;transition:all 0.15s ease">
-            🧹 Chuyển sang CHỜ DỌN
+          <button id="swal-btn-processing" style="padding:10px 16px;border-radius:10px;background:#ffffff;border:1px solid #cbd5e1;color:#1e293b;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s ease;">
+            Chuyển sang chờ dọn dẹp
           </button>
         </div>
       `,
@@ -3068,22 +3102,22 @@ export function StaffRoomsClient({
     await SwalVietSage.fire({
       title: `Cập nhật trạng thái phòng ${roomNum}`,
       html: `
-        <div style="font-size:14px;color:#475569;margin-bottom:16px">Phòng <strong>${roomNum}</strong> hiện đang ở trạng thái <span style="color:#d97706;font-weight:700">BẢO TRÌ</span>. Chọn thao tác bên dưới:</div>
-        <div style="display:flex;flex-direction:column;gap:10px">
-          <button id="swal-btn-available" style="padding:12px 16px;border-radius:12px;background:#059669;color:#fff;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;transition:all 0.15s ease">
-            ✅ Hoàn thành bảo trì → Chuyển sang TRỐNG
+        <div style="font-size:14px;color:#475569;margin-bottom:14px;text-align:center;">Phòng <strong>${roomNum}</strong> đang ở trạng thái <strong>Bảo trì</strong>. Chọn thao tác:</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button id="swal-btn-available" style="padding:10px 16px;border-radius:10px;background:#059669;color:#ffffff;font-weight:600;font-size:13px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.15s ease;">
+            Hoàn thành bảo trì (Chuyển sang Trống)
           </button>
           ${
             canManageRooms
               ? `
-          <button id="swal-btn-blocked" style="padding:12px 16px;border-radius:12px;background:#be123c;color:#fff;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;transition:all 0.15s ease">
-            🔒 KHÓA PHÒNG
+          <button id="swal-btn-blocked" style="padding:10px 16px;border-radius:10px;background:#ffffff;border:1px solid #fecaca;color:#b91c1c;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s ease;">
+            Khóa phòng tạm thời
           </button>
           `
               : ""
           }
-          <button id="swal-btn-processing" style="padding:12px 16px;border-radius:12px;background:#d97706;color:#fff;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;transition:all 0.15s ease">
-            🧹 Chuyển sang CHỜ DỌN
+          <button id="swal-btn-processing" style="padding:10px 16px;border-radius:10px;background:#ffffff;border:1px solid #cbd5e1;color:#1e293b;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s ease;">
+            Chuyển sang chờ dọn dẹp
           </button>
         </div>
       `,

@@ -23,6 +23,7 @@ export type FolioSummary = {
   roomChargeCount?: number;
   isStale?: boolean;
   requiresRecalculation?: boolean;
+  isOverdue?: boolean;
   hasDuplicateOpenFolios?: boolean;
   activeServiceRequests?: Array<{ id: string; name: string; roomNumber: string | null; status: string; quantity: number; unitPrice: MoneyValue }>;
   estimatedRoomCharge?: {
@@ -30,6 +31,8 @@ export type FolioSummary = {
     nightlyRate: MoneyValue;
     subtotal: MoneyValue;
     roomNumber?: string | null;
+    plannedNights?: number;
+    plannedSubtotal?: MoneyValue;
   } | null;
   roomRateComparison?: {
     direction: "INCREASE" | "DECREASE" | "UNCHANGED";

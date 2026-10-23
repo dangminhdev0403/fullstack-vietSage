@@ -29,6 +29,23 @@ import { ReservationsRepository } from "../infrastructure/repositories/reservati
 import { getBusinessDateRange } from "../infrastructure/repositories/hotel-rooms.repository";
 import { HotelAccessService } from "./hotel-access.service";
 
+function normalizeHotelReservationDate(
+  date: Date,
+  defaultTime: "checkIn" | "checkOut",
+): Date {
+  if (
+    date.getUTCHours() === 0 &&
+    date.getUTCMinutes() === 0 &&
+    date.getUTCSeconds() === 0 &&
+    date.getUTCMilliseconds() === 0
+  ) {
+    const ymd = date.toISOString().slice(0, 10);
+    const timeStr = defaultTime === "checkIn" ? "14:00:00" : "12:00:00";
+    return new Date(`${ymd}T${timeStr}+07:00`);
+  }
+  return date;
+}
+
 @Injectable()
 export class ReservationsService {
   constructor(
@@ -58,8 +75,14 @@ export class ReservationsService {
 
     const leadGuestName = (dto.leadGuestName ?? dto.guestDisplayName)!.trim();
     const leadGuestPhone = (dto.leadGuestPhone ?? dto.guestPhone)?.trim();
-    const checkInDate = (dto.checkInDate ?? dto.plannedCheckInAt)!;
-    const checkOutDate = (dto.checkOutDate ?? dto.plannedCheckOutAt)!;
+    const checkInDate = normalizeHotelReservationDate(
+      (dto.checkInDate ?? dto.plannedCheckInAt)!,
+      "checkIn",
+    );
+    const checkOutDate = normalizeHotelReservationDate(
+      (dto.checkOutDate ?? dto.plannedCheckOutAt)!,
+      "checkOut",
+    );
     const rawRate = dto.rate !== undefined ? dto.rate : dto.nightlyRateSnapshot;
     const nightlyRateSnapshot =
       rawRate !== undefined && rawRate !== null ? new Prisma.Decimal(rawRate).toFixed(2) : null;
@@ -468,6 +491,7 @@ export class ReservationsService {
       activeRoleId,
       hotelId,
     );
+    const appliedNightlyRate = dto.nightlyRateSnapshot ?? dto.rate;
     const updated = await this.reservationsRepository.updateReservationDates({
       hotelId,
       tenantId: hotel.tenantId,
@@ -476,6 +500,7 @@ export class ReservationsService {
       endDate: dto.endDate,
       plannedCheckInAt: dto.plannedCheckInAt,
       plannedCheckOutAt: dto.plannedCheckOutAt,
+      nightlyRateSnapshot: appliedNightlyRate,
       expectedUpdatedAt: dto.expectedUpdatedAt,
       actorUserId,
     });

@@ -16,7 +16,7 @@ All agents working in this repository MUST follow these rules:
   - CẤM chạy `tsc --noEmit` khi chỉ sửa pure CSS/styling hoặc đổi text (chỉ được chạy scoped `tsc` nếu có thêm props/types TypeScript mới).
   - CẤM chạy `next build`, `pnpm build`, `eslint .`, `pnpm lint`.
   - CẤM chạy `git diff` trên các file không thuộc phạm vi task được giao (ví dụ: task sửa `globals.css` thì cấm soi diff `tape-chart-view.tsx`).
-  - CẤM chạy các lệnh ad-hoc như `node -e "..."`.
+  - CẤM chạy các lệnh ad-hoc như `node -e "..."` hoặc script terminal để đọc file hay duyệt code (bắt buộc dùng `read_file`, `edit_file` tool chuyên dụng để tránh bị IDE chặn hỏi quyền liên tục).
 
 ---
 

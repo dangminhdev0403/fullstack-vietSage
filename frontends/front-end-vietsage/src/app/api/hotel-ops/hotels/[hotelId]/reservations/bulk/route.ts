@@ -95,8 +95,12 @@ export async function POST(request: Request, context: Params) {
           {
             leadGuestName: parsed.data.leadGuestName,
             ...(parsed.data.leadGuestPhone ? { leadGuestPhone: parsed.data.leadGuestPhone } : {}),
-            checkInDate: parsed.data.checkInDate,
-            checkOutDate: parsed.data.checkOutDate,
+            checkInDate: parsed.data.checkInDate.includes("T")
+              ? parsed.data.checkInDate
+              : `${parsed.data.checkInDate}T14:00:00+07:00`,
+            checkOutDate: parsed.data.checkOutDate.includes("T")
+              ? parsed.data.checkOutDate
+              : `${parsed.data.checkOutDate}T12:00:00+07:00`,
             ...(parsed.data.roomIds ? { roomIds: parsed.data.roomIds } : {}),
             ...(parsed.data.allocations ? { allocations: parsed.data.allocations } : {}),
             ...(parsed.data.autoAssign !== undefined ? { autoAssign: parsed.data.autoAssign } : {}),

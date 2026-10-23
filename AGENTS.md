@@ -44,6 +44,7 @@ Before writing any code, agents MUST reuse the project's standard architectural 
   - **Phát hiện ngoài lề: CHỈ BÁO CÁO, CẤM TỰ SỬA**: Mọi phát hiện lỗi khác, guard ẩn data, permission... BẮT BUỘC chỉ báo cáo trong tin nhắn, cấm tự ý đi sửa tiếp khi chưa có lệnh rõ ràng.
   - **Khoanh vùng lỗi cùng miền (Zero Failure Drift)**: Lệnh nào lỗi thì kiểm tra và sửa đúng lệnh/môi trường đó (stderr, syntax, SSH, env). CẤM lấy cớ lỗi để nhảy sang bới móc hay sửa các file/tầng khác.
   - **Codebase Freeze khi làm DB/VPS/Ops**: Khi thực hiện tác vụ Database (insert/seed/query), chạy script VPS, Docker, SSH: CẤM SỬA bất kỳ file mã nguồn ứng dụng nào (`.ts`, `.tsx`, `.js`, guards, services, controllers, store, components). Mã nguồn là READ-ONLY.
+  - **Cấm dùng Terminal/Bash để đọc file (Chống popup hỏi quyền liên tục)**: BẮT BUỘC dùng native tool (`read_file`, `edit_file`) để đọc và sửa file. CẤM TUYỆT ĐỐI gọi terminal chạy script ad-hoc như `node -e "const fs = ..."` hay `python -c "..."` chỉ để đọc file, đếm dòng hoặc duyệt code, vì chuỗi lệnh thay đổi liên tục khiến IDE dừng lại bật popup hỏi quyền xác nhận làm gián đoạn công việc.
 
 ## Strict Audit Mode
 

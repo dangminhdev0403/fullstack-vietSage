@@ -105,6 +105,36 @@ export const bulkAllocationItemSchema = z
   })
   .strict();
 
+export function parseVietnamHotelDate(
+  val: unknown,
+  defaultTime: "checkIn" | "checkOut" = "checkIn",
+): Date | undefined {
+  if (!val) return undefined;
+  if (val instanceof Date) {
+    if (
+      val.getUTCHours() === 0 &&
+      val.getUTCMinutes() === 0 &&
+      val.getUTCSeconds() === 0 &&
+      val.getUTCMilliseconds() === 0
+    ) {
+      const ymd = val.toISOString().slice(0, 10);
+      const timeStr = defaultTime === "checkIn" ? "14:00:00" : "12:00:00";
+      return new Date(`${ymd}T${timeStr}+07:00`);
+    }
+    return val;
+  }
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (!trimmed) return undefined;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      const timeStr = defaultTime === "checkIn" ? "14:00:00" : "12:00:00";
+      return new Date(`${trimmed}T${timeStr}+07:00`);
+    }
+    return new Date(trimmed);
+  }
+  return undefined;
+}
+
 export const createBulkReservationsBodySchema = z
   .object({
     leadGuestName: z
@@ -116,10 +146,22 @@ export const createBulkReservationsBodySchema = z
     guestDisplayName: z.string().trim().min(2).max(120).optional(),
     leadGuestPhone: z.string().trim().max(40).optional(),
     guestPhone: z.string().trim().max(40).optional(),
-    checkInDate: z.coerce.date().optional(),
-    checkOutDate: z.coerce.date().optional(),
-    plannedCheckInAt: z.coerce.date().optional(),
-    plannedCheckOutAt: z.coerce.date().optional(),
+    checkInDate: z.preprocess(
+      (val) => parseVietnamHotelDate(val, "checkIn"),
+      z.date().optional(),
+    ),
+    checkOutDate: z.preprocess(
+      (val) => parseVietnamHotelDate(val, "checkOut"),
+      z.date().optional(),
+    ),
+    plannedCheckInAt: z.preprocess(
+      (val) => parseVietnamHotelDate(val, "checkIn"),
+      z.date().optional(),
+    ),
+    plannedCheckOutAt: z.preprocess(
+      (val) => parseVietnamHotelDate(val, "checkOut"),
+      z.date().optional(),
+    ),
     roomIds: z
       .array(z.string().trim().min(1, "roomId không được để trống"))
       .min(1, "Số lượng phòng tối thiểu là 1")
@@ -254,6 +296,8 @@ export const updateReservationDatesBodySchema = z
       .optional(),
     plannedCheckInAt: z.coerce.date().optional(),
     plannedCheckOutAt: z.coerce.date().optional(),
+    rate: nightlyRateSnapshotSchema.optional(),
+    nightlyRateSnapshot: nightlyRateSnapshotSchema.optional(),
     expectedUpdatedAt: z.string().trim().min(1, "expectedUpdatedAt là bắt buộc"),
   })
   .strict();

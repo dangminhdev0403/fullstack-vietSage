@@ -120,38 +120,66 @@ export class ReservationsRepository {
 
       const rooms = await tx.room.findMany({
         where: { id: { in: sortedRoomIds }, hotelId: input.hotelId },
-        select: { id: true, status: true, price: true },
+        select: { id: true, status: true, price: true, roomNumber: true },
       });
 
       if (rooms.length !== sortedRoomIds.length) {
         throw new NotFoundException("Má»™t hoáº·c nhiá»u phÃ²ng khÃ´ng tá»“n táº¡i trong khÃ¡ch sáº¡n");
       }
 
-      for (const room of rooms) {
-        if (NON_SELLABLE_ROOM_STATUSES.includes(room.status)) {
-          throw new ConflictException("ROOM_NOT_AVAILABLE");
-        }
+      const nonSellableRooms = rooms.filter((room) =>
+        NON_SELLABLE_ROOM_STATUSES.includes(room.status),
+      );
+      if (nonSellableRooms.length > 0) {
+        const unavailableRoomIds = nonSellableRooms.map((r) => r.id);
+        const roomNumbersLabel = nonSellableRooms
+          .map((r) => (r.roomNumber ? `P.${r.roomNumber}` : null))
+          .filter(Boolean)
+          .join(", ");
+
+        throw new ConflictException({
+          message: "ROOM_NOT_AVAILABLE",
+          code: "ROOM_NOT_AVAILABLE",
+          detail: roomNumbersLabel
+            ? `Các phòng sau hiện đang bảo trì hoặc khóa: ${roomNumbersLabel}.`
+            : "Một hoặc nhiều phòng không khả dụng để đặt phòng.",
+          conflictRoomIds: unavailableRoomIds,
+          unavailableRoomIds,
+        });
       }
 
       // Check overlapping active reservations [checkInDate, checkOutDate)
       // Cancelled reservations release inventory and are not in ACTIVE_RESERVATION_STATUSES
-      const resOverlap = await tx.reservation.findFirst({
-        where: {
-          hotelId: input.hotelId,
-          roomId: { in: sortedRoomIds },
-          status: { in: ACTIVE_RESERVATION_STATUSES },
-          plannedCheckInAt: { lt: input.checkOutDate },
-          plannedCheckOutAt: { gt: input.checkInDate },
-        },
-        select: { id: true, roomId: true },
-      });
-      if (resOverlap) {
-        throw new ConflictException("ROOM_RESERVATION_OVERLAP");
+      let conflictingReservations: Array<{ id: string; roomId: string | null }> = [];
+      if (tx.reservation.findMany) {
+        conflictingReservations = await tx.reservation.findMany({
+          where: {
+            hotelId: input.hotelId,
+            roomId: { in: sortedRoomIds },
+            status: { in: ACTIVE_RESERVATION_STATUSES },
+            plannedCheckInAt: { lt: input.checkOutDate },
+            plannedCheckOutAt: { gt: input.checkInDate },
+          },
+          select: { id: true, roomId: true },
+        });
+      } else if (tx.reservation.findFirst) {
+        const first = await tx.reservation.findFirst({
+          where: {
+            hotelId: input.hotelId,
+            roomId: { in: sortedRoomIds },
+            status: { in: ACTIVE_RESERVATION_STATUSES },
+            plannedCheckInAt: { lt: input.checkOutDate },
+            plannedCheckOutAt: { gt: input.checkInDate },
+          },
+          select: { id: true, roomId: true },
+        });
+        if (first) conflictingReservations = [first];
       }
 
       // Check overlapping active stays [checkInDate, checkOutDate)
-      if (tx.guestStay?.findFirst) {
-        const stayOverlap = await tx.guestStay.findFirst({
+      let conflictingStays: Array<{ id: string; roomId: string | null }> = [];
+      if (tx.guestStay?.findMany) {
+        conflictingStays = await tx.guestStay.findMany({
           where: {
             hotelId: input.hotelId,
             roomId: { in: sortedRoomIds },
@@ -161,13 +189,25 @@ export class ReservationsRepository {
           },
           select: { id: true, roomId: true },
         });
-        if (stayOverlap) {
-          throw new ConflictException("ROOM_RESERVATION_OVERLAP");
-        }
+      } else if (tx.guestStay?.findFirst) {
+        const first = await tx.guestStay.findFirst({
+          where: {
+            hotelId: input.hotelId,
+            roomId: { in: sortedRoomIds },
+            status: { in: ACTIVE_STAY_STATUSES },
+            plannedCheckInAt: { lt: input.checkOutDate },
+            plannedCheckOutAt: { gt: input.checkInDate },
+          },
+          select: { id: true, roomId: true },
+        });
+        if (first) conflictingStays = [first];
+      }
 
-        const now = new Date();
-        if (input.checkInDate <= now) {
-          const overdueStay = await tx.guestStay.findFirst({
+      let overdueStays: Array<{ id: string; roomId: string | null }> = [];
+      const now = new Date();
+      if (input.checkInDate <= now && tx.guestStay) {
+        if (tx.guestStay.findMany) {
+          overdueStays = await tx.guestStay.findMany({
             where: {
               hotelId: input.hotelId,
               roomId: { in: sortedRoomIds },
@@ -183,14 +223,57 @@ export class ReservationsRepository {
             },
             select: { id: true, roomId: true },
           });
-          if (overdueStay) {
-            throw new ConflictException("ROOM_RESERVATION_OVERLAP");
-          }
+        } else if (tx.guestStay.findFirst) {
+          const first = await tx.guestStay.findFirst({
+            where: {
+              hotelId: input.hotelId,
+              roomId: { in: sortedRoomIds },
+              status: {
+                in: [
+                  GuestStayStatus.ACTIVE,
+                  GuestStayStatus.CHECKED_IN,
+                  GuestStayStatus.CHECKOUT_PENDING,
+                ],
+              },
+              checkedOutAt: null,
+              plannedCheckOutAt: { lt: now },
+            },
+            select: { id: true, roomId: true },
+          });
+          if (first) overdueStays = [first];
         }
       }
 
+      const allConflictRoomIds = Array.from(
+        new Set([
+          ...conflictingReservations.map((r) => r.roomId).filter((id): id is string => Boolean(id)),
+          ...conflictingStays.map((s) => s.roomId).filter((id): id is string => Boolean(id)),
+          ...overdueStays.map((s) => s.roomId).filter((id): id is string => Boolean(id)),
+        ]),
+      );
+
+      if (allConflictRoomIds.length > 0) {
+        const conflictRoomNumbers = allConflictRoomIds
+          .map((id) => {
+            const found = rooms.find((r) => r.id === id);
+            return found?.roomNumber ? `P.${found.roomNumber}` : null;
+          })
+          .filter(Boolean);
+
+        const roomNumbersLabel = conflictRoomNumbers.length > 0 ? conflictRoomNumbers.join(", ") : "";
+
+        throw new ConflictException({
+          message: "ROOM_RESERVATION_OVERLAP",
+          code: "ROOM_RESERVATION_OVERLAP",
+          detail: roomNumbersLabel
+            ? `Các phòng sau đã có lịch đặt hoặc khách lưu trú trong khoảng thời gian này: ${roomNumbersLabel}.`
+            : "Một số phòng đã chọn bị trùng lịch trong khoảng thời gian này.",
+          conflictRoomIds: allConflictRoomIds,
+          unavailableRoomIds: allConflictRoomIds,
+        });
+      }
+
       const reservations: any[] = [];
-      const now = new Date();
 
       for (const roomId of uniqueRoomIds) {
         const reservationCode = await input.generateReservationCode(tx);
@@ -1807,6 +1890,7 @@ export class ReservationsRepository {
     endDate?: string;
     plannedCheckInAt?: Date;
     plannedCheckOutAt?: Date;
+    nightlyRateSnapshot?: number | string | Prisma.Decimal | null;
     expectedUpdatedAt: string;
     actorUserId: string;
   }) {
@@ -1885,6 +1969,14 @@ export class ReservationsRepository {
         data: {
           plannedCheckInAt: newCheckIn,
           plannedCheckOutAt: newCheckOut,
+          ...(input.nightlyRateSnapshot !== undefined && input.nightlyRateSnapshot !== null
+            ? {
+                nightlyRateSnapshot:
+                  input.nightlyRateSnapshot instanceof Prisma.Decimal
+                    ? input.nightlyRateSnapshot
+                    : new Prisma.Decimal(input.nightlyRateSnapshot),
+              }
+            : {}),
         },
         include: { room: true },
       });
