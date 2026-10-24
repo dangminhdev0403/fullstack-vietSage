@@ -35,10 +35,11 @@ export const folioListSelect = {
     },
   },
   invoices: {
-    select: { id: true, invoiceNumber: true, status: true },
+    select: { id: true, invoiceNumber: true, status: true, totalAmount: true, paidAmount: true, balanceAmount: true },
     orderBy: [{ issuedAt: "desc" }, { id: "desc" }],
     take: 1,
   },
+  items: { where: { itemType: "ROOM_CHARGE", voidedAt: null }, select: { id: true, totalSnapshot: true } },
 } satisfies Prisma.FolioSelect;
 
 export const folioDetailInclude = {
@@ -186,6 +187,7 @@ export class BillingRepository {
           createdAt: true,
           updatedAt: true,
           room: { select: { id: true, roomNumber: true, price: true } },
+          invoices: { select: { id: true, invoiceNumber: true, status: true, totalAmount: true, paidAmount: true, balanceAmount: true }, orderBy: [{ issuedAt: "desc" }, { id: "desc" }], take: 1 },
           stay: {
             select: {
               id: true,

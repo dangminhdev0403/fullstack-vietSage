@@ -168,7 +168,7 @@ export function RequestDetailClient({
     queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
     queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }).catch(() => {});
     queryClient.invalidateQueries({ queryKey: ["owner-requests", hotelId] }).catch(() => {});
-    router.refresh();
+
   }
 
   async function transition(status: GuestRequestStatus) {

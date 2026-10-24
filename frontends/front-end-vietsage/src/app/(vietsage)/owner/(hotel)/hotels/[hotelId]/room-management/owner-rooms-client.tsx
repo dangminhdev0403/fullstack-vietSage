@@ -984,7 +984,7 @@ export function OwnerRoomsClient({
     }
 
     if (typeof window !== "undefined") {
-      window.open(`/owner/hotels/${encodeURIComponent(hotelId)}/rooms/qr-export`, "_blank");
+      window.open(`/owner/hotels/${encodeURIComponent(hotelId)}/room-management/qr-export`, "_blank");
     }
   }
   async function rotateAllQrCodes() {

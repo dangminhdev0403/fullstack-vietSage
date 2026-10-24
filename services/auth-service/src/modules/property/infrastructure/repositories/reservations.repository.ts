@@ -447,6 +447,15 @@ export class ReservationsRepository {
       }, "RESERVATION_ROOM_ASSIGNMENT_CONCURRENCY_CONFLICT");
     }
 
+    let defaultBaseRate: Prisma.Decimal | null = null;
+    if (input.roomTypeId && this.prisma.roomType?.findFirst) {
+      const rt = await this.prisma.roomType.findFirst({
+        where: { id: input.roomTypeId, hotelId: input.hotelId },
+        select: { basePrice: true },
+      });
+      defaultBaseRate = rt?.basePrice ?? null;
+    }
+
     return this.prisma.reservation.create({
       data: {
         hotelId: input.hotelId,
@@ -461,8 +470,9 @@ export class ReservationsRepository {
         plannedCheckOutAt: input.plannedCheckOutAt,
         createdByUserId: input.createdByUserId,
         status: ReservationStatus.CONFIRMED,
+        baseNightlyRateSnapshot: defaultBaseRate,
         nightlyRateSnapshot:
-          input.nightlyRateSnapshot !== undefined ? input.nightlyRateSnapshot : null,
+          input.nightlyRateSnapshot !== undefined ? input.nightlyRateSnapshot : defaultBaseRate,
       },
       include: { roomType: true },
     });
@@ -1489,10 +1499,15 @@ export class ReservationsRepository {
           s.status === GuestStayStatus.CHECKOUT_PENDING);
 
       const effectiveEnd = isOverdue && checkOut.getTime() < now.getTime() ? now : checkOut;
-      const nights = Math.max(
-        1,
-        Math.round((effectiveEnd.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)),
-      );
+      const vnOffsetMs = 7 * 60 * 60 * 1000;
+      const dayMs = 86_400_000;
+      const startDay = Math.floor((checkIn.getTime() + vnOffsetMs) / dayMs);
+      const endDay = Math.floor((effectiveEnd.getTime() + vnOffsetMs) / dayMs);
+      const calendarDiff = endDay - startDay;
+      const nights =
+        calendarDiff >= 1
+          ? calendarDiff
+          : Math.max(1, Math.round((effectiveEnd.getTime() - checkIn.getTime()) / dayMs));
       const isOta = Boolean(s.reservationCode?.startsWith("OTA"));
       const channelName = isOta
         ? (s.reservationCode?.replace(/^OTA-?/i, "").trim() || "OTA")
@@ -1741,12 +1756,28 @@ export class ReservationsRepository {
           throw new ConflictException("PhÃ²ng Ä‘Ã£ cÃ³ Ä‘áº·t phÃ²ng khÃ¡c trong khoáº£ng thá»i gian nÃ y");
         }
 
+        const targetDefaultRate = targetRoom.price ?? targetRoom.roomType?.basePrice ?? null;
+        const sourceUsedDefaultRate =
+          sourceRes.nightlyRateSnapshot === null ||
+          sourceRes.nightlyRateSnapshot === undefined ||
+          (sourceRes.baseNightlyRateSnapshot !== null &&
+            sourceRes.baseNightlyRateSnapshot !== undefined &&
+            new Prisma.Decimal(sourceRes.nightlyRateSnapshot).equals(
+              sourceRes.baseNightlyRateSnapshot,
+            ));
+
         const updatedSource = await tx.reservation.update({
           where: { id: sourceRes.id },
           data: {
             roomId: input.targetRoomId,
             assignedAt: now,
             assignedByUserId: input.actorUserId,
+            ...(targetDefaultRate !== null
+              ? {
+                  baseNightlyRateSnapshot: targetDefaultRate,
+                  ...(sourceUsedDefaultRate ? { nightlyRateSnapshot: targetDefaultRate } : {}),
+                }
+              : {}),
           },
           include: { room: true },
         });
@@ -1914,7 +1945,9 @@ export class ReservationsRepository {
 
       let newCheckIn = input.plannedCheckInAt;
       if (!newCheckIn && input.startDate) {
-        newCheckIn = new Date(`${input.startDate}T14:00:00.000Z`);
+        newCheckIn = input.startDate.includes("T")
+          ? new Date(input.startDate)
+          : new Date(`${input.startDate}T14:00:00+07:00`);
       }
       if (!newCheckIn) {
         newCheckIn = res.plannedCheckInAt;
@@ -1922,7 +1955,9 @@ export class ReservationsRepository {
 
       let newCheckOut = input.plannedCheckOutAt;
       if (!newCheckOut && input.endDate) {
-        newCheckOut = new Date(`${input.endDate}T12:00:00.000Z`);
+        newCheckOut = input.endDate.includes("T")
+          ? new Date(input.endDate)
+          : new Date(`${input.endDate}T12:00:00+07:00`);
       }
       if (!newCheckOut) {
         newCheckOut = res.plannedCheckOutAt;

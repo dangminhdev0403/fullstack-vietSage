@@ -49,7 +49,7 @@ export function OwnerRoomsQrExportClient({ hotelId }: Props) {
   const [rooms, setRooms] = useState<HotelRoomSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const roomsPath = `/owner/hotels/${hotelId}/rooms`;
+  const roomsPath = `/owner/hotels/${hotelId}/room-management`;
 
   useEffect(() => {
     let isActive = true;

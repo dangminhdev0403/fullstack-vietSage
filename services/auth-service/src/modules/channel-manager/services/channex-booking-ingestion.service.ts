@@ -400,7 +400,10 @@ export class ChannexBookingIngestionService {
                     (plannedCheckOutAt.getTime() - plannedCheckInAt.getTime()) / 86400000,
                   ),
                 );
-                const nightlyRateSnapshot = segmentTotal.div(nights).toDecimalPlaces(2).toFixed(2);
+                const nightlyRateSnapshot = segmentTotal
+                  .div(nights)
+                  .toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
+                  .toFixed(2);
                 const suffix = segments.length > 1 ? `-${index + 1}` : "";
                 const reservationData: any = {
                   hotelId,

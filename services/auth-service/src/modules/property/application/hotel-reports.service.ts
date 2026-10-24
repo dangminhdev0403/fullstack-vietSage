@@ -330,6 +330,13 @@ export class HotelReportsService {
     let folioServiceRevenue = 0;
     let folioOtherRevenue = 0;
     for (const item of folioItems) {
+      if (item.itemType === FolioItemType.DISCOUNT) {
+        const discVal = Math.abs(
+          toNumber((item as any).discountAmountSnapshot ?? item.totalSnapshot),
+        );
+        folioOtherRevenue -= discVal;
+        continue;
+      }
       const val = toNumber(item.totalSnapshot);
       if (item.itemType === FolioItemType.ROOM_CHARGE) {
         folioRoomRevenue += val;

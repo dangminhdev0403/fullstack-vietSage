@@ -65,7 +65,13 @@ function calculateNights(start?: string | Date | null, end?: string | Date | nul
   const d1 = new Date(start).getTime();
   const d2 = new Date(end).getTime();
   if (Number.isNaN(d1) || Number.isNaN(d2) || d2 <= d1) return 1;
-  const nights = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+  const vnOffsetMs = 7 * 60 * 60 * 1000;
+  const dayMs = 1000 * 60 * 60 * 24;
+  const startDay = Math.floor((d1 + vnOffsetMs) / dayMs);
+  const endDay = Math.floor((d2 + vnOffsetMs) / dayMs);
+  const calendarDiff = endDay - startDay;
+  if (calendarDiff >= 1) return calendarDiff;
+  const nights = Math.round((d2 - d1) / dayMs);
   return Math.max(1, nights);
 }
 

@@ -62,7 +62,7 @@ export default async function StaffInvoicePage({ params }: PageProps) {
   const isPaid = invoice.status === "PAID" || Number(invoice.balanceAmount ?? 0) <= 0;
 
   function isExternalInvoiceItem(item: (typeof items)[number]): boolean {
-    if (item.type === "ROOM_CHARGE") return false;
+    if (item.type === "ROOM_CHARGE" || item.type === "DISCOUNT") return false;
     if (item.serviceSource === "EXTERNAL") return true;
     if (item.partnerName && item.partnerName !== "Khách sạn") return true;
     const name = String(item.name ?? "");
@@ -71,11 +71,11 @@ export default async function StaffInvoicePage({ params }: PageProps) {
   }
 
   const hotelServicesTotal = items
-    .filter((item) => !isExternalInvoiceItem(item))
+    .filter((item) => item.type !== "DISCOUNT" && !isExternalInvoiceItem(item))
     .reduce((sum, item) => sum + Number(item.total), 0);
 
   const externalServicesTotal = items
-    .filter((item) => isExternalInvoiceItem(item))
+    .filter((item) => item.type !== "DISCOUNT" && isExternalInvoiceItem(item))
     .reduce((sum, item) => sum + Number(item.total), 0);
 
   return (

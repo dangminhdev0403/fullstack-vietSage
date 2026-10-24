@@ -238,7 +238,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         });
 
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
-        router.refresh();
+
       },
       onChannelBookingCancelled: (event: unknown) => {
         const raw = event as {
@@ -260,7 +260,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         });
 
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
-        router.refresh();
+
       },
       onRoomStatusUpdated: (event: unknown) => {
         const raw = event as {
@@ -274,7 +274,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         if (raw?.hotelId && raw.hotelId !== hotelId) return;
 
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
-        router.refresh();
+
 
         const statusLabels: Record<string, string> = {
           AVAILABLE: "TRỐNG (sẵn sàng đón khách)",

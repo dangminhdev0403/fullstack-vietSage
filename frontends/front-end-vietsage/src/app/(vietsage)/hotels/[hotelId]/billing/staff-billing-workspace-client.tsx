@@ -384,8 +384,19 @@ export function StaffBillingWorkspaceClient({
     activeSummary?.roomRateComparison ?? selectedFolio?.roomRateComparison ?? null;
   const roomRateDifference = toNumber(roomRateComparison?.totalDifference ?? 0);
 
+  const reconciledServiceTotal = useMemo(() => {
+    const requests = activeSummary?.activeServiceRequests ?? [];
+    return requests.reduce((sum, req) => {
+      const choice = reconciliations[req.id];
+      if (choice?.action === "provided") {
+        return sum + toNumber(req.unitPrice) * Number(req.quantity || 1);
+      }
+      return sum;
+    }, 0);
+  }, [activeSummary?.activeServiceRequests, reconciliations]);
+
   const hotelServiceChargeTotal = useMemo(() => {
-    return activeItems
+    const fromPostedItems = activeItems
       .filter(
         (item) =>
           item.itemType === "SERVICE" &&
@@ -393,7 +404,8 @@ export function StaffBillingWorkspaceClient({
           item.serviceSource !== "EXTERNAL",
       )
       .reduce((sum, item) => sum + toNumber(item.totalSnapshot), 0);
-  }, [activeItems]);
+    return fromPostedItems + reconciledServiceTotal;
+  }, [activeItems, reconciledServiceTotal]);
 
   const externalServiceCollectionTotal = useMemo(() => {
     return activeItems
@@ -410,13 +422,14 @@ export function StaffBillingWorkspaceClient({
     return activeItems
       .filter(
         (item) =>
-          item.itemType === "MANUAL_CHARGE" && !isFolioItemVoided(item),
+          (item.itemType === "MANUAL_CHARGE" || item.itemType === "ADJUSTMENT") &&
+          !isFolioItemVoided(item),
       )
       .reduce((sum, item) => sum + toNumber(item.totalSnapshot), 0);
   }, [activeItems]);
 
   const subtotal = useMemo(() => {
-    const fromSummary = toNumber(activeSummary?.subtotal ?? 0);
+    const fromSummary = toNumber(activeSummary?.subtotal ?? 0) + reconciledServiceTotal;
     const itemTotal =
       roomChargeTotal +
       hotelServiceChargeTotal +
@@ -425,6 +438,7 @@ export function StaffBillingWorkspaceClient({
     return Math.max(fromSummary, itemTotal);
   }, [
     activeSummary,
+    reconciledServiceTotal,
     roomChargeTotal,
     hotelServiceChargeTotal,
     externalServiceCollectionTotal,
@@ -446,6 +460,16 @@ export function StaffBillingWorkspaceClient({
     return Math.abs(toNumber(activeSummary?.discount ?? 0));
   }, [activeItems, activeSummary]);
 
+  const alreadyPaidAmount = useMemo(() => {
+    return toNumber(
+      (activeSummary as { invoice?: { paidAmount?: number | string | null } } | null)?.invoice
+        ?.paidAmount ??
+        (selectedFolio as { invoice?: { paidAmount?: number | string | null } } | null)?.invoice
+          ?.paidAmount ??
+        0,
+    );
+  }, [activeSummary, selectedFolio]);
+
   const discountParsed = parseAmountOrPercentage(discountInput, subtotal);
   const surchargeParsed = parseAmountOrPercentage(surchargeInput, subtotal);
 
@@ -466,7 +490,7 @@ export function StaffBillingWorkspaceClient({
     }
     return Math.max(
       0,
-      subtotal + tax - existingDiscountTotal + surchargeVal - discountVal,
+      subtotal + tax - existingDiscountTotal + surchargeVal - discountVal - alreadyPaidAmount,
     );
   })();
 
@@ -848,7 +872,7 @@ export function StaffBillingWorkspaceClient({
                           if (val > 0) return val;
                           if (folio.status === "OPEN") {
                             const rPrice = toNumber(folio.room?.price ?? 0);
-                            return rPrice > 0 ? rPrice : 500000;
+                            return rPrice > 0 ? rPrice : 0;
                           }
                           return 0;
                         })(),

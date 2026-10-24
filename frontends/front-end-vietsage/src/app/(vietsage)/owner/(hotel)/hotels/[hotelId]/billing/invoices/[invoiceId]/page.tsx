@@ -89,7 +89,7 @@ function InvoiceInfo({ label, value }: { label: string; value: string }) {
 }
 
 function isExternalInvoiceItem(item: InvoiceDetail["items"][number]): boolean {
-  if (item.type === "ROOM_CHARGE") return false;
+  if (item.type === "ROOM_CHARGE" || item.type === "DISCOUNT") return false;
   if (item.serviceSource === "EXTERNAL") return true;
   if (item.partnerName && item.partnerName !== "Khách sạn") return true;
   const name = String(item.name ?? "");
@@ -103,11 +103,11 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
   const paidTotal = sumMoney(payments.map((payment) => payment.paidAmount ?? payment.amount));
 
   const hotelServicesTotal = items
-    .filter((item) => !isExternalInvoiceItem(item))
+    .filter((item) => item.type !== "DISCOUNT" && !isExternalInvoiceItem(item))
     .reduce((sum, item) => sum + Number(item.total), 0);
 
   const externalServicesTotal = items
-    .filter((item) => isExternalInvoiceItem(item))
+    .filter((item) => item.type !== "DISCOUNT" && isExternalInvoiceItem(item))
     .reduce((sum, item) => sum + Number(item.total), 0);
 
   return (

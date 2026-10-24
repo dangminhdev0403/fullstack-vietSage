@@ -461,7 +461,9 @@ export class DirectBookingService {
     const nights = Math.max(1, Math.round((checkOutAt.getTime() - checkInAt.getTime()) / 86400000));
     const nightlyRateSnapshot =
       effectiveAmount !== undefined
-        ? new Prisma.Decimal(effectiveAmount).div(nights).toDecimalPlaces(2)
+        ? new Prisma.Decimal(effectiveAmount)
+            .div(nights)
+            .toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
         : null;
 
     const effectivePartySize =

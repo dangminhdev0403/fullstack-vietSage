@@ -420,7 +420,6 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Sơ đồ phòng & Check In",
     labelByPersona: {
       housekeeping: "Sơ đồ phòng & Buồng phòng",
-      owner: "Sơ đồ phòng & Check In",
     },
     icon: "bed",
     order: 20,

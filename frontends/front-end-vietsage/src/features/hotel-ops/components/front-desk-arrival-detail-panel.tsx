@@ -231,7 +231,7 @@ export function FrontDeskArrivalDetailPanel({
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       setIsAssigningMode(false);
       onClose();
-      router.refresh();
+
     } catch (err) {
       await showErrorAlert(
         "Không thể gán phòng",
@@ -337,7 +337,7 @@ export function FrontDeskArrivalDetailPanel({
 
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       onClose();
-      router.refresh();
+
     } catch (err) {
       if (isEarlyCheckInError(err) || isLateCheckInError(err)) {
         const isEarly = isEarlyCheckInError(err);
@@ -394,7 +394,7 @@ export function FrontDeskArrivalDetailPanel({
 
             await invalidateHotelRealtimeQueries(queryClient, hotelId);
             onClose();
-            router.refresh();
+      
             return;
           } catch (retryErr) {
             await invalidateHotelRealtimeQueries(queryClient, hotelId);
@@ -455,7 +455,7 @@ export function FrontDeskArrivalDetailPanel({
 
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       onClose();
-      router.refresh();
+
     } catch (err) {
       await showErrorAlert(
         "Không thể hủy đặt phòng",
@@ -501,7 +501,7 @@ export function FrontDeskArrivalDetailPanel({
 
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       onClose();
-      router.refresh();
+
     } catch (err) {
       await showErrorAlert(
         "Không thể ghi nhận vắng mặt",

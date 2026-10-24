@@ -248,7 +248,7 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
         });
 
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        router.refresh();
+
       },
       onChannelBookingCancelled: (event: unknown) => {
         const raw = event as {
@@ -270,7 +270,7 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
         });
 
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        router.refresh();
+
       },
       onRoomStatusUpdated: (event: unknown) => {
         const raw = event as {
@@ -284,7 +284,7 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
         if (raw?.hotelId && raw.hotelId !== hotelId) return;
 
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        router.refresh();
+
 
         const statusLabels: Record<string, string> = {
           AVAILABLE: "TRỐNG (sẵn sàng đón khách)",

@@ -10,7 +10,7 @@ import type {
   HotelServiceCategory,
   HotelServiceItem,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
-import { OwnerRoomsClient } from "../rooms/owner-rooms-client";
+import { OwnerRoomsClient } from "../room-management/owner-rooms-client";
 import { StaffManagementClient } from "@/features/staff-management/components/staff-management-client";
 import { OwnerServiceCatalogClient } from "../services/owner-service-catalog-client";
 import { OwnerNearbyProvidersClient } from "@/features/local-partners/components/staff-local-partners-client";

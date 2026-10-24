@@ -850,9 +850,10 @@ export function RequestQueueClient({
     if (pageSize) {
       params.set("limit", String(pageSize));
     }
-    router.replace(`${basePath}${params.size ? `?${params.toString()}` : ""}`, {
-      scroll: false,
-    });
+    if (typeof window !== "undefined") {
+      const nextQuery = params.size ? `?${params.toString()}` : "";
+      window.history.replaceState(null, "", `${basePath}${nextQuery}`);
+    }
   }
 
   useEffect(() => {

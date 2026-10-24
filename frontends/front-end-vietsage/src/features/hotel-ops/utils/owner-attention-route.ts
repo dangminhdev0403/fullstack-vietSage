@@ -4,6 +4,7 @@ export function ownerAttentionRoute(route: string, hotelId: string): string {
   if (!route.startsWith(genericPrefix)) return route;
 
   const relative = route.slice(genericPrefix.length);
+
   if (relative.startsWith("requests/")) {
     const requestId = relative
       .slice("requests/".length)

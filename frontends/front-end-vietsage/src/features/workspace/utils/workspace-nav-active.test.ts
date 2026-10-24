@@ -19,7 +19,7 @@ test("isNavItemActive highlights exact match for owner dashboard", () => {
 });
 
 test("isNavItemActive keeps owner settings active for nested setup pages", () => {
-  assert.equal(isNavItemActive("/owner/hotels/hotel-1", "/owner/hotels/hotel-1/rooms", ownerHotelItems), true);
+  assert.equal(isNavItemActive("/owner/hotels/hotel-1", "/owner/hotels/hotel-1/room-management", ownerHotelItems), true);
 });
 
 test("isNavItemActive highlights owner billing invoices without selecting settings", () => {
@@ -59,6 +59,7 @@ test("buildWorkspaceNavigation produces complete owner navigation structure", ()
     "owner.home",
     "staff.dashboard",
     "owner.hotel.billing",
+    "owner.hotel.reports",
     "staff.rooms",
     "staff.front-desk",
     "staff.requests",
@@ -88,6 +89,7 @@ test("buildWorkspaceNavigation produces shift, rooms, requests, messages, checko
     "staff.requests",
     "staff.messages",
     "staff.billing",
+    "staff.reports",
   ]);
 });
 

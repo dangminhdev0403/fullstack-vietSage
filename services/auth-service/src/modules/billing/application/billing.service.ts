@@ -116,7 +116,7 @@ function resolveServiceSource(item: {
   descriptionSnapshot?: string | null;
   billingSourceSnapshot?: unknown;
 }): { isExternal: boolean; partnerName?: string } {
-  if (item.itemType === "ROOM_CHARGE") {
+  if (item.itemType === "ROOM_CHARGE" || item.itemType === "DISCOUNT") {
     return { isExternal: false };
   }
 
@@ -186,6 +186,8 @@ export class BillingService {
       total: result.total,
       items: result.rows.map((folio) => {
         const invoice = folio.invoices[0] ?? null;
+        const roomChargeItems = Array.isArray((folio as any).items) ? (folio as any).items : [];
+        const hasRoomChargeItem = roomChargeItems.length > 0;
 
         let subtotal = folio.subtotalAmount;
         let total = folio.totalAmount;
@@ -208,8 +210,10 @@ export class BillingService {
         if (folio.status === FolioStatus.OPEN && !invoice) {
           try {
             estimatedRoomCharge = this.calculateEstimatedRoomCharge(folio);
-            subtotal = subtotal.add(estimatedRoomCharge.subtotal);
-            total = total.add(estimatedRoomCharge.subtotal);
+            if (!hasRoomChargeItem) {
+              subtotal = subtotal.add(estimatedRoomCharge.subtotal);
+              total = total.add(estimatedRoomCharge.subtotal);
+            }
           } catch {
             estimatedRoomCharge = null;
           }
@@ -218,6 +222,7 @@ export class BillingService {
         return {
           ...folio,
           invoices: undefined,
+          items: undefined,
           invoiceId: invoice?.id ?? null,
           invoice,
           subtotal,
@@ -762,6 +767,8 @@ export class BillingService {
       total = total.add(estimatedRoomCharge.subtotal);
     }
 
+    const invoice = (result.folio as any).invoices?.[0] ?? null;
+
     return {
       id: result.folio.id,
       hotelId: result.folio.hotelId,
@@ -769,6 +776,8 @@ export class BillingService {
       folioNumber: result.folio.folioNumber,
       status: result.folio.status,
       currency: result.folio.currency,
+      invoiceId: invoice?.id ?? null,
+      invoice,
       subtotal,
       tax: result.folio.taxAmount,
       discount: result.folio.discountAmount,
@@ -796,7 +805,12 @@ export class BillingService {
         quantity: request.quantity,
         unitPrice: (() => {
           const snapshot = extractBillingPriceSnapshot(request.metadata);
-          return snapshot ? snapshot.unitPrice.toNumber() : (request.serviceItem?.priceOverride ?? 0);
+          if (snapshot) return snapshot.unitPrice.toNumber();
+          const fallback =
+            request.serviceItem?.priceOverride ??
+            (request.serviceItem as any)?.category?.defaultPrice ??
+            0;
+          return Number(fallback);
         })(),
       })),
       latestItemPostedAt,
@@ -1113,7 +1127,21 @@ export class BillingService {
         });
 
         if (existingPayment) {
-          return { reused: true, payment: existingPayment };
+          if (
+            existingPayment.status === PaymentStatus.PENDING &&
+            !existingPayment.amount.equals(invoice.balanceAmount)
+          ) {
+            await tx.payment.update({
+              where: { id: existingPayment.id },
+              data: {
+                status: PaymentStatus.FAILED,
+                failedAt: new Date(),
+                failureReason: "SUPERSEDED_BY_BALANCE_CHANGE",
+              },
+            });
+          } else {
+            return { reused: true, payment: existingPayment };
+          }
         }
 
         const paymentNumber = await this.codesService.generateEntityCode("PAYMENT", tx);
@@ -1353,10 +1381,15 @@ export class BillingService {
               throw new BadRequestException("INVALID_PAYMENT_AMOUNT");
             }
             const reqAmount = new Prisma.Decimal(input.amount);
-            if (reqAmount.gt(invoice.balanceAmount)) {
+            const isVnd = (invoice.currency ?? "VND").toUpperCase() === "VND";
+            const diffFromBalance = reqAmount.sub(invoice.balanceAmount).abs();
+            if (isVnd && diffFromBalance.gt(0) && diffFromBalance.lt(1)) {
+              appliedAmount = invoice.balanceAmount;
+            } else if (reqAmount.gt(invoice.balanceAmount)) {
               throw new BadRequestException("PAYMENT_AMOUNT_EXCEEDS_BALANCE");
+            } else {
+              appliedAmount = reqAmount;
             }
-            appliedAmount = reqAmount;
           } else {
             appliedAmount = invoice.balanceAmount;
           }
@@ -1892,7 +1925,11 @@ export class BillingService {
     ) {
       throw new ConflictException("MISSING_AGREED_ROOM_RATE_SNAPSHOT");
     }
-    const unitPrice = new Prisma.Decimal(folio.stay.nightlyRateSnapshot);
+    const isVnd = ((folio as any).currency ?? "VND").toUpperCase() === "VND";
+    const rawUnitPrice = new Prisma.Decimal(folio.stay.nightlyRateSnapshot);
+    const unitPrice = isVnd
+      ? rawUnitPrice.toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
+      : rawUnitPrice;
 
     const rawStart =
       folio.stay?.checkedInAt ??
@@ -1911,22 +1948,30 @@ export class BillingService {
     const committedEnd = rawPlannedEnd
       ? (rawPlannedEnd instanceof Date ? rawPlannedEnd : new Date(rawPlannedEnd))
       : chargeStart;
-    const committedDiffMs = Math.max(0, committedEnd.getTime() - plannedStart.getTime());
-    const plannedNights = Math.max(1, Math.round(committedDiffMs / 86400000));
+    const plannedNights = this.calculateVietnamNights(plannedStart, committedEnd);
     const plannedSubtotal = unitPrice.mul(plannedNights);
 
     const actualEndRaw = folio.stay?.checkedOutAt;
     const actualEnd = actualEndRaw
       ? (actualEndRaw instanceof Date ? actualEndRaw : new Date(actualEndRaw))
       : new Date();
-    const elapsedDiffMs = Math.max(0, actualEnd.getTime() - chargeStart.getTime());
-    const elapsedNights = Math.max(1, Math.round(elapsedDiffMs / 86400000));
+    const elapsedNights = this.calculateVietnamNights(chargeStart, actualEnd);
 
+    const isOverdueStay =
+      !folio.stay?.checkedOutAt &&
+      committedEnd.getTime() < actualEnd.getTime() &&
+      elapsedNights > plannedNights;
     const isEarlyDeparture = options?.isEarlyDeparture === true;
-    const nights = isEarlyDeparture ? elapsedNights : plannedNights;
-    const chargeEnd = isEarlyDeparture ? actualEnd : committedEnd;
+    const nights = isEarlyDeparture
+      ? elapsedNights
+      : isOverdueStay
+        ? Math.max(plannedNights, elapsedNights)
+        : plannedNights;
+    const chargeEnd = isEarlyDeparture || isOverdueStay ? actualEnd : committedEnd;
 
-    const subtotal = unitPrice.mul(nights);
+    const subtotal = isVnd
+      ? unitPrice.mul(nights).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
+      : unitPrice.mul(nights);
     const baseNightlyRate =
       folio.stay?.baseNightlyRateSnapshot !== null &&
       folio.stay?.baseNightlyRateSnapshot !== undefined
@@ -2051,8 +2096,22 @@ export class BillingService {
     return itemResult;
   }
 
+  private calculateVietnamNights(start: Date, end: Date): number {
+    if (end.getTime() <= start.getTime()) return 1;
+    const vnOffsetMs = 7 * 60 * 60 * 1000;
+    const dayMs = 86_400_000;
+    const startDay = Math.floor((start.getTime() + vnOffsetMs) / dayMs);
+    const endDay = Math.floor((end.getTime() + vnOffsetMs) / dayMs);
+    const calendarDiff = endDay - startDay;
+    if (calendarDiff >= 1) {
+      return calendarDiff;
+    }
+    return Math.max(1, Math.round((end.getTime() - start.getTime()) / dayMs));
+  }
+
   private computeTotalsFromFolioItems(
     items: Array<{
+      itemType?: FolioItemType | string;
       subtotalSnapshot: Prisma.Decimal;
       taxAmountSnapshot?: Prisma.Decimal;
       discountAmountSnapshot: Prisma.Decimal;
@@ -2060,12 +2119,26 @@ export class BillingService {
     }>,
   ) {
     return items.reduce(
-      (acc, item) => ({
-        subtotalAmount: acc.subtotalAmount.add(item.subtotalSnapshot ?? 0),
-        taxAmount: acc.taxAmount.add(item.taxAmountSnapshot ?? 0),
-        discountAmount: acc.discountAmount.add(item.discountAmountSnapshot ?? 0),
-        totalAmount: acc.totalAmount.add(item.totalSnapshot ?? 0),
-      }),
+      (acc, item) => {
+        const isDiscount = item.itemType === FolioItemType.DISCOUNT || item.itemType === "DISCOUNT";
+        if (isDiscount) {
+          const rawDiscount = new Prisma.Decimal(
+            item.discountAmountSnapshot ?? item.totalSnapshot ?? 0,
+          ).abs();
+          return {
+            subtotalAmount: acc.subtotalAmount,
+            taxAmount: acc.taxAmount,
+            discountAmount: acc.discountAmount.add(rawDiscount),
+            totalAmount: acc.totalAmount.sub(rawDiscount),
+          };
+        }
+        return {
+          subtotalAmount: acc.subtotalAmount.add(item.subtotalSnapshot ?? 0),
+          taxAmount: acc.taxAmount.add(item.taxAmountSnapshot ?? 0),
+          discountAmount: acc.discountAmount.add(item.discountAmountSnapshot ?? 0),
+          totalAmount: acc.totalAmount.add(item.totalSnapshot ?? 0),
+        };
+      },
       {
         subtotalAmount: new Prisma.Decimal(0),
         taxAmount: new Prisma.Decimal(0),
@@ -2324,7 +2397,17 @@ export class BillingService {
           });
         }
       } else if (rec.action === "provided") {
-        const priceSnapshot = extractBillingPriceSnapshot(req.metadata);
+        let priceSnapshot = extractBillingPriceSnapshot(req.metadata);
+        if (!priceSnapshot) {
+          const fallbackRaw =
+            req.serviceItem?.priceOverride ?? req.serviceItem?.category?.defaultPrice;
+          if (fallbackRaw !== undefined && fallbackRaw !== null) {
+            priceSnapshot = {
+              unitPrice: new Prisma.Decimal(fallbackRaw),
+              currency: folio.currency ?? "VND",
+            };
+          }
+        }
         if (!priceSnapshot) {
           throw new BadRequestException("Guest request is missing a valid billing price snapshot");
         }

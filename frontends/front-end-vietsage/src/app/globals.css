@@ -188,7 +188,8 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-be-vietnam-pro), "Be Vietnam Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  min-height: max(884px, 100dvh);
+  min-height: 100dvh;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -269,6 +270,12 @@ button:disabled,
 .vs-scroll-x {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.overflow-x-auto:not(.overflow-y-auto):not(.overflow-y-scroll),
+.overflow-x-scroll:not(.overflow-y-auto):not(.overflow-y-scroll),
+.vs-scroll-x {
+  overflow-y: hidden;
 }
 
 .vs-scroll-x::-webkit-scrollbar {
@@ -2255,6 +2262,21 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
   background: rgba(148, 163, 184, 0.55);
 }
 
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-button,
+::-webkit-scrollbar-button:single-button,
+::-webkit-scrollbar-button:vertical:start:decrement,
+::-webkit-scrollbar-button:vertical:end:increment,
+::-webkit-scrollbar-button:horizontal:start:decrement,
+::-webkit-scrollbar-button:horizontal:end:increment {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 ::-webkit-scrollbar-button {
   display: none;
   width: 0;
@@ -2286,7 +2308,22 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
   background: rgba(232, 179, 99, 0.6);
 }
 
-.custom-scrollbar::-webkit-scrollbar-button {
+.custom-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-button,
+::-webkit-scrollbar-button:single-button,
+::-webkit-scrollbar-button:vertical:start:decrement,
+::-webkit-scrollbar-button:vertical:end:increment,
+::-webkit-scrollbar-button:horizontal:start:decrement,
+::-webkit-scrollbar-button:horizontal:end:increment {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+::-webkit-scrollbar-button {
   display: none;
   width: 0;
   height: 0;

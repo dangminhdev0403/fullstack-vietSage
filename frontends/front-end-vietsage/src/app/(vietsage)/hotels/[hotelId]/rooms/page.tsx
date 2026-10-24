@@ -14,6 +14,7 @@ import { StaffRoomsClient } from "./staff-rooms-client";
 type PageProps = {
   params: Promise<{ hotelId: string }>;
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
+  baseRoutePrefix?: string;
 };
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ function getFirst(value: string | string[] | undefined): string | undefined {
 export default async function StaffRoomsPage({
   params,
   searchParams,
+  baseRoutePrefix,
 }: PageProps) {
   const { hotelId } = await Promise.resolve(params);
   const resolvedSearchParams = (await searchParams) ?? {};
@@ -43,7 +45,8 @@ export default async function StaffRoomsPage({
         : undefined;
   const initialStartDate = getFirst(resolvedSearchParams.startDate);
   const initialViewMode = getFirst(resolvedSearchParams.viewMode) as "week" | "biweek" | "month" | undefined;
-  const callbackUrl = `/hotels/${hotelId}/rooms` as const;
+  const routePrefix = baseRoutePrefix ?? "/hotels";
+  const callbackUrl = `${routePrefix}/${hotelId}/rooms` as const;
   const session = await auth();
   assertCanAccessHotelOps(session, callbackUrl);
   const tokens = await requireHotelOpsServerTokens(callbackUrl);
@@ -161,6 +164,7 @@ export default async function StaffRoomsPage({
       <section>
         <StaffRoomsClient
           hotelId={hotelId}
+          baseRoutePrefix={baseRoutePrefix}
           initialRoomsPage={roomsPage}
           initialByStatus={dashboard?.rooms.byStatus}
           canManageRooms={!isHousekeeping && context.permissions.includes("hotel.rooms.manage")}

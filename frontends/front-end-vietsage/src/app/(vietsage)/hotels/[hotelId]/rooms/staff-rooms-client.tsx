@@ -76,6 +76,7 @@ export type StaffRoomsClientProps = {
   initialView?: "grid" | "tape-chart";
   initialStartDate?: string;
   initialViewMode?: "week" | "biweek" | "month";
+  baseRoutePrefix?: string;
 };
 
 type RoomStatusFilter =
@@ -384,7 +385,7 @@ function StayOccupantsViewer({
           </p>
         </div>
 
-        <nav className="flex items-center gap-1.5 overflow-x-auto py-0.5">
+        <nav className="flex items-center gap-1.5 overflow-x-auto overflow-y-hidden py-0.5">
           <button
             type="button"
             onClick={() => setSelectedGuestIndex(0)}
@@ -637,6 +638,7 @@ export function StaffRoomsClient({
   initialView,
   initialStartDate,
   initialViewMode,
+  baseRoutePrefix,
 }: StaffRoomsClientProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -676,6 +678,7 @@ export function StaffRoomsClient({
   const [type, setType] = useState("all");
   const [zone, setZone] = useState("all");
   const [expandedFloors, setExpandedFloors] = useState<Set<string>>(new Set());
+  const [selectedFloorTab, setSelectedFloorTab] = useState<string>("all");
 
   const toggleFloorCollapse = (floorTitle: string) => {
     setExpandedFloors((prev) => {
@@ -730,6 +733,7 @@ export function StaffRoomsClient({
     setType("all");
     setZone("all");
     setStatus(defaultStatus);
+    setSelectedFloorTab("all");
     setPage(1);
   };
   const [selectedRoom, setSelectedRoom] = useState<HotelRoomSummary | null>(
@@ -1184,17 +1188,15 @@ export function StaffRoomsClient({
 
   function handleBusinessDateChange(newDate: string) {
     setBusinessDate(newDate);
-    const params = new URLSearchParams(window.location.search);
-    if (newDate && newDate !== todayYmd) {
-      params.set("businessDate", newDate);
-    } else {
-      params.delete("businessDate");
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (newDate && newDate !== todayYmd) {
+        url.searchParams.set("businessDate", newDate);
+      } else {
+        url.searchParams.delete("businessDate");
+      }
+      window.history.replaceState(null, "", url.toString());
     }
-    const queryStr = params.toString();
-    router.replace(
-      `/hotels/${encodeURIComponent(hotelId)}/rooms${queryStr ? `?${queryStr}` : ""}`,
-      { scroll: false },
-    );
   }
 
   function stepBusinessDate(offsetDays: number) {
@@ -3881,128 +3883,125 @@ export function StaffRoomsClient({
           }
         }}
         onClick={(e) => handleCardClick(room, e.currentTarget)}
-        className={`relative flex flex-col justify-between h-[310px] min-h-[310px] rounded-2xl p-4 text-left transition-all cursor-pointer select-none ${cardClass}`}
+        className={`relative flex w-full flex-col justify-between min-h-[220px] sm:min-h-[226px] overflow-hidden rounded-2xl p-3.5 sm:p-4 text-left transition-all cursor-pointer select-none ${cardClass}`}
       >
         {renderRoomAmbientGlow(effectiveStatus)}
 
-        {/* Header: Room Number, Room Type, VIP/Capacity Badge */}
+        {/* Header: Room Number, Room Type, VIP/Capacity Badge & Status Badge */}
         <div className="relative z-10 flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h3 className="vs-display text-2xl font-black tracking-tight text-slate-950">
-              {getRoomNumber(room)}
-            </h3>
-            <p className="text-xs font-bold text-slate-600 mt-0.5 truncate">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h3 className="vs-display text-2xl font-black tracking-tight text-slate-950 leading-none">
+                {getRoomNumber(room)}
+              </h3>
+              {isVip && (
+                <span className="rounded-md bg-amber-100 text-amber-950 border border-amber-300 px-1.5 py-0.5 text-xs font-black tracking-wide whitespace-nowrap">
+                  VIP
+                </span>
+              )}
+            </div>
+            <p className="text-xs font-semibold text-slate-600 mt-1 truncate">
               {room.type ?? "Tiêu chuẩn"}
+              {room.maxOccupancy ? ` · ${room.maxOccupancy} khách` : ""}
             </p>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            {isVip ? (
-              <span className="rounded-full bg-amber-100 text-amber-950 border border-amber-300 px-2.5 py-0.5 text-xs font-black tracking-wider whitespace-nowrap">
-                VIP
-              </span>
-            ) : room.maxOccupancy ? (
-              <span className="rounded-full bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 text-xs font-semibold whitespace-nowrap">
-                {room.maxOccupancy} khách
-              </span>
-            ) : null}
-          </div>
-        </div>
 
-        {/* Status Pill Badge */}
-        <div className="relative z-10 mt-2">
-          {stateCategory === "turnaround" ? (
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 text-amber-950 border border-amber-300 px-2.5 py-0.5 text-xs font-black shadow-2xs whitespace-nowrap">
-              <span className="size-2 rounded-full bg-amber-500 animate-pulse" />
-              <span>Khách out & in tiếp theo</span>
-            </div>
-          ) : stateCategory === "departing_today" ? (
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200 px-2.5 py-0.5 text-xs font-black whitespace-nowrap">
-              <span className="size-2 rounded-full bg-amber-500" />
-              <span>Khách out hôm nay</span>
-            </div>
-          ) : stateCategory === "arriving_today" ? (
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-purple-50 text-purple-900 border border-purple-200 px-2.5 py-0.5 text-xs font-black whitespace-nowrap">
-              <span className="size-2 rounded-full bg-purple-600" />
-              <span>Khách in hôm nay</span>
-            </div>
-          ) : stateCategory === "occupied" ? (
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 text-blue-900 border border-blue-200 px-2.5 py-0.5 text-xs font-black whitespace-nowrap">
-              <span className="size-2 rounded-full bg-blue-600" />
-              <span>Có khách đang ở</span>
-            </div>
-          ) : stateCategory === "overdue" ? (
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 text-rose-950 border border-rose-300 px-2.5 py-0.5 text-xs font-black whitespace-nowrap animate-pulse">
-              <VsIcon name="warning" className="text-xs text-rose-600 shrink-0" />
-              <span>Quá hạn trả phòng</span>
-            </div>
-          ) : stateCategory === "processing" ? (
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200 px-2.5 py-0.5 text-xs font-black whitespace-nowrap">
-              <VsIcon
-                name="cleaning_services"
-                className="text-xs text-amber-600 shrink-0"
-              />
-              <span>Chờ dọn buồng phòng</span>
-            </div>
-          ) : stateCategory === "blocked" ? (
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
-              <VsIcon name="lock" className="text-xs text-slate-600 shrink-0" />
-              <span>Đã khóa phòng</span>
-            </div>
-          ) : stateCategory === "maintenance" ? (
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
-              <VsIcon name="build" className="text-xs text-slate-600 shrink-0" />
-              <span>Đang bảo trì</span>
-            </div>
-          ) : (
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-900 border border-emerald-200 px-2.5 py-0.5 text-xs font-black whitespace-nowrap">
-              <span className="size-2 rounded-full bg-emerald-500" />
-              <span>Sẵn sàng đón khách</span>
-            </div>
-          )}
+          {/* Top-Right: Status Pill Badge */}
+          <div className="shrink-0 pt-0.5">
+            {stateCategory === "turnaround" ? (
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 text-amber-950 border border-amber-300 px-2.5 py-0.5 text-xs font-black shadow-2xs whitespace-nowrap">
+                <span className="size-2 rounded-full bg-amber-500 animate-pulse" />
+                <span>Khách out & in</span>
+              </div>
+            ) : stateCategory === "departing_today" ? (
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200 px-2.5 py-0.5 text-xs font-black whitespace-nowrap">
+                <span className="size-2 rounded-full bg-amber-500" />
+                <span>Khách out hôm nay</span>
+              </div>
+            ) : stateCategory === "arriving_today" ? (
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-purple-50 text-purple-900 border border-purple-200 px-2.5 py-0.5 text-xs font-black whitespace-nowrap">
+                <span className="size-2 rounded-full bg-purple-600" />
+                <span>Khách in hôm nay</span>
+              </div>
+            ) : stateCategory === "occupied" ? (
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 text-blue-900 border border-blue-200 px-2.5 py-0.5 text-xs font-black whitespace-nowrap">
+                <span className="size-2 rounded-full bg-blue-600" />
+                <span>Có khách đang ở</span>
+              </div>
+            ) : stateCategory === "overdue" ? (
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 text-rose-950 border border-rose-300 px-2.5 py-0.5 text-xs font-black whitespace-nowrap animate-pulse">
+                <VsIcon name="warning" className="text-xs text-rose-600 shrink-0" />
+                <span>Quá hạn trả phòng</span>
+              </div>
+            ) : stateCategory === "processing" ? (
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200 px-2.5 py-0.5 text-xs font-black whitespace-nowrap">
+                <VsIcon
+                  name="cleaning_services"
+                  className="text-xs text-amber-600 shrink-0"
+                />
+                <span>Chờ dọn buồng</span>
+              </div>
+            ) : stateCategory === "blocked" ? (
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+                <VsIcon name="lock" className="text-xs text-slate-600 shrink-0" />
+                <span>Đã khóa phòng</span>
+              </div>
+            ) : stateCategory === "maintenance" ? (
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+                <VsIcon name="build" className="text-xs text-slate-600 shrink-0" />
+                <span>Đang bảo trì</span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-900 border border-emerald-200 px-2.5 py-0.5 text-xs font-black whitespace-nowrap">
+                <span className="size-2 rounded-full bg-emerald-500" />
+                <span>Sẵn sàng đón khách</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Middle Body: Guest Info & Check-in / Check-out Dates */}
-        <div className="relative z-10 my-2 flex-1 flex flex-col justify-center">
+        <div className="relative z-10 my-auto flex flex-col justify-center py-1">
           {stateCategory === "turnaround" ? (
-            <div className="flex flex-col gap-1.5 text-xs">
-              <div className="rounded-xl bg-amber-50/90 border border-amber-200/80 p-2">
+            <div className="flex flex-col gap-1.5">
+              <div className="rounded-xl bg-amber-50/90 border border-amber-200/80 px-2.5 py-1.5">
                 <div className="flex items-center justify-between gap-1">
-                  <div className="flex items-center gap-1.5 font-extrabold text-amber-950 truncate min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 font-black text-amber-950 truncate min-w-0 flex-1">
                     <VsIcon
                       name="logout"
                       className="text-xs text-amber-600 shrink-0"
                     />
-                    <span className="truncate">
+                    <span className="truncate text-xs sm:text-sm">
                       {cleanGuestDisplayName(stay?.guestDisplayName) || "Khách đang ở"}
                     </span>
                     {stay?.guestPhone && (
-                      <span className="text-amber-900/80 font-bold shrink-0 whitespace-nowrap">
+                      <span className="text-amber-900/80 font-bold shrink-0 whitespace-nowrap text-xs">
                         · {stay.guestPhone}
                       </span>
                     )}
                   </div>
-                  <span className="text-amber-800 font-black whitespace-nowrap shrink-0">
+                  <span className="text-amber-900 font-black whitespace-nowrap shrink-0 text-xs sm:text-sm bg-amber-100/90 px-1.5 py-0.5 rounded">
                     Out: {formatTimeOnly(stay?.plannedCheckOutAt) || "12:00"}
                   </span>
                 </div>
               </div>
-              <div className="rounded-xl bg-purple-50/90 border border-purple-200/80 p-2">
+              <div className="rounded-xl bg-purple-50/90 border border-purple-200/80 px-2.5 py-1.5">
                 <div className="flex items-center justify-between gap-1">
-                  <div className="flex items-center gap-1.5 font-extrabold text-purple-950 truncate min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 font-black text-purple-950 truncate min-w-0 flex-1">
                     <VsIcon
                       name="login"
                       className="text-xs text-purple-600 shrink-0"
                     />
-                    <span className="truncate">
+                    <span className="truncate text-xs sm:text-sm">
                       {cleanGuestDisplayName(incomingGuestName) || "Khách đặt trước"}
                     </span>
                     {incomingPhone && (
-                      <span className="text-purple-900/80 font-bold shrink-0 whitespace-nowrap">
+                      <span className="text-purple-900/80 font-bold shrink-0 whitespace-nowrap text-xs">
                         · {incomingPhone}
                       </span>
                     )}
                   </div>
-                  <span className="text-purple-800 font-black whitespace-nowrap shrink-0">
+                  <span className="text-purple-900 font-black whitespace-nowrap shrink-0 text-xs sm:text-sm bg-purple-100/90 px-1.5 py-0.5 rounded">
                     In: {formatTimeOnly(incomingCheckInAt) || "14:00"}
                   </span>
                 </div>
@@ -4011,13 +4010,13 @@ export function StaffRoomsClient({
           ) : stateCategory === "departing_today" ||
             stateCategory === "occupied" ||
             stateCategory === "overdue" ? (
-            <div className="flex flex-col gap-1.5 text-xs">
+            <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-1.5 text-slate-900 min-w-0">
                 <VsIcon
                   name="person"
-                  className="text-sm text-sky-600 shrink-0"
+                  className="text-base text-sky-600 shrink-0"
                 />
-                <span className="truncate text-sm font-extrabold">
+                <span className="truncate text-sm font-black text-slate-950">
                   {cleanGuestDisplayName(stay?.guestDisplayName) || "Khách lưu trú"}
                 </span>
                 {stay?.guestPhone && (
@@ -4027,16 +4026,16 @@ export function StaffRoomsClient({
                 )}
               </div>
               {matchedOccupant && (
-                <div className="text-xs font-bold text-sky-900 bg-sky-100/80 px-2 py-0.5 rounded-md w-fit truncate">
+                <div className="text-xs font-bold text-sky-900 bg-sky-100/90 px-2 py-0.5 rounded-md w-fit truncate">
                   Đi cùng: {matchedOccupant.fullName}
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-slate-50 border border-slate-200/80 p-2 text-xs">
+              <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-50/90 border border-slate-200/90 p-2 sm:p-2.5">
                 <div>
                   <span className="text-xs font-bold text-slate-500 block">
                     Check-in
                   </span>
-                  <span className="font-extrabold text-slate-800 whitespace-nowrap">
+                  <span className="text-sm font-black text-slate-900 whitespace-nowrap block mt-0.5">
                     {formatDateTime(stay?.checkedInAt || stay?.plannedCheckInAt)}
                   </span>
                 </div>
@@ -4045,12 +4044,12 @@ export function StaffRoomsClient({
                     Check-out
                   </span>
                   <span
-                    className={`font-extrabold whitespace-nowrap ${
+                    className={`text-sm font-black whitespace-nowrap block mt-0.5 ${
                       stateCategory === "departing_today"
-                        ? "text-amber-800 bg-amber-100 px-1 py-0.5 rounded"
+                        ? "text-amber-900 bg-amber-100/90 px-1.5 py-0.5 rounded-md inline-block"
                         : stateCategory === "overdue"
-                          ? "text-rose-800 bg-rose-100 px-1 py-0.5 rounded animate-pulse"
-                          : "text-slate-800"
+                          ? "text-rose-950 bg-rose-100/90 px-1.5 py-0.5 rounded-md inline-block animate-pulse"
+                          : "text-slate-900"
                     }`}
                   >
                     {formatDateTime(stay?.plannedCheckOutAt)}
@@ -4059,81 +4058,81 @@ export function StaffRoomsClient({
               </div>
             </div>
           ) : stateCategory === "arriving_today" ? (
-            <div className="flex flex-col gap-1.5 text-xs">
-              <div className="flex items-center justify-between gap-1 min-w-0">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between gap-1.5 min-w-0">
                 <div className="flex items-center gap-1.5 text-purple-950 min-w-0 flex-1">
                   <VsIcon
                     name="person"
-                    className="text-sm text-purple-600 shrink-0"
+                    className="text-base text-purple-600 shrink-0"
                   />
-                  <span className="truncate text-sm font-extrabold">
+                  <span className="truncate text-sm font-black text-slate-950">
                     {cleanGuestDisplayName(incomingGuestName) || "Khách đặt trước"}
                   </span>
                   {incomingPhone && (
-                    <span className="text-xs font-bold text-purple-800 shrink-0 whitespace-nowrap">
+                    <span className="text-xs font-bold text-slate-600 shrink-0 whitespace-nowrap">
                       · {incomingPhone}
                     </span>
                   )}
                 </div>
                 {incomingSource && (
-                  <span className="text-xs font-bold text-purple-700 whitespace-nowrap bg-purple-100 px-1.5 py-0.5 rounded shrink-0">
+                  <span className="text-xs font-bold text-purple-700 whitespace-nowrap bg-purple-100/90 border border-purple-200/80 px-1.5 py-0.5 rounded-md shrink-0">
                     {incomingSource}
                   </span>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-purple-50/70 border border-purple-200/80 p-2 text-xs">
+              <div className="grid grid-cols-2 gap-2 rounded-xl bg-purple-50/80 border border-purple-200/80 p-2 sm:p-2.5">
                 <div>
-                  <span className="text-xs font-bold text-purple-700 block">
+                  <span className="text-xs font-bold text-purple-800 block">
                     Dự kiến đến
                   </span>
-                  <span className="font-extrabold text-purple-950 whitespace-nowrap">
+                  <span className="text-sm font-black text-purple-950 whitespace-nowrap block mt-0.5">
                     {formatDateTime(incomingCheckInAt)}
                   </span>
                 </div>
                 <div>
-                  <span className="text-xs font-bold text-purple-700 block">
+                  <span className="text-xs font-bold text-purple-800 block">
                     Dự kiến trả
                   </span>
-                  <span className="font-extrabold text-purple-900 whitespace-nowrap">
+                  <span className="text-sm font-black text-purple-950 whitespace-nowrap block mt-0.5">
                     {formatDateTime(incomingCheckOutAt)}
                   </span>
                 </div>
               </div>
             </div>
           ) : stateCategory === "available" ? (
-            <div className="flex flex-col gap-1 text-xs justify-center">
+            <div className="flex flex-col justify-center">
               {room.upcomingReservation ? (
-                <div className="rounded-xl bg-purple-50/70 border border-purple-200/80 p-2 space-y-1">
+                <div className="flex flex-col gap-1.5">
                   <div className="flex items-center gap-1.5 text-purple-900 font-extrabold truncate min-w-0">
                     <VsIcon
                       name="event"
-                      className="text-xs text-purple-600 shrink-0"
+                      className="text-sm text-purple-600 shrink-0"
                     />
-                    <span className="truncate">
+                    <span className="truncate text-sm font-black text-slate-900">
                       Lịch: {cleanGuestDisplayName(room.upcomingReservation.guestDisplayName)}
                     </span>
                     {room.upcomingReservation.guestPhone && (
-                      <span className="text-purple-800 font-bold shrink-0 whitespace-nowrap">
+                      <span className="text-xs font-bold text-purple-800 shrink-0 whitespace-nowrap">
                         · {room.upcomingReservation.guestPhone}
                       </span>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-1 text-xs">
+                  <div className="grid grid-cols-2 gap-2 rounded-xl bg-purple-50/80 border border-purple-200/80 p-2 sm:p-2.5">
                     <div>
-                      <span className="text-purple-600 font-medium block">
-                        Nhận:
+                      <span className="text-xs font-bold text-purple-700 block">
+                        Nhận phòng
                       </span>
-                      <span className="font-bold text-purple-950 whitespace-nowrap">
+                      <span className="text-sm font-black text-purple-950 whitespace-nowrap block mt-0.5">
                         {formatDateTime(
                           room.upcomingReservation.plannedCheckInAt,
                         )}
                       </span>
                     </div>
                     <div>
-                      <span className="text-purple-600 font-medium block">
-                        Trả:
+                      <span className="text-xs font-bold text-purple-700 block">
+                        Trả phòng
                       </span>
-                      <span className="font-bold text-purple-950 whitespace-nowrap">
+                      <span className="text-sm font-black text-purple-950 whitespace-nowrap block mt-0.5">
                         {formatDateTime(
                           room.upcomingReservation.plannedCheckOutAt,
                         )}
@@ -4142,55 +4141,67 @@ export function StaffRoomsClient({
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-2 text-center text-emerald-800">
-                  <VsIcon
-                    name="check_circle"
-                    className="text-2xl text-emerald-500 mb-0.5"
-                  />
-                  <p className="font-bold text-xs text-emerald-950">
-                    Phòng sạch & Sẵn sàng
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Chưa có lịch đặt hôm nay
-                  </p>
+                <div className="flex items-center gap-3 rounded-xl bg-emerald-50/80 border border-emerald-200/80 p-2.5 sm:p-3">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+                    <VsIcon
+                      name="check_circle"
+                      className="text-xl"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-black text-sm text-emerald-950 truncate">
+                      Phòng sạch & Sẵn sàng
+                    </p>
+                    <p className="text-xs font-medium text-emerald-800/80 truncate mt-0.5">
+                      Chưa có lịch đặt hôm nay
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
           ) : stateCategory === "processing" ? (
-            <div className="flex flex-col items-center justify-center py-2 text-center text-amber-900">
-              <VsIcon
-                name="cleaning_services"
-                className="text-2xl text-amber-500 mb-0.5"
-              />
-              <p className="font-bold text-xs text-amber-950">
-                Chờ buồng phòng dọn dẹp
-              </p>
-              <p className="text-xs text-slate-500">
-                {isInToday
-                  ? "Có khách sắp nhận hôm nay!"
-                  : "Chưa hoàn tất vệ sinh"}
-              </p>
+            <div className="flex items-center gap-3 rounded-xl bg-amber-50/80 border border-amber-200/80 p-2.5 sm:p-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                <VsIcon
+                  name="cleaning_services"
+                  className="text-xl"
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-black text-sm text-amber-950 truncate">
+                  Chờ buồng phòng dọn dẹp
+                </p>
+                <p className="text-xs font-medium text-amber-900/80 truncate mt-0.5">
+                  {isInToday
+                    ? "Có khách sắp nhận hôm nay!"
+                    : "Chưa hoàn tất vệ sinh"}
+                </p>
+              </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-2 text-center text-slate-700">
-              <VsIcon
-                name={stateCategory === "blocked" ? "lock" : "build"}
-                className="text-2xl text-slate-400 mb-0.5"
-              />
-              <p className="font-bold text-xs text-slate-900">
-                {stateCategory === "blocked"
-                  ? "Đã khóa phòng"
-                  : "Đang bảo trì"}
-              </p>
-              <p className="text-xs text-slate-500">
-                Tạm thời ngừng đón khách
-              </p>
+            <div className="flex items-center gap-3 rounded-xl bg-slate-100/80 border border-slate-200/90 p-2.5 sm:p-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-slate-200/80 text-slate-600">
+                <VsIcon
+                  name={stateCategory === "blocked" ? "lock" : "build"}
+                  className="text-xl"
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-black text-sm text-slate-900 truncate">
+                  {stateCategory === "blocked"
+                    ? "Đã khóa phòng"
+                    : "Đang bảo trì"}
+                </p>
+                <p className="text-xs font-medium text-slate-500 truncate mt-0.5">
+                  Tạm thời ngừng đón khách
+                </p>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Footer: Direct Touch Action Buttons (Box bỏ giá theo yêu cầu) */}
-        <div className="relative z-10 mt-auto border-t border-slate-200/80 pt-2.5">
+        {/* Footer: Direct Touch Action Buttons */}
+        <div className="relative z-10 mt-auto border-t border-slate-200/80 pt-2 sm:pt-2.5">
           {isHousekeeping ? (
             effectiveStatus === "processing" ? (
               <button
@@ -4199,13 +4210,13 @@ export function StaffRoomsClient({
                   e.stopPropagation();
                   void confirmRoomReady(room);
                 }}
-                className="flex w-full min-h-[40px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
+                className="flex w-full h-9 sm:h-[38px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
               >
                 <VsIcon name="check_circle" className="text-base shrink-0" />
                 <span>Xác nhận phòng đã dọn xong</span>
               </button>
             ) : (
-              <div className="flex w-full min-h-[40px] items-center justify-center rounded-xl bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200">
+              <div className="flex w-full h-9 sm:h-[38px] items-center justify-center rounded-xl bg-slate-100 text-slate-700 text-xs sm:text-sm font-bold border border-slate-200">
                 <span>Trạng thái: {roomStatusLabel(effectiveStatus)}</span>
               </div>
             )
@@ -4217,7 +4228,7 @@ export function StaffRoomsClient({
                   e.stopPropagation();
                   openWalkIn(room);
                 }}
-                className="flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
+                className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
               >
                 <VsIcon name="login" className="text-base shrink-0" />
                 <span>Nhận phòng</span>
@@ -4228,7 +4239,7 @@ export function StaffRoomsClient({
                   e.stopPropagation();
                   openFutureReservationModal(room);
                 }}
-                className="flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs sm:text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
               >
                 <VsIcon name="event" className="text-base shrink-0" />
                 <span>Đặt trước</span>
@@ -4242,7 +4253,7 @@ export function StaffRoomsClient({
                   e.stopPropagation();
                   openRoomContextPanel(room, e.currentTarget);
                 }}
-                className="flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
+                className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
               >
                 <VsIcon name="logout" className="text-base shrink-0" />
                 <span>Trả phòng</span>
@@ -4257,7 +4268,7 @@ export function StaffRoomsClient({
                     openRoomContextPanel(room, e.currentTarget);
                   }
                 }}
-                className="flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
+                className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
               >
                 <VsIcon name="login" className="text-base shrink-0" />
                 <span>Nhận phòng</span>
@@ -4270,7 +4281,7 @@ export function StaffRoomsClient({
                 e.stopPropagation();
                 openRoomContextPanel(room, e.currentTarget);
               }}
-              className="flex w-full min-h-[40px] items-center justify-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
+              className="flex w-full h-9 sm:h-[38px] items-center justify-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
             >
               <VsIcon name="logout" className="text-base shrink-0" />
               <span>Chi tiết & Trả phòng</span>
@@ -4290,7 +4301,7 @@ export function StaffRoomsClient({
                   openRoomContextPanel(room, e.currentTarget);
                 }
               }}
-              className="flex w-full min-h-[40px] items-center justify-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
+              className="flex w-full h-9 sm:h-[38px] items-center justify-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
             >
               <VsIcon name="login" className="text-base shrink-0" />
               <span>Làm thủ tục nhận phòng</span>
@@ -4302,7 +4313,7 @@ export function StaffRoomsClient({
                 e.stopPropagation();
                 openRoomContextPanel(room, e.currentTarget);
               }}
-              className="flex w-full min-h-[40px] items-center justify-center gap-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-extrabold text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
+              className="flex w-full h-9 sm:h-[38px] items-center justify-center gap-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
             >
               <VsIcon name="info" className="text-base shrink-0" />
               <span>Chi tiết lưu trú & Hóa đơn</span>
@@ -4314,7 +4325,7 @@ export function StaffRoomsClient({
                 e.stopPropagation();
                 openRoomContextPanel(room, e.currentTarget);
               }}
-              className="flex w-full min-h-[40px] items-center justify-center gap-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-extrabold text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
+              className="flex w-full h-9 sm:h-[38px] items-center justify-center gap-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
             >
               <VsIcon name="warning" className="text-base shrink-0" />
               <span>Xử lý trả phòng quá hạn</span>
@@ -4327,7 +4338,7 @@ export function StaffRoomsClient({
                   e.stopPropagation();
                   void confirmRoomReady(room);
                 }}
-                className="flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
+                className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
               >
                 <VsIcon name="check" className="text-base shrink-0" />
                 <span>Đã dọn xong</span>
@@ -4338,7 +4349,7 @@ export function StaffRoomsClient({
                   e.stopPropagation();
                   openRoomContextPanel(room, e.currentTarget);
                 }}
-                className="flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs sm:text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
               >
                 <VsIcon name="tune" className="text-base shrink-0" />
                 <span>Chi tiết</span>
@@ -4351,7 +4362,7 @@ export function StaffRoomsClient({
                 e.stopPropagation();
                 openRoomContextPanel(room, e.currentTarget);
               }}
-              className="flex w-full min-h-[40px] items-center justify-center gap-2 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer"
+              className="flex w-full h-9 sm:h-[38px] items-center justify-center gap-2 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs sm:text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
             >
               <VsIcon name="tune" className="text-base shrink-0" />
               <span>Cập nhật trạng thái</span>
@@ -4379,6 +4390,17 @@ export function StaffRoomsClient({
   const roomsByFloor = Array.from(roomsByFloorMap.entries()).sort(([a], [b]) =>
     a.localeCompare(b, undefined, { numeric: true }),
   );
+
+  const activeFloorTab = useMemo(() => {
+    if (selectedFloorTab === "all") return "all";
+    const exists = roomsByFloor.some(([fl]) => fl === selectedFloorTab);
+    return exists ? selectedFloorTab : "all";
+  }, [roomsByFloor, selectedFloorTab]);
+
+  const displayedRoomsByFloor = useMemo(() => {
+    if (activeFloorTab === "all") return roomsByFloor;
+    return roomsByFloor.filter(([floorTitle]) => floorTitle === activeFloorTab);
+  }, [roomsByFloor, activeFloorTab]);
 
   function renderHousekeepingTaskCard(room: HotelRoomSummary) {
     const effectiveStatus = getEffectiveRoomStatus(room, false);
@@ -5121,13 +5143,15 @@ export function StaffRoomsClient({
               params.set("stayId", stayId);
               if (roomNum) params.set("roomNumber", roomNum);
 
+              const routePrefix = baseRoutePrefix ?? "/hotels";
               if (typeof window !== "undefined") {
-                window.open(`/hotels/${encodeURIComponent(hotelId)}/billing?${params.toString()}`, "_blank");
+                window.open(`${routePrefix}/${encodeURIComponent(hotelId)}/billing?${params.toString()}`, "_blank");
               }
             } catch {
+              const routePrefix = baseRoutePrefix ?? "/hotels";
               if (typeof window !== "undefined") {
                 window.open(
-                  `/hotels/${encodeURIComponent(hotelId)}/billing?stayId=${encodeURIComponent(stayId)}&roomNumber=${encodeURIComponent(roomNum)}`,
+                  `${routePrefix}/${encodeURIComponent(hotelId)}/billing?stayId=${encodeURIComponent(stayId)}&roomNumber=${encodeURIComponent(roomNum)}`,
                   "_blank",
                 );
               }
@@ -5161,12 +5185,11 @@ export function StaffRoomsClient({
                   onClick={() => {
                     if (floor !== "all") {
                       setFloor("all");
-                      setPage(1);
                     }
-                    window.scrollTo({ top: 380, behavior: "smooth" });
+                    setSelectedFloorTab("all");
                   }}
                   className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                    floor === "all"
+                    activeFloorTab === "all"
                       ? "bg-slate-900 text-white shadow-xs"
                       : "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900"
                   }`}
@@ -5175,7 +5198,7 @@ export function StaffRoomsClient({
                   <span>Tất cả</span>
                   <span
                     className={`rounded-full px-1.5 py-0.2 text-xs font-black ${
-                      floor === "all"
+                      activeFloorTab === "all"
                         ? "bg-white/20 text-white"
                         : "bg-slate-200 text-slate-700"
                     }`}
@@ -5185,22 +5208,36 @@ export function StaffRoomsClient({
                 </button>
 
                 {roomsByFloor.map(([floorTitle, floorRooms]) => {
+                  const isActive = activeFloorTab === floorTitle;
                   return (
                     <button
                       key={floorTitle}
                       type="button"
                       onClick={() => {
-                        const targetId = `floor-group-${encodeURIComponent(floorTitle)}`;
-                        const el = document.getElementById(targetId);
-                        if (el) {
-                          el.scrollIntoView({ behavior: "smooth", block: "start" });
+                        if (floor !== "all") {
+                          setFloor("all");
                         }
+                        setSelectedFloorTab(isActive ? "all" : floorTitle);
                       }}
-                      className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap bg-sky-50 text-sky-800 hover:bg-sky-100 border border-sky-200/80 shadow-2xs"
-                      title={`Nhảy tới ${floorTitle}`}
+                      className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
+                        isActive
+                          ? "bg-sky-700 text-white border border-sky-700 shadow-xs"
+                          : "bg-sky-50 text-sky-800 hover:bg-sky-100 border border-sky-200/80"
+                      }`}
+                      title={
+                        isActive
+                          ? `Đang xem: ${floorTitle} (Nhấn để xem tất cả)`
+                          : `Chỉ hiển thị ${floorTitle}`
+                      }
                     >
                       <span>{floorTitle}</span>
-                      <span className="rounded-full px-1.5 py-0.2 text-xs font-black bg-white text-sky-900 border border-sky-200">
+                      <span
+                        className={`rounded-full px-1.5 py-0.2 text-xs font-black ${
+                          isActive
+                            ? "bg-white/25 text-white"
+                            : "bg-white text-sky-900 border border-sky-200"
+                        }`}
+                      >
                         {floorRooms.length}
                       </span>
                     </button>
@@ -5220,7 +5257,7 @@ export function StaffRoomsClient({
 
           {isHousekeeping && housekeepingViewMode === "tasklist" ? (
             <div className="space-y-6">
-              {roomsByFloor.map(([floorTitle, floorRooms]) => {
+              {displayedRoomsByFloor.map(([floorTitle, floorRooms]) => {
                 const processingCount = floorRooms.filter(
                   (r) => getEffectiveRoomStatus(r, false) === "processing",
                 ).length;
@@ -5296,7 +5333,7 @@ export function StaffRoomsClient({
             </div>
           ) : (
             <div className="space-y-5">
-              {roomsByFloor.map(([floorTitle, floorRooms]) => {
+              {displayedRoomsByFloor.map(([floorTitle, floorRooms]) => {
                 const availableCount = floorRooms.filter(
                   (r) => getEffectiveRoomStatus(r, isFutureDate) === "available",
                 ).length;
@@ -5384,7 +5421,7 @@ export function StaffRoomsClient({
                       <div className="flex items-center gap-1.5 ml-auto">
                         <button
                           type="button"
-                          onClick={() => scrollFloorRow(floorTitle, -320)}
+                          onClick={() => scrollFloorRow(floorTitle, -300)}
                           className="flex size-7 sm:size-8 items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 shadow-2xs transition active:scale-95 cursor-pointer"
                           title="Cuộn sang trái"
                         >
@@ -5395,7 +5432,7 @@ export function StaffRoomsClient({
                         </button>
                         <button
                           type="button"
-                          onClick={() => scrollFloorRow(floorTitle, 320)}
+                          onClick={() => scrollFloorRow(floorTitle, 300)}
                           className="flex size-7 sm:size-8 items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 shadow-2xs transition active:scale-95 cursor-pointer"
                           title="Cuộn sang phải"
                         >
@@ -5413,12 +5450,12 @@ export function StaffRoomsClient({
                         if (el) floorScrollRefMap.current.set(floorTitle, el);
                         else floorScrollRefMap.current.delete(floorTitle);
                       }}
-                      className="mt-3.5 flex gap-3.5 overflow-x-auto pb-3 pt-1 scroll-smooth snap-x scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100/60 hover:scrollbar-thumb-slate-400"
+                      className="mt-3.5 flex gap-3.5 overflow-x-auto overflow-y-hidden pb-3 pt-1 scroll-smooth snap-x"
                     >
                       {floorRooms.map((room) => (
                         <div
                           key={room.id}
-                          className="w-[290px] sm:w-[310px] shrink-0 snap-start"
+                          className="flex w-[270px] sm:w-[285px] shrink-0 snap-start"
                         >
                           {renderRoomCard(room)}
                         </div>

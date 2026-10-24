@@ -2972,7 +2972,7 @@ export function TapeChartView({
       if (confirmRes.isConfirmed) {
         extendStayMutation.mutate({
           stayId,
-          plannedCheckOutAt: `${currentGhostEndDay}T12:00:00.000Z`,
+          plannedCheckOutAt: `${currentGhostEndDay}T12:00:00+07:00`,
           newEndDate: currentGhostEndDay,
         });
       }
