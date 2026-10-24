@@ -19,7 +19,6 @@ import {
   trustedAlertHtml,
 } from "@/libs/swal";
 
-import { KbttConnectionPage } from "./kbtt-connection-page";
 import { useKbttPreferencesStore } from "../store/kbtt-preferences-store";
 import { kbttResource } from "../resources/kbtt-resource";
 import { useKbttConnection } from "../hooks/use-kbtt-connection";
@@ -635,9 +634,6 @@ export function KbttDeclarationsPage({
   const connectionData = connectionQuery.data;
   const isConnected = connectionData?.status === "CONNECTED";
 
-  const [activeTab, setActiveTab] = useState<"declarations" | "connection">(
-    initialTab,
-  );
   const [page, setPage] = useState(1);
   const limit = useKbttPreferencesStore((state) => state.pageSize);
   const setPageSize = useKbttPreferencesStore((state) => state.setPageSize);
@@ -828,19 +824,6 @@ export function KbttDeclarationsPage({
     void queryClient.invalidateQueries({ queryKey: boundResource.key });
     void connectionQuery.refetch();
   }, [boundResource, connectionQuery, queryClient]);
-
-  const handleSwitchTab = useCallback((tab: "declarations" | "connection") => {
-    setActiveTab(tab);
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      if (tab === "connection") {
-        url.searchParams.set("tab", "connection");
-      } else {
-        url.searchParams.delete("tab");
-      }
-      window.history.replaceState(null, "", url.toString());
-    }
-  }, []);
 
   const updateInlineField = useCallback(
     (
@@ -1353,54 +1336,11 @@ export function KbttDeclarationsPage({
     );
   }, []);
 
-  if (activeTab === "connection" && canConfigure) {
-    return (
-      <div className="w-full space-y-6 pb-16 pt-1 text-slate-900">
-        <div className="flex border-b border-slate-200">
-          <button
-            type="button"
-            onClick={() => handleSwitchTab("declarations")}
-            className="inline-flex items-center gap-2 border-b-2 border-transparent px-5 py-3 text-base font-semibold text-slate-500 hover:border-slate-300 hover:text-slate-700 transition-colors"
-          >
-            Hồ sơ khai báo
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSwitchTab("connection")}
-            className="inline-flex items-center gap-2 border-b-2 border-[#064e3b] px-5 py-3 text-base font-semibold text-[#064e3b] transition-colors"
-          >
-            Cấu hình kết nối BCA
-          </button>
-        </div>
-        <KbttConnectionPage hotelId={hotelId} canManage={canManageConnection} canManageAutoSubmit={canManage} />
-      </div>
-    );
-  }
-
   return (
     <div
       className="w-full space-y-6 pb-16 pt-1 text-slate-900"
       aria-labelledby="declarations-title"
     >
-      {canConfigure && (
-        <div className="flex border-b border-slate-200">
-          <button
-            type="button"
-            onClick={() => handleSwitchTab("declarations")}
-            className="inline-flex items-center gap-2 border-b-2 border-[#064e3b] px-5 py-3 text-base font-semibold text-[#064e3b] transition-colors"
-          >
-            Hồ sơ khai báo
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSwitchTab("connection")}
-            className="inline-flex items-center gap-2 border-b-2 border-transparent px-5 py-3 text-base font-semibold text-slate-500 hover:border-slate-300 hover:text-slate-700 transition-colors"
-          >
-            Cấu hình kết nối BCA
-          </button>
-        </div>
-      )}
-
       {/* Header */}
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -1409,25 +1349,14 @@ export function KbttDeclarationsPage({
           </p>
           <h1
             id="declarations-title"
-            className="mt-1 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl"
+            className="mt-1 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl text-balance"
           >
             Chỉnh sửa & Gửi BCA theo danh sách
           </h1>
-          <p className="mt-1 text-base text-slate-600">
+          <p className="mt-1 text-base text-slate-600 text-pretty">
             Chỉnh sửa thông tin nhiều khách cùng lúc và gửi BCA hàng loạt. Mỗi
             dòng là một khách đang lưu trú.
           </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {canConfigure && (
-            <button
-              type="button"
-              onClick={() => handleSwitchTab("connection")}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-base font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition-colors"
-            >
-              Cấu hình kết nối BCA
-            </button>
-          )}
         </div>
       </header>
 
@@ -1532,17 +1461,16 @@ export function KbttDeclarationsPage({
 
             <div className="flex items-center gap-2">
               {canConfigure ? (
-                <button
-                  type="button"
-                  onClick={() => handleSwitchTab("connection")}
+                <a
+                  href={`/owner/hotels/${encodeURIComponent(hotelId)}/settings?tab=integrations`}
                   className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-amber-800 px-4 py-1.5 text-sm font-semibold text-white shadow-xs hover:bg-amber-900 transition-colors"
                 >
                   <WrenchIcon className="h-4 w-4 text-amber-200" />
-                  <span>Đăng nhập / Cấu hình kết nối BCA</span>
-                </button>
+                  <span>Cấu hình tại Thiết lập</span>
+                </a>
               ) : (
                 <span className="text-xs font-medium text-amber-800 italic">
-                  Vui lòng liên hệ Quản lý / Chủ khách sạn kết nối tài khoản BCA
+                  Vui lòng liên hệ Quản lý / Chủ khách sạn cấu hình kết nối BCA trong mục Thiết lập
                 </span>
               )}
             </div>

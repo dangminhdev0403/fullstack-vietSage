@@ -23,7 +23,10 @@ Deactivate only on:
 
 A review request is read-only by default. Non-destructive inspection and verification are allowed. Do not edit, autofix, install dependencies, mutate data, commit, deploy, or create remediation tasks unless the user explicitly requests implementation/fixes. Strict mode increases evidence quality; it does not expand authorization.
 
-### Silent Execution & Output-Only Standard (Chuẩn Rà soát Tập trung - Không Spam Lời Thoại)
+### Silent Execution, Ponytail Max (`ultra`) & Output-Only Standard (Chuẩn Rà soát Tập trung - Ponytail Mức Tối Đa)
+
+Khi bật **Chế độ Rà soát (Strict Audit Mode)**, mức độ **Ponytail tự động kích hoạt ở mức tối đa (`ultra` / max)**:
+- **Ponytail Max (`ultra`)**: Áp dụng triết lý *deletion before addition* — chất vấn sự cần thiết của mọi tầng trung gian, abstraction, helper, config hoặc đoạn code phình đại; ưu tiên cắt bỏ code thừa trước khi đề xuất thêm code mới; hướng khắc phục (`Minimum correction`) bắt buộc là phương án tối giản nhất, ngắn nhất và đi thẳng vào nguyên nhân gốc (root cause).
 
 Tương tự như **chế độ tập trung code** (Ponytail / Code Focus Mode: code first, không giải trình dông dài), chế độ rà soát tập trung bắt buộc thực thi trong trạng thái **hoàn toàn im lặng và chỉ trả lời một lần ở đầu ra cuối cùng**:
 
@@ -32,19 +35,20 @@ Tương tự như **chế độ tập trung code** (Ponytail / Code Focus Mode: 
    - Mọi phân tích, giả thuyết và so sánh invariants diễn ra hoàn toàn trong suy nghĩ nội bộ (`<thought>`) hoặc payload công cụ.
 2. **Single Consolidated Output (Đầu ra duy nhất - Báo cáo hoàn chỉnh)**:
    - Chỉ xuất ra tin nhắn trả lời người dùng **ĐÚNG MỘT LẦN DUY NHẤT** khi toàn bộ quá trình đối chiếu invariants, thu thập bằng chứng thực tế và deduplicate đã hoàn thành 100%.
-   - Bắt đầu báo cáo tổng hợp cuối cùng này với marker `STRICT AUDIT MODE: ACTIVE.` (hoặc trong handoff nội bộ giữa các subagent). Tuyệt đối không gửi marker này trơ trọi thành một tin nhắn rác trước khi chạy tool.
+   - Bắt đầu báo cáo tổng hợp cuối cùng này với marker `STRICT AUDIT MODE: ACTIVE (PONYTAIL: ULTRA).` (hoặc trong handoff nội bộ giữa các subagent). Tuyệt đối không gửi marker này trơ trọi thành một tin nhắn rác trước khi chạy tool.
 3. **Quiet Subagent Aggregation (Điều phối subagent không gây ồn)**:
    - Khi fan-out subagent phân tích song song (P1–P4 theo Ponytail), Lead Host quản lý worker hoàn toàn ngầm; không forward các phản hồi nhỏ lẻ hoặc thông báo trung gian của worker về cho người dùng.
    - Lead Host tự tổng hợp, loại bỏ trùng lặp và chỉ xuất trình duy nhất một Báo cáo Cuối cùng (Final Report) chuẩn mực.
 
 ### Mandatory agent auto-activation
 
-Any delegated agent assigned audit, review, verification, architecture assessment, code review, QA review, or security review MUST activate this mode from task intent. This is mandatory, not subjective.
+Any delegated agent assigned audit, review, verification, architecture assessment, code review, QA review, or security review MUST activate this mode and **Ponytail `ultra` (max)** from task intent. This is mandatory, not subjective.
 
 Every review card/prompt MUST include:
 
 ```text
 STRICT_AUDIT_MODE: true
+PONYTAIL_LEVEL: ultra
 AUDIT_SCOPE: <exact paths, symbols, flows, or boundary>
 AUDIT_INVARIANTS: <repository-backed behavior to verify>
 WRITE_POLICY: read-only | remediation-authorized
@@ -122,7 +126,7 @@ Trace each invariant through producer, transport, consumer, persistence, and ver
 | Operability | Are configuration, deployment, compatibility, observability, diagnostics, rollback, and support paths adequate? |
 | Performance | Are bottlenecks, fan-out, unbounded work, scaling assumptions, and resource ceilings acceptable for the real workload? |
 | User boundary | When applicable: accessibility, error/loading/empty states, locale/i18n hygiene, responsive behavior, safe feedback, clean professional copywriting (zero technical/dev leakage, no wireframe numbering, no raw enums/HTTP errors, no test strings), **UI Design Gate compliance**: typography floor >= 12px (strictly no sub-12px micro-fonts), zero fluff/boilerplate sentences, ruthless UI pruning (no nested cards, no duplicate actions, no banner/blur bloat), verified via `node scripts/verify-ui-rules.cjs`. |
-| Maintainability | Is complexity necessary? Are shared primitives reused? Does duplication create inconsistent behavior or duplicate/orphan i18n keys? |
+| Maintainability | **Ponytail Max (`ultra`) compliance**: Is complexity necessary, or can code/abstractions be deleted outright (deletion before addition)? Are shared primitives reused? Does duplication create inconsistent behavior or duplicate/orphan i18n keys? |
 | Technology fit | Does implementation follow the current project's actual stack, installed dependencies, platform primitives, and local conventions? |
 
 Technology fit comes last. A preferred library does not excuse a broken system invariant. A raw platform primitive is not automatically wrong when the repository permits it or the abstraction cannot satisfy the requirement.

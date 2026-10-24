@@ -362,9 +362,6 @@ export default async function OwnerInvoiceDetailPage({ params }: PageProps) {
               Quay lại folio
             </Link>
             <h1 className="mt-2 text-3xl font-black text-[var(--on-surface)]">Hóa đơn {invoiceDetail.invoice.invoiceNumber}</h1>
-            <p className="mt-2 max-w-2xl text-sm text-[var(--on-surface-variant)]">
-              Nút xuất sẽ in trực tiếp nội dung hóa đơn đang hiển thị.
-            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <InvoicePrintButton />

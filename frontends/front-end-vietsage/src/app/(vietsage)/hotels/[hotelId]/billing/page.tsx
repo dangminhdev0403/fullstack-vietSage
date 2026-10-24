@@ -47,7 +47,6 @@ export default async function StaffBillingPage({ params }: PageProps) {
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--secondary)]">THANH TOÁN & THU DOANH THU</p>
           <h1 className="vs-display mt-0.5 text-2xl font-semibold text-[var(--primary)] md:text-3xl">Folio, checkout &amp; Doanh thu</h1>
-          <p className="mt-0.5 text-xs text-[var(--on-surface-variant)]">Kiểm tra chi phí phòng, phát hành hóa đơn và thu tiền checkout cho khách lưu trú.</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded-full bg-[#17201b] px-3.5 py-1.5 text-xs font-bold text-white shadow-sm">

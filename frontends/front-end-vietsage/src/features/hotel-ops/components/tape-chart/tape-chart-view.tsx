@@ -39,6 +39,11 @@ import {
   showSuccessAlert,
   SwalVietSage,
 } from "@/libs/swal";
+import {
+  addDaysYmd,
+  diffDaysYmd,
+  getVietnamToday as getTodayInVietnam,
+} from "@/libs/vietnam-temporal";
 import type {
   HotelArrival,
   HotelRoomSummary,
@@ -79,6 +84,17 @@ export interface ActiveDragRange {
   anchorDay: string;
   currentRoom: RoomPlanRoom;
   currentDay: string;
+}
+
+export interface ActiveDraftAdjust {
+  mode: "days" | "rooms" | "both" | "move";
+  anchorRoom: RoomPlanRoom;
+  anchorDay: string;
+  initialRooms: RoomPlanRoom[];
+  initialStartDay: string;
+  initialEndDay: string;
+  initialNights: number;
+  startPos: { x: number; y: number };
 }
 
 export interface TapeChartViewProps {
@@ -182,35 +198,8 @@ function getChannelBadge(channel?: string | null): {
   };
 }
 
-function getTodayInVietnam(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-}
-
-function addDaysYmd(dateStr: string, days: number): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const date = new Date(y, m - 1, d);
-  date.setDate(date.getDate() + days);
-  const nextY = date.getFullYear();
-  const nextM = String(date.getMonth() + 1).padStart(2, "0");
-  const nextD = String(date.getDate()).padStart(2, "0");
-  return `${nextY}-${nextM}-${nextD}`;
-}
-
-function parseYmdDate(ymd: string): Date {
-  const [y, m, d] = ymd.split("-").map(Number);
-  return new Date(y, m - 1, d);
-}
-
 function calculateNights(startDay: string, endDay: string): number {
-  const start = parseYmdDate(startDay).getTime();
-  const end = parseYmdDate(endDay).getTime();
-  const diff = Math.round((end - start) / (1000 * 60 * 60 * 24));
-  return Math.max(1, diff);
+  return Math.max(1, diffDaysYmd(startDay, endDay));
 }
 
 function formatDateNum(ymd: string): string {
@@ -272,6 +261,11 @@ interface DraggableRoomRowProps {
   onCancelDraft: () => void;
   activeBlockResize?: ActiveBlockResize | null;
   onStartBlockResize?: (block: RoomPlanBlock, direction: "start" | "end", e: React.MouseEvent) => void;
+  onStartDraftAdjust?: (
+    mode: "days" | "rooms" | "both" | "move",
+    e: React.MouseEvent,
+  ) => void;
+  onFocusOverdueRoom?: (room: RoomPlanRoom) => void;
 }
 
 const EMPTY_BLOCKS: RoomPlanBlock[] = [];
@@ -305,6 +299,8 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
   onCancelDraft,
   activeBlockResize,
   onStartBlockResize,
+  onStartDraftAdjust,
+  onFocusOverdueRoom,
 }: DraggableRoomRowProps) {
   const {
     attributes,
@@ -449,9 +445,17 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
             )
           )}
           {isOverdueRoom && (
-            <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-rose-200 text-rose-900 border border-rose-300 whitespace-nowrap">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onFocusOverdueRoom?.(room);
+              }}
+              className="px-1.5 py-0.5 rounded text-xs font-bold bg-rose-200 hover:bg-rose-300 text-rose-900 border border-rose-300 whitespace-nowrap transition cursor-pointer"
+              title="Nhấp để chuyển tới đơn quá hạn của phòng này"
+            >
               Quá hạn
-            </span>
+            </button>
           )}
           {room.status === "RESERVED" && !isOccupiedToday && !isHardVetoRoom && !isProcessing && (
             <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200 whitespace-nowrap">
@@ -635,15 +639,6 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                         }`
               } ${!readOnly && !isCellOccupied && !isHardVetoRoom && !isPastDay ? "cursor-pointer hover:bg-slate-100/50" : ""}`}
             >
-              {/* Visible date frame badge when dragging / selecting */}
-              {isDraftCell && !isCellOccupied && (
-                <div className="absolute inset-x-1 top-1 flex items-center justify-center pointer-events-none z-10">
-                  <span className="px-1.5 py-0.5 rounded text-xs font-black bg-white/95 text-emerald-900 shadow-2xs border border-emerald-300 whitespace-nowrap">
-                    {day.dateNum}
-                  </span>
-                </div>
-              )}
-
               {/* Active cursor hovered cell badge during drag and drop */}
               {isCursorHoveredCell && !isDndConflict && (
                 <div className="absolute inset-x-1 top-1 flex items-center justify-center pointer-events-none z-20">
@@ -727,13 +722,14 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
             return (
               <div
                 key="draft-group-member-bar"
+                data-draft-interactive="true"
                 style={{
                   left: `calc(${leftPct}% + 4px)`,
                   width: `calc(${widthPct}% - 8px)`,
                   top: isFirstInGroup ? "4px" : "0px",
                   bottom: isLastInGroup ? "4px" : "-1px",
                 }}
-                className={`absolute z-10 flex items-center justify-center px-2 bg-purple-50/70 text-purple-900 font-bold text-xs pointer-events-none select-none backdrop-blur-[1px] ${
+                className={`absolute z-10 flex items-center justify-between px-2 bg-purple-50/80 text-purple-900 font-bold text-xs select-none backdrop-blur-[1px] ${
                   isFirstInGroup
                     ? "rounded-t-md rounded-b-none border-t-2 border-l-2 border-r-2 border-purple-600 border-b border-purple-200/80"
                     : isLastInGroup
@@ -741,7 +737,64 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                       : "rounded-none border-l-2 border-r-2 border-purple-600 border-b border-purple-200/80 border-t-0"
                 }`}
               >
-                <span className="truncate whitespace-nowrap">✓ P.{room.roomNumber} (Trong đoàn)</span>
+                <span className="truncate whitespace-nowrap inline-flex items-center gap-1 font-semibold text-purple-950 text-xs">
+                  <VsIcon name="check" className="text-xs text-purple-600 shrink-0" />
+                  <span>P.{room.roomNumber}</span>
+                </span>
+
+                {/* Right Edge Handle to Adjust Days on Member Rooms */}
+                {!readOnly && !isDraggingRange && onStartDraftAdjust && (
+                  <div
+                    role="slider"
+                    aria-label="Kéo mép phải để điều chỉnh ngày"
+                    title="Ấn giữ & kéo để điều chỉnh ngày lưu trú"
+                    onMouseDown={(e) => {
+                      if (e.button !== 0) return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onStartDraftAdjust("days", e);
+                    }}
+                    className="absolute right-0 top-0 bottom-0 w-3.5 hover:w-4.5 cursor-col-resize z-20 pointer-events-auto flex items-center justify-end pr-0.5 hover:bg-purple-600/20 active:bg-purple-600/30 transition touch-none group/rhandle shadow-xs"
+                  >
+                    <div className="w-1 h-3.5 rounded-full bg-purple-500/70 group-hover/rhandle:bg-purple-700 transition shadow-xs" />
+                  </div>
+                )}
+
+                {/* Bottom Edge Handle to Add/Remove Rooms on the Last Room in Group */}
+                {!readOnly && isLastInGroup && !isDraggingRange && onStartDraftAdjust && (
+                  <div
+                    role="slider"
+                    aria-label="Kéo mép dưới để thêm hoặc bớt phòng"
+                    title="Ấn giữ & kéo để thêm hoặc bớt phòng vào đoàn"
+                    onMouseDown={(e) => {
+                      if (e.button !== 0) return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onStartDraftAdjust("rooms", e);
+                    }}
+                    className="absolute -bottom-1 left-0 right-0 h-3.5 hover:h-4.5 cursor-row-resize z-30 pointer-events-auto flex items-center justify-center hover:bg-purple-600/30 active:bg-purple-600/50 transition touch-none group/bhandle"
+                  >
+                    <div className="h-1 w-10 rounded-full bg-purple-600/80 group-hover/bhandle:bg-purple-900 transition shadow-xs" />
+                  </div>
+                )}
+
+                {/* Bottom-Right Corner Handle to Adjust Both Days & Rooms */}
+                {!readOnly && isLastInGroup && !isDraggingRange && onStartDraftAdjust && (
+                  <div
+                    role="slider"
+                    aria-label="Kéo góc để điều chỉnh cả ngày và phòng"
+                    title="Ấn giữ & kéo để điều chỉnh cả ngày & số phòng"
+                    onMouseDown={(e) => {
+                      if (e.button !== 0) return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onStartDraftAdjust("both", e);
+                    }}
+                    className="absolute -bottom-1 -right-1 size-5 cursor-nwse-resize z-40 pointer-events-auto flex items-center justify-center rounded bg-purple-700 hover:bg-purple-800 active:bg-purple-900 text-white shadow-md border border-white/80 transition touch-none"
+                  >
+                    <VsIcon name="south_east" className="text-xs" />
+                  </div>
+                )}
               </div>
             );
           })()}
@@ -793,7 +846,7 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                 top: !isGroup ? "5px" : isFirstInGroup ? "4px" : "0px",
                 bottom: !isGroup ? "5px" : isLastInGroup ? "4px" : "-1px",
               }}
-              className={`absolute z-20 flex items-center justify-between px-2.5 select-none animate-in fade-in zoom-in-95 duration-150 ${
+              className={`absolute z-20 flex items-center justify-between px-2 select-none animate-in fade-in zoom-in-95 duration-150 ${
                 isDraggingRange
                   ? "bg-emerald-600/20 border-2 border-emerald-500 text-emerald-950 backdrop-blur-[1px] shadow-xs pointer-events-none"
                   : "bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 text-white pointer-events-auto shadow-md"
@@ -808,7 +861,23 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
               }`}
             >
               {/* Left label / nights & group summary */}
-              <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+              <div className="flex items-center gap-1 min-w-0 overflow-hidden">
+                {!readOnly && !isDraggingRange && onStartDraftAdjust && (
+                  <div
+                    role="button"
+                    aria-label="Ấn giữ để di chuyển vùng đặt phòng"
+                    title="Ấn giữ & kéo để di chuyển vùng đặt"
+                    onMouseDown={(e) => {
+                      if (e.button !== 0) return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onStartDraftAdjust("move", e);
+                    }}
+                    className="p-0.5 -ml-1 rounded hover:bg-white/20 active:bg-white/30 cursor-grab active:cursor-grabbing text-white/80 hover:text-white transition flex items-center justify-center shrink-0 touch-none"
+                  >
+                    <VsIcon name="drag_indicator" className="text-sm" />
+                  </div>
+                )}
                 <VsIcon
                   name={isGroup ? "group_add" : "bookmark_add"}
                   className={`text-sm shrink-0 ${isDraggingRange ? "text-emerald-700" : "text-amber-300"}`}
@@ -820,7 +889,7 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
 
               {/* Quick Stepper, Guest Count & Confirm buttons (chỉ hiện khi đã chọn xong khoảng ngày) */}
               {!isDraggingRange && (
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-1 shrink-0 pr-3">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -865,7 +934,7 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                     }
                   >
                     <VsIcon name={isProcessing ? "cleaning_services" : "check"} className="text-xs" />
-                    <span>{isProcessing ? "Dọn phòng & Đặt" : isGroup ? `Đặt ${draftSelection.rooms.length} phòng` : "Đặt trước"}</span>
+                    <span>{isProcessing ? "Dọn phòng & Đặt" : isGroup ? `Đặt ${draftSelection.rooms.length} phòng` : "Đặt ngay"}</span>
                   </button>
                   <button
                     type="button"
@@ -881,20 +950,84 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                 </div>
               )}
 
+              {/* Right Edge Handle to Adjust Days on Primary Bar */}
+              {!readOnly && !isDraggingRange && onStartDraftAdjust && (
+                <div
+                  role="slider"
+                  aria-label="Kéo mép phải để điều chỉnh ngày"
+                  title="Ấn giữ & kéo để điều chỉnh ngày lưu trú"
+                  onMouseDown={(e) => {
+                    if (e.button !== 0) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onStartDraftAdjust("days", e);
+                  }}
+                  className="absolute right-0 top-0 bottom-0 w-3.5 hover:w-4.5 cursor-col-resize z-30 flex items-center justify-end pr-0.5 hover:bg-white/20 active:bg-white/30 transition rounded-r-md touch-none group/rhandle shadow-xs"
+                >
+                  <div className="w-1 h-3.5 rounded-full bg-white/80 group-hover/rhandle:bg-white transition shadow-xs" />
+                </div>
+              )}
+
+              {/* Bottom Edge Handle for Single Room (or if Anchor is last room in group) */}
+              {!readOnly && isLastInGroup && !isDraggingRange && onStartDraftAdjust && (
+                <div
+                  role="slider"
+                  aria-label="Kéo mép dưới để thêm hoặc bớt phòng"
+                  title="Ấn giữ & kéo để thêm hoặc bớt phòng"
+                  onMouseDown={(e) => {
+                    if (e.button !== 0) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onStartDraftAdjust("rooms", e);
+                  }}
+                  className="absolute -bottom-1 left-0 right-0 h-3.5 hover:h-4.5 cursor-row-resize z-30 flex items-center justify-center hover:bg-white/20 active:bg-white/30 transition touch-none group/bhandle"
+                >
+                  <div className="h-1 w-10 rounded-full bg-white/80 group-hover/bhandle:bg-white transition shadow-xs" />
+                </div>
+              )}
+
+              {/* Bottom-Right Corner Handle for Single Room (or if Anchor is last room) */}
+              {!readOnly && isLastInGroup && !isDraggingRange && onStartDraftAdjust && (
+                <div
+                  role="slider"
+                  aria-label="Kéo góc để điều chỉnh cả ngày và phòng"
+                  title="Ấn giữ & kéo để điều chỉnh cả ngày & phòng"
+                  onMouseDown={(e) => {
+                    if (e.button !== 0) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onStartDraftAdjust("both", e);
+                  }}
+                  className="absolute -bottom-1 -right-1 size-5 cursor-nwse-resize z-40 flex items-center justify-center rounded bg-purple-800 hover:bg-purple-900 active:bg-indigo-950 text-white shadow-md border border-white/80 transition touch-none"
+                >
+                  <VsIcon name="south_east" className="text-xs" />
+                </div>
+              )}
+
               {/* Floating Tooltip Header above the bar for clear date readability */}
-              <div className={`absolute ${!isGroup || isFirstInGroup ? "-top-8" : "-bottom-8"} left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-slate-900/95 text-white px-2.5 py-0.5 rounded-full text-xs font-bold shadow-xl border border-slate-700 whitespace-nowrap pointer-events-none`}>
-                <span className="text-amber-300">
+              <div className={`absolute ${!isGroup || isFirstInGroup ? "-top-8" : "-bottom-8"} left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 bg-slate-900/95 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow-xl border border-slate-700 whitespace-nowrap pointer-events-none max-w-sm sm:max-w-md`}>
+                <span className="text-amber-300 shrink-0">
                   {isGroup
-                    ? `${draftSelection.rooms.length} phòng (${draftSelection.rooms.map((r) => `P.${r.roomNumber}`).join(", ")})`
+                    ? draftSelection.rooms.length <= 3
+                      ? `Đoàn ${draftSelection.rooms.length} phòng (${draftSelection.rooms.map((r) => `P.${r.roomNumber}`).join(", ")})`
+                      : `Đoàn ${draftSelection.rooms.length} phòng`
                     : `P.${room.roomNumber}`}
                 </span>
-                <span>•</span>
-                <span>
+                <span className="text-slate-400">•</span>
+                <span className="shrink-0">
                   {formatDateNum(draftSelection.startDay)} ➔ {formatDateNum(draftSelection.endDay)}
                 </span>
-                <span className="text-purple-300">({draftSelection.nights} đêm)</span>
+                <span className="text-purple-300 shrink-0">({draftSelection.nights} đêm)</span>
+                {!isDraggingRange && (
+                  <>
+                    <span className="text-slate-400 hidden sm:inline">•</span>
+                    <span className="text-emerald-300 font-normal text-xs hidden sm:inline">
+                      Ấn giữ mép để kéo tiếp
+                    </span>
+                  </>
+                )}
                 {isProcessing && (
-                  <span className="px-1.5 py-0.5 rounded bg-amber-400 text-amber-950 font-black text-xs inline-flex items-center gap-1 whitespace-nowrap">
+                  <span className="px-1.5 py-0.5 rounded bg-amber-400 text-amber-950 font-black text-xs inline-flex items-center gap-1 whitespace-nowrap shrink-0">
                     <VsIcon name="cleaning_services" className="text-xs" />
                     Cần dọn phòng
                   </span>
@@ -1059,6 +1192,10 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
               key={b.id}
               role="button"
               tabIndex={0}
+              data-block-id={b.id}
+              data-block-room-id={b.roomId}
+              data-block-status={b.status}
+              data-is-overdue={isOverdue ? "true" : undefined}
               draggable={!readOnly && b.movable && !isBeingResized}
               onDragStart={(e) => {
                 if (readOnly) {
@@ -1236,6 +1373,11 @@ interface CategoryRoomTableProps {
   onCancelDraft: () => void;
   activeBlockResize?: ActiveBlockResize | null;
   onStartBlockResize?: (block: RoomPlanBlock, direction: "start" | "end", e: React.MouseEvent) => void;
+  onStartDraftAdjust?: (
+    mode: "days" | "rooms" | "both" | "move",
+    e: React.MouseEvent,
+  ) => void;
+  onFocusOverdueRoom?: (room: RoomPlanRoom) => void;
 }
 
 function CategoryRoomTable({
@@ -1270,6 +1412,8 @@ function CategoryRoomTable({
   onCancelDraft,
   activeBlockResize,
   onStartBlockResize,
+  onStartDraftAdjust,
+  onFocusOverdueRoom,
 }: CategoryRoomTableProps) {
   // TanStack table instance for headless table model
   const columns = useMemo<ColumnDef<RoomPlanRoom>[]>(
@@ -1401,6 +1545,7 @@ function CategoryRoomTable({
               onSelectRoom={onSelectRoom}
               onToggleRoomBlocked={onToggleRoomBlocked}
               onProcessingRoomClick={onProcessingRoomClick}
+              onFocusOverdueRoom={onFocusOverdueRoom}
               draftSelection={draftSelection}
               isDraggingRange={isDraggingRange}
               activeDragRange={activeDragRange}
@@ -1412,6 +1557,7 @@ function CategoryRoomTable({
               onCancelDraft={onCancelDraft}
               activeBlockResize={activeBlockResize}
               onStartBlockResize={onStartBlockResize}
+              onStartDraftAdjust={onStartDraftAdjust}
             />
           ))}
         </SortableContext>
@@ -1504,7 +1650,23 @@ export function TapeChartView({
 
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedFloor, setSelectedFloor] = useState<string>("all");
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<
+    "all" | "available_today" | "occupied_today" | "cleaning" | "overdue"
+  >("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+
+  const hasActiveFilters =
+    selectedCategory !== "all" ||
+    selectedFloor !== "all" ||
+    selectedStatusFilter !== "all" ||
+    searchQuery.trim().length > 0;
+
+  const handleResetAllFilters = useCallback(() => {
+    setSelectedCategory("all");
+    setSelectedFloor("all");
+    setSelectedStatusFilter("all");
+    setSearchQuery("");
+  }, []);
 
   // Slide-over Drawer Selected Block & Active Tab
   const [selectedBlock, setSelectedBlock] = useState<RoomPlanBlock | null>(null);
@@ -1726,6 +1888,79 @@ export function TapeChartView({
     return Array.from(set).sort((a, b) => Number(a) - Number(b));
   }, [allRooms]);
 
+  // Map blocks by roomId
+  const blocksByRoomId = useMemo(() => {
+    const map = new Map<string, RoomPlanBlock[]>();
+    allBlocks.forEach((b) => {
+      if (!map.has(b.roomId)) {
+        map.set(b.roomId, []);
+      }
+      map.get(b.roomId)!.push(b);
+    });
+    return map;
+  }, [allBlocks]);
+
+  // Count overdue rooms across all rooms for emergency alert banner & status filter
+  const overdueRooms = useMemo(() => {
+    return allRooms.filter((r) => {
+      const roomBlocks = blocksByRoomId.get(r.id) || [];
+      return (
+        r.status === "OVERDUE" ||
+        r.physicalStatus === "OVERDUE" ||
+        Boolean(r.statusConflictCode?.toUpperCase().includes("OVERDUE")) ||
+        roomBlocks.some((b) => b.status === "OVERDUE")
+      );
+    });
+  }, [allRooms, blocksByRoomId]);
+
+  const overdueRoomIdSet = useMemo(
+    () => new Set(overdueRooms.map((r) => r.id)),
+    [overdueRooms],
+  );
+
+  // Room status counts for quick-filter pills
+  const roomStatusCounts = useMemo(() => {
+    let availableToday = 0;
+    let occupiedToday = 0;
+    let cleaning = 0;
+
+    allRooms.forEach((r) => {
+      const isCleaning =
+        r.status === "PROCESSING" ||
+        r.status === "DIRTY" ||
+        r.status === "CLEANING" ||
+        r.status === "INSPECTION";
+      const isLocked =
+        r.status === "MAINTENANCE" ||
+        r.status === "BLOCKED" ||
+        r.status === "OUT_OF_SERVICE";
+      const roomBlocks = blocksByRoomId.get(r.id) || [];
+      const hasActiveBlockToday = roomBlocks.some(
+        (b) =>
+          b.startDate <= todayYmd &&
+          b.endDate > todayYmd &&
+          b.status !== "CANCELLED",
+      );
+
+      if (isCleaning) {
+        cleaning += 1;
+      }
+      if (hasActiveBlockToday || r.status === "OCCUPIED") {
+        occupiedToday += 1;
+      } else if (!isCleaning && !isLocked) {
+        availableToday += 1;
+      }
+    });
+
+    return {
+      all: allRooms.length,
+      availableToday,
+      occupiedToday,
+      cleaning,
+      overdue: overdueRooms.length,
+    };
+  }, [allRooms, blocksByRoomId, todayYmd, overdueRooms.length]);
+
   // Filtered rooms
   const filteredRooms = useMemo(() => {
     return allRooms.filter((r) => {
@@ -1735,15 +1970,69 @@ export function TapeChartView({
       if (selectedFloor !== "all" && String(r.floor || "") !== selectedFloor) {
         return false;
       }
+
+      if (selectedStatusFilter !== "all") {
+        const isCleaning =
+          r.status === "PROCESSING" ||
+          r.status === "DIRTY" ||
+          r.status === "CLEANING" ||
+          r.status === "INSPECTION";
+        const isLocked =
+          r.status === "MAINTENANCE" ||
+          r.status === "BLOCKED" ||
+          r.status === "OUT_OF_SERVICE";
+        const roomBlocks = blocksByRoomId.get(r.id) || [];
+        const hasActiveBlockToday = roomBlocks.some(
+          (b) =>
+            b.startDate <= todayYmd &&
+            b.endDate > todayYmd &&
+            b.status !== "CANCELLED",
+        );
+
+        if (selectedStatusFilter === "available_today") {
+          if (hasActiveBlockToday || r.status === "OCCUPIED" || isCleaning || isLocked) {
+            return false;
+          }
+        } else if (selectedStatusFilter === "occupied_today") {
+          if (!hasActiveBlockToday && r.status !== "OCCUPIED") {
+            return false;
+          }
+        } else if (selectedStatusFilter === "cleaning") {
+          if (!isCleaning) {
+            return false;
+          }
+        } else if (selectedStatusFilter === "overdue") {
+          if (!overdueRoomIdSet.has(r.id)) {
+            return false;
+          }
+        }
+      }
+
       if (searchQuery.trim()) {
         const query = searchQuery.trim().toLowerCase();
         const matchesRoom = r.roomNumber.toLowerCase().includes(query);
         const matchesType = (r.roomTypeName || "").toLowerCase().includes(query);
-        if (!matchesRoom && !matchesType) return false;
+        const roomBlocks = blocksByRoomId.get(r.id) || [];
+        const matchesGuest = roomBlocks.some(
+          (b) =>
+            b.guestName.toLowerCase().includes(query) ||
+            (b.reservationCode || "").toLowerCase().includes(query) ||
+            (b.phone || "").toLowerCase().includes(query),
+        );
+        if (!matchesRoom && !matchesType && !matchesGuest) return false;
       }
       return true;
     });
-  }, [allRooms, selectedCategory, selectedFloor, searchQuery]);
+  }, [
+    allRooms,
+    selectedCategory,
+    selectedFloor,
+    selectedStatusFilter,
+    searchQuery,
+    blocksByRoomId,
+    todayYmd,
+    overdueRoomIdSet,
+  ]);
 
   // Custom room order via Zustand store
   const customOrder = useRoomOrderStore((s) => s.roomOrderMap[hotelId]);
@@ -1833,17 +2122,176 @@ export function TapeChartView({
     }
   };
 
-  // Map blocks by roomId
-  const blocksByRoomId = useMemo(() => {
-    const map = new Map<string, RoomPlanBlock[]>();
-    allBlocks.forEach((b) => {
-      if (!map.has(b.roomId)) {
-        map.set(b.roomId, []);
+  // Pending target for smooth overdue navigation across date changes
+  const [pendingOverdueTarget, setPendingOverdueTarget] = useState<{
+    roomId: string;
+    blockId?: string;
+    dayYmd: string;
+    timestamp: number;
+  } | null>(null);
+
+  // Cycling index for overdue room navigation
+  const [overdueFocusIndex, setOverdueFocusIndex] = useState(0);
+
+  const focusOverdueRoom = useCallback(
+    (targetRoom: RoomPlanRoom) => {
+      // 1. Uncollapse category if collapsed
+      const cat = targetRoom.roomTypeName || "Hạng phòng khác";
+      setCollapsedCategories((prev) => {
+        if (!prev[cat]) return prev;
+        return { ...prev, [cat]: false };
+      });
+
+      // 2. Clear filters if this room is filtered out
+      if (searchQuery.trim()) setSearchQuery("");
+      if (selectedCategory !== "all" && (targetRoom.roomTypeName || "") !== selectedCategory) {
+        setSelectedCategory("all");
       }
-      map.get(b.roomId)!.push(b);
-    });
-    return map;
-  }, [allBlocks]);
+      if (selectedFloor !== "all" && String(targetRoom.floor || "") !== selectedFloor) {
+        setSelectedFloor("all");
+      }
+      if (selectedStatusFilter !== "all" && selectedStatusFilter !== "overdue") {
+        setSelectedStatusFilter("all");
+      }
+
+      // 3. Find overdue block or date
+      const roomBlocks = blocksByRoomId.get(targetRoom.id) || [];
+      const overdueBlock = roomBlocks.find(
+        (b) =>
+          b.status === "OVERDUE" ||
+          (b.kind === "STAY" && b.status !== "CHECKED_OUT" && b.endDate <= todayYmd),
+      );
+
+      let targetDate = todayYmd;
+      let blockStartDate: string | null = null;
+
+      if (overdueBlock) {
+        targetDate = overdueBlock.endDate <= todayYmd ? overdueBlock.endDate : todayYmd;
+        blockStartDate = overdueBlock.startDate;
+      } else if ((targetRoom as any).activeStay?.plannedCheckOutAt) {
+        targetDate = String((targetRoom as any).activeStay.plannedCheckOutAt).slice(0, 10);
+        if ((targetRoom as any).activeStay.plannedCheckInAt) {
+          blockStartDate = String((targetRoom as any).activeStay.plannedCheckInAt).slice(0, 10);
+        }
+      }
+
+      // Check if targetDate is currently visible in daysList
+      const isTargetDateVisible = daysList.some((d) => d.ymd === targetDate);
+
+      let targetStartDate = startDate;
+      if (!isTargetDateVisible) {
+        if (blockStartDate) {
+          const nights = calculateNights(blockStartDate, targetDate);
+          if (nights >= 0 && nights < numDays - 1) {
+            targetStartDate = blockStartDate;
+          } else {
+            targetStartDate = addDaysYmd(targetDate, -2);
+          }
+        } else {
+          targetStartDate = addDaysYmd(targetDate, -1);
+        }
+      }
+
+      // 4. Set pending focus target
+      setPendingOverdueTarget({
+        roomId: targetRoom.id,
+        blockId: overdueBlock?.id,
+        dayYmd: targetDate,
+        timestamp: Date.now(),
+      });
+
+      // 5. Shift startDate if needed
+      if (targetStartDate !== startDate) {
+        setStartDate(targetStartDate);
+      }
+    },
+    [
+      blocksByRoomId,
+      todayYmd,
+      daysList,
+      numDays,
+      startDate,
+      searchQuery,
+      selectedCategory,
+      selectedFloor,
+      selectedStatusFilter,
+    ],
+  );
+
+  const handleNextOverdue = useCallback(() => {
+    if (overdueRooms.length === 0) return;
+    const targetIndex = overdueFocusIndex % overdueRooms.length;
+    setOverdueFocusIndex((prev) => (prev + 1) % overdueRooms.length);
+    const room = overdueRooms[targetIndex];
+    if (room) {
+      focusOverdueRoom(room);
+    }
+  }, [overdueRooms, overdueFocusIndex, focusOverdueRoom]);
+
+  useEffect(() => {
+    if (!pendingOverdueTarget) return;
+    const { roomId, blockId, dayYmd, timestamp } = pendingOverdueTarget;
+
+    if (Date.now() - timestamp > 4000) {
+      setPendingOverdueTarget(null);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      let blockEl: HTMLElement | null = null;
+      if (blockId) {
+        blockEl = document.querySelector(`[data-block-id="${blockId}"]`);
+      }
+
+      const rowEl = document.querySelector(`[data-room-id="${roomId}"]`) as HTMLElement | null;
+      const cellEl =
+        rowEl && dayYmd
+          ? (rowEl.querySelector(`[data-day-ymd="${dayYmd}"]`) as HTMLElement | null)
+          : null;
+
+      const targetEl = blockEl || cellEl || rowEl;
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+
+        if (blockEl) {
+          blockEl.classList.add(
+            "ring-4",
+            "ring-rose-500",
+            "ring-offset-2",
+            "animate-pulse",
+            "z-30",
+            "shadow-xl",
+          );
+          setTimeout(() => {
+            blockEl?.classList.remove(
+              "ring-4",
+              "ring-rose-500",
+              "ring-offset-2",
+              "animate-pulse",
+              "z-30",
+              "shadow-xl",
+            );
+          }, 3500);
+        } else if (cellEl) {
+          cellEl.classList.add("ring-2", "ring-rose-500", "bg-rose-100/90", "z-20");
+          setTimeout(() => {
+            cellEl?.classList.remove("ring-2", "ring-rose-500", "bg-rose-100/90", "z-20");
+          }, 3500);
+        }
+
+        if (rowEl) {
+          rowEl.classList.add("bg-rose-50/80", "transition-colors");
+          setTimeout(() => {
+            rowEl?.classList.remove("bg-rose-50/80");
+          }, 3500);
+        }
+
+        setPendingOverdueTarget(null);
+      }
+    }, 150);
+
+    return () => clearTimeout(timer);
+  }, [pendingOverdueTarget, startDate, isPlanFetching, daysList]);
 
   // Date picker ref and trigger handler to allow clicking to jump to any date
   const dateInputRef = useRef<HTMLInputElement>(null);
@@ -1916,19 +2364,6 @@ export function TapeChartView({
   const handlePrevDay = useCallback(() => setStartDate((prev) => addDaysYmd(prev, -1)), []);
   const handleNextDay = useCallback(() => setStartDate((prev) => addDaysYmd(prev, 1)), []);
   const handleGoToday = useCallback(() => setStartDate(todayYmd), [todayYmd]);
-
-  // Count overdue rooms across all rooms for emergency alert banner
-  const overdueRooms = useMemo(() => {
-    return allRooms.filter((r) => {
-      const roomBlocks = blocksByRoomId.get(r.id) || [];
-      return (
-        r.status === "OVERDUE" ||
-        r.physicalStatus === "OVERDUE" ||
-        Boolean(r.statusConflictCode?.toUpperCase().includes("OVERDUE")) ||
-        roomBlocks.some((b) => b.status === "OVERDUE")
-      );
-    });
-  }, [allRooms, blocksByRoomId]);
 
   // Keyboard navigation shortcuts (ArrowLeft / ArrowRight to step days, 'T' for today, 'W' for week/month)
   useEffect(() => {
@@ -2393,6 +2828,7 @@ export function TapeChartView({
       if (e.key === "Escape") {
         setDraftSelection(null);
         setActiveDragRange(null);
+        setActiveDraftAdjust(null);
         setDraggedBlock(null);
         setDragOverCellKey(null);
         setDragOverDayYmd(null);
@@ -2420,6 +2856,7 @@ export function TapeChartView({
       if (target?.closest?.('[data-tape-chart-container="true"]')) return;
       setDraftSelection(null);
       setActiveDragRange(null);
+      setActiveDraftAdjust(null);
       clickAnchorRef.current = null;
       dragStartPosRef.current = null;
       hasDraggedRef.current = false;
@@ -2744,10 +3181,217 @@ export function TapeChartView({
   const handleCancelDraft = useCallback(() => {
     setDraftSelection(null);
     setActiveDragRange(null);
+    setActiveDraftAdjust(null);
     clickAnchorRef.current = null;
     dragStartPosRef.current = null;
     hasDraggedRef.current = false;
   }, []);
+
+  // ── Active Draft Booking Adjust Engine (Kéo dài/thu ngắn ngày, thêm/bớt phòng, hoặc di chuyển sau khi thả) ──
+  const [activeDraftAdjust, setActiveDraftAdjust] = useState<ActiveDraftAdjust | null>(null);
+  const activeDraftAdjustRef = useRef<ActiveDraftAdjust | null>(null);
+  activeDraftAdjustRef.current = activeDraftAdjust;
+
+  const handleStartDraftAdjust = useCallback(
+    (mode: "days" | "rooms" | "both" | "move", e: React.MouseEvent) => {
+      if (isReadOnly || !draftSelection) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const initialAdjust: ActiveDraftAdjust = {
+        mode,
+        anchorRoom: draftSelection.room,
+        anchorDay: draftSelection.startDay,
+        initialRooms: draftSelection.rooms,
+        initialStartDay: draftSelection.startDay,
+        initialEndDay: draftSelection.endDay,
+        initialNights: draftSelection.nights,
+        startPos: { x: e.clientX, y: e.clientY },
+      };
+
+      activeDraftAdjustRef.current = initialAdjust;
+      setActiveDraftAdjust(initialAdjust);
+
+      document.body.style.cursor =
+        mode === "days"
+          ? "col-resize"
+          : mode === "rooms"
+            ? "row-resize"
+            : mode === "both"
+              ? "nwse-resize"
+              : "grabbing";
+      document.body.style.userSelect = "none";
+    },
+    [draftSelection, isReadOnly],
+  );
+
+  useEffect(() => {
+    if (isReadOnly || !activeDraftAdjust) return;
+
+    let adjustRafId: number | null = null;
+    let lastClientX = 0;
+    let lastClientY = 0;
+
+    const handlePointerMoveAdjust = (e: MouseEvent | PointerEvent) => {
+      lastClientX = e.clientX;
+      lastClientY = e.clientY;
+
+      if (adjustRafId !== null) return;
+
+      adjustRafId = requestAnimationFrame(() => {
+        adjustRafId = null;
+        const currentAdjust = activeDraftAdjustRef.current;
+        if (!currentAdjust) return;
+
+        const elements = document.elementsFromPoint(lastClientX, lastClientY);
+        const cell = elements.find((el) => el.getAttribute?.("data-cell-day") === "true") as HTMLElement | undefined;
+        const targetDay = cell?.getAttribute("data-day-ymd");
+
+        const rowEl = elements.find((el) => el.getAttribute?.("data-room-row") === "true") as HTMLElement | undefined;
+        const targetRoomId = rowEl?.getAttribute("data-room-id");
+
+        const targetRoom = targetRoomId ? orderedFilteredRooms.find((r) => r.id === targetRoomId) : undefined;
+
+        setDraftSelection((prev) => {
+          if (!prev) return null;
+          let nextRooms = prev.rooms;
+          let nextStart = prev.startDay;
+          let nextEnd = prev.endDay;
+
+          // 1. Adjusting Days (horizontal drag)
+          if ((currentAdjust.mode === "days" || currentAdjust.mode === "both") && targetDay) {
+            const effectiveTargetDay = targetDay < todayYmd ? todayYmd : targetDay;
+            let candidateEnd = addDaysYmd(effectiveTargetDay, 1);
+            if (candidateEnd <= currentAdjust.initialStartDay) {
+              candidateEnd = addDaysYmd(currentAdjust.initialStartDay, 1);
+            }
+
+            // Check collision against all current selected rooms
+            for (const r of nextRooms) {
+              const rBlocks = blocksByRoomId.get(r.id) || [];
+              const colliding = rBlocks
+                .filter((b) => b.startDate >= currentAdjust.initialStartDay && b.startDate < candidateEnd)
+                .sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
+              if (colliding && colliding.startDate < candidateEnd) {
+                candidateEnd = colliding.startDate;
+              }
+            }
+
+            if (candidateEnd <= currentAdjust.initialStartDay) {
+              candidateEnd = addDaysYmd(currentAdjust.initialStartDay, 1);
+            }
+            nextStart = currentAdjust.initialStartDay;
+            nextEnd = candidateEnd;
+          }
+
+          // 2. Adjusting Rooms (vertical drag)
+          if ((currentAdjust.mode === "rooms" || currentAdjust.mode === "both") && targetRoom) {
+            const anchorIdx = orderedFilteredRooms.findIndex((r) => r.id === currentAdjust.anchorRoom.id);
+            const targetIdx = orderedFilteredRooms.findIndex((r) => r.id === targetRoom.id);
+
+            if (anchorIdx !== -1 && targetIdx !== -1) {
+              const minIdx = Math.min(anchorIdx, targetIdx);
+              const maxIdx = Math.max(anchorIdx, targetIdx);
+
+              const candidateRooms = orderedFilteredRooms
+                .slice(minIdx, maxIdx + 1)
+                .filter((cand) => {
+                  const cat = cand.roomTypeName || "Hạng phòng khác";
+                  return !collapsedCategories[cat];
+                })
+                .filter((cand) => {
+                  const isCandLocked =
+                    cand.status === "MAINTENANCE" ||
+                    cand.status === "BLOCKED" ||
+                    cand.status === "OUT_OF_SERVICE";
+                  if (isCandLocked) return false;
+                  if (cand.id === currentAdjust.anchorRoom.id) return true;
+                  const rBlocks = blocksByRoomId.get(cand.id) || [];
+                  return !rBlocks.some((b) => b.startDate < nextEnd && b.endDate > nextStart);
+                });
+
+              if (candidateRooms.length > 0) {
+                nextRooms = candidateRooms;
+              }
+            }
+          }
+
+          // 3. Move Entire Selection (translation)
+          if (currentAdjust.mode === "move" && targetDay && targetRoom) {
+            const effectiveTargetDay = targetDay < todayYmd ? todayYmd : targetDay;
+            const newStart = effectiveTargetDay;
+            const newEnd = addDaysYmd(newStart, currentAdjust.initialNights);
+
+            const targetRoomIdx = orderedFilteredRooms.findIndex((r) => r.id === targetRoom.id);
+            if (targetRoomIdx !== -1) {
+              const roomCount = currentAdjust.initialRooms.length;
+              const shiftedCandidates = orderedFilteredRooms
+                .slice(targetRoomIdx, targetRoomIdx + roomCount)
+                .filter((cand) => {
+                  const cat = cand.roomTypeName || "Hạng phòng khác";
+                  return !collapsedCategories[cat];
+                })
+                .filter((cand) => {
+                  const isCandLocked =
+                    cand.status === "MAINTENANCE" ||
+                    cand.status === "BLOCKED" ||
+                    cand.status === "OUT_OF_SERVICE";
+                  if (isCandLocked) return false;
+                  const rBlocks = blocksByRoomId.get(cand.id) || [];
+                  return !rBlocks.some((b) => b.startDate < newEnd && b.endDate > newStart);
+                });
+
+              if (shiftedCandidates.length === roomCount) {
+                nextRooms = shiftedCandidates;
+                nextStart = newStart;
+                nextEnd = newEnd;
+              }
+            }
+          }
+
+          const nights = calculateNights(nextStart, nextEnd);
+          return {
+            ...prev,
+            roomId: nextRooms[0]?.id ?? prev.roomId,
+            roomNumber: nextRooms[0]?.roomNumber ?? prev.roomNumber,
+            room: nextRooms[0] ?? prev.room,
+            rooms: nextRooms,
+            startDay: nextStart,
+            endDay: nextEnd,
+            nights,
+          };
+        });
+      });
+    };
+
+    const handlePointerUpAdjust = () => {
+      activeDraftAdjustRef.current = null;
+      setActiveDraftAdjust(null);
+      dragEndedAtRef.current = Date.now();
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    window.addEventListener("mousemove", handlePointerMoveAdjust);
+    window.addEventListener("mouseup", handlePointerUpAdjust);
+
+    return () => {
+      if (adjustRafId !== null) {
+        cancelAnimationFrame(adjustRafId);
+      }
+      window.removeEventListener("mousemove", handlePointerMoveAdjust);
+      window.removeEventListener("mouseup", handlePointerUpAdjust);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [
+    activeDraftAdjust,
+    todayYmd,
+    orderedFilteredRooms,
+    blocksByRoomId,
+    collapsedCategories,
+    isReadOnly,
+  ]);
 
   // ── Active Booking Resize Engine (Kéo dài gia hạn lưu trú & đổi ngày đặt phòng) ──
   const [activeBlockResize, setActiveBlockResize] = useState<ActiveBlockResize | null>(null);
@@ -3069,282 +3713,530 @@ export function TapeChartView({
   );
 
   return (
-    <div className="space-y-4" data-tape-chart-container="true">
-      {/* ── Top Control & Filter Bar ───────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-xs">
-        {/* Left: Timeline Navigation & Date Range */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center rounded-md border border-slate-200 bg-slate-50 p-0.5 shadow-inner">
-            <button
-              type="button"
-              onClick={handlePrevStep}
-              className="rounded-md p-1.5 text-slate-600 hover:bg-white hover:text-slate-900 transition cursor-pointer"
-              title="Khoảng trước (giữ 1 ngày gối đầu)"
-              aria-label="Khoảng trước"
-            >
-              <VsIcon name="chevron_left" className="text-lg" />
-            </button>
-            <button
-              type="button"
-              onClick={handleGoToday}
-              className={`px-3 py-1 text-xs font-bold rounded-md transition cursor-pointer ${
-                startDate === todayYmd
-                  ? "bg-emerald-800 text-white shadow-2xs font-black"
-                  : "text-slate-700 hover:text-slate-900 hover:bg-white"
-              }`}
-            >
-              Hôm nay
-            </button>
-            <button
-              type="button"
-              onClick={handleNextStep}
-              className="rounded-md p-1.5 text-slate-600 hover:bg-white hover:text-slate-900 transition cursor-pointer"
-              title="Khoảng sau (giữ 1 ngày gối đầu)"
-              aria-label="Khoảng sau"
-            >
-              <VsIcon name="chevron_right" className="text-lg" />
-            </button>
-          </div>
+    <div className="space-y-3" data-tape-chart-container="true">
+      {/* ── Top Control & Smart Filter Bar ──────────────────────────── */}
+      <div className="rounded-xl border border-slate-200/90 bg-white shadow-xs overflow-hidden">
+        {/* Tier 1: Unified Timeline Navigation, Period Span, Live KPIs & Primary CTA */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2.5 border-b border-slate-100">
+          {/* Left: Unified Timeline Pod + View Span Switch */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Unified Date Stepper & Calendar Picker Pod */}
+            <div className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-slate-50/80 p-0.5 shadow-2xs">
+              <button
+                type="button"
+                onClick={handlePrevStep}
+                className="inline-flex h-8 items-center justify-center rounded-md px-2 text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-2xs transition cursor-pointer whitespace-nowrap"
+                title="Lùi kỳ trước (giữ 1 ngày gối đầu • Shift + ←)"
+                aria-label="Lùi kỳ trước"
+              >
+                <VsIcon name="chevron_left" className="text-base" />
+              </button>
 
-          {/* Micro-step 1 day */}
-          <div className="hidden sm:flex items-center rounded-md border border-slate-200 bg-white p-0.5 shadow-2xs text-xs">
-            <button
-              type="button"
-              onClick={handlePrevDay}
-              className="px-2 py-1 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition cursor-pointer flex items-center gap-1"
-              title="Lùi 1 ngày"
-            >
-              <VsIcon name="arrow_back" className="text-xs" />
-              <span>1 ngày</span>
-            </button>
-            <span className="w-px h-3.5 bg-slate-200 mx-0.5" />
-            <button
-              type="button"
-              onClick={handleNextDay}
-              className="px-2 py-1 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition cursor-pointer flex items-center gap-1"
-              title="Tiến 1 ngày"
-            >
-              <span>1 ngày</span>
-              <VsIcon name="arrow_forward" className="text-xs" />
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={handlePrevDay}
+                className="hidden sm:inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs font-bold text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-2xs transition cursor-pointer whitespace-nowrap"
+                title="Lùi 1 ngày (Phím ←)"
+              >
+                <VsIcon name="arrow_back" className="text-xs" />
+                <span>1 ngày</span>
+              </button>
 
-          {hasCustomOrder && (
-            <button
-              type="button"
-              onClick={() => resetRoomOrder(hotelId)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900 px-2.5 py-1.5 text-xs font-bold transition cursor-pointer shadow-2xs"
-              title="Khôi phục thứ tự phòng mặc định"
-            >
-              <VsIcon name="restart_alt" className="text-sm" />
-              <span>Đặt lại thứ tự</span>
-            </button>
-          )}
+              <span className="h-4 w-px bg-slate-200/90 mx-0.5" />
 
-          {/* Date Range Display & Jump Picker */}
-          <div className="relative flex items-center gap-2 pl-1">
-            <button
-              type="button"
-              onClick={handleOpenDatePicker}
-              className="relative inline-flex items-center gap-1.5 cursor-pointer bg-white hover:bg-slate-50 border border-slate-300 hover:border-emerald-600 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-800 shadow-2xs transition group"
-              title="Nhấp để chọn ngày xem trên sơ đồ buồng phòng"
+              <button
+                type="button"
+                onClick={handleGoToday}
+                className={`inline-flex h-8 items-center px-2.5 text-xs font-bold rounded-md transition cursor-pointer whitespace-nowrap ${
+                  startDate === todayYmd
+                    ? "bg-emerald-800 text-white shadow-2xs font-black"
+                    : "text-slate-700 hover:text-slate-900 hover:bg-white hover:shadow-2xs"
+                }`}
+                title="Về ngày hôm nay (Phím T)"
+              >
+                Hôm nay
+              </button>
+
+              <span className="h-4 w-px bg-slate-200/90 mx-0.5" />
+
+              {/* Date Range Display & Jump Picker */}
+              <div className="relative flex items-center">
+                <button
+                  type="button"
+                  onClick={handleOpenDatePicker}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md bg-white hover:bg-emerald-50/50 border border-slate-200/80 hover:border-emerald-600/60 px-2.5 text-xs font-bold text-slate-800 shadow-2xs transition cursor-pointer group whitespace-nowrap"
+                  title="Nhấp để chọn ngày bắt đầu xem trên sơ đồ phòng"
+                >
+                  <VsIcon
+                    name="calendar_today"
+                    className="text-sm text-emerald-800 group-hover:scale-105 transition-transform"
+                  />
+                  <span>{dateRangeDisplay}</span>
+                  <VsIcon
+                    name="expand_more"
+                    className="text-sm text-slate-400 group-hover:text-emerald-800 transition-colors"
+                  />
+                </button>
+                <input
+                  ref={dateInputRef}
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    if (e.target.value) setStartDate(e.target.value);
+                  }}
+                  className="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
+                  tabIndex={-1}
+                  aria-label="Chọn ngày bắt đầu xem"
+                />
+              </div>
+
+              <span className="h-4 w-px bg-slate-200/90 mx-0.5" />
+
+              <button
+                type="button"
+                onClick={handleNextDay}
+                className="hidden sm:inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs font-bold text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-2xs transition cursor-pointer whitespace-nowrap"
+                title="Tiến 1 ngày (Phím →)"
+              >
+                <span>1 ngày</span>
+                <VsIcon name="arrow_forward" className="text-xs" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleNextStep}
+                className="inline-flex h-8 items-center justify-center rounded-md px-2 text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-2xs transition cursor-pointer whitespace-nowrap"
+                title="Tiến kỳ sau (giữ 1 ngày gối đầu • Shift + →)"
+                aria-label="Tiến kỳ sau"
+              >
+                <VsIcon name="chevron_right" className="text-base" />
+              </button>
+            </div>
+
+            {/* Week / Biweek / Month Segmented Toggle */}
+            <div
+              className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-slate-100/80 p-0.5"
+              role="group"
+              aria-label="Khung ngày hiển thị"
             >
-              <VsIcon name="calendar_month" className="text-sm text-emerald-800 group-hover:scale-110 transition-transform" />
-              <span>{dateRangeDisplay}</span>
-              <VsIcon name="arrow_drop_down" className="text-sm text-slate-400 group-hover:text-slate-700 -ml-0.5" />
-            </button>
-            <input
-              ref={dateInputRef}
-              type="date"
-              value={startDate}
-              onChange={(e) => {
-                if (e.target.value) setStartDate(e.target.value);
-              }}
-              className="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
-              tabIndex={-1}
-              aria-label="Chọn ngày bắt đầu xem"
-            />
+              <button
+                type="button"
+                onClick={() => setViewMode("week")}
+                className={`inline-flex h-8 items-center px-3 text-xs rounded-md transition cursor-pointer whitespace-nowrap ${
+                  viewMode === "week"
+                    ? "bg-white text-emerald-950 shadow-2xs ring-1 ring-slate-200/80 font-black"
+                    : "font-bold text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                7 ngày
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("biweek")}
+                className={`inline-flex h-8 items-center px-3 text-xs rounded-md transition cursor-pointer whitespace-nowrap ${
+                  viewMode === "biweek"
+                    ? "bg-white text-emerald-950 shadow-2xs ring-1 ring-slate-200/80 font-black"
+                    : "font-bold text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                14 ngày
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("month")}
+                className={`inline-flex h-8 items-center px-3 text-xs rounded-md transition cursor-pointer whitespace-nowrap ${
+                  viewMode === "month"
+                    ? "bg-white text-emerald-950 shadow-2xs ring-1 ring-slate-200/80 font-black"
+                    : "font-bold text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                30 ngày
+              </button>
+            </div>
+
             {isPlanFetching && (
-              <span className="inline-flex items-center gap-1 text-xs text-emerald-700 font-semibold animate-pulse">
-                <span className="size-1.5 rounded-full bg-emerald-600" />
-                Đang đồng bộ...
+              <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-emerald-50 text-xs text-emerald-800 font-semibold whitespace-nowrap">
+                <span className="size-1.5 rounded-full bg-emerald-600 animate-ping" />
+                <span>Đang đồng bộ...</span>
               </span>
             )}
           </div>
 
-          {/* Overall Period Occupancy Summary Pill */}
-          {periodOccupancyStats.totalRooms > 0 && (
-            <div
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-900 border border-emerald-200/90 shadow-2xs whitespace-nowrap"
-              title={`Công suất trung bình cả kỳ (${numDays} ngày): ${periodOccupancyStats.avgPercent}% • Hôm nay: ${periodOccupancyStats.todayPercent}% (${periodOccupancyStats.todayOccupied}/${periodOccupancyStats.totalRooms} phòng)`}
-            >
-              <VsIcon name="pie_chart" className="text-sm text-emerald-700" />
-              <span>
-                Công suất TB: <strong className="font-black text-emerald-950">{periodOccupancyStats.avgPercent}%</strong>
-              </span>
-              <span className="text-emerald-700 font-medium">
-                ({periodOccupancyStats.todayOccupied}/{periodOccupancyStats.totalRooms} hôm nay)
-              </span>
-            </div>
-          )}
+          {/* Right: Operational KPIs & Primary Quick Reservation CTA */}
+          <div className="flex flex-wrap items-center gap-2 ml-auto">
+            {/* Period Occupancy Summary Pill */}
+            {periodOccupancyStats.totalRooms > 0 && (
+              <div
+                className="inline-flex h-9 items-center gap-1.5 px-3 rounded-lg text-xs font-bold bg-emerald-50/90 text-emerald-900 border border-emerald-200/90 whitespace-nowrap"
+                title={`Công suất trung bình cả kỳ (${numDays} ngày): ${periodOccupancyStats.avgPercent}% • Hôm nay: ${periodOccupancyStats.todayPercent}% (${periodOccupancyStats.todayOccupied}/${periodOccupancyStats.totalRooms} phòng)`}
+              >
+                <VsIcon name="trending_up" className="text-sm text-emerald-700" />
+                <span>
+                  Công suất TB:{" "}
+                  <strong className="font-black text-emerald-950">
+                    {periodOccupancyStats.avgPercent}%
+                  </strong>
+                </span>
+                <span className="text-emerald-300">•</span>
+                <span className="text-emerald-800 font-semibold">
+                  {periodOccupancyStats.todayOccupied}/{periodOccupancyStats.totalRooms} hôm nay
+                </span>
+              </div>
+            )}
 
-          {/* Overdue Rooms Alert Pill */}
-          {overdueRooms.length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                const firstOverdue = overdueRooms[0];
-                if (firstOverdue) {
-                  const el = document.querySelector(`[data-room-id="${firstOverdue.id}"]`);
-                  if (el) {
-                    el.scrollIntoView({ behavior: "smooth", block: "center" });
-                    el.classList.add("ring-2", "ring-rose-500", "transition-all");
-                    setTimeout(() => {
-                      el.classList.remove("ring-2", "ring-rose-500");
-                    }, 2500);
-                  }
-                }
-              }}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black bg-rose-100 hover:bg-rose-200 text-rose-900 border border-rose-300 shadow-2xs transition cursor-pointer whitespace-nowrap"
-              title="Click để cuộn ngay tới phòng quá hạn"
-            >
-              <VsIcon name="warning" className="text-xs text-rose-600" />
-              <span>{overdueRooms.length} phòng quá hạn</span>
-            </button>
-          )}
+            {/* Overdue Rooms Interactive Alert Pill */}
+            {overdueRooms.length > 0 && (
+              <button
+                type="button"
+                onClick={handleNextOverdue}
+                className="inline-flex h-9 items-center gap-1.5 px-3 rounded-lg text-xs font-black border transition cursor-pointer whitespace-nowrap bg-rose-50 hover:bg-rose-100 text-rose-900 border-rose-200 shadow-2xs"
+                title={`Click để chuyển và cuộn tới phòng quá hạn (${(overdueFocusIndex % overdueRooms.length) + 1}/${overdueRooms.length})`}
+              >
+                <span className="size-2 rounded-full bg-rose-600 animate-pulse shrink-0" />
+                <span>{overdueRooms.length} phòng quá hạn</span>
+                {overdueRooms.length > 1 && (
+                  <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-rose-200 text-rose-950 text-xs font-bold whitespace-nowrap">
+                    {(overdueFocusIndex % overdueRooms.length) + 1}/{overdueRooms.length}
+                  </span>
+                )}
+              </button>
+            )}
 
-          {/* Keyboard Shortcuts Hint */}
-          <div
-            className="hidden xl:flex items-center gap-1.5 text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200/60"
-            title="Phím tắt: [← / →]: Trượt ngày • [Shift + ← / →]: Trượt tuần gối đầu • [T]: Hôm nay • [W]: 7 ngày / 14 ngày"
-          >
-            <span className="font-bold text-slate-700">Phím tắt:</span>
-            <span>← / → trượt ngày • T về hôm nay</span>
+            {/* Primary CTA: Quick Reservation */}
+            {!isReadOnly && onOpenQuickReservation && (
+              <button
+                type="button"
+                onClick={() => onOpenQuickReservation()}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-bold px-3.5 text-xs shadow-xs transition cursor-pointer whitespace-nowrap"
+              >
+                <VsIcon name="add" className="text-sm" />
+                <span>Đặt phòng nhanh</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Right: View Mode & Filters */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Week / Biweek / Month Toggle */}
-          <div className="inline-flex rounded-md border border-slate-200 bg-slate-100 p-0.5 shadow-inner">
-            <button
-              type="button"
-              onClick={() => setViewMode("week")}
-              className={`px-3 py-1.5 text-xs font-bold rounded-md transition cursor-pointer whitespace-nowrap ${
-                viewMode === "week"
-                  ? "bg-white text-slate-900 shadow-2xs font-black"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
+        {/* Tier 2: Smart Filter Bar (Search, Room Type, Floor, Quick Status Pills & View Actions) */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2 bg-slate-50/60">
+          {/* Left: Search, Dropdowns & Quick Status Pills */}
+          <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+            {/* Smart Search Input */}
+            <div className="relative w-full sm:w-56">
+              <VsIcon
+                name="search"
+                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-slate-400"
+              />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm số phòng, tên khách..."
+                className={`h-8 w-full rounded-lg border pl-8 pr-7 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-700/20 transition ${
+                  searchQuery.trim()
+                    ? "border-emerald-600 bg-emerald-50/40 font-semibold"
+                    : "border-slate-200 bg-white hover:border-slate-300"
+                }`}
+              />
+              {searchQuery.trim().length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 cursor-pointer"
+                  title="Xóa từ khóa tìm kiếm"
+                  aria-label="Xóa từ khóa tìm kiếm"
+                >
+                  <VsIcon name="close" className="text-xs" />
+                </button>
+              )}
+            </div>
+
+            {/* Category Filter Dropdown */}
+            {categories.length > 0 && (
+              <div className="relative inline-flex items-center">
+                <VsIcon
+                  name="bed"
+                  className={`pointer-events-none absolute left-2.5 text-sm ${
+                    selectedCategory !== "all" ? "text-emerald-800" : "text-slate-400"
+                  }`}
+                />
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  aria-label="Lọc theo hạng phòng"
+                  className={`h-8 appearance-none rounded-lg border pl-8 pr-7 text-xs transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-700/20 ${
+                    selectedCategory !== "all"
+                      ? "border-emerald-600 bg-emerald-50/70 font-bold text-emerald-950"
+                      : "border-slate-200 bg-white font-semibold text-slate-700 hover:border-slate-300"
+                  }`}
+                >
+                  <option value="all">Tất cả hạng phòng ({categories.length})</option>
+                  {categories.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+                <VsIcon
+                  name="expand_more"
+                  className="pointer-events-none absolute right-2 text-sm text-slate-400"
+                />
+              </div>
+            )}
+
+            {/* Floor Filter Dropdown */}
+            {floors.length > 0 && (
+              <div className="relative inline-flex items-center">
+                <VsIcon
+                  name="apartment"
+                  className={`pointer-events-none absolute left-2.5 text-sm ${
+                    selectedFloor !== "all" ? "text-emerald-800" : "text-slate-400"
+                  }`}
+                />
+                <select
+                  value={selectedFloor}
+                  onChange={(e) => setSelectedFloor(e.target.value)}
+                  aria-label="Lọc theo tầng"
+                  className={`h-8 appearance-none rounded-lg border pl-8 pr-7 text-xs transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-700/20 ${
+                    selectedFloor !== "all"
+                      ? "border-emerald-600 bg-emerald-50/70 font-bold text-emerald-950"
+                      : "border-slate-200 bg-white font-semibold text-slate-700 hover:border-slate-300"
+                  }`}
+                >
+                  <option value="all">Tất cả tầng ({floors.length})</option>
+                  {floors.map((f) => (
+                    <option key={f} value={f}>
+                      Tầng {f}
+                    </option>
+                  ))}
+                </select>
+                <VsIcon
+                  name="expand_more"
+                  className="pointer-events-none absolute right-2 text-sm text-slate-400"
+                />
+              </div>
+            )}
+
+            <span className="hidden md:inline-block h-4 w-px bg-slate-200 mx-0.5" />
+
+            {/* Quick Room Status Filter Pills */}
+            <div
+              className="inline-flex flex-wrap items-center gap-1"
+              role="group"
+              aria-label="Lọc nhanh trạng thái phòng hôm nay"
             >
-              7 ngày
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("biweek")}
-              className={`px-3 py-1.5 text-xs font-bold rounded-md transition cursor-pointer whitespace-nowrap ${
-                viewMode === "biweek"
-                  ? "bg-white text-slate-900 shadow-2xs font-black"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              14 ngày
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("month")}
-              className={`px-3 py-1.5 text-xs font-bold rounded-md transition cursor-pointer whitespace-nowrap ${
-                viewMode === "month"
-                  ? "bg-white text-slate-900 shadow-2xs font-black"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              30 ngày
-            </button>
+              <button
+                type="button"
+                onClick={() => setSelectedStatusFilter("all")}
+                className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold transition cursor-pointer whitespace-nowrap border ${
+                  selectedStatusFilter === "all"
+                    ? "bg-slate-800 text-white border-slate-800 shadow-2xs"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900"
+                }`}
+              >
+                <span>Tất cả</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-xs font-black leading-none whitespace-nowrap ${
+                    selectedStatusFilter === "all"
+                      ? "bg-white/20 text-white"
+                      : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {roomStatusCounts.all}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedStatusFilter((prev) =>
+                    prev === "available_today" ? "all" : "available_today",
+                  )
+                }
+                className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold transition cursor-pointer whitespace-nowrap border ${
+                  selectedStatusFilter === "available_today"
+                    ? "bg-emerald-700 text-white border-emerald-700 shadow-2xs"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:text-emerald-900"
+                }`}
+                title="Lọc các phòng đang trống hôm nay"
+              >
+                <span
+                  className={`size-2 rounded-full ${
+                    selectedStatusFilter === "available_today"
+                      ? "bg-white"
+                      : "bg-emerald-500"
+                  }`}
+                />
+                <span>Trống hôm nay</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-xs font-black leading-none whitespace-nowrap ${
+                    selectedStatusFilter === "available_today"
+                      ? "bg-white/20 text-white"
+                      : "bg-emerald-50 text-emerald-800"
+                  }`}
+                >
+                  {roomStatusCounts.availableToday}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedStatusFilter((prev) =>
+                    prev === "occupied_today" ? "all" : "occupied_today",
+                  )
+                }
+                className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold transition cursor-pointer whitespace-nowrap border ${
+                  selectedStatusFilter === "occupied_today"
+                    ? "bg-sky-700 text-white border-sky-700 shadow-2xs"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-sky-300 hover:text-sky-900"
+                }`}
+                title="Lọc các phòng có khách lưu trú hoặc đặt phòng hôm nay"
+              >
+                <span
+                  className={`size-2 rounded-full ${
+                    selectedStatusFilter === "occupied_today" ? "bg-white" : "bg-sky-500"
+                  }`}
+                />
+                <span>Có khách hôm nay</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-xs font-black leading-none whitespace-nowrap ${
+                    selectedStatusFilter === "occupied_today"
+                      ? "bg-white/20 text-white"
+                      : "bg-sky-50 text-sky-800"
+                  }`}
+                >
+                  {roomStatusCounts.occupiedToday}
+                </span>
+              </button>
+
+              {roomStatusCounts.cleaning > 0 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedStatusFilter((prev) =>
+                      prev === "cleaning" ? "all" : "cleaning",
+                    )
+                  }
+                  className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold transition cursor-pointer whitespace-nowrap border ${
+                    selectedStatusFilter === "cleaning"
+                      ? "bg-amber-600 text-white border-amber-600 shadow-2xs"
+                      : "bg-white text-slate-600 border-slate-200 hover:border-amber-300 hover:text-amber-900"
+                  }`}
+                  title="Lọc các phòng đang chờ dọn dẹp"
+                >
+                  <span
+                    className={`size-2 rounded-full ${
+                      selectedStatusFilter === "cleaning" ? "bg-white" : "bg-amber-500"
+                    }`}
+                  />
+                  <span>Chờ dọn</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-xs font-black leading-none whitespace-nowrap ${
+                      selectedStatusFilter === "cleaning"
+                        ? "bg-white/20 text-white"
+                        : "bg-amber-50 text-amber-900"
+                    }`}
+                  >
+                    {roomStatusCounts.cleaning}
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {/* Active Filter Reset & Filtered Result Summary */}
+            {hasActiveFilters && (
+              <div className="inline-flex items-center gap-1.5">
+                <span className="text-xs font-bold text-emerald-900 bg-emerald-100/80 px-2 py-1 rounded-md whitespace-nowrap">
+                  Hiển thị {filteredRooms.length}/{allRooms.length} phòng
+                </span>
+                <button
+                  type="button"
+                  onClick={handleResetAllFilters}
+                  className="inline-flex h-8 items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 px-2.5 text-xs font-bold text-rose-800 transition cursor-pointer whitespace-nowrap"
+                  title="Xóa toàn bộ điều kiện lọc"
+                >
+                  <VsIcon name="filter_alt_off" className="text-xs" />
+                  <span>Xóa lọc</span>
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Category Filter */}
-          {categories.length > 0 && (
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-700/20 cursor-pointer"
-            >
-              <option value="all">Tất cả hạng phòng</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          )}
+          {/* Right: View Utilities (Collapse All, Reset Custom Order) */}
+          <div className="flex items-center gap-1.5 ml-auto">
+            {hasCustomOrder && (
+              <button
+                type="button"
+                onClick={() => resetRoomOrder(hotelId)}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900 px-2.5 text-xs font-bold transition cursor-pointer whitespace-nowrap"
+                title="Khôi phục thứ tự phòng mặc định"
+              >
+                <VsIcon name="restart_alt" className="text-sm" />
+                <span>Đặt lại thứ tự</span>
+              </button>
+            )}
 
-          {/* Floor Filter */}
-          {floors.length > 0 && (
-            <select
-              value={selectedFloor}
-              onChange={(e) => setSelectedFloor(e.target.value)}
-              className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-700/20 cursor-pointer"
-            >
-              <option value="all">Tất cả tầng</option>
-              {floors.map((f) => (
-                <option key={f} value={f}>
-                  Tầng {f}
-                </option>
-              ))}
-            </select>
-          )}
-
-          {/* Quick Search */}
-          <div className="relative">
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm số phòng..."
-              className="w-32 sm:w-40 rounded-md border border-slate-200 bg-slate-50 pl-7 pr-2.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
-            />
-            <VsIcon
-              name="search"
-              className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-sm text-slate-400"
-            />
+            {roomsByCategory.length > 1 && (
+              <button
+                type="button"
+                onClick={toggleAllCategories}
+                className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 px-2.5 text-xs font-semibold transition cursor-pointer whitespace-nowrap"
+                title={
+                  allCollapsed
+                    ? "Mở rộng tất cả hạng phòng"
+                    : "Thu gọn tất cả hạng phòng"
+                }
+              >
+                <VsIcon
+                  name={allCollapsed ? "expand_more" : "expand_less"}
+                  className="text-sm text-slate-500"
+                />
+                <span>{allCollapsed ? "Mở rộng nhóm" : "Thu gọn nhóm"}</span>
+              </button>
+            )}
           </div>
-
-          {!isReadOnly && onOpenQuickReservation && (
-            <button
-              type="button"
-              onClick={() => onOpenQuickReservation()}
-              className="inline-flex items-center gap-1.5 rounded-md bg-emerald-800 hover:bg-emerald-900 text-white font-bold px-3 py-1.5 text-xs shadow-xs transition cursor-pointer"
-            >
-              <VsIcon name="add" className="text-sm" />
-              <span>Đặt phòng nhanh</span>
-            </button>
-          )}
         </div>
       </div>
 
-      {/* ── Legend Bar ────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-4 px-2 text-xs font-semibold text-slate-600">
-        <span className="flex items-center gap-1.5">
-          <span className="size-3 rounded bg-emerald-600 border border-emerald-800" />
-          <span>Đang ở (Stay)</span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="size-3 rounded bg-purple-600 border border-purple-800" />
-          <span>Đặt trước (Movable)</span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="size-3 rounded bg-rose-500 border border-rose-700" />
-          <span>Quá hạn trả</span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="size-3 rounded bg-slate-400 border border-slate-600" />
-          <span>Bảo trì / Khóa</span>
-        </span>
-        <span className="ml-auto text-slate-500 text-pretty">
-          {isReadOnly
-            ? "💡 Nhấp vào thanh đặt phòng để xem thông tin chi tiết."
-            : "💡 Click hoặc kéo chuột ngang để chọn số đêm, kéo dọc để chọn nhiều phòng (đặt đoàn). Kéo thả thanh màu tím để đổi phòng."}
-        </span>
+      {/* ── Legend & Shortcut Strip ─────────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-xs font-semibold text-slate-600">
+        <div className="flex flex-wrap items-center gap-3.5">
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+            <span className="size-3 rounded bg-emerald-600 border border-emerald-800" />
+            <span>Đang ở</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+            <span className="size-3 rounded bg-purple-600 border border-purple-800" />
+            <span>Đặt trước (Kéo để đổi phòng)</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+            <span className="size-3 rounded bg-rose-500 border border-rose-700" />
+            <span>Quá hạn trả</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+            <span className="size-3 rounded bg-amber-200 border border-amber-400" />
+            <span>Chờ dọn phòng</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+            <span className="size-3 rounded bg-slate-400 border border-slate-600" />
+            <span>Bảo trì / Khóa</span>
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 ml-auto text-slate-500">
+          <span className="text-pretty">
+            {isReadOnly
+              ? "Nhấp vào thanh đặt phòng để xem chi tiết."
+              : "Kéo ngang chọn số đêm, kéo dọc chọn nhiều phòng (đặt đoàn)."}
+          </span>
+          <span
+            className="hidden xl:inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 border border-slate-200/80 whitespace-nowrap"
+            title="Phím tắt: [← / →] Trượt 1 ngày • [Shift + ← / →] Trượt kỳ • [T] Hôm nay • [W] Đổi khung 7/14/30 ngày"
+          >
+            <strong className="font-bold text-slate-700">Phím tắt:</strong>
+            <span>←/→ trượt ngày · T hôm nay · W khung ngày</span>
+          </span>
+        </div>
       </div>
 
       {/* ── Main Gantt / Tape Chart Grid Container ────────────────── */}
@@ -3447,7 +4339,7 @@ export function TapeChartView({
                 {/* Sticky Left: Title & Average */}
                 <div className="sticky left-0 z-40 w-48 min-w-[192px] max-w-[192px] shrink-0 border-r border-slate-200 bg-emerald-50/95 px-3 py-1.5 flex items-center justify-between shadow-xs">
                   <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-emerald-950">
-                    <VsIcon name="analytics" className="text-sm text-emerald-700 shrink-0" />
+                    <VsIcon name="trending_up" className="text-sm text-emerald-700 shrink-0" />
                     <span>Công suất phòng</span>
                   </div>
                   <span
@@ -3532,10 +4424,11 @@ export function TapeChartView({
                   onSelectRoom={onSelectRoom}
                   onToggleRoomBlocked={onToggleRoomBlocked}
                   onProcessingRoomClick={onProcessingRoomClick}
+                  onFocusOverdueRoom={focusOverdueRoom}
                   isCollapsed={Boolean(collapsedCategories[categoryName])}
                   onToggleCollapse={() => toggleCategory(categoryName)}
                   draftSelection={draftSelection}
-                  isDraggingRange={Boolean(activeDragRange)}
+                  isDraggingRange={Boolean(activeDragRange) || Boolean(activeDraftAdjust)}
                   activeDragRange={activeDragRange}
                   draggedBlock={draggedBlock}
                   onStartDragRange={handleStartDragRange}
@@ -3545,6 +4438,7 @@ export function TapeChartView({
                   onCancelDraft={handleCancelDraft}
                   activeBlockResize={activeBlockResize}
                   onStartBlockResize={isReadOnly ? undefined : handleStartBlockResize}
+                  onStartDraftAdjust={isReadOnly ? undefined : handleStartDraftAdjust}
                 />
               ))}
             </DndContext>

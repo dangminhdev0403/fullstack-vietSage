@@ -617,9 +617,6 @@ export function LocalMateKnowledgeView() {
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900">
                 Kho tri thức Tour AI
               </h1>
-              <p className="mt-0.5 text-xs sm:text-sm text-stone-500 max-w-2xl leading-relaxed">
-                Quản lý các chương trình tour, phân cấp địa lý Tỉnh / Thành và dữ liệu gợi ý cho trợ lý LocalMate AI.
-              </p>
             </div>
           </div>
         </div>

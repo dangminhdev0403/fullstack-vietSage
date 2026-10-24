@@ -64,9 +64,6 @@ export default async function OwnerHotelProfilePage({ params }: PageProps) {
         <h1 className="vs-display mt-2 text-4xl font-semibold text-[var(--primary)] text-balance">
           Thông tin khách sạn
         </h1>
-        <p className="mt-2 max-w-3xl text-sm text-[var(--on-surface-variant)] text-pretty">
-          Chỉnh sửa hồ sơ khách sạn và các thiết lập chung: thông tin định danh, vị trí toạ độ bản đồ và nhận diện thương hiệu.
-        </p>
       </header>
 
       <OwnerHotelDetailClient hotel={hotel} />

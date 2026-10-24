@@ -147,9 +147,6 @@ export function ServiceSettingsView({ data }: Readonly<{ data: ServicePortalData
       {/* Page Header */}
       <header className="space-y-1 border-b border-[#e5ddcd] pb-4">
         <h1 className="text-3xl font-extrabold text-[#17201b] sm:text-4xl">Hồ sơ & Vị trí</h1>
-        <p className="text-base font-medium text-[#5a6760]">
-          Cấu hình địa điểm kinh doanh, giới thiệu thương hiệu và vị trí phục vụ trên nền tảng.
-        </p>
       </header>
 
       <div className="grid gap-8 lg:grid-cols-2">

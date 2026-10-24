@@ -228,10 +228,6 @@ export default async function AdminDashboardPage({
             <h1 className="text-xl font-semibold tracking-tight text-[#17201b] sm:text-2xl">
               Trung tâm quản trị VietSage
             </h1>
-            <p className="mt-1 max-w-3xl text-sm leading-relaxed text-[#5f6b63]">
-              Điều phối tổng thể cơ sở lưu trú, tài khoản đối tác doanh nghiệp,
-              phân quyền truy cập và hạ tầng vận hành.
-            </p>
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[#5f6b63]">
               <span className="font-semibold text-[#24473d]">
                 {context.activeRole.name}

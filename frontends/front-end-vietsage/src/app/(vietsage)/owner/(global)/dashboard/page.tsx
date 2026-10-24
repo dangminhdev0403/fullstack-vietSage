@@ -265,9 +265,6 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
               <h1 className="mt-1 text-2xl sm:text-3xl font-bold tracking-tight text-[#17382F] md:text-4xl">
                 Tổng quan vận hành — {hotel?.name ?? "Khách sạn"}
               </h1>
-              <p className="mt-2 text-sm text-[#5a6860] max-w-2xl leading-relaxed">
-                Nắm bắt nhanh hiệu suất phòng, luồng tài chính đối soát, chất lượng phục vụ và các hạng mục cần quyết định tức thời.
-              </p>
             </div>
 
             {/* Hotel Selector Pills if multiple hotels */}

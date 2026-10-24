@@ -111,9 +111,6 @@ export function ServiceSettlementsView() {
             <span>🤝</span> Đối soát công nợ Hotel ↔ Đối tác
           </div>
           <h1 className="text-2xl font-extrabold text-[#17201b]">Lịch sử quyết toán dịch vụ</h1>
-          <p className="text-xs text-[#5a6760] mt-1">
-            Khách sạn thu hộ tiền dịch vụ từ khách lưu trú và quyết toán lại cho nhà cung cấp.
-          </p>
         </div>
         <Link
           href="/service/dashboard"

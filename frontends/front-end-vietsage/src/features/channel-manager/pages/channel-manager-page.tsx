@@ -222,11 +222,6 @@ function ChannelManagerContent({
               ? "Đơn đặt phòng OTA"
               : "Kho phòng và kênh bán OTA"}
           </h1>
-          <p className="mt-2 max-w-3xl text-sm text-[var(--on-surface-variant)]">
-            {visibleTabs.length === 1 && visibleTabs[0] === "BOOKINGS"
-              ? "Quản lý danh sách đơn đặt phòng từ các kênh OTA, tiếp nhận khách đặt trước, xếp phòng và làm thủ tục nhận phòng."
-              : "Quản lý tồn kho phòng, cập nhật giá ARI và theo dõi đặt phòng từ các kênh OTA đa nền tảng theo thời gian thực."}
-          </p>
         </div>
       </header>
 

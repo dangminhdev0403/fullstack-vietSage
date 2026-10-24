@@ -1,20 +1,18 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
+import {
+  formatLocalDateTime,
+  plainDateAtTime,
+  toYmd,
+  VIETNAM_TIME_ZONE,
+} from "../../../common/time/vietnam-temporal";
 import { KbttService } from "./kbtt.service";
 import { KbttRepository } from "../infrastructure/kbtt.repository";
 
 function scheduledVietnamDate(now: Date, hhmm: string): Date {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
-  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
-  const [hour, minute] = hhmm.split(":").map(Number);
-  return new Date(
-    Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day), hour - 7, minute),
-  );
+  const dateStr = toYmd(now, VIETNAM_TIME_ZONE);
+  const timeStr = hhmm.length === 5 ? `${hhmm}:00` : hhmm;
+  return plainDateAtTime(dateStr, timeStr, VIETNAM_TIME_ZONE);
 }
 
 @Injectable()
@@ -37,12 +35,7 @@ export class KbttAutoSubmitSchedulerService {
 
     const isDryRun = process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true";
     const now = new Date();
-    const currentHHmm = new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Asia/Ho_Chi_Minh",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).format(now);
+    const currentHHmm = formatLocalDateTime(now, VIETNAM_TIME_ZONE).slice(11, 16);
 
     try {
       const dueHotels = (await this.repository.findDueHotelsForAutoSubmit(currentHHmm)) ?? [];

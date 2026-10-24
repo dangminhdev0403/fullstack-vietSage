@@ -374,9 +374,6 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
               Quản lý đơn dịch vụ đối tác
             </h1>
           </div>
-          <p className="mt-0.5 text-xs sm:text-sm text-slate-500 font-medium">
-            Tiếp nhận và cập nhật tiến độ đơn hàng dịch vụ từ khách lưu trú tại các khách sạn đối tác liên kết.
-          </p>
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0 flex-wrap">

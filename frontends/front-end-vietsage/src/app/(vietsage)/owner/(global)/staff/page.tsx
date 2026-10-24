@@ -42,9 +42,6 @@ export default async function OwnerStaffPage({ searchParams }: Props) {
       <header>
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">NHÂN SỰ KHÁCH SẠN</p>
         <h1 className="mt-3 text-4xl font-semibold text-[var(--primary)]">Nhân viên &amp; phân công</h1>
-        <p className="mt-2 max-w-3xl text-base text-[var(--on-surface-variant)]">
-          Tạo tài khoản, gán vai trò nghiệp vụ và chỉ định một khách sạn làm việc cho mỗi nhân viên.
-        </p>
       </header>
       {context.tenants.length > 1 ? (
         <form className="flex flex-col gap-3 rounded-xl border border-[var(--outline-variant)] bg-white p-5 md:flex-row md:items-end" method="GET">

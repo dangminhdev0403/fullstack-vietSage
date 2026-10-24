@@ -126,14 +126,14 @@ test("KBTT validates write-only credentials, strips secret fields, preserves pas
     persona: "front_desk",
     permissions: ["hotel.kbtt.declarations.view"],
     hotelId: "hotel-1",
-  }).find((item) => item.key === "staff.kbtt");
-  assert.equal(staffEntry?.href, "/hotels/hotel-1/kbtt");
+  }).find((item) => item.key === "staff.front-desk");
+  assert.equal(staffEntry?.href, "/hotels/hotel-1/front-desk");
   assert.equal(
     buildWorkspaceNavigation({
       persona: "front_desk",
       permissions: [],
       hotelId: "hotel-1",
-    }).some((item) => item.key === "staff.kbtt"),
+    }).some((item) => item.key === "staff.front-desk"),
     false,
   );
 

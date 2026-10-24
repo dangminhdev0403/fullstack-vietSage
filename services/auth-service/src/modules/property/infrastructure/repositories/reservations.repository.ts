@@ -13,6 +13,11 @@ import {
   RoomQRCodeStatus,
   RoomStatus,
 } from "@prisma/client";
+import {
+  diffCalendarDays,
+  resolveTimeZone,
+  toYmd,
+} from "../../../../common/time/vietnam-temporal";
 import { PrismaService } from "../../../../prisma/prisma.service";
 import type { CheckInReservationBodyInput } from "../../domain/schemas/reservations.schema";
 import { inferCitizenshipKind } from "../../domain/infer-citizenship-kind";
@@ -768,25 +773,10 @@ export class ReservationsRepository {
         }
       }
 
-      const hotelTimezone =
-        input.timezone || (reservation as any).hotel?.timezone || "Asia/Ho_Chi_Minh";
-      const formatHotelDate = (date: Date) => {
-        try {
-          return new Intl.DateTimeFormat("en-CA", {
-            timeZone: hotelTimezone,
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-          }).format(date);
-        } catch {
-          return new Intl.DateTimeFormat("en-CA", {
-            timeZone: "Asia/Ho_Chi_Minh",
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-          }).format(date);
-        }
-      };
+      const hotelTimezone = resolveTimeZone(
+        input.timezone || (reservation as any).hotel?.timezone,
+      );
+      const formatHotelDate = (date: Date) => toYmd(date, hotelTimezone);
 
       const now = input.now ?? new Date();
       const todayStr = formatHotelDate(now);
@@ -1258,7 +1248,9 @@ export class ReservationsRepository {
     from: Date;
     to: Date;
     roomScopeIds?: string[] | null;
+    timezone?: string | null;
   }) {
+    const timeZone = resolveTimeZone(input.timezone);
     const whereRooms: Prisma.RoomWhereInput = {
       hotelId: input.hotelId,
       ...(input.roomScopeIds && input.roomScopeIds.length > 0
@@ -1290,9 +1282,9 @@ export class ReservationsRepository {
     if (roomIds.length === 0) {
       return {
         hotelId: input.hotelId,
-        timezone: "Asia/Ho_Chi_Minh",
-        from: input.from.toISOString().slice(0, 10),
-        to: input.to.toISOString().slice(0, 10),
+        timezone: timeZone,
+        from: toYmd(input.from, timeZone),
+        to: toYmd(input.to, timeZone),
         rooms: [],
         blocks: [],
       };
@@ -1443,10 +1435,7 @@ export class ReservationsRepository {
           : "Trực tiếp";
         const checkIn = r.plannedCheckInAt;
         const checkOut = r.plannedCheckOutAt;
-        const nights = Math.max(
-          1,
-          Math.round((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)),
-        );
+        const nights = Math.max(1, diffCalendarDays(checkIn, checkOut, timeZone));
         const nightlyRate = r.nightlyRateSnapshot
           ? Number(r.nightlyRateSnapshot)
           : r.room?.price
@@ -1473,8 +1462,8 @@ export class ReservationsRepository {
           source: isOta ? "OTA" : "DIRECT",
           channel: channelName,
           channelName,
-          startDate: checkIn.toISOString().slice(0, 10),
-          endDate: checkOut.toISOString().slice(0, 10),
+          startDate: toYmd(checkIn, timeZone),
+          endDate: toYmd(checkOut, timeZone),
           startAt: checkIn.toISOString(),
           endAt: checkOut.toISOString(),
           nights,
@@ -1499,15 +1488,7 @@ export class ReservationsRepository {
           s.status === GuestStayStatus.CHECKOUT_PENDING);
 
       const effectiveEnd = isOverdue && checkOut.getTime() < now.getTime() ? now : checkOut;
-      const vnOffsetMs = 7 * 60 * 60 * 1000;
-      const dayMs = 86_400_000;
-      const startDay = Math.floor((checkIn.getTime() + vnOffsetMs) / dayMs);
-      const endDay = Math.floor((effectiveEnd.getTime() + vnOffsetMs) / dayMs);
-      const calendarDiff = endDay - startDay;
-      const nights =
-        calendarDiff >= 1
-          ? calendarDiff
-          : Math.max(1, Math.round((effectiveEnd.getTime() - checkIn.getTime()) / dayMs));
+      const nights = Math.max(1, diffCalendarDays(checkIn, effectiveEnd, timeZone));
       const isOta = Boolean(s.reservationCode?.startsWith("OTA"));
       const channelName = isOta
         ? (s.reservationCode?.replace(/^OTA-?/i, "").trim() || "OTA")
@@ -1539,8 +1520,8 @@ export class ReservationsRepository {
         source: isOta ? "OTA" : "DIRECT",
         channel: channelName,
         channelName,
-        startDate: checkIn.toISOString().slice(0, 10),
-        endDate: effectiveEnd.toISOString().slice(0, 10),
+        startDate: toYmd(checkIn, timeZone),
+        endDate: toYmd(effectiveEnd, timeZone),
         startAt: checkIn.toISOString(),
         endAt: effectiveEnd.toISOString(),
         nights,
@@ -1554,9 +1535,9 @@ export class ReservationsRepository {
 
     return {
       hotelId: input.hotelId,
-      timezone: "Asia/Ho_Chi_Minh",
-      from: input.from.toISOString().slice(0, 10),
-      to: input.to.toISOString().slice(0, 10),
+      timezone: timeZone,
+      from: toYmd(input.from, timeZone),
+      to: toYmd(input.to, timeZone),
       rooms: rooms.map((r) => {
         let statusConflictCode: string | null = null;
         const roomStay = activeStayByRoomId.get(r.id);

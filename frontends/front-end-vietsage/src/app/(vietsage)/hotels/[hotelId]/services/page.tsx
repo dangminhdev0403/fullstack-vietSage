@@ -61,11 +61,6 @@ export default async function HotelServicesPage({ params }: ServicesPageProps) {
         <h1 className="vs-display text-[32px] font-semibold text-[var(--primary)] md:text-[40px]">
           Quản lý dịch vụ
         </h1>
-        <p className="max-w-3xl text-base text-[var(--on-surface-variant)]">
-          {canManage
-            ? "Bật hoặc tắt trạng thái hoạt động của các dịch vụ và nhóm Dịch vụ khách sạn."
-            : "Xem danh sách dịch vụ và nhóm Dịch vụ hoạt động tại khách sạn."}
-        </p>
       </header>
 
       <ServiceCatalogClient

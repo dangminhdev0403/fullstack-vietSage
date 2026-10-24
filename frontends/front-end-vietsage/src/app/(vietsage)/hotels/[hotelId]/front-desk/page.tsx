@@ -23,6 +23,7 @@ import { HttpError } from "@/core/http/http-error";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { KbttDeclarationsPage } from "@/features/kbtt/components/kbtt-declarations-page";
 import { FrontDeskInHouseTable } from "./front-desk-in-house-table";
 import { FrontDeskArrivalsTable } from "./front-desk-arrivals-table";
 
@@ -34,7 +35,7 @@ function isNextRouterError(error: unknown): boolean {
 
 const PAGE_SIZE = 20;
 
-type FrontDeskTab = "arrivals" | "in-house";
+type FrontDeskTab = "in-house" | "arrivals" | "kbtt";
 type PageProps = {
   params: Promise<{ hotelId: string }>;
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -57,8 +58,8 @@ function frontDeskHref(
 ): string {
   const query = new URLSearchParams({ tab: input.tab });
   if (input.range && input.tab === "arrivals") query.set("range", input.range);
-  if (input.q) query.set("q", input.q);
-  if (input.page && input.page > 1) query.set("page", String(input.page));
+  if (input.q && input.tab !== "kbtt") query.set("q", input.q);
+  if (input.page && input.page > 1 && input.tab !== "kbtt") query.set("page", String(input.page));
   return `${baseRoutePrefix}/${encodeURIComponent(hotelId)}/front-desk?${query.toString()}`;
 }
 
@@ -131,20 +132,37 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
   }
 
   const canViewArrivals = context.permissions.includes("hotel.reservations.view");
+  const canViewKbtt = context.permissions.some((p) =>
+    ["hotel.kbtt.declarations.view", "hotel.kbtt.declarations.manage"].includes(p),
+  );
+  const canManageKbttDeclarations = context.permissions.includes("hotel.kbtt.declarations.manage");
+  const canConfigureKbtt = context.permissions.some((p) =>
+    ["hotel.kbtt.view", "hotel.kbtt.manage"].includes(p),
+  );
   const canViewInHouse = context.permissions.includes("hotel.rooms.view");
-  if (!canUseHotelId(context, hotelId) || (!canViewArrivals && !canViewInHouse)) {
+  if (!canUseHotelId(context, hotelId) || (!canViewArrivals && !canViewInHouse && !canViewKbtt)) {
     notFound();
   }
 
-  const requestedTab: FrontDeskTab = first(query.tab) === "arrivals" ? "arrivals" : "in-house";
+  const rawTab = first(query.tab);
+  const requestedTab: FrontDeskTab =
+    rawTab === "kbtt"
+      ? "kbtt"
+      : rawTab === "arrivals"
+        ? "arrivals"
+        : "in-house";
   const tab: FrontDeskTab =
-    requestedTab === "in-house" && canViewInHouse
+    requestedTab === "kbtt" && canViewKbtt
+      ? "kbtt"
+      : requestedTab === "in-house" && canViewInHouse
       ? "in-house"
       : requestedTab === "arrivals" && canViewArrivals
         ? "arrivals"
         : canViewInHouse
           ? "in-house"
-          : "arrivals";
+          : canViewArrivals
+            ? "arrivals"
+            : "kbtt";
   const rawRange = first(query.range);
   const range: ArrivalRange =
     rawRange === "tomorrow" || rawRange === "week" ? rawRange : "today";
@@ -173,7 +191,7 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
           accessToken,
         }),
       );
-    } else {
+    } else if (tab === "in-house") {
       inHousePage = await authorizedApi("load in-house guests", (accessToken) =>
         hotelOpsService.listRooms(hotelId, {
           query: {
@@ -236,12 +254,9 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--secondary)]">
             VẬN HÀNH LỄ TÂN{currentHotel?.name ? ` — ${currentHotel.name}` : ""}
           </p>
-          <h1 className="vs-display mt-2 text-4xl font-semibold text-[var(--primary)]">
-            Khách đang lưu trú & Khách đặt trước
+          <h1 className="vs-display mt-2 text-4xl font-semibold text-[var(--primary)] text-balance">
+            Quản lý khách lưu trú
           </h1>
-          <p className="mt-2 max-w-3xl text-sm text-[var(--on-surface-variant)]">
-            Theo dõi chi tiết khách đang lưu trú tại khách sạn, chuẩn bị tiếp đón khách đặt trước chu đáo, và điều hướng nhanh sang sơ đồ phòng, yêu cầu dịch vụ hoặc thu ngân.
-          </p>
         </div>
       </header>
 
@@ -289,6 +304,20 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
               ) : null}
             </Link>
           ) : null}
+          {canViewKbtt ? (
+            <Link
+              aria-current={tab === "kbtt" ? "page" : undefined}
+              className={`inline-flex min-h-10 items-center gap-2 rounded-xl px-4 text-sm font-bold transition-all ${
+                tab === "kbtt"
+                  ? "border border-slate-200 bg-white text-blue-700 shadow-xs"
+                  : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
+              }`}
+              href={frontDeskHref(hotelId, { tab: "kbtt" }, baseRoutePrefix)}
+            >
+              <VsIcon name="verified_user" className="h-4 w-4" />
+              <span>Khai báo tạm trú</span>
+            </Link>
+          ) : null}
         </nav>
 
         {tab === "arrivals" ? (
@@ -321,7 +350,15 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
         ) : null}
       </div>
 
-      {/* Search Bar */}
+      {tab === "kbtt" ? (
+        <KbttDeclarationsPage
+          hotelId={hotelId}
+          canManage={canManageKbttDeclarations}
+          canConfigure={canConfigureKbtt}
+        />
+      ) : (
+        <>
+          {/* Search Bar */}
       <form className="flex flex-col gap-2.5 sm:flex-row" method="get">
         <input type="hidden" name="tab" value={tab} />
         {tab === "arrivals" ? <input type="hidden" name="range" value={range} /> : null}
@@ -374,13 +411,9 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
                 </span>
               ) : null}
             </div>
-            <p className="mt-1 text-xs text-slate-500">
-              {loadFailed
-                ? "Dữ liệu chưa tải được — vui lòng kiểm tra kết nối"
-                : tab === "arrivals"
-                  ? `Tổng cộng ${total} lượt khách dự kiến đến trong phạm vi khách sạn`
-                  : `Tổng cộng ${total} phòng đang có khách lưu trú tại khách sạn`}
-            </p>
+            {loadFailed ? (
+              <p className="mt-1 text-xs text-red-600">Dữ liệu chưa tải được — vui lòng kiểm tra kết nối</p>
+            ) : null}
           </div>
           {tab === "arrivals" && canOperateArrivals ? (
             <Link
@@ -534,6 +567,8 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
           />
         ) : null}
       </section>
+        </>
+      )}
     </div>
   );
 }

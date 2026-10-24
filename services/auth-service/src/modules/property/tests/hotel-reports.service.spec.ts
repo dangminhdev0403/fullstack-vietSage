@@ -1,4 +1,9 @@
-import { FolioItemType, PaymentMethod, PaymentStatus, RoomStatus } from "@prisma/client";
+import {
+  FolioItemType,
+  GuestStayStatus,
+  PaymentMethod,
+} from "@prisma/client";
+import { Temporal } from "@js-temporal/polyfill";
 import { HotelReportsService } from "../application/hotel-reports.service";
 
 describe("HotelReportsService", () => {
@@ -56,7 +61,11 @@ describe("HotelReportsService", () => {
         method: PaymentMethod.CASH,
         confirmedAt: now,
         createdByUserId: "user-staff-1",
-        createdBy: { id: "user-staff-1", fullName: "Nguyễn Văn Lễ Tân", email: "letan@hotel.vn" },
+        createdBy: {
+          id: "user-staff-1",
+          fullName: "Nguyễn Văn Lễ Tân",
+          email: "letan@hotel.vn",
+        },
       },
       {
         id: "pay-2",
@@ -64,7 +73,11 @@ describe("HotelReportsService", () => {
         method: PaymentMethod.BANK_TRANSFER,
         confirmedAt: now,
         createdByUserId: "user-staff-1",
-        createdBy: { id: "user-staff-1", fullName: "Nguyễn Văn Lễ Tân", email: "letan@hotel.vn" },
+        createdBy: {
+          id: "user-staff-1",
+          fullName: "Nguyễn Văn Lễ Tân",
+          email: "letan@hotel.vn",
+        },
       },
     ];
     mockPrisma.payment.findMany.mockResolvedValue(mockPayments);
@@ -73,20 +86,16 @@ describe("HotelReportsService", () => {
       {
         id: "item-1",
         itemType: FolioItemType.ROOM_CHARGE,
-        nameSnapshot: "Tiền phòng Deluxe",
         totalSnapshot: 3000000,
         postedAt: now,
         postedByUserId: "user-staff-1",
-        postedBy: { id: "user-staff-1", fullName: "Nguyễn Văn Lễ Tân", email: "letan@hotel.vn" },
       },
       {
         id: "item-2",
         itemType: FolioItemType.SERVICE,
-        nameSnapshot: "Minibar & Giặt ủi",
         totalSnapshot: 1000000,
         postedAt: now,
         postedByUserId: "user-staff-1",
-        postedBy: { id: "user-staff-1", fullName: "Nguyễn Văn Lễ Tân", email: "letan@hotel.vn" },
       },
     ];
     mockPrisma.folioItem.findMany.mockResolvedValue(mockFolioItems);
@@ -101,7 +110,7 @@ describe("HotelReportsService", () => {
         guestDisplayName: "Kim Min-soo",
         guestNationality: "Hàn Quốc",
         guestGender: "NAM",
-        status: "ACTIVE",
+        status: GuestStayStatus.ACTIVE,
         plannedCheckInAt: checkIn,
         plannedCheckOutAt: checkOut,
         checkedInAt: checkIn,
@@ -110,7 +119,11 @@ describe("HotelReportsService", () => {
         baseNightlyRateSnapshot: 1500000,
         createdByUserId: "user-staff-1",
         closedByUserId: null,
-        createdBy: { id: "user-staff-1", fullName: "Nguyễn Văn Lễ Tân", email: "letan@hotel.vn" },
+        createdBy: {
+          id: "user-staff-1",
+          fullName: "Nguyễn Văn Lễ Tân",
+          email: "letan@hotel.vn",
+        },
         occupants: [
           {
             id: "occ-1",
@@ -135,7 +148,7 @@ describe("HotelReportsService", () => {
         guestDisplayName: "Trần Thị Lan",
         guestNationality: "Việt Nam",
         guestGender: "NỮ",
-        status: "ACTIVE",
+        status: GuestStayStatus.ACTIVE,
         plannedCheckInAt: checkIn,
         plannedCheckOutAt: checkOut,
         checkedInAt: checkIn,
@@ -144,7 +157,11 @@ describe("HotelReportsService", () => {
         baseNightlyRateSnapshot: 1200000,
         createdByUserId: "user-staff-1",
         closedByUserId: null,
-        createdBy: { id: "user-staff-1", fullName: "Nguyễn Văn Lễ Tân", email: "letan@hotel.vn" },
+        createdBy: {
+          id: "user-staff-1",
+          fullName: "Nguyễn Văn Lễ Tân",
+          email: "letan@hotel.vn",
+        },
         occupants: [
           {
             id: "occ-2",
@@ -197,11 +214,15 @@ describe("HotelReportsService", () => {
     expect(result.summary.occupancyRate).toBeGreaterThan(0);
 
     // Kiểm tra phân bổ nguồn khách
-    const bookingDotCom = result.revenueBySource.find((s) => s.sourceKey === "OTA_BOOKING");
+    const bookingDotCom = result.revenueBySource.find(
+      (s) => s.sourceKey === "OTA_BOOKING",
+    );
     expect(bookingDotCom).toBeDefined();
     expect(bookingDotCom?.sourceName).toBe("Booking.com");
 
-    const direct = result.revenueBySource.find((s) => s.sourceKey === "DIRECT");
+    const direct = result.revenueBySource.find(
+      (s) => s.sourceKey === "DIRECT",
+    );
     expect(direct).toBeDefined();
 
     // Kiểm tra phân bổ nhân viên thu ngân
@@ -211,12 +232,88 @@ describe("HotelReportsService", () => {
     expect(result.revenueByStaff[0].staffName).toBe("Nguyễn Văn Lễ Tân");
 
     // Kiểm tra phân bổ quốc tịch
-    const korea = result.guestAnalytics.nationalities.find((n) => n.nationality === "Hàn Quốc");
+    const korea = result.guestAnalytics.nationalities.find(
+      (n) => n.nationality === "Hàn Quốc",
+    );
     expect(korea).toBeDefined();
-    const vn = result.guestAnalytics.nationalities.find((n) => n.nationality === "Việt Nam");
+    const vn = result.guestAnalytics.nationalities.find(
+      (n) => n.nationality === "Việt Nam",
+    );
     expect(vn).toBeDefined();
 
     // Kiểm tra phương thức thanh toán
     expect(result.paymentMethods.length).toBe(2);
+  });
+
+  it("đồng bộ tuyệt đối date (YYYY-MM-DD) và dayLabel (D/M) theo múi giờ Asia/Ho_Chi_Minh nhờ Temporal", async () => {
+    mockPrisma.room.count.mockResolvedValueOnce(10).mockResolvedValueOnce(2);
+    // Giao dịch lúc 01:15 sáng giờ Việt Nam ngày 2026-10-20 (tức 18:15 UTC ngày 2026-10-19)
+    const earlyMorningVn = new Date("2026-10-20T01:15:00.000+07:00");
+
+    mockPrisma.payment.findMany.mockResolvedValue([
+      {
+        id: "pay-early",
+        paidAmount: 1800000,
+        method: PaymentMethod.CASH,
+        confirmedAt: earlyMorningVn,
+        createdByUserId: "user-1",
+        createdBy: { id: "user-1", fullName: "Thu Ngân Ca Đêm", email: "ca@vn" },
+      },
+    ]);
+    mockPrisma.folioItem.findMany.mockResolvedValue([]);
+    mockPrisma.guestStay.findMany.mockResolvedValue([
+      {
+        id: "stay-oct20",
+        reservationCode: "VSH_OCT20",
+        guestDisplayName: "Nguyễn Văn A",
+        guestNationality: "VN",
+        guestGender: "NAM",
+        status: GuestStayStatus.CHECKED_IN,
+        plannedCheckInAt: new Date("2026-10-20T14:00:00.000+07:00"),
+        plannedCheckOutAt: new Date("2026-10-21T12:00:00.000+07:00"),
+        checkedInAt: new Date("2026-10-20T14:00:00.000+07:00"),
+        checkedOutAt: null,
+        nightlyRateSnapshot: 1800000,
+        baseNightlyRateSnapshot: 1800000,
+        createdByUserId: "user-1",
+        closedByUserId: null,
+        createdBy: null,
+        occupants: [],
+        reservation: null,
+      },
+    ]);
+    mockPrisma.hotelStaffAssignment.findMany.mockResolvedValue([]);
+
+    const result = await service.getReports("user-1", "role-1", "hotel-1", {
+      range: "30d",
+      from: "2026-10-19",
+      to: "2026-10-21",
+    });
+
+    expect(result.startDate).toBe("2026-10-19");
+    expect(result.endDate).toBe("2026-10-21");
+    expect(result.revenueByDay).toHaveLength(3);
+
+    for (const dayItem of result.revenueByDay) {
+      const pd = Temporal.PlainDate.from(dayItem.date);
+      expect(dayItem.dayLabel).toBe(`${pd.day}/${pd.month}`);
+    }
+
+    const oct19 = result.revenueByDay.find((d) => d.date === "2026-10-19")!;
+    const oct20 = result.revenueByDay.find((d) => d.date === "2026-10-20")!;
+    const oct21 = result.revenueByDay.find((d) => d.date === "2026-10-21")!;
+
+    expect(oct19.dayLabel).toBe("19/10");
+    expect(oct19.totalRevenue).toBe(0);
+
+    // Giao dịch 01:15 sáng ngày 20/10 giờ VN phải thuộc đúng ngày 2026-10-20 (20/10)
+    expect(oct20.dayLabel).toBe("20/10");
+    expect(oct20.totalRevenue).toBe(1800000);
+    expect(oct20.roomRevenue).toBe(1800000);
+    expect(oct20.roomsOccupied).toBe(1);
+
+    // Ngày 21/10 là ngày check-out trưa (12:00), không tính lố thêm 1 đêm ở
+    expect(oct21.dayLabel).toBe("21/10");
+    expect(oct21.roomsOccupied).toBe(0);
   });
 });

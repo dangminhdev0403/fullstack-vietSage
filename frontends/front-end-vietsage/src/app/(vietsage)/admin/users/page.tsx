@@ -56,9 +56,6 @@ export default async function AdminUsersPage({ searchParams }: Props) {
         <header>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">QUẢN TRỊ NỀN TẢNG</p>
           <h1 className="mt-3 text-4xl font-semibold text-[var(--primary)]">Người dùng & Phạm vi truy cập</h1>
-          <p className="mt-2 max-w-3xl text-base text-[var(--on-surface-variant)]">
-            Tách quản lý chủ đơn vị khỏi nhân viên khách sạn; vai trò và phân công khách sạn được cập nhật độc lập.
-          </p>
         </header>
 
         <nav className="inline-flex rounded-xl border border-[var(--outline-variant)] bg-white p-1">

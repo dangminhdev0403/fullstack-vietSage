@@ -583,9 +583,6 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
               <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-[#142823]">
                 Mạng lưới LocalMate
               </h1>
-              <p className="mt-1 text-base text-[#52635A] max-w-2xl leading-relaxed">
-                Quản lý hồ sơ, khu vực tác nghiệp, trạng thái phê duyệt và kết nối Telegram của đội ngũ hướng dẫn viên.
-              </p>
             </div>
           </div>
         </div>

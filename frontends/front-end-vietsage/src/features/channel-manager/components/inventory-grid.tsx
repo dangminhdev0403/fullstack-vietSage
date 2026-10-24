@@ -18,6 +18,11 @@ import { RoomTypeRoomsModal } from "./room-type-rooms-modal";
 
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import {
+  addDaysYmd as addDays,
+  dayOfWeekYmd,
+  getVietnamToday as getTodayInVietnam,
+} from "@/libs/vietnam-temporal";
 
 interface InventoryGridProps {
   hotelId: string;
@@ -25,37 +30,14 @@ interface InventoryGridProps {
   canManage: boolean;
 }
 
-function getTodayInVietnam(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-}
-
-function formatDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function addDays(dateStr: string, days: number): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const date = new Date(y, m - 1, d);
-  date.setDate(date.getDate() + days);
-  return formatDate(date);
-}
-
 function formatDayOfWeek(dateStr: string): {
   dow: string;
   dayNum: string;
   isWeekend: boolean;
 } {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const date = new Date(y, m - 1, d);
-  const dayIndex = date.getDay();
+  const [, m, d] = dateStr.split("-").map(Number);
+  // ISO 1=Mon..7=Sun -> 0=Sun..6=Sat
+  const dayIndex = dayOfWeekYmd(dateStr) % 7;
   const dayNames = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
   const isWeekend = dayIndex === 0 || dayIndex === 6;
   return {

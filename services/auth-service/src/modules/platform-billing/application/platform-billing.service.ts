@@ -3,8 +3,13 @@ import { PlatformBillingContractStatus, Prisma } from "@prisma/client";
 import { AppLogger } from "../../../common/logging/app-logger.service";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { HotelAccessService } from "../../property/property-public";
+import {
+  addDaysYmd,
+  diffCalendarDays,
+  startOfPlainDate,
+  VIETNAM_TIME_ZONE,
+} from "../../../common/time/vietnam-temporal";
 
-const DAY_MS = 86_400_000;
 const MAX_RECONCILIATION_DAYS = 31;
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -16,12 +21,11 @@ export function assertReconciliationRange(
   if (!DATE_ONLY.test(fromDate) || !DATE_ONLY.test(toDateExclusive)) {
     throw new Error("PLATFORM_BILLING_INVALID_RECONCILIATION_RANGE");
   }
-  const from = Date.parse(`${fromDate}T00:00:00Z`);
-  const to = Date.parse(`${toDateExclusive}T00:00:00Z`);
-  if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) {
+  const diffDays = diffCalendarDays(fromDate, toDateExclusive);
+  if (diffDays <= 0) {
     throw new Error("PLATFORM_BILLING_INVALID_RECONCILIATION_RANGE");
   }
-  if ((to - from) / DAY_MS > maxDays) {
+  if (diffDays > maxDays) {
     throw new Error("PLATFORM_BILLING_RECONCILIATION_RANGE_TOO_LARGE");
   }
 }
@@ -169,7 +173,7 @@ export class PlatformBillingService {
             total,
             finalizedAt: now,
             finalizedByUserId: actorUserId,
-            dueAt: new Date(Date.parse(periodEnd) + 7 * 86_400_000),
+            dueAt: startOfPlainDate(addDaysYmd(periodEnd, 7), VIETNAM_TIME_ZONE),
           },
           update: {
             status: "FINALIZED",
@@ -179,7 +183,7 @@ export class PlatformBillingService {
             total,
             finalizedAt: now,
             finalizedByUserId: actorUserId,
-            dueAt: new Date(Date.parse(periodEnd) + 7 * 86_400_000),
+            dueAt: startOfPlainDate(addDaysYmd(periodEnd, 7), VIETNAM_TIME_ZONE),
           },
         });
 

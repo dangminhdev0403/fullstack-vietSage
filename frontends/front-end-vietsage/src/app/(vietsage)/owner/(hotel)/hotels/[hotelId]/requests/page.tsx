@@ -74,9 +74,6 @@ export default async function OwnerHotelRequestsPage({ params, searchParams }: P
       <header>
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">YÊU CẦU</p>
         <h1 className="mt-3 text-4xl font-semibold text-[var(--primary)]">Yêu cầu của khách</h1>
-        <p className="mt-2 max-w-3xl text-base text-[var(--on-surface-variant)]">
-          Theo dõi yêu cầu dịch vụ, trạng thái xử lý và lịch sử phản hồi. Nhân viên khách sạn chịu trách nhiệm điều phối và thực thi.
-        </p>
       </header>
 
       <RequestQueueClient

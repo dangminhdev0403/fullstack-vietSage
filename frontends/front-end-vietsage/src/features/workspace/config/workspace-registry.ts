@@ -454,6 +454,10 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
       "hotel.rooms.view",
       "hotel.rooms.manage",
       "hotel.stays.manage",
+      "hotel.kbtt.declarations.view",
+      "hotel.kbtt.declarations.manage",
+      "hotel.kbtt.view",
+      "hotel.kbtt.manage",
     ],
   },
   {
@@ -511,25 +515,6 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     section: "OPERATIONS",
     requiresHotel: true,
     anyCapabilities: ["hotel.messages.view", "hotel.messages.manage"],
-  },
-  {
-    key: "staff.kbtt",
-    personas: ["owner", "manager", "front_desk"],
-    href: "/hotels/{hotelId}/kbtt",
-    hrefByPersona: {
-      owner: "/owner/hotels/{hotelId}/kbtt",
-    },
-    label: "Khai báo tạm trú",
-    icon: "verified_user",
-    order: 45,
-    section: "OPERATIONS",
-    requiresHotel: true,
-    anyCapabilities: [
-      "hotel.kbtt.declarations.view",
-      "hotel.kbtt.declarations.manage",
-      "hotel.kbtt.view",
-      "hotel.kbtt.manage",
-    ],
   },
   {
     key: "staff.billing",

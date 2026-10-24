@@ -162,9 +162,6 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
             <h1 className="mt-2 text-2xl font-extrabold text-slate-900 tracking-tight">
               Danh mục dịch vụ đối tác
             </h1>
-            <p className="mt-1 text-sm font-medium text-slate-500">
-              Quản lý bảng giá, thời gian chuẩn bị và hình thức phục vụ của các dịch vụ trong hệ thống.
-            </p>
           </div>
 
           {/* Catalog Summary Stats */}

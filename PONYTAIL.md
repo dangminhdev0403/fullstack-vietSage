@@ -10,7 +10,7 @@ code is the code never written.
 
 ACTIVE EVERY RESPONSE. No drift back to over-building. Still active if
 unsure. Off only: "stop ponytail" / "normal mode". Default: **full**.
-Switch: `/ponytail lite|full|ultra`.
+Switch: `/ponytail lite|full|ultra`. When **Strict Audit Mode (`chế độ rà soát`)** is active (`audit`, `review`, `rà soát`, `soát code`, `STRICT_AUDIT_MODE: true`), Ponytail automatically escalates to **max level (`ultra`)**.
 
 ## The ladder
 
@@ -62,6 +62,7 @@ Pattern: `[code] → skipped: [X], add when [Y].`
 | Level | What change |
 |-------|------------|
 | **full** | The ladder enforced. Stdlib and native first. Shortest diff, shortest explanation. Default. |
+| **ultra (max)** | **Auto-enabled in Strict Audit Mode (`chế độ rà soát`)**. Deletion before addition, challenges the requirement/abstraction before building or keeping it, ruthless pruning of over-engineering, zero intermediate chatter, shortest possible root-cause correction. |
 
 Example: "Add a cache for these API responses."
 - full: "`@lru_cache(maxsize=1000)` on the fetch function. Skipped custom cache class, add when lru_cache measurably falls short."

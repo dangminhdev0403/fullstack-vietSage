@@ -35,9 +35,6 @@ export default async function OwnerBillingPage({ params, searchParams }: PagePro
         <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">
           Quản lý tài chính &amp; phí VietSage SaaS
         </h1>
-        <p className="max-w-3xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-          Xem thông tin hóa đơn folio khách đang lưu trú và đối soát minh bạch chi phí VietSage SaaS theo lượt check-in.
-        </p>
       </div>
 
       <BillingTabSwitcher hotelId={hotelId} foliosPage={foliosPage} />

@@ -120,9 +120,6 @@ export function OwnerHotelSettingsClient({
         <h1 className="vs-display mt-2 text-4xl font-semibold text-[var(--primary)] text-balance">
           Thiết lập khách sạn
         </h1>
-        <p className="mt-2 max-w-3xl text-sm text-[var(--on-surface-variant)] text-pretty">
-          Quản lý các thành phần vận hành: cơ sở vật chất, nhân sự, dịch vụ và cổng kết nối đối tác.
-        </p>
       </header>
 
       {/* Tabs Bar */}

@@ -1440,9 +1440,6 @@ export function OwnerRoomsClient({
             <h1 className="mt-2 text-3xl sm:text-4xl font-semibold leading-tight text-[var(--primary)] text-balance">
               Quản lý phòng &amp; QR
             </h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--on-surface-variant)] text-pretty">
-              Cấu hình thông tin phòng, giá niêm yết, trạng thái phòng và mã QR GuestOS.
-            </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <button

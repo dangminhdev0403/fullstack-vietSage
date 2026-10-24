@@ -1,5 +1,11 @@
 import { Injectable, Logger, BadRequestException } from "@nestjs/common";
 import { PrismaService } from "../../../prisma/prisma.service";
+import {
+  diffCalendarDays,
+  todayYmd,
+  toYmd,
+  VIETNAM_TIME_ZONE,
+} from "../../../common/time/vietnam-temporal";
 import { AriCoreService } from "./ari-core.service";
 import {
   ChannexApiClient,
@@ -46,12 +52,7 @@ export class ChannexAriSyncService {
    * Lấy ngày hôm nay theo múi giờ chuẩn Việt Nam (Asia/Ho_Chi_Minh) dạng YYYY-MM-DD
    */
   private getTodayInVietnam(): string {
-    return new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Ho_Chi_Minh",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
+    return todayYmd(VIETNAM_TIME_ZONE);
   }
 
   /**
@@ -103,12 +104,7 @@ export class ChannexAriSyncService {
 
       const toDateString = (d: Date | null | undefined): string | null => {
         if (!d) return null;
-        return new Intl.DateTimeFormat("en-CA", {
-          timeZone: "Asia/Ho_Chi_Minh",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        }).format(d);
+        return toYmd(d, VIETNAM_TIME_ZONE);
       };
 
       const restDateStr = toDateString(latestRestriction?.date);
@@ -129,9 +125,7 @@ export class ChannexAriSyncService {
     }
 
     const startForLimit = options.startDate ?? effectiveStart;
-    const startMs = Date.parse(`${startForLimit}T00:00:00.000Z`);
-    const endMs = Date.parse(`${effectiveEnd}T00:00:00.000Z`);
-    const totalPushDays = Math.round((endMs - startMs) / (1000 * 60 * 60 * 24)) + 1;
+    const totalPushDays = diffCalendarDays(startForLimit, effectiveEnd) + 1;
     if (totalPushDays > 365) {
       throw new BadRequestException(
         `Khoảng thời gian đẩy ARI (${totalPushDays} ngày) vượt quá giới hạn tối đa 365 ngày`,

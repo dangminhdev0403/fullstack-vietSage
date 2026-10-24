@@ -194,11 +194,6 @@ test("builds owner sidebar with operational modules and hotel settings", () => {
         label: "Kho Phòng & Kênh Bán",
       },
       {
-        key: "staff.kbtt",
-        href: "/owner/hotels/hotel-1/kbtt",
-        label: "Khai báo tạm trú",
-      },
-      {
         key: "owner.hotel.profile",
         href: "/owner/hotels/hotel-1/profile",
         label: "Thông tin khách sạn",
@@ -256,7 +251,6 @@ test("builds full-featured owner sidebar including all front-desk operations and
   assert.ok(keys.includes("staff.front-desk"));
   assert.ok(keys.includes("staff.requests"));
   assert.ok(keys.includes("staff.messages"));
-  assert.ok(keys.includes("staff.kbtt"));
   assert.ok(keys.includes("staff.biometric"));
   // Operational services & partners are managed centrally in Hotel Settings for owners
   assert.ok(!keys.includes("staff.services"));

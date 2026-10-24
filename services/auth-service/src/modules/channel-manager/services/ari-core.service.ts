@@ -1,4 +1,12 @@
 import { Injectable, BadRequestException } from "@nestjs/common";
+import { Temporal } from "@js-temporal/polyfill";
+import {
+  VIETNAM_TIME_ZONE,
+  addDaysYmd,
+  listYmdRange,
+  startOfPlainDate,
+  toYmd,
+} from "../../../common/time/vietnam-temporal";
 import { PrismaService } from "../../../prisma/prisma.service";
 import {
   AvailabilityItemDto,
@@ -63,17 +71,9 @@ export class AriCoreService {
    * Sinh danh sách các ngày liên tiếp dạng YYYY-MM-DD
    */
   private generateDateList(startDateStr: string, endDateStr: string): string[] {
-    const dates: string[] = [];
-    const current = new Date(`${startDateStr}T00:00:00.000Z`);
-    const end = new Date(`${endDateStr}T00:00:00.000Z`);
-
-    if (current > end) {
+    const dates = listYmdRange(startDateStr, endDateStr);
+    if (dates.length === 0) {
       throw new BadRequestException("Ngày bắt đầu không được lớn hơn ngày kết thúc");
-    }
-
-    while (current <= end) {
-      dates.push(current.toISOString().split("T")[0]);
-      current.setUTCDate(current.getUTCDate() + 1);
     }
     return dates;
   }
@@ -129,8 +129,8 @@ export class AriCoreService {
         hotelId,
         OR: [{ roomId: { not: null } }, { roomTypeSnapshot: { not: null } }],
         status: { in: ["CONFIRMED", "ARRIVAL_READY", "CHECKED_IN"] },
-        plannedCheckInAt: { lt: new Date(`${endDateStr}T17:00:00.000Z`) },
-        plannedCheckOutAt: { gt: new Date(`${startDateStr}T00:00:00.000Z`) },
+        plannedCheckInAt: { lt: startOfPlainDate(addDaysYmd(endDateStr, 1), VIETNAM_TIME_ZONE) },
+        plannedCheckOutAt: { gt: startOfPlainDate(startDateStr, VIETNAM_TIME_ZONE) },
       },
       select: {
         roomId: true,
@@ -140,13 +140,7 @@ export class AriCoreService {
       },
     });
     const bookedByRoomTypeAndDate = new Map<string, number>();
-    const vietnamDate = (value: Date): string =>
-      new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Ho_Chi_Minh",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(value);
+    const vietnamDate = (value: Date): string => toYmd(value, VIETNAM_TIME_ZONE);
     for (const reservation of reservations) {
       const roomType =
         (reservation.roomId ? roomTypeByRoomId.get(reservation.roomId) : undefined) ??
@@ -427,7 +421,8 @@ export class AriCoreService {
     const allowedDays = new Set(payload.daysOfWeek ?? [0, 1, 2, 3, 4, 5, 6]);
 
     const matchingDates = dates.filter((d) => {
-      const dayOfWeek = new Date(`${d}T00:00:00.000Z`).getUTCDay();
+      // Temporal: Mon=1..Sun=7 → JS convention Sun=0..Sat=6
+      const dayOfWeek = Temporal.PlainDate.from(d).dayOfWeek % 7;
       return allowedDays.has(dayOfWeek);
     });
 
@@ -543,12 +538,8 @@ export class AriCoreService {
         (key) => key === "date" || objA[key] === objB[key],
       );
 
-    const isNextDay = (dateStr1: string, dateStr2: string): boolean => {
-      const d1 = new Date(`${dateStr1}T00:00:00.000Z`);
-      const d2 = new Date(`${dateStr2}T00:00:00.000Z`);
-      const diffMs = d2.getTime() - d1.getTime();
-      return diffMs === 86400000;
-    };
+    const isNextDay = (dateStr1: string, dateStr2: string): boolean =>
+      addDaysYmd(dateStr1, 1) === dateStr2;
 
     for (let i = 1; i < sorted.length; i++) {
       const item = sorted[i];

@@ -11,6 +11,11 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { HotelAccessService } from "./hotel-access.service";
+import {
+  resolveTimeZone,
+  startOfPlainDate,
+  todayPlainDate,
+} from "../../../common/time/vietnam-temporal";
 
 const REQUEST_INCOMPLETE_STATUSES = [GuestRequestStatus.PENDING, GuestRequestStatus.ACKNOWLEDGED];
 const ACTIVE_STAY_STATUSES = [GuestStayStatus.CHECKED_IN, GuestStayStatus.ACTIVE];
@@ -22,87 +27,6 @@ const SLA_THRESHOLD_MINUTES = 30;
 function toNumber(value: Prisma.Decimal | number | null | undefined): number {
   if (value == null) return 0;
   return typeof value === "number" ? value : value.toNumber();
-}
-
-function startOfDay(date: Date): Date {
-  const next = new Date(date);
-  next.setHours(0, 0, 0, 0);
-  return next;
-}
-
-function addDays(date: Date, days: number): Date {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-function getBusinessDateBounds(date: Date, timeZone: string) {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-  });
-  const parts = formatter.formatToParts(date);
-  const getPart = (type: string) => parts.find((p) => p.type === type)?.value;
-  const y = Number(getPart("year"));
-  const m = Number(getPart("month"));
-  const d = Number(getPart("day"));
-
-  function parseZoned(
-    year: number,
-    month: number,
-    day: number,
-    hour: number,
-    minute: number,
-    second: number,
-    ms: number,
-  ): Date {
-    const utcEstimate = new Date(Date.UTC(year, month - 1, day, hour, minute, second, ms));
-    const partFormatter = new Intl.DateTimeFormat("en-US", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
-    const p = partFormatter.formatToParts(utcEstimate);
-    const getP = (type: string) => p.find((x) => x.type === type)?.value;
-    const tzYear = Number(getP("year"));
-    const tzMonth = Number(getP("month"));
-    const tzDay = Number(getP("day"));
-    let tzHour = Number(getP("hour"));
-    if (tzHour === 24) tzHour = 0;
-    const tzMinute = Number(getP("minute"));
-    const tzSecond = Number(getP("second"));
-
-    const tzAsUtc = Date.UTC(tzYear, tzMonth - 1, tzDay, tzHour, tzMinute, tzSecond, ms);
-    const offsetMs = tzAsUtc - utcEstimate.getTime();
-    return new Date(utcEstimate.getTime() - offsetMs);
-  }
-
-  const todayStart = parseZoned(y, m, d, 0, 0, 0, 0);
-
-  const tomorrowRef = new Date(todayStart.getTime() + 28 * 60 * 60 * 1000);
-  const tomorrowParts = formatter.formatToParts(tomorrowRef);
-  const getTomPart = (type: string) => tomorrowParts.find((p) => p.type === type)?.value;
-  const tomY = Number(getTomPart("year"));
-  const tomM = Number(getTomPart("month"));
-  const tomD = Number(getTomPart("day"));
-  const tomorrowStart = parseZoned(tomY, tomM, tomD, 0, 0, 0, 0);
-
-  const dayAfterRef = new Date(tomorrowStart.getTime() + 28 * 60 * 60 * 1000);
-  const dayAfterParts = formatter.formatToParts(dayAfterRef);
-  const getDayAfterPart = (type: string) => dayAfterParts.find((p) => p.type === type)?.value;
-  const dayAfterY = Number(getDayAfterPart("year"));
-  const dayAfterM = Number(getDayAfterPart("month"));
-  const dayAfterD = Number(getDayAfterPart("day"));
-  const dayAfterTomorrowStart = parseZoned(dayAfterY, dayAfterM, dayAfterD, 0, 0, 0, 0);
-
-  return { todayStart, tomorrowStart, dayAfterTomorrowStart };
 }
 
 function mapRoomStatus(
@@ -357,19 +281,18 @@ export class HotelDashboardService {
         ? { hotelId, folio: { roomId: scope.allowedRoomId } }
         : { hotelId };
 
-    const now = new Date();
-    const todayStart = startOfDay(now);
-    const tomorrowStart = addDays(todayStart, 1);
-    const yesterdayStart = addDays(todayStart, -1);
-    const sevenDaysStart = addDays(todayStart, -6);
-    const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
+    const hotelTimeZone = resolveTimeZone(scope.hotel?.timezone);
+    const todayPlain = todayPlainDate(hotelTimeZone);
+    const todayStart = startOfPlainDate(todayPlain, hotelTimeZone);
+    const tomorrowStart = startOfPlainDate(todayPlain.add({ days: 1 }), hotelTimeZone);
+    const dayAfterTomorrowStart = startOfPlainDate(todayPlain.add({ days: 2 }), hotelTimeZone);
+    const yesterdayStart = startOfPlainDate(todayPlain.subtract({ days: 1 }), hotelTimeZone);
+    const sevenDaysStart = startOfPlainDate(todayPlain.subtract({ days: 6 }), hotelTimeZone);
+    const monthStart = startOfPlainDate(todayPlain.with({ day: 1 }), hotelTimeZone);
 
-    const hotelTimeZone = scope.hotel?.timezone || "Asia/Ho_Chi_Minh";
-    const {
-      todayStart: bizTodayStart,
-      tomorrowStart: bizTomorrowStart,
-      dayAfterTomorrowStart: bizDayAfterTomorrowStart,
-    } = getBusinessDateBounds(now, hotelTimeZone);
+    const bizTodayStart = todayStart;
+    const bizTomorrowStart = tomorrowStart;
+    const bizDayAfterTomorrowStart = dayAfterTomorrowStart;
 
     const [
       totalRooms,

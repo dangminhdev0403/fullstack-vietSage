@@ -33,6 +33,7 @@ import { CodesService } from "../../codes/codes-public";
 import { HotelAccessService } from "../../property/property-public";
 import { activeGuestRequestStatuses } from "../../guest-operations/guest-operations-public";
 import { BillingRepository } from "../infrastructure/repositories/billing.repository";
+import { diffCalendarDays, VIETNAM_TIME_ZONE } from "../../../common/time/vietnam-temporal";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
@@ -2098,15 +2099,8 @@ export class BillingService {
 
   private calculateVietnamNights(start: Date, end: Date): number {
     if (end.getTime() <= start.getTime()) return 1;
-    const vnOffsetMs = 7 * 60 * 60 * 1000;
-    const dayMs = 86_400_000;
-    const startDay = Math.floor((start.getTime() + vnOffsetMs) / dayMs);
-    const endDay = Math.floor((end.getTime() + vnOffsetMs) / dayMs);
-    const calendarDiff = endDay - startDay;
-    if (calendarDiff >= 1) {
-      return calendarDiff;
-    }
-    return Math.max(1, Math.round((end.getTime() - start.getTime()) / dayMs));
+    const calendarDiff = diffCalendarDays(start, end, VIETNAM_TIME_ZONE);
+    return Math.max(1, calendarDiff);
   }
 
   private computeTotalsFromFolioItems(

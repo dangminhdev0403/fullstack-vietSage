@@ -891,15 +891,6 @@ export function AdminBillingClient({
                     ? "Hợp đồng & Biểu phí SaaS"
                     : "Biểu phí Nền tảng LocalMate"}
             </h1>
-            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-              {activeTab === "invoices"
-                ? "Theo dõi công nợ, ghi nhận thanh toán và phát hành phiếu đối soát."
-                : activeTab === "finalize"
-                  ? "Chốt sổ doanh thu định kỳ, niêm phong hóa đơn cho từng khách sạn đối tác."
-                  : activeTab === "contracts"
-                    ? "Quản lý thỏa thuận biểu phí theo lượt check-in hoặc % doanh thu phòng cho khách sạn."
-                    : "Cấu hình mức phí nền tảng VietSage thu từ mạng lưới Hướng dẫn viên du lịch LocalMate."}
-            </p>
           </div>
         </div>
 

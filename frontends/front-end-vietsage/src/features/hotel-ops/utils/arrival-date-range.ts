@@ -1,9 +1,11 @@
+// Relative `.ts` path keeps this module loadable by Node's strip-types test runner.
+// @ts-expect-error Explicit TypeScript extension is not enabled in tsconfig.
+import { addDaysYmd } from "../../../libs/vietnam-temporal.ts";
+
 export type ArrivalRange = "today" | "tomorrow" | "week";
 
 export function addCalendarDays(ymd: string, days: number): string {
-  const [year, month, day] = ymd.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day + days));
-  return date.toISOString().slice(0, 10);
+  return addDaysYmd(ymd, days);
 }
 
 export function getArrivalDateRange(

@@ -69,9 +69,6 @@ export default async function AdminHotelsPage() {
             <h1 className="mt-3 text-4xl font-semibold text-[var(--primary)]">
               Khách sạn
             </h1>
-            <p className="mt-2 max-w-3xl text-base text-[var(--on-surface-variant)]">
-              Quản lý và tạo mới cơ sở lưu trú trực thuộc các tổ chức quản lý đối tác.
-            </p>
           </header>
 
           <HotelsAdminClient

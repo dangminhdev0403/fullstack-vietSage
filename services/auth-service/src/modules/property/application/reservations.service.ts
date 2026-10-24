@@ -28,20 +28,32 @@ import type {
 import { ReservationsRepository } from "../infrastructure/repositories/reservations.repository";
 import { getBusinessDateRange } from "../infrastructure/repositories/hotel-rooms.repository";
 import { HotelAccessService } from "./hotel-access.service";
+import {
+  addDaysYmd,
+  plainDateAtTime,
+  resolveTimeZone,
+  startOfPlainDate,
+  toPlainDate,
+  toYmd,
+  VIETNAM_TIME_ZONE,
+} from "../../../common/time/vietnam-temporal";
 
 function normalizeHotelReservationDate(
   date: Date,
   defaultTime: "checkIn" | "checkOut",
+  timeZone: string = VIETNAM_TIME_ZONE,
 ): Date {
-  if (
+  const isUtcMidnight =
     date.getUTCHours() === 0 &&
     date.getUTCMinutes() === 0 &&
     date.getUTCSeconds() === 0 &&
-    date.getUTCMilliseconds() === 0
-  ) {
-    const ymd = date.toISOString().slice(0, 10);
+    date.getUTCMilliseconds() === 0;
+  const plain = toPlainDate(date, timeZone);
+  const isLocalMidnight = date.getTime() === startOfPlainDate(plain, timeZone).getTime();
+
+  if (isUtcMidnight || isLocalMidnight) {
     const timeStr = defaultTime === "checkIn" ? "14:00:00" : "12:00:00";
-    return new Date(`${ymd}T${timeStr}+07:00`);
+    return plainDateAtTime(plain, timeStr, timeZone);
   }
   return date;
 }
@@ -161,14 +173,9 @@ export class ReservationsService {
     );
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
-    const from = getBusinessDateRange(
-      query.from.toISOString().slice(0, 10),
-      scope.hotel.timezone,
-    ).start;
-    const to = getBusinessDateRange(
-      query.to.toISOString().slice(0, 10),
-      scope.hotel.timezone,
-    ).start;
+    const tz = resolveTimeZone(scope.hotel.timezone);
+    const from = getBusinessDateRange(toYmd(query.from, tz), tz).start;
+    const to = getBusinessDateRange(toYmd(query.to, tz), tz).start;
     const [total, items] = await this.reservationsRepository.listArrivals({
       hotelId,
       from,
@@ -427,8 +434,9 @@ export class ReservationsService {
       activeRoleId,
       hotelId,
     );
-    const from = new Date(`${query.from}T00:00:00.000Z`);
-    const to = new Date(`${query.to}T23:59:59.999Z`);
+    const tz = resolveTimeZone(scope.hotel.timezone);
+    const from = startOfPlainDate(query.from, tz);
+    const to = new Date(startOfPlainDate(addDaysYmd(query.to, 1), tz).getTime() - 1);
     return this.reservationsRepository.getRoomPlan({
       hotelId,
       from,

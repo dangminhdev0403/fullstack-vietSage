@@ -59,11 +59,6 @@ export default async function StaffHotelBiometricPage({ params, baseRoutePrefix 
           <h1 className="vs-display mt-2 text-3xl font-extrabold text-[var(--primary)] sm:text-4xl">
             Trạm Máy Quét CCCD & Thiết Bị
           </h1>
-          <p className="mt-1 text-sm text-stone-600 max-w-2xl">
-            Quản trị kết nối phần cứng đầu đọc HN-212 và máy quét di động. Kiểm
-            thử giải mã thẻ CCCD gắn chip tức thì trước khi thực hiện check-in
-            nhận phòng.
-          </p>
         </div>
 
         <div className="flex items-center gap-3">

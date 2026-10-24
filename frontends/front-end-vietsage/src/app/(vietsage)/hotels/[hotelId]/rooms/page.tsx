@@ -153,11 +153,6 @@ export default async function StaffRoomsPage({
           <h1 className="vs-display mt-2 text-4xl font-semibold text-[var(--primary)]">
             {isHousekeeping ? "Buồng phòng & Sơ đồ dọn dẹp" : "Mở phòng và lưu trú"}
           </h1>
-          <p className="mt-2 max-w-3xl text-sm text-[var(--on-surface-variant)]">
-            {isHousekeeping
-              ? "Theo dõi trạng thái buồng phòng và xác nhận phòng đã dọn dẹp sạch sẽ, sẵn sàng đón khách mới."
-              : "Chọn phòng sẵn sàng để check-in khách vãng lai hoặc đặt trước theo ngày. Sau khi mở phòng, QR GuestOS và mã truy cập được kích hoạt ngay."}
-          </p>
         </div>
       </header>
 

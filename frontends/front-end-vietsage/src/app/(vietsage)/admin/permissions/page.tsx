@@ -190,9 +190,6 @@ export default async function AdminPermissionsPage({
             <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
               Vai trò & Quyền hạn
             </h1>
-            <p className="text-xs text-gray-500">
-              Kiểm soát ma trận quyền hạn mặc định và vai trò tùy chỉnh theo từng phân hệ nghiệp vụ.
-            </p>
           </div>
         </div>
       </header>

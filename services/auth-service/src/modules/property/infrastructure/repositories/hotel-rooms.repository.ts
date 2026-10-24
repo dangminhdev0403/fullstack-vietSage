@@ -14,65 +14,18 @@ import {
   RoomQRCodeStatus,
   RoomStatus,
 } from "@prisma/client";
+import { getDayBounds } from "../../../../common/time/vietnam-temporal";
 import { countDistinctGuestDevicesByStay } from "../../../../shared/guest-device-identity";
 import { PrismaService } from "../../../../prisma/prisma.service";
 import { inferCitizenshipKind } from "../../domain/infer-citizenship-kind";
 import { roomListInclude, type RoomListRow } from "./hotel-repository.types";
 
+/** Local business-day bounds for `YYYY-MM-DD`: `start` inclusive, `end` = next local midnight (exclusive). */
 export function getBusinessDateRange(
   dateStr: string,
   timeZone?: string | null,
 ): { start: Date; end: Date } {
-  const tz = (!timeZone || timeZone === "Asia/Saigon") ? "Asia/Ho_Chi_Minh" : timeZone;
-  const [year, month, day] = dateStr.split("-").map(Number);
-
-  function parseZoned(
-    y: number,
-    m: number,
-    d: number,
-    hour: number,
-    minute: number,
-    second: number,
-    ms: number,
-  ): Date {
-    const utcEstimate = new Date(Date.UTC(y, m - 1, d, hour, minute, second, ms));
-    const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: tz,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
-    const parts = formatter.formatToParts(utcEstimate);
-    const getPart = (type: string) => parts.find((p) => p.type === type)?.value;
-    const tzYear = Number(getPart("year"));
-    const tzMonth = Number(getPart("month"));
-    const tzDay = Number(getPart("day"));
-    let tzHour = Number(getPart("hour"));
-    if (tzHour === 24) tzHour = 0;
-    const tzMinute = Number(getPart("minute"));
-    const tzSecond = Number(getPart("second"));
-
-    const tzAsUtc = Date.UTC(tzYear, tzMonth - 1, tzDay, tzHour, tzMinute, tzSecond, ms);
-    const offsetMs = tzAsUtc - utcEstimate.getTime();
-    return new Date(utcEstimate.getTime() - offsetMs);
-  }
-
-  const start = parseZoned(year, month, day, 0, 0, 0, 0);
-  const nextDay = new Date(Date.UTC(year, month - 1, day + 1));
-  const end = parseZoned(
-    nextDay.getUTCFullYear(),
-    nextDay.getUTCMonth() + 1,
-    nextDay.getUTCDate(),
-    0,
-    0,
-    0,
-    0,
-  );
-  return { start, end };
+  return getDayBounds(dateStr, timeZone);
 }
 
 @Injectable()

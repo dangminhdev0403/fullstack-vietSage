@@ -1214,6 +1214,8 @@ model GuestStay {
   kbttGuestDeclarations       KbttGuestDeclaration[]
 
   @@index([hotelId, status])
+  @@index([hotelId, status, plannedCheckInAt, plannedCheckOutAt])
+  @@index([hotelId, status, checkedInAt, checkedOutAt])
   @@index([roomId, status])
   @@index([reservationCode])
   @@index([plannedCheckOutAt])
@@ -1594,6 +1596,7 @@ model FolioItem {
   @@index([serviceItemId])
   @@index([postedAt])
   @@index([hotelId, folioId])
+  @@index([hotelId, voidedAt, postedAt])
   @@index([hotelId, sourceType, sourceId])
 }
 
@@ -1675,6 +1678,7 @@ model Payment {
 
   @@unique([hotelId, paymentNumber])
   @@index([hotelId])
+  @@index([hotelId, status, confirmedAt])
   @@index([invoiceId])
   @@index([folioId])
   @@index([stayId])
