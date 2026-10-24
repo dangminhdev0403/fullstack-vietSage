@@ -24,7 +24,7 @@ export default async function OwnerHotelReportsPage({
 }: PageProps) {
   const { hotelId } = await Promise.resolve(params);
   const resolvedSearchParams = searchParams ? await Promise.resolve(searchParams) : {};
-  const range = (resolvedSearchParams.range as GetHotelReportsQuery["range"]) || "30d";
+  const range = (resolvedSearchParams.range as GetHotelReportsQuery["range"]) || "this_month";
 
   const session = await auth();
   const callbackUrl = `/owner/hotels/${hotelId}/reports` as const;

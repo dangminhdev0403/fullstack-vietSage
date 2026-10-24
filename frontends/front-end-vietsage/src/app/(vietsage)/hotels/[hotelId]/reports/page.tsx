@@ -30,7 +30,7 @@ export default async function StaffReportsPage({
 }: PageProps) {
   const { hotelId } = await Promise.resolve(params);
   const resolvedSearchParams = searchParams ? await Promise.resolve(searchParams) : {};
-  const range = (resolvedSearchParams.range as GetHotelReportsQuery["range"]) || "30d";
+  const range = (resolvedSearchParams.range as GetHotelReportsQuery["range"]) || "this_month";
   const callbackUrl = `/hotels/${hotelId}/reports` as const;
 
   const session = await auth();

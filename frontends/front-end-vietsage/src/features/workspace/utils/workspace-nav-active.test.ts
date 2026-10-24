@@ -63,6 +63,7 @@ test("buildWorkspaceNavigation produces complete owner navigation structure", ()
     "staff.rooms",
     "staff.front-desk",
     "staff.requests",
+    "staff.billing",
     "owner.hotel.profile",
     "owner.hotel.settings",
   ]);

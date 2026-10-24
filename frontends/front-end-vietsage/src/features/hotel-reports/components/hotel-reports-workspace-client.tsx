@@ -85,9 +85,6 @@ const RANGE_OPTIONS: Array<{
   label: string;
 }> = [
   { key: "7d", label: "7 ngày qua" },
-  { key: "14d", label: "14 ngày qua" },
-  { key: "30d", label: "30 ngày qua" },
-  { key: "90d", label: "90 ngày qua" },
   { key: "this_month", label: "Tháng này" },
   { key: "last_month", label: "Tháng trước" },
   { key: "this_year", label: "Năm nay" },
@@ -177,12 +174,12 @@ function SortHeaderButton({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700 hover:text-emerald-800 transition-colors whitespace-nowrap dark:text-slate-300 dark:hover:text-emerald-300 ${
+      className={`flex w-full items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700 hover:text-emerald-800 transition-colors whitespace-nowrap dark:text-slate-300 dark:hover:text-emerald-300 ${
         align === "right"
-          ? "ml-auto justify-end"
+          ? "justify-end text-right"
           : align === "center"
-            ? "mx-auto justify-center"
-            : "justify-start"
+            ? "justify-center text-center"
+            : "justify-start text-left"
       }`}
     >
       <span>{label}</span>
@@ -216,7 +213,7 @@ export function HotelReportsWorkspaceClient({
   const currentRange =
     (searchParams.get("range") as GetHotelReportsQuery["range"]) ||
     initialReports.range ||
-    "30d";
+    "this_month";
 
   const initialFromPlain =
     toPlainDateSafe(
@@ -314,18 +311,19 @@ export function HotelReportsWorkspaceClient({
             <div
               role="group"
               aria-label="Chọn nhanh kỳ báo cáo"
-              className="flex flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100/90 p-1.5 dark:border-slate-800 dark:bg-slate-800/80"
+              className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100/90 p-1.5 dark:border-slate-800 dark:bg-slate-800/80"
             >
               {RANGE_OPTIONS.map((opt) => {
                 const active =
-                  reports.range !== "custom" && currentRange === opt.key;
+                  reports.range !== "custom" &&
+                  (currentRange === opt.key || (currentRange === "30d" && opt.key === "this_month"));
                 return (
                   <button
                     key={opt.key}
                     type="button"
                     disabled={isPending}
                     onClick={() => handleRangeChange(opt.key)}
-                    className={`rounded-lg px-3.5 py-2 text-sm font-semibold transition-all duration-150 whitespace-nowrap ${
+                    className={`rounded-lg px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs sm:text-sm font-semibold transition-all duration-150 whitespace-nowrap ${
                       active
                         ? "bg-emerald-800 font-bold text-white shadow-sm dark:bg-emerald-600"
                         : "text-slate-700 hover:bg-white/80 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700"

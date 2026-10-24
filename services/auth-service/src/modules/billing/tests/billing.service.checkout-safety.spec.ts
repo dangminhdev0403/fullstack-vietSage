@@ -1004,6 +1004,7 @@ describe("BillingService checkout safety", () => {
           checkedInAt: new Date("2026-07-16T10:00:00.000Z"),
           plannedCheckInAt: new Date("2026-07-16T10:00:00.000Z"),
           plannedCheckOutAt: new Date("2026-07-17T10:00:00.000Z"),
+          checkedOutAt: new Date("2026-07-17T10:00:00.000Z"),
           nightlyRateSnapshot: new Prisma.Decimal(100),
         },
       },

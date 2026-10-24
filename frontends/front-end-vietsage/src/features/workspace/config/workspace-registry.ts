@@ -518,7 +518,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
   },
   {
     key: "staff.billing",
-    personas: ["manager", "front_desk"],
+    personas: ["owner", "manager", "front_desk"],
     href: "/hotels/{hotelId}/billing",
     label: "Thanh toán & Doanh thu",
     icon: "payments",

@@ -1,4 +1,4 @@
-import StaffHotelDashboardPage from "@/app/(vietsage)/hotels/[hotelId]/dashboard/page";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -7,5 +7,6 @@ export default async function OwnerHotelDashboardPage({
 }: {
   params: Promise<{ hotelId: string }>;
 }) {
-  return <StaffHotelDashboardPage params={params} baseRoutePrefix="/owner/hotels" />;
+  const { hotelId } = await Promise.resolve(params);
+  redirect(`/owner/dashboard?hotelId=${encodeURIComponent(hotelId)}`);
 }
