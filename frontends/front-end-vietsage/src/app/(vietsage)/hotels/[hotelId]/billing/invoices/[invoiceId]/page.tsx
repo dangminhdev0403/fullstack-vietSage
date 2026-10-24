@@ -132,12 +132,20 @@ export default async function StaffInvoicePage({ params }: PageProps) {
           <h3 className="text-lg font-black">Chi tiết chi phí</h3>
           <div className="mt-3 overflow-x-auto">
             <table className="w-full min-w-[650px] text-left text-xs">
+              <colgroup>
+                <col className="w-[32%]" />
+                <col className="w-[18%]" />
+                <col className="w-[18%]" />
+                <col className="w-[8%]" />
+                <col className="w-[12%]" />
+                <col className="w-[12%]" />
+              </colgroup>
               <thead className="bg-slate-100">
                 <tr>
                   <th className="p-2">Nội dung</th>
                   <th className="p-2">Phân loại nguồn</th>
                   <th className="p-2">Loại</th>
-                  <th className="p-2 text-right">SL</th>
+                  <th className="p-2 text-center">SL</th>
                   <th className="p-2 text-right">Đơn giá</th>
                   <th className="p-2 text-right">Tổng</th>
                 </tr>
@@ -179,7 +187,7 @@ export default async function StaffInvoicePage({ params }: PageProps) {
                                 ? "Giảm giá"
                                 : labelStatus(itemTypeLabels, item.type)}
                       </td>
-                      <td className="p-2 text-right">{item.quantity}</td>
+                      <td className="p-2 text-center">{item.quantity}</td>
                       <td className="p-2 text-right">
                         {isDiscount ? (
                           <span className="text-emerald-700 font-semibold">

@@ -457,21 +457,28 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
         <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-left text-base">
+              <colgroup>
+                <col className="w-[28%]" />
+                <col className="w-[18%]" />
+                <col className="w-[18%]" />
+                <col className="w-[20%]" />
+                <col className="w-[16%]" />
+              </colgroup>
               <thead className="border-b border-slate-200/80 bg-slate-50/90 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300">
                 <tr>
                   <th scope="col" className="px-5 py-4">
                     Phòng
                   </th>
-                  <th scope="col" className="px-5 py-4 text-right">
+                  <th scope="col" className="px-5 py-4 text-center">
                     Lượt lưu trú
                   </th>
-                  <th scope="col" className="px-5 py-4 text-right">
+                  <th scope="col" className="px-5 py-4 text-center">
                     Lượt tính phí
                   </th>
-                  <th scope="col" className="px-5 py-4 text-right">
+                  <th scope="col" className="px-5 py-4 text-center">
                     Phí VietSage SaaS
                   </th>
-                  <th scope="col" className="px-5 py-4 text-right">
+                  <th scope="col" className="px-5 py-4 text-center">
                     Trạng thái
                   </th>
                 </tr>
@@ -496,13 +503,13 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                           Phòng {item.roomNumber}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-right text-base sm:text-lg font-bold tabular-nums text-slate-900 dark:text-white">
+                      <td className="px-5 py-4 text-center text-base sm:text-lg font-bold tabular-nums text-slate-900 dark:text-white">
                         {item.usageCount}
                       </td>
-                      <td className="px-5 py-4 text-right text-base sm:text-lg font-bold tabular-nums text-slate-900 dark:text-white">
+                      <td className="px-5 py-4 text-center text-base sm:text-lg font-bold tabular-nums text-slate-900 dark:text-white">
                         {item.billableDaysCount}
                       </td>
-                      <td className="px-5 py-4 text-right text-base sm:text-lg font-extrabold tabular-nums text-slate-900 dark:text-white">
+                      <td className="px-5 py-4 text-center text-base sm:text-lg font-extrabold tabular-nums text-slate-900 dark:text-white">
                         <span title="Phí tương ứng">
                           {formatVnd(item.billedAmount)}
                         </span>{" "}
@@ -510,7 +517,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                           {item.currency || "VND"}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-right">
+                      <td className="px-5 py-4 text-center">
                         {carriedOver ? (
                           <span
                             className="inline-flex items-center gap-1.5 rounded-full border border-cyan-200/80 bg-cyan-50 px-3.5 py-1 text-xs sm:text-sm font-bold text-cyan-800 dark:border-cyan-900/60 dark:bg-cyan-950/60 dark:text-cyan-300"
@@ -540,19 +547,19 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                     <td className="px-5 py-4 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
                       Tổng tháng {month}
                     </td>
-                    <td className="px-5 py-4 text-right text-base sm:text-lg tabular-nums">
+                    <td className="px-5 py-4 text-center text-base sm:text-lg tabular-nums">
                       {data.usageCount ?? 0}
                     </td>
-                    <td className="px-5 py-4 text-right text-base sm:text-lg tabular-nums">
+                    <td className="px-5 py-4 text-center text-base sm:text-lg tabular-nums">
                       {data.billableDaysCount ?? 0}
                     </td>
-                    <td className="px-5 py-4 text-right text-base sm:text-lg tabular-nums">
+                    <td className="px-5 py-4 text-center text-base sm:text-lg tabular-nums">
                       {formatVnd(data.estimatedFee)}{" "}
                       <span className="text-xs sm:text-sm font-semibold text-slate-400">
                         VND
                       </span>
                     </td>
-                    <td className="px-5 py-4" />
+                    <td className="px-5 py-4 text-center" />
                   </tr>
                 </tfoot>
               )}
@@ -579,21 +586,28 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
           <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[640px] text-left text-base text-slate-600 dark:text-slate-300">
+                <colgroup>
+                  <col className="w-[28%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[16%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[16%]" />
+                </colgroup>
                 <thead className="border-b border-slate-200/80 bg-slate-50/90 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300">
                   <tr>
                     <th scope="col" className="px-5 py-4">
                       Chu kỳ chốt sổ
                     </th>
-                    <th scope="col" className="px-5 py-4">
+                    <th scope="col" className="px-5 py-4 text-center">
                       Trạng thái thanh toán
                     </th>
-                    <th scope="col" className="px-5 py-4">
+                    <th scope="col" className="px-5 py-4 text-center">
                       Hạn thanh toán
                     </th>
-                    <th scope="col" className="px-5 py-4 text-right">
+                    <th scope="col" className="px-5 py-4 text-center">
                       Tổng tiền &amp; Dư nợ
                     </th>
-                    <th scope="col" className="px-5 py-4 text-right">
+                    <th scope="col" className="px-5 py-4 text-center">
                       Đối soát
                     </th>
                   </tr>
@@ -612,8 +626,8 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                           {new Date(p.periodStart).toLocaleDateString("vi-VN")}{" "}
                           — {new Date(p.periodEnd).toLocaleDateString("vi-VN")}
                         </td>
-                        <td className="px-5 py-4">
-                          <div className="flex flex-wrap items-center gap-2">
+                        <td className="px-5 py-4 text-center">
+                          <div className="flex flex-wrap items-center justify-center gap-2">
                             <span
                               className={`inline-flex rounded-full px-3.5 py-1 text-xs sm:text-sm font-bold ${
                                 p.paymentState === "PAID"
@@ -636,12 +650,12 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                             )}
                           </div>
                         </td>
-                        <td className="px-5 py-4 text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
+                        <td className="px-5 py-4 text-center text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                           {p.dueAt
                             ? new Date(p.dueAt).toLocaleDateString("vi-VN")
                             : "Hàng tháng"}
                         </td>
-                        <td className="px-5 py-4 text-right text-slate-900 dark:text-white">
+                        <td className="px-5 py-4 text-center text-slate-900 dark:text-white">
                           <div className="text-base sm:text-lg font-extrabold tabular-nums">
                             {formatVnd(p.total)}{" "}
                             <span className="text-xs sm:text-sm font-semibold text-slate-400">
@@ -656,7 +670,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                               </div>
                             )}
                         </td>
-                        <td className="px-5 py-4 text-right">
+                        <td className="px-5 py-4 text-center">
                           <button
                             type="button"
                             onClick={() => setStatementPeriodId(p.id)}

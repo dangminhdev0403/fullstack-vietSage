@@ -271,9 +271,15 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
                 <p className="text-base font-black text-slate-900">Chi tiết thay đổi dữ liệu ({sheetPreview.diff.length} dịch vụ):</p>
                 <div className="max-h-80 overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xs">
                   <table className="w-full text-left border-collapse text-sm">
+                    <colgroup>
+                      <col className="w-[18%]" />
+                      <col className="w-[20%]" />
+                      <col className="w-[28%]" />
+                      <col className="w-[34%]" />
+                    </colgroup>
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-extrabold uppercase text-xs">
-                        <th className="p-3.5">HÀNH ĐỘNG</th>
+                        <th className="p-3.5 text-center">HÀNH ĐỘNG</th>
                         <th className="p-3.5">KEY</th>
                         <th className="p-3.5">TÊN TIẾNG VIỆT</th>
                         <th className="p-3.5">CHI TIẾT THAY ĐỔI</th>
@@ -282,7 +288,7 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
                     <tbody className="divide-y divide-slate-100 font-medium">
                       {sheetPreview.diff.map((d, i) => (
                         <tr key={i} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="p-3.5 font-extrabold whitespace-nowrap">
+                          <td className="p-3.5 font-extrabold whitespace-nowrap text-center">
                             {d.action === "create" && <span className="text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 text-xs">Tạo mới</span>}
                             {d.action === "update" && <span className="text-amber-800 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200 text-xs">Cập nhật</span>}
                             {d.action === "disable" && <span className="text-rose-800 bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200 text-xs">Gỡ bỏ / Tắt</span>}

@@ -1398,23 +1398,28 @@ export function OwnerServiceCatalogClient({
                 <p className="text-sm font-extrabold text-[var(--primary)]">Xem trước thay đổi ({sheetPreview.diff.length} mục):</p>
                 <div className="max-h-60 overflow-y-auto rounded-xl border border-[var(--outline-variant)] bg-white">
                   <table className="w-full text-left border-collapse text-xs">
+                    <colgroup>
+                      <col className="w-[25%]" />
+                      <col className="w-[20%]" />
+                      <col className="w-[55%]" />
+                    </colgroup>
                     <thead>
                       <tr className="bg-[var(--surface-container-low)] border-b border-[var(--outline-variant)] text-[var(--on-surface-variant)] font-bold uppercase">
-                        <th className="p-3">Hành động</th>
-                        <th className="p-3">Loại</th>
+                        <th className="p-3 text-center">Hành động</th>
+                        <th className="p-3 text-center">Loại</th>
                         <th className="p-3">Tên</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--outline-variant)]/60">
                       {sheetPreview.diff.map((d, i) => (
                         <tr key={i} className="hover:bg-[var(--surface-container-low)]/50">
-                          <td className="p-3 font-extrabold">
+                          <td className="p-3 font-extrabold text-center">
                             {d.action === "create" && <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Tạo mới</span>}
                             {d.action === "update" && <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Cập nhật</span>}
                             {d.action === "disable" && <span className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">Vô hiệu hóa</span>}
                             {d.action === "unchanged" && <span className="text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">Không đổi</span>}
                           </td>
-                          <td className="p-3 font-bold text-[var(--on-surface-variant)]">{d.entityType === "category" ? "Nhóm" : d.entityType === "item" ? "Dịch vụ" : d.entityType}</td>
+                          <td className="p-3 font-bold text-center text-[var(--on-surface-variant)]">{d.entityType === "category" ? "Nhóm" : d.entityType === "item" ? "Dịch vụ" : d.entityType}</td>
                           <td className="p-3 font-bold text-[var(--on-surface)]">{d.label || "—"}</td>
                         </tr>
                       ))}

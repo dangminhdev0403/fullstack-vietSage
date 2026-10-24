@@ -1301,11 +1301,11 @@ export function AdminBillingClient({
                     <tr>
                       <th className="px-3.5 py-3.5 whitespace-nowrap">Khách sạn đối tác</th>
                       <th className="px-3.5 py-3.5 whitespace-nowrap">Kỳ cước</th>
-                      <th className="px-3.5 py-3.5 whitespace-nowrap">Trạng thái</th>
+                      <th className="px-3.5 py-3.5 text-center whitespace-nowrap">Trạng thái</th>
                       <th className="px-3.5 py-3.5 text-right whitespace-nowrap">Tổng tiền</th>
                       <th className="px-3.5 py-3.5 text-right whitespace-nowrap">Đã thu</th>
                       <th className="px-3.5 py-3.5 text-right whitespace-nowrap">Còn nợ</th>
-                      <th className="px-3.5 py-3.5 whitespace-nowrap">Hạn nợ</th>
+                      <th className="px-3.5 py-3.5 text-center whitespace-nowrap">Hạn nợ</th>
                       <th className="px-3.5 py-3.5 text-right whitespace-nowrap">Thao tác</th>
                     </tr>
                   </thead>
@@ -1345,8 +1345,8 @@ export function AdminBillingClient({
                             </span>
                           </td>
 
-                          <td className="px-3.5 py-3 whitespace-nowrap">
-                            <div className="flex items-center gap-1.5 flex-nowrap">
+                          <td className="px-3.5 py-3 text-center whitespace-nowrap">
+                            <div className="flex items-center justify-center gap-1.5 flex-nowrap">
                               <span
                                 className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold whitespace-nowrap ${
                                   p.paymentState === "PAID"
@@ -1382,7 +1382,7 @@ export function AdminBillingClient({
                             {Number(outstanding).toLocaleString("vi-VN")} đ
                           </td>
 
-                          <td className="px-3.5 py-3 text-xs text-slate-500 whitespace-nowrap">
+                          <td className="px-3.5 py-3 text-center text-xs text-slate-500 whitespace-nowrap">
                             {p.dueAt ? (
                               <span className={p.isOverdue ? "text-red-600 font-bold" : ""}>
                                 {new Date(p.dueAt).toLocaleDateString("vi-VN")}
@@ -1675,8 +1675,8 @@ export function AdminBillingClient({
                   <tr>
                     <th className="px-5 py-4 whitespace-nowrap">Khách sạn</th>
                     <th className="px-5 py-4 whitespace-nowrap">Biểu phí SaaS</th>
-                    <th className="px-5 py-4 whitespace-nowrap">Ngày bắt đầu</th>
-                    <th className="px-5 py-4 whitespace-nowrap">Trạng thái</th>
+                    <th className="px-5 py-4 text-center whitespace-nowrap">Ngày bắt đầu</th>
+                    <th className="px-5 py-4 text-center whitespace-nowrap">Trạng thái</th>
                     <th className="px-5 py-4 text-center whitespace-nowrap">Số kỳ đã chốt</th>
                     <th className="px-5 py-4 text-right whitespace-nowrap">Thao tác</th>
                   </tr>
@@ -1707,11 +1707,11 @@ export function AdminBillingClient({
                           </span>
                         </td>
 
-                        <td className="px-5 py-4 font-mono text-sm text-slate-600 dark:text-slate-400">
+                        <td className="px-5 py-4 text-center font-mono text-sm text-slate-600 dark:text-slate-400">
                           {new Date(c.billingStartedAt).toLocaleDateString("vi-VN")}
                         </td>
 
-                        <td className="px-5 py-4">
+                        <td className="px-5 py-4 text-center">
                           <span
                             className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-extrabold ${
                               c.status === "ACTIVE"

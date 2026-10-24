@@ -177,13 +177,20 @@ export function BillingFolioTableClient({
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[700px] text-left text-base">
+            <colgroup>
+              <col className="w-[24%]" />
+              <col className="w-[24%]" />
+              <col className="w-[16%]" />
+              <col className="w-[18%]" />
+              <col className="w-[18%]" />
+            </colgroup>
             <thead className="border-b border-slate-200/80 bg-slate-50/90 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300">
               <tr>
                 <th className="px-6 py-4">Folio</th>
                 <th className="px-6 py-4">Phòng / Khách</th>
                 <th className="px-6 py-4 text-center">Trạng thái</th>
-                <th className="px-6 py-4 text-right">Tổng cộng</th>
-                <th className="px-6 py-4 text-right">Mở lúc</th>
+                <th className="px-6 py-4 text-center">Tổng cộng</th>
+                <th className="px-6 py-4 text-center">Mở lúc</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -220,7 +227,7 @@ export function BillingFolioTableClient({
                     <td className="px-6 py-4 text-center">
                       <StatusBadge status={folio.status} />
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-center">
                       <div className="font-mono text-base sm:text-xl font-black tabular-nums text-slate-900 dark:text-white">
                         {formatMoney(folio.total, folio.currency)}
                       </div>
@@ -230,7 +237,7 @@ export function BillingFolioTableClient({
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right text-sm sm:text-base font-medium text-slate-600 dark:text-slate-400">
+                    <td className="px-6 py-4 text-center text-sm sm:text-base font-medium text-slate-600 dark:text-slate-400">
                       {formatDateTime(folio.openedAt ?? folio.createdAt)}
                     </td>
                   </tr>

@@ -825,13 +825,21 @@ function KbttAutoSubmitSection({
               <h3 className="text-base font-bold text-slate-900 mb-3">Lịch sử các phiên nộp tự động gần nhất</h3>
               <div className="overflow-x-auto rounded-xl border border-slate-200">
                 <table className="w-full text-left text-sm text-slate-700">
+                  <colgroup>
+                    <col className="w-[22%]" />
+                    <col className="w-[18%]" />
+                    <col className="w-[14%]" />
+                    <col className="w-[14%]" />
+                    <col className="w-[14%]" />
+                    <col className="w-[18%]" />
+                  </colgroup>
                   <thead className="bg-slate-50 text-xs font-bold uppercase text-slate-500 border-b border-slate-200">
                     <tr>
                       <th className="px-4 py-3">Thời gian</th>
-                      <th className="px-4 py-3">Trạng thái</th>
-                      <th className="px-4 py-3">Tổng hồ sơ</th>
-                      <th className="px-4 py-3">Thành công</th>
-                      <th className="px-4 py-3">Thất bại</th>
+                      <th className="px-4 py-3 text-center">Trạng thái</th>
+                      <th className="px-4 py-3 text-center">Tổng hồ sơ</th>
+                      <th className="px-4 py-3 text-center">Thành công</th>
+                      <th className="px-4 py-3 text-center">Thất bại</th>
                       <th className="px-4 py-3">Ghi chú</th>
                     </tr>
                   </thead>
@@ -841,7 +849,7 @@ function KbttAutoSubmitSection({
                         <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">
                           {formatDateTime(run.scheduledFor)}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
                           <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${
                             run.status === "COMPLETED"
                               ? "bg-emerald-100 text-emerald-800"
@@ -860,9 +868,9 @@ function KbttAutoSubmitSection({
                               : "Lỗi"}
                           </span>
                         </td>
-                        <td className="px-4 py-3 font-semibold">{run.totalEligible ?? run.totalCount ?? 0}</td>
-                        <td className="px-4 py-3 text-emerald-600 font-semibold">{run.successCount}</td>
-                        <td className="px-4 py-3 text-red-600 font-semibold">{(run.failureCount ?? run.failedCount ?? 0) + (run.unknownCount ?? 0)}</td>
+                        <td className="px-4 py-3 text-center font-semibold">{run.totalEligible ?? run.totalCount ?? 0}</td>
+                        <td className="px-4 py-3 text-center text-emerald-600 font-semibold">{run.successCount}</td>
+                        <td className="px-4 py-3 text-center text-red-600 font-semibold">{(run.failureCount ?? run.failedCount ?? 0) + (run.unknownCount ?? 0)}</td>
                         <td className="px-4 py-3 text-xs text-slate-500 max-w-xs truncate">{run.errorMessage || "—"}</td>
                       </tr>
                     ))}

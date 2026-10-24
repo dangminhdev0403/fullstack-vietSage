@@ -737,8 +737,7 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                       : "rounded-none border-l-2 border-r-2 border-purple-600 border-b border-purple-200/80 border-t-0"
                 }`}
               >
-                <span className="truncate whitespace-nowrap inline-flex items-center gap-1 font-semibold text-purple-950 text-xs">
-                  <VsIcon name="check" className="text-xs text-purple-600 shrink-0" />
+                <span className="truncate whitespace-nowrap inline-flex items-center font-semibold text-purple-950 text-xs">
                   <span>P.{room.roomNumber}</span>
                 </span>
 
@@ -792,7 +791,10 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                     }}
                     className="absolute -bottom-1 -right-1 size-5 cursor-nwse-resize z-40 pointer-events-auto flex items-center justify-center rounded bg-purple-700 hover:bg-purple-800 active:bg-purple-900 text-white shadow-md border border-white/80 transition touch-none"
                   >
-                    <VsIcon name="south_east" className="text-xs" />
+                    <svg viewBox="0 0 10 10" className="size-2.5 text-white/90" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                      <line x1="8" y1="2" x2="2" y2="8" />
+                      <line x1="8" y1="5" x2="5" y2="8" />
+                    </svg>
                   </div>
                 )}
               </div>
@@ -873,46 +875,53 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                       e.stopPropagation();
                       onStartDraftAdjust("move", e);
                     }}
-                    className="p-0.5 -ml-1 rounded hover:bg-white/20 active:bg-white/30 cursor-grab active:cursor-grabbing text-white/80 hover:text-white transition flex items-center justify-center shrink-0 touch-none"
+                    className="p-1 -ml-1 rounded hover:bg-white/20 active:bg-white/30 cursor-grab active:cursor-grabbing text-white/70 hover:text-white transition flex items-center justify-center shrink-0 touch-none"
                   >
-                    <VsIcon name="drag_indicator" className="text-sm" />
+                    <svg viewBox="0 0 6 10" className="w-1.5 h-3" fill="currentColor">
+                      <circle cx="1.5" cy="2" r="1"/>
+                      <circle cx="4.5" cy="2" r="1"/>
+                      <circle cx="1.5" cy="5" r="1"/>
+                      <circle cx="4.5" cy="5" r="1"/>
+                      <circle cx="1.5" cy="8" r="1"/>
+                      <circle cx="4.5" cy="8" r="1"/>
+                    </svg>
                   </div>
                 )}
-                <VsIcon
-                  name={isGroup ? "group_add" : "bookmark_add"}
-                  className={`text-sm shrink-0 ${isDraggingRange ? "text-emerald-700" : "text-amber-300"}`}
-                />
-                <span className={`text-xs font-black truncate whitespace-nowrap ${isDraggingRange ? "text-emerald-950" : "text-white"}`}>
+                <span className={`text-xs font-black truncate whitespace-nowrap ${isDraggingRange ? "text-emerald-950" : "text-white"} ${draftSelection.nights <= 1 ? "hidden sm:inline" : ""}`}>
                   {isGroup ? `Đoàn: ${draftSelection.rooms.length} phòng` : isDraggingRange ? "Đang chọn vùng" : "Đặt trước"}: {draftSelection.nights} đêm
                 </span>
               </div>
 
               {/* Quick Stepper, Guest Count & Confirm buttons (chỉ hiện khi đã chọn xong khoảng ngày) */}
               {!isDraggingRange && (
-                <div className="flex items-center gap-1 shrink-0 pr-3">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAdjustDraftDays(-1);
-                    }}
-                    disabled={draftSelection.nights <= 1}
-                    className="size-5 rounded flex items-center justify-center bg-white/20 hover:bg-white/30 text-white font-bold text-xs disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
-                    title="Giảm 1 đêm"
-                  >
-                    -
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAdjustDraftDays(1);
-                    }}
-                    className="size-5 rounded flex items-center justify-center bg-white/20 hover:bg-white/30 text-white font-bold text-xs cursor-pointer"
-                    title="Kéo dài thêm 1 đêm"
-                  >
-                    +
-                  </button>
+                <div className="flex items-center gap-1 shrink-0 pr-3.5 z-20">
+                  {draftSelection.nights > 1 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAdjustDraftDays(-1);
+                        }}
+                        disabled={draftSelection.nights <= 1}
+                        className="size-5 rounded flex items-center justify-center bg-white/20 hover:bg-white/30 text-white font-bold text-xs disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                        title="Giảm 1 đêm"
+                      >
+                        -
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAdjustDraftDays(1);
+                        }}
+                        className="size-5 rounded flex items-center justify-center bg-white/20 hover:bg-white/30 text-white font-bold text-xs cursor-pointer"
+                        title="Kéo dài thêm 1 đêm"
+                      >
+                        +
+                      </button>
+                    </>
+                  )}
 
                   <button
                     type="button"
@@ -935,17 +944,6 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                   >
                     <VsIcon name={isProcessing ? "cleaning_services" : "check"} className="text-xs" />
                     <span>{isProcessing ? "Dọn phòng & Đặt" : isGroup ? `Đặt ${draftSelection.rooms.length} phòng` : "Đặt ngay"}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onCancelDraft();
-                    }}
-                    className="size-5 rounded flex items-center justify-center text-white/80 hover:text-white hover:bg-white/20 cursor-pointer ml-0.5"
-                    title="Hủy chọn"
-                  >
-                    ✕
                   </button>
                 </div>
               )}
@@ -1000,12 +998,15 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                   }}
                   className="absolute -bottom-1 -right-1 size-5 cursor-nwse-resize z-40 flex items-center justify-center rounded bg-purple-800 hover:bg-purple-900 active:bg-indigo-950 text-white shadow-md border border-white/80 transition touch-none"
                 >
-                  <VsIcon name="south_east" className="text-xs" />
+                  <svg viewBox="0 0 10 10" className="size-2.5 text-white/90" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                    <line x1="8" y1="2" x2="2" y2="8" />
+                    <line x1="8" y1="5" x2="5" y2="8" />
+                  </svg>
                 </div>
               )}
 
               {/* Floating Tooltip Header above the bar for clear date readability */}
-              <div className={`absolute ${!isGroup || isFirstInGroup ? "-top-8" : "-bottom-8"} left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 bg-slate-900/95 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow-xl border border-slate-700 whitespace-nowrap pointer-events-none max-w-sm sm:max-w-md`}>
+              <div className={`absolute ${!isGroup || isFirstInGroup ? "-top-8" : "-bottom-8"} left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 bg-slate-900/95 text-white pl-2.5 pr-1.5 py-1 rounded-full text-xs font-bold shadow-xl border border-slate-700 whitespace-nowrap pointer-events-auto max-w-sm sm:max-w-md`}>
                 <span className="text-amber-300 shrink-0">
                   {isGroup
                     ? draftSelection.rooms.length <= 3
@@ -1018,19 +1019,25 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                   {formatDateNum(draftSelection.startDay)} ➔ {formatDateNum(draftSelection.endDay)}
                 </span>
                 <span className="text-purple-300 shrink-0">({draftSelection.nights} đêm)</span>
-                {!isDraggingRange && (
-                  <>
-                    <span className="text-slate-400 hidden sm:inline">•</span>
-                    <span className="text-emerald-300 font-normal text-xs hidden sm:inline">
-                      Ấn giữ mép để kéo tiếp
-                    </span>
-                  </>
-                )}
                 {isProcessing && (
                   <span className="px-1.5 py-0.5 rounded bg-amber-400 text-amber-950 font-black text-xs inline-flex items-center gap-1 whitespace-nowrap shrink-0">
                     <VsIcon name="cleaning_services" className="text-xs" />
                     Cần dọn phòng
                   </span>
+                )}
+                {!isDraggingRange && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCancelDraft();
+                    }}
+                    className="ml-1 size-5 rounded-full bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white text-xs font-black flex items-center justify-center cursor-pointer shadow-xs transition hover:scale-110 active:scale-95 shrink-0"
+                    title="Hủy vùng chọn"
+                    aria-label="Hủy vùng chọn"
+                  >
+                    ✕
+                  </button>
                 )}
               </div>
             </div>

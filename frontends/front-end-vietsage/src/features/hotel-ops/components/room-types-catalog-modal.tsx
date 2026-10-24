@@ -291,12 +291,20 @@ export function RoomTypesCatalogModal({
           ) : (
             <div className="overflow-hidden rounded-2xl border border-slate-200 shadow-xs">
               <table className="w-full text-left text-sm">
+                <colgroup>
+                  <col className="w-[26%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[16%]" />
+                  <col className="w-[16%]" />
+                </colgroup>
                 <thead className="border-b border-slate-200 bg-slate-50/80 text-xs font-bold uppercase tracking-wider text-slate-600">
                   <tr>
                     <th scope="col" className="px-5 py-3.5">Hạng phòng</th>
                     <th scope="col" className="px-4 py-3.5 text-center">Số phòng</th>
                     <th scope="col" className="px-4 py-3.5 text-center">Sức chứa</th>
-                    <th scope="col" className="px-4 py-3.5">Trạng thái ARI</th>
+                    <th scope="col" className="px-4 py-3.5 text-center">Trạng thái ARI</th>
                     <th scope="col" className="px-5 py-3.5">Giá gốc niêm yết</th>
                     <th scope="col" className="px-5 py-3.5 text-right">Cập nhật giá</th>
                   </tr>
@@ -341,7 +349,7 @@ export function RoomTypesCatalogModal({
                             className="w-20 rounded-xl border border-slate-300 bg-white px-2 py-1.5 text-center text-sm font-semibold outline-none focus:border-[var(--primary)]"
                           />
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-4 text-center">
                           {isReady ? (
                             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200/60">
                               <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />

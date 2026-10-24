@@ -291,6 +291,12 @@ export function DebtStatementModal({
               {/* Statement Breakdown Table */}
               <div className="overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800">
                 <table className="w-full text-left text-sm">
+                  <colgroup>
+                    <col className="w-[44%]" />
+                    <col className="w-[16%]" />
+                    <col className="w-[20%]" />
+                    <col className="w-[20%]" />
+                  </colgroup>
                   <thead className="bg-slate-100/80 text-sm font-bold uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                     <tr>
                       <th className="px-5 py-3">Hạng mục dịch vụ</th>

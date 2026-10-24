@@ -1601,9 +1601,15 @@ export function MarketplaceAdminClient() {
                     </p>
                     <div className="max-h-60 overflow-y-auto rounded-xl border border-[#e8dfd1] bg-white">
                       <table className="w-full text-left border-collapse text-xs">
+                        <colgroup>
+                          <col className="w-[18%]" />
+                          <col className="w-[20%]" />
+                          <col className="w-[28%]" />
+                          <col className="w-[34%]" />
+                        </colgroup>
                         <thead>
                           <tr className="bg-[#faf6ef] border-b border-[#e8dfd1] text-[#69726b] font-bold uppercase">
-                            <th className="p-3">Hành động</th>
+                            <th className="p-3 text-center">Hành động</th>
                             <th className="p-3">Key</th>
                             <th className="p-3">Tên tiếng Việt</th>
                             <th className="p-3">Chi tiết thay đổi</th>
@@ -1612,7 +1618,7 @@ export function MarketplaceAdminClient() {
                         <tbody className="divide-y divide-[#e8dfd1]/60">
                           {sheetPreview.diff.map((d, i) => (
                             <tr key={i} className="hover:bg-[#faf6ef]/50">
-                              <td className="p-3 font-extrabold">
+                              <td className="p-3 font-extrabold text-center">
                                 {d.action === "create" && (
                                   <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                                     Tạo mới

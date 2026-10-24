@@ -419,12 +419,19 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, c
       <section className="overflow-hidden rounded-[1.6rem] border border-[#e8dfd1] bg-white/95 shadow-[0_16px_45px_rgba(23,32,27,0.06)] backdrop-blur-md">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-left text-sm">
+            <colgroup>
+              <col className="w-[32%]" />
+              <col className="w-[24%]" />
+              <col className="w-[16%]" />
+              <col className="w-[14%]" />
+              <col className="w-[14%]" />
+            </colgroup>
             <thead className="border-b border-[#e5dcd0] bg-[#f6f1e7]/90 text-xs font-semibold uppercase tracking-[0.1em] text-[#69726b]">
               <tr>
                 <th className="px-6 py-4 font-semibold">Khách sạn</th>
                 <th className="px-6 py-4 font-semibold">Tổ chức</th>
-                <th className="px-6 py-4 font-semibold">Trạng thái</th>
-                <th className="px-6 py-4 font-semibold">Cập nhật</th>
+                <th className="px-6 py-4 text-center font-semibold">Trạng thái</th>
+                <th className="px-6 py-4 text-center font-semibold">Cập nhật</th>
                 <th className="px-6 py-4 text-right font-semibold">Thao tác</th>
               </tr>
             </thead>
@@ -453,7 +460,8 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, c
                     </span>
                   </td>
                   <td className="px-6 py-4.5 align-middle">
-                    {(hotel.status ?? "ACTIVE") === "ACTIVE" ? (
+                    <div className="flex items-center justify-center">
+                      {(hotel.status ?? "ACTIVE") === "ACTIVE" ? (
                       <span className="inline-flex items-center gap-1.5 rounded-full border border-[#cbe5d8] bg-[#ecf7f1] px-3.5 py-1 text-xs font-semibold text-[#1a5d3f]">
                         <span className="h-2 w-2 rounded-full bg-[#1a5d3f] animate-pulse"></span>
                         Hoạt động
@@ -464,8 +472,9 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, c
                         Tạm ngưng
                       </span>
                     )}
+                    </div>
                   </td>
-                  <td className="px-6 py-4.5 align-middle text-xs font-medium text-[#69726b]">{formatDate(hotel.updatedAt ?? hotel.createdAt)}</td>
+                  <td className="px-6 py-4.5 align-middle text-center text-xs font-medium text-[#69726b]">{formatDate(hotel.updatedAt ?? hotel.createdAt)}</td>
                   <td className="px-6 py-4.5 text-right align-middle" onClick={(e) => e.stopPropagation()}>
                     <button
                       type="button"
