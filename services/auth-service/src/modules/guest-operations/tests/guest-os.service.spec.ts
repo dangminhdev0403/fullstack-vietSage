@@ -1868,4 +1868,249 @@ describe("GuestOsService", () => {
       );
     });
   });
+
+describe("GuestOsService request creation billing price snapshot (H2)", () => {
+  it("snapshots trusted service price and currency at request creation", async () => {
+    const repository = {
+      findSessionById: jest.fn().mockResolvedValue({
+        id: "session-1",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        stayId: "stay-1",
+        status: GuestSessionStatus.ACTIVE,
+        expiresAt: new Date(Date.now() + 60_000),
+        lastSeenAt: new Date(),
+        createdAt: new Date(),
+        stay: { status: "ACTIVE" },
+        room: { status: "OCCUPIED" },
+        hotel: { tenantId: "tenant-1" },
+      }),
+      updateSessionHeartbeat: jest.fn().mockImplementation((sessionId, status) => ({
+        id: sessionId,
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        stayId: "stay-1",
+        status,
+        expiresAt: new Date(Date.now() + 60_000),
+        hotel: { tenantId: "tenant-1" },
+        room: { status: "OCCUPIED", roomNumber: "101" },
+        stay: { status: "ACTIVE", guestDisplayName: "Guest" },
+      })),
+      findActiveServiceItemInHotel: jest.fn().mockResolvedValue({
+        id: "item-priced",
+        name: "Cocktail",
+        priceOverride: 75000,
+        quantityEnabled: true,
+        minQuantity: 1,
+        maxQuantity: 10,
+        category: { defaultPrice: 50000, currency: "VND" },
+      }),
+      createRequest: jest.fn().mockResolvedValue({
+        id: "req-p1",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        stayId: "stay-1",
+        sessionId: "session-1",
+        serviceItemId: "item-priced",
+        title: "Cocktail",
+        status: GuestRequestStatus.PENDING,
+        priority: "NORMAL",
+        quantity: 2,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        serviceItem: {
+          id: "item-priced",
+          name: "Cocktail",
+          priceOverride: 75000,
+          category: { defaultPrice: 50000, currency: "VND" },
+        },
+        events: [],
+      }),
+    };
+    const service = new GuestOsService(repository as never);
+
+    await service.createRequest(
+      {
+        sessionId: "session-1",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        stayId: "stay-1",
+        status: GuestSessionStatus.ACTIVE,
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+      { serviceItemId: "item-priced", quantity: 2 },
+    );
+
+    expect(repository.createRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          billingPriceSnapshot: { unitPrice: 75000, currency: "VND" },
+        }),
+      }),
+    );
+  });
+
+  it("guest supplied billingPriceSnapshot cannot win over server snapshot", async () => {
+    const repository = {
+      findSessionById: jest.fn().mockResolvedValue({
+        id: "session-1",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        stayId: "stay-1",
+        status: GuestSessionStatus.ACTIVE,
+        expiresAt: new Date(Date.now() + 60_000),
+        lastSeenAt: new Date(),
+        createdAt: new Date(),
+        stay: { status: "ACTIVE" },
+        room: { status: "OCCUPIED" },
+        hotel: { tenantId: "tenant-1" },
+      }),
+      updateSessionHeartbeat: jest.fn().mockImplementation((sessionId, status) => ({
+        id: sessionId,
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        stayId: "stay-1",
+        status,
+        expiresAt: new Date(Date.now() + 60_000),
+        hotel: { tenantId: "tenant-1" },
+        room: { status: "OCCUPIED", roomNumber: "101" },
+        stay: { status: "ACTIVE", guestDisplayName: "Guest" },
+      })),
+      findActiveServiceItemInHotel: jest.fn().mockResolvedValue({
+        id: "item-expensive",
+        name: "Massage 60m",
+        priceOverride: 300000,
+        category: { defaultPrice: 300000, currency: "VND" },
+      }),
+      createRequest: jest.fn().mockResolvedValue({
+        id: "req-p2",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        stayId: "stay-1",
+        sessionId: "session-1",
+        serviceItemId: "item-expensive",
+        title: "Massage 60m",
+        status: GuestRequestStatus.PENDING,
+        priority: "NORMAL",
+        quantity: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        serviceItem: {
+          id: "item-expensive",
+          name: "Massage 60m",
+          priceOverride: 300000,
+          category: { defaultPrice: 300000, currency: "VND" },
+        },
+        events: [],
+      }),
+    };
+    const service = new GuestOsService(repository as never);
+
+    // Guest maliciously injects free billingPriceSnapshot in metadata
+    await service.createRequest(
+      {
+        sessionId: "session-1",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        stayId: "stay-1",
+        status: GuestSessionStatus.ACTIVE,
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+      {
+        serviceItemId: "item-expensive",
+        quantity: 1,
+        metadata: {
+          guestNote: "please hurry",
+          billingPriceSnapshot: { unitPrice: 0, currency: "USD" },
+        },
+      },
+    );
+
+    expect(repository.createRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: {
+          guestNote: "please hurry",
+          billingPriceSnapshot: { unitPrice: 300000, currency: "VND" },
+        },
+      }),
+    );
+  });
+
+  it("preserves explicit zero in billingPriceSnapshot at request creation", async () => {
+    const repository = {
+      findSessionById: jest.fn().mockResolvedValue({
+        id: "session-1",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        stayId: "stay-1",
+        status: GuestSessionStatus.ACTIVE,
+        expiresAt: new Date(Date.now() + 60_000),
+        lastSeenAt: new Date(),
+        createdAt: new Date(),
+        stay: { status: "ACTIVE" },
+        room: { status: "OCCUPIED" },
+        hotel: { tenantId: "tenant-1" },
+      }),
+      updateSessionHeartbeat: jest.fn().mockImplementation((sessionId, status) => ({
+        id: sessionId,
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        stayId: "stay-1",
+        status,
+        expiresAt: new Date(Date.now() + 60_000),
+        hotel: { tenantId: "tenant-1" },
+        room: { status: "OCCUPIED", roomNumber: "101" },
+        stay: { status: "ACTIVE", guestDisplayName: "Guest" },
+      })),
+      findActiveServiceItemInHotel: jest.fn().mockResolvedValue({
+        id: "item-free",
+        name: "Extra pillow",
+        priceOverride: 0,
+        category: { defaultPrice: 0, currency: "VND" },
+      }),
+      createRequest: jest.fn().mockResolvedValue({
+        id: "req-p3",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        stayId: "stay-1",
+        sessionId: "session-1",
+        serviceItemId: "item-free",
+        title: "Extra pillow",
+        status: GuestRequestStatus.PENDING,
+        priority: "NORMAL",
+        quantity: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        serviceItem: {
+          id: "item-free",
+          name: "Extra pillow",
+          priceOverride: 0,
+          category: { defaultPrice: 0, currency: "VND" },
+        },
+        events: [],
+      }),
+    };
+    const service = new GuestOsService(repository as never);
+
+    await service.createRequest(
+      {
+        sessionId: "session-1",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        stayId: "stay-1",
+        status: GuestSessionStatus.ACTIVE,
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+      { serviceItemId: "item-free", quantity: 1 },
+    );
+
+    expect(repository.createRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          billingPriceSnapshot: { unitPrice: 0, currency: "VND" },
+        }),
+      }),
+    );
+  });
+});
 });

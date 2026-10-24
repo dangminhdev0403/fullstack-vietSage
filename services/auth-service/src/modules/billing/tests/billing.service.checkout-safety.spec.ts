@@ -24,7 +24,7 @@ import {
   Prisma,
   RoomStatus,
 } from "@prisma/client";
-import { ConflictException } from "@nestjs/common";
+import { BadRequestException, ConflictException } from "@nestjs/common";
 import { REQUIRED_PERMISSION_KEY } from "../../../shared/decorators/require-permission.decorator";
 import { FolioController } from "../api/folio.controller";
 import { PaymentController } from "../api/payment.controller";
@@ -466,7 +466,19 @@ describe("BillingService checkout safety", () => {
     expect(eventPublisher.publishConversationClosed).not.toHaveBeenCalled();
   });
 
-  it("confirmManualPayment records the counter method and settles through the guarded payment flow", async () => {
+  function setupManualPaymentTx(invoiceOverrides: Record<string, unknown> = {}) {
+    const invoice = {
+      id: "invoice-1",
+      hotelId: "hotel-1",
+      folioId: "folio-1",
+      stayId: "stay-1",
+      status: InvoiceStatus.ISSUED,
+      paidAmount: new Prisma.Decimal(0),
+      balanceAmount: new Prisma.Decimal(500000),
+      currency: "VND",
+      stay: { roomId: "room-1" },
+      ...invoiceOverrides,
+    };
     const payment = {
       id: "payment-counter-1",
       hotelId: "hotel-1",
@@ -475,49 +487,368 @@ describe("BillingService checkout safety", () => {
       stayId: "stay-1",
       paymentNumber: "PAY-001",
       provider: PaymentProvider.MANUAL,
-      status: PaymentStatus.PENDING,
-      method: PaymentMethod.MANUAL,
-      amount: new Prisma.Decimal(250000),
+      status: PaymentStatus.SUCCEEDED,
+      method: PaymentMethod.CASH,
+      amount: new Prisma.Decimal(500000),
+      paidAmount: new Prisma.Decimal(500000),
       currency: "VND",
     };
-    const prisma = {
-      payment: { update: jest.fn().mockResolvedValue({ ...payment, method: PaymentMethod.CASH }) },
+    const tx = {
+      $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+      invoice: {
+        findFirst: jest.fn().mockResolvedValue(invoice),
+        update: jest.fn().mockImplementation(({ data }) => Promise.resolve({ ...invoice, ...data })),
+      },
+      payment: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ ...payment, ...data })),
+      },
+      paymentTransaction: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: "tx-1" }),
+      },
+      folio: { update: jest.fn().mockResolvedValue({}) },
+      guestStay: { update: jest.fn().mockResolvedValue({}) },
+      guestSession: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      room: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      roomQRCode: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
     };
-    const service = createService(prisma);
-    jest
-      .spyOn(service, "createPaymentSession")
-      .mockResolvedValue({ reused: false, payment } as never);
-    const processPaymentWebhook = jest
-      .spyOn(service, "processPaymentWebhook")
-      .mockResolvedValue({ received: true, paid: true } as never);
-    jest
-      .spyOn(service, "getPaymentStatus")
-      .mockResolvedValue({ ...payment, status: PaymentStatus.SUCCEEDED } as never);
+    const prisma = {
+      $transaction: jest.fn((callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
+      paymentTransaction: { findFirst: jest.fn().mockResolvedValue(null) },
+    };
+    return { tx, prisma, invoice, payment };
+  }
+
+  it("legacy no-amount request pays full", async () => {
+    const { tx, prisma, invoice } = setupManualPaymentTx({
+      balanceAmount: new Prisma.Decimal(250000),
+      totalAmount: new Prisma.Decimal(250000),
+    });
+    const eventPublisher = { publishConversationClosed: jest.fn() };
+    const service = createService(prisma, {}, eventPublisher);
     jest
       .spyOn(service, "getInvoiceDetail")
       .mockResolvedValue({ invoice: { id: "invoice-1", status: InvoiceStatus.PAID } } as never);
 
-    await service.confirmManualPayment("staff-1", "frontdesk-role", "hotel-1", "invoice-1", {
+    const result = await service.confirmManualPayment("staff-1", "frontdesk-role", "hotel-1", "invoice-1", {
       method: PaymentMethod.CASH,
       note: "Thu đủ tại quầy",
     });
 
-    expect(prisma.payment.update).toHaveBeenCalledWith({
-      where: { id: payment.id },
-      data: {
+    expect(tx.payment.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        amount: new Prisma.Decimal(250000),
+        paidAmount: new Prisma.Decimal(250000),
         method: PaymentMethod.CASH,
-        metadataJson: { source: "front_desk", note: "Thu đủ tại quầy" },
+      }),
+    });
+    expect(tx.paymentTransaction.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        providerEventId: expect.stringMatching(/^counter:/),
+        amount: new Prisma.Decimal(250000),
+      }),
+    });
+    expect(tx.invoice.update).toHaveBeenCalledWith({
+      where: { id: invoice.id },
+      data: expect.objectContaining({
+        status: InvoiceStatus.PAID,
+        paidAmount: new Prisma.Decimal(250000),
+        balanceAmount: new Prisma.Decimal(0),
+      }),
+    });
+    expect(tx.folio.update).toHaveBeenCalledWith({
+      where: { id: invoice.folioId },
+      data: expect.objectContaining({ status: FolioStatus.CLOSED }),
+    });
+    expect(tx.guestStay.update).toHaveBeenCalledWith({
+      where: { id: invoice.stayId },
+      data: expect.objectContaining({ status: GuestStayStatus.CHECKED_OUT }),
+    });
+    expect(tx.room.updateMany).toHaveBeenCalledWith({
+      where: { id: "room-1", hotelId: "hotel-1", status: RoomStatus.OCCUPIED },
+      data: { status: RoomStatus.PROCESSING },
+    });
+    expect(eventPublisher.publishConversationClosed).toHaveBeenCalledWith({
+      hotelId: "hotel-1",
+      stayId: "stay-1",
+      roomId: "room-1",
+    });
+    expect(result.changeAmount).toBe(0);
+  });
+
+  it("focused tests prove partial keeps stay open and balance accurate", async () => {
+    const { tx, prisma, invoice } = setupManualPaymentTx({
+      balanceAmount: new Prisma.Decimal(500000),
+      paidAmount: new Prisma.Decimal(0),
+    });
+    const eventPublisher = { publishConversationClosed: jest.fn() };
+    const service = createService(prisma, {}, eventPublisher);
+    jest
+      .spyOn(service, "getInvoiceDetail")
+      .mockResolvedValue({
+        invoice: {
+          id: "invoice-1",
+          status: InvoiceStatus.ISSUED,
+          balanceAmount: new Prisma.Decimal(300000),
+        },
+      } as never);
+
+    const result = await service.confirmManualPayment("staff-1", "frontdesk-role", "hotel-1", "invoice-1", {
+      method: PaymentMethod.CASH,
+      amount: 200000,
+      cashReceived: 200000,
+      clientRequestId: "req-partial-1",
+    });
+
+    expect(tx.payment.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        amount: new Prisma.Decimal(200000),
+        paidAmount: new Prisma.Decimal(200000),
+      }),
+    });
+    expect(tx.paymentTransaction.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        providerEventId: "counter:req-partial-1",
+        amount: new Prisma.Decimal(200000),
+      }),
+    });
+    expect(tx.invoice.update).toHaveBeenCalledWith({
+      where: { id: invoice.id },
+      data: {
+        status: InvoiceStatus.ISSUED,
+        paidAmount: new Prisma.Decimal(200000),
+        balanceAmount: new Prisma.Decimal(300000),
       },
     });
-    expect(processPaymentWebhook).toHaveBeenCalledWith(
-      PaymentProvider.MANUAL,
-      expect.objectContaining({
-        signatureVerified: true,
-        eventType: "payment.succeeded",
-        paymentId: payment.id,
-        actorUserId: "staff-1",
+    expect(tx.folio.update).not.toHaveBeenCalled();
+    expect(tx.guestStay.update).not.toHaveBeenCalled();
+    expect(tx.guestSession.updateMany).not.toHaveBeenCalled();
+    expect(tx.room.updateMany).not.toHaveBeenCalled();
+    expect(eventPublisher.publishConversationClosed).not.toHaveBeenCalled();
+    expect(result.changeAmount).toBe(0);
+  });
+
+  it("second payment closes", async () => {
+    const { tx, prisma, invoice } = setupManualPaymentTx({
+      paidAmount: new Prisma.Decimal(200000),
+      balanceAmount: new Prisma.Decimal(300000),
+    });
+    const eventPublisher = { publishConversationClosed: jest.fn() };
+    const service = createService(prisma, {}, eventPublisher);
+    jest
+      .spyOn(service, "getInvoiceDetail")
+      .mockResolvedValue({
+        invoice: { id: "invoice-1", status: InvoiceStatus.PAID, balanceAmount: new Prisma.Decimal(0) },
+      } as never);
+
+    const result = await service.confirmManualPayment("staff-1", "frontdesk-role", "hotel-1", "invoice-1", {
+      method: PaymentMethod.CASH,
+      amount: 300000,
+      cashReceived: 300000,
+      clientRequestId: "req-final-2",
+    });
+
+    expect(tx.payment.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        amount: new Prisma.Decimal(300000),
+        paidAmount: new Prisma.Decimal(300000),
       }),
-    );
+    });
+    expect(tx.invoice.update).toHaveBeenCalledWith({
+      where: { id: invoice.id },
+      data: expect.objectContaining({
+        status: InvoiceStatus.PAID,
+        paidAmount: new Prisma.Decimal(500000),
+        balanceAmount: new Prisma.Decimal(0),
+      }),
+    });
+    expect(tx.folio.update).toHaveBeenCalledWith({
+      where: { id: invoice.folioId },
+      data: expect.objectContaining({ status: FolioStatus.CLOSED }),
+    });
+    expect(tx.guestStay.update).toHaveBeenCalledWith({
+      where: { id: invoice.stayId },
+      data: expect.objectContaining({ status: GuestStayStatus.CHECKED_OUT }),
+    });
+    expect(tx.room.updateMany).toHaveBeenCalledWith({
+      where: { id: "room-1", hotelId: "hotel-1", status: RoomStatus.OCCUPIED },
+      data: { status: RoomStatus.PROCESSING },
+    });
+    expect(eventPublisher.publishConversationClosed).toHaveBeenCalledWith({
+      hotelId: "hotel-1",
+      stayId: "stay-1",
+      roomId: "room-1",
+    });
+    expect(result.changeAmount).toBe(0);
+  });
+
+  it("over-tender returns change and applies balance only", async () => {
+    const { tx, prisma, invoice } = setupManualPaymentTx({
+      balanceAmount: new Prisma.Decimal(300000),
+      paidAmount: new Prisma.Decimal(200000),
+    });
+    const service = createService(prisma);
+    jest
+      .spyOn(service, "getInvoiceDetail")
+      .mockResolvedValue({
+        invoice: { id: "invoice-1", status: InvoiceStatus.PAID, balanceAmount: new Prisma.Decimal(0) },
+      } as never);
+
+    const result = await service.confirmManualPayment("staff-1", "frontdesk-role", "hotel-1", "invoice-1", {
+      method: PaymentMethod.CASH,
+      amount: 300000,
+      cashReceived: 500000,
+      clientRequestId: "req-over-1",
+    });
+
+    expect(tx.payment.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        amount: new Prisma.Decimal(300000),
+        paidAmount: new Prisma.Decimal(300000),
+      }),
+    });
+    expect(tx.paymentTransaction.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        amount: new Prisma.Decimal(300000),
+      }),
+    });
+    expect(tx.invoice.update).toHaveBeenCalledWith({
+      where: { id: invoice.id },
+      data: expect.objectContaining({
+        balanceAmount: new Prisma.Decimal(0),
+      }),
+    });
+    expect(result.changeAmount).toBe(200000);
+  });
+
+  it("under-tender accepted as partial", async () => {
+    const { tx, prisma, invoice } = setupManualPaymentTx({
+      balanceAmount: new Prisma.Decimal(500000),
+      paidAmount: new Prisma.Decimal(0),
+    });
+    const service = createService(prisma);
+    jest
+      .spyOn(service, "getInvoiceDetail")
+      .mockResolvedValue({
+        invoice: {
+          id: "invoice-1",
+          status: InvoiceStatus.ISSUED,
+          balanceAmount: new Prisma.Decimal(400000),
+        },
+      } as never);
+
+    const result = await service.confirmManualPayment("staff-1", "frontdesk-role", "hotel-1", "invoice-1", {
+      method: PaymentMethod.CASH,
+      amount: 100000,
+      cashReceived: 100000,
+      clientRequestId: "req-under-1",
+    });
+
+    expect(tx.payment.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        amount: new Prisma.Decimal(100000),
+      }),
+    });
+    expect(tx.invoice.update).toHaveBeenCalledWith({
+      where: { id: invoice.id },
+      data: {
+        status: InvoiceStatus.ISSUED,
+        paidAmount: new Prisma.Decimal(100000),
+        balanceAmount: new Prisma.Decimal(400000),
+      },
+    });
+    expect(tx.room.updateMany).not.toHaveBeenCalled();
+    expect(result.changeAmount).toBe(0);
+  });
+
+  it("duplicate exact clientRequestId no duplicate payment", async () => {
+    const existingPayment = {
+      id: "payment-existing",
+      hotelId: "hotel-1",
+      invoiceId: "invoice-1",
+      method: PaymentMethod.CASH,
+      amount: new Prisma.Decimal(200000),
+      status: PaymentStatus.SUCCEEDED,
+    };
+    const existingTx = {
+      id: "tx-existing",
+      hotelId: "hotel-1",
+      provider: PaymentProvider.MANUAL,
+      providerEventId: "counter:req-dup-1",
+      amount: new Prisma.Decimal(200000),
+      status: PaymentStatus.SUCCEEDED,
+      payment: existingPayment,
+      invoice: { id: "invoice-1" },
+      rawPayloadJson: { cashReceived: 200000, changeAmount: 0 },
+    };
+    const { tx, prisma } = setupManualPaymentTx();
+    tx.paymentTransaction.findFirst = jest.fn().mockResolvedValue(existingTx);
+    const service = createService(prisma);
+    jest
+      .spyOn(service, "getInvoiceDetail")
+      .mockResolvedValue({ invoice: { id: "invoice-1" } } as never);
+
+    const result = await service.confirmManualPayment("staff-1", "frontdesk-role", "hotel-1", "invoice-1", {
+      method: PaymentMethod.CASH,
+      amount: 200000,
+      cashReceived: 200000,
+      clientRequestId: "req-dup-1",
+    });
+
+    expect(result.payment).toEqual(existingPayment);
+    expect(tx.payment.create).not.toHaveBeenCalled();
+    expect(tx.invoice.update).not.toHaveBeenCalled();
+  });
+
+  it("conflicting retry rejected", async () => {
+    const existingPayment = {
+      id: "payment-existing",
+      hotelId: "hotel-1",
+      invoiceId: "invoice-1",
+      method: PaymentMethod.CASH,
+      amount: new Prisma.Decimal(200000),
+      status: PaymentStatus.SUCCEEDED,
+    };
+    const existingTx = {
+      id: "tx-existing",
+      hotelId: "hotel-1",
+      provider: PaymentProvider.MANUAL,
+      providerEventId: "counter:req-conflict-1",
+      amount: new Prisma.Decimal(200000),
+      status: PaymentStatus.SUCCEEDED,
+      payment: existingPayment,
+      invoice: { id: "invoice-1" },
+      rawPayloadJson: { cashReceived: 200000, changeAmount: 0 },
+    };
+    const { tx, prisma } = setupManualPaymentTx();
+    tx.paymentTransaction.findFirst = jest.fn().mockResolvedValue(existingTx);
+    const service = createService(prisma);
+
+    await expect(
+      service.confirmManualPayment("staff-1", "frontdesk-role", "hotel-1", "invoice-1", {
+        method: PaymentMethod.CASH,
+        amount: 300000,
+        clientRequestId: "req-conflict-1",
+      }),
+    ).rejects.toThrow(new ConflictException("COUNTER_PAYMENT_CONFLICT"));
+
+    await expect(
+      service.confirmManualPayment("staff-1", "frontdesk-role", "hotel-1", "invoice-1", {
+        method: PaymentMethod.CARD,
+        amount: 200000,
+        clientRequestId: "req-conflict-1",
+      }),
+    ).rejects.toThrow(new ConflictException("COUNTER_PAYMENT_CONFLICT"));
+
+    await expect(
+      service.confirmManualPayment("staff-1", "frontdesk-role", "hotel-1", "invoice-1", {
+        method: PaymentMethod.CASH,
+        amount: 200000,
+        cashReceived: 300000,
+        clientRequestId: "req-conflict-1",
+      }),
+    ).rejects.toThrow(new ConflictException("COUNTER_PAYMENT_CONFLICT"));
   });
 
   it("processPaymentWebhook rejects an unverified webhook before any database side effect", async () => {
@@ -1497,5 +1828,457 @@ describe("BillingService checkout safety", () => {
     await expect(
       service.validateFolioForCheckout("hotel-1", "folio-1"),
     ).rejects.toThrow(ConflictException);
+  });
+
+  it("issueInvoice creates adjustments and invoice atomically in a single request", async () => {
+    const createdItems: any[] = [];
+    const tx = {
+      $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+      folio: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "folio-1",
+          hotelId: "hotel-1",
+          stayId: "stay-1",
+          roomId: "room-1",
+          folioNumber: "FOL-001",
+          status: FolioStatus.OPEN,
+          currency: "VND",
+          openedAt: new Date("2026-07-17T10:00:00.000Z"),
+          subtotalAmount: new Prisma.Decimal(100),
+          taxAmount: new Prisma.Decimal(0),
+          discountAmount: new Prisma.Decimal(0),
+          totalAmount: new Prisma.Decimal(100),
+          updatedAt: new Date("2026-07-17T10:00:00.000Z"),
+          hotel: { id: "hotel-1", name: "Hotel" },
+          room: { id: "room-1", roomNumber: "101", price: new Prisma.Decimal(100) },
+          stay: {
+            id: "stay-1",
+            plannedCheckInAt: new Date("2026-07-17T10:00:00.000Z"),
+            plannedCheckOutAt: new Date("2026-09-29T05:00:00.000Z"),
+            checkedInAt: new Date("2026-07-18T09:40:00.000Z"),
+            nightlyRateSnapshot: new Prisma.Decimal(100),
+          },
+        }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      invoice: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest
+          .fn()
+          .mockImplementation(({ data }) => Promise.resolve({ id: "invoice-1", ...data })),
+      },
+      folioItem: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockImplementation(({ data }) => {
+          const item = { id: `item-${createdItems.length + 1}`, ...data };
+          createdItems.push(item);
+          return Promise.resolve(item);
+        }),
+        findMany: jest.fn().mockImplementation(() => Promise.resolve([...createdItems])),
+      },
+      guestStay: { update: jest.fn(), updateMany: jest.fn() },
+      room: { update: jest.fn() },
+      roomQRCode: { updateMany: jest.fn() },
+    };
+    const prisma = {
+      invoice: { findFirst: jest.fn().mockResolvedValue(null) },
+      $transaction: jest.fn((callback: (tx: any) => Promise<unknown>) => callback(tx)),
+    };
+    const repository = {
+      getFolioSummary: jest.fn().mockResolvedValue({
+        latestItemPostedAt: null,
+        grouped: [],
+        folio: {
+          id: "folio-1",
+          hotelId: "hotel-1",
+          stayId: "stay-1",
+          folioNumber: "FOL-001",
+          status: FolioStatus.OPEN,
+          currency: "VND",
+          subtotalAmount: new Prisma.Decimal(100),
+          taxAmount: new Prisma.Decimal(0),
+          discountAmount: new Prisma.Decimal(0),
+          totalAmount: new Prisma.Decimal(100),
+          updatedAt: new Date("2026-07-17T10:00:00.000Z"),
+        },
+      }),
+    };
+    const service = createService(prisma, repository);
+
+    const result = await service.issueInvoice("user-1", "active-role", "hotel-1", "folio-1", {
+      adjustments: [
+        {
+          clientRequestId: "req-surcharge-1",
+          itemType: "MANUAL_CHARGE",
+          name: "Phụ thu lễ tân",
+          amount: 50,
+          quantity: 1,
+        },
+        {
+          clientRequestId: "req-discount-1",
+          itemType: "DISCOUNT",
+          name: "Giảm giá đặc biệt",
+          amount: 20,
+          quantity: 1,
+        },
+      ],
+    });
+
+    expect(result).toBeDefined();
+    expect(tx.folioItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          nameSnapshot: "Phụ thu lễ tân",
+          itemType: "MANUAL_CHARGE",
+          subtotalSnapshot: new Prisma.Decimal(50),
+          totalSnapshot: new Prisma.Decimal(50),
+          billingSourceSnapshot: expect.objectContaining({
+            clientRequestId: "req-surcharge-1",
+          }),
+        }),
+      }),
+    );
+    expect(tx.folioItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          nameSnapshot: "Giảm giá đặc biệt",
+          itemType: "DISCOUNT",
+          discountAmountSnapshot: new Prisma.Decimal(20),
+          totalSnapshot: new Prisma.Decimal(-20),
+          billingSourceSnapshot: expect.objectContaining({
+            clientRequestId: "req-discount-1",
+          }),
+        }),
+      }),
+    );
+    expect(tx.invoice.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("issueInvoice exact retry returns same invoice without adding items", async () => {
+    const existingAdjustmentItem = {
+      id: "item-adj-1",
+      hotelId: "hotel-1",
+      folioId: "folio-1",
+      itemType: "MANUAL_CHARGE",
+      nameSnapshot: "Phụ thu lễ tân",
+      descriptionSnapshot: null,
+      quantity: 1,
+      unitPriceSnapshot: new Prisma.Decimal(50),
+      subtotalSnapshot: new Prisma.Decimal(50),
+      discountAmountSnapshot: new Prisma.Decimal(0),
+      taxAmountSnapshot: new Prisma.Decimal(0),
+      totalSnapshot: new Prisma.Decimal(50),
+      currency: "VND",
+      billingSourceSnapshot: {
+        clientRequestId: "req-surcharge-1",
+        itemType: "MANUAL_CHARGE",
+        name: "Phụ thu lễ tân",
+        amount: 50,
+        quantity: 1,
+      },
+      voidedAt: null,
+    };
+    const existingInvoice = {
+      id: "invoice-existing-1",
+      hotelId: "hotel-1",
+      folioId: "folio-1",
+      totalAmount: new Prisma.Decimal(150),
+    };
+
+    const tx = {
+      $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+      folio: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "folio-1",
+          hotelId: "hotel-1",
+          stayId: "stay-1",
+          status: FolioStatus.OPEN,
+          currency: "VND",
+          subtotalAmount: new Prisma.Decimal(150),
+          taxAmount: new Prisma.Decimal(0),
+          discountAmount: new Prisma.Decimal(0),
+          totalAmount: new Prisma.Decimal(150),
+          updatedAt: new Date("2026-07-17T10:00:00.000Z"),
+          hotel: { id: "hotel-1", name: "Hotel" },
+          room: { id: "room-1" },
+          stay: { id: "stay-1" },
+        }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      invoice: {
+        findFirst: jest.fn().mockResolvedValue(existingInvoice),
+        create: jest.fn(),
+      },
+      folioItem: {
+        create: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([existingAdjustmentItem]),
+      },
+      guestStay: { updateMany: jest.fn() },
+    };
+    const prisma = {
+      invoice: { findFirst: jest.fn().mockResolvedValue(null) },
+      $transaction: jest.fn((callback: (tx: any) => Promise<unknown>) => callback(tx)),
+    };
+    const repository = {
+      getFolioSummary: jest.fn().mockResolvedValue({
+        latestItemPostedAt: null,
+        grouped: [],
+        folio: {
+          id: "folio-1",
+          hotelId: "hotel-1",
+          stayId: "stay-1",
+          folioNumber: "FOL-001",
+          status: FolioStatus.OPEN,
+          currency: "VND",
+          subtotalAmount: new Prisma.Decimal(150),
+          taxAmount: new Prisma.Decimal(0),
+          discountAmount: new Prisma.Decimal(0),
+          totalAmount: new Prisma.Decimal(150),
+          updatedAt: new Date("2026-07-17T10:00:00.000Z"),
+        },
+      }),
+    };
+    const service = createService(prisma, repository);
+
+    const result = await service.issueInvoice("user-1", "active-role", "hotel-1", "folio-1", {
+      adjustments: [
+        {
+          clientRequestId: "req-surcharge-1",
+          itemType: "MANUAL_CHARGE",
+          name: "Phụ thu lễ tân",
+          amount: 50,
+          quantity: 1,
+        },
+      ],
+    });
+
+    expect(result).toEqual(existingInvoice);
+    expect(tx.folioItem.create).not.toHaveBeenCalled();
+    expect(tx.invoice.create).not.toHaveBeenCalled();
+  });
+
+  it("issueInvoice conflicting retry fails with ConflictException", async () => {
+    const existingAdjustmentItem = {
+      id: "item-adj-1",
+      hotelId: "hotel-1",
+      folioId: "folio-1",
+      itemType: "MANUAL_CHARGE",
+      nameSnapshot: "Phụ thu lễ tân",
+      quantity: 1,
+      unitPriceSnapshot: new Prisma.Decimal(50),
+      billingSourceSnapshot: {
+        clientRequestId: "req-surcharge-1",
+      },
+      voidedAt: null,
+    };
+    const existingInvoice = {
+      id: "invoice-existing-1",
+      hotelId: "hotel-1",
+      folioId: "folio-1",
+    };
+
+    const tx = {
+      $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+      folio: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "folio-1",
+          hotelId: "hotel-1",
+          stayId: "stay-1",
+          status: FolioStatus.OPEN,
+          currency: "VND",
+          updatedAt: new Date("2026-07-17T10:00:00.000Z"),
+          hotel: { id: "hotel-1", name: "Hotel" },
+          room: { id: "room-1" },
+          stay: { id: "stay-1" },
+        }),
+      },
+      invoice: {
+        findFirst: jest.fn().mockResolvedValue(existingInvoice),
+      },
+      folioItem: {
+        findMany: jest.fn().mockResolvedValue([existingAdjustmentItem]),
+      },
+    };
+    const prisma = {
+      invoice: { findFirst: jest.fn().mockResolvedValue(null) },
+      $transaction: jest.fn((callback: (tx: any) => Promise<unknown>) => callback(tx)),
+    };
+    const repository = {
+      getFolioSummary: jest.fn().mockResolvedValue({
+        latestItemPostedAt: null,
+        grouped: [],
+        folio: {
+          id: "folio-1",
+          hotelId: "hotel-1",
+          stayId: "stay-1",
+          folioNumber: "FOL-001",
+          status: FolioStatus.OPEN,
+          currency: "VND",
+          subtotalAmount: new Prisma.Decimal(150),
+          taxAmount: new Prisma.Decimal(0),
+          discountAmount: new Prisma.Decimal(0),
+          totalAmount: new Prisma.Decimal(150),
+          updatedAt: new Date("2026-07-17T10:00:00.000Z"),
+        },
+      }),
+    };
+    const service = createService(prisma, repository);
+
+    await expect(
+      service.issueInvoice("user-1", "active-role", "hotel-1", "folio-1", {
+        adjustments: [
+          {
+            clientRequestId: "req-surcharge-1",
+            itemType: "MANUAL_CHARGE",
+            name: "Phụ thu lễ tân",
+            amount: 999999,
+            quantity: 1,
+          },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("issueInvoice duplicate request IDs with conflicting payload fails with ConflictException", async () => {
+    const tx = {
+      $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+      folio: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "folio-1",
+          hotelId: "hotel-1",
+          stayId: "stay-1",
+          status: FolioStatus.OPEN,
+          currency: "VND",
+          updatedAt: new Date("2026-07-17T10:00:00.000Z"),
+          hotel: { id: "hotel-1", name: "Hotel" },
+          room: { id: "room-1" },
+          stay: { id: "stay-1" },
+        }),
+      },
+      invoice: { findFirst: jest.fn().mockResolvedValue(null) },
+      folioItem: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+    const prisma = {
+      invoice: { findFirst: jest.fn().mockResolvedValue(null) },
+      $transaction: jest.fn((callback: (tx: any) => Promise<unknown>) => callback(tx)),
+    };
+    const repository = {
+      getFolioSummary: jest.fn().mockResolvedValue({
+        latestItemPostedAt: null,
+        grouped: [],
+        folio: {
+          id: "folio-1",
+          hotelId: "hotel-1",
+          stayId: "stay-1",
+          status: FolioStatus.OPEN,
+          currency: "VND",
+          subtotalAmount: new Prisma.Decimal(100),
+          taxAmount: new Prisma.Decimal(0),
+          discountAmount: new Prisma.Decimal(0),
+          totalAmount: new Prisma.Decimal(100),
+          updatedAt: new Date("2026-07-17T10:00:00.000Z"),
+        },
+      }),
+    };
+    const service = createService(prisma, repository);
+
+    await expect(
+      service.issueInvoice("user-1", "active-role", "hotel-1", "folio-1", {
+        adjustments: [
+          {
+            clientRequestId: "req-duplicate",
+            itemType: "MANUAL_CHARGE",
+            name: "Phụ thu A",
+            amount: 50,
+            quantity: 1,
+          },
+          {
+            clientRequestId: "req-duplicate",
+            itemType: "MANUAL_CHARGE",
+            name: "Phụ thu B",
+            amount: 100,
+            quantity: 1,
+          },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("issueInvoice rolls back and rejects when discount makes total negative", async () => {
+    const tx = {
+      $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+      folio: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "folio-1",
+          hotelId: "hotel-1",
+          stayId: "stay-1",
+          status: FolioStatus.OPEN,
+          currency: "VND",
+          updatedAt: new Date("2026-07-17T10:00:00.000Z"),
+          hotel: { id: "hotel-1", name: "Hotel" },
+          room: { id: "room-1", roomNumber: "101", price: new Prisma.Decimal(100) },
+          stay: {
+            id: "stay-1",
+            plannedCheckInAt: new Date("2026-07-17T10:00:00.000Z"),
+            plannedCheckOutAt: new Date("2026-09-29T05:00:00.000Z"),
+            checkedInAt: new Date("2026-07-18T09:40:00.000Z"),
+            nightlyRateSnapshot: new Prisma.Decimal(100),
+          },
+        }),
+      },
+      invoice: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn() },
+      folioItem: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: "item-discount" }),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            itemType: "DISCOUNT",
+            subtotalSnapshot: new Prisma.Decimal(0),
+            taxAmountSnapshot: new Prisma.Decimal(0),
+            discountAmountSnapshot: new Prisma.Decimal(999999),
+            totalSnapshot: new Prisma.Decimal(-999999),
+            currency: "VND",
+          },
+        ]),
+      },
+    };
+    const prisma = {
+      invoice: { findFirst: jest.fn().mockResolvedValue(null) },
+      $transaction: jest.fn((callback: (tx: any) => Promise<unknown>) => callback(tx)),
+    };
+    const repository = {
+      getFolioSummary: jest.fn().mockResolvedValue({
+        latestItemPostedAt: null,
+        grouped: [],
+        folio: {
+          id: "folio-1",
+          hotelId: "hotel-1",
+          stayId: "stay-1",
+          status: FolioStatus.OPEN,
+          currency: "VND",
+          subtotalAmount: new Prisma.Decimal(100),
+          taxAmount: new Prisma.Decimal(0),
+          discountAmount: new Prisma.Decimal(0),
+          totalAmount: new Prisma.Decimal(100),
+          updatedAt: new Date("2026-07-17T10:00:00.000Z"),
+        },
+      }),
+    };
+    const service = createService(prisma, repository);
+
+    await expect(
+      service.issueInvoice("user-1", "active-role", "hotel-1", "folio-1", {
+        adjustments: [
+          {
+            clientRequestId: "req-discount-excessive",
+            itemType: "DISCOUNT",
+            name: "Giảm giá quá mức",
+            amount: 999999,
+            quantity: 1,
+          },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(tx.invoice.create).not.toHaveBeenCalled();
   });
 });

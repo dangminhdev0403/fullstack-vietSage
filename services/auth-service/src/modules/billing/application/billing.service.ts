@@ -50,6 +50,52 @@ function toPagination(page?: number, limit?: number) {
   };
 }
 
+interface BillingPriceSnapshot {
+  unitPrice: Prisma.Decimal;
+  currency: string;
+}
+
+function extractBillingPriceSnapshot(metadata: unknown): BillingPriceSnapshot | null {
+  if (!metadata) return null;
+  let parsed = metadata;
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      return null;
+    }
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return null;
+  }
+  const snapshot = (parsed as Record<string, any>).billingPriceSnapshot;
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
+    return null;
+  }
+
+  const rawPrice = snapshot.unitPrice !== undefined ? snapshot.unitPrice : snapshot.price;
+  if (rawPrice === undefined || rawPrice === null || rawPrice === "") {
+    return null;
+  }
+
+  const rawCurrency = snapshot.currency;
+  if (typeof rawCurrency !== "string" || !rawCurrency.trim()) {
+    return null;
+  }
+
+  try {
+    const decimal = new Prisma.Decimal(rawPrice);
+    if (decimal.isNaN() || decimal.lt(0)) {
+      return null;
+    }
+    return {
+      unitPrice: decimal,
+      currency: rawCurrency.trim(),
+    };
+  } catch {
+    return null;
+  }
+}
 function parseSnapshot(raw: unknown): Record<string, any> {
   if (!raw) return {};
   if (typeof raw === "string") {
@@ -359,6 +405,7 @@ export class BillingService {
           quantity: qty,
           unitPriceSnapshot: amountDecimal,
           subtotalSnapshot,
+          taxAmountSnapshot: new Prisma.Decimal(0),
           discountAmountSnapshot,
           totalSnapshot,
           currency: folio.currency,
@@ -747,7 +794,10 @@ export class BillingService {
         roomNumber: request.room?.roomNumber ?? null,
         status: request.status,
         quantity: request.quantity,
-        unitPrice: request.serviceItem?.priceOverride ?? 0,
+        unitPrice: (() => {
+          const snapshot = extractBillingPriceSnapshot(request.metadata);
+          return snapshot ? snapshot.unitPrice.toNumber() : (request.serviceItem?.priceOverride ?? 0);
+        })(),
       })),
       latestItemPostedAt,
       updatedAt: result.folio.updatedAt,
@@ -766,6 +816,14 @@ export class BillingService {
         cancelReason?: string;
       }>;
       isEarlyDeparture?: boolean;
+      adjustments?: Array<{
+        clientRequestId: string;
+        itemType: "MANUAL_CHARGE" | "DISCOUNT";
+        name: string;
+        description?: string;
+        amount: number;
+        quantity?: number;
+      }>;
     },
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
@@ -788,6 +846,12 @@ export class BillingService {
       where: { hotelId, folioId },
     });
     if (existingBeforeValidation) {
+      if (options?.adjustments && options.adjustments.length > 0) {
+        const existingItems = await this.prisma.folioItem.findMany({
+          where: { hotelId, folioId, voidedAt: null },
+        });
+        this.assertAdjustmentsMatchExisting(options.adjustments, existingItems);
+      }
       await this.prisma.folio.updateMany({
         where: { id: folioId, hotelId, status: FolioStatus.OPEN },
         data: { status: FolioStatus.CHECKOUT_PENDING, checkoutStartedAt: new Date() },
@@ -836,6 +900,12 @@ export class BillingService {
 
         const existingInvoice = await tx.invoice.findFirst({ where: { hotelId, folioId } });
         if (existingInvoice) {
+          if (options?.adjustments && options.adjustments.length > 0) {
+            const existingItems = await tx.folioItem.findMany({
+              where: { hotelId, folioId, voidedAt: null },
+            });
+            this.assertAdjustmentsMatchExisting(options.adjustments, existingItems);
+          }
           if (folio.status === FolioStatus.OPEN) {
             await tx.folio.update({
               where: { id: folioId },
@@ -883,6 +953,16 @@ export class BillingService {
           actorUserId,
           options?.reconciliations,
         );
+
+        if (options?.adjustments && options.adjustments.length > 0) {
+          await this.processInvoiceAdjustments(
+            tx,
+            hotelId,
+            folio,
+            actorUserId,
+            options.adjustments,
+          );
+        }
 
         const invoiceNumber = await this.codesService.generateEntityCode("INVOICE", tx);
 
@@ -1114,105 +1194,190 @@ export class BillingService {
     input: {
       method: PaymentMethod;
       note?: string;
+      amount?: number;
+      cashReceived?: number;
+      clientRequestId?: string;
     },
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
 
-    const invoiceBeforePayment = this.prisma.invoice?.findFirst
-      ? await this.prisma.invoice.findFirst({
-          where: { id: invoiceId, hotelId },
-        })
-      : null;
-    if (invoiceBeforePayment?.balanceAmount.lte(0)) {
-      const settled = await this.settleZeroBalanceCheckout(
-        actorUserId,
-        hotelId,
-        invoiceId,
-        input.method,
-        input.note,
-      );
-      if (settled.conversation) {
-        this.eventPublisher.publishConversationClosed(settled.conversation);
-      }
-      const invoice = await this.getInvoiceDetail(actorUserId, activeRoleId, hotelId, invoiceId);
-      return { payment: settled.payment, invoice };
-    }
-
+    const clientRequestId = input.clientRequestId?.trim();
     const provider =
       input.method === PaymentMethod.BANK_TRANSFER
         ? PaymentProvider.BANK_TRANSFER
         : PaymentProvider.MANUAL;
-    const session = await this.createPaymentSession(actorUserId, activeRoleId, hotelId, invoiceId, {
-      provider,
-      metadataReference: `counter:${invoiceId}`,
-    });
 
-    const payment = await this.prisma.payment.update({
-      where: { id: session.payment.id },
-      data: {
-        method: input.method,
-        metadataJson: {
-          source: "front_desk",
-          ...(input.note ? { note: input.note } : {}),
-        },
-      },
-    });
+    let result: {
+      payment: any;
+      invoice: any;
+      changeAmount: number;
+      conversation: { hotelId: string; stayId: string; roomId: string } | null;
+    };
 
-    await this.processPaymentWebhook(provider, {
-      signatureVerified: true,
-      eventType: "payment.succeeded",
-      providerEventId: `counter:${payment.id}`,
-      providerTransactionId: `counter:${payment.paymentNumber}`,
-      paymentId: payment.id,
-      amount: payment.amount.toString(),
-      actorUserId,
-    });
+    try {
+      result = await this.prisma.$transaction(
+        async (tx) => {
+          if (clientRequestId && tx.paymentTransaction?.findFirst) {
+            const providerEventId = `counter:${clientRequestId}`;
+            const existingTx = await tx.paymentTransaction.findFirst({
+              where: { hotelId, provider, providerEventId },
+              include: { payment: true, invoice: true },
+            });
 
-    const [confirmedPayment, invoice] = await Promise.all([
-      this.getPaymentStatus(actorUserId, activeRoleId, hotelId, payment.id),
-      this.getInvoiceDetail(actorUserId, activeRoleId, hotelId, invoiceId),
-    ]);
+            if (existingTx) {
+              const rawPayload = existingTx.rawPayloadJson as Record<string, unknown> | null;
+              const methodMatches = existingTx.payment.method === input.method;
+              const amountMatches =
+                input.amount === undefined ||
+                new Prisma.Decimal(input.amount).equals(existingTx.amount);
+              const existingCashReceived = rawPayload?.cashReceived;
+              const cashReceivedMatches =
+                input.cashReceived === undefined
+                  ? existingCashReceived === undefined || existingCashReceived === null
+                  : typeof existingCashReceived === "number" &&
+                    new Prisma.Decimal(input.cashReceived).equals(existingCashReceived);
 
-    return { payment: confirmedPayment, invoice };
-  }
+              if (!methodMatches || !amountMatches || !cashReceivedMatches) {
+                throw new ConflictException("COUNTER_PAYMENT_CONFLICT");
+              }
 
-  private async settleZeroBalanceCheckout(
-    actorUserId: string,
-    hotelId: string,
-    invoiceId: string,
-    method: PaymentMethod,
-    note?: string,
-  ) {
-    return this.prisma.$transaction(
-      async (tx) => {
-        await tx.$queryRawUnsafe(
-          'SELECT id FROM "Invoice" WHERE id = $1 AND "hotelId" = $2 FOR UPDATE',
-          invoiceId,
-          hotelId,
-        );
-        const invoice = await tx.invoice.findFirst({
-          where: { id: invoiceId, hotelId },
-          include: { stay: { select: { roomId: true, checkedInAt: true } } },
-        });
+              const changeAmount =
+                typeof rawPayload?.changeAmount === "number" ? rawPayload.changeAmount : 0;
 
-        if (!invoice) {
-          throw new NotFoundException("Không tìm thấy invoice");
-        }
-        if (invoice.balanceAmount.gt(0)) {
-          throw new ConflictException("INVOICE_HAS_BALANCE_TO_PAY");
-        }
+              return {
+                payment: existingTx.payment,
+                invoice: existingTx.invoice,
+                changeAmount,
+                conversation: null,
+              };
+            }
+          }
 
-        const existingPayment = await tx.payment.findFirst({
-          where: { hotelId, invoiceId, status: PaymentStatus.SUCCEEDED },
-        });
-        if (existingPayment && invoice.status === InvoiceStatus.PAID) {
-          return { payment: existingPayment, conversation: null };
-        }
+          await tx.$queryRawUnsafe(
+            'SELECT id FROM "Invoice" WHERE id = $1 AND "hotelId" = $2 FOR UPDATE',
+            invoiceId,
+            hotelId,
+          );
+          const invoice = await tx.invoice.findFirst({
+            where: { id: invoiceId, hotelId },
+            include: { stay: { select: { roomId: true, checkedInAt: true } } },
+          });
 
-        const paymentNumber = await this.codesService.generateEntityCode("PAYMENT", tx);
-        const payment =
-          existingPayment ??
-          (await tx.payment.create({
+          if (!invoice) {
+            throw new NotFoundException("Không tìm thấy invoice");
+          }
+
+          if (invoice.balanceAmount.lte(0)) {
+            const existingPayment = await tx.payment.findFirst({
+              where: { hotelId, invoiceId, status: PaymentStatus.SUCCEEDED },
+            });
+            if (existingPayment && invoice.status === InvoiceStatus.PAID) {
+              return { payment: existingPayment, invoice, changeAmount: 0, conversation: null };
+            }
+
+            const paymentNumber = await this.codesService.generateEntityCode("PAYMENT", tx);
+            const payment =
+              existingPayment ??
+              (await tx.payment.create({
+                data: {
+                  hotelId,
+                  invoiceId: invoice.id,
+                  folioId: invoice.folioId,
+                  stayId: invoice.stayId,
+                  paymentNumber,
+                  status: PaymentStatus.SUCCEEDED,
+                  provider: PaymentProvider.MANUAL,
+                  method: input.method,
+                  currency: invoice.currency,
+                  amount: new Prisma.Decimal(0),
+                  paidAmount: new Prisma.Decimal(0),
+                  confirmedAt: new Date(),
+                  metadataJson: {
+                    source: "front_desk",
+                    zeroBalance: true,
+                    ...(input.note ? { note: input.note } : {}),
+                  },
+                },
+              }));
+
+            if (clientRequestId && tx.paymentTransaction?.create) {
+              await tx.paymentTransaction.create({
+                data: {
+                  hotelId,
+                  paymentId: payment.id,
+                  invoiceId: invoice.id,
+                  provider,
+                  providerEventId: `counter:${clientRequestId}`,
+                  providerTransactionId: `counter:${payment.paymentNumber}`,
+                  eventType: "payment.succeeded",
+                  status: PaymentStatus.SUCCEEDED,
+                  amount: new Prisma.Decimal(0),
+                  currency: invoice.currency,
+                  rawPayloadJson: {
+                    method: input.method,
+                    amount: "0",
+                    changeAmount: 0,
+                    clientRequestId,
+                    note: input.note,
+                  },
+                  signatureVerified: true,
+                  processedAt: new Date(),
+                },
+              });
+            }
+
+            const updatedInvoice = await tx.invoice.update({
+              where: { id: invoice.id },
+              data: {
+                status: InvoiceStatus.PAID,
+                paidAmount: invoice.paidAmount,
+                balanceAmount: new Prisma.Decimal(0),
+                paidAt: new Date(),
+                paidByUserId: actorUserId,
+              },
+            });
+
+            await this.closeCheckoutEntities(tx, hotelId, invoice);
+
+            return {
+              payment,
+              invoice: updatedInvoice,
+              changeAmount: 0,
+              conversation: { hotelId, stayId: invoice.stayId, roomId: invoice.stay.roomId },
+            };
+          }
+
+          let appliedAmount: Prisma.Decimal;
+          if (input.amount !== undefined) {
+            if (!Number.isFinite(input.amount) || input.amount <= 0) {
+              throw new BadRequestException("INVALID_PAYMENT_AMOUNT");
+            }
+            const reqAmount = new Prisma.Decimal(input.amount);
+            if (reqAmount.gt(invoice.balanceAmount)) {
+              throw new BadRequestException("PAYMENT_AMOUNT_EXCEEDS_BALANCE");
+            }
+            appliedAmount = reqAmount;
+          } else {
+            appliedAmount = invoice.balanceAmount;
+          }
+
+          let changeAmount = 0;
+          if (input.cashReceived !== undefined) {
+            if (input.method !== PaymentMethod.CASH) {
+              throw new BadRequestException("CASH_RECEIVED_ONLY_FOR_CASH");
+            }
+            if (!Number.isFinite(input.cashReceived)) {
+              throw new BadRequestException("INVALID_CASH_RECEIVED");
+            }
+            const cashDec = new Prisma.Decimal(input.cashReceived);
+            if (cashDec.lt(appliedAmount)) {
+              throw new BadRequestException("CASH_RECEIVED_LESS_THAN_AMOUNT");
+            }
+            changeAmount = Number(cashDec.minus(appliedAmount));
+          }
+
+          const paymentNumber = await this.codesService.generateEntityCode("PAYMENT", tx);
+          const payment = await tx.payment.create({
             data: {
               hotelId,
               invoiceId: invoice.id,
@@ -1220,72 +1385,206 @@ export class BillingService {
               stayId: invoice.stayId,
               paymentNumber,
               status: PaymentStatus.SUCCEEDED,
-              provider: PaymentProvider.MANUAL,
-              method,
+              provider,
+              method: input.method,
               currency: invoice.currency,
-              amount: new Prisma.Decimal(0),
-              paidAmount: new Prisma.Decimal(0),
+              amount: appliedAmount,
+              paidAmount: appliedAmount,
               confirmedAt: new Date(),
+              createdByUserId: actorUserId,
               metadataJson: {
                 source: "front_desk",
-                zeroBalance: true,
-                ...(note ? { note } : {}),
+                ...(clientRequestId ? { clientRequestId } : {}),
+                ...(input.cashReceived !== undefined ? { cashReceived: input.cashReceived } : {}),
+                ...(changeAmount > 0 ? { changeAmount } : {}),
+                ...(input.note ? { note: input.note } : {}),
               },
             },
-          }));
+          });
 
-        await tx.invoice.update({
-          where: { id: invoice.id },
-          data: {
-            status: InvoiceStatus.PAID,
-            paidAmount: invoice.paidAmount,
-            balanceAmount: new Prisma.Decimal(0),
-            paidAt: new Date(),
-            paidByUserId: actorUserId,
-          },
-        });
-        await tx.folio.update({
-          where: { id: invoice.folioId },
-          data: { status: FolioStatus.CLOSED, closedAt: new Date() },
-        });
-        const checkedOutAt = new Date();
-        await tx.guestStay.update({
-          where: { id: invoice.stayId },
-          data: {
-            status: GuestStayStatus.CHECKED_OUT,
-            checkedOutAt,
-            accessCodeHash: null,
-            accessCodeExpiresAt: null,
-          },
-        });
+          const providerEventId = clientRequestId
+            ? `counter:${clientRequestId}`
+            : `counter:${payment.id}`;
+          const providerTransactionId = `counter:${payment.paymentNumber}`;
+          if (tx.paymentTransaction?.create) {
+            await tx.paymentTransaction.create({
+              data: {
+                hotelId,
+                paymentId: payment.id,
+                invoiceId: invoice.id,
+                provider,
+                providerEventId,
+                providerTransactionId,
+                eventType: "payment.succeeded",
+                status: PaymentStatus.SUCCEEDED,
+                amount: appliedAmount,
+                currency: invoice.currency,
+                rawPayloadJson: {
+                  method: input.method,
+                  amount: appliedAmount.toString(),
+                  cashReceived: input.cashReceived,
+                  changeAmount,
+                  clientRequestId,
+                  note: input.note,
+                },
+                signatureVerified: true,
+                processedAt: new Date(),
+              },
+            });
+          }
 
-        await tx.guestSession.updateMany({
-          where: {
-            stayId: invoice.stayId,
-            status: {
-              in: [GuestSessionStatus.CREATED, GuestSessionStatus.ACTIVE, GuestSessionStatus.IDLE],
-            },
-          },
-          data: { status: GuestSessionStatus.CLOSED, closedAt: new Date() },
+          const isFullSettlement = appliedAmount.equals(invoice.balanceAmount);
+          const newPaidAmount = invoice.paidAmount.plus(appliedAmount);
+          const newBalanceAmount = invoice.balanceAmount.minus(appliedAmount);
+
+          let updatedInvoice;
+          let conversation: { hotelId: string; stayId: string; roomId: string } | null = null;
+
+          if (isFullSettlement) {
+            updatedInvoice = await tx.invoice.update({
+              where: { id: invoice.id },
+              data: {
+                status: InvoiceStatus.PAID,
+                paidAmount: newPaidAmount,
+                balanceAmount: new Prisma.Decimal(0),
+                paidAt: new Date(),
+                paidByUserId: actorUserId,
+              },
+            });
+            await this.closeCheckoutEntities(tx, hotelId, invoice);
+            conversation = { hotelId, stayId: invoice.stayId, roomId: invoice.stay.roomId };
+          } else {
+            updatedInvoice = await tx.invoice.update({
+              where: { id: invoice.id },
+              data: {
+                status: InvoiceStatus.ISSUED,
+                paidAmount: newPaidAmount,
+                balanceAmount: newBalanceAmount,
+              },
+            });
+          }
+
+          return {
+            payment,
+            invoice: updatedInvoice,
+            changeAmount,
+            conversation,
+          };
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      if (clientRequestId && this.isDuplicateCounterEventError(error) && this.prisma.paymentTransaction?.findFirst) {
+        const providerEventId = `counter:${clientRequestId}`;
+        const existingTx = await this.prisma.paymentTransaction.findFirst({
+          where: { hotelId, provider, providerEventId },
+          include: { payment: true, invoice: true },
         });
-        const roomTransition = await tx.room.updateMany({
-          where: {
-            id: invoice.stay.roomId,
-            hotelId,
-            status: RoomStatus.OCCUPIED,
-          },
-          data: { status: RoomStatus.PROCESSING },
-        });
-        if (roomTransition.count !== 1) {
-          throw new ConflictException("ROOM_CHECKOUT_STATUS_CONFLICT");
+        if (existingTx) {
+          const rawPayload = existingTx.rawPayloadJson as Record<string, unknown> | null;
+          const methodMatches = existingTx.payment.method === input.method;
+          const amountMatches =
+            input.amount === undefined ||
+            new Prisma.Decimal(input.amount).equals(existingTx.amount);
+          const existingCashReceived = rawPayload?.cashReceived;
+          const cashReceivedMatches =
+            input.cashReceived === undefined
+              ? existingCashReceived === undefined || existingCashReceived === null
+              : typeof existingCashReceived === "number" &&
+                new Prisma.Decimal(input.cashReceived).equals(existingCashReceived);
+
+          if (!methodMatches || !amountMatches || !cashReceivedMatches) {
+            throw new ConflictException("COUNTER_PAYMENT_CONFLICT");
+          }
+
+          const changeAmount =
+            typeof rawPayload?.changeAmount === "number" ? rawPayload.changeAmount : 0;
+
+          result = {
+            payment: existingTx.payment,
+            invoice: existingTx.invoice,
+            changeAmount,
+            conversation: null,
+          };
+        } else {
+          throw error;
         }
-        return {
-          payment,
-          conversation: { hotelId, stayId: invoice.stayId, roomId: invoice.stay.roomId },
-        };
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      } else {
+        throw error;
+      }
+    }
+
+    if (result.conversation) {
+      this.eventPublisher?.publishConversationClosed?.(result.conversation);
+    }
+
+    const invoiceDetail = await this.getInvoiceDetail(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+      invoiceId,
     );
+
+    return {
+      payment: result.payment,
+      invoice: invoiceDetail,
+      changeAmount: result.changeAmount,
+    };
+  }
+
+  private isDuplicateCounterEventError(error: unknown): boolean {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
+      return false;
+    }
+
+    const target = error.meta?.target;
+    const fields = Array.isArray(target)
+      ? target.filter((field): field is string => typeof field === "string")
+      : typeof target === "string"
+        ? [target]
+        : [];
+    return fields.some((field) => field.includes("providerEventId"));
+  }
+
+  private async closeCheckoutEntities(
+    tx: Prisma.TransactionClient,
+    hotelId: string,
+    invoice: { folioId: string; stayId: string; stay: { roomId: string } },
+  ) {
+    await tx.folio.update({
+      where: { id: invoice.folioId },
+      data: { status: FolioStatus.CLOSED, closedAt: new Date() },
+    });
+    const checkedOutAt = new Date();
+    await tx.guestStay.update({
+      where: { id: invoice.stayId },
+      data: {
+        status: GuestStayStatus.CHECKED_OUT,
+        checkedOutAt,
+        accessCodeHash: null,
+        accessCodeExpiresAt: null,
+      },
+    });
+    await tx.guestSession.updateMany({
+      where: {
+        stayId: invoice.stayId,
+        status: {
+          in: [GuestSessionStatus.CREATED, GuestSessionStatus.ACTIVE, GuestSessionStatus.IDLE],
+        },
+      },
+      data: { status: GuestSessionStatus.CLOSED, closedAt: new Date() },
+    });
+    const roomTransition = await tx.room.updateMany({
+      where: {
+        id: invoice.stay.roomId,
+        hotelId,
+        status: RoomStatus.OCCUPIED,
+      },
+      data: { status: RoomStatus.PROCESSING },
+    });
+    if (roomTransition.count !== 1) {
+      throw new ConflictException("ROOM_CHECKOUT_STATUS_CONFLICT");
+    }
   }
 
   async processPaymentWebhook(provider: PaymentProvider, body: Record<string, unknown>) {
@@ -1694,6 +1993,8 @@ export class BillingService {
       quantity: nights,
       unitPriceSnapshot: unitPrice,
       subtotalSnapshot: subtotal,
+      taxAmountSnapshot: new Prisma.Decimal(0),
+      discountAmountSnapshot: new Prisma.Decimal(0),
       totalSnapshot: subtotal,
       billingSourceSnapshot: JSON.parse(
         JSON.stringify({
@@ -1753,17 +2054,17 @@ export class BillingService {
   private computeTotalsFromFolioItems(
     items: Array<{
       subtotalSnapshot: Prisma.Decimal;
-      taxAmountSnapshot: Prisma.Decimal;
+      taxAmountSnapshot?: Prisma.Decimal;
       discountAmountSnapshot: Prisma.Decimal;
       totalSnapshot: Prisma.Decimal;
     }>,
   ) {
     return items.reduce(
       (acc, item) => ({
-        subtotalAmount: acc.subtotalAmount.add(item.subtotalSnapshot),
-        taxAmount: acc.taxAmount.add(item.taxAmountSnapshot),
-        discountAmount: acc.discountAmount.add(item.discountAmountSnapshot),
-        totalAmount: acc.totalAmount.add(item.totalSnapshot),
+        subtotalAmount: acc.subtotalAmount.add(item.subtotalSnapshot ?? 0),
+        taxAmount: acc.taxAmount.add(item.taxAmountSnapshot ?? 0),
+        discountAmount: acc.discountAmount.add(item.discountAmountSnapshot ?? 0),
+        totalAmount: acc.totalAmount.add(item.totalSnapshot ?? 0),
       }),
       {
         subtotalAmount: new Prisma.Decimal(0),
@@ -1772,6 +2073,185 @@ export class BillingService {
         totalAmount: new Prisma.Decimal(0),
       },
     );
+  }
+
+  private validateAdjustmentPayloadMatches(
+    adj: {
+      clientRequestId: string;
+      itemType: string;
+      name: string;
+      description?: string | null;
+      amount: number;
+      quantity?: number;
+    },
+    existing: {
+      itemType: string;
+      nameSnapshot?: string;
+      descriptionSnapshot?: string | null;
+      unitPriceSnapshot?: Prisma.Decimal | number | string;
+      quantity?: number;
+    },
+  ): boolean {
+    if (existing.itemType !== adj.itemType) return false;
+    if (existing.nameSnapshot !== adj.name) return false;
+    const existingDesc = existing.descriptionSnapshot ?? "";
+    const adjDesc = adj.description ?? "";
+    if (existingDesc !== adjDesc) return false;
+    const existingQty = existing.quantity ?? 1;
+    const targetQty = adj.quantity ?? 1;
+    if (existingQty !== targetQty) return false;
+    const existingUnitPrice = new Prisma.Decimal(existing.unitPriceSnapshot ?? 0);
+    const targetUnitPrice = new Prisma.Decimal(adj.amount);
+    return existingUnitPrice.equals(targetUnitPrice);
+  }
+
+  private async processInvoiceAdjustments(
+    tx: any,
+    hotelId: string,
+    folio: any,
+    actorUserId: string,
+    adjustments: Array<{
+      clientRequestId: string;
+      itemType: "MANUAL_CHARGE" | "DISCOUNT";
+      name: string;
+      description?: string;
+      amount: number;
+      quantity?: number;
+    }>,
+  ) {
+    const uniqueAdjustments = new Map<string, (typeof adjustments)[0]>();
+    for (const adj of adjustments) {
+      const prev = uniqueAdjustments.get(adj.clientRequestId);
+      if (prev) {
+        const isSame =
+          prev.itemType === adj.itemType &&
+          prev.name === adj.name &&
+          (prev.description ?? "") === (adj.description ?? "") &&
+          prev.amount === adj.amount &&
+          (prev.quantity ?? 1) === (adj.quantity ?? 1);
+        if (!isSame) {
+          throw new ConflictException("DUPLICATE_CLIENT_REQUEST_ID_CONFLICT");
+        }
+      } else {
+        uniqueAdjustments.set(adj.clientRequestId, adj);
+      }
+    }
+
+    const existingItems = await tx.folioItem.findMany({
+      where: { hotelId, folioId: folio.id, voidedAt: null },
+    });
+
+    const existingByRequestId = new Map<string, any>();
+    for (const item of existingItems) {
+      const snapshot = parseSnapshot(item.billingSourceSnapshot);
+      if (snapshot?.clientRequestId && typeof snapshot.clientRequestId === "string") {
+        existingByRequestId.set(snapshot.clientRequestId, item);
+      }
+    }
+
+    for (const adj of uniqueAdjustments.values()) {
+      const existing = existingByRequestId.get(adj.clientRequestId);
+      if (existing) {
+        if (!this.validateAdjustmentPayloadMatches(adj, existing)) {
+          throw new ConflictException("DUPLICATE_CLIENT_REQUEST_ID_CONFLICT");
+        }
+        continue;
+      }
+
+      const qty = adj.quantity ?? 1;
+      const amountDecimal = new Prisma.Decimal(adj.amount);
+
+      let subtotalSnapshot = new Prisma.Decimal(0);
+      let discountAmountSnapshot = new Prisma.Decimal(0);
+      let totalSnapshot = new Prisma.Decimal(0);
+
+      if (adj.itemType === FolioItemType.DISCOUNT) {
+        discountAmountSnapshot = amountDecimal.mul(qty);
+        totalSnapshot = discountAmountSnapshot.negated();
+      } else {
+        subtotalSnapshot = amountDecimal.mul(qty);
+        totalSnapshot = subtotalSnapshot;
+      }
+
+      const created = await tx.folioItem.create({
+        data: {
+          hotelId,
+          folioId: folio.id,
+          stayId: folio.stayId,
+          itemType: adj.itemType as FolioItemType,
+          sourceType: FolioItemSourceType.MANUAL,
+          nameSnapshot: adj.name,
+          descriptionSnapshot: adj.description,
+          quantity: qty,
+          unitPriceSnapshot: amountDecimal,
+          subtotalSnapshot,
+          taxAmountSnapshot: new Prisma.Decimal(0),
+          discountAmountSnapshot,
+          totalSnapshot,
+          currency: folio.currency,
+          billingSourceSnapshot: {
+            clientRequestId: adj.clientRequestId,
+            itemType: adj.itemType,
+            name: adj.name,
+            description: adj.description ?? null,
+            amount: adj.amount,
+            quantity: qty,
+            addedByUserId: actorUserId,
+            addedAt: new Date().toISOString(),
+          },
+          postedByUserId: actorUserId,
+        },
+      });
+      existingByRequestId.set(adj.clientRequestId, created);
+    }
+  }
+
+  private assertAdjustmentsMatchExisting(
+    adjustments: Array<{
+      clientRequestId: string;
+      itemType: string;
+      name: string;
+      description?: string;
+      amount: number;
+      quantity?: number;
+    }>,
+    existingItems: Array<any>,
+  ) {
+    const existingByRequestId = new Map<string, any>();
+    for (const item of existingItems) {
+      const snapshot = parseSnapshot(item.billingSourceSnapshot);
+      if (snapshot?.clientRequestId && typeof snapshot.clientRequestId === "string") {
+        existingByRequestId.set(snapshot.clientRequestId, item);
+      }
+    }
+
+    const seenMap = new Map<string, (typeof adjustments)[0]>();
+    for (const adj of adjustments) {
+      const prev = seenMap.get(adj.clientRequestId);
+      if (prev) {
+        const isSame =
+          prev.itemType === adj.itemType &&
+          prev.name === adj.name &&
+          (prev.description ?? "") === (adj.description ?? "") &&
+          prev.amount === adj.amount &&
+          (prev.quantity ?? 1) === (adj.quantity ?? 1);
+        if (!isSame) {
+          throw new ConflictException("DUPLICATE_CLIENT_REQUEST_ID_CONFLICT");
+        }
+      } else {
+        seenMap.set(adj.clientRequestId, adj);
+      }
+    }
+
+    for (const adj of seenMap.values()) {
+      const existing = existingByRequestId.get(adj.clientRequestId);
+      if (!existing) {
+        throw new ConflictException("ADJUSTMENT_CLIENT_REQUEST_ID_CONFLICT");
+      }
+      if (!this.validateAdjustmentPayloadMatches(adj, existing)) {
+        throw new ConflictException("DUPLICATE_CLIENT_REQUEST_ID_CONFLICT");
+      }
+    }
   }
 
   private async reconcileStayServiceRequests(
@@ -1844,8 +2324,12 @@ export class BillingService {
           });
         }
       } else if (rec.action === "provided") {
-        const serviceCurrency = req.serviceItem?.category?.currency ?? folio.currency;
-        if (serviceCurrency !== folio.currency) {
+        const priceSnapshot = extractBillingPriceSnapshot(req.metadata);
+        if (!priceSnapshot) {
+          throw new BadRequestException("Guest request is missing a valid billing price snapshot");
+        }
+
+        if (priceSnapshot.currency !== folio.currency) {
           throw new ConflictException("Đơn vị tiền tệ của dịch vụ không khớp với folio");
         }
 
@@ -1858,8 +2342,9 @@ export class BillingService {
 
         let folioItemIdToLink = existingItem?.id;
         if (!existingItem) {
-          const unitPrice = req.serviceItem?.priceOverride ?? req.unitPrice ?? 0;
-          const subtotal = new Prisma.Decimal(unitPrice).mul(req.quantity ?? 1);
+          const unitPrice = priceSnapshot.unitPrice;
+          const quantity = req.quantity ?? 1;
+          const subtotal = unitPrice.mul(quantity);
           const isExt =
             Boolean(
               req.serviceItem?.category?.name &&

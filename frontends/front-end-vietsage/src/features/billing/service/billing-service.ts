@@ -1,13 +1,19 @@
 import { unwrapApiEnvelope } from "@/core/http/api-envelope";
 import { HttpClient, type HttpQuery } from "@/core/http/http-client";
-import type { BillingPage, FolioItem, FolioListItem, FolioSummary, Invoice, InvoiceDetail, OwnerPlatformBillingDebtSummary, Payment, PlatformBillingSummary } from "@/features/billing/types/billing-contract";
+import type { BillingPage, FolioItem, FolioListItem, FolioSummary, Invoice, InvoiceDetail, IssueInvoiceAdjustment, OwnerPlatformBillingDebtSummary, Payment, PlatformBillingSummary } from "@/features/billing/types/billing-contract";
 
 type AuthRequestOptions = {
   accessToken?: string;
   accessTokenExpiresAt?: number | null;
 };
 
-export type IssueInvoiceInput = { reconciliations: Array<{ requestId: string; action: "provided" | "cancelled"; cancelReason?: string }> };
+export type { IssueInvoiceAdjustment };
+
+export type IssueInvoiceInput = {
+  reconciliations: Array<{ requestId: string; action: "provided" | "cancelled"; cancelReason?: string }>;
+  isEarlyDeparture?: boolean;
+  adjustments?: IssueInvoiceAdjustment[];
+};
 
 export type BillingServiceOptions = {
   baseUrl: string;
@@ -195,9 +201,15 @@ export class BillingService {
   async confirmManualPayment(
     hotelId: string,
     invoiceId: string,
-    input: { method: "CASH" | "CARD" | "BANK_TRANSFER" | "MANUAL"; note?: string },
+    input: {
+      method: "CASH" | "CARD" | "BANK_TRANSFER" | "MANUAL";
+      note?: string;
+      amount?: number;
+      cashReceived?: number;
+      clientRequestId?: string;
+    },
     options: AuthRequestOptions = {},
-  ): Promise<{ payment: Payment; invoice: InvoiceDetail }> {
+  ): Promise<{ payment: Payment; invoice: InvoiceDetail; changeAmount?: number }> {
     const payload = await this.httpClient.request<unknown, typeof input>({
       method: "POST",
       path: hotelPath(hotelId, `/invoices/${encodeURIComponent(invoiceId)}/payments/manual-confirm`),
@@ -206,7 +218,7 @@ export class BillingService {
       accessTokenExpiresAt: options.accessTokenExpiresAt,
     });
 
-    return unwrapApiEnvelope<{ payment: Payment; invoice: InvoiceDetail }>(payload).data;
+    return unwrapApiEnvelope<{ payment: Payment; invoice: InvoiceDetail; changeAmount?: number }>(payload).data;
   }
 
   async getPaymentStatus(hotelId: string, paymentId: string, options: AuthRequestOptions = {}): Promise<Payment> {

@@ -16,6 +16,52 @@ import {
 import { PrismaService } from "../../../../prisma/prisma.service";
 import { requestDetailInclude, requestListInclude } from "./guest-request-repository.types";
 
+interface BillingPriceSnapshot {
+  unitPrice: Prisma.Decimal;
+  currency: string;
+}
+
+function extractBillingPriceSnapshot(metadata: unknown): BillingPriceSnapshot | null {
+  if (!metadata) return null;
+  let parsed = metadata;
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      return null;
+    }
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return null;
+  }
+  const snapshot = (parsed as Record<string, any>).billingPriceSnapshot;
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
+    return null;
+  }
+
+  const rawPrice = snapshot.unitPrice !== undefined ? snapshot.unitPrice : snapshot.price;
+  if (rawPrice === undefined || rawPrice === null || rawPrice === "") {
+    return null;
+  }
+
+  const rawCurrency = snapshot.currency;
+  if (typeof rawCurrency !== "string" || !rawCurrency.trim()) {
+    return null;
+  }
+
+  try {
+    const decimal = new Prisma.Decimal(rawPrice);
+    if (decimal.isNaN() || decimal.lt(0)) {
+      return null;
+    }
+    return {
+      unitPrice: decimal,
+      currency: rawCurrency.trim(),
+    };
+  } catch {
+    return null;
+  }
+}
 @Injectable()
 export class HotelRequestsRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -345,15 +391,18 @@ export class HotelRequestsRepository {
       throw new ConflictException("Không tìm thấy folio đang mở cho lượt lưu trú");
     }
 
-    const serviceCurrency = request.serviceItem.category.currency ?? folio.currency;
-    if (serviceCurrency !== folio.currency) {
+    const priceSnapshot = extractBillingPriceSnapshot(request.metadata);
+    if (!priceSnapshot) {
+      throw new BadRequestException("Guest request is missing a valid billing price snapshot");
+    }
+
+    if (priceSnapshot.currency !== folio.currency) {
       throw new ConflictException("Đơn vị tiền tệ của dịch vụ không khớp với folio");
     }
 
-    const unitPrice =
-      request.serviceItem.priceOverride ?? request.serviceItem.category.defaultPrice;
+    const unitPrice = priceSnapshot.unitPrice;
     const quantity = Math.max(request.quantity ?? 1, 1);
-    const subtotal = new Prisma.Decimal(unitPrice).mul(quantity);
+    const subtotal = unitPrice.mul(quantity);
     const zero = new Prisma.Decimal(0);
 
     const isExt =
@@ -401,7 +450,11 @@ export class HotelRequestsRepository {
           categoryName: request.serviceItem.category.name,
           serviceSource: isExt ? "EXTERNAL" : "HOTEL",
           partnerName: isExt ? "Đối tác dịch vụ" : undefined,
-          priceSource: request.serviceItem.priceOverride ? "SERVICE_OVERRIDE" : "CATEGORY_DEFAULT",
+          priceSource:
+            request.serviceItem.priceOverride !== null &&
+            request.serviceItem.priceOverride !== undefined
+              ? "SERVICE_OVERRIDE"
+              : "CATEGORY_DEFAULT",
           originalUnitPrice: unitPrice.toString(),
           quantity,
         },

@@ -97,6 +97,15 @@ export type FolioItem = {
   billingSourceSnapshot?: unknown;
 };
 
+export type IssueInvoiceAdjustment = {
+  clientRequestId: string;
+  itemType: "MANUAL_CHARGE" | "DISCOUNT";
+  name: string;
+  description?: string;
+  amount: number;
+  quantity?: number;
+};
+
 export type Invoice = {
   id: string;
   hotelId: string;
@@ -213,4 +222,18 @@ export type OwnerPlatformBillingDebtSummary = {
   dueSoonAmount: number;
   dueSoonCount: number;
   nearestDueAt: string | null;
+};
+
+export type ConfirmManualPaymentInput = {
+  method: "CASH" | "CARD" | "BANK_TRANSFER" | "MANUAL";
+  note?: string;
+  amount?: number;
+  cashReceived?: number;
+  clientRequestId?: string;
+};
+
+export type ConfirmManualPaymentResult = {
+  payment: Payment;
+  invoice: InvoiceDetail;
+  changeAmount?: number;
 };

@@ -48,6 +48,23 @@ export const voidFolioItemBodySchema = z
   })
   .strict();
 
+export const invoiceAdjustmentSchema = z
+  .object({
+    clientRequestId: z.string().trim().min(1),
+    itemType: z.enum(["MANUAL_CHARGE", "DISCOUNT"]),
+    name: z.string().trim().min(1).max(160),
+    description: z.string().trim().max(1000).optional(),
+    amount: z.preprocess(
+      (val) => (typeof val === "string" ? Number(val) : val),
+      z.number().nonnegative(),
+    ),
+    quantity: z.preprocess(
+      (val) => (typeof val === "string" ? Number(val) : val),
+      z.number().int().positive().default(1),
+    ),
+  })
+  .strict();
+
 export const issueInvoiceBodySchema = z
   .object({
     reconciliations: z
@@ -60,6 +77,7 @@ export const issueInvoiceBodySchema = z
       )
       .default([]),
     isEarlyDeparture: z.boolean().optional(),
+    adjustments: z.array(invoiceAdjustmentSchema).optional(),
   })
   .strict();
 
@@ -85,6 +103,19 @@ export const confirmManualPaymentBodySchema = z
       ])
       .default(PaymentMethod.CASH),
     note: z.string().trim().max(500).optional(),
+    amount: z
+      .preprocess(
+        (val) => (typeof val === "string" && val.trim() !== "" ? Number(val) : val),
+        z.number().positive(),
+      )
+      .optional(),
+    cashReceived: z
+      .preprocess(
+        (val) => (typeof val === "string" && val.trim() !== "" ? Number(val) : val),
+        z.number().nonnegative(),
+      )
+      .optional(),
+    clientRequestId: z.string().trim().min(1).optional(),
   })
   .strict();
 
@@ -111,4 +142,5 @@ export const paymentWebhookBodySchema = z
 
 export type ListFoliosQueryInput = z.infer<typeof listFoliosQuerySchema>;
 export type ListFolioItemsQueryInput = z.infer<typeof listFolioItemsQuerySchema>;
+export type InvoiceAdjustmentInput = z.infer<typeof invoiceAdjustmentSchema>;
 export type IssueInvoiceBodyInput = z.infer<typeof issueInvoiceBodySchema>;

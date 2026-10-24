@@ -117,6 +117,22 @@ export class FolioController {
             },
           },
         },
+        isEarlyDeparture: { type: "boolean" },
+        adjustments: {
+          type: "array",
+          items: {
+            type: "object",
+            required: ["clientRequestId", "itemType", "name", "amount"],
+            properties: {
+              clientRequestId: { type: "string" },
+              itemType: { type: "string", enum: ["MANUAL_CHARGE", "DISCOUNT"] },
+              name: { type: "string", maxLength: 160 },
+              description: { type: "string", maxLength: 1000 },
+              amount: { type: "number" },
+              quantity: { type: "integer", default: 1 },
+            },
+          },
+        },
       },
     },
   })

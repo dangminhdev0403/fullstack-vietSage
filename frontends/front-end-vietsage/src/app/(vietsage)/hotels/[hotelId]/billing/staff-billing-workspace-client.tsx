@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { showConfirmDialog, showErrorAlert, showSuccessAlert, SwalVietSage } from "@/libs/swal";
@@ -11,6 +11,8 @@ import type {
   FolioListItem,
   FolioSummary,
   Invoice,
+  InvoiceDetail,
+  Payment,
 } from "@/features/billing/types/billing-contract";
 import { formatMoney } from "@/features/billing/utils/money";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
@@ -74,11 +76,23 @@ export function isCashSettlementAllowed(
   cashGivenInput: string | number,
   amountDue: number,
 ): boolean {
-  if (cashGivenInput === "" || cashGivenInput === null || cashGivenInput === undefined) {
+  if (amountDue <= 0) {
     return true;
   }
-  const cash = parseFormattedNumber(cashGivenInput);
-  return cash >= amountDue;
+  if (cashGivenInput === "" || cashGivenInput === null || cashGivenInput === undefined) {
+    return false;
+  }
+  if (typeof cashGivenInput === "number") {
+    return Number.isFinite(cashGivenInput) && cashGivenInput > 0;
+  }
+  if (typeof cashGivenInput === "string") {
+    const trimmed = cashGivenInput.trim();
+    if (!trimmed) return false;
+    if (!/^\d[\d.,\s]*$/.test(trimmed)) return false;
+    const cash = parseFormattedNumber(trimmed);
+    return Number.isFinite(cash) && cash > 0;
+  }
+  return false;
 }
 
 function formatNumberInput(value: string | number): string {
@@ -266,6 +280,13 @@ export function StaffBillingWorkspaceClient({
   const [discountNote, setDiscountNote] = useState<string>("");
   const [surchargeNote, setSurchargeNote] = useState<string>("");
   const [cashGivenInput, setCashGivenInput] = useState<string>("");
+  const checkoutAttemptIdsRef = useRef<Record<string, string>>({});
+  const checkoutPaymentAttemptRef = useRef<{
+    invoiceId: string;
+    amount: number;
+    cashReceived: number;
+    clientRequestId: string;
+  } | null>(null);
 
   if (selectedFolioId !== prevSelectedFolioId) {
     setPrevSelectedFolioId(selectedFolioId);
@@ -276,6 +297,8 @@ export function StaffBillingWorkspaceClient({
     setCashGivenInput("");
     setReconciliations({});
     setCheckoutError("");
+    checkoutAttemptIdsRef.current = {};
+    checkoutPaymentAttemptRef.current = null;
   }
 
   const filteredFolios = useMemo(() => {
@@ -530,16 +553,17 @@ export function StaffBillingWorkspaceClient({
     }
 
     if (!isCashSettlementAllowed(cashGivenInput, computedTotal)) {
-      setCheckoutError(
-        `Số tiền mặt nhận (${formatMoney(parseFormattedNumber(cashGivenInput), currency)}) không đủ để thanh toán tổng tiền (${formatMoney(computedTotal, currency)}).`,
-      );
+      setCheckoutError("Vui lòng nhập số tiền mặt hợp lệ lớn hơn 0 để thanh toán.");
       return;
     }
     setCheckoutError("");
+    const isZeroBalance = computedTotal <= 0;
     const confirmation = await showConfirmDialog({
       icon: "question",
-      title: "Phát hành hóa đơn và thu tiền?",
-      text: "Sau khi xác nhận thanh toán, stay sẽ đóng và phòng chuyển sang chờ dọn.",
+      title: isZeroBalance ? "Đóng checkout không còn số dư?" : "Phát hành hóa đơn và thu tiền?",
+      text: isZeroBalance
+        ? "Sau khi xác nhận, stay sẽ đóng và phòng chuyển sang chờ dọn."
+        : "Sau khi xác nhận thanh toán, hệ thống sẽ ghi nhận giao dịch.",
       confirmText: "Tiếp tục",
       cancelText: "Hủy",
     });
@@ -547,6 +571,15 @@ export function StaffBillingWorkspaceClient({
 
     setSaving(true);
     try {
+      const adjustments: Array<{
+        clientRequestId: string;
+        itemType: "MANUAL_CHARGE" | "DISCOUNT";
+        name: string;
+        description?: string;
+        amount: number;
+        quantity?: number;
+      }> = [];
+
       const surchargeParsed = parseAmountOrPercentage(surchargeInput, subtotal);
       if (surchargeParsed.amount > 0) {
         const noteText = surchargeNote.trim();
@@ -554,21 +587,25 @@ export function StaffBillingWorkspaceClient({
           ? `Phụ thu ${surchargeParsed.percentage}%`
           : "Phụ thu thủ công";
         const name = noteText ? `Phụ thu: ${noteText}` : defaultName;
-        await requestInternalApiEnvelope(
-          `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/items`,
-          {
-            method: "POST",
-            body: {
-              itemType: "MANUAL_CHARGE",
-              name,
-              description: surchargeParsed.isPercentage
-                ? `Quy đổi ${surchargeParsed.percentage}% từ Tạm tính (${formatMoney(subtotal, currency)})`
-                : noteText || undefined,
-              amount: surchargeParsed.amount,
-              quantity: 1,
-            },
-          },
-        );
+        const description = surchargeParsed.isPercentage
+          ? `Quy đổi ${surchargeParsed.percentage}% từ Tạm tính (${formatMoney(subtotal, currency)})`
+          : noteText || undefined;
+
+        const surchargeKey = `${selectedFolioId}:surcharge:${surchargeParsed.amount}:${noteText}`;
+        if (!checkoutAttemptIdsRef.current[surchargeKey]) {
+          checkoutAttemptIdsRef.current[surchargeKey] =
+            typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+              ? crypto.randomUUID()
+              : `surcharge-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        }
+        adjustments.push({
+          clientRequestId: checkoutAttemptIdsRef.current[surchargeKey],
+          itemType: "MANUAL_CHARGE",
+          name,
+          description,
+          amount: surchargeParsed.amount,
+          quantity: 1,
+        });
       }
 
       const discountParsed = parseAmountOrPercentage(discountInput, subtotal);
@@ -578,21 +615,25 @@ export function StaffBillingWorkspaceClient({
           ? `Giảm giá ${discountParsed.percentage}%`
           : "Giảm giá";
         const name = noteText ? `Giảm giá: ${noteText}` : defaultName;
-        await requestInternalApiEnvelope(
-          `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/items`,
-          {
-            method: "POST",
-            body: {
-              itemType: "DISCOUNT",
-              name,
-              description: discountParsed.isPercentage
-                ? `Quy đổi ${discountParsed.percentage}% từ Tạm tính (${formatMoney(subtotal, currency)})`
-                : noteText || undefined,
-              amount: discountParsed.amount,
-              quantity: 1,
-            },
-          },
-        );
+        const description = discountParsed.isPercentage
+          ? `Quy đổi ${discountParsed.percentage}% từ Tạm tính (${formatMoney(subtotal, currency)})`
+          : noteText || undefined;
+
+        const discountKey = `${selectedFolioId}:discount:${discountParsed.amount}:${noteText}`;
+        if (!checkoutAttemptIdsRef.current[discountKey]) {
+          checkoutAttemptIdsRef.current[discountKey] =
+            typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+              ? crypto.randomUUID()
+              : `discount-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        }
+        adjustments.push({
+          clientRequestId: checkoutAttemptIdsRef.current[discountKey],
+          itemType: "DISCOUNT",
+          name,
+          description,
+          amount: discountParsed.amount,
+          quantity: 1,
+        });
       }
 
       const invoiceResponse = await requestInternalApiEnvelope<Invoice>(
@@ -604,27 +645,101 @@ export function StaffBillingWorkspaceClient({
               requestId: request.id,
               action: reconciliations[request.id].action,
             })),
+            adjustments: adjustments.length > 0 ? adjustments : undefined,
           },
         },
       );
       const invoice = invoiceResponse.data;
-      if (toNumber(invoice.balanceAmount ?? invoice.totalAmount) > 0) {
-        await requestInternalApiEnvelope(
+      setDiscountInput("");
+      setSurchargeInput("");
+      setDiscountNote("");
+      setSurchargeNote("");
+      checkoutAttemptIdsRef.current = {};
+
+      const invoiceBalance = toNumber(invoice.balanceAmount ?? invoice.totalAmount);
+      if (invoiceBalance > 0) {
+        const enteredCash = parseFormattedNumber(cashGivenInput);
+        const cashReceived = enteredCash > 0 ? enteredCash : invoiceBalance;
+        const appliedAmount = Math.min(cashReceived, invoiceBalance);
+        const previousAttempt = checkoutPaymentAttemptRef.current;
+        const paymentAttempt =
+          previousAttempt?.invoiceId === invoice.id &&
+          previousAttempt.amount === appliedAmount &&
+          previousAttempt.cashReceived === cashReceived
+            ? previousAttempt
+            : {
+                invoiceId: invoice.id,
+                amount: appliedAmount,
+                cashReceived,
+                clientRequestId:
+                  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+                    ? crypto.randomUUID()
+                    : `pay-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+              };
+        checkoutPaymentAttemptRef.current = paymentAttempt;
+
+        const paymentResponse = await requestInternalApiEnvelope<{
+          payment: Payment;
+          invoice: InvoiceDetail;
+          changeAmount?: number;
+        }>(
           `${apiBase}/invoices/${encodeURIComponent(invoice.id)}/manual-payment`,
           {
             method: "POST",
-            body: { method: "CASH", note: "Thu tại quầy lễ tân" },
+            body: {
+              method: "CASH",
+              note: "Thu tại quầy lễ tân",
+              amount: appliedAmount,
+              cashReceived,
+              clientRequestId: paymentAttempt.clientRequestId,
+            },
           },
         );
-        await showSuccessAlert("Thành công", "Đã thu tiền và đóng phòng.");
+        checkoutPaymentAttemptRef.current = null;
+        checkoutAttemptIdsRef.current = {};
+
+        const resData = paymentResponse?.data;
+        const updatedInvoice = resData?.invoice?.invoice ?? resData?.invoice ?? invoice;
+        const remainingBalance = toNumber(
+          updatedInvoice?.balanceAmount ?? Math.max(0, invoiceBalance - appliedAmount),
+        );
+        const changeAmount = resData?.changeAmount ?? Math.max(0, cashReceived - appliedAmount);
+
+        if (appliedAmount < invoiceBalance || remainingBalance > 0) {
+          await showSuccessAlert(
+            "Thanh toán một phần thành công",
+            `Đã thu ${formatMoney(appliedAmount, currency)}. Còn lại cần thanh toán: ${formatMoney(remainingBalance, currency)}.`,
+          );
+        } else if (changeAmount > 0) {
+          await showSuccessAlert(
+            "Checkout hoàn tất",
+            `Đã thu đủ tiền. Tiền thừa trả khách: ${formatMoney(changeAmount, currency)}. Phòng đang chờ dọn.`,
+          );
+        } else {
+          await showSuccessAlert("Thành công", "Đã thu tiền và đóng phòng.");
+        }
       } else {
+        const paymentKey = `${invoice.id}:zero-payment`;
+        if (!checkoutAttemptIdsRef.current[paymentKey]) {
+          checkoutAttemptIdsRef.current[paymentKey] =
+            typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+              ? crypto.randomUUID()
+              : `zero-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        }
+        const clientRequestId = checkoutAttemptIdsRef.current[paymentKey];
+
         await requestInternalApiEnvelope(
           `${apiBase}/invoices/${encodeURIComponent(invoice.id)}/manual-payment`,
           {
             method: "POST",
-            body: { method: "MANUAL", note: "Đóng checkout không còn số dư" },
+            body: {
+              method: "MANUAL",
+              note: "Đóng checkout không còn số dư",
+              clientRequestId,
+            },
           },
         );
+        checkoutAttemptIdsRef.current = {};
         await showSuccessAlert("Thành công", "Đã đóng phòng không còn số dư.");
       }
       await invalidateHotelRealtimeQueries(queryClient, hotelId);

@@ -10,10 +10,15 @@ import {
 } from "@/app/api/hotel-ops/_utils";
 
 type Params = { params: Promise<{ hotelId: string; invoiceId: string }> };
-const schema = z.object({
-  method: z.enum(["CASH", "CARD", "BANK_TRANSFER", "MANUAL"]),
-  note: z.string().trim().max(500).optional(),
-}).strict();
+const schema = z
+  .object({
+    method: z.enum(["CASH", "CARD", "BANK_TRANSFER", "MANUAL"]),
+    note: z.string().trim().max(500).optional(),
+    amount: z.number().positive().optional(),
+    cashReceived: z.number().nonnegative().optional(),
+    clientRequestId: z.string().trim().min(1).optional(),
+  })
+  .strict();
 
 export async function POST(request: Request, context: Params) {
   const { hotelId, invoiceId } = await context.params;

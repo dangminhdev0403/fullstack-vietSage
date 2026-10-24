@@ -453,6 +453,28 @@ export class GuestOsService {
     const description = dto.description?.trim() ?? dto.details?.trim();
     const quantity = this.resolveRequestQuantity(dto.quantity, serviceItem);
 
+    const rawPrice =
+      serviceItem.priceOverride !== null && serviceItem.priceOverride !== undefined
+        ? serviceItem.priceOverride
+        : (serviceItem.category as any)?.defaultPrice ?? 0;
+    const rawCurrency =
+      (serviceItem.category as any)?.currency ?? (serviceItem as any).currency ?? "VND";
+    const unitPriceDecimal = new Prisma.Decimal(rawPrice);
+
+    const clientMetadata =
+      dto.metadata && typeof dto.metadata === "object" && !Array.isArray(dto.metadata)
+        ? { ...dto.metadata }
+        : {};
+    delete (clientMetadata as Record<string, unknown>).billingPriceSnapshot;
+
+    const mergedMetadata: Prisma.InputJsonValue = {
+      ...clientMetadata,
+      billingPriceSnapshot: {
+        unitPrice: unitPriceDecimal.toNumber(),
+        currency: String(rawCurrency).trim(),
+      },
+    };
+
     const request = await this.guestOsRepository.createRequest({
       hotelId: current.hotelId,
       tenantId: current.hotel.tenantId,
@@ -463,7 +485,7 @@ export class GuestOsService {
       priority: this.toInternalRequestPriority(dto.priority ?? "NORMAL"),
       description,
       quantity,
-      metadata: dto.metadata as Prisma.InputJsonValue | undefined,
+      metadata: mergedMetadata,
     });
 
     const locale = this.i18n.resolveLocale(httpRequest);
@@ -817,7 +839,12 @@ export class GuestOsService {
     } | null,
   ): GuestRequestListItemResponse {
     const price = this.resolveGuestRequestUnitPrice(row);
-    const currency = row.serviceItem?.category.currency ?? "VND";
+    const metadata = (row as any).metadata;
+    const snapshotCurrency =
+      metadata && typeof metadata === "object"
+        ? metadata.billingPriceSnapshot?.currency
+        : undefined;
+    const currency = snapshotCurrency || row.serviceItem?.category?.currency || "VND";
     const itemToResolve =
       row.serviceItem &&
       "translations" in row.serviceItem &&
@@ -854,7 +881,22 @@ export class GuestOsService {
   }
 
   private resolveGuestRequestUnitPrice(row: GuestRequestGuestRow) {
-    const value = row.serviceItem?.priceOverride ?? row.serviceItem?.category.defaultPrice ?? 0;
+    const metadata = (row as any).metadata;
+    if (metadata && typeof metadata === "object") {
+      const snapshot = metadata.billingPriceSnapshot;
+      const rawPrice = snapshot?.unitPrice !== undefined ? snapshot.unitPrice : snapshot?.price;
+      if (rawPrice !== undefined && rawPrice !== null && rawPrice !== "") {
+        try {
+          const decimal = new Prisma.Decimal(rawPrice);
+          if (!decimal.isNaN()) {
+            return decimal;
+          }
+        } catch {
+          // fallback
+        }
+      }
+    }
+    const value = row.serviceItem?.priceOverride ?? row.serviceItem?.category?.defaultPrice ?? 0;
 
     return new Prisma.Decimal(value);
   }

@@ -1,6 +1,6 @@
 ---
 title: Billing and checkout correctness audit
-status: confirmed
+status: partially-remediated
 created: 2026-10-23
 scope: reservation pricing, folio, invoice, payment, checkout, guest services, marketplace, OTA/direct booking
 ---
@@ -246,3 +246,28 @@ Room charge, service, marketplace, and manual items generally retain zero tax. T
 - Preserve existing dirty work, especially `frontends/front-end-vietsage/src/features/workspace/types/workspace-registry.ts`.
 - Do not apply migrations/backfills, install dependencies, commit, push, or deploy without explicit approval.
 - Financial fixes require regression tests at the shared source of truth, not only UI guards.
+
+## Remediation update — 2026-10-23
+
+Implemented without schema changes:
+
+- **C1:** service price/currency snapshot; reject service/folio currency mismatch.
+- **H1:** committed nights by default; early departure requires explicit flag.
+- **H2:** request-time service price/currency snapshot used by normal completion and checkout reconciliation.
+- **H3:** missing agreed room-rate snapshot now fails closed.
+- **H4:** negative folio/invoice totals blocked.
+- **H5:** surcharge/discount creation moved into the serializable invoice transaction with request IDs and conflict detection.
+- **H6/H7:** manual counter payments support partial, full, zero-balance, and cash over-tender/change; invoice remains open until balance reaches zero; retries are idempotent.
+
+Still open:
+
+- **C2:** OTA-collected/prepaid reconciliation requires authoritative provider fields and accounting policy.
+- **H8:** marketplace zero-value fallback.
+- **M1:** exact OTA/direct booking-total allocation.
+- **M2:** database uniqueness for room-charge identity requires migration/backfill approval.
+- **M3:** tax policy requires an accounting/product decision.
+
+Post-remediation focused checks before final integration gate:
+
+- Billing checkout safety: **42/42 passed**.
+- Billing frontend calculation: **8/8 passed**.
