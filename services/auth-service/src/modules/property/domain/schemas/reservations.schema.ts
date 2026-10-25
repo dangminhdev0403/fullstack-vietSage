@@ -76,8 +76,8 @@ export const checkInReservationBodySchema = z
       .string()
       .trim()
       .max(20)
-      .optional()
-      .transform((v) => (v ? (normalizeDateStringToIso(v) ?? v) : v)),
+      .transform((v) => (v ? (normalizeDateStringToIso(v) ?? v) : v))
+      .optional(),
     guestGender: z.string().trim().max(20).optional(),
     guestNationality: z.string().trim().max(80).optional(),
     guestResidencePlace: z.string().trim().max(500).optional(),

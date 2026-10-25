@@ -45,8 +45,8 @@ export default async function StaffRoomsPage({
         : undefined;
   const initialStartDate = getFirst(resolvedSearchParams.startDate);
   const initialViewMode = getFirst(resolvedSearchParams.viewMode) as "week" | "biweek" | "month" | undefined;
-  const routePrefix = baseRoutePrefix ?? "/hotels";
-  const callbackUrl = `${routePrefix}/${hotelId}/rooms` as const;
+  const routePrefix = (baseRoutePrefix as `/${string}`) ?? "/hotels";
+  const callbackUrl: `/${string}` = `${routePrefix}/${hotelId}/rooms`;
   const session = await auth();
   assertCanAccessHotelOps(session, callbackUrl);
   const tokens = await requireHotelOpsServerTokens(callbackUrl);

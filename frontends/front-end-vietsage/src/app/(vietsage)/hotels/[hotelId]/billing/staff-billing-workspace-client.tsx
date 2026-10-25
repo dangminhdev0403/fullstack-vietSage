@@ -209,6 +209,13 @@ function getItemIcon(itemType: string): string {
   return "receipt_long";
 }
 
+function generateFallbackAttemptId(prefix: string): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
 export function StaffBillingWorkspaceClient({
   hotelId,
   folios,
@@ -288,18 +295,20 @@ export function StaffBillingWorkspaceClient({
     clientRequestId: string;
   } | null>(null);
 
-  if (selectedFolioId !== prevSelectedFolioId) {
-    setPrevSelectedFolioId(selectedFolioId);
-    setDiscountInput("");
-    setSurchargeInput("");
-    setDiscountNote("");
-    setSurchargeNote("");
-    setCashGivenInput("");
-    setReconciliations({});
-    setCheckoutError("");
-    checkoutAttemptIdsRef.current = {};
-    checkoutPaymentAttemptRef.current = null;
-  }
+  useEffect(() => {
+    if (selectedFolioId !== prevSelectedFolioId) {
+      setPrevSelectedFolioId(selectedFolioId);
+      setDiscountInput("");
+      setSurchargeInput("");
+      setDiscountNote("");
+      setSurchargeNote("");
+      setCashGivenInput("");
+      setReconciliations({});
+      setCheckoutError("");
+      checkoutAttemptIdsRef.current = {};
+      checkoutPaymentAttemptRef.current = null;
+    }
+  }, [selectedFolioId, prevSelectedFolioId]);
 
   const filteredFolios = useMemo(() => {
     return folios.filter((folio) => {
@@ -617,10 +626,7 @@ export function StaffBillingWorkspaceClient({
 
         const surchargeKey = `${selectedFolioId}:surcharge:${surchargeParsed.amount}:${noteText}`;
         if (!checkoutAttemptIdsRef.current[surchargeKey]) {
-          checkoutAttemptIdsRef.current[surchargeKey] =
-            typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-              ? crypto.randomUUID()
-              : `surcharge-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+          checkoutAttemptIdsRef.current[surchargeKey] = generateFallbackAttemptId("surcharge");
         }
         adjustments.push({
           clientRequestId: checkoutAttemptIdsRef.current[surchargeKey],
@@ -645,10 +651,7 @@ export function StaffBillingWorkspaceClient({
 
         const discountKey = `${selectedFolioId}:discount:${discountParsed.amount}:${noteText}`;
         if (!checkoutAttemptIdsRef.current[discountKey]) {
-          checkoutAttemptIdsRef.current[discountKey] =
-            typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-              ? crypto.randomUUID()
-              : `discount-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+          checkoutAttemptIdsRef.current[discountKey] = generateFallbackAttemptId("discount");
         }
         adjustments.push({
           clientRequestId: checkoutAttemptIdsRef.current[discountKey],
@@ -695,10 +698,7 @@ export function StaffBillingWorkspaceClient({
                 invoiceId: invoice.id,
                 amount: appliedAmount,
                 cashReceived,
-                clientRequestId:
-                  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-                    ? crypto.randomUUID()
-                    : `pay-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+                clientRequestId: generateFallbackAttemptId("pay"),
               };
         checkoutPaymentAttemptRef.current = paymentAttempt;
 
@@ -745,10 +745,7 @@ export function StaffBillingWorkspaceClient({
       } else {
         const paymentKey = `${invoice.id}:zero-payment`;
         if (!checkoutAttemptIdsRef.current[paymentKey]) {
-          checkoutAttemptIdsRef.current[paymentKey] =
-            typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-              ? crypto.randomUUID()
-              : `zero-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+          checkoutAttemptIdsRef.current[paymentKey] = generateFallbackAttemptId("zero");
         }
         const clientRequestId = checkoutAttemptIdsRef.current[paymentKey];
 
