@@ -461,7 +461,7 @@ export default function LoginPage() {
                     Mật khẩu
                   </label>
                   <Link
-                    href="#"
+                    href="mailto:Congnghesovn247@gmail.com?subject=VietSage%20-%20Quen%20mat%20khau"
                     className="font-label-md text-secondary transition-all hover:underline"
                   >
                     Quên mật khẩu?
@@ -546,13 +546,13 @@ export default function LoginPage() {
             </div>
             <div className="flex gap-4">
               <Link
-                href="#"
+                href="/about"
                 className="transition-colors hover:text-on-surface-variant"
               >
                 Hỗ trợ
               </Link>
               <Link
-                href="#"
+                href="/about"
                 className="transition-colors hover:text-on-surface-variant"
               >
                 Bảo mật
@@ -571,26 +571,26 @@ export default function LoginPage() {
           />
           <div className="flex flex-wrap justify-center gap-6">
             <Link
-              href="#"
+              href="/about"
               className="font-label-md text-label-md text-on-tertiary-container opacity-80 transition-opacity hover:opacity-100"
             >
               Privacy Policy
             </Link>
             <Link
-              href="#"
+              href="/about"
               className="font-label-md text-label-md text-on-tertiary-container opacity-80 transition-opacity hover:opacity-100"
             >
               Terms of Service
             </Link>
             <Link
-              href="#"
+              href="/about"
               className="font-label-md text-label-md text-on-tertiary-container opacity-80 transition-opacity hover:opacity-100"
             >
               Contact Us
             </Link>
           </div>
           <div className="font-body-md text-body-md opacity-60">
-            © 2024 VietSage Luxury Hotel & Resort. All rights reserved.
+            © {new Date().getFullYear()} VietSage Luxury Hotel & Resort. All rights reserved.
           </div>
         </div>
       </footer>

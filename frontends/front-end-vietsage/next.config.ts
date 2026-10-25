@@ -30,10 +30,15 @@ const nextConfig: NextConfig = {
     ],
   },
   async rewrites() {
+    const backendUrl = process.env.AUTH_API_BASE_URL || "http://localhost:8080";
     return [
       {
+        source: "/socket.io",
+        destination: `${backendUrl}/socket.io/`,
+      },
+      {
         source: "/socket.io/:path*",
-        destination: "http://localhost:8080/socket.io/:path*",
+        destination: `${backendUrl}/socket.io/:path*`,
       },
     ];
   },

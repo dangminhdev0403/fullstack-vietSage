@@ -66,6 +66,11 @@ export const SwalVietSage = Swal.mixin({
   buttonsStyling: false,
   reverseButtons: false,
   backdrop: "rgba(15, 26, 23, 0.28)",
+  willOpen: () => {
+    if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  },
 });
 
 const TRUSTED_ALERT_HTML = Symbol("trustedAlertHtml");

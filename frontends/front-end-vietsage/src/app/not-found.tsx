@@ -10,10 +10,10 @@ const commonLinks = [
     icon: "home",
   },
   {
-    href: "/",
-    label: "Về trang chính",
-    desc: "Quay về trang chính để bắt đầu lại",
-    icon: "arrow_forward",
+    href: "/dangnhap",
+    label: "Đăng nhập hệ thống",
+    desc: "Dành cho chủ khách sạn và nhân viên vận hành",
+    icon: "lock",
   },
   {
     href: "/g/services",
@@ -59,11 +59,11 @@ export default function NotFound() {
                   Về Trang chủ
                 </Link>
                 <Link
-                  href="/"
+                  href="/g/services"
                   className="inline-flex items-center gap-2 rounded-xl border border-[color:rgba(0,0,60,0.2)] bg-white px-6 py-3 text-sm font-semibold text-[var(--primary)] transition-colors hover:bg-[var(--surface-container-low)]"
                 >
-                  <VsIcon name="arrow_forward" className="text-base" />
-                  Về trang chính
+                  <VsIcon name="concierge" className="text-base" />
+                  Khám phá dịch vụ
                 </Link>
               </div>
             </div>

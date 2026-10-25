@@ -281,6 +281,7 @@ export class HotelDashboardService {
         ? { hotelId, folio: { roomId: scope.allowedRoomId } }
         : { hotelId };
 
+    const now = new Date();
     const hotelTimeZone = resolveTimeZone(scope.hotel?.timezone);
     const todayPlain = todayPlainDate(hotelTimeZone);
     const todayStart = startOfPlainDate(todayPlain, hotelTimeZone);

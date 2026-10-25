@@ -633,7 +633,7 @@ export function Hero({
       <div className="vs-scene-watermark" aria-hidden="true">SAGE</div>
       {image && (
         <div className="pointer-events-none absolute inset-0 -z-10 opacity-15 mix-blend-multiply">
-          <Image src={image} alt="" fill className="object-cover" priority />
+          <Image src={image} alt="" fill sizes="100vw" className="object-cover" priority />
         </div>
       )}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">

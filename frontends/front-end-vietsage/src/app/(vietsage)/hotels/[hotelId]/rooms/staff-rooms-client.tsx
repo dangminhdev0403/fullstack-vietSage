@@ -4768,6 +4768,9 @@ export function StaffRoomsClient({
                 </button>
 
                 <input
+                  id="rooms-business-date"
+                  name="businessDate"
+                  aria-label="Chọn ngày vận hành khách sạn"
                   type="date"
                   value={businessDate}
                   onChange={(e) => handleBusinessDateChange(e.target.value)}
@@ -4891,6 +4894,9 @@ export function StaffRoomsClient({
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-lg text-slate-500"
               />
               <input
+                id="rooms-search-query"
+                name="searchQuery"
+                aria-label="Tìm số phòng, tên khách, SĐT"
                 value={inputQuery}
                 onChange={(event) => setInputQuery(event.target.value)}
                 className="h-10 w-full rounded-xl border border-slate-300 hover:border-slate-400 bg-white pl-9.5 pr-8 text-sm font-semibold text-slate-900 outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 shadow-2xs min-h-[40px] placeholder:text-slate-400 transition"
@@ -4910,6 +4916,9 @@ export function StaffRoomsClient({
 
             {/* Floor Select */}
             <select
+              id="rooms-floor-filter"
+              name="floorFilter"
+              aria-label="Lọc theo tầng"
               value={floor}
               onChange={(event) => {
                 setFloor(event.target.value);
@@ -4927,6 +4936,9 @@ export function StaffRoomsClient({
 
             {/* Room Type Select */}
             <select
+              id="rooms-type-filter"
+              name="typeFilter"
+              aria-label="Lọc theo loại phòng"
               value={type}
               onChange={(event) => {
                 setType(event.target.value);
@@ -4944,6 +4956,9 @@ export function StaffRoomsClient({
 
             {/* Zone Select */}
             <select
+              id="rooms-zone-filter"
+              name="zoneFilter"
+              aria-label="Lọc theo phân khu"
               value={zone}
               onChange={(event) => {
                 setZone(event.target.value);
@@ -4961,6 +4976,9 @@ export function StaffRoomsClient({
 
             {/* Status Select */}
             <select
+              id="rooms-status-filter"
+              name="statusFilter"
+              aria-label="Lọc theo trạng thái phòng"
               value={status}
               onChange={(event) => {
                 setStatus(event.target.value as RoomStatusFilter);
@@ -6483,6 +6501,8 @@ export function StaffRoomsClient({
                       </label>
                       <input
                         id="bulk-checkin-date"
+                        name="bulkCheckInDate"
+                        aria-label="Ngày nhận phòng"
                         type="date"
                         required
                         min={todayYmd}
@@ -6502,6 +6522,8 @@ export function StaffRoomsClient({
                       </label>
                       <input
                         id="bulk-checkout-date"
+                        name="bulkCheckOutDate"
+                        aria-label="Ngày trả phòng"
                         type="date"
                         required
                         min={bulkCheckInDate || todayYmd}

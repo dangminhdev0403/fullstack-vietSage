@@ -434,7 +434,7 @@ export class ReservationsService {
       activeRoleId,
       hotelId,
     );
-    const tz = resolveTimeZone(scope.hotel.timezone);
+    const tz = resolveTimeZone(roomScope.hotel?.timezone);
     const from = startOfPlainDate(query.from, tz);
     const to = new Date(startOfPlainDate(addDaysYmd(query.to, 1), tz).getTime() - 1);
     return this.reservationsRepository.getRoomPlan({
@@ -442,6 +442,7 @@ export class ReservationsService {
       from,
       to,
       roomScopeIds: roomScope.allowedRoomId ? [roomScope.allowedRoomId] : null,
+      timezone: tz,
     });
   }
 

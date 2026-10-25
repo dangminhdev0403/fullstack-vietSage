@@ -176,25 +176,42 @@ export default async function StaffRoomsPage({
           canManageStays={
             !isHousekeeping &&
             (context.permissions.includes("hotel.stays.manage") ||
-              context.permissions.includes("hotel.stays.check-in"))
+              context.permissions.includes("hotel.stays.check-in") ||
+              userPersona === "owner" ||
+              userPersona === "front_desk" ||
+              userPersona === "manager")
           }
           canViewBilling={
             !isHousekeeping &&
             (context.permissions.includes("hotel.billing.view") ||
-              context.permissions.includes("hotel.billing.manage"))
+              context.permissions.includes("hotel.billing.manage") ||
+              userPersona === "owner" ||
+              userPersona === "front_desk" ||
+              userPersona === "manager")
           }
           canCheckoutBilling={
             !isHousekeeping &&
             (context.permissions.includes("hotel.billing.manage") ||
-              context.permissions.includes("hotel.billing.checkout"))
+              context.permissions.includes("hotel.billing.checkout") ||
+              userPersona === "owner" ||
+              userPersona === "front_desk" ||
+              userPersona === "manager")
           }
           canCheckOutStay={
             !isHousekeeping &&
             (context.permissions.includes("hotel.stays.manage") ||
-              context.permissions.includes("hotel.stays.check-out"))
+              context.permissions.includes("hotel.stays.check-out") ||
+              userPersona === "owner" ||
+              userPersona === "front_desk" ||
+              userPersona === "manager")
           }
           canCheckInStay={
-            !isHousekeeping && context.permissions.includes("hotel.stays.check-in")
+            !isHousekeeping &&
+            (context.permissions.includes("hotel.stays.check-in") ||
+              context.permissions.includes("hotel.stays.manage") ||
+              userPersona === "owner" ||
+              userPersona === "front_desk" ||
+              userPersona === "manager")
           }
           initialFlow={initialFlow}
           initialBusinessDate={initialBusinessDate}
