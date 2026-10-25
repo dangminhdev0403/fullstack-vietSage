@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { Temporal } from "@js-temporal/polyfill";
 import {
   FolioStatus,
   GuestRequestPriority,
@@ -281,7 +282,6 @@ export class HotelDashboardService {
         ? { hotelId, folio: { roomId: scope.allowedRoomId } }
         : { hotelId };
 
-    const now = new Date();
     const hotelTimeZone = resolveTimeZone(scope.hotel?.timezone);
     const todayPlain = todayPlainDate(hotelTimeZone);
     const todayStart = startOfPlainDate(todayPlain, hotelTimeZone);
@@ -684,7 +684,7 @@ export class HotelDashboardService {
 
     return {
       hotelId,
-      generatedAt: now.toISOString(),
+      generatedAt: Temporal.Now.instant().toString(),
       rooms: {
         total: totalRooms,
         occupied: occupiedRooms,
