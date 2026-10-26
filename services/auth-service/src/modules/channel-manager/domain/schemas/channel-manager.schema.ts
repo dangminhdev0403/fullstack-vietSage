@@ -76,24 +76,48 @@ export const updateRestrictionsSchema = z.union([
     .transform((items) => ({ items })),
 ]);
 
-export const bulkUpdateRestrictionsSchema = z.object({
-  startDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Định dạng ngày bắt đầu không hợp lệ, yêu cầu YYYY-MM-DD"),
-  endDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Định dạng ngày kết thúc không hợp lệ, yêu cầu YYYY-MM-DD"),
-  roomTypes: z.array(z.string().min(1).max(80)).min(1, "Vui lòng chọn ít nhất một hạng phòng"),
-  ratePlanCode: z.string().min(1).max(80).default("STANDARD").optional(),
-  daysOfWeek: z.array(z.number().int().min(0).max(6)).default([0, 1, 2, 3, 4, 5, 6]).optional(),
-  rate: z.coerce.number().min(0).optional(),
-  minStayArrival: z.number().int().min(1).optional(),
-  minStayThrough: z.number().int().min(1).optional(),
-  maxStay: z.number().int().min(0).optional(),
-  stopSell: z.boolean().optional(),
-  closedToArrival: z.boolean().optional(),
-  closedToDeparture: z.boolean().optional(),
+export const rateAdjustmentDirectionEnum = z.enum(["INCREASE", "DECREASE"]);
+export const rateAdjustmentKindEnum = z.enum(["FIXED", "PERCENT"]);
+
+export const rateAdjustmentSchema = z.object({
+  direction: rateAdjustmentDirectionEnum,
+  kind: rateAdjustmentKindEnum,
+  value: z
+    .coerce
+    .number()
+    .positive("Giá trị điều chỉnh phải là số dương")
+    .finite("Giá trị điều chỉnh phải là số hữu hạn"),
 });
+
+export type RateAdjustmentDto = z.infer<typeof rateAdjustmentSchema>;
+
+export const bulkUpdateRestrictionsSchema = z
+  .object({
+    startDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Định dạng ngày bắt đầu không hợp lệ, yêu cầu YYYY-MM-DD"),
+    endDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Định dạng ngày kết thúc không hợp lệ, yêu cầu YYYY-MM-DD"),
+    roomTypes: z.array(z.string().min(1).max(80)).min(1, "Vui lòng chọn ít nhất một hạng phòng"),
+    ratePlanCode: z.string().min(1).max(80).default("STANDARD").optional(),
+    daysOfWeek: z.array(z.number().int().min(0).max(6)).default([0, 1, 2, 3, 4, 5, 6]).optional(),
+    rate: z.coerce.number().min(0).optional(),
+    adjustment: rateAdjustmentSchema.optional(),
+    minStayArrival: z.number().int().min(1).optional(),
+    minStayThrough: z.number().int().min(1).optional(),
+    maxStay: z.number().int().min(0).optional(),
+    stopSell: z.boolean().optional(),
+    closedToArrival: z.boolean().optional(),
+    closedToDeparture: z.boolean().optional(),
+  })
+  .refine(
+    (data) => !(data.rate !== undefined && data.adjustment !== undefined),
+    {
+      message: "Không được truyền đồng thời giá tuyệt đối (rate) và điều chỉnh giá tương đối (adjustment)",
+      path: ["adjustment"],
+    },
+  );
 
 export const inventoryQuerySchema = z
   .object({

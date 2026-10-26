@@ -205,7 +205,11 @@ export const channelManagerRepository = {
         endDate: data.dateTo,
         roomTypes: data.roomTypeIds,
         daysOfWeek: data.daysOfWeek,
-        rate: data.rate,
+        ...(data.adjustment !== undefined
+          ? { adjustment: data.adjustment }
+          : data.rate !== undefined
+            ? { rate: data.rate }
+            : {}),
         minStayArrival: data.minStay,
         stopSell: data.stopSell,
       },

@@ -514,6 +514,7 @@ export class ReservationsRepository {
               { guestDisplayName: { contains: q, mode: "insensitive" } },
               { guestPhone: { contains: q } },
               { reservationCode: { contains: q, mode: "insensitive" } },
+              { groupCode: { contains: q, mode: "insensitive" } },
               { room: { roomNumber: { contains: q, mode: "insensitive" } } },
             ],
           }

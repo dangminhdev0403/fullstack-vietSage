@@ -669,4 +669,64 @@ export const kbttBatchSubmitSummarySchema = z.object({
 });
 export type KbttBatchSubmitSummary = z.infer<typeof kbttBatchSubmitSummarySchema>;
 
+export const kbttMovementKindSchema = z.enum(["ARRIVAL", "DEPARTURE"]);
+export type KbttMovementKind = z.infer<typeof kbttMovementKindSchema>;
+
+export const kbttDailyMovementsQuerySchema = z.object({
+  date: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Định dạng ngày phải là YYYY-MM-DD"),
+  kind: kbttMovementKindSchema,
+  q: z.string().trim().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+export type KbttDailyMovementsQuery = z.infer<
+  typeof kbttDailyMovementsQuerySchema
+>;
+
+export const kbttDailyMovementItemSchema = z.object({
+  kind: kbttMovementKindSchema,
+  reservationId: z.string().nullable().optional(),
+  stayId: z.string().nullable().optional(),
+  reservationCode: z.string().nullable().optional(),
+  groupCode: z.string().nullable().optional(),
+  roomId: z.string().nullable().optional(),
+  roomNumber: z.string().nullable().optional(),
+  guestDisplayName: z.string(),
+  guestPhone: z.string().nullable().optional(),
+  status: z.string(),
+  plannedCheckInAt: z.string().nullable().optional(),
+  plannedCheckOutAt: z.string().nullable().optional(),
+  actualCheckInAt: z.string().nullable().optional(),
+  actualCheckOutAt: z.string().nullable().optional(),
+  occupantCount: z.number().int().nonnegative(),
+  canCheckIn: z.boolean(),
+  canCheckOut: z.boolean(),
+});
+export type KbttDailyMovementItem = z.infer<
+  typeof kbttDailyMovementItemSchema
+>;
+
+export const kbttDailyMovementsResponseSchema = z.object({
+  items: z.array(kbttDailyMovementItemSchema),
+  total: z.number().int().nonnegative(),
+  page: z.number().int().min(1),
+  limit: z.number().int().min(1),
+  totalPages: z.number().int().nonnegative(),
+});
+export type KbttDailyMovementsResponse = z.infer<
+  typeof kbttDailyMovementsResponseSchema
+>;
+
+export function getVietnamTodayDate(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 

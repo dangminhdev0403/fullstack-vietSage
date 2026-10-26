@@ -2241,4 +2241,248 @@ export class HotelRoomsRepository {
             ],
     });
   }
+
+  async findDailyMovementsByHotel(
+    hotelId: string,
+    params: {
+      kind: "ARRIVAL" | "DEPARTURE";
+      start: Date;
+      end: Date;
+      q?: string;
+      allowedRoomId?: string | null;
+      page: number;
+      limit: number;
+    },
+  ): Promise<{
+    items: Array<{
+      kind: "ARRIVAL" | "DEPARTURE";
+      reservationId: string | null;
+      stayId: string | null;
+      reservationCode: string | null;
+      groupCode: string | null;
+      roomId: string | null;
+      roomNumber: string | null;
+      guestDisplayName: string;
+      guestPhone: string | null;
+      status: string;
+      plannedCheckInAt: Date | null;
+      plannedCheckOutAt: Date | null;
+      checkedInAt: Date | null;
+      checkedOutAt: Date | null;
+      occupantCount: number;
+      canCheckIn: boolean;
+      canCheckOut: boolean;
+    }>;
+    total: number;
+  }> {
+    const { kind, start, end, q, allowedRoomId, page, limit } = params;
+    const skip = (page - 1) * limit;
+
+    if (kind === "ARRIVAL") {
+      let matchingRoomIds: string[] | undefined;
+      if (q) {
+        const matchingRooms = await this.prisma.room.findMany({
+          where: {
+            hotelId,
+            roomNumber: { contains: q, mode: "insensitive" },
+          },
+          select: { id: true },
+        });
+        matchingRoomIds = matchingRooms.map((r) => r.id);
+      }
+
+      const searchConditions: Prisma.ReservationWhereInput[] = q
+        ? [
+            { guestDisplayName: { contains: q, mode: "insensitive" } },
+            { guestPhone: { contains: q, mode: "insensitive" } },
+            { reservationCode: { contains: q, mode: "insensitive" } },
+            { groupCode: { contains: q, mode: "insensitive" } },
+            ...(matchingRoomIds && matchingRoomIds.length > 0
+              ? [{ roomId: { in: matchingRoomIds } }]
+              : []),
+          ]
+        : [];
+
+      const where: Prisma.ReservationWhereInput = {
+        AND: [
+          { hotelId },
+          {
+            status: {
+              in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY],
+            },
+          },
+          { plannedCheckInAt: { gte: start, lt: end } },
+          ...(allowedRoomId ? [{ roomId: allowedRoomId }] : []),
+          ...(searchConditions.length > 0 ? [{ OR: searchConditions }] : []),
+        ],
+      };
+
+      const [total, reservations] = await Promise.all([
+        this.prisma.reservation.count({ where }),
+        this.prisma.reservation.findMany({
+          where,
+          select: {
+            id: true,
+            hotelId: true,
+            roomId: true,
+            reservationCode: true,
+            groupCode: true,
+            guestDisplayName: true,
+            guestPhone: true,
+            status: true,
+            plannedCheckInAt: true,
+            plannedCheckOutAt: true,
+            checkedInAt: true,
+          },
+          orderBy: [
+            { plannedCheckInAt: "asc" },
+            { reservationCode: "asc" },
+            { id: "asc" },
+          ],
+          skip,
+          take: limit,
+        }),
+      ]);
+
+      const roomIdsToFetch = reservations
+        .map((r) => r.roomId)
+        .filter((id): id is string => Boolean(id));
+
+      const rooms =
+        roomIdsToFetch.length > 0
+          ? await this.prisma.room.findMany({
+              where: { id: { in: roomIdsToFetch } },
+              select: { id: true, roomNumber: true },
+            })
+          : [];
+      const roomMap = new Map(rooms.map((r) => [r.id, r.roomNumber]));
+
+      const items = reservations.map((res) => ({
+        kind: "ARRIVAL" as const,
+        reservationId: res.id,
+        stayId: null,
+        reservationCode: res.reservationCode ?? null,
+        groupCode: res.groupCode ?? null,
+        roomId: res.roomId ?? null,
+        roomNumber: res.roomId ? roomMap.get(res.roomId) ?? null : null,
+        guestDisplayName: res.guestDisplayName,
+        guestPhone: res.guestPhone ?? null,
+        status: res.status,
+        plannedCheckInAt: res.plannedCheckInAt ?? null,
+        plannedCheckOutAt: res.plannedCheckOutAt ?? null,
+        checkedInAt: res.checkedInAt ?? null,
+        checkedOutAt: null,
+        occupantCount: 1,
+        canCheckIn:
+          res.status === ReservationStatus.CONFIRMED ||
+          res.status === ReservationStatus.ARRIVAL_READY,
+        canCheckOut: false,
+      }));
+
+      return { items, total };
+    }
+
+    // DEPARTURE
+    const departureConditions: Prisma.GuestStayWhereInput[] = [
+      {
+        plannedCheckOutAt: { gte: start, lt: end },
+        status: {
+          in: [
+            GuestStayStatus.ACTIVE,
+            GuestStayStatus.CHECKED_IN,
+            GuestStayStatus.CHECKOUT_PENDING,
+          ],
+        },
+      },
+      {
+        checkedOutAt: { gte: start, lt: end },
+      },
+    ];
+
+    const searchConditions: Prisma.GuestStayWhereInput[] = q
+      ? [
+          { guestDisplayName: { contains: q, mode: "insensitive" } },
+          { guestPhone: { contains: q, mode: "insensitive" } },
+          { reservationCode: { contains: q, mode: "insensitive" } },
+          { room: { roomNumber: { contains: q, mode: "insensitive" } } },
+        ]
+      : [];
+
+    const where: Prisma.GuestStayWhereInput = {
+      AND: [
+        { hotelId },
+        ...(allowedRoomId ? [{ roomId: allowedRoomId }] : []),
+        { OR: departureConditions },
+        ...(searchConditions.length > 0 ? [{ OR: searchConditions }] : []),
+      ],
+    };
+
+    const [total, stays] = await Promise.all([
+      this.prisma.guestStay.count({ where }),
+      this.prisma.guestStay.findMany({
+        where,
+        select: {
+          id: true,
+          hotelId: true,
+          roomId: true,
+          reservationCode: true,
+          guestDisplayName: true,
+          guestPhone: true,
+          status: true,
+          plannedCheckInAt: true,
+          plannedCheckOutAt: true,
+          checkedInAt: true,
+          checkedOutAt: true,
+          room: {
+            select: {
+              id: true,
+              roomNumber: true,
+            },
+          },
+          occupants: {
+            select: {
+              id: true,
+            },
+          },
+        },
+        orderBy: [
+          { plannedCheckOutAt: "asc" },
+          { reservationCode: "asc" },
+          { id: "asc" },
+        ],
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    const items = stays.map((stay) => {
+      const isOperationallyActive =
+        (stay.status === GuestStayStatus.ACTIVE ||
+          stay.status === GuestStayStatus.CHECKED_IN ||
+          stay.status === GuestStayStatus.CHECKOUT_PENDING) &&
+        !stay.checkedOutAt;
+
+      return {
+        kind: "DEPARTURE" as const,
+        reservationId: null,
+        stayId: stay.id,
+        reservationCode: stay.reservationCode ?? null,
+        groupCode: null,
+        roomId: stay.roomId ?? null,
+        roomNumber: stay.room?.roomNumber ?? null,
+        guestDisplayName: stay.guestDisplayName,
+        guestPhone: stay.guestPhone ?? null,
+        status: stay.status,
+        plannedCheckInAt: stay.plannedCheckInAt ?? null,
+        plannedCheckOutAt: stay.plannedCheckOutAt ?? null,
+        checkedInAt: stay.checkedInAt ?? null,
+        checkedOutAt: stay.checkedOutAt ?? null,
+        occupantCount: stay.occupants && stay.occupants.length > 0 ? stay.occupants.length : 1,
+        canCheckIn: false,
+        canCheckOut: Boolean(isOperationallyActive),
+      };
+    });
+
+    return { items, total };
+  }
 }

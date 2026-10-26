@@ -15,6 +15,8 @@ import type {
   KbttCatalogKind,
   KbttConnection,
   KbttCredentials,
+  KbttDailyMovementsQuery,
+  KbttDailyMovementsResponse,
   KbttDeclarationRecord,
   KbttDevOccupantUpdateItem,
   KbttOccupantDeclarationDetail,
@@ -94,6 +96,24 @@ export const kbttResource = createResource<HotelScope>()({
         signal,
       }: ResourceQueryContext<HotelScope, void>): Promise<KbttAutoSubmitState> =>
         kbttRepository.getAutoSubmitConfig(scope.hotelId, signal),
+    }),
+    dailyMovements: defineQuery({
+      inputKey: (input: KbttDailyMovementsQuery) => [
+        input.date,
+        input.kind,
+        input.q ?? "",
+        input.page ?? 1,
+        input.limit ?? 50,
+      ],
+      queryFn: ({
+        scope,
+        input,
+        signal,
+      }: ResourceQueryContext<
+        HotelScope,
+        KbttDailyMovementsQuery
+      >): Promise<KbttDailyMovementsResponse> =>
+        kbttRepository.dailyMovements(scope.hotelId, input, signal),
     }),
   },
   mutations: {

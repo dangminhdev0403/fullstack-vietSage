@@ -117,4 +117,22 @@ export class HotelStayOccupantsReadService {
 
     return { items, nextCursor };
   }
+
+  async getDailyMovements(
+    hotelId: string,
+    params: {
+      kind: "ARRIVAL" | "DEPARTURE";
+      start: Date;
+      end: Date;
+      q?: string;
+      allowedRoomId?: string | null;
+      page: number;
+      limit: number;
+    },
+  ) {
+    if (!hotelId || typeof hotelId !== "string" || !hotelId.trim()) {
+      return { items: [], total: 0 };
+    }
+    return this.hotelRoomsRepository.findDailyMovementsByHotel(hotelId.trim(), params);
+  }
 }

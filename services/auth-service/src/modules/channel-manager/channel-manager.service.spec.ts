@@ -6,9 +6,11 @@ process.env.JWT_REFRESH_SECRET = "mock_jwt_refresh_secret_32_chars_long!";
 process.env.JWT_ACCESS_TTL = "15m";
 process.env.JWT_REFRESH_TTL = "7d";
 
+import { BadRequestException } from "@nestjs/common";
 import { ChannelManagerService } from "./services/channel-manager.service";
-import { AriCoreService } from "./services/ari-core.service";
+import { AriCoreService, calculateAdjustedRate } from "./services/ari-core.service";
 import { IcalService } from "./services/ical.service";
+import { bulkUpdateRestrictionsSchema } from "./domain/schemas/channel-manager.schema";
 
 describe("ChannelManager Module Core Services", () => {
   describe("ChannelManagerService", () => {
@@ -319,6 +321,244 @@ describe("ChannelManager Module Core Services", () => {
       expect(error.getResponse().blockedRoomTypes).toHaveLength(1);
       expect(error.getResponse().blockedRoomTypes[0].roomType).toBe("PENTHOUSE");
       expect(mockPrisma.channelDailyRestriction.upsert).not.toHaveBeenCalled();
+    });
+
+    describe("bulkUpdateRestrictions relative adjustments & edge cases", () => {
+      it("hỗ trợ cả 4 tổ hợp điều chỉnh giá tương đối: INCREASE/DECREASE x FIXED/PERCENT", async () => {
+        mockPrisma.channelDailyRestriction.upsert.mockResolvedValue({});
+
+        // 1. INCREASE + FIXED
+        mockPrisma.channelDailyRestriction.findUnique.mockResolvedValue({
+          hotelId: "hotel_1",
+          roomType: "DELUXE",
+          ratePlanCode: "STANDARD",
+          date: new Date("2026-10-01T00:00:00.000Z"),
+          rate: 1000000,
+        });
+
+        const res1 = await service.bulkUpdateRestrictions("hotel_1", {
+          startDate: "2026-10-01",
+          endDate: "2026-10-01",
+          roomTypes: ["DELUXE"],
+          daysOfWeek: [4], // 2026-10-01 là Thứ Năm
+          adjustment: { direction: "INCREASE", kind: "FIXED", value: 200000 },
+        });
+
+        expect(res1.success).toBe(true);
+        expect(mockPrisma.channelDailyRestriction.upsert).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            create: expect.objectContaining({ rate: 1200000 }),
+            update: expect.objectContaining({ rate: 1200000 }),
+          }),
+        );
+
+        // 2. DECREASE + FIXED
+        mockPrisma.channelDailyRestriction.findUnique.mockResolvedValue({
+          hotelId: "hotel_1",
+          roomType: "DELUXE",
+          ratePlanCode: "STANDARD",
+          date: new Date("2026-10-01T00:00:00.000Z"),
+          rate: 1000000,
+        });
+
+        const res2 = await service.bulkUpdateRestrictions("hotel_1", {
+          startDate: "2026-10-01",
+          endDate: "2026-10-01",
+          roomTypes: ["DELUXE"],
+          daysOfWeek: [4],
+          adjustment: { direction: "DECREASE", kind: "FIXED", value: 250000 },
+        });
+
+        expect(res2.success).toBe(true);
+        expect(mockPrisma.channelDailyRestriction.upsert).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            create: expect.objectContaining({ rate: 750000 }),
+            update: expect.objectContaining({ rate: 750000 }),
+          }),
+        );
+
+        // 3. INCREASE + PERCENT
+        mockPrisma.channelDailyRestriction.findUnique.mockResolvedValue({
+          hotelId: "hotel_1",
+          roomType: "DELUXE",
+          ratePlanCode: "STANDARD",
+          date: new Date("2026-10-01T00:00:00.000Z"),
+          rate: 1000000,
+        });
+
+        const res3 = await service.bulkUpdateRestrictions("hotel_1", {
+          startDate: "2026-10-01",
+          endDate: "2026-10-01",
+          roomTypes: ["DELUXE"],
+          daysOfWeek: [4],
+          adjustment: { direction: "INCREASE", kind: "PERCENT", value: 15 },
+        });
+
+        expect(res3.success).toBe(true);
+        expect(mockPrisma.channelDailyRestriction.upsert).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            create: expect.objectContaining({ rate: 1150000 }),
+            update: expect.objectContaining({ rate: 1150000 }),
+          }),
+        );
+
+        // 4. DECREASE + PERCENT
+        mockPrisma.channelDailyRestriction.findUnique.mockResolvedValue({
+          hotelId: "hotel_1",
+          roomType: "DELUXE",
+          ratePlanCode: "STANDARD",
+          date: new Date("2026-10-01T00:00:00.000Z"),
+          rate: 1000000,
+        });
+
+        const res4 = await service.bulkUpdateRestrictions("hotel_1", {
+          startDate: "2026-10-01",
+          endDate: "2026-10-01",
+          roomTypes: ["DELUXE"],
+          daysOfWeek: [4],
+          adjustment: { direction: "DECREASE", kind: "PERCENT", value: 10 },
+        });
+
+        expect(res4.success).toBe(true);
+        expect(mockPrisma.channelDailyRestriction.upsert).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            create: expect.objectContaining({ rate: 900000 }),
+            update: expect.objectContaining({ rate: 900000 }),
+          }),
+        );
+      });
+
+      it("làm tròn tất định 2 chữ số thập phân cho tỷ lệ phần trăm lẻ", async () => {
+        mockPrisma.channelDailyRestriction.upsert.mockResolvedValue({});
+        mockPrisma.channelDailyRestriction.findUnique.mockResolvedValue({
+          hotelId: "hotel_1",
+          roomType: "DELUXE",
+          ratePlanCode: "STANDARD",
+          date: new Date("2026-10-01T00:00:00.000Z"),
+          rate: 100.5,
+        });
+
+        await service.bulkUpdateRestrictions("hotel_1", {
+          startDate: "2026-10-01",
+          endDate: "2026-10-01",
+          roomTypes: ["DELUXE"],
+          daysOfWeek: [4],
+          adjustment: { direction: "INCREASE", kind: "PERCENT", value: 12.34 },
+        });
+
+        // 100.5 * 1.1234 = 112.9017 => rounded to 112.9
+        expect(mockPrisma.channelDailyRestriction.upsert).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            create: expect.objectContaining({ rate: 112.9 }),
+            update: expect.objectContaining({ rate: 112.9 }),
+          }),
+        );
+      });
+
+      it("từ chối khi thiếu giá hiện tại trước khi thực hiện bất kỳ thao tác ghi nào", async () => {
+        mockPrisma.channelDailyRestriction.findUnique.mockResolvedValue(null);
+
+        await expect(
+          service.bulkUpdateRestrictions("hotel_1", {
+            startDate: "2026-10-01",
+            endDate: "2026-10-01",
+            roomTypes: ["DELUXE"],
+            daysOfWeek: [4],
+            adjustment: { direction: "INCREASE", kind: "FIXED", value: 50000 },
+          }),
+        ).rejects.toThrow(BadRequestException);
+
+        expect(mockPrisma.channelDailyRestriction.upsert).not.toHaveBeenCalled();
+      });
+
+      it("từ chối khi kết quả tính toán bị âm trước khi ghi dữ liệu", async () => {
+        mockPrisma.channelDailyRestriction.findUnique.mockResolvedValue({
+          hotelId: "hotel_1",
+          roomType: "DELUXE",
+          ratePlanCode: "STANDARD",
+          date: new Date("2026-10-01T00:00:00.000Z"),
+          rate: 0.001,
+        });
+
+        await expect(
+          service.bulkUpdateRestrictions("hotel_1", {
+            startDate: "2026-10-01",
+            endDate: "2026-10-01",
+            roomTypes: ["DELUXE"],
+            daysOfWeek: [4],
+            adjustment: { direction: "DECREASE", kind: "FIXED", value: 0.002 },
+          }),
+        ).rejects.toThrow(BadRequestException);
+
+        expect(mockPrisma.channelDailyRestriction.upsert).not.toHaveBeenCalled();
+      });
+
+      it("từ chối payload xung đột vừa chứa rate vừa chứa adjustment ở cả Zod schema và service", async () => {
+        const conflictingPayload = {
+          startDate: "2026-10-01",
+          endDate: "2026-10-01",
+          roomTypes: ["DELUXE"],
+          rate: 1000000,
+          adjustment: { direction: "INCREASE" as const, kind: "FIXED" as const, value: 50000 },
+        };
+
+        // Zod validation rejection
+        const parseResult = bulkUpdateRestrictionsSchema.safeParse(conflictingPayload);
+        expect(parseResult.success).toBe(false);
+
+        // Service level rejection
+        await expect(
+          service.bulkUpdateRestrictions("hotel_1", conflictingPayload),
+        ).rejects.toThrow(BadRequestException);
+
+        expect(mockPrisma.channelDailyRestriction.upsert).not.toHaveBeenCalled();
+      });
+
+      it("hỗ trợ cập nhật restriction thuần túy (không truyền rate và không truyền adjustment)", async () => {
+        mockPrisma.channelDailyRestriction.upsert.mockResolvedValue({});
+        mockPrisma.channelDailyRestriction.findUnique.mockResolvedValue({
+          hotelId: "hotel_1",
+          roomType: "DELUXE",
+          ratePlanCode: "STANDARD",
+          date: new Date("2026-10-01T00:00:00.000Z"),
+          rate: 1000000,
+        });
+
+        const result = await service.bulkUpdateRestrictions("hotel_1", {
+          startDate: "2026-10-01",
+          endDate: "2026-10-01",
+          roomTypes: ["DELUXE"],
+          daysOfWeek: [4],
+          minStayArrival: 3,
+          stopSell: true,
+        });
+
+        expect(result.success).toBe(true);
+        expect(mockPrisma.channelDailyRestriction.upsert).toHaveBeenCalledTimes(1);
+        const upsertArg = mockPrisma.channelDailyRestriction.upsert.mock.calls[0][0];
+        // rate không bị ghi đè trong update
+        expect(upsertArg.update.rate).toBeUndefined();
+        expect(upsertArg.update.minStayArrival).toBe(3);
+        expect(upsertArg.update.stopSell).toBe(true);
+      });
+
+      it("calculateAdjustedRate tính toán chính xác và làm tròn 2 chữ số thập phân", () => {
+        expect(
+          calculateAdjustedRate(100, { direction: "INCREASE", kind: "FIXED", value: 25 }),
+        ).toBe(125);
+        expect(
+          calculateAdjustedRate(100, { direction: "DECREASE", kind: "FIXED", value: 25 }),
+        ).toBe(75);
+        expect(
+          calculateAdjustedRate(100, { direction: "INCREASE", kind: "PERCENT", value: 10 }),
+        ).toBe(110);
+        expect(
+          calculateAdjustedRate(100, { direction: "DECREASE", kind: "PERCENT", value: 10 }),
+        ).toBe(90);
+        expect(
+          calculateAdjustedRate(100, { direction: "DECREASE", kind: "PERCENT", value: 33.333 }),
+        ).toBe(66.67);
+      });
     });
   });
 

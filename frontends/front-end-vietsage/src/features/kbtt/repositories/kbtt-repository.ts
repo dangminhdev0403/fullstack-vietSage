@@ -6,6 +6,8 @@ import {
   kbttBatchSubmitSummarySchema,
   kbttCatalogListSchema,
   kbttConnectionSchema,
+  kbttDailyMovementsQuerySchema,
+  kbttDailyMovementsResponseSchema,
   kbttDeclarationListSchema,
   kbttDeclarationRecordSchema,
   kbttOccupantDeclarationDetailSchema,
@@ -18,6 +20,9 @@ import {
   type KbttCatalogKind,
   type KbttConnection,
   type KbttCredentials,
+  type KbttDailyMovementItem,
+  type KbttDailyMovementsQuery,
+  type KbttDailyMovementsResponse,
   type KbttDeclarationListItem,
   type KbttDeclarationRecord,
   type KbttDevOccupantUpdateItem,
@@ -55,6 +60,10 @@ function autoSubmitPath(hotelId: string) {
 
 function declarationsPath(hotelId: string) {
   return `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/kbtt/declarations`;
+}
+
+function dailyMovementsPath(hotelId: string) {
+  return `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/kbtt/daily-movements`;
 }
 
 function catalogPath(kind: KbttCatalogKind, parentCode?: string) {
@@ -282,6 +291,26 @@ export const kbttRepository = {
       body: { occupants },
     });
     return payload.data;
+  },
+  async dailyMovements(
+    hotelId: string,
+    params: KbttDailyMovementsQuery,
+    signal?: AbortSignal,
+  ): Promise<KbttDailyMovementsResponse> {
+    const validated = kbttDailyMovementsQuerySchema.parse(params);
+    const query = new URLSearchParams({
+      date: validated.date,
+      kind: validated.kind,
+      page: String(validated.page),
+      limit: String(validated.limit),
+    });
+    if (validated.q) query.set("q", validated.q);
+    const url = `${dailyMovementsPath(hotelId)}?${query.toString()}`;
+    const payload = await requestInternalApiEnvelope<unknown>(url, {
+      method: "GET",
+      signal,
+    });
+    return kbttDailyMovementsResponseSchema.parse(payload.data);
   },
 };
 

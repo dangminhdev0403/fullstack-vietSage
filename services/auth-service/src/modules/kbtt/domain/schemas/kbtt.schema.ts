@@ -780,3 +780,54 @@ export const kbttBatchSubmitSummarySchema = z.object({
   scheduledTime: z.string().optional(),
 });
 export type KbttBatchSubmitSummary = z.infer<typeof kbttBatchSubmitSummarySchema>;
+
+export const kbttDailyMovementKindSchema = z.enum(["ARRIVAL", "DEPARTURE"]);
+export type KbttDailyMovementKind = z.infer<typeof kbttDailyMovementKindSchema>;
+
+export const kbttDailyMovementsQuerySchema = z.object({
+  date: z
+    .string()
+    .trim()
+    .refine((val) => /^\d{4}-\d{2}-\d{2}$/.test(val) && isValidCalendarDate(val), {
+      message: "date must be a valid YYYY-MM-DD calendar date",
+    }),
+  kind: kbttDailyMovementKindSchema,
+  q: z
+    .string()
+    .trim()
+    .optional()
+    .transform((val) => (val && val.length > 0 ? val : undefined)),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+export type KbttDailyMovementsQuery = z.infer<typeof kbttDailyMovementsQuerySchema>;
+
+export const kbttDailyMovementItemSchema = z.object({
+  kind: kbttDailyMovementKindSchema,
+  reservationId: z.string().nullable().optional(),
+  stayId: z.string().nullable().optional(),
+  reservationCode: z.string().nullable().optional(),
+  groupCode: z.string().nullable().optional(),
+  roomId: z.string().nullable().optional(),
+  roomNumber: z.string().nullable().optional(),
+  guestDisplayName: z.string(),
+  guestPhone: z.string().nullable().optional(),
+  status: z.string(),
+  plannedCheckInAt: z.string().nullable().optional(),
+  plannedCheckOutAt: z.string().nullable().optional(),
+  actualCheckInAt: z.string().nullable().optional(),
+  actualCheckOutAt: z.string().nullable().optional(),
+  occupantCount: z.number().int().nonnegative(),
+  canCheckIn: z.boolean(),
+  canCheckOut: z.boolean(),
+});
+export type KbttDailyMovementItem = z.infer<typeof kbttDailyMovementItemSchema>;
+
+export const kbttDailyMovementsResponseSchema = z.object({
+  items: z.array(kbttDailyMovementItemSchema),
+  total: z.number().int().nonnegative(),
+  page: z.number().int().positive(),
+  limit: z.number().int().positive(),
+  totalPages: z.number().int().positive(),
+});
+export type KbttDailyMovementsResponse = z.infer<typeof kbttDailyMovementsResponseSchema>;

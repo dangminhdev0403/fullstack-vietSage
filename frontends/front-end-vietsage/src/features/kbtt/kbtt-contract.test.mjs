@@ -4,6 +4,11 @@ import { createRequire, stripTypeScriptTypes } from "node:module";
 import test from "node:test";
 import ts from "typescript";
 import {
+  getVietnamTodayDate,
+  kbttDailyMovementItemSchema,
+  kbttDailyMovementsQuerySchema,
+  kbttDailyMovementsResponseSchema,
+  kbttMovementKindSchema,
   canSelectKbttDeclaration,
   formatKbttDraftForDisplay,
   formatKbttDraftForProvider,
@@ -102,9 +107,9 @@ test("KBTT validates write-only credentials, strips secret fields, preserves pas
       persona: "owner",
       permissions: [permission],
       hotelId: "hotel-1",
-    }).find((item) => item.key === "owner.hotel.kbtt");
-    assert.equal(entry?.label, "Kết nối Bộ Công an");
-    assert.equal(entry?.href, "/owner/hotels/hotel-1/kbtt");
+    }).find((item) => item.key === "staff.front-desk");
+    assert.equal(entry?.label, "Quản lý khách lưu trú");
+    assert.equal(entry?.href, "/owner/hotels/hotel-1/front-desk");
   }
   for (const scope of [
     { persona: "owner", permissions: ["hotel.kbtt.view"] },
@@ -510,7 +515,7 @@ test("KBTT UI exposes one edit-to-submit action and no local status workflow", (
     pageSource,
     /Chỉnh sửa hàng loạt|Bấm để chỉnh sửa chi tiết/,
   );
-  assert.match(pageSource, /Gửi lên Bộ Công an/);
+  assert.match(pageSource, /Gửi (?:lên Bộ Công an|BCA)/);
   assert.match(pageSource, /Hồ sơ của lần lưu trú này đã gửi BCA/);
   assert.match(pageSource, /[" >]Xem(?: chi tiết)?[" <]/);
   assert.match(pageSource, /handleSubmitAll/);
@@ -743,7 +748,7 @@ test("KBTT declarations table provides Sửa button to open DeclarationModal for
   // DeclarationModal must provide a Lưu vào DB button to persist edits
   assert.match(
     pageSource,
-    /Lưu vào (?:CSDL|DB)/,
+    /Lưu (?:vào (?:CSDL|DB)|thông tin)/,
     "DeclarationModal must provide a button to save to DB without submitting",
   );
 
@@ -804,6 +809,136 @@ test("KBTT declarations page stops countdown and auto-push when hotel is not log
     pageSource,
     /Tự động gửi BCA đang tắt/,
     "Must state auto-submit is turned off when not logged in",
+  );
+});
+
+test("T08B — KBTT daily movements contract, BFF route, query-resource, and section switch", () => {
+  // 1. Movement kind schema
+  assert.equal(kbttMovementKindSchema.parse("ARRIVAL"), "ARRIVAL");
+  assert.equal(kbttMovementKindSchema.parse("DEPARTURE"), "DEPARTURE");
+  assert.equal(kbttMovementKindSchema.safeParse("UNKNOWN").success, false);
+
+  // 2. Query schema
+  const parsedQuery = kbttDailyMovementsQuerySchema.parse({
+    date: "2026-10-27",
+    kind: "ARRIVAL",
+    q: "Nguyen",
+  });
+  assert.equal(parsedQuery.date, "2026-10-27");
+  assert.equal(parsedQuery.kind, "ARRIVAL");
+  assert.equal(parsedQuery.q, "Nguyen");
+  assert.equal(parsedQuery.page, 1);
+  assert.equal(parsedQuery.limit, 50);
+
+  // Rejects invalid date format
+  assert.equal(
+    kbttDailyMovementsQuerySchema.safeParse({ date: "27/10/2026", kind: "ARRIVAL" }).success,
+    false,
+  );
+
+  // 3. Daily movement item schema & response schema
+  const sampleMovement = {
+    kind: "ARRIVAL",
+    reservationId: "res-1",
+    stayId: "stay-1",
+    reservationCode: "RES-001",
+    groupCode: "GRP-01",
+    roomId: "room-1",
+    roomNumber: "101",
+    guestDisplayName: "Nguyen Van A",
+    guestPhone: "0901234567",
+    status: "CONFIRMED",
+    plannedCheckInAt: "2026-10-27T07:00:00.000Z",
+    plannedCheckOutAt: "2026-10-29T05:00:00.000Z",
+    actualCheckInAt: null,
+    actualCheckOutAt: null,
+    occupantCount: 2,
+    canCheckIn: true,
+    canCheckOut: false,
+  };
+  const parsedItem = kbttDailyMovementItemSchema.parse(sampleMovement);
+  assert.equal(parsedItem.guestDisplayName, "Nguyen Van A");
+  assert.equal(parsedItem.occupantCount, 2);
+
+  const sampleResponse = {
+    items: [sampleMovement],
+    total: 1,
+    page: 1,
+    limit: 50,
+    totalPages: 1,
+  };
+  const parsedResponse = kbttDailyMovementsResponseSchema.parse(sampleResponse);
+  assert.equal(parsedResponse.total, 1);
+  assert.equal(parsedResponse.items.length, 1);
+
+  // 4. Vietnam timezone helper
+  const todayYmd = getVietnamTodayDate();
+  assert.match(todayYmd, /^\d{4}-\d{2}-\d{2}$/);
+
+  // 5. BFF route verification
+  const routeSource = readFileSync(
+    new URL(
+      "../../app/api/hotel-ops/hotels/[hotelId]/kbtt/daily-movements/route.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(routeSource, /export const dynamic = "force-dynamic";/);
+  assert.match(routeSource, /executeHotelOpsBackendRequest/);
+  assert.match(routeSource, /kbttDailyMovementsQuerySchema\.safeParse/);
+  assert.match(routeSource, /kbttDailyMovementsResponseSchema\.parse/);
+  assert.match(routeSource, /"Cache-Control": "no-store"/);
+
+  // 6. Repository & Resource verification
+  const repoSource = readFileSync(
+    new URL("./repositories/kbtt-repository.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(repoSource, /async dailyMovements\(/);
+  assert.match(repoSource, /kbttDailyMovementsQuerySchema\.parse/);
+
+  const resourceSource = readFileSync(
+    new URL("./resources/kbtt-resource.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(resourceSource, /dailyMovements:\s*defineQuery/);
+
+  // 7. Section switch verification in Declarations Page
+  const pageSource = readFileSync(
+    new URL("./components/kbtt-declarations-page.tsx", import.meta.url),
+    "utf8",
+  );
+  const parsedPage = ts.createSourceFile(
+    "kbtt-declarations-page.tsx",
+    pageSource,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  assert.deepEqual(parsedPage.parseDiagnostics, [], "Declarations page must remain valid TSX");
+  assert.match(pageSource, /Hồ sơ BCA/);
+  assert.match(pageSource, /Khách đến/);
+  assert.match(pageSource, /Khách rời/);
+  assert.match(pageSource, /KbttDailyMovementsPanel/);
+
+  // 8. Daily movements panel verification
+  const panelSource = readFileSync(
+    new URL("./components/kbtt-daily-movements-panel.tsx", import.meta.url),
+    "utf8",
+  );
+  const parsedPanel = ts.createSourceFile(
+    "kbtt-daily-movements-panel.tsx",
+    panelSource,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  assert.deepEqual(parsedPanel.parseDiagnostics, [], "Daily movements panel must be valid TSX");
+  assert.match(panelSource, /exportToExcel/);
+  assert.match(panelSource, /window\.print\(\)/);
+  assert.match(panelSource, /front-desk\?tab=arrivals/);
+  assert.match(panelSource, /front-desk\?tab=in-house/);
+  assert.match(panelSource, /Asia\/Ho_Chi_Minh/
   );
 });
 

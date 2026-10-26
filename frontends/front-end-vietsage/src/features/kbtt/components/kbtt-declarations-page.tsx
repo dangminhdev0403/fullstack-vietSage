@@ -22,6 +22,7 @@ import {
 import { useKbttPreferencesStore } from "../store/kbtt-preferences-store";
 import { kbttResource } from "../resources/kbtt-resource";
 import { useKbttConnection } from "../hooks/use-kbtt-connection";
+import { KbttDailyMovementsPanel } from "./kbtt-daily-movements-panel";
 import {
   canSelectKbttDeclaration,
   getKbttListState,
@@ -633,6 +634,10 @@ export function KbttDeclarationsPage({
   const { connection: connectionQuery } = useKbttConnection(hotelId);
   const connectionData = connectionQuery.data;
   const isConnected = connectionData?.status === "CONNECTED";
+
+  const [activeSection, setActiveSection] = useState<
+    "declarations" | "arrivals" | "departures"
+  >("declarations");
 
   const [page, setPage] = useState(1);
   const limit = useKbttPreferencesStore((state) => state.pageSize);
@@ -1341,8 +1346,65 @@ export function KbttDeclarationsPage({
       className="w-full space-y-6 pb-16 pt-1 text-slate-900"
       aria-labelledby="declarations-title"
     >
-      {/* Header */}
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Section Switch: Hồ sơ BCA / Khách đến / Khách rời */}
+      <nav
+        className="inline-flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-slate-100/80 p-1 shadow-2xs"
+        aria-label="Phân hệ lưu trú và khai báo"
+      >
+        <button
+          type="button"
+          onClick={() => setActiveSection("declarations")}
+          aria-current={activeSection === "declarations" ? "page" : undefined}
+          className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-bold transition-all ${
+            activeSection === "declarations"
+              ? "border border-slate-200 bg-white text-emerald-800 shadow-xs"
+              : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
+          }`}
+        >
+          <span>Hồ sơ BCA</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSection("arrivals")}
+          aria-current={activeSection === "arrivals" ? "page" : undefined}
+          className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-bold transition-all ${
+            activeSection === "arrivals"
+              ? "border border-slate-200 bg-white text-emerald-800 shadow-xs"
+              : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
+          }`}
+        >
+          <span>Khách đến</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSection("departures")}
+          aria-current={activeSection === "departures" ? "page" : undefined}
+          className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-bold transition-all ${
+            activeSection === "departures"
+              ? "border border-slate-200 bg-white text-emerald-800 shadow-xs"
+              : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
+          }`}
+        >
+          <span>Khách rời</span>
+        </button>
+      </nav>
+
+      {activeSection === "arrivals" ? (
+        <KbttDailyMovementsPanel
+          hotelId={hotelId}
+          kind="ARRIVAL"
+          onSwitchToDeclarations={() => setActiveSection("declarations")}
+        />
+      ) : activeSection === "departures" ? (
+        <KbttDailyMovementsPanel
+          hotelId={hotelId}
+          kind="DEPARTURE"
+          onSwitchToDeclarations={() => setActiveSection("declarations")}
+        />
+      ) : (
+        <>
+          {/* Header */}
+          <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wider text-emerald-800">
             KHÁCH ĐANG CHECK-IN
@@ -2089,6 +2151,8 @@ export function KbttDeclarationsPage({
           onOpenDetail={(row) => setSelectedOccupant(row)}
           isDevLoading={isDevLoading}
         />
+      )}
+        </>
       )}
     </div>
   );

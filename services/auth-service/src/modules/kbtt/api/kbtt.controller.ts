@@ -36,6 +36,7 @@ import {
   kbttCatalogKindSchema,
   kbttCatalogQuerySchema,
   kbttCredentialsSchema,
+  kbttDailyMovementsQuerySchema,
   kbttDevResetSchema,
   kbttDevUpdateOccupantsSchema,
   kbttPaginationQuerySchema,
@@ -167,6 +168,24 @@ export class KbttController {
       request.user.userId,
       request.user.roleId,
       parseWithZod(hotelIdParamSchema, hotelId),
+    );
+  }
+
+  @Get("daily-movements")
+  @Header("Cache-Control", "no-store")
+  @RequirePermission(["hotel.kbtt.view", "hotel.kbtt.declarations.view"])
+  @ApiOperation({ summary: "Get daily arrivals or departures movement projection" })
+  getDailyMovements(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+    @Query() query?: unknown,
+  ) {
+    const validatedQuery = parseWithZod(kbttDailyMovementsQuerySchema, query ?? {});
+    return this.service.getDailyMovements(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+      validatedQuery,
     );
   }
 

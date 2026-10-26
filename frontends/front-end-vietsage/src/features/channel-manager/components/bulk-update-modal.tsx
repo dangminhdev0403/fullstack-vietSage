@@ -7,7 +7,10 @@ import {
   showSuccessAlert,
 } from "@/libs/swal";
 import { useBulkUpdateRestrictions } from "../hooks/use-channel-manager";
-import type { RoomTypeInventory } from "../types/channel-manager.types";
+import type {
+  BulkRateAdjustment,
+  RoomTypeInventory,
+} from "../types/channel-manager.types";
 import { formatChannexBlockersExplanation } from "../types/channel-manager.types";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 
@@ -69,7 +72,14 @@ export function BulkUpdateModal({
     1, 2, 3, 4, 5, 6, 0,
   ]);
 
+  type RateMode = "SET" | "INCREASE" | "DECREASE";
+  type AdjustmentKind = BulkRateAdjustment["kind"];
+
+  const [rateMode, setRateMode] = useState<RateMode>("SET");
   const [rate, setRate] = useState<string>("");
+  const [adjustmentKind, setAdjustmentKind] =
+    useState<AdjustmentKind>("FIXED");
+  const [adjustmentValue, setAdjustmentValue] = useState<string>("");
   const [minStay, setMinStay] = useState<string>("");
   const [stopSellAction, setStopSellAction] = useState<
     "keep" | "open" | "close"
@@ -181,13 +191,44 @@ export function BulkUpdateModal({
       return;
     }
 
-    const rateNum = rate ? Number(rate) : undefined;
-    if (rate && (isNaN(Number(rate)) || Number(rate) < 0)) {
-      await showErrorAlert(
-        "Giá không hợp lệ",
-        "Mức giá phải là một số nguyên dương hợp lệ.",
-      );
-      return;
+    let rateNum: number | undefined = undefined;
+    let adjustmentPayload: BulkRateAdjustment | undefined = undefined;
+
+    if (rateMode === "SET") {
+      if (rate.trim() !== "") {
+        const parsed = Number(rate);
+        if (Number.isNaN(parsed) || !Number.isFinite(parsed) || parsed < 0) {
+          await showErrorAlert(
+            "Giá không hợp lệ",
+            "Mức giá phải là một số nguyên dương hợp lệ.",
+          );
+          return;
+        }
+        rateNum = parsed;
+      }
+    } else {
+      if (adjustmentValue.trim() !== "") {
+        const parsed = Number(adjustmentValue);
+        if (Number.isNaN(parsed) || !Number.isFinite(parsed) || parsed <= 0) {
+          await showErrorAlert(
+            "Giá trị điều chỉnh không hợp lệ",
+            "Giá trị điều chỉnh phải là một số dương lớn hơn 0.",
+          );
+          return;
+        }
+        if (adjustmentKind === "PERCENT" && parsed > 100 && rateMode === "DECREASE") {
+          await showErrorAlert(
+            "Giá trị điều chỉnh không hợp lệ",
+            "Tỷ lệ giảm giá không được vượt quá 100%.",
+          );
+          return;
+        }
+        adjustmentPayload = {
+          direction: rateMode,
+          kind: adjustmentKind,
+          value: parsed,
+        };
+      }
     }
 
     const minStayNum = minStay ? Number(minStay) : undefined;
@@ -201,6 +242,7 @@ export function BulkUpdateModal({
 
     if (
       rateNum === undefined &&
+      adjustmentPayload === undefined &&
       minStayNum === undefined &&
       stopSellAction === "keep"
     ) {
@@ -236,7 +278,10 @@ export function BulkUpdateModal({
         dateFrom,
         dateTo,
         daysOfWeek: selectedDays,
-        rate: rateNum,
+        ...(rateNum !== undefined ? { rate: rateNum } : {}),
+        ...(adjustmentPayload !== undefined
+          ? { adjustment: adjustmentPayload }
+          : {}),
         minStay: minStayNum,
         stopSell: stopSellVal,
       });
@@ -509,32 +554,178 @@ export function BulkUpdateModal({
               4. Giá trị thiết lập mới
             </label>
 
-            {/* Rate */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-slate-700">
-                  Mức giá mới (VND / đêm)
-                </span>
-                {rate && Number(rate) > 0 && (
-                  <span className="text-xs font-bold text-emerald-700">
-                    {new Intl.NumberFormat("vi-VN").format(Number(rate))} ₫
+            {/* Rate Mode Control */}
+            <fieldset disabled={isBulkUpdating} className="space-y-2">
+              <legend className="text-sm font-semibold text-slate-700">
+                Điều chỉnh giá phòng
+              </legend>
+              <div className="grid grid-cols-3 gap-2 [&_button]:focus-visible:outline-2 [&_button]:focus-visible:outline-offset-2 [&_button]:focus-visible:outline-emerald-700 [&_button]:disabled:opacity-50">
+                <button
+                  type="button"
+                  aria-pressed={rateMode === "SET"}
+                  onClick={() => setRateMode("SET")}
+                  className={
+                    "min-h-11 rounded-xl border px-3 py-2 text-sm font-bold transition-all " +
+                    (rateMode === "SET"
+                      ? "border-emerald-700 bg-emerald-700 text-white shadow-xs"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
+                  }
+                >
+                  Thiết lập
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={rateMode === "INCREASE"}
+                  onClick={() => setRateMode("INCREASE")}
+                  className={
+                    "min-h-11 rounded-xl border px-3 py-2 text-sm font-bold transition-all " +
+                    (rateMode === "INCREASE"
+                      ? "border-emerald-700 bg-emerald-700 text-white shadow-xs"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
+                  }
+                >
+                  Tăng
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={rateMode === "DECREASE"}
+                  onClick={() => setRateMode("DECREASE")}
+                  className={
+                    "min-h-11 rounded-xl border px-3 py-2 text-sm font-bold transition-all " +
+                    (rateMode === "DECREASE"
+                      ? "border-emerald-700 bg-emerald-700 text-white shadow-xs"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
+                  }
+                >
+                  Giảm
+                </button>
+              </div>
+            </fieldset>
+
+            {/* Absolute Rate Input */}
+            {rateMode === "SET" && (
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label
+                    htmlFor="bulk-rate-input"
+                    className="text-sm font-semibold text-slate-700"
+                  >
+                    Mức giá mới (VND / đêm)
+                  </label>
+                  {rate && Number(rate) > 0 && (
+                    <span className="text-xs font-bold text-emerald-700">
+                      {new Intl.NumberFormat("vi-VN").format(Number(rate))} ₫
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    id="bulk-rate-input"
+                    type="number"
+                    step="10000"
+                    placeholder="Để trống nếu không muốn đổi giá"
+                    value={rate}
+                    onChange={(e) => setRate(e.target.value)}
+                    className="w-full h-11 pl-4 pr-12 rounded-2xl border border-slate-200 bg-white text-slate-900 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
+                    VND
                   </span>
-                )}
+                </div>
               </div>
-              <div className="relative">
-                <input
-                  type="number"
-                  step="10000"
-                  placeholder="Để trống nếu không muốn đổi giá"
-                  value={rate}
-                  onChange={(e) => setRate(e.target.value)}
-                  className="w-full h-11 pl-4 pr-12 rounded-2xl border border-slate-200 bg-white text-slate-900 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
-                  VND
-                </span>
+            )}
+
+            {/* Relative Adjustment Controls */}
+            {rateMode !== "SET" && (
+              <div className="space-y-3 p-4 rounded-2xl border border-emerald-100 bg-emerald-50/40">
+                <div>
+                  <span className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    Hình thức {rateMode === "INCREASE" ? "tăng" : "giảm"}
+                  </span>
+                  <div className="grid grid-cols-2 gap-2 [&_button]:focus-visible:outline-2 [&_button]:focus-visible:outline-offset-2 [&_button]:focus-visible:outline-emerald-700 [&_button]:disabled:opacity-50">
+                    <button
+                      type="button"
+                      aria-pressed={adjustmentKind === "FIXED"}
+                      onClick={() => setAdjustmentKind("FIXED")}
+                      className={
+                        "min-h-10 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all " +
+                        (adjustmentKind === "FIXED"
+                          ? "border-emerald-700 bg-emerald-700 text-white shadow-xs"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
+                      }
+                    >
+                      Số tiền cố định (VND)
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={adjustmentKind === "PERCENT"}
+                      onClick={() => setAdjustmentKind("PERCENT")}
+                      className={
+                        "min-h-10 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all " +
+                        (adjustmentKind === "PERCENT"
+                          ? "border-emerald-700 bg-emerald-700 text-white shadow-xs"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
+                      }
+                    >
+                      Phần trăm (%)
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label
+                      htmlFor="bulk-adjustment-input"
+                      className="text-sm font-semibold text-slate-700"
+                    >
+                      Mức {rateMode === "INCREASE" ? "tăng" : "giảm"}{" "}
+                      {adjustmentKind === "FIXED" ? "(VND)" : "(%)"}
+                    </label>
+                  </div>
+                  <div className="relative">
+                    <input
+                      id="bulk-adjustment-input"
+                      type="number"
+                      step={adjustmentKind === "FIXED" ? "10000" : "1"}
+                      min="1"
+                      placeholder={
+                        adjustmentKind === "FIXED"
+                          ? "50.000 (để trống nếu không đổi)"
+                          : "10 (để trống nếu không đổi)"
+                      }
+                      value={adjustmentValue}
+                      onChange={(e) => setAdjustmentValue(e.target.value)}
+                      className="w-full h-11 pl-4 pr-14 rounded-2xl border border-slate-200 bg-white text-slate-900 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
+                      {adjustmentKind === "FIXED" ? "VND" : "%"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-emerald-100/80">
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className="font-semibold text-slate-600">
+                      Xem trước:
+                    </span>
+                    {adjustmentValue && Number(adjustmentValue) > 0 ? (
+                      <span className="font-bold text-emerald-800">
+                        {rateMode === "INCREASE" ? "Tăng +" : "Giảm -"}
+                        {adjustmentKind === "FIXED"
+                          ? `${new Intl.NumberFormat("vi-VN").format(Number(adjustmentValue))} ₫`
+                          : `${Number(adjustmentValue)}%`}{" "}
+                        so với giá hiện tại của từng ngày
+                      </span>
+                    ) : (
+                      <span className="text-slate-500 italic">
+                        Để trống sẽ giữ nguyên giá hiện tại (chỉ cập nhật điều
+                        kiện khác nếu có)
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Min stay */}
             <div>

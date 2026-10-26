@@ -41,6 +41,9 @@ import {
   type KbttCatalogKind,
   type KbttCatalogQuery,
   type KbttCredentials,
+  type KbttDailyMovementItem,
+  type KbttDailyMovementsQuery,
+  type KbttDailyMovementsResponse,
   type KbttDerivedStatus,
   type KbttSession,
 } from "../domain/schemas/kbtt.schema";
@@ -53,7 +56,11 @@ import {
   type KbttSubmitOutcome,
 } from "../infrastructure/kbtt-provider.client";
 import { KbttRepository } from "../infrastructure/kbtt.repository";
-import { formatLocalDateTime, VIETNAM_TIME_ZONE } from "../../../common/time/vietnam-temporal";
+import {
+  formatLocalDateTime,
+  getDayBounds,
+  VIETNAM_TIME_ZONE,
+} from "../../../common/time/vietnam-temporal";
 
 function formatVietnamDateTime(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
@@ -605,6 +612,92 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       totalPages: Math.max(1, Math.ceil(occupants.length / limit)),
       page,
       limit,
+    };
+  }
+
+  async getDailyMovements(
+    userId: string,
+    roleId: string,
+    hotelId: string,
+    query: KbttDailyMovementsQuery,
+  ): Promise<KbttDailyMovementsResponse> {
+    await this.access.assertHotelAccess(userId, roleId, hotelId);
+    const scope = await this.access.resolveRoomScope(userId, roleId, hotelId);
+
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.min(100, Math.max(1, query.limit ?? 50));
+
+    if (scope.mode === "ROOM_EXCLUSIVE" && !scope.allowedRoomId) {
+      return {
+        items: [],
+        total: 0,
+        page,
+        limit,
+        totalPages: 1,
+      };
+    }
+
+    const { start, end } = getDayBounds(query.date, VIETNAM_TIME_ZONE);
+    const allowedRoomId = scope.mode === "ROOM_EXCLUSIVE" ? scope.allowedRoomId : null;
+
+    if (!this.occupantsReadService) {
+      throw new Error("HotelStayOccupantsReadService is unavailable");
+    }
+
+    const result = await this.occupantsReadService.getDailyMovements(hotelId, {
+      kind: query.kind,
+      start,
+      end,
+      q: query.q,
+      allowedRoomId,
+      page,
+      limit,
+    });
+
+    const totalPages = Math.max(1, Math.ceil(result.total / limit));
+
+    const items: KbttDailyMovementItem[] = result.items.map((item) => ({
+      kind: item.kind,
+      reservationId: item.reservationId,
+      stayId: item.stayId,
+      reservationCode: item.reservationCode,
+      groupCode: item.groupCode,
+      roomId: item.roomId,
+      roomNumber: item.roomNumber,
+      guestDisplayName: item.guestDisplayName,
+      guestPhone: item.guestPhone,
+      status: item.status,
+      plannedCheckInAt: item.plannedCheckInAt
+        ? item.plannedCheckInAt instanceof Date
+          ? item.plannedCheckInAt.toISOString()
+          : item.plannedCheckInAt
+        : null,
+      plannedCheckOutAt: item.plannedCheckOutAt
+        ? item.plannedCheckOutAt instanceof Date
+          ? item.plannedCheckOutAt.toISOString()
+          : item.plannedCheckOutAt
+        : null,
+      actualCheckInAt: item.checkedInAt
+        ? item.checkedInAt instanceof Date
+          ? item.checkedInAt.toISOString()
+          : item.checkedInAt
+        : null,
+      actualCheckOutAt: item.checkedOutAt
+        ? item.checkedOutAt instanceof Date
+          ? item.checkedOutAt.toISOString()
+          : item.checkedOutAt
+        : null,
+      occupantCount: item.occupantCount,
+      canCheckIn: item.canCheckIn,
+      canCheckOut: item.canCheckOut,
+    }));
+
+    return {
+      items,
+      total: result.total,
+      page,
+      limit,
+      totalPages,
     };
   }
 

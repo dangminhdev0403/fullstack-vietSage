@@ -11,6 +11,7 @@ import { PrismaService } from "../../../prisma/prisma.service";
 import {
   AvailabilityItemDto,
   BulkUpdateRestrictionsDto,
+  RateAdjustmentDto,
   RestrictionItemDto,
 } from "../domain/schemas/channel-manager.schema";
 import {
@@ -54,6 +55,30 @@ export interface InventoryGridResult {
   startDate: string;
   endDate: string;
   roomTypes: InventoryGridRoomType[];
+}
+
+/**
+ * Tính toán giá sau điều chỉnh tương đối (FIXED hoặc PERCENT) và làm tròn 2 chữ số thập phân
+ */
+export function calculateAdjustedRate(
+  currentRate: number,
+  adjustment: RateAdjustmentDto,
+): number {
+  let raw: number;
+  if (adjustment.kind === "FIXED") {
+    raw =
+      adjustment.direction === "INCREASE"
+        ? currentRate + adjustment.value
+        : currentRate - adjustment.value;
+  } else {
+    const factor = adjustment.value / 100;
+    raw =
+      adjustment.direction === "INCREASE"
+        ? currentRate * (1 + factor)
+        : currentRate * (1 - factor);
+  }
+
+  return raw < 0 ? raw : Math.round((raw + Number.EPSILON) * 100) / 100;
 }
 
 @Injectable()
@@ -412,6 +437,38 @@ export class AriCoreService {
     updatedDatesCount: number;
     updatedTotalCount: number;
   }> {
+    const adjustment = payload.adjustment;
+
+    if (payload.rate !== undefined && adjustment !== undefined) {
+      throw new BadRequestException(
+        "Không thể cung cấp đồng thời giá cố định (rate) và điều chỉnh giá tương đối (adjustment)",
+      );
+    }
+
+    if (adjustment) {
+      if (
+        !adjustment.direction ||
+        !adjustment.kind ||
+        typeof adjustment.value !== "number" ||
+        adjustment.value <= 0 ||
+        !Number.isFinite(adjustment.value)
+      ) {
+        throw new BadRequestException(
+          "Thông tin điều chỉnh giá tương đối không hợp lệ: yêu cầu direction (INCREASE|DECREASE), kind (FIXED|PERCENT) và value > 0",
+        );
+      }
+      if (!["INCREASE", "DECREASE"].includes(adjustment.direction)) {
+        throw new BadRequestException(
+          `Hướng điều chỉnh không hợp lệ: ${adjustment.direction}`,
+        );
+      }
+      if (!["FIXED", "PERCENT"].includes(adjustment.kind)) {
+        throw new BadRequestException(
+          `Loại điều chỉnh không hợp lệ: ${adjustment.kind}`,
+        );
+      }
+    }
+
     const targetRoomTypes = Array.from(new Set(payload.roomTypes.map((rt) => rt.trim())));
     await this.readinessService.assertReady(hotelId, targetRoomTypes, {
       ratePlanCode: payload.ratePlanCode,
@@ -435,13 +492,19 @@ export class AriCoreService {
     }
 
     const ratePlanCode = payload.ratePlanCode || "STANDARD";
-    let updatedTotalCount = 0;
+
+    // Tính toán và kiểm tra toàn bộ trước khi ghi dữ liệu để đảm bảo tính nguyên tử (atomicity)
+    const plannedUpdates: Array<{
+      roomType: string;
+      date: Date;
+      effectiveRate: number;
+      isRateUpdate: boolean;
+    }> = [];
 
     for (const roomType of payload.roomTypes) {
       for (const d of matchingDates) {
         const date = new Date(`${d}T00:00:00.000Z`);
 
-        // Tìm bản ghi hiện tại nếu có để giữ nguyên rate nếu không truyền rate mới
         const existing = await this.prisma.channelDailyRestriction.findUnique({
           where: {
             hotelId_roomType_ratePlanCode_date: {
@@ -453,55 +516,93 @@ export class AriCoreService {
           },
         });
 
-        if (payload.rate === undefined && !existing) {
-          throw new BadRequestException(
-            `Hạng phòng ${roomType} chưa có giá trong DB; vui lòng nhập giá khi cập nhật`,
-          );
-        }
-        const effectiveRate = payload.rate ?? Number(existing!.rate);
-
-        await this.prisma.channelDailyRestriction.upsert({
-          where: {
-            hotelId_roomType_ratePlanCode_date: {
-              hotelId,
-              roomType,
-              ratePlanCode,
-              date,
-            },
-          },
-          create: {
-            hotelId,
+        if (adjustment) {
+          if (!existing || existing.rate === null || existing.rate === undefined) {
+            throw new BadRequestException(
+              `Hạng phòng ${roomType} ngày ${d} chưa có giá trong DB; không thể áp dụng điều chỉnh tương đối`,
+            );
+          }
+          const currentRate = Number(existing.rate);
+          const calculatedRate = calculateAdjustedRate(currentRate, adjustment);
+          if (calculatedRate < 0) {
+            throw new BadRequestException(
+              `Giá sau khi điều chỉnh cho hạng phòng ${roomType} ngày ${d} không được nhỏ hơn 0 (kết quả: ${calculatedRate})`,
+            );
+          }
+          plannedUpdates.push({
             roomType,
-            ratePlanCode,
             date,
-            rate: effectiveRate,
-            minStayArrival: payload.minStayArrival ?? 1,
-            minStayThrough: payload.minStayThrough ?? 1,
-            maxStay: payload.maxStay ?? 0,
-            stopSell: payload.stopSell ?? false,
-            closedToArrival: payload.closedToArrival ?? false,
-            closedToDeparture: payload.closedToDeparture ?? false,
-          },
-          update: {
-            ...(payload.rate !== undefined ? { rate: payload.rate } : {}),
-            ...(payload.minStayArrival !== undefined
-              ? { minStayArrival: payload.minStayArrival }
-              : {}),
-            ...(payload.minStayThrough !== undefined
-              ? { minStayThrough: payload.minStayThrough }
-              : {}),
-            ...(payload.maxStay !== undefined ? { maxStay: payload.maxStay } : {}),
-            ...(payload.stopSell !== undefined ? { stopSell: payload.stopSell } : {}),
-            ...(payload.closedToArrival !== undefined
-              ? { closedToArrival: payload.closedToArrival }
-              : {}),
-            ...(payload.closedToDeparture !== undefined
-              ? { closedToDeparture: payload.closedToDeparture }
-              : {}),
-          },
-        });
-        updatedTotalCount += 1;
+            effectiveRate: calculatedRate,
+            isRateUpdate: true,
+          });
+        } else if (payload.rate !== undefined) {
+          plannedUpdates.push({
+            roomType,
+            date,
+            effectiveRate: payload.rate,
+            isRateUpdate: true,
+          });
+        } else {
+          // Cập nhật hạn chế thuần túy (restriction-only)
+          if (!existing) {
+            throw new BadRequestException(
+              `Hạng phòng ${roomType} chưa có giá trong DB; vui lòng nhập giá khi cập nhật`,
+            );
+          }
+          plannedUpdates.push({
+            roomType,
+            date,
+            effectiveRate: Number(existing.rate),
+            isRateUpdate: false,
+          });
+        }
       }
+    }
+
+    let updatedTotalCount = 0;
+
+    for (const item of plannedUpdates) {
+      await this.prisma.channelDailyRestriction.upsert({
+        where: {
+          hotelId_roomType_ratePlanCode_date: {
+            hotelId,
+            roomType: item.roomType,
+            ratePlanCode,
+            date: item.date,
+          },
+        },
+        create: {
+          hotelId,
+          roomType: item.roomType,
+          ratePlanCode,
+          date: item.date,
+          rate: item.effectiveRate,
+          minStayArrival: payload.minStayArrival ?? 1,
+          minStayThrough: payload.minStayThrough ?? 1,
+          maxStay: payload.maxStay ?? 0,
+          stopSell: payload.stopSell ?? false,
+          closedToArrival: payload.closedToArrival ?? false,
+          closedToDeparture: payload.closedToDeparture ?? false,
+        },
+        update: {
+          ...(item.isRateUpdate ? { rate: item.effectiveRate } : {}),
+          ...(payload.minStayArrival !== undefined
+            ? { minStayArrival: payload.minStayArrival }
+            : {}),
+          ...(payload.minStayThrough !== undefined
+            ? { minStayThrough: payload.minStayThrough }
+            : {}),
+          ...(payload.maxStay !== undefined ? { maxStay: payload.maxStay } : {}),
+          ...(payload.stopSell !== undefined ? { stopSell: payload.stopSell } : {}),
+          ...(payload.closedToArrival !== undefined
+            ? { closedToArrival: payload.closedToArrival }
+            : {}),
+          ...(payload.closedToDeparture !== undefined
+            ? { closedToDeparture: payload.closedToDeparture }
+            : {}),
+        },
+      });
+      updatedTotalCount += 1;
     }
 
     return {

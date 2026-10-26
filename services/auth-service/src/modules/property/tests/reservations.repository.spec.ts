@@ -45,7 +45,7 @@ describe("ReservationsRepository arrival reads", () => {
     expect(prisma.reservation.findMany).toHaveBeenCalledTimes(1);
   });
 
-  it("searches arrivals by guest, phone, reservation code, or room number", async () => {
+  it("searches arrivals by guest, phone, reservation code, group code, or room number", async () => {
     const prisma = {
       reservation: {
         count: jest.fn().mockResolvedValue(0),
@@ -69,9 +69,48 @@ describe("ReservationsRepository arrival reads", () => {
           { guestDisplayName: { contains: "Minh", mode: "insensitive" } },
           { guestPhone: { contains: "Minh" } },
           { reservationCode: { contains: "Minh", mode: "insensitive" } },
+          { groupCode: { contains: "Minh", mode: "insensitive" } },
           { room: { roomNumber: { contains: "Minh", mode: "insensitive" } } },
         ],
       }),
+    });
+  });
+
+  it("includes case-insensitive groupCode search while preserving hotel, date, status, and room scope", async () => {
+    const prisma = {
+      reservation: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    };
+    const repository = new ReservationsRepository(prisma as never);
+    const from = new Date("2026-09-19T00:00:00.000Z");
+    const to = new Date("2026-09-20T00:00:00.000Z");
+
+    await repository.listArrivals({
+      hotelId: "hotel-1",
+      from,
+      to,
+      roomId: "room-1",
+      q: " GRP-99 ",
+      skip: 0,
+      take: 20,
+    });
+
+    expect(prisma.reservation.count).toHaveBeenCalledWith({
+      where: {
+        hotelId: "hotel-1",
+        status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY] },
+        plannedCheckInAt: { gte: from, lt: to },
+        roomId: "room-1",
+        OR: [
+          { guestDisplayName: { contains: "GRP-99", mode: "insensitive" } },
+          { guestPhone: { contains: "GRP-99" } },
+          { reservationCode: { contains: "GRP-99", mode: "insensitive" } },
+          { groupCode: { contains: "GRP-99", mode: "insensitive" } },
+          { room: { roomNumber: { contains: "GRP-99", mode: "insensitive" } } },
+        ],
+      },
     });
   });
 });
