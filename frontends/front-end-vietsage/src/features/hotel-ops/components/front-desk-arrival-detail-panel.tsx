@@ -6,13 +6,15 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
-import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
+import { staffRoomsRepository } from "@/features/hotel-ops/repositories/staff-rooms-repository";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import type { HotelArrival } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { getArrivalStatusDisplay } from "@/features/hotel-ops/utils/hotel-ops-display";
 import { CheckInWorkspace } from "@/features/local-biometric/components/check-in-workspace";
 import type { CheckInStayFields } from "@/features/local-biometric/types/check-in-workspace";
+import { BookingConfirmationModal } from "@/features/hotel-ops/components/booking-confirmation-modal";
+import { GroupOperationsDrawer } from "@/features/hotel-ops/components/group-operations-drawer";
 import {
   formatFriendlyCheckInError,
   isEarlyCheckInError,
@@ -103,6 +105,15 @@ export function FrontDeskArrivalDetailPanel({
   const [isMarkingNoShow, setIsMarkingNoShow] = useState<boolean>(false);
   const [isCheckInWorkspaceOpen, setIsCheckInWorkspaceOpen] = useState<boolean>(false);
   const [checkInError, setCheckInError] = useState<string | undefined>();
+  const [isConfirmationOpen, setIsConfirmationOpen] = useState<boolean>(false);
+  const [isGroupDrawerOpen, setIsGroupDrawerOpen] = useState<boolean>(false);
+  const [depositMode, setDepositMode] = useState<"AMOUNT" | "PERCENT">("AMOUNT");
+  const [depositPercent, setDepositPercent] = useState<string>("30");
+  const [depositAmount, setDepositAmount] = useState<string>("");
+  const [depositMethod, setDepositMethod] = useState<"CASH" | "BANK_TRANSFER" | "CARD" | "QR">("BANK_TRANSFER");
+  const [depositReference, setDepositReference] = useState<string>("");
+  const [isSubmittingDeposit, setIsSubmittingDeposit] = useState<boolean>(false);
+  const [isSubmittingReceivable, setIsSubmittingReceivable] = useState<boolean>(false);
 
   // Synchronize state when arrival changes without cascading render effect
   if (arrival && arrival.id !== prevArrivalId) {
@@ -113,6 +124,12 @@ export function FrontDeskArrivalDetailPanel({
     setCheckInError(undefined);
     setIsCancelling(false);
     setIsMarkingNoShow(false);
+    setIsConfirmationOpen(false);
+    setIsGroupDrawerOpen(false);
+    setDepositMode("AMOUNT");
+    setDepositPercent("30");
+    setDepositAmount("");
+    setDepositReference("");
   }
 
   // Keyboard navigation and focus trap
@@ -173,6 +190,27 @@ export function FrontDeskArrivalDetailPanel({
     return items.filter((r) => r.status === "AVAILABLE" || r.id === arrival?.roomId);
   }, [roomsPage?.items, arrival?.roomId]);
 
+  const { data: bookingPaymentsPage, refetch: refetchBookingPayments } = useQuery({
+    ...staffRoomsResource.bind({ hotelId }).queries.bookingPayments.options({
+      reservationId: arrival?.id,
+      groupCode: arrival?.groupCode || undefined,
+    }),
+    enabled: Boolean(isOpen && arrival?.id),
+    staleTime: 10_000,
+  });
+
+  const { data: receivablesPage, refetch: refetchReceivables } = useQuery({
+    ...staffRoomsResource.bind({ hotelId }).queries.receivables.options({
+      reservationId: arrival?.id,
+      groupCode: arrival?.groupCode || undefined,
+    }),
+    enabled: Boolean(isOpen && arrival?.id),
+    staleTime: 10_000,
+  });
+
+  const bookingPayments = bookingPaymentsPage?.items ?? [];
+  const receivables = receivablesPage?.items ?? [];
+
   if (!isOpen || !arrival) {
     return null;
   }
@@ -215,13 +253,9 @@ export function FrontDeskArrivalDetailPanel({
 
     setIsSubmittingRoom(true);
     try {
-      await requestInternalApiEnvelope(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(arrival.id)}/room`,
-        {
-          method: "PUT",
-          body: { roomId: selectedRoomId },
-        },
-      );
+      await staffRoomsRepository.assignReservationRoom(hotelId, arrival.id, {
+        roomId: selectedRoomId,
+      });
 
       await showSuccessAlert(
         "Gán phòng thành công",
@@ -308,30 +342,23 @@ export function FrontDeskArrivalDetailPanel({
 
     try {
       // First request NEVER sends early/late override
-      const res = await requestInternalApiEnvelope<{
-        accessCode: string;
-        stayId: string;
-        guestUrl?: string;
-        idempotent?: boolean;
-      }>(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(arrival.id)}/check-in`,
-        {
-          method: "POST",
-          body: basePayload,
-        },
+      const resData = await staffRoomsRepository.checkInReservation(
+        hotelId,
+        arrival.id,
+        basePayload,
       );
 
       setIsCheckInWorkspaceOpen(false);
 
-      if (res.data?.idempotent) {
+      if (resData?.idempotent) {
         await showSuccessAlert(
           "Đã nhận phòng trước đó",
-          formatSuccessSummary(true, res.data?.accessCode),
+          formatSuccessSummary(true, resData?.accessCode),
         );
       } else {
         await showSuccessAlert(
           "Nhận phòng thành công",
-          formatSuccessSummary(false, res.data?.accessCode),
+          formatSuccessSummary(false, resData?.accessCode),
         );
       }
 
@@ -360,35 +387,28 @@ export function FrontDeskArrivalDetailPanel({
           setIsCheckingIn(true);
           try {
             // Only explicit warning confirmation retries with matching flag
-            const retryRes = await requestInternalApiEnvelope<{
-              accessCode: string;
-              stayId: string;
-              guestUrl?: string;
-              idempotent?: boolean;
-            }>(
-              `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(arrival.id)}/check-in`,
+            const retryData = await staffRoomsRepository.checkInReservation(
+              hotelId,
+              arrival.id,
               {
-                method: "POST",
-                body: {
-                  ...basePayload,
-                  ...(isEarly
-                    ? { confirmEarlyCheckIn: true }
-                    : { confirmLateCheckIn: true }),
-                },
+                ...basePayload,
+                ...(isEarly
+                  ? { confirmEarlyCheckIn: true }
+                  : { confirmLateCheckIn: true }),
               },
             );
 
             setIsCheckInWorkspaceOpen(false);
 
-            if (retryRes.data?.idempotent) {
+            if (retryData?.idempotent) {
               await showSuccessAlert(
                 "Đã nhận phòng trước đó",
-                formatSuccessSummary(true, retryRes.data?.accessCode),
+                formatSuccessSummary(true, retryData?.accessCode),
               );
             } else {
               await showSuccessAlert(
                 "Nhận phòng thành công",
-                formatSuccessSummary(false, retryRes.data?.accessCode),
+                formatSuccessSummary(false, retryData?.accessCode),
               );
             }
 
@@ -440,13 +460,7 @@ export function FrontDeskArrivalDetailPanel({
 
     setIsCancelling(true);
     try {
-      await requestInternalApiEnvelope(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(arrival.id)}/cancel`,
-        {
-          method: "POST",
-          body: {},
-        },
-      );
+      await staffRoomsRepository.cancelReservation(hotelId, arrival.id, {});
 
       await showSuccessAlert(
         "Hủy đặt phòng thành công",
@@ -486,13 +500,7 @@ export function FrontDeskArrivalDetailPanel({
 
     setIsMarkingNoShow(true);
     try {
-      await requestInternalApiEnvelope(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(arrival.id)}/no-show`,
-        {
-          method: "POST",
-          body: {},
-        },
-      );
+      await staffRoomsRepository.markNoShowReservation(hotelId, arrival.id, {});
 
       await showSuccessAlert(
         "Ghi nhận vắng mặt thành công",
@@ -509,6 +517,100 @@ export function FrontDeskArrivalDetailPanel({
       );
     } finally {
       setIsMarkingNoShow(false);
+    }
+  }
+
+  async function handleCreateDeposit() {
+    if (!arrival) return;
+    setIsSubmittingDeposit(true);
+    try {
+      await staffRoomsRepository.createBookingPayment(hotelId, {
+        reservationId: arrival.id,
+        groupCode: arrival.groupCode || undefined,
+        paymentType: "DEPOSIT",
+        inputMode: depositMode,
+        percentValue: depositMode === "PERCENT" ? Number(depositPercent) : undefined,
+        amount: depositMode === "AMOUNT" ? Number(depositAmount) : undefined,
+        paymentMethod: depositMethod,
+        referenceCode: depositReference.trim() || undefined,
+      });
+
+      const refreshedPayments = await staffRoomsRepository.listBookingPayments(hotelId, {
+        reservationId: arrival.id,
+        groupCode: arrival.groupCode || undefined,
+      });
+      if (refreshedPayments) {
+        void refetchBookingPayments();
+      }
+      setDepositAmount("");
+      setDepositReference("");
+      await showSuccessAlert(
+        "Đã ghi nhận đặt cọc",
+        `Đã lưu khoản đặt cọc cho đơn #${arrival.reservationCode}.`,
+      );
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
+    } catch (err) {
+      await showErrorAlert(
+        "Không thể ghi nhận đặt cọc",
+        err instanceof Error ? err.message : "Đã có lỗi xảy ra khi lưu khoản đặt cọc.",
+      );
+    } finally {
+      setIsSubmittingDeposit(false);
+    }
+  }
+
+  async function handleTransferStayToReceivable(stayId: string) {
+    if (!arrival || !stayId) return;
+    setIsSubmittingReceivable(true);
+    try {
+      await staffRoomsRepository.transferStayToReceivable(hotelId, stayId, {
+        debtorName: arrival.guestDisplayName,
+        contactPhone: arrival.guestPhone || undefined,
+        amount: totalEstimated,
+      });
+      await staffRoomsRepository.listReceivables(hotelId, {
+        reservationId: arrival.id,
+        groupCode: arrival.groupCode || undefined,
+      });
+      void refetchReceivables();
+      await showSuccessAlert(
+        "Chuyển công nợ thành công",
+        `Đã chuyển khoản phải thu cho khách ${arrival.guestDisplayName}.`,
+      );
+    } catch (err) {
+      await showErrorAlert(
+        "Không thể chuyển công nợ",
+        err instanceof Error ? err.message : "Đã có lỗi xảy ra khi chuyển công nợ.",
+      );
+    } finally {
+      setIsSubmittingReceivable(false);
+    }
+  }
+
+  async function handleCollectReceivable(receivableId: string, amount: number) {
+    if (!receivableId) return;
+    setIsSubmittingReceivable(true);
+    try {
+      await staffRoomsRepository.collectReceivable(hotelId, receivableId, {
+        amount,
+        paymentMethod: depositMethod,
+      });
+      await staffRoomsRepository.listReceivables(hotelId, {
+        reservationId: arrival?.id,
+        groupCode: arrival?.groupCode || undefined,
+      });
+      void refetchReceivables();
+      await showSuccessAlert(
+        "Thu hồi công nợ thành công",
+        "Đã cập nhật khoản thanh toán công nợ.",
+      );
+    } catch (err) {
+      await showErrorAlert(
+        "Không thể thu công nợ",
+        err instanceof Error ? err.message : "Đã có lỗi xảy ra khi thu công nợ.",
+      );
+    } finally {
+      setIsSubmittingReceivable(false);
     }
   }
 
@@ -660,9 +762,25 @@ export function FrontDeskArrivalDetailPanel({
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-slate-600">Đoàn / Ghi chú:</span>
-                      <span className="font-semibold text-slate-800 text-sm">
-                        {arrival.groupCode ? `Đoàn #${arrival.groupCode}` : "Khách lẻ (không ghi chú)"}
-                      </span>
+                      {arrival.groupCode ? (
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-purple-700 text-sm font-mono bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                            #{arrival.groupCode}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setIsGroupDrawerOpen(true)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-purple-300 bg-purple-50 px-2.5 py-1 text-xs font-bold text-purple-700 hover:bg-purple-100 hover:text-purple-900 transition-all cursor-pointer whitespace-nowrap shadow-2xs min-h-[32px]"
+                          >
+                            <VsIcon name="groups" className="h-3.5 w-3.5 text-purple-600" />
+                            <span>Mở quản lý đoàn</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="font-semibold text-slate-800 text-sm">
+                          Khách lẻ (không ghi chú)
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-slate-600">Trạng thái:</span>
@@ -833,6 +951,136 @@ export function FrontDeskArrivalDetailPanel({
                 </div>
               )}
             </section>
+
+            {/* Section 4: Deposit & Receivables */}
+            <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <VsIcon name="payments" className="text-emerald-600 text-xl" />
+                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-800 text-balance">
+                    Đặt cọc & Thanh toán trước
+                  </h3>
+                </div>
+                <span className="text-xs font-bold text-slate-600 whitespace-nowrap">
+                  Đã ghi nhận: {bookingPayments.length} giao dịch
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                <div>
+                  <label htmlFor="arrival-deposit-mode" className="block text-xs font-bold text-slate-700 mb-1">
+                    Hình thức tính cọc
+                  </label>
+                  <select
+                    id="arrival-deposit-mode"
+                    value={depositMode}
+                    onChange={(e) => setDepositMode(e.target.value as "AMOUNT" | "PERCENT")}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
+                  >
+                    <option value="AMOUNT">Theo số tiền (VND)</option>
+                    <option value="PERCENT">Theo tỷ lệ (%)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="arrival-deposit-value" className="block text-xs font-bold text-slate-700 mb-1">
+                    {depositMode === "PERCENT" ? "Tỷ lệ cọc (%)" : "Số tiền cọc (VND)"}
+                  </label>
+                  {depositMode === "PERCENT" ? (
+                    <input
+                      id="arrival-deposit-value"
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={depositPercent}
+                      onChange={(e) => setDepositPercent(e.target.value)}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
+                    />
+                  ) : (
+                    <input
+                      id="arrival-deposit-value"
+                      type="number"
+                      min={0}
+                      value={depositAmount}
+                      onChange={(e) => setDepositAmount(e.target.value)}
+                      placeholder="Nhập số tiền đặt cọc"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
+                    />
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="arrival-deposit-method" className="block text-xs font-bold text-slate-700 mb-1">
+                    Phương thức
+                  </label>
+                  <select
+                    id="arrival-deposit-method"
+                    value={depositMethod}
+                    onChange={(e) => setDepositMethod(e.target.value as "CASH" | "BANK_TRANSFER" | "CARD" | "QR")}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
+                  >
+                    <option value="BANK_TRANSFER">Chuyển khoản</option>
+                    <option value="CASH">Tiền mặt</option>
+                    <option value="CARD">Thẻ ngân hàng</option>
+                    <option value="QR">Quét mã QR</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={isSubmittingDeposit || isSubmittingReceivable}
+                    onClick={() => void handleCreateDeposit()}
+                    className="inline-flex min-h-[38px] w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-bold text-white transition cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                  >
+                    <VsIcon name="add_card" className="text-sm" />
+                    <span>{isSubmittingDeposit ? "Đang lưu..." : "Ghi nhận đặt cọc"}</span>
+                  </button>
+                </div>
+              </div>
+
+              {receivables.length > 0 ? (
+                <div className="pt-3 border-t border-slate-100 space-y-2">
+                  <div className="text-xs font-bold text-slate-700">
+                    Công nợ liên kết ({receivables.length})
+                  </div>
+                  <div className="space-y-1.5">
+                    {receivables.map((rec) => (
+                      <div key={rec.id} className="flex items-center justify-between text-xs text-slate-700">
+                        <span>
+                          {rec.debtorName} · Còn lại: <strong>{formatVnd(rec.balanceAmount ?? rec.amount)}</strong>
+                        </span>
+                        {rec.status !== "SETTLED" ? (
+                          <button
+                            type="button"
+                            disabled={isSubmittingReceivable}
+                            onClick={() => void handleCollectReceivable(rec.id, Number(rec.balanceAmount ?? rec.amount ?? 0))}
+                            className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-800 hover:bg-blue-100 cursor-pointer whitespace-nowrap"
+                          >
+                            <span>Thu công nợ</span>
+                          </button>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (arrival as { activeStayId?: string | null }).activeStayId ? (
+                <div className="pt-2 border-t border-slate-100 flex justify-end">
+                  <button
+                    type="button"
+                    disabled={isSubmittingReceivable}
+                    onClick={() =>
+                      void handleTransferStayToReceivable(
+                        String((arrival as { activeStayId?: string | null }).activeStayId),
+                      )
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer whitespace-nowrap"
+                  >
+                    <span>Chuyển vào công nợ phải thu</span>
+                  </button>
+                </div>
+              ) : null}
+            </section>
           </div>
 
           {/* Footer Actions Bar */}
@@ -872,6 +1120,15 @@ export function FrontDeskArrivalDetailPanel({
             </div>
 
             <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsConfirmationOpen(true)}
+                className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-slate-700 font-bold text-xs sm:text-sm shadow-2xs transition-all hover:bg-slate-50 hover:text-slate-900 cursor-pointer whitespace-nowrap"
+              >
+                <VsIcon name="print" className="text-base text-slate-600" />
+                <span>{arrival.groupCode ? "In phiếu đoàn" : "In phiếu xác nhận"}</span>
+              </button>
+
               <button
                 type="button"
                 onClick={onClose}
@@ -956,6 +1213,31 @@ export function FrontDeskArrivalDetailPanel({
             setIsCheckInWorkspaceOpen(false);
             setCheckInError(undefined);
           }}
+        />
+      ) : null}
+
+      {isConfirmationOpen ? (
+        <BookingConfirmationModal
+          isOpen={isConfirmationOpen}
+          onClose={() => setIsConfirmationOpen(false)}
+          hotelId={hotelId}
+          reservationId={arrival.id}
+          groupCode={arrival.groupCode}
+          mode={arrival.groupCode ? "group" : "single"}
+        />
+      ) : null}
+
+      {arrival.groupCode ? (
+        <GroupOperationsDrawer
+          isOpen={isGroupDrawerOpen}
+          onClose={() => setIsGroupDrawerOpen(false)}
+          hotelId={hotelId}
+          groupCode={arrival.groupCode}
+          initialArrivals={[arrival]}
+          todayYmd={todayYmd}
+          canOperateArrivals={canOperateArrivals}
+          canCheckInStay={canCheckInStay}
+          canCheckOutStay={Boolean(canManageReservations || canOperateArrivals)}
         />
       ) : null}
     </>

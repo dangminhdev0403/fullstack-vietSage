@@ -113,6 +113,88 @@ describe("ReservationsRepository arrival reads", () => {
       },
     });
   });
+
+  describe("Confirmation Queries (Lane C)", () => {
+    it("returns reservation confirmation data when hotelId matches", async () => {
+      const mockReservation = {
+        id: "res-1",
+        hotelId: "hotel-1",
+        reservationCode: "RES001",
+        chargeLines: [],
+        bookingPayments: [],
+      };
+      const prisma = {
+        reservation: {
+          findUnique: jest.fn().mockResolvedValue(mockReservation),
+        },
+      };
+      const repository = new ReservationsRepository(prisma as never);
+
+      const result = await repository.findReservationConfirmation("hotel-1", "res-1");
+      expect(result).toBe(mockReservation);
+    });
+
+    it("throws NotFoundException when reservation is not found", async () => {
+      const prisma = {
+        reservation: {
+          findUnique: jest.fn().mockResolvedValue(null),
+        },
+      };
+      const repository = new ReservationsRepository(prisma as never);
+
+      await expect(
+        repository.findReservationConfirmation("hotel-1", "missing-id"),
+      ).rejects.toThrow("Không tìm thấy thông tin đặt phòng");
+    });
+
+    it("throws NotFoundException when reservation belongs to another hotelId (cross-hotel rejection)", async () => {
+      const prisma = {
+        reservation: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: "res-1",
+            hotelId: "other-hotel",
+          }),
+        },
+      };
+      const repository = new ReservationsRepository(prisma as never);
+
+      await expect(
+        repository.findReservationConfirmation("hotel-1", "res-1"),
+      ).rejects.toThrow("Đặt phòng không thuộc khách sạn này");
+    });
+
+    it("returns group confirmation when reservations belong to hotelId", async () => {
+      const mockHotel = { id: "hotel-1", name: "Hotel 1" };
+      const mockReservations = [
+        { id: "res-1", hotelId: "hotel-1", groupCode: "GRP1" },
+      ];
+      const prisma = {
+        hotel: { findUnique: jest.fn().mockResolvedValue(mockHotel) },
+        reservation: { findMany: jest.fn().mockResolvedValue(mockReservations) },
+        reservationGroup: { findFirst: jest.fn().mockResolvedValue(null) },
+      };
+      const repository = new ReservationsRepository(prisma as never);
+
+      const result = await repository.findGroupConfirmation("hotel-1", "GRP1");
+      expect(result.hotel).toBe(mockHotel);
+      expect(result.reservations).toBe(mockReservations);
+    });
+
+    it("throws NotFoundException for group confirmation cross-hotel access", async () => {
+      const prisma = {
+        hotel: { findUnique: jest.fn().mockResolvedValue({ id: "hotel-1" }) },
+        reservation: {
+          findMany: jest.fn().mockResolvedValue([]),
+          findFirst: jest.fn().mockResolvedValue({ hotelId: "other-hotel" }),
+        },
+      };
+      const repository = new ReservationsRepository(prisma as never);
+
+      await expect(
+        repository.findGroupConfirmation("hotel-1", "GRP1"),
+      ).rejects.toThrow("Đoàn đặt phòng không thuộc khách sạn này");
+    });
+  });
 });
 
 describe("ReservationsRepository transactional lifecycle", () => {

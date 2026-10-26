@@ -25,6 +25,8 @@ import {
   roomPlanQuerySchema,
   updateReservationPlacementBodySchema,
   updateReservationDatesBodySchema,
+  groupCodeParamSchema,
+  updateGroupReservationBodySchema,
 } from "../domain/schemas/reservations.schema";
 import { hotelIdParamSchema, reservationIdParamSchema } from "../domain/schemas/shared.schema";
 
@@ -86,6 +88,70 @@ const checkInResponseSchema = {
       required: ["id", "status"],
       properties: { id: { type: "string" }, status: { type: "string", enum: ["ACTIVE"] } },
     },
+  },
+};
+
+const groupReservationItemSchema = {
+  type: "object",
+  required: ["id", "reservationCode", "status", "plannedCheckInAt", "plannedCheckOutAt"],
+  properties: {
+    id: { type: "string" },
+    reservationCode: { type: "string" },
+    roomId: { type: "string", nullable: true },
+    roomNumber: { type: "string", nullable: true },
+    roomName: { type: "string", nullable: true },
+    roomTypeId: { type: "string", nullable: true },
+    roomTypeName: { type: "string", nullable: true },
+    roomTypeCode: { type: "string", nullable: true },
+    guestDisplayName: { type: "string" },
+    guestPhone: { type: "string", nullable: true },
+    status: {
+      type: "string",
+      enum: ["CONFIRMED", "ARRIVAL_READY", "CHECKED_IN", "CANCELLED", "NO_SHOW"],
+    },
+    plannedCheckInAt: { type: "string", format: "date-time" },
+    plannedCheckOutAt: { type: "string", format: "date-time" },
+    nightlyRateSnapshot: { type: "string", nullable: true },
+    baseNightlyRateSnapshot: { type: "string", nullable: true },
+    guestCount: { type: "integer", nullable: true },
+    notes: { type: "string", nullable: true },
+    nights: { type: "integer" },
+    estimatedAmount: { type: "number" },
+    createdAt: { type: "string", format: "date-time" },
+    updatedAt: { type: "string", format: "date-time" },
+  },
+};
+
+const groupReservationDetailResponseSchema = {
+  type: "object",
+  required: [
+    "groupCode",
+    "leadGuestName",
+    "totalRooms",
+    "checkedInRooms",
+    "arrivingRooms",
+    "totalEstimatedAmount",
+    "reservations",
+  ],
+  properties: {
+    groupCode: { type: "string" },
+    groupName: { type: "string", nullable: true },
+    leadGuestName: { type: "string" },
+    leadGuestPhone: { type: "string", nullable: true },
+    notes: { type: "string", nullable: true },
+    sourceCategory: { type: "string", nullable: true },
+    sourcePartnerId: { type: "string", nullable: true },
+    sourcePartnerName: { type: "string", nullable: true },
+    totalRooms: { type: "integer" },
+    checkedInRooms: { type: "integer" },
+    arrivingRooms: { type: "integer" },
+    totalEstimatedAmount: { type: "number" },
+    reservations: {
+      type: "array",
+      items: groupReservationItemSchema,
+    },
+    createdAt: { type: "string", format: "date-time" },
+    updatedAt: { type: "string", format: "date-time" },
   },
 };
 
@@ -500,6 +566,7 @@ export class ReservationsController {
     );
   }
 
+  @RequirePermission("hotel.reservations.manage")
   @Post(":hotelId/reservations/group")
   async createGroupReservations(
     @Req() request: RequestWithUser,
@@ -507,5 +574,111 @@ export class ReservationsController {
     @Body() body: unknown,
   ) {
     return this.createBulkReservations(request, hotelIdParam, body);
+  }
+
+  @RequirePermission(["hotel.reservations.view", "hotel.reservations.manage"])
+  @SuccessMessage("Lấy phiếu xác nhận đoàn thành công")
+  @ApiDescript("Lấy phiếu xác nhận đặt phòng theo đoàn bao gồm thông tin đoàn và từng phòng")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "groupCode", type: String })
+  @Get(":hotelId/reservations/groups/:groupCode/confirmation")
+  async getGroupConfirmation(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("groupCode") groupCodeParam: string,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const groupCode = parseWithZod(groupCodeParamSchema, groupCodeParam);
+    return this.reservationsService.getGroupConfirmation(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      groupCode,
+    );
+  }
+
+  @RequirePermission(["hotel.reservations.view", "hotel.reservations.manage"])
+  @SuccessMessage("Lấy thông tin nhóm đoàn thành công")
+  @ApiDescript("Chi tiết nhóm đoàn và danh sách toàn bộ phòng trong đoàn")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "groupCode", type: String })
+  @ApiOkResponse({
+    description: "Đã lấy thông tin chi tiết nhóm đoàn",
+    schema: groupReservationDetailResponseSchema,
+  })
+  @Get(":hotelId/reservations/groups/:groupCode")
+  async getGroupReservation(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("groupCode") groupCodeParam: string,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const groupCode = parseWithZod(groupCodeParamSchema, groupCodeParam);
+    return this.reservationsService.getGroupReservation(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      groupCode,
+    );
+  }
+
+  @RequirePermission("hotel.reservations.manage")
+  @SuccessMessage("Cập nhật thông tin đoàn thành công")
+  @ApiDescript("Cập nhật tên đoàn, thông tin liên lạc trưởng đoàn, ghi chú của đoàn")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "groupCode", type: String })
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        groupName: { type: "string", nullable: true },
+        leadGuestName: { type: "string" },
+        leadGuestPhone: { type: "string", nullable: true },
+        notes: { type: "string", nullable: true },
+      },
+    },
+  })
+  @ApiOkResponse({
+    description: "Đã cập nhật thông tin đoàn",
+    schema: groupReservationDetailResponseSchema,
+  })
+  @Patch(":hotelId/reservations/groups/:groupCode")
+  async updateGroupReservation(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("groupCode") groupCodeParam: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const groupCode = parseWithZod(groupCodeParamSchema, groupCodeParam);
+    const dto = parseWithZod(updateGroupReservationBodySchema, body);
+    return this.reservationsService.updateGroupReservation(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      groupCode,
+      dto,
+    );
+  }
+
+  @RequirePermission(["hotel.reservations.view", "hotel.reservations.manage"])
+  @SuccessMessage("Lấy phiếu xác nhận đặt phòng thành công")
+  @ApiDescript("Lấy phiếu xác nhận đặt phòng chuẩn bao gồm thông tin khách sạn, chi tiết đêm phòng và thanh toán")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "id", type: String })
+  @Get(":hotelId/reservations/:id/confirmation")
+  async getReservationConfirmation(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("id") idParam: string,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const reservationId = parseWithZod(reservationIdParamSchema, idParam);
+    return this.reservationsService.getReservationConfirmation(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      reservationId,
+    );
   }
 }

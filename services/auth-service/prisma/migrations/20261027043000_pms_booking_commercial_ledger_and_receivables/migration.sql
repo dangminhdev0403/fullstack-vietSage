@@ -82,6 +82,7 @@ CREATE TABLE "BookingPayment" (
     "groupId" TEXT,
     "intent" "BookingPaymentIntent" NOT NULL DEFAULT 'DEPOSIT',
     "inputMode" "BookingPaymentMode" NOT NULL DEFAULT 'AMOUNT',
+    "percentValue" DECIMAL(5,2),
     "requestedAmount" DECIMAL(12,2) NOT NULL,
     "receivedAmount" DECIMAL(12,2) NOT NULL,
     "paymentMethod" "PaymentMethod" NOT NULL DEFAULT 'CASH',
@@ -102,7 +103,9 @@ CREATE TABLE "BookingPaymentAllocation" (
     "id" TEXT NOT NULL,
     "hotelId" TEXT NOT NULL,
     "bookingPaymentId" TEXT NOT NULL,
-    "folioId" TEXT NOT NULL,
+    "reservationId" TEXT,
+    "groupId" TEXT,
+    "folioId" TEXT,
     "invoiceId" TEXT,
     "allocatedAmount" DECIMAL(12,2) NOT NULL,
     "allocatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -124,6 +127,7 @@ CREATE TABLE "HotelReceivable" (
     "debtorPartnerId" TEXT,
     "assigneeUserId" TEXT,
     "originalAmount" DECIMAL(12,2) NOT NULL,
+    "paidAmount" DECIMAL(12,2) NOT NULL DEFAULT 0,
     "outstandingAmount" DECIMAL(12,2) NOT NULL,
     "dueDate" TIMESTAMP(3),
     "status" "ReceivableStatus" NOT NULL DEFAULT 'OPEN',
@@ -184,7 +188,7 @@ CREATE INDEX "BookingSourcePartner_hotelId_isActive_idx" ON "BookingSourcePartne
 CREATE INDEX "ReservationChargeLine_hotelId_reservationId_idx" ON "ReservationChargeLine"("hotelId", "reservationId");
 CREATE INDEX "ReservationChargeLine_reservationId_serviceDate_idx" ON "ReservationChargeLine"("reservationId", "serviceDate");
 
-CREATE UNIQUE INDEX "BookingPayment_idempotencyKey_key" ON "BookingPayment"("idempotencyKey");
+CREATE UNIQUE INDEX "BookingPayment_hotelId_idempotencyKey_key" ON "BookingPayment"("hotelId", "idempotencyKey");
 CREATE INDEX "BookingPayment_hotelId_reservationId_idx" ON "BookingPayment"("hotelId", "reservationId");
 CREATE INDEX "BookingPayment_hotelId_groupId_idx" ON "BookingPayment"("hotelId", "groupId");
 CREATE INDEX "BookingPayment_hotelId_status_receivedAt_idx" ON "BookingPayment"("hotelId", "status", "receivedAt");

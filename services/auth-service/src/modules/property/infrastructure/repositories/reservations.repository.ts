@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import {
+  BookingPaymentStatus,
   DomainEventStatus,
   FolioStatus,
   GuestStayStatus,
@@ -19,7 +20,10 @@ import {
   toYmd,
 } from "../../../../common/time/vietnam-temporal";
 import { PrismaService } from "../../../../prisma/prisma.service";
-import type { CheckInReservationBodyInput } from "../../domain/schemas/reservations.schema";
+import type {
+  CheckInReservationBodyInput,
+  UpdateGroupReservationBodyInput,
+} from "../../domain/schemas/reservations.schema";
 import { inferCitizenshipKind } from "../../domain/infer-citizenship-kind";
 import { ReservationRoomAllocationService } from "../../application/reservation-room-allocation.service";
 
@@ -491,6 +495,123 @@ export class ReservationsRepository {
         roomType: true,
       },
     });
+  }
+
+  async findReservationConfirmation(hotelId: string, reservationId: string) {
+    const reservation = await this.prisma.reservation.findUnique({
+      where: { id: reservationId },
+      include: {
+        room: true,
+        roomType: true,
+        hotel: {
+          include: {
+            confirmationTemplates: {
+              where: { isActive: true },
+              orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
+              take: 1,
+            },
+          },
+        } as any,
+        chargeLines: {
+          orderBy: { serviceDate: "asc" },
+        },
+        bookingPayments: {
+          where: {
+            status: { in: [BookingPaymentStatus.COMPLETED, BookingPaymentStatus.ALLOCATED] },
+          },
+        },
+      },
+    });
+
+    if (!reservation) {
+      throw new NotFoundException("Không tìm thấy thông tin đặt phòng");
+    }
+
+    if (reservation.hotelId !== hotelId) {
+      throw new NotFoundException("Đặt phòng không thuộc khách sạn này");
+    }
+
+    return reservation;
+  }
+
+  async findGroupConfirmation(hotelId: string, groupCode: string) {
+    const hotel = await this.prisma.hotel.findUnique({
+      where: { id: hotelId },
+      include: {
+        confirmationTemplates: {
+          where: { isActive: true },
+          orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
+          take: 1,
+        },
+      } as any,
+    });
+    if (!hotel) {
+      throw new NotFoundException("Không tìm thấy thông tin khách sạn");
+    }
+
+    const reservations = await this.prisma.reservation.findMany({
+      where: { hotelId, groupCode },
+      include: {
+        room: true,
+        roomType: true,
+        hotel: {
+          include: {
+            confirmationTemplates: {
+              where: { isActive: true },
+              orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
+              take: 1,
+            },
+          },
+        } as any,
+        stay: {
+          select: { id: true, roomId: true, status: true },
+        },
+        chargeLines: {
+          orderBy: { serviceDate: "asc" },
+        },
+        bookingPayments: {
+          where: {
+            status: { in: [BookingPaymentStatus.COMPLETED, BookingPaymentStatus.ALLOCATED] },
+          },
+        },
+      },
+      orderBy: { plannedCheckInAt: "asc" },
+    });
+
+    if (reservations.length === 0) {
+      const crossReservation = await this.prisma.reservation.findFirst({
+        where: { groupCode },
+        select: { hotelId: true },
+      });
+      if (crossReservation && crossReservation.hotelId !== hotelId) {
+        throw new NotFoundException("Đoàn đặt phòng không thuộc khách sạn này");
+      }
+      const crossGroup = await this.prisma.reservationGroup.findFirst({
+        where: { groupCode },
+        select: { hotelId: true },
+      });
+      if (crossGroup && crossGroup.hotelId !== hotelId) {
+        throw new NotFoundException("Đoàn đặt phòng không thuộc khách sạn này");
+      }
+      throw new NotFoundException("Không tìm thấy thông tin đoàn đặt phòng");
+    }
+
+    const groupRecord = await this.prisma.reservationGroup.findFirst({
+      where: { hotelId, groupCode },
+      include: {
+        bookingPayments: {
+          where: {
+            status: { in: [BookingPaymentStatus.COMPLETED, BookingPaymentStatus.ALLOCATED] },
+          },
+        },
+      },
+    });
+
+    return {
+      hotel,
+      reservations,
+      groupRecord,
+    };
   }
 
   async listArrivals(input: {
@@ -2063,5 +2184,231 @@ export class ReservationsRepository {
         ? [target]
         : [];
     return fields.some((field) => field.includes("reservationId") || field.includes("folioNumber"));
+  }
+
+  async findGroupByCode(hotelId: string, groupCode: string) {
+    const trimmedGroupCode = groupCode.trim();
+
+    let group: any = null;
+    if (this.prisma.reservationGroup?.findUnique) {
+      group = await this.prisma.reservationGroup.findUnique({
+        where: {
+          hotelId_groupCode: { hotelId, groupCode: trimmedGroupCode },
+        },
+        include: {
+          sourcePartner: true,
+        },
+      });
+    }
+
+    const reservations = await this.prisma.reservation.findMany({
+      where: {
+        hotelId,
+        groupCode: trimmedGroupCode,
+      },
+      include: {
+        room: true,
+        roomType: true,
+        stay: {
+          select: {
+            id: true,
+            roomId: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: [
+        { plannedCheckInAt: "asc" },
+        { createdAt: "asc" },
+      ],
+    });
+
+    if (!group && reservations.length === 0) {
+      throw new NotFoundException(`Không tìm thấy thông tin đoàn với mã ${trimmedGroupCode}`);
+    }
+
+    let checkedInRooms = 0;
+    let arrivingRooms = 0;
+    let totalEstimatedAmount = 0;
+
+    const reservationItems = reservations.map((res) => {
+      const isCheckedIn = res.status === ReservationStatus.CHECKED_IN;
+      const isArriving =
+        res.status === ReservationStatus.CONFIRMED ||
+        res.status === ReservationStatus.ARRIVAL_READY;
+
+      if (isCheckedIn) checkedInRooms++;
+      if (isArriving) arrivingRooms++;
+
+      const checkIn = new Date(res.plannedCheckInAt);
+      const checkOut = new Date(res.plannedCheckOutAt);
+      const nights = Math.max(1, diffCalendarDays(checkIn, checkOut, "Asia/Ho_Chi_Minh"));
+
+      const rawRate =
+        res.nightlyRateSnapshot ??
+        res.baseNightlyRateSnapshot ??
+        res.room?.price ??
+        res.roomType?.basePrice;
+      const nightlyRate = rawRate != null ? Number(rawRate) : 0;
+      const estimatedAmount =
+        res.status === ReservationStatus.CANCELLED ? 0 : nights * nightlyRate;
+
+      totalEstimatedAmount += estimatedAmount;
+
+      const rawStay = (res as any).stay;
+      const rawGuestStays = (res as any).guestStays;
+      const activeStay =
+        rawStay &&
+        (!rawStay.status ||
+          ACTIVE_IN_HOUSE_STAY_STATUSES.includes(rawStay.status) ||
+          rawStay.status === "OPEN")
+          ? rawStay
+          : Array.isArray(rawGuestStays) && rawGuestStays.length > 0
+            ? rawGuestStays[0]
+            : null;
+
+      return {
+        id: res.id,
+        reservationId: res.id,
+        stayId: activeStay?.id ?? null,
+        activeStayId: activeStay?.id ?? null,
+        reservationCode: res.reservationCode,
+        roomId: res.roomId ?? activeStay?.roomId ?? null,
+        assignedRoomId:
+          res.roomId ??
+          (res as any).assignedRoomId ??
+          res.room?.id ??
+          (res as any).assignedRoom?.id ??
+          activeStay?.roomId ??
+          null,
+        roomNumber: res.room?.roomNumber ?? (res as any).assignedRoom?.roomNumber ?? null,
+        assignedRoomNumber: res.room?.roomNumber ?? (res as any).assignedRoom?.roomNumber ?? null,
+        roomName: res.room?.roomNumber ? `P.${res.room.roomNumber}` : null,
+        roomTypeId: res.roomTypeId,
+        roomTypeName: res.roomType?.name ?? res.roomTypeSnapshot ?? null,
+        roomTypeCode: (res.roomType as any)?.code ?? res.roomType?.normalizedKey ?? null,
+        guestDisplayName: res.guestDisplayName,
+        guestName: res.guestDisplayName,
+        guestPhone: res.guestPhone,
+        guestEmail: (res as any).guestEmail ?? null,
+        status: res.status,
+        plannedCheckInAt: res.plannedCheckInAt,
+        plannedCheckOutAt: res.plannedCheckOutAt,
+        checkInDate: checkIn.toISOString(),
+        checkOutDate: checkOut.toISOString(),
+        nightlyRateSnapshot:
+          res.nightlyRateSnapshot != null
+            ? new Prisma.Decimal(res.nightlyRateSnapshot).toFixed(2)
+            : null,
+        baseNightlyRateSnapshot:
+          res.baseNightlyRateSnapshot != null
+            ? new Prisma.Decimal(res.baseNightlyRateSnapshot).toFixed(2)
+            : null,
+        ratePerNight: nightlyRate,
+        guestCount: res.guestCount ?? 1,
+        notes: res.notes,
+        specialRequests: res.notes ?? null,
+        nights,
+        estimatedAmount,
+        totalAmount: estimatedAmount,
+        depositAmount: 0,
+        createdAt: res.createdAt,
+        updatedAt: res.updatedAt,
+      };
+    });
+
+    const first = reservations[0];
+
+    return {
+      groupCode: group?.groupCode ?? trimmedGroupCode,
+      groupName: group?.groupName ?? null,
+      leadGuestName: group?.leadGuestName ?? first?.guestDisplayName ?? "Khách đặt đoàn",
+      leadGuestPhone: group?.leadGuestPhone ?? first?.guestPhone ?? null,
+      notes: group?.notes ?? first?.notes ?? null,
+      sourceCategory: group?.sourceCategory ?? first?.sourceCategory ?? null,
+      sourcePartnerId: group?.sourcePartnerId ?? first?.sourcePartnerId ?? null,
+      sourcePartnerName: group?.sourcePartner?.name ?? null,
+      totalRooms: reservations.length,
+      checkedInRooms,
+      arrivingRooms,
+      totalEstimatedAmount,
+      reservations: reservationItems,
+      rooms: reservationItems,
+      createdAt: group?.createdAt ?? first?.createdAt ?? new Date(),
+      updatedAt: group?.updatedAt ?? first?.updatedAt ?? new Date(),
+    };
+  }
+
+  async updateGroupByCode(
+    hotelId: string,
+    groupCode: string,
+    dto: UpdateGroupReservationBodyInput,
+  ) {
+    const trimmedGroupCode = groupCode.trim();
+
+    let existingGroup: any = null;
+    if (this.prisma.reservationGroup?.findUnique) {
+      existingGroup = await this.prisma.reservationGroup.findUnique({
+        where: {
+          hotelId_groupCode: { hotelId, groupCode: trimmedGroupCode },
+        },
+      });
+    }
+
+    const existingReservations = await this.prisma.reservation.findMany({
+      where: {
+        hotelId,
+        groupCode: trimmedGroupCode,
+      },
+      select: {
+        id: true,
+        guestDisplayName: true,
+        guestPhone: true,
+        notes: true,
+      },
+    });
+
+    if (!existingGroup && existingReservations.length === 0) {
+      throw new NotFoundException(`Không tìm thấy thông tin đoàn với mã ${trimmedGroupCode}`);
+    }
+
+    if (this.prisma.reservationGroup?.upsert) {
+      const updateData: Prisma.ReservationGroupUpdateInput = {};
+      if (dto.groupName !== undefined) updateData.groupName = dto.groupName;
+      if (dto.leadGuestName !== undefined) updateData.leadGuestName = dto.leadGuestName;
+      if (dto.leadGuestPhone !== undefined) updateData.leadGuestPhone = dto.leadGuestPhone;
+      if (dto.notes !== undefined) updateData.notes = dto.notes;
+
+      const savedGroup = await this.prisma.reservationGroup.upsert({
+        where: {
+          hotelId_groupCode: { hotelId, groupCode: trimmedGroupCode },
+        },
+        update: updateData,
+        create: {
+          hotelId,
+          groupCode: trimmedGroupCode,
+          groupName: dto.groupName ?? null,
+          leadGuestName:
+            dto.leadGuestName ?? existingReservations[0]?.guestDisplayName ?? "Khách đặt đoàn",
+          leadGuestPhone: dto.leadGuestPhone ?? existingReservations[0]?.guestPhone ?? null,
+          notes: dto.notes ?? existingReservations[0]?.notes ?? null,
+        },
+      });
+
+      if (this.prisma.reservation?.updateMany) {
+        await this.prisma.reservation.updateMany({
+          where: {
+            hotelId,
+            groupCode: trimmedGroupCode,
+            groupId: null,
+          },
+          data: {
+            groupId: savedGroup.id,
+          },
+        });
+      }
+    }
+
+    return this.findGroupByCode(hotelId, trimmedGroupCode);
   }
 }

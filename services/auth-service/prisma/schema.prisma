@@ -2871,13 +2871,14 @@ model BookingPayment {
   groupId              String?
   intent               BookingPaymentIntent       @default(DEPOSIT)
   inputMode            BookingPaymentMode         @default(AMOUNT)
+  percentValue         Decimal?                   @db.Decimal(5, 2)
   requestedAmount      Decimal                    @db.Decimal(12, 2)
   receivedAmount       Decimal                    @db.Decimal(12, 2)
   paymentMethod        PaymentMethod              @default(CASH)
   status               BookingPaymentStatus       @default(COMPLETED)
   transactionReference String?                    @db.VarChar(120)
   notes                String?
-  idempotencyKey       String?                    @unique @db.VarChar(120)
+  idempotencyKey       String?                    @db.VarChar(120)
   receivedAt           DateTime                   @default(now())
   createdByUserId      String?
   createdAt            DateTime                   @default(now())
@@ -2887,6 +2888,7 @@ model BookingPayment {
   group                ReservationGroup?          @relation(fields: [groupId], references: [id], onDelete: SetNull)
   allocations          BookingPaymentAllocation[]
 
+  @@unique([hotelId, idempotencyKey])
   @@index([hotelId, reservationId])
   @@index([hotelId, groupId])
   @@index([hotelId, status, receivedAt])
@@ -2896,7 +2898,9 @@ model BookingPaymentAllocation {
   id                String         @id @default(cuid())
   hotelId           String
   bookingPaymentId  String
-  folioId           String
+  reservationId     String?
+  groupId           String?
+  folioId           String?
   invoiceId         String?
   allocatedAmount   Decimal        @db.Decimal(12, 2)
   allocatedAt       DateTime       @default(now())
@@ -2904,7 +2908,7 @@ model BookingPaymentAllocation {
   createdAt         DateTime       @default(now())
   hotel             Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   bookingPayment    BookingPayment @relation(fields: [bookingPaymentId], references: [id], onDelete: Cascade)
-  folio             Folio          @relation(fields: [folioId], references: [id], onDelete: Cascade)
+  folio             Folio?         @relation(fields: [folioId], references: [id], onDelete: Cascade)
   invoice           Invoice?       @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
 
   @@index([hotelId, bookingPaymentId])
@@ -2922,6 +2926,7 @@ model HotelReceivable {
   debtorPartnerId     String?
   assigneeUserId      String?
   originalAmount      Decimal               @db.Decimal(12, 2)
+  paidAmount          Decimal               @default(0) @db.Decimal(12, 2)
   outstandingAmount   Decimal               @db.Decimal(12, 2)
   dueDate             DateTime?
   status              ReceivableStatus      @default(OPEN)

@@ -1,4 +1,11 @@
-import { FolioStatus, PaymentMethod, PaymentProvider } from "@prisma/client";
+import {
+  BookingPaymentIntent,
+  FolioStatus,
+  PaymentMethod,
+  PaymentProvider,
+  ReceivableDebtorType,
+  ReceivableStatus,
+} from "@prisma/client";
 import { z } from "zod";
 
 export const billingIdParamSchema = z.string().trim().min(1);
@@ -144,3 +151,115 @@ export type ListFoliosQueryInput = z.infer<typeof listFoliosQuerySchema>;
 export type ListFolioItemsQueryInput = z.infer<typeof listFolioItemsQuerySchema>;
 export type InvoiceAdjustmentInput = z.infer<typeof invoiceAdjustmentSchema>;
 export type IssueInvoiceBodyInput = z.infer<typeof issueInvoiceBodySchema>;
+
+export const createBookingPaymentBodySchema = z
+  .object({
+    hotelId: z.string().trim().min(1).optional(),
+    reservationId: z.string().trim().min(1).optional(),
+    groupId: z.string().trim().min(1).optional(),
+    intent: z.nativeEnum(BookingPaymentIntent).default(BookingPaymentIntent.DEPOSIT),
+    inputMode: z.enum(["PERCENT", "AMOUNT", "FULL"]).optional().default("AMOUNT"),
+    percentValue: z.coerce.number().min(0.01).max(100).optional(),
+    amount: z.coerce.number().positive().optional(),
+    receivedAmount: z.coerce.number().positive().optional(),
+    paymentMethod: z
+      .enum([
+        PaymentMethod.CASH,
+        PaymentMethod.CARD,
+        PaymentMethod.BANK_TRANSFER,
+        PaymentMethod.MANUAL,
+      ])
+      .default(PaymentMethod.CASH),
+    notes: z.string().trim().max(1000).optional(),
+    idempotencyKey: z.string().trim().min(1).max(120).optional(),
+  })
+  .strict()
+  .refine((data) => Boolean(data.reservationId || data.groupId), {
+    message: "Phải cung cấp reservationId hoặc groupId cho khoản thanh toán đặt phòng",
+    path: ["reservationId"],
+  })
+  .refine(
+    (data) => {
+      if (data.inputMode === "PERCENT") {
+        return data.percentValue !== undefined && data.percentValue > 0 && data.percentValue <= 100;
+      }
+      if (data.inputMode === "AMOUNT") {
+        const val = data.amount ?? data.receivedAmount;
+        return val !== undefined && val > 0;
+      }
+      return true;
+    },
+    {
+      message: "Vui lòng nhập số tiền hoặc tỷ lệ phần trăm hợp lệ theo phương thức đã chọn",
+      path: ["amount"],
+    },
+  );
+
+export const transferToReceivableBodySchema = z
+  .object({
+    debtorName: z.string().trim().min(1).max(120).optional(),
+    debtorType: z.nativeEnum(ReceivableDebtorType).default(ReceivableDebtorType.GUEST),
+    debtorPartnerId: z.string().trim().min(1).optional(),
+    dueDate: z.preprocess(
+      (val) => (typeof val === "string" && val.trim() !== "" ? new Date(val) : val),
+      z.date().optional(),
+    ),
+    assigneeUserId: z.string().trim().min(1).optional(),
+    amount: z.preprocess(
+      (val) => (typeof val === "string" && val.trim() !== "" ? Number(val) : val),
+      z.number().positive().optional(),
+    ),
+    notes: z.string().trim().max(1000).optional(),
+  })
+  .strict();
+
+export const collectReceivableBodySchema = z
+  .object({
+    collectedAmount: z.preprocess(
+      (val) => (typeof val === "string" ? Number(val) : val),
+      z.number().positive(),
+    ),
+    paymentMethod: z
+      .enum([
+        PaymentMethod.CASH,
+        PaymentMethod.CARD,
+        PaymentMethod.BANK_TRANSFER,
+        PaymentMethod.MANUAL,
+      ])
+      .default(PaymentMethod.CASH),
+    reference: z.string().trim().max(120).optional(),
+    notes: z.string().trim().max(1000).optional(),
+  })
+  .strict();
+
+export type CreateBookingPaymentInput = {
+  hotelId?: string;
+  reservationId?: string;
+  groupId?: string;
+  intent?: BookingPaymentIntent;
+  inputMode?: "PERCENT" | "AMOUNT" | "FULL";
+  percentValue?: number;
+  amount?: number;
+  receivedAmount?: number;
+  paymentMethod?: PaymentMethod;
+  notes?: string;
+  idempotencyKey?: string;
+};
+
+export type TransferToReceivableInput = {
+  debtorName?: string;
+  debtorType?: ReceivableDebtorType;
+  debtorPartnerId?: string;
+  dueDate?: Date | string | null;
+  assigneeUserId?: string;
+  amount?: number;
+  notes?: string;
+};
+
+export type CollectReceivableInput = {
+  collectedAmount: number;
+  paymentMethod?: PaymentMethod;
+  reference?: string;
+  notes?: string;
+};
+

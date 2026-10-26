@@ -2308,7 +2308,11 @@ export class HotelRoomsRepository {
           { hotelId },
           {
             status: {
-              in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY],
+              in: [
+                ReservationStatus.CONFIRMED,
+                ReservationStatus.ARRIVAL_READY,
+                ReservationStatus.CHECKED_IN,
+              ],
             },
           },
           { plannedCheckInAt: { gte: start, lt: end } },
@@ -2329,10 +2333,22 @@ export class HotelRoomsRepository {
             groupCode: true,
             guestDisplayName: true,
             guestPhone: true,
+            guestCount: true,
             status: true,
             plannedCheckInAt: true,
             plannedCheckOutAt: true,
             checkedInAt: true,
+            stay: {
+              select: {
+                id: true,
+                checkedInAt: true,
+                _count: {
+                  select: {
+                    occupants: true,
+                  },
+                },
+              },
+            },
           },
           orderBy: [
             { plannedCheckInAt: "asc" },
@@ -2357,27 +2373,43 @@ export class HotelRoomsRepository {
           : [];
       const roomMap = new Map(rooms.map((r) => [r.id, r.roomNumber]));
 
-      const items = reservations.map((res) => ({
-        kind: "ARRIVAL" as const,
-        reservationId: res.id,
-        stayId: null,
-        reservationCode: res.reservationCode ?? null,
-        groupCode: res.groupCode ?? null,
-        roomId: res.roomId ?? null,
-        roomNumber: res.roomId ? roomMap.get(res.roomId) ?? null : null,
-        guestDisplayName: res.guestDisplayName,
-        guestPhone: res.guestPhone ?? null,
-        status: res.status,
-        plannedCheckInAt: res.plannedCheckInAt ?? null,
-        plannedCheckOutAt: res.plannedCheckOutAt ?? null,
-        checkedInAt: res.checkedInAt ?? null,
-        checkedOutAt: null,
-        occupantCount: 1,
-        canCheckIn:
-          res.status === ReservationStatus.CONFIRMED ||
-          res.status === ReservationStatus.ARRIVAL_READY,
-        canCheckOut: false,
-      }));
+      const items = reservations.map((res: any) => {
+        const activeStay = res.stay ?? res.guestStays?.[0] ?? null;
+        const stayCheckInDate =
+          activeStay?.checkedInAt ?? activeStay?.checkInAt ?? res.checkedInAt ?? null;
+        const stayOccupantCount =
+          activeStay?._count?.occupants ??
+          activeStay?._count?.stayOccupants ??
+          (Array.isArray(activeStay?.occupants) ? activeStay.occupants.length : undefined);
+
+        return {
+          kind: "ARRIVAL" as const,
+          reservationId: res.id,
+          stayId: activeStay?.id ?? null,
+          reservationCode: res.reservationCode ?? null,
+          groupCode: res.groupCode ?? null,
+          roomId: res.roomId ?? null,
+          roomNumber: res.roomId ? roomMap.get(res.roomId) ?? null : null,
+          guestDisplayName: res.guestDisplayName,
+          guestPhone: res.guestPhone ?? null,
+          status: res.status,
+          plannedCheckInAt: res.plannedCheckInAt ?? null,
+          plannedCheckOutAt: res.plannedCheckOutAt ?? null,
+          checkedInAt: stayCheckInDate ? new Date(stayCheckInDate) : null,
+          actualCheckInAt: stayCheckInDate
+            ? new Date(stayCheckInDate).toISOString()
+            : null,
+          checkedOutAt: null,
+          occupantCount:
+            stayOccupantCount && stayOccupantCount > 0
+              ? stayOccupantCount
+              : (res.guestCount ?? 1),
+          canCheckIn:
+            res.status === ReservationStatus.CONFIRMED ||
+            res.status === ReservationStatus.ARRIVAL_READY,
+          canCheckOut: false,
+        };
+      });
 
       return { items, total };
     }

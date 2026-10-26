@@ -305,3 +305,22 @@ export const updateReservationDatesBodySchema = z
 export type UpdateReservationDatesBodyInput = z.infer<
   typeof updateReservationDatesBodySchema
 >;
+
+export const groupCodeParamSchema = z
+  .string()
+  .trim()
+  .min(1, "groupCode là bắt buộc")
+  .max(80, "groupCode tối đa 80 ký tự");
+
+export const updateGroupReservationBodySchema = z
+  .object({
+    groupName: z.string().trim().max(120).nullable().optional(),
+    leadGuestName: z.string().trim().min(2, "Tên trưởng đoàn tối thiểu 2 ký tự").max(120).optional(),
+    leadGuestPhone: z.string().trim().max(40).nullable().optional(),
+    notes: z.string().trim().max(500).nullable().optional(),
+  })
+  .strict();
+
+export type UpdateGroupReservationBodyInput = z.infer<
+  typeof updateGroupReservationBodySchema
+>;

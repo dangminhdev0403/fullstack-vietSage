@@ -60,4 +60,8 @@ LocalMateData/
 # Python cache & agent metadata
 __pycache__/
 *.py[cod]
-.claude/
+.claude/
+
+
+# Local BCA C06 Postman environment & collection (keep on local disk, never push)
+shared/kbtt/*.postman_*.json

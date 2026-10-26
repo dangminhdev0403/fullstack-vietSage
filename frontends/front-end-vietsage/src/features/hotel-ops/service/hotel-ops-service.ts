@@ -35,6 +35,8 @@ import type {
   UpdateHotelRoomInput,
   UpdateServiceCategoryInput,
   UpdateServiceItemInput,
+  GroupConfirmationData,
+  ReservationConfirmationData,
   RoomPlanResponse,
   UpdateReservationPlacementInput,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
@@ -941,6 +943,65 @@ export class HotelOpsService {
     const payload = await this.httpClient.request<unknown>({
       method: "PATCH",
       path: hotelPath(hotelId, `/reservations/${encodeURIComponent(reservationId)}/dates`),
+      body,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<unknown>(payload).data;
+  }
+
+  async getReservationConfirmation(
+    hotelId: string,
+    reservationId: string,
+    options: AuthRequestOptions = {},
+  ): Promise<ReservationConfirmationData> {
+    const payload = await this.httpClient.request<ReservationConfirmationData>({
+      method: "GET",
+      path: hotelPath(hotelId, `/reservations/${encodeURIComponent(reservationId)}/confirmation`),
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<ReservationConfirmationData>(payload).data;
+  }
+
+  async getGroupConfirmation(
+    hotelId: string,
+    groupCode: string,
+    options: AuthRequestOptions & { lang?: string } = {},
+  ): Promise<GroupConfirmationData> {
+    const payload = await this.httpClient.request<GroupConfirmationData>({
+      method: "GET",
+      path: hotelPath(hotelId, `/reservations/groups/${encodeURIComponent(groupCode)}/confirmation`),
+      query: options.lang ? { lang: options.lang } : undefined,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<GroupConfirmationData>(payload).data;
+  }
+
+  async getGroupDetails(
+    hotelId: string,
+    groupCode: string,
+    options: AuthRequestOptions = {},
+  ): Promise<unknown> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, `/reservations/groups/${encodeURIComponent(groupCode)}`),
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<unknown>(payload).data;
+  }
+
+  async updateGroupSharedFields(
+    hotelId: string,
+    groupCode: string,
+    body: Record<string, unknown>,
+    options: AuthRequestOptions = {},
+  ): Promise<unknown> {
+    const payload = await this.httpClient.request<unknown, Record<string, unknown>>({
+      method: "PATCH",
+      path: hotelPath(hotelId, `/reservations/groups/${encodeURIComponent(groupCode)}`),
       body,
       accessToken: options.accessToken,
       accessTokenExpiresAt: options.accessTokenExpiresAt,

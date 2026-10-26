@@ -20,10 +20,13 @@ import type { AuthenticatedUser } from "../../../shared/security";
 import { BillingService } from "../application/billing.service";
 import {
   billingIdParamSchema,
+  collectReceivableBodySchema,
   confirmManualPaymentBodySchema,
+  createBookingPaymentBodySchema,
   createPaymentSessionBodySchema,
   paymentProviderParamSchema,
   paymentWebhookBodySchema,
+  transferToReceivableBodySchema,
 } from "../domain/schemas/billing.schema";
 
 interface RequestWithUser extends Request {
@@ -109,6 +112,83 @@ export class PaymentController {
       request.user.roleId,
       hotelId,
       paymentId,
+    );
+  }
+
+  @SuccessMessage("Ghi nhận tiền cọc thành công")
+  @RequirePermission("hotel.billing.manage")
+  @ApiDescript("Ghi nhận tiền cọc hoặc thanh toán trước check-in")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiBody({ schema: { type: "object" } })
+  @ApiOkResponse({ description: "Bản ghi thanh toán cọc BookingPayment" })
+  @Post("hotels/:hotelId/billing/booking-payments")
+  async recordBookingPayment(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(billingIdParamSchema, hotelIdParam);
+    const dto = parseWithZod(createBookingPaymentBodySchema, body ?? {});
+
+    return this.billingService.recordBookingPayment(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      dto,
+    );
+  }
+
+  @SuccessMessage("Chuyển công nợ và trả phòng thành công")
+  @RequirePermission("hotel.billing.checkout")
+  @ApiDescript("Chuyển số dư sang công nợ và đóng lượt lưu trú")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "stayId", type: String })
+  @ApiBody({ schema: { type: "object" } })
+  @ApiOkResponse({ description: "Bản ghi công nợ HotelReceivable" })
+  @Post("hotels/:hotelId/billing/stays/:stayId/transfer-to-receivable")
+  async transferToReceivable(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("stayId") stayIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(billingIdParamSchema, hotelIdParam);
+    const stayId = parseWithZod(billingIdParamSchema, stayIdParam);
+    const dto = parseWithZod(transferToReceivableBodySchema, body ?? {});
+
+    return this.billingService.transferStayToReceivable(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      stayId,
+      dto,
+    );
+  }
+
+  @SuccessMessage("Thu hồi công nợ thành công")
+  @RequirePermission("hotel.billing.manage")
+  @ApiDescript("Ghi nhận thu tiền công nợ")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "receivableId", type: String })
+  @ApiBody({ schema: { type: "object" } })
+  @ApiOkResponse({ description: "Cập nhật công nợ và bản ghi ReceivableCollection" })
+  @Post("hotels/:hotelId/billing/receivables/:receivableId/collect")
+  async collectReceivable(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("receivableId") receivableIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(billingIdParamSchema, hotelIdParam);
+    const receivableId = parseWithZod(billingIdParamSchema, receivableIdParam);
+    const dto = parseWithZod(collectReceivableBodySchema, body ?? {});
+
+    return this.billingService.collectReceivable(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      receivableId,
+      dto,
     );
   }
 

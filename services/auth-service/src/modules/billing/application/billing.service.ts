@@ -7,6 +7,9 @@ import {
   Optional,
 } from "@nestjs/common";
 import {
+  BookingPaymentIntent,
+  BookingPaymentMode,
+  BookingPaymentStatus,
   FolioItemSourceType,
   FolioItemType,
   FolioStatus,
@@ -20,6 +23,9 @@ import {
   PaymentProvider,
   PaymentStatus,
   Prisma,
+  ReceivableDebtorType,
+  ReceivableStatus,
+  RoomQRCodeStatus,
   RoomStatus,
 } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
@@ -34,6 +40,11 @@ import { HotelAccessService } from "../../property/property-public";
 import { activeGuestRequestStatuses } from "../../guest-operations/guest-operations-public";
 import { BillingRepository } from "../infrastructure/repositories/billing.repository";
 import { diffCalendarDays, VIETNAM_TIME_ZONE } from "../../../common/time/vietnam-temporal";
+import {
+  CollectReceivableInput,
+  CreateBookingPaymentInput,
+  TransferToReceivableInput,
+} from "../domain/schemas/billing.schema";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
@@ -146,6 +157,9 @@ function resolveServiceSource(item: {
 @Injectable()
 export class BillingService {
   private readonly eventPublisher: GuestRequestEventPublisher;
+  private readonly stayConversationCloser?: {
+    publishConversationClosed?: (payload: any) => Promise<void> | void;
+  };
 
   constructor(
     private readonly billingRepository: BillingRepository,
@@ -158,6 +172,7 @@ export class BillingService {
     eventPublisher?: GuestRequestEventPublisher,
   ) {
     this.eventPublisher = eventPublisher ?? NOOP_GUEST_REQUEST_EVENT_PUBLISHER;
+    this.stayConversationCloser = this.eventPublisher;
   }
 
   async listFolios(
@@ -2527,5 +2542,566 @@ export class BillingService {
     }
     if (value instanceof Date) return value.toISOString();
     return JSON.stringify(value);
+  }
+
+  async createBookingPayment(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    input: CreateBookingPaymentInput,
+  ) {
+    return this.recordBookingPayment(actorUserId, activeRoleId, hotelId, input);
+  }
+
+  async recordBookingPayment(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    input: CreateBookingPaymentInput,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    if (input.hotelId && input.hotelId !== hotelId) {
+      throw new BadRequestException("Hotel ID mismatch");
+    }
+    if (!input.reservationId && !input.groupId) {
+      throw new BadRequestException(
+        "Phải cung cấp reservationId hoặc groupId cho khoản thanh toán đặt phòng",
+      );
+    }
+
+    const idempotencyKey = input.idempotencyKey?.trim();
+    const inputModeKey = input.inputMode ?? "AMOUNT";
+    const rawAmount = input.amount ?? input.receivedAmount;
+
+    return this.prisma.$transaction(async (tx) => {
+      if (idempotencyKey) {
+        const existing = await tx.bookingPayment.findFirst({
+          where: { hotelId, idempotencyKey },
+        });
+
+        if (existing) {
+          const amountMatches =
+            rawAmount !== undefined
+              ? existing.receivedAmount.equals(new Prisma.Decimal(rawAmount))
+              : true;
+          const methodMatches =
+            !input.paymentMethod || existing.paymentMethod === input.paymentMethod;
+          const intentMatches = !input.intent || existing.intent === input.intent;
+          const resMatches =
+            (existing.reservationId ?? undefined) === (input.reservationId ?? undefined);
+          const groupMatches = (existing.groupId ?? undefined) === (input.groupId ?? undefined);
+
+          if (!amountMatches || !methodMatches || !intentMatches || !resMatches || !groupMatches) {
+            throw new ConflictException("IDEMPOTENCY_KEY_PAYLOAD_MISMATCH");
+          }
+
+          return existing;
+        }
+      }
+
+      let reservation: any = null;
+      let group: any = null;
+      let baseTotal = new Prisma.Decimal(0);
+      let existingDeposit = new Prisma.Decimal(0);
+
+      if (input.reservationId) {
+        reservation = await tx.reservation.findFirst({
+          where: { id: input.reservationId, hotelId },
+        });
+        if (!reservation) {
+          throw new NotFoundException("Không tìm thấy thông tin đặt phòng");
+        }
+        if (reservation.totalAmount != null) {
+          baseTotal = new Prisma.Decimal(reservation.totalAmount);
+        } else if (reservation.totalQuotedAmount != null) {
+          baseTotal = new Prisma.Decimal(reservation.totalQuotedAmount);
+        } else if (
+          reservation.nightlyRateSnapshot != null ||
+          reservation.baseNightlyRateSnapshot != null
+        ) {
+          const rate = new Prisma.Decimal(
+            reservation.nightlyRateSnapshot ?? reservation.baseNightlyRateSnapshot ?? 0,
+          );
+          const nights =
+            reservation.plannedCheckInAt && reservation.plannedCheckOutAt
+              ? this.calculateVietnamNights(
+                  new Date(reservation.plannedCheckInAt),
+                  new Date(reservation.plannedCheckOutAt),
+                )
+              : 1;
+          baseTotal = rate.mul(nights);
+        }
+        if (reservation.paidDepositAmount != null) {
+          existingDeposit = new Prisma.Decimal(reservation.paidDepositAmount);
+        }
+      }
+
+      if (input.groupId) {
+        group = await tx.reservationGroup.findFirst({
+          where: { id: input.groupId, hotelId },
+        });
+        if (!group) {
+          throw new NotFoundException("Không tìm thấy nhóm đặt phòng");
+        }
+        if (baseTotal.lte(0)) {
+          if (group.totalQuotedAmount != null) {
+            baseTotal = new Prisma.Decimal(group.totalQuotedAmount);
+          } else if (group.totalAmount != null) {
+            baseTotal = new Prisma.Decimal(group.totalAmount);
+          } else if (Array.isArray(group.reservations) && group.reservations.length > 0) {
+            baseTotal = group.reservations.reduce((sum: Prisma.Decimal, r: any) => {
+              const rTotal =
+                r.totalAmount != null
+                  ? new Prisma.Decimal(r.totalAmount)
+                  : new Prisma.Decimal(r.nightlyRateSnapshot ?? r.baseNightlyRateSnapshot ?? 0);
+              return sum.add(rTotal);
+            }, new Prisma.Decimal(0));
+          }
+        }
+        if (existingDeposit.lte(0) && group.paidDepositAmount != null) {
+          existingDeposit = new Prisma.Decimal(group.paidDepositAmount);
+        }
+      }
+
+      if (existingDeposit.lte(0) && inputModeKey === "FULL" && tx.bookingPayment?.findMany) {
+        const priorPayments = await tx.bookingPayment.findMany({
+          where: {
+            hotelId,
+            ...(input.reservationId
+              ? { reservationId: input.reservationId }
+              : { groupId: input.groupId }),
+            status: { in: [BookingPaymentStatus.COMPLETED, BookingPaymentStatus.ALLOCATED] },
+          },
+        });
+        if (Array.isArray(priorPayments)) {
+          existingDeposit = priorPayments.reduce(
+            (sum, p) => sum.add(new Prisma.Decimal(p.receivedAmount ?? 0)),
+            new Prisma.Decimal(0),
+          );
+        }
+      }
+
+      let requestedDecimal: Prisma.Decimal;
+      let receivedDecimal: Prisma.Decimal;
+
+      if (inputModeKey === "PERCENT") {
+        if (
+          input.percentValue === undefined ||
+          input.percentValue === null ||
+          Number(input.percentValue) <= 0 ||
+          Number(input.percentValue) > 100
+        ) {
+          throw new BadRequestException("Tỷ lệ phần trăm đặt cọc phải lớn hơn 0 và tối đa 100%");
+        }
+        if (baseTotal.gt(0)) {
+          requestedDecimal = baseTotal
+            .mul(new Prisma.Decimal(input.percentValue))
+            .div(new Prisma.Decimal(100))
+            .toDecimalPlaces(2);
+        } else {
+          requestedDecimal = new Prisma.Decimal(rawAmount ?? 0);
+        }
+        receivedDecimal = rawAmount != null ? new Prisma.Decimal(rawAmount) : requestedDecimal;
+      } else if (inputModeKey === "FULL") {
+        requestedDecimal = baseTotal.gt(0)
+          ? Prisma.Decimal.max(new Prisma.Decimal(0), baseTotal.sub(existingDeposit))
+          : new Prisma.Decimal(rawAmount ?? 0);
+        receivedDecimal = rawAmount != null ? new Prisma.Decimal(rawAmount) : requestedDecimal;
+      } else {
+        if (rawAmount === undefined || rawAmount === null || Number(rawAmount) <= 0) {
+          throw new BadRequestException("Số tiền thanh toán phải lớn hơn 0");
+        }
+        requestedDecimal = new Prisma.Decimal(rawAmount);
+        receivedDecimal = requestedDecimal;
+      }
+
+      if (receivedDecimal.lte(0)) {
+        throw new BadRequestException("Số tiền thanh toán thực nhận phải lớn hơn 0");
+      }
+
+      try {
+        const createdPayment = await tx.bookingPayment.create({
+          data: {
+            hotelId,
+            reservationId: input.reservationId ?? null,
+            groupId: input.groupId ?? null,
+            intent: input.intent ?? BookingPaymentIntent.DEPOSIT,
+            inputMode: BookingPaymentMode[inputModeKey],
+            percentValue:
+              input.percentValue != null ? new Prisma.Decimal(input.percentValue) : null,
+            requestedAmount: requestedDecimal,
+            receivedAmount: receivedDecimal,
+            paymentMethod: input.paymentMethod ?? PaymentMethod.CASH,
+            status: BookingPaymentStatus.COMPLETED,
+            notes: input.notes ?? null,
+            idempotencyKey: idempotencyKey || null,
+            createdByUserId: actorUserId,
+            receivedAt: new Date(),
+          },
+        });
+
+        if (
+          (input.reservationId || input.groupId) &&
+          typeof tx.bookingPaymentAllocation?.create === "function"
+        ) {
+          await tx.bookingPaymentAllocation.create({
+            data: {
+              hotelId,
+              bookingPaymentId: createdPayment.id,
+              reservationId: input.reservationId ?? null,
+              groupId: input.groupId ?? null,
+              folioId: reservation?.stay?.folioId ?? null,
+              allocatedAmount: receivedDecimal,
+              allocatedByUserId: actorUserId,
+            },
+          });
+        }
+
+        return createdPayment;
+      } catch (error: any) {
+        if (idempotencyKey && error?.code === "P2002") {
+          const raceExisting = await tx.bookingPayment.findFirst({
+            where: { hotelId, idempotencyKey },
+          });
+          if (raceExisting) {
+            return raceExisting;
+          }
+        }
+        throw error;
+      }
+    });
+  }
+
+  async transferStayToReceivable(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    stayId: string,
+    input: TransferToReceivableInput,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+
+    const now = new Date();
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        const lockedStayRows =
+          typeof tx.$queryRaw === "function"
+            ? await tx.$queryRaw<
+                Array<{ id: string; status: string; roomId: string; reservationId: string | null }>
+              >`SELECT id, status, "roomId", "reservationId" FROM "GuestStay" WHERE id = ${stayId} AND "hotelId" = ${hotelId} FOR UPDATE`
+            : undefined;
+
+        if (Array.isArray(lockedStayRows) && lockedStayRows.length === 0) {
+          throw new NotFoundException("Không tìm thấy lượt lưu trú");
+        }
+
+        const stay = await tx.guestStay.findFirst({
+          where: { id: stayId, hotelId },
+          include: { room: true },
+        });
+
+        if (!stay) {
+          throw new NotFoundException("Không tìm thấy lượt lưu trú");
+        }
+        if (stay.status === GuestStayStatus.CHECKED_OUT) {
+          throw new ConflictException("Lượt lưu trú đã được trả phòng trước đó");
+        }
+
+        const existingReceivable = await tx.hotelReceivable?.findFirst?.({
+          where: { hotelId, stayId },
+        });
+        if (
+          existingReceivable &&
+          (!existingReceivable.status ||
+            existingReceivable.status === ReceivableStatus.OPEN ||
+            existingReceivable.status === ReceivableStatus.PARTIALLY_COLLECTED)
+        ) {
+          throw new ConflictException("Lượt lưu trú này đã được chuyển công nợ trước đó");
+        }
+
+        const folio =
+          (await tx.folio.findFirst({
+            where: {
+              hotelId,
+              stayId,
+              status: { in: [FolioStatus.OPEN, FolioStatus.CHECKOUT_PENDING] },
+            },
+            orderBy: { createdAt: "desc" },
+          })) ??
+          (await tx.folio.findFirst({
+            where: { hotelId, stayId },
+            orderBy: { createdAt: "desc" },
+          }));
+
+        if (!folio) {
+          throw new NotFoundException("Không tìm thấy folio cho lượt lưu trú này");
+        }
+
+        const invoice = await tx.invoice.findFirst({
+          where: { hotelId, folioId: folio.id },
+          orderBy: { createdAt: "desc" },
+        });
+
+        let outstandingDecimal: Prisma.Decimal;
+        if (input.amount !== undefined) {
+          outstandingDecimal = new Prisma.Decimal(input.amount);
+        } else if (invoice) {
+          outstandingDecimal = invoice.balanceAmount;
+        } else {
+          outstandingDecimal = folio.totalAmount;
+        }
+
+        if (outstandingDecimal.lte(0)) {
+          throw new BadRequestException("Số dư nợ không hợp lệ hoặc đã tất toán");
+        }
+
+        const debtorName = input.debtorName?.trim() || stay.guestDisplayName || "Khách lưu trú";
+        const debtorType = input.debtorType ?? ReceivableDebtorType.GUEST;
+
+        const receivable = await tx.hotelReceivable.create({
+          data: {
+            hotelId,
+            stayId: stay.id,
+            folioId: folio.id,
+            invoiceId: invoice?.id ?? null,
+            debtorName,
+            debtorType,
+            debtorPartnerId: input.debtorPartnerId ?? null,
+            assigneeUserId: input.assigneeUserId ?? null,
+            originalAmount: outstandingDecimal,
+            paidAmount: new Prisma.Decimal(0),
+            outstandingAmount: outstandingDecimal,
+            dueDate: input.dueDate ? new Date(input.dueDate) : null,
+            status: ReceivableStatus.OPEN,
+            notes: input.notes ?? null,
+            transferredAt: now,
+            transferredByUserId: actorUserId,
+          },
+        });
+
+        // Đóng folio và trả phòng
+        await tx.folio.update({
+          where: { id: folio.id },
+          data: { status: FolioStatus.CLOSED, closedAt: now },
+        });
+
+        await tx.guestStay.update({
+          where: { id: stay.id },
+          data: {
+            status: GuestStayStatus.CHECKED_OUT,
+            checkedOutAt: now,
+            accessCodeHash: null,
+            accessCodeExpiresAt: null,
+          },
+        });
+
+        await tx.guestSession.updateMany({
+          where: {
+            stayId: stay.id,
+            status: {
+              in: [GuestSessionStatus.CREATED, GuestSessionStatus.ACTIVE, GuestSessionStatus.IDLE],
+            },
+          },
+          data: { status: GuestSessionStatus.CLOSED, closedAt: now },
+        });
+
+        await (tx as any).roomQRCode?.updateMany?.({
+          where: {
+            hotelId,
+            currentStayId: stayId,
+            status: RoomQRCodeStatus.ACTIVE,
+          },
+          data: {
+            status: RoomQRCodeStatus.INACTIVE,
+            validTo: now,
+          },
+        });
+
+        if (stay.roomId) {
+          await tx.room.updateMany({
+            where: {
+              id: stay.roomId,
+              hotelId,
+              status: RoomStatus.OCCUPIED,
+            },
+            data: { status: RoomStatus.PROCESSING },
+          });
+        }
+
+        if ((tx as any).auditLog?.create) {
+          await (tx as any).auditLog.create({
+            data: {
+              actorId: actorUserId,
+              tenantId: (stay as any).hotel?.tenantId ?? hotelId,
+              action: "STAY_TRANSFERRED_TO_RECEIVABLE",
+              entityType: "HotelReceivable",
+              entityId: receivable.id,
+              metadata: {
+                hotelId,
+                stayId: stay.id,
+                folioId: folio.id,
+                invoiceId: invoice?.id ?? null,
+                outstandingAmount: outstandingDecimal.toString(),
+                debtorName,
+                debtorType,
+              },
+            },
+          });
+        }
+
+        // Bất biến an toàn: Tuyệt đối không ghi nhận payment hay tăng invoice.paidAmount bằng tiền mặt
+
+        return {
+          success: true,
+          receivable,
+          stayId: stay.id,
+          folioId: folio.id,
+          outstandingAmount: outstandingDecimal,
+          debtorName,
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
+    try {
+      await this.stayConversationCloser?.publishConversationClosed?.({
+        hotelId,
+        stayId,
+        closedAt: now.toISOString(),
+      });
+    } catch {
+      // Ignore post-commit event publish error
+    }
+
+    return result;
+  }
+
+  async collectReceivable(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    receivableId: string,
+    input: CollectReceivableInput,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+
+    return this.prisma.$transaction(
+      async (tx) => {
+        const lockedRows =
+          typeof tx.$queryRaw === "function"
+            ? await tx.$queryRaw<
+                Array<{
+                  id: string;
+                  status: ReceivableStatus;
+                  outstandingAmount: Prisma.Decimal | number | string;
+                  paidAmount?: Prisma.Decimal | number | string;
+                }>
+              >`SELECT id, status, "outstandingAmount", "paidAmount" FROM "HotelReceivable" WHERE id = ${receivableId} AND "hotelId" = ${hotelId} FOR UPDATE`
+            : undefined;
+
+        if (Array.isArray(lockedRows) && lockedRows.length === 0) {
+          throw new NotFoundException("Không tìm thấy công nợ");
+        }
+
+        const lockedRow =
+          Array.isArray(lockedRows) && lockedRows.length > 0 ? lockedRows[0] : null;
+        const receivable =
+          (await tx.hotelReceivable?.findFirst?.({
+            where: { id: receivableId, hotelId },
+          })) ?? (lockedRow as any);
+
+        if (!receivable) {
+          throw new NotFoundException("Không tìm thấy công nợ");
+        }
+
+        const currentStatus = lockedRow?.status ?? receivable.status;
+        if (currentStatus === ReceivableStatus.SETTLED) {
+          throw new BadRequestException("Công nợ đã được tất toán (SETTLED)");
+        }
+        if (currentStatus === ReceivableStatus.WRITTEN_OFF) {
+          throw new BadRequestException("Công nợ đã bị xóa sổ (WRITTEN_OFF)");
+        }
+
+        const currentOutstanding = new Prisma.Decimal(
+          lockedRow?.outstandingAmount ?? receivable.outstandingAmount ?? 0,
+        );
+        const currentPaid = new Prisma.Decimal(
+          lockedRow?.paidAmount ??
+            (receivable as any).paidAmount ??
+            (receivable.originalAmount
+              ? new Prisma.Decimal(receivable.originalAmount).sub(currentOutstanding)
+              : 0),
+        );
+
+        const collectAmount = new Prisma.Decimal(input.collectedAmount);
+        if (collectAmount.lte(0)) {
+          throw new BadRequestException("Số tiền thu nợ phải lớn hơn 0");
+        }
+        if (collectAmount.gt(currentOutstanding)) {
+          throw new BadRequestException("Số tiền thu nợ vượt quá số tiền nợ còn lại");
+        }
+
+        const newOutstanding = currentOutstanding.sub(collectAmount);
+        const newPaidAmount = currentPaid.add(collectAmount);
+        const newStatus = newOutstanding.equals(0)
+          ? ReceivableStatus.SETTLED
+          : ReceivableStatus.PARTIALLY_COLLECTED;
+
+        const collection = await tx.receivableCollection.create({
+          data: {
+            hotelId,
+            receivableId: receivable.id,
+            collectedAmount: collectAmount,
+            paymentMethod: input.paymentMethod ?? PaymentMethod.CASH,
+            reference: input.reference ?? null,
+            notes: input.notes ?? null,
+            collectedByUserId: actorUserId,
+            collectedAt: new Date(),
+          },
+        });
+
+        const updatedReceivable = await tx.hotelReceivable.update({
+          where: { id: receivable.id },
+          data: {
+            paidAmount: newPaidAmount,
+            outstandingAmount: newOutstanding,
+            status: newStatus,
+            updatedAt: new Date(),
+          },
+          include: {
+            collections: {
+              orderBy: { collectedAt: "desc" },
+            },
+          },
+        });
+
+        if ((tx as any).auditLog?.create) {
+          await (tx as any).auditLog.create({
+            data: {
+              actorId: actorUserId,
+              tenantId: hotelId,
+              action: "HOTEL_RECEIVABLE_COLLECTED",
+              entityType: "HotelReceivable",
+              entityId: receivable.id,
+              metadata: {
+                hotelId,
+                receivableId: receivable.id,
+                collectionId: collection.id,
+                collectedAmount: collectAmount.toString(),
+                paidAmount: newPaidAmount.toString(),
+                outstandingAmount: newOutstanding.toString(),
+                status: newStatus,
+              },
+            },
+          });
+        }
+
+        return {
+          receivable: updatedReceivable,
+          collection,
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 }

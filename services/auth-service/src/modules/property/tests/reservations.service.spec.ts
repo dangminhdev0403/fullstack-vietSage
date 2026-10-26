@@ -53,6 +53,115 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
       roomId: null,
       status: "NO_SHOW",
     }),
+    findReservationConfirmation: jest.fn().mockResolvedValue({
+      id: "reservation-1",
+      hotelId: "hotel-1",
+      reservationCode: "VSH_RES_001",
+      guestDisplayName: "Nguyen Van A",
+      guestPhone: "0901234567",
+      guestCount: 2,
+      status: "CONFIRMED",
+      plannedCheckInAt: new Date("2026-11-01T14:00:00.000Z"),
+      plannedCheckOutAt: new Date("2026-11-03T12:00:00.000Z"),
+      nightlyRateSnapshot: "1200000",
+      notes: "Tang cao",
+      createdAt: new Date("2026-10-27T08:00:00.000Z"),
+      hotel: {
+        id: "hotel-1",
+        name: "Khach San Sai Gon",
+        code: "SG01",
+        timezone: "Asia/Ho_Chi_Minh",
+        province: "TP. Hồ Chí Minh",
+        area: "Quận 1",
+        brandSettings: {
+          address: "123 Le Loi, Q1, TP.HCM",
+          phone: "028 1234 5678",
+          email: "saigon@hotel.vn",
+          logoUrl: "https://example.com/logo.png",
+          checkInTime: "14:00",
+          checkOutTime: "12:00",
+        },
+      },
+      room: {
+        id: "room-101",
+        roomNumber: "101",
+        floor: "1",
+        price: "1200000",
+      },
+      roomType: {
+        id: "rt-1",
+        name: "Deluxe King",
+        normalizedKey: "deluxe-king",
+        basePrice: "1200000",
+      },
+      chargeLines: [],
+      bookingPayments: [
+        {
+          id: "pay-1",
+          status: "COMPLETED",
+          receivedAmount: "1000000",
+        },
+      ],
+    }),
+    findGroupConfirmation: jest.fn().mockResolvedValue({
+      hotel: {
+        id: "hotel-1",
+        name: "Khach San Sai Gon",
+        code: "SG01",
+        timezone: "Asia/Ho_Chi_Minh",
+        brandSettings: {
+          address: "123 Le Loi, Q1, TP.HCM",
+        },
+      },
+      groupRecord: {
+        groupCode: "GRP_TOUR_01",
+        groupName: "Doan Du Lich Ha Noi",
+        leadGuestName: "Tran Van B",
+        leadGuestPhone: "0987654321",
+        notes: "Can phong gan nhau",
+        bookingPayments: [
+          {
+            id: "pay-group-1",
+            status: "COMPLETED",
+            receivedAmount: "2000000",
+          },
+        ],
+      },
+      reservations: [
+        {
+          id: "res-g-1",
+          hotelId: "hotel-1",
+          groupCode: "GRP_TOUR_01",
+          reservationCode: "VSH_GRP_001",
+          guestDisplayName: "Tran Van B",
+          guestPhone: "0987654321",
+          guestCount: 2,
+          status: "CONFIRMED",
+          plannedCheckInAt: new Date("2026-11-05T14:00:00.000Z"),
+          plannedCheckOutAt: new Date("2026-11-07T12:00:00.000Z"),
+          nightlyRateSnapshot: "1000000",
+          room: { id: "room-101", roomNumber: "101", floor: "1", price: "1000000" },
+          roomType: { id: "rt-1", name: "Standard", normalizedKey: "standard", basePrice: "1000000" },
+          bookingPayments: [],
+        },
+        {
+          id: "res-g-2",
+          hotelId: "hotel-1",
+          groupCode: "GRP_TOUR_01",
+          reservationCode: "VSH_GRP_002",
+          guestDisplayName: "Le Thi C",
+          guestPhone: "0912345678",
+          guestCount: 2,
+          status: "CONFIRMED",
+          plannedCheckInAt: new Date("2026-11-05T14:00:00.000Z"),
+          plannedCheckOutAt: new Date("2026-11-07T12:00:00.000Z"),
+          nightlyRateSnapshot: "1000000",
+          room: { id: "room-102", roomNumber: "102", floor: "1", price: "1000000" },
+          roomType: { id: "rt-1", name: "Standard", normalizedKey: "standard", basePrice: "1000000" },
+          bookingPayments: [],
+        },
+      ],
+    }),
     ...overrides,
   };
 }
@@ -683,6 +792,225 @@ describe("ReservationsService front-desk lifecycle", () => {
       await expect(
         service.markNoShow("actor-1", "active-role", "hotel-1", "missing-res", {}),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe("Confirmation Projections (Lane C)", () => {
+    it("returns an accurate individual reservation confirmation projection", async () => {
+      const { service } = createService();
+
+      const result = await service.getReservationConfirmation(
+        "actor-1",
+        "active-role",
+        "hotel-1",
+        "reservation-1",
+      );
+
+      // Hotel projection
+      expect(result.hotel).toMatchObject({
+        id: "hotel-1",
+        name: "Khach San Sai Gon",
+        code: "SG01",
+        address: "123 Le Loi, Q1, TP.HCM",
+        phone: "028 1234 5678",
+        email: "saigon@hotel.vn",
+        checkInTimePolicy: "14:00",
+        checkOutTimePolicy: "12:00",
+      });
+
+      // Reservation projection
+      expect(result.reservation).toMatchObject({
+        id: "reservation-1",
+        reservationCode: "VSH_RES_001",
+        guestDisplayName: "Nguyen Van A",
+        guestPhone: "0901234567",
+        guestCount: 2,
+        status: "CONFIRMED",
+        nights: 2,
+        notes: "Tang cao",
+        room: {
+          id: "room-101",
+          roomNumber: "101",
+          floor: "1",
+        },
+        roomType: {
+          id: "rt-1",
+          name: "Deluxe King",
+          code: "deluxe-king",
+        },
+      });
+
+      // Pricing projection: 2 nights x 1,200,000 = 2,400,000; paid: 1,000,000; balance: 1,400,000
+      expect(result.pricing).toMatchObject({
+        roomSubtotal: 2400000,
+        totalAmount: 2400000,
+        paidAmount: 1000000,
+        balanceAmount: 1400000,
+        currency: "VND",
+      });
+      expect(result.pricing.nightlyBreakdown).toHaveLength(2);
+      expect(result.pricing.nightlyBreakdown[0]).toMatchObject({
+        date: "2026-11-01",
+        rate: 1200000,
+        lineType: "ROOM_NIGHT",
+      });
+      expect(result.pricing.nightlyBreakdown[1]).toMatchObject({
+        date: "2026-11-02",
+        rate: 1200000,
+        lineType: "ROOM_NIGHT",
+      });
+
+      // Policies
+      expect(result.policies).toMatchObject({
+        checkInTime: "14:00",
+        checkOutTime: "12:00",
+      });
+      expect(result.policies.terms.length).toBeGreaterThan(0);
+    });
+
+    it("projects custom chargeLines when present on reservation", async () => {
+      const { service } = createService(
+        createRepository({
+          findReservationConfirmation: jest.fn().mockResolvedValue({
+            id: "reservation-2",
+            hotelId: "hotel-1",
+            reservationCode: "VSH_RES_002",
+            guestDisplayName: "Le Thi C",
+            plannedCheckInAt: new Date("2026-11-01T14:00:00.000Z"),
+            plannedCheckOutAt: new Date("2026-11-03T12:00:00.000Z"),
+            status: "CONFIRMED",
+            hotel: {
+              id: "hotel-1",
+              name: "Hotel Test",
+              code: "HT01",
+              timezone: "Asia/Ho_Chi_Minh",
+            },
+            chargeLines: [
+              {
+                id: "line-1",
+                lineType: "ROOM_NIGHT",
+                serviceDate: new Date("2026-11-01T00:00:00.000Z"),
+                nameSnapshot: "Đêm 1 - Ưu đãi",
+                unitPriceSnapshot: "900000",
+                totalSnapshot: "900000",
+                taxAmountSnapshot: "90000",
+              },
+              {
+                id: "line-2",
+                lineType: "ROOM_NIGHT",
+                serviceDate: new Date("2026-11-02T00:00:00.000Z"),
+                nameSnapshot: "Đêm 2 - Cuối tuần",
+                unitPriceSnapshot: "1100000",
+                totalSnapshot: "1100000",
+                taxAmountSnapshot: "110000",
+              },
+              {
+                id: "line-3",
+                lineType: "EXTRA",
+                nameSnapshot: "Đón sân bay",
+                totalSnapshot: "350000",
+                taxAmountSnapshot: "35000",
+              },
+            ],
+            bookingPayments: [
+              { id: "p1", status: "COMPLETED", receivedAmount: "1500000" },
+            ],
+          }),
+        }),
+      );
+
+      const result = await service.getReservationConfirmation(
+        "actor-1",
+        "active-role",
+        "hotel-1",
+        "reservation-2",
+      );
+
+      expect(result.pricing.roomSubtotal).toBe(2000000);
+      expect(result.pricing.serviceAmount).toBe(350000);
+      expect(result.pricing.taxAmount).toBe(235000);
+      expect(result.pricing.totalAmount).toBe(2585000);
+      expect(result.pricing.paidAmount).toBe(1500000);
+      expect(result.pricing.balanceAmount).toBe(1085000);
+    });
+
+    it("rejects cross-hotel access when reservation does not belong to hotelId", async () => {
+      const { service } = createService(
+        createRepository({
+          findReservationConfirmation: jest
+            .fn()
+            .mockRejectedValue(new NotFoundException("Đặt phòng không thuộc khách sạn này")),
+        }),
+      );
+
+      await expect(
+        service.getReservationConfirmation("actor-1", "active-role", "hotel-cross", "reservation-1"),
+      ).rejects.toThrow("Đặt phòng không thuộc khách sạn này");
+    });
+
+    it("returns accurate group confirmation projection with all rooms and totals", async () => {
+      const { service } = createService();
+
+      const result = await service.getGroupConfirmation(
+        "actor-1",
+        "active-role",
+        "hotel-1",
+        "GRP_TOUR_01",
+      );
+
+      // Group info
+      expect(result.group).toMatchObject({
+        groupCode: "GRP_TOUR_01",
+        groupName: "Doan Du Lich Ha Noi",
+        leadGuestName: "Tran Van B",
+        leadGuestPhone: "0987654321",
+        totalRooms: 2,
+        nights: 2,
+      });
+
+      // Rooms list
+      expect(result.rooms).toHaveLength(2);
+      expect(result.rooms[0]).toMatchObject({
+        reservationCode: "VSH_GRP_001",
+        guestDisplayName: "Tran Van B",
+        roomNumber: "P.101",
+        nights: 2,
+        nightlyRate: 1000000,
+        roomSubtotal: 2000000,
+      });
+      expect(result.rooms[1]).toMatchObject({
+        reservationCode: "VSH_GRP_002",
+        guestDisplayName: "Le Thi C",
+        roomNumber: "P.102",
+        nights: 2,
+        nightlyRate: 1000000,
+        roomSubtotal: 2000000,
+      });
+
+      // Pricing: 2 rooms x 2,000,000 = 4,000,000; paid = 2,000,000 (group payment); balance = 2,000,000
+      expect(result.pricing).toMatchObject({
+        totalRooms: 2,
+        totalGuests: 4,
+        roomSubtotal: 4000000,
+        totalAmount: 4000000,
+        paidAmount: 2000000,
+        balanceAmount: 2000000,
+        currency: "VND",
+      });
+    });
+
+    it("rejects cross-hotel access when group does not belong to hotelId", async () => {
+      const { service } = createService(
+        createRepository({
+          findGroupConfirmation: jest
+            .fn()
+            .mockRejectedValue(new NotFoundException("Đoàn đặt phòng không thuộc khách sạn này")),
+        }),
+      );
+
+      await expect(
+        service.getGroupConfirmation("actor-1", "active-role", "hotel-cross", "GRP_TOUR_01"),
+      ).rejects.toThrow("Đoàn đặt phòng không thuộc khách sạn này");
     });
   });
 });

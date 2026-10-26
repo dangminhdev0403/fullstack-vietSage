@@ -680,3 +680,111 @@ export type UpdateReservationPlacementInput = {
   swapExpectedUpdatedAt?: string;
 };
 
+export type ConfirmationHotelInfo = {
+  id: string;
+  name: string;
+  code: string;
+  address: string;
+  phone: string;
+  email: string;
+  logoUrl: string | null;
+  checkInTimePolicy: string;
+  checkOutTimePolicy: string;
+};
+
+export type ConfirmationNightlyItem = {
+  date: string;
+  description: string;
+  rate: number;
+  lineType: string;
+};
+
+export type ConfirmationPricing = {
+  nightlyBreakdown: ConfirmationNightlyItem[];
+  roomSubtotal: number;
+  taxAmount: number;
+  serviceAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  paidAmount: number;
+  balanceAmount: number;
+  currency: string;
+};
+
+export type ConfirmationPolicies = {
+  checkInTime: string;
+  checkOutTime: string;
+  cancellationPolicy: string;
+  terms: string[];
+};
+
+export type ReservationConfirmationData = {
+  hotel: ConfirmationHotelInfo;
+  reservation: {
+    id: string;
+    reservationCode: string;
+    groupCode: string | null;
+    status: string;
+    guestDisplayName: string;
+    guestPhone: string | null;
+    guestCount: number;
+    roomType: { id: string | null; name: string; code?: string } | null;
+    room: { id: string; roomNumber: string; floor?: string | null } | null;
+    plannedCheckInAt: string;
+    plannedCheckOutAt: string;
+    nights: number;
+    notes: string | null;
+    createdAt: string;
+  };
+  pricing: ConfirmationPricing;
+  policies: ConfirmationPolicies;
+};
+
+export type GroupConfirmationRoomItem = {
+  reservationId: string;
+  reservationCode: string;
+  guestDisplayName: string;
+  guestPhone: string | null;
+  guestCount: number;
+  roomNumber: string;
+  floor: string | null;
+  roomTypeName: string;
+  plannedCheckInAt: string;
+  plannedCheckOutAt: string;
+  nights: number;
+  nightlyRate: number;
+  roomSubtotal: number;
+  paidAmount: number;
+  balanceAmount: number;
+  status: string;
+};
+
+export type GroupConfirmationData = {
+  hotel: ConfirmationHotelInfo;
+  group: {
+    groupCode: string;
+    groupName: string | null;
+    leadGuestName: string;
+    leadGuestPhone: string | null;
+    notes: string | null;
+    totalRooms: number;
+    checkInDate: string;
+    checkOutDate: string;
+    nights: number;
+  };
+  rooms: GroupConfirmationRoomItem[];
+  pricing: {
+    totalRooms: number;
+    totalGuests: number;
+    roomSubtotal: number;
+    taxAmount: number;
+    serviceAmount: number;
+    discountAmount: number;
+    totalAmount: number;
+    paidAmount: number;
+    balanceAmount: number;
+    currency: string;
+  };
+  policies: ConfirmationPolicies;
+};
+

@@ -24,12 +24,14 @@ import type {
   RoomPlanQueryInput,
   UpdateReservationPlacementBodyInput,
   UpdateReservationDatesBodyInput,
+  UpdateGroupReservationBodyInput,
 } from "../domain/schemas/reservations.schema";
 import { ReservationsRepository } from "../infrastructure/repositories/reservations.repository";
 import { getBusinessDateRange } from "../infrastructure/repositories/hotel-rooms.repository";
 import { HotelAccessService } from "./hotel-access.service";
 import {
   addDaysYmd,
+  diffCalendarDays,
   plainDateAtTime,
   resolveTimeZone,
   startOfPlainDate,
@@ -525,5 +527,401 @@ export class ReservationsService {
       // Non-blocking realtime emission
     }
     return updated;
+  }
+
+  async getGroupReservation(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    groupCode: string,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    return this.reservationsRepository.findGroupByCode(hotelId, groupCode);
+  }
+
+  async getGroupDetails(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    groupCode: string,
+  ) {
+    return this.getGroupReservation(actorUserId, activeRoleId, hotelId, groupCode);
+  }
+
+  async updateGroupReservation(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    groupCode: string,
+    dto: UpdateGroupReservationBodyInput,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    return this.reservationsRepository.updateGroupByCode(hotelId, groupCode, dto);
+  }
+
+  async getReservationConfirmation(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    reservationId: string,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const reservation = await this.reservationsRepository.findReservationConfirmation(
+      hotelId,
+      reservationId,
+    );
+    return this.projectReservationConfirmation(reservation);
+  }
+
+  async getGroupConfirmation(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    groupCode: string,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const data = await this.reservationsRepository.findGroupConfirmation(hotelId, groupCode);
+    return this.projectGroupConfirmation(data);
+  }
+
+  private projectReservationConfirmation(data: any) {
+    const hotel = data.hotel;
+    const tz = hotel?.timezone || VIETNAM_TIME_ZONE;
+    const brandSettings =
+      hotel?.brandSettings && typeof hotel.brandSettings === "object"
+        ? (hotel.brandSettings as Record<string, any>)
+        : {};
+    const template = hotel?.confirmationTemplates?.[0] ?? null;
+    const nonEmpty = (val: unknown): string | undefined =>
+      typeof val === "string" && val.trim().length > 0 ? val.trim() : undefined;
+
+    const hotelProjection = {
+      id: hotel.id,
+      name: hotel.name,
+      code: hotel.code,
+      address:
+        nonEmpty(template?.hotelAddress) ||
+        brandSettings.address ||
+        [hotel.area, hotel.province].filter(Boolean).join(", ") ||
+        "Địa chỉ khách sạn",
+      phone:
+        nonEmpty(template?.hotelPhone) ||
+        brandSettings.phone ||
+        brandSettings.hotline ||
+        "Số điện thoại liên hệ",
+      email:
+        nonEmpty(template?.hotelEmail) ||
+        brandSettings.email ||
+        "Email liên hệ",
+      logoUrl: brandSettings.logoUrl || brandSettings.logo || null,
+      checkInTimePolicy:
+        nonEmpty(template?.checkInTimeText) ||
+        brandSettings.checkInTime ||
+        "14:00",
+      checkOutTimePolicy:
+        nonEmpty(template?.checkOutTimeText) ||
+        brandSettings.checkOutTime ||
+        "12:00",
+    };
+
+    const checkInDate = new Date(data.plannedCheckInAt);
+    const checkOutDate = new Date(data.plannedCheckOutAt);
+    const nights = Math.max(1, diffCalendarDays(checkInDate, checkOutDate, tz));
+
+    const roomChargeLines = (data.chargeLines || []).filter(
+      (l: any) => l.lineType === "ROOM_NIGHT",
+    );
+    let nightlyBreakdown: Array<{
+      date: string;
+      description: string;
+      rate: number;
+      lineType: string;
+    }> = [];
+
+    if (roomChargeLines.length > 0) {
+      nightlyBreakdown = roomChargeLines.map((l: any) => ({
+        date: l.serviceDate ? toYmd(new Date(l.serviceDate), tz) : toYmd(checkInDate, tz),
+        description: l.nameSnapshot || "Tiền phòng",
+        rate: Number(l.unitPriceSnapshot ?? l.totalSnapshot ?? 0),
+        lineType: "ROOM_NIGHT",
+      }));
+    } else {
+      const nightlyRate = Number(
+        data.nightlyRateSnapshot ?? data.room?.price ?? data.roomType?.basePrice ?? 0,
+      );
+      for (let i = 0; i < nights; i++) {
+        const nightDate = addDaysYmd(toYmd(checkInDate, tz), i);
+        nightlyBreakdown.push({
+          date: nightDate,
+          description: `Tiền phòng đêm ${nightDate}`,
+          rate: nightlyRate,
+          lineType: "ROOM_NIGHT",
+        });
+      }
+    }
+
+    const roomSubtotal = nightlyBreakdown.reduce((sum, item) => sum + item.rate, 0);
+    const extraLines = (data.chargeLines || []).filter((l: any) => l.lineType !== "ROOM_NIGHT");
+    const serviceAmount = extraLines.reduce(
+      (sum: number, l: any) => sum + Number(l.totalSnapshot || 0),
+      0,
+    );
+    const taxAmount = (data.chargeLines || []).reduce(
+      (sum: number, l: any) => sum + Number(l.taxAmountSnapshot || 0),
+      0,
+    );
+    const discountAmount = (data.chargeLines || []).reduce(
+      (sum: number, l: any) => sum + Number(l.discountAmountSnapshot || 0),
+      0,
+    );
+    const totalAmount = roomSubtotal + serviceAmount + taxAmount - discountAmount;
+
+    const paidPayments = (data.bookingPayments || []).filter(
+      (p: any) => p.status === "COMPLETED" || p.status === "ALLOCATED",
+    );
+    const paidAmount = paidPayments.reduce(
+      (sum: number, p: any) => sum + Number(p.receivedAmount || 0),
+      0,
+    );
+    const balanceAmount = Math.max(0, totalAmount - paidAmount);
+
+    const cancellationPolicy =
+      nonEmpty(template?.cancellationPolicyText) ||
+      brandSettings.cancellationPolicy ||
+      "Miễn phí hủy phòng trước 24 giờ so với giờ nhận phòng tiêu chuẩn. Hủy phòng muộn hoặc vắng mặt sẽ chịu phí đêm đầu tiên.";
+    const footerNote = nonEmpty(template?.footerNoteText);
+    const terms = [
+      "Quý khách vui lòng xuất trình giấy tờ tùy thân hợp lệ (CMND/CCCD hoặc Hộ chiếu) khi làm thủ tục nhận phòng.",
+      `Thời gian nhận phòng tiêu chuẩn từ ${hotelProjection.checkInTimePolicy} và trả phòng trước ${hotelProjection.checkOutTimePolicy}.`,
+      "Trường hợp nhận phòng sớm hoặc trả phòng trễ tùy thuộc vào tình trạng phòng sẵn có của khách sạn và có thể áp dụng phụ thu theo quy định.",
+      footerNote ||
+        "Mọi thắc mắc hoặc yêu cầu dịch vụ đặc biệt, quý khách vui lòng liên hệ quầy lễ tân để được hỗ trợ tốt nhất.",
+    ];
+
+    return {
+      hotel: hotelProjection,
+      reservation: {
+        id: data.id,
+        reservationCode: data.reservationCode,
+        groupCode: data.groupCode || null,
+        status: data.status,
+        guestDisplayName: data.guestDisplayName,
+        guestPhone: data.guestPhone || null,
+        guestCount: data.guestCount || 1,
+        roomType: data.roomType
+          ? { id: data.roomType.id, name: data.roomType.name, code: data.roomType.normalizedKey }
+          : data.roomTypeSnapshot
+            ? { id: null, name: data.roomTypeSnapshot, code: data.roomTypeSnapshot }
+            : null,
+        room: data.room
+          ? { id: data.room.id, roomNumber: data.room.roomNumber, floor: data.room.floor || null }
+          : null,
+        plannedCheckInAt: checkInDate.toISOString(),
+        plannedCheckOutAt: checkOutDate.toISOString(),
+        nights,
+        notes: data.notes || null,
+        createdAt: data.createdAt ? new Date(data.createdAt).toISOString() : new Date().toISOString(),
+      },
+      pricing: {
+        nightlyBreakdown,
+        roomSubtotal,
+        taxAmount,
+        serviceAmount,
+        discountAmount,
+        totalAmount,
+        paidAmount,
+        balanceAmount,
+        currency: "VND",
+      },
+      policies: {
+        checkInTime: hotelProjection.checkInTimePolicy,
+        checkOutTime: hotelProjection.checkOutTimePolicy,
+        cancellationPolicy,
+        footerNoteText: footerNote ?? null,
+        terms,
+      },
+    };
+  }
+
+  private projectGroupConfirmation(data: { hotel: any; reservations: any[]; groupRecord?: any }) {
+    const hotel = data.hotel;
+    const tz = hotel?.timezone || VIETNAM_TIME_ZONE;
+    const brandSettings =
+      hotel?.brandSettings && typeof hotel.brandSettings === "object"
+        ? (hotel.brandSettings as Record<string, any>)
+        : {};
+    const template = hotel?.confirmationTemplates?.[0] ?? null;
+    const nonEmpty = (val: unknown): string | undefined =>
+      typeof val === "string" && val.trim().length > 0 ? val.trim() : undefined;
+
+    const hotelProjection = {
+      id: hotel.id,
+      name: hotel.name,
+      code: hotel.code,
+      address:
+        nonEmpty(template?.hotelAddress) ||
+        brandSettings.address ||
+        [hotel.area, hotel.province].filter(Boolean).join(", ") ||
+        "Địa chỉ khách sạn",
+      phone:
+        nonEmpty(template?.hotelPhone) ||
+        brandSettings.phone ||
+        brandSettings.hotline ||
+        "Số điện thoại liên hệ",
+      email:
+        nonEmpty(template?.hotelEmail) ||
+        brandSettings.email ||
+        "Email liên hệ",
+      logoUrl: brandSettings.logoUrl || brandSettings.logo || null,
+      checkInTimePolicy:
+        nonEmpty(template?.checkInTimeText) ||
+        brandSettings.checkInTime ||
+        "14:00",
+      checkOutTimePolicy:
+        nonEmpty(template?.checkOutTimeText) ||
+        brandSettings.checkOutTime ||
+        "12:00",
+    };
+
+    const firstRes = data.reservations[0];
+    const groupCode = data.groupRecord?.groupCode || firstRes?.groupCode || "GROUP";
+    const leadGuestName =
+      data.groupRecord?.leadGuestName || firstRes?.guestDisplayName || "Trưởng đoàn";
+    const leadGuestPhone =
+      data.groupRecord?.leadGuestPhone || firstRes?.guestPhone || null;
+    const groupName = data.groupRecord?.groupName || `Đoàn ${leadGuestName}`;
+
+    let earliestCheckIn = new Date(firstRes?.plannedCheckInAt || new Date());
+    let latestCheckOut = new Date(firstRes?.plannedCheckOutAt || new Date());
+
+    const rooms = data.reservations.map((r: any) => {
+      const cIn = new Date(r.plannedCheckInAt ?? r.checkInDate);
+      const cOut = new Date(r.plannedCheckOutAt ?? r.checkOutDate);
+      if (cIn < earliestCheckIn) earliestCheckIn = cIn;
+      if (cOut > latestCheckOut) latestCheckOut = cOut;
+
+      const rNights = Math.max(1, diffCalendarDays(cIn, cOut, tz));
+      const rNightlyRate = Number(
+        r.nightlyRateSnapshot ?? r.room?.price ?? r.roomType?.basePrice ?? 0,
+      );
+      const rRoomSubtotal = rNightlyRate * rNights;
+      const rPaid = (r.bookingPayments || [])
+        .filter((p: any) => p.status === "COMPLETED" || p.status === "ALLOCATED")
+        .reduce((sum: number, p: any) => sum + Number(p.receivedAmount || 0), 0);
+      const rBalance = Math.max(0, rRoomSubtotal - rPaid);
+
+      const rawStay = r.stay;
+      const rawGuestStays = r.guestStays;
+      const activeStay =
+        rawStay &&
+        (!rawStay.status ||
+          rawStay.status === "ACTIVE" ||
+          rawStay.status === "CHECKED_IN" ||
+          rawStay.status === "CHECKOUT_PENDING" ||
+          rawStay.status === "OPEN")
+          ? rawStay
+          : Array.isArray(rawGuestStays) && rawGuestStays.length > 0
+            ? rawGuestStays[0]
+            : null;
+
+      return {
+        reservationId: r.id,
+        reservationCode: r.reservationCode,
+        activeStayId: activeStay?.id ?? null,
+        stayId: activeStay?.id ?? null,
+        assignedRoomId:
+          r.roomId ??
+          r.assignedRoomId ??
+          r.room?.id ??
+          r.assignedRoom?.id ??
+          activeStay?.roomId ??
+          null,
+        roomTypeId: r.roomTypeId ?? r.roomType?.id ?? null,
+        roomTypeCode: r.roomType?.code ?? r.roomType?.normalizedKey ?? null,
+        guestDisplayName: r.guestDisplayName,
+        guestName: r.guestDisplayName ?? r.guestName,
+        guestPhone: r.guestPhone || null,
+        guestEmail: r.guestEmail ?? null,
+        guestCount: r.guestCount ?? 1,
+        roomNumber: r.room?.roomNumber ? `P.${r.room.roomNumber}` : "Chưa gán phòng",
+        assignedRoomNumber: r.room?.roomNumber ?? r.assignedRoom?.roomNumber ?? null,
+        floor: r.room?.floor || null,
+        roomTypeName: r.roomType?.name || r.roomTypeSnapshot || "Tiêu chuẩn",
+        plannedCheckInAt: cIn.toISOString(),
+        plannedCheckOutAt: cOut.toISOString(),
+        checkInDate: cIn.toISOString(),
+        checkOutDate: cOut.toISOString(),
+        nights: rNights,
+        nightlyRate: rNightlyRate,
+        ratePerNight: rNightlyRate,
+        roomSubtotal: rRoomSubtotal,
+        totalAmount: rRoomSubtotal,
+        paidAmount: rPaid,
+        depositAmount: rPaid,
+        balanceAmount: rBalance,
+        specialRequests: r.notes ?? r.specialRequests ?? null,
+        status: r.status,
+      };
+    });
+
+    const groupNights = Math.max(1, diffCalendarDays(earliestCheckIn, latestCheckOut, tz));
+    const totalRooms = rooms.length;
+    const totalGuests = rooms.reduce((s: number, r: any) => s + r.guestCount, 0);
+    const roomSubtotal = rooms.reduce((s: number, r: any) => s + r.roomSubtotal, 0);
+    const roomsPaid = rooms.reduce((s: number, r: any) => s + r.paidAmount, 0);
+    const groupDirectPaid = (data.groupRecord?.bookingPayments || [])
+      .filter((p: any) => p.status === "COMPLETED" || p.status === "ALLOCATED")
+      .reduce((sum: number, p: any) => sum + Number(p.receivedAmount || 0), 0);
+    const totalPaidAmount = roomsPaid + groupDirectPaid;
+    const totalAmount = roomSubtotal;
+    const totalBalanceAmount = Math.max(0, totalAmount - totalPaidAmount);
+
+    const cancellationPolicy =
+      nonEmpty(template?.cancellationPolicyText) ||
+      brandSettings.cancellationPolicy ||
+      "Miễn phí hủy phòng đoàn trước 7 ngày so với ngày nhận phòng. Hủy phòng sau thời hạn sẽ chịu phí 50% tổng giá trị tiền phòng.";
+    const footerNote = nonEmpty(template?.footerNoteText);
+    const terms = [
+      "Quý khách vui lòng cung cấp danh sách đoàn và xuất trình giấy tờ tùy thân hợp lệ khi làm thủ tục nhận phòng.",
+      `Thời gian nhận phòng tiêu chuẩn từ ${hotelProjection.checkInTimePolicy} và trả phòng trước ${hotelProjection.checkOutTimePolicy}.`,
+      "Thanh toán toàn bộ số tiền còn lại trước hoặc tại thời điểm làm thủ tục nhận phòng cho đoàn.",
+      footerNote ||
+        "Mọi thay đổi về số lượng phòng hoặc thời gian lưu trú vui lòng thông báo sớm cho bộ phận đặt phòng của khách sạn.",
+    ];
+
+    return {
+      hotel: hotelProjection,
+      group: {
+        groupCode,
+        groupName,
+        leadGuestName,
+        leadGuestPhone,
+        notes: data.groupRecord?.notes || null,
+        totalRooms,
+        checkInDate: earliestCheckIn.toISOString(),
+        checkOutDate: latestCheckOut.toISOString(),
+        nights: groupNights,
+      },
+      rooms,
+      pricing: {
+        totalRooms,
+        totalGuests,
+        roomSubtotal,
+        taxAmount: 0,
+        serviceAmount: 0,
+        discountAmount: 0,
+        totalAmount,
+        paidAmount: totalPaidAmount,
+        balanceAmount: totalBalanceAmount,
+        currency: "VND",
+      },
+      policies: {
+        checkInTime: hotelProjection.checkInTimePolicy,
+        checkOutTime: hotelProjection.checkOutTimePolicy,
+        cancellationPolicy,
+        footerNoteText: footerNote ?? null,
+        terms,
+      },
+    };
   }
 }
