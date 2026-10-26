@@ -558,7 +558,7 @@ export class HotelRoomsRepository {
               checkedInAt: true,
               createdAt: true,
               updatedAt: true,
-            } as any,
+            },
             orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
           }),
           this.prisma.guestStay.findMany({
@@ -638,7 +638,7 @@ export class HotelRoomsRepository {
             checkedInAt: true,
             createdAt: true,
             updatedAt: true,
-          } as any,
+          },
           orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
         });
 
@@ -765,7 +765,7 @@ export class HotelRoomsRepository {
                   checkedInAt: true,
                   createdAt: true,
                   updatedAt: true,
-                } as any,
+                },
                 orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
               })
             : Promise.resolve([]),
@@ -833,7 +833,7 @@ export class HotelRoomsRepository {
                   checkedInAt: true,
                   createdAt: true,
                   updatedAt: true,
-                } as any,
+                },
                 orderBy: [{ plannedCheckInAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
               })
             : Promise.resolve([]),

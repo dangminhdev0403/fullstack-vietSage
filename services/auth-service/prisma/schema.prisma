@@ -157,6 +157,52 @@ enum ReservationStatus {
   NO_SHOW
 }
 
+enum BookingSourceCategory {
+  DIRECT
+  OTA
+  TRAVEL_AGENCY
+  CORPORATE
+  OTHER
+}
+
+enum ReservationChargeLineType {
+  ROOM_NIGHT
+  EXTRA
+}
+
+enum BookingPaymentIntent {
+  DEPOSIT
+  ADVANCE
+  FULL
+}
+
+enum BookingPaymentMode {
+  PERCENT
+  AMOUNT
+  FULL
+}
+
+enum BookingPaymentStatus {
+  PENDING
+  COMPLETED
+  ALLOCATED
+  REFUNDED
+  CANCELLED
+}
+
+enum ReceivableDebtorType {
+  GUEST
+  PARTNER
+  COMPANY
+}
+
+enum ReceivableStatus {
+  OPEN
+  PARTIALLY_COLLECTED
+  SETTLED
+  WRITTEN_OFF
+}
+
 enum GuestSessionStatus {
   CREATED
   ACTIVE
@@ -721,6 +767,14 @@ model Hotel {
   channelDailyRestrictions      ChannelDailyRestriction[]
   channelSyncLogs               ChannelSyncLog[]
   channexMappings               ChannexMapping[]
+  reservationGroups             ReservationGroup[]
+  bookingSourcePartners         BookingSourcePartner[]
+  reservationChargeLines        ReservationChargeLine[]
+  bookingPayments               BookingPayment[]
+  bookingPaymentAllocations     BookingPaymentAllocation[]
+  hotelReceivables              HotelReceivable[]
+  receivableCollections         ReceivableCollection[]
+  confirmationTemplate          HotelConfirmationTemplate?
 }
 
 model HotelFeatureEntitlement {
@@ -1152,18 +1206,28 @@ model Reservation {
   checkedInAt         DateTime?
   checkedInByUserId   String?
   createdByUserId     String?
+  groupId             String?
+  sourceCategory      BookingSourceCategory?
+  sourcePartnerId     String?
+  bookingOwnerUserId  String?
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
   hotel               Hotel             @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   room                Room?             @relation(fields: [roomId], references: [id], onDelete: SetNull)
   roomType            RoomType?         @relation(fields: [roomTypeId], references: [id], onDelete: SetNull)
   stay                GuestStay?
+  group               ReservationGroup?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  sourcePartner       BookingSourcePartner? @relation(fields: [sourcePartnerId], references: [id], onDelete: SetNull)
+  chargeLines         ReservationChargeLine[]
+  bookingPayments     BookingPayment[]
 
   @@unique([hotelId, reservationCode])
   @@index([hotelId, status, plannedCheckInAt])
   @@index([roomId, status, plannedCheckInAt, plannedCheckOutAt])
   @@index([hotelId, groupCode])
   @@index([hotelId, roomTypeId])
+  @@index([hotelId, groupId])
+  @@index([hotelId, sourcePartnerId])
 }
 
 model GuestStay {
@@ -1212,6 +1276,7 @@ model GuestStay {
   marketplaceOrders           MarketplaceOrder[]
   guestCarts                  GuestCart[]
   kbttGuestDeclarations       KbttGuestDeclaration[]
+  hotelReceivables            HotelReceivable[]
 
   @@index([hotelId, status])
   @@index([hotelId, status, plannedCheckInAt, plannedCheckOutAt])
@@ -1535,6 +1600,8 @@ model Folio {
   items             FolioItem[]
   invoices          Invoice[]
   payments          Payment[]
+  bookingPaymentAllocations BookingPaymentAllocation[]
+  hotelReceivables          HotelReceivable[]
 
   @@unique([hotelId, folioNumber])
   @@index([hotelId])
@@ -1633,6 +1700,8 @@ model Invoice {
   voidedBy            User?                @relation("InvoiceVoidedBy", fields: [voidedByUserId], references: [id], onDelete: SetNull)
   payments            Payment[]
   paymentTransactions PaymentTransaction[]
+  bookingPaymentAllocations BookingPaymentAllocation[]
+  hotelReceivables          HotelReceivable[]
 
   @@unique([hotelId, invoiceNumber])
   @@index([hotelId])
@@ -2722,4 +2791,190 @@ model ChannexMapping {
   @@unique([hotelId, kind, localId])
   @@unique([kind, channexId])
   @@index([hotelId, kind])
+}
+
+model ReservationGroup {
+  id                 String                @id @default(cuid())
+  hotelId            String
+  groupCode          String                @db.VarChar(80)
+  groupName          String?               @db.VarChar(120)
+  leadGuestName      String                @db.VarChar(120)
+  leadGuestPhone     String?               @db.VarChar(40)
+  sourceCategory     BookingSourceCategory?
+  sourcePartnerId    String?
+  bookingOwnerUserId String?
+  notes              String?
+  createdByUserId    String?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  hotel              Hotel                 @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  sourcePartner      BookingSourcePartner? @relation(fields: [sourcePartnerId], references: [id], onDelete: SetNull)
+  reservations       Reservation[]
+  bookingPayments    BookingPayment[]
+
+  @@unique([hotelId, groupCode])
+  @@index([hotelId, createdAt])
+}
+
+model BookingSourcePartner {
+  id                 String                @id @default(cuid())
+  hotelId            String
+  name               String                @db.VarChar(120)
+  code               String                @db.VarChar(40)
+  category           BookingSourceCategory @default(DIRECT)
+  contactPerson      String?               @db.VarChar(120)
+  contactPhone       String?               @db.VarChar(40)
+  contactEmail       String?               @db.VarChar(160)
+  notes              String?
+  isActive           Boolean               @default(true)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  hotel              Hotel                 @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  reservations       Reservation[]
+  reservationGroups  ReservationGroup[]
+  receivables        HotelReceivable[]
+
+  @@unique([hotelId, code])
+  @@index([hotelId, isActive])
+}
+
+model ReservationChargeLine {
+  id                     String                    @id @default(cuid())
+  hotelId                String
+  reservationId          String
+  lineType               ReservationChargeLineType
+  serviceDate            DateTime?
+  serviceItemId          String?
+  nameSnapshot           String                    @db.VarChar(160)
+  codeSnapshot           String?                   @db.VarChar(80)
+  quantity               Int                       @default(1)
+  unitPriceSnapshot      Decimal                   @db.Decimal(12, 2)
+  taxAmountSnapshot      Decimal                   @default(0) @db.Decimal(12, 2)
+  discountAmountSnapshot Decimal                   @default(0) @db.Decimal(12, 2)
+  totalSnapshot          Decimal                   @db.Decimal(12, 2)
+  currency               String                    @default("VND") @db.VarChar(3)
+  isPostedToFolio        Boolean                   @default(false)
+  postedFolioItemId      String?
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+  hotel                  Hotel                     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  reservation            Reservation               @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId, reservationId])
+  @@index([reservationId, serviceDate])
+}
+
+model BookingPayment {
+  id                   String                     @id @default(cuid())
+  hotelId              String
+  reservationId        String?
+  groupId              String?
+  intent               BookingPaymentIntent       @default(DEPOSIT)
+  inputMode            BookingPaymentMode         @default(AMOUNT)
+  requestedAmount      Decimal                    @db.Decimal(12, 2)
+  receivedAmount       Decimal                    @db.Decimal(12, 2)
+  paymentMethod        PaymentMethod              @default(CASH)
+  status               BookingPaymentStatus       @default(COMPLETED)
+  transactionReference String?                    @db.VarChar(120)
+  notes                String?
+  idempotencyKey       String?                    @unique @db.VarChar(120)
+  receivedAt           DateTime                   @default(now())
+  createdByUserId      String?
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  hotel                Hotel                      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  reservation          Reservation?               @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  group                ReservationGroup?          @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  allocations          BookingPaymentAllocation[]
+
+  @@index([hotelId, reservationId])
+  @@index([hotelId, groupId])
+  @@index([hotelId, status, receivedAt])
+}
+
+model BookingPaymentAllocation {
+  id                String         @id @default(cuid())
+  hotelId           String
+  bookingPaymentId  String
+  folioId           String
+  invoiceId         String?
+  allocatedAmount   Decimal        @db.Decimal(12, 2)
+  allocatedAt       DateTime       @default(now())
+  allocatedByUserId String?
+  createdAt         DateTime       @default(now())
+  hotel             Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  bookingPayment    BookingPayment @relation(fields: [bookingPaymentId], references: [id], onDelete: Cascade)
+  folio             Folio          @relation(fields: [folioId], references: [id], onDelete: Cascade)
+  invoice           Invoice?       @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  @@index([hotelId, bookingPaymentId])
+  @@index([hotelId, folioId])
+}
+
+model HotelReceivable {
+  id                  String                @id @default(cuid())
+  hotelId             String
+  stayId              String
+  folioId             String
+  invoiceId           String?
+  debtorName          String                @db.VarChar(120)
+  debtorType          ReceivableDebtorType  @default(GUEST)
+  debtorPartnerId     String?
+  assigneeUserId      String?
+  originalAmount      Decimal               @db.Decimal(12, 2)
+  outstandingAmount   Decimal               @db.Decimal(12, 2)
+  dueDate             DateTime?
+  status              ReceivableStatus      @default(OPEN)
+  notes               String?
+  transferredAt       DateTime              @default(now())
+  transferredByUserId String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  hotel               Hotel                 @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  stay                GuestStay             @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  folio               Folio                 @relation(fields: [folioId], references: [id], onDelete: Cascade)
+  invoice             Invoice?              @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  debtorPartner       BookingSourcePartner? @relation(fields: [debtorPartnerId], references: [id], onDelete: SetNull)
+  collections         ReceivableCollection[]
+
+  @@index([hotelId, status, dueDate])
+  @@index([hotelId, stayId])
+}
+
+model ReceivableCollection {
+  id                String          @id @default(cuid())
+  hotelId           String
+  receivableId      String
+  collectedAmount   Decimal         @db.Decimal(12, 2)
+  paymentMethod     PaymentMethod   @default(CASH)
+  collectedAt       DateTime        @default(now())
+  collectedByUserId String?
+  reference         String?         @db.VarChar(120)
+  notes             String?
+  isVoided          Boolean         @default(false)
+  voidedAt          DateTime?
+  voidedByUserId    String?
+  createdAt         DateTime        @default(now())
+  hotel             Hotel           @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  receivable        HotelReceivable @relation(fields: [receivableId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId, receivableId])
+  @@index([hotelId, collectedAt])
+}
+
+model HotelConfirmationTemplate {
+  id                 String   @id @default(cuid())
+  hotelId            String   @unique
+  title              String   @default("PHIẾU XÁC NHẬN ĐẶT PHÒNG") @db.VarChar(160)
+  subtitle           String?  @db.VarChar(255)
+  contactInfo        String?  @db.VarChar(500)
+  checkInPolicy      String?  @db.VarChar(1000)
+  checkOutPolicy     String?  @db.VarChar(1000)
+  paymentTerms       String?  @db.VarChar(1000)
+  footerNotes        String?  @db.VarChar(1000)
+  showLogo           Boolean  @default(true)
+  showPriceBreakdown Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  hotel              Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
 }
