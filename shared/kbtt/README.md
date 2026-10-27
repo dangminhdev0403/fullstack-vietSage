@@ -35,6 +35,7 @@ Machine contract: [`openapi.json`](./openapi.json).
 | 10 | `GET /cms-backend/public/loai-giay-to/get-all` | Public | Document types. |
 | 11 | `GET /cms-backend/public/noi-cu-tru/get-all` | Public | Residence places. |
 | 12 | `POST /client-service/kbtt-vn/kbtt-3th/doi-ngay-tra-phong` | Bearer | Vietnamese early departure/extension. |
+| 13 | `POST /client-service/kbtt/kbtt-3th/doi-ngay-tra-phong` | Bearer | Foreign guest early departure/extension. |
 
 ## Token workflow
 
@@ -136,7 +137,14 @@ API 12 applies only to Vietnamese guests already registered with API 5:
 - `TS`: early departure; `thoiGianStr` not required.
 - `GH`: extension; `thoiGianStr` required and cannot exceed 30 days from arrival.
 - The provider identifies the guest by `(soGiayTo, loaiGiayTo)`.
-- The supplied document defines no corresponding foreign departure-change endpoint.
+## API 13 scope
+
+API 13 applies to foreign guests already registered with API 4 (Section 15, Version 1.5):
+
+- `TS`: early departure; `thoiGianStr` not required.
+- `GH`: extension; `thoiGianStr` required (`YYYY-MM-DD HH:mm:ss`).
+- `thoiHanTamTruVnStr`: temporary residence duration in Vietnam (`YYYY-MM-DD HH:mm:ss`).
+- The provider identifies the foreign guest by `(soHc, quocTich)`.
 
 ## Known source ambiguities
 

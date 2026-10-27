@@ -2,13 +2,13 @@
   "openapi": "3.1.0",
   "info": {
     "title": "KBTT Accommodation Establishment API",
-    "version": "1.4-normalized",
-    "description": "Agent-ready normalization of the provider PDF for third-party accommodation establishments. The supplied filename says v1.3 while the cover says v1.4 (August 2026). This contract intentionally omits all sample credentials and tokens. Provider business success is determined by JSON body code == \"200\", not HTTP status alone.",
+    "version": "1.5-normalized",
+    "description": "Agent-ready normalization of the provider PDF for third-party accommodation establishments (Version 1.5, October 2026). Provider business success is determined by JSON body code == \"200\", not HTTP status alone.",
     "x-source": {
       "document": "HD_Tichhop-API-CSLT-v1.3.docx.pdf",
-      "coverVersion": "1.4",
-      "coverDate": "2026-08",
-      "pages": 20,
+      "coverVersion": "1.5",
+      "coverDate": "2026-10",
+      "pages": 23,
       "sha256": "fee9fcd523e7e963326cc93e94fe26f0c9e68b4ac42d7fd60eb4000cdc24d195"
     }
   },
@@ -38,6 +38,10 @@
     {
       "name": "Domestic stay changes",
       "description": "Departure/extension changes for Vietnamese guests only."
+    },
+    {
+      "name": "Foreign stay changes",
+      "description": "Departure/extension changes for foreign guests (API 13, Section 15)."
     }
   ],
   "paths": {
@@ -490,6 +494,53 @@
           }
         },
         "x-source-ambiguity": "Section endpoint uses /kbtt-vn/... while its curl example uses /kbtt/...; this normalization follows the section endpoint and requires provider confirmation before production."
+      }
+    },
+    "/client-service/kbtt/kbtt-3th/doi-ngay-tra-phong": {
+      "post": {
+        "tags": [
+          "Foreign stay changes"
+        ],
+        "operationId": "changeForeignDeparture",
+        "summary": "Record early departure or extend a foreign guest temporary stay (API 13)",
+        "security": [
+          {
+            "providerBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ForeignDepartureChange"
+                },
+                "minItems": 1
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Provider response. Success requires body.code == \"200\".",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/SuccessEnvelope"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BusinessErrorEnvelope"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
       }
     }
   },
@@ -1166,6 +1217,62 @@
         "type": "string",
         "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
         "description": "Provider-local timestamp without timezone. VietSage maps from Asia/Ho_Chi_Minh."
+      },
+      "ForeignDepartureChange": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "loai",
+          "soHc",
+          "quocTich"
+        ],
+        "properties": {
+          "loai": {
+            "type": "string",
+            "enum": [
+              "TS",
+              "GH"
+            ],
+            "description": "TS = early departure / checkout; GH = stay extension."
+          },
+          "soHc": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Passport number."
+          },
+          "quocTich": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Country code from nationality catalog (API 6)."
+          },
+          "thoiGianStr": {
+            "$ref": "#/components/schemas/LocalDateTime",
+            "description": "New expected departure date (required for GH)."
+          },
+          "thoiHanTamTruVnStr": {
+            "$ref": "#/components/schemas/LocalDateTime",
+            "description": "Temporary residence duration in Vietnam (for Visa extension)."
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "loai": {
+                  "const": "GH"
+                }
+              },
+              "required": [
+                "loai"
+              ]
+            },
+            "then": {
+              "required": [
+                "thoiGianStr"
+              ]
+            }
+          }
+        ]
       }
     }
   }

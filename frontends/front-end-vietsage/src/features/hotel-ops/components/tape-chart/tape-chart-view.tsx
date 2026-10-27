@@ -255,7 +255,7 @@ interface DraggableRoomRowProps {
   draggedBlock?: DraggedReservationPayload | null;
   handleDragEnd?: () => void;
   onStartDragRange: (room: RoomPlanRoom, ymd: string, clientX?: number, clientY?: number) => void;
-  onHoverDragDay: (room: RoomPlanRoom, ymd: string) => void;
+  onHoverDragDay: (room: RoomPlanRoom, ymd: string, clientY?: number) => void;
   onAdjustDraftDays: (delta: number) => void;
   onConfirmDraft: (draft: DraftBookingSelection) => void;
   onCancelDraft: () => void;
@@ -610,9 +610,9 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                 e.stopPropagation();
                 onStartDragRange(room, day.ymd, e.clientX, e.clientY);
               }}
-              onMouseEnter={() => {
+              onMouseEnter={(e) => {
                 if (!readOnly && isDraggingRange && !isHardVetoRoom && !isPastDay) {
-                  onHoverDragDay(room, day.ymd);
+                  onHoverDragDay(room, day.ymd, e.clientY);
                 }
               }}
               className={`flex-1 min-w-[100px] relative group/cell select-none transition-colors ${
@@ -1374,7 +1374,7 @@ interface CategoryRoomTableProps {
   draggedBlock?: DraggedReservationPayload | null;
   handleDragEnd?: () => void;
   onStartDragRange: (room: RoomPlanRoom, ymd: string, clientX?: number, clientY?: number) => void;
-  onHoverDragDay: (room: RoomPlanRoom, ymd: string) => void;
+  onHoverDragDay: (room: RoomPlanRoom, ymd: string, clientY?: number) => void;
   onAdjustDraftDays: (delta: number) => void;
   onConfirmDraft: (draft: DraftBookingSelection) => void;
   onCancelDraft: () => void;
@@ -2917,23 +2917,43 @@ export function TapeChartView({
   );
 
   const handleHoverDragDay = useCallback(
-    (room: RoomPlanRoom, targetYmd: string) => {
+    (targetRoom: RoomPlanRoom, targetYmd: string, clientY?: number) => {
       if (isReadOnly || !activeDragRange) return;
-
-      // Không cho phép kéo vào các phòng đang bị khóa / bảo trì
-      const isTargetLocked =
-        room.status === "MAINTENANCE" ||
-        room.status === "BLOCKED" ||
-        room.status === "OUT_OF_SERVICE";
-      if (isTargetLocked) return;
 
       const anchorDay = activeDragRange.anchorDay;
       const anchorRoom = activeDragRange.anchorRoom;
 
+      // Không cho phép bắt đầu hoặc giữ phòng đang bị khóa / bảo trì
+      const isAnchorLocked =
+        anchorRoom.status === "MAINTENANCE" ||
+        anchorRoom.status === "BLOCKED" ||
+        anchorRoom.status === "OUT_OF_SERVICE";
+      if (isAnchorLocked) return;
+
+      // 1. Kiểm tra ngưỡng kéo dọc thông minh (Smart Vertical Intent Threshold)
+      // Nếu con trỏ chuột di chuyển dọc < 32px so với vị trí mousedown ban đầu,
+      // khóa cứng phòng về anchorRoom để rung tay khi kéo ngang không bao giờ dính phòng khác.
+      let effectiveRoom = targetRoom;
+      if (dragStartPosRef.current && typeof clientY === "number") {
+        const dy = Math.abs(clientY - dragStartPosRef.current.y);
+        if (dy < 32) {
+          effectiveRoom = anchorRoom;
+        }
+      }
+
+      // Không cho phép chọn vào phòng đích nếu phòng đích bị khóa/bảo trì
+      const isTargetLocked =
+        effectiveRoom.status === "MAINTENANCE" ||
+        effectiveRoom.status === "BLOCKED" ||
+        effectiveRoom.status === "OUT_OF_SERVICE";
+      if (isTargetLocked) {
+        effectiveRoom = anchorRoom;
+      }
+
       // Nếu đã kéo và con trỏ vẫn ở chính phòng & ngày hiện tại: bỏ qua để tránh render lặp
       if (
         hasDraggedRef.current &&
-        activeDragRange.currentRoom.id === room.id &&
+        activeDragRange.currentRoom.id === effectiveRoom.id &&
         activeDragRange.currentDay === targetYmd
       ) {
         return;
@@ -2941,7 +2961,7 @@ export function TapeChartView({
 
       // Nếu vẫn ở chính ô bắt đầu và chưa từng kéo ra ngoài: bỏ qua
       if (
-        room.id === anchorRoom.id &&
+        effectiveRoom.id === anchorRoom.id &&
         targetYmd === anchorDay &&
         !hasDraggedRef.current
       ) {
@@ -2954,7 +2974,7 @@ export function TapeChartView({
       // Không cho phép kéo lùi về các ngày trong quá khứ trước hôm nay
       const effectiveTargetYmd = targetYmd < todayYmd ? todayYmd : targetYmd;
 
-      // 1. Horizontal date range calculation (bắt đầu tối thiểu từ todayYmd)
+      // 2. Horizontal date range calculation (bắt đầu tối thiểu từ todayYmd)
       let start = anchorDay;
       let end = addDaysYmd(effectiveTargetYmd, 1);
 
@@ -2971,14 +2991,14 @@ export function TapeChartView({
       const anchorBlocks = blocksByRoomId.get(anchorRoom.id) || [];
       if (targetYmd >= anchorDay) {
         const collidingBlock = anchorBlocks
-          .filter((b) => b.startDate >= anchorDay && b.startDate < end)
+          .filter((b) => b.startDate >= anchorDay && b.startDate < end && b.status !== "CANCELLED")
           .sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
         if (collidingBlock) {
           end = collidingBlock.startDate;
         }
       } else {
         const collidingBlock = anchorBlocks
-          .filter((b) => b.endDate > start && b.endDate <= anchorDay)
+          .filter((b) => b.endDate > start && b.endDate <= anchorDay && b.status !== "CANCELLED")
           .sort((a, b) => b.endDate.localeCompare(a.endDate))[0];
         if (collidingBlock) {
           start = collidingBlock.endDate;
@@ -2991,30 +3011,37 @@ export function TapeChartView({
 
       const nights = calculateNights(start, end);
 
-      // 2. Vertical room range calculation strictly scoped to the anchor room's category
+      // 3. Vertical room range calculation (Khóa cứng phạm vi cùng hạng phòng - Category Lock)
       const anchorCat = anchorRoom.roomTypeName || "Hạng phòng khác";
       const catRooms = roomsByCategory.find(([c]) => c === anchorCat)?.[1] || [anchorRoom];
       const anchorIdx = catRooms.findIndex((r) => r.id === anchorRoom.id);
-      let currentIdx = catRooms.findIndex((r) => r.id === room.id);
+      let targetIdx = catRooms.findIndex((r) => r.id === effectiveRoom.id);
 
       let selectedRooms: RoomPlanRoom[] = [anchorRoom];
 
       if (anchorIdx !== -1) {
-        if (currentIdx === -1) {
-          // If the hovered room belongs to another category, clamp within anchor's category
-          const catIndexMap = new Map<string, number>();
-          roomsByCategory.forEach(([c], i) => catIndexMap.set(c, i));
-          const roomCat = room.roomTypeName || "Hạng phòng khác";
-          const anchorCatIdx = catIndexMap.get(anchorCat) ?? 0;
-          const roomCatIdx = catIndexMap.get(roomCat) ?? 0;
-          currentIdx = roomCatIdx < anchorCatIdx ? 0 : catRooms.length - 1;
+        if (targetIdx === -1) {
+          // Con trỏ di chuyển ra ngoài hạng phòng: xác định xem đang ở trên hay ở dưới
+          const anchorOverallIdx = orderedFilteredRooms.findIndex((r) => r.id === anchorRoom.id);
+          const targetOverallIdx = orderedFilteredRooms.findIndex((r) => r.id === effectiveRoom.id);
+          if (targetOverallIdx !== -1 && anchorOverallIdx !== -1) {
+            if (targetOverallIdx > anchorOverallIdx) {
+              // Ở bên dưới -> giới hạn tối đa đến phòng cuối cùng của hạng phòng này
+              targetIdx = catRooms.length - 1;
+            } else {
+              // Ở bên trên -> giới hạn tối đa đến phòng đầu tiên của hạng phòng này
+              targetIdx = 0;
+            }
+          } else {
+            targetIdx = anchorIdx;
+          }
         }
 
-        const minIdx = Math.min(anchorIdx, currentIdx);
-        const maxIdx = Math.max(anchorIdx, currentIdx);
+        const minIdx = Math.min(anchorIdx, targetIdx);
+        const maxIdx = Math.max(anchorIdx, targetIdx);
         const candidateRooms = catRooms.slice(minIdx, maxIdx + 1);
 
-        // Filter out rooms that are locked or have collisions during [start, end)
+        // Lọc bỏ phòng bảo trì hoặc bị trùng lịch đặt trong khoảng [start, end)
         selectedRooms = candidateRooms.filter((candRoom) => {
           const isCandLocked =
             candRoom.status === "MAINTENANCE" ||
@@ -3025,7 +3052,7 @@ export function TapeChartView({
           if (candRoom.id === anchorRoom.id) return true;
           const rBlocks = blocksByRoomId.get(candRoom.id) || [];
           const isColliding = rBlocks.some(
-            (b) => b.startDate < end && b.endDate > start,
+            (b) => b.startDate < end && b.endDate > start && b.status !== "CANCELLED",
           );
           return !isColliding;
         });
@@ -3039,7 +3066,7 @@ export function TapeChartView({
         prev
           ? {
               ...prev,
-              currentRoom: room,
+              currentRoom: effectiveRoom,
               currentDay: targetYmd,
             }
           : null,
@@ -3055,7 +3082,14 @@ export function TapeChartView({
         nights,
       });
     },
-    [activeDragRange, blocksByRoomId, roomsByCategory, todayYmd, isReadOnly],
+    [
+      activeDragRange,
+      blocksByRoomId,
+      roomsByCategory,
+      orderedFilteredRooms,
+      todayYmd,
+      isReadOnly,
+    ],
   );
 
   // Global pointermove for active range drag across horizontal (days) and vertical (rooms)
@@ -3091,11 +3125,15 @@ export function TapeChartView({
         const rowEl = elements.find((el) => el.getAttribute?.("data-room-row") === "true") as HTMLElement | undefined;
         const targetRoomId = rowEl?.getAttribute("data-room-id");
 
-        if (targetDay && targetRoomId) {
-          const targetRoom = orderedFilteredRooms.find((r) => r.id === targetRoomId);
-          if (targetRoom) {
-            handleHoverDragDay(targetRoom, targetDay);
+        if (targetDay) {
+          let targetRoom = activeDragRange.anchorRoom;
+          if (targetRoomId) {
+            const foundRoom = orderedFilteredRooms.find((r) => r.id === targetRoomId);
+            if (foundRoom) {
+              targetRoom = foundRoom;
+            }
           }
+          handleHoverDragDay(targetRoom, targetDay, lastClientY);
         }
       });
     };
@@ -3307,12 +3345,7 @@ export function TapeChartView({
 
             if (anchorIdx !== -1) {
               if (targetIdx === -1) {
-                const catIndexMap = new Map<string, number>();
-                roomsByCategory.forEach(([c], i) => catIndexMap.set(c, i));
-                const roomCat = targetRoom.roomTypeName || "Hạng phòng khác";
-                const anchorCatIdx = catIndexMap.get(anchorCat) ?? 0;
-                const roomCatIdx = catIndexMap.get(roomCat) ?? 0;
-                targetIdx = roomCatIdx < anchorCatIdx ? 0 : catRooms.length - 1;
+                targetIdx = anchorIdx;
               }
 
               const minIdx = Math.min(anchorIdx, targetIdx);
