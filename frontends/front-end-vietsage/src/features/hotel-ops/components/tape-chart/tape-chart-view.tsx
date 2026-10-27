@@ -2991,21 +2991,28 @@ export function TapeChartView({
 
       const nights = calculateNights(start, end);
 
-      // 2. Vertical room range calculation across orderedFilteredRooms
-      const anchorIdx = orderedFilteredRooms.findIndex((r) => r.id === anchorRoom.id);
-      const currentIdx = orderedFilteredRooms.findIndex((r) => r.id === room.id);
+      // 2. Vertical room range calculation strictly scoped to the anchor room's category
+      const anchorCat = anchorRoom.roomTypeName || "Hạng phòng khác";
+      const catRooms = roomsByCategory.find(([c]) => c === anchorCat)?.[1] || [anchorRoom];
+      const anchorIdx = catRooms.findIndex((r) => r.id === anchorRoom.id);
+      let currentIdx = catRooms.findIndex((r) => r.id === room.id);
 
       let selectedRooms: RoomPlanRoom[] = [anchorRoom];
 
-      if (anchorIdx !== -1 && currentIdx !== -1) {
+      if (anchorIdx !== -1) {
+        if (currentIdx === -1) {
+          // If the hovered room belongs to another category, clamp within anchor's category
+          const catIndexMap = new Map<string, number>();
+          roomsByCategory.forEach(([c], i) => catIndexMap.set(c, i));
+          const roomCat = room.roomTypeName || "Hạng phòng khác";
+          const anchorCatIdx = catIndexMap.get(anchorCat) ?? 0;
+          const roomCatIdx = catIndexMap.get(roomCat) ?? 0;
+          currentIdx = roomCatIdx < anchorCatIdx ? 0 : catRooms.length - 1;
+        }
+
         const minIdx = Math.min(anchorIdx, currentIdx);
         const maxIdx = Math.max(anchorIdx, currentIdx);
-        const candidateRooms = orderedFilteredRooms
-          .slice(minIdx, maxIdx + 1)
-          .filter((cand) => {
-            const cat = cand.roomTypeName || "Hạng phòng khác";
-            return !collapsedCategories[cat];
-          });
+        const candidateRooms = catRooms.slice(minIdx, maxIdx + 1);
 
         // Filter out rooms that are locked or have collisions during [start, end)
         selectedRooms = candidateRooms.filter((candRoom) => {
@@ -3048,7 +3055,7 @@ export function TapeChartView({
         nights,
       });
     },
-    [activeDragRange, blocksByRoomId, orderedFilteredRooms, collapsedCategories, todayYmd, isReadOnly],
+    [activeDragRange, blocksByRoomId, roomsByCategory, todayYmd, isReadOnly],
   );
 
   // Global pointermove for active range drag across horizontal (days) and vertical (rooms)
@@ -3291,21 +3298,28 @@ export function TapeChartView({
             nextEnd = candidateEnd;
           }
 
-          // 2. Adjusting Rooms (vertical drag)
+          // 2. Adjusting Rooms (vertical drag strictly scoped to anchor room's category)
           if ((currentAdjust.mode === "rooms" || currentAdjust.mode === "both") && targetRoom) {
-            const anchorIdx = orderedFilteredRooms.findIndex((r) => r.id === currentAdjust.anchorRoom.id);
-            const targetIdx = orderedFilteredRooms.findIndex((r) => r.id === targetRoom.id);
+            const anchorCat = currentAdjust.anchorRoom.roomTypeName || "Hạng phòng khác";
+            const catRooms = roomsByCategory.find(([c]) => c === anchorCat)?.[1] || [currentAdjust.anchorRoom];
+            const anchorIdx = catRooms.findIndex((r) => r.id === currentAdjust.anchorRoom.id);
+            let targetIdx = catRooms.findIndex((r) => r.id === targetRoom.id);
 
-            if (anchorIdx !== -1 && targetIdx !== -1) {
+            if (anchorIdx !== -1) {
+              if (targetIdx === -1) {
+                const catIndexMap = new Map<string, number>();
+                roomsByCategory.forEach(([c], i) => catIndexMap.set(c, i));
+                const roomCat = targetRoom.roomTypeName || "Hạng phòng khác";
+                const anchorCatIdx = catIndexMap.get(anchorCat) ?? 0;
+                const roomCatIdx = catIndexMap.get(roomCat) ?? 0;
+                targetIdx = roomCatIdx < anchorCatIdx ? 0 : catRooms.length - 1;
+              }
+
               const minIdx = Math.min(anchorIdx, targetIdx);
               const maxIdx = Math.max(anchorIdx, targetIdx);
 
-              const candidateRooms = orderedFilteredRooms
+              const candidateRooms = catRooms
                 .slice(minIdx, maxIdx + 1)
-                .filter((cand) => {
-                  const cat = cand.roomTypeName || "Hạng phòng khác";
-                  return !collapsedCategories[cat];
-                })
                 .filter((cand) => {
                   const isCandLocked =
                     cand.status === "MAINTENANCE" ||
@@ -3323,21 +3337,19 @@ export function TapeChartView({
             }
           }
 
-          // 3. Move Entire Selection (translation)
+          // 3. Move Entire Selection (translation within same category)
           if (currentAdjust.mode === "move" && targetDay && targetRoom) {
+            const anchorCat = currentAdjust.anchorRoom.roomTypeName || "Hạng phòng khác";
+            const catRooms = roomsByCategory.find(([c]) => c === anchorCat)?.[1] || [currentAdjust.anchorRoom];
             const effectiveTargetDay = targetDay < todayYmd ? todayYmd : targetDay;
             const newStart = effectiveTargetDay;
             const newEnd = addDaysYmd(newStart, currentAdjust.initialNights);
 
-            const targetRoomIdx = orderedFilteredRooms.findIndex((r) => r.id === targetRoom.id);
+            const targetRoomIdx = catRooms.findIndex((r) => r.id === targetRoom.id);
             if (targetRoomIdx !== -1) {
               const roomCount = currentAdjust.initialRooms.length;
-              const shiftedCandidates = orderedFilteredRooms
+              const shiftedCandidates = catRooms
                 .slice(targetRoomIdx, targetRoomIdx + roomCount)
-                .filter((cand) => {
-                  const cat = cand.roomTypeName || "Hạng phòng khác";
-                  return !collapsedCategories[cat];
-                })
                 .filter((cand) => {
                   const isCandLocked =
                     cand.status === "MAINTENANCE" ||
@@ -3395,6 +3407,7 @@ export function TapeChartView({
     activeDraftAdjust,
     todayYmd,
     orderedFilteredRooms,
+    roomsByCategory,
     blocksByRoomId,
     collapsedCategories,
     isReadOnly,
