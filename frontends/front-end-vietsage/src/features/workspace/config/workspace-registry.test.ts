@@ -164,11 +164,6 @@ test("builds owner sidebar with operational modules and hotel settings", () => {
     [
       { key: "owner.home", href: "/owner/dashboard", label: "Tổng quan" },
       {
-        key: "staff.dashboard",
-        href: "/owner/hotels/hotel-1/dashboard",
-        label: "Điều hành hôm nay",
-      },
-      {
         key: "owner.hotel.billing",
         href: "/owner/hotels/hotel-1/billing",
         label: "Tài chính & đối soát",
@@ -250,8 +245,8 @@ test("builds full-featured owner sidebar including all front-desk operations and
 
   const keys = navigation.map((item) => item.key);
 
-  // Receptionist & Operational tools are fully included
-  assert.ok(keys.includes("staff.dashboard"));
+  // Receptionist & Operational tools are fully included (owner uses owner.home for overview dashboard)
+  assert.ok(!keys.includes("staff.dashboard"));
   assert.ok(keys.includes("staff.rooms"));
   assert.ok(keys.includes("staff.front-desk"));
   assert.ok(keys.includes("staff.requests"));

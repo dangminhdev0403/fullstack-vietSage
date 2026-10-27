@@ -458,10 +458,13 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
               key: "actions",
               header: <div className="text-right">Thao tác</div>,
               cell: (owner) => (
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                   <button
                     type="button"
-                    onClick={() => openEditDialog(owner)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEditDialog(owner);
+                    }}
                     className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#dcd1bf] bg-[#fffcf7] px-4 py-1.5 text-xs font-semibold text-[#24473d] shadow-2xs transition-all hover:border-[#24473d] hover:bg-[#f5efe4]"
                   >
                     <VsIcon name="edit" className="text-sm" />
@@ -470,7 +473,10 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
                   <button
                     type="button"
                     disabled={resetPassword.isPending}
-                    onClick={() => resetOwnerPassword(owner)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      resetOwnerPassword(owner);
+                    }}
                     className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#ebd6b7] bg-[#fffaf3] px-4 py-1.5 text-xs font-semibold text-[#8c5e1a] shadow-2xs transition-all hover:bg-[#f9efe0] disabled:opacity-50"
                   >
                     <VsIcon name="key" className="text-sm text-[#c89b4f]" />

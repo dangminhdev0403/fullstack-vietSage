@@ -398,11 +398,8 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
   // Staff & Unified Receptionist / Hotel Ops Navigation
   {
     key: "staff.dashboard",
-    personas: ["owner", ...STAFF_PERSONAS],
+    personas: STAFF_PERSONAS,
     href: "/hotels/{hotelId}/dashboard",
-    hrefByPersona: {
-      owner: "/owner/hotels/{hotelId}/dashboard",
-    },
     label: "Điều hành hôm nay",
     icon: "space_dashboard",
     order: 12,

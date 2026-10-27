@@ -272,11 +272,25 @@ export function DataTable<TData>({
                   <tr
                     key={key}
                     tabIndex={onRowClick ? 0 : undefined}
-                    onClick={onRowClick ? () => onRowClick(item) : undefined}
+                    onClick={
+                      onRowClick
+                        ? (e) => {
+                            const target = e.target as HTMLElement | null;
+                            if (target?.closest("button, a, input, select, textarea, [data-interactive='true']")) {
+                              return;
+                            }
+                            onRowClick(item);
+                          }
+                        : undefined
+                    }
                     onKeyDown={
                       onRowClick
                         ? (e) => {
                             if (e.key === "Enter" || e.key === " ") {
+                              const target = e.target as HTMLElement | null;
+                              if (target?.closest("button, a, input, select, textarea, [data-interactive='true']")) {
+                                return;
+                              }
                               e.preventDefault();
                               onRowClick(item);
                             }
