@@ -47,6 +47,9 @@ const bulkReservationSchema = z
     rate: z.union([z.number(), z.string()]).nullable().optional(),
     nightlyRateSnapshot: z.union([z.number(), z.string()]).nullable().optional(),
     roomRates: z.record(z.string(), z.union([z.number(), z.string()]).nullable()).optional(),
+    groupCode: z.string().trim().max(80).optional(),
+    groupName: z.string().trim().max(120).optional(),
+    notes: z.string().optional(),
   })
   .strict()
   .refine(
@@ -109,6 +112,9 @@ export async function POST(request: Request, context: Params) {
               ? { nightlyRateSnapshot: parsed.data.nightlyRateSnapshot }
               : {}),
             ...(parsed.data.roomRates ? { roomRates: parsed.data.roomRates } : {}),
+            ...(parsed.data.groupCode ? { groupCode: parsed.data.groupCode } : {}),
+            ...(parsed.data.groupName ? { groupName: parsed.data.groupName } : {}),
+            ...(parsed.data.notes ? { notes: parsed.data.notes } : {}),
           },
           accessToken,
         );

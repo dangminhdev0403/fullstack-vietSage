@@ -173,6 +173,8 @@ export const createBulkReservationsBodySchema = z
     allocations: z.array(bulkAllocationItemSchema).min(1).max(20).optional(),
     autoAssign: z.boolean().optional(),
     groupCode: z.string().trim().max(80).optional(),
+    groupName: z.string().trim().max(120).optional(),
+    notes: z.string().optional(),
     idempotencyKey: z.string().trim().max(120).optional(),
     rate: nightlyRateSnapshotSchema,
     nightlyRateSnapshot: nightlyRateSnapshotSchema,

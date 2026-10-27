@@ -505,13 +505,9 @@ export class ReservationsRepository {
         roomType: true,
         hotel: {
           include: {
-            confirmationTemplates: {
-              where: { isActive: true },
-              orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
-              take: 1,
-            },
+            confirmationTemplate: true,
           },
-        } as any,
+        },
         chargeLines: {
           orderBy: { serviceDate: "asc" },
         },
@@ -538,12 +534,8 @@ export class ReservationsRepository {
     const hotel = await this.prisma.hotel.findUnique({
       where: { id: hotelId },
       include: {
-        confirmationTemplates: {
-          where: { isActive: true },
-          orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
-          take: 1,
-        },
-      } as any,
+        confirmationTemplate: true,
+      },
     });
     if (!hotel) {
       throw new NotFoundException("Không tìm thấy thông tin khách sạn");
@@ -556,13 +548,9 @@ export class ReservationsRepository {
         roomType: true,
         hotel: {
           include: {
-            confirmationTemplates: {
-              where: { isActive: true },
-              orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
-              take: 1,
-            },
+            confirmationTemplate: true,
           },
-        } as any,
+        },
         stay: {
           select: { id: true, roomId: true, status: true },
         },

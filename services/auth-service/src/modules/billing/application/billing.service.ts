@@ -2563,9 +2563,9 @@ export class BillingService {
     if (input.hotelId && input.hotelId !== hotelId) {
       throw new BadRequestException("Hotel ID mismatch");
     }
-    if (!input.reservationId && !input.groupId) {
+    if (!input.reservationId && !input.groupId && !input.groupCode) {
       throw new BadRequestException(
-        "Phải cung cấp reservationId hoặc groupId cho khoản thanh toán đặt phòng",
+        "Phải cung cấp reservationId, groupId hoặc groupCode cho khoản thanh toán đặt phòng",
       );
     }
 
@@ -2636,12 +2636,41 @@ export class BillingService {
         }
       }
 
-      if (input.groupId) {
+      const targetGroupId = input.groupId || input.groupCode;
+      if (targetGroupId) {
         group = await tx.reservationGroup.findFirst({
-          where: { id: input.groupId, hotelId },
+          where: {
+            hotelId,
+            OR: [{ id: targetGroupId }, { groupCode: targetGroupId }],
+          },
         });
         if (!group) {
-          throw new NotFoundException("Không tìm thấy nhóm đặt phòng");
+          const resByGroup = await tx.reservation.findMany({
+            where: { hotelId, groupCode: targetGroupId },
+            select: { nightlyRateSnapshot: true, baseNightlyRateSnapshot: true, plannedCheckInAt: true, plannedCheckOutAt: true },
+          });
+          if (resByGroup.length > 0) {
+            baseTotal = resByGroup.reduce(
+              (sum: Prisma.Decimal, r: any) => {
+                const rate = new Prisma.Decimal(r.nightlyRateSnapshot ?? r.baseNightlyRateSnapshot ?? 0);
+                const nights =
+                  r.plannedCheckInAt && r.plannedCheckOutAt
+                    ? Math.max(
+                        1,
+                        Math.round(
+                          (new Date(r.plannedCheckOutAt).getTime() -
+                            new Date(r.plannedCheckInAt).getTime()) /
+                            (1000 * 60 * 60 * 24),
+                        ),
+                      )
+                    : 1;
+                return sum.add(rate.mul(nights));
+              },
+              new Prisma.Decimal(0),
+            );
+          } else {
+            throw new NotFoundException("Không tìm thấy nhóm đặt phòng");
+          }
         }
         if (baseTotal.lte(0)) {
           if (group.totalQuotedAmount != null) {
@@ -2658,7 +2687,7 @@ export class BillingService {
             }, new Prisma.Decimal(0));
           }
         }
-        if (existingDeposit.lte(0) && group.paidDepositAmount != null) {
+        if (existingDeposit.lte(0) && group?.paidDepositAmount != null) {
           existingDeposit = new Prisma.Decimal(group.paidDepositAmount);
         }
       }
@@ -2724,7 +2753,7 @@ export class BillingService {
           data: {
             hotelId,
             reservationId: input.reservationId ?? null,
-            groupId: input.groupId ?? null,
+            groupId: group?.id ?? input.groupId ?? null,
             intent: input.intent ?? BookingPaymentIntent.DEPOSIT,
             inputMode: BookingPaymentMode[inputModeKey],
             percentValue:
@@ -2770,6 +2799,109 @@ export class BillingService {
         throw error;
       }
     });
+  }
+
+  async listBookingPayments(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    query?: {
+      reservationId?: string;
+      groupId?: string;
+      groupCode?: string;
+      page?: number;
+      limit?: number;
+    },
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+
+    const page = Math.max(1, Number(query?.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(query?.limit) || 20));
+    const skip = (page - 1) * limit;
+
+    let targetGroupId = query?.groupId;
+    if (!targetGroupId && query?.groupCode) {
+      const group = await this.prisma.reservationGroup.findFirst({
+        where: { hotelId, groupCode: query.groupCode },
+        select: { id: true },
+      });
+      if (group) targetGroupId = group.id;
+    }
+
+    const where: Prisma.BookingPaymentWhereInput = {
+      hotelId,
+      ...(query?.reservationId ? { reservationId: query.reservationId } : {}),
+      ...(targetGroupId ? { groupId: targetGroupId } : {}),
+    };
+
+    const [items, total] = await Promise.all([
+      this.prisma.bookingPayment.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      this.prisma.bookingPayment.count({ where }),
+    ]);
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1,
+    };
+  }
+
+  async listReceivables(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    query?: {
+      status?: ReceivableStatus;
+      debtorType?: ReceivableDebtorType;
+      q?: string;
+      page?: number;
+      limit?: number;
+    },
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+
+    const page = Math.max(1, Number(query?.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(query?.limit) || 20));
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.HotelReceivableWhereInput = {
+      hotelId,
+      ...(query?.status ? { status: query.status } : {}),
+      ...(query?.debtorType ? { debtorType: query.debtorType } : {}),
+      ...(query?.q?.trim()
+        ? {
+            OR: [
+              { debtorName: { contains: query.q.trim(), mode: "insensitive" } },
+              { notes: { contains: query.q.trim(), mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
+
+    const [items, total] = await Promise.all([
+      this.prisma.hotelReceivable.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      this.prisma.hotelReceivable.count({ where }),
+    ]);
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1,
+    };
   }
 
   async transferStayToReceivable(

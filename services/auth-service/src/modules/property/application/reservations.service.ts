@@ -591,7 +591,10 @@ export class ReservationsService {
       hotel?.brandSettings && typeof hotel.brandSettings === "object"
         ? (hotel.brandSettings as Record<string, any>)
         : {};
-    const template = hotel?.confirmationTemplates?.[0] ?? null;
+    const template =
+      (hotel as any)?.confirmationTemplate ??
+      (hotel as any)?.confirmationTemplates?.[0] ??
+      null;
     const nonEmpty = (val: unknown): string | undefined =>
       typeof val === "string" && val.trim().length > 0 ? val.trim() : undefined;
 
@@ -750,7 +753,10 @@ export class ReservationsService {
       hotel?.brandSettings && typeof hotel.brandSettings === "object"
         ? (hotel.brandSettings as Record<string, any>)
         : {};
-    const template = hotel?.confirmationTemplates?.[0] ?? null;
+    const template =
+      (hotel as any)?.confirmationTemplate ??
+      (hotel as any)?.confirmationTemplates?.[0] ??
+      null;
     const nonEmpty = (val: unknown): string | undefined =>
       typeof val === "string" && val.trim().length > 0 ? val.trim() : undefined;
 

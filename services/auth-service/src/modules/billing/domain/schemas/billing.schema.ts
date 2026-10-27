@@ -157,6 +157,8 @@ export const createBookingPaymentBodySchema = z
     hotelId: z.string().trim().min(1).optional(),
     reservationId: z.string().trim().min(1).optional(),
     groupId: z.string().trim().min(1).optional(),
+    groupCode: z.string().trim().min(1).optional(),
+    paymentType: z.string().optional(),
     intent: z.nativeEnum(BookingPaymentIntent).default(BookingPaymentIntent.DEPOSIT),
     inputMode: z.enum(["PERCENT", "AMOUNT", "FULL"]).optional().default("AMOUNT"),
     percentValue: z.coerce.number().min(0.01).max(100).optional(),
@@ -174,7 +176,7 @@ export const createBookingPaymentBodySchema = z
     idempotencyKey: z.string().trim().min(1).max(120).optional(),
   })
   .strict()
-  .refine((data) => Boolean(data.reservationId || data.groupId), {
+  .refine((data) => Boolean(data.reservationId || data.groupId || data.groupCode), {
     message: "Phải cung cấp reservationId hoặc groupId cho khoản thanh toán đặt phòng",
     path: ["reservationId"],
   })
@@ -236,6 +238,8 @@ export type CreateBookingPaymentInput = {
   hotelId?: string;
   reservationId?: string;
   groupId?: string;
+  groupCode?: string;
+  paymentType?: string;
   intent?: BookingPaymentIntent;
   inputMode?: "PERCENT" | "AMOUNT" | "FULL";
   percentValue?: number;

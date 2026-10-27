@@ -6,6 +6,7 @@ import {
   Headers,
   Param,
   Post,
+  Query,
   Req,
 } from "@nestjs/common";
 import { ApiBody, ApiHeader, ApiOkResponse, ApiParam, ApiTags } from "@nestjs/swagger";
@@ -135,6 +136,48 @@ export class PaymentController {
       request.user.roleId,
       hotelId,
       dto,
+    );
+  }
+
+  @SuccessMessage("Lấy danh sách thanh toán đặt phòng thành công")
+  @RequirePermission("hotel.billing.view")
+  @ApiDescript("Xem danh sách tiền cọc và thanh toán trước")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiOkResponse({ description: "Danh sách BookingPayment" })
+  @Get("hotels/:hotelId/billing/booking-payments")
+  async listBookingPayments(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: Record<string, string | undefined>,
+  ) {
+    const hotelId = parseWithZod(billingIdParamSchema, hotelIdParam);
+
+    return this.billingService.listBookingPayments(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      query,
+    );
+  }
+
+  @SuccessMessage("Lấy danh sách công nợ thành công")
+  @RequirePermission("hotel.billing.view")
+  @ApiDescript("Xem danh sách công nợ khách sạn")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiOkResponse({ description: "Danh sách HotelReceivable" })
+  @Get("hotels/:hotelId/billing/receivables")
+  async listReceivables(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: Record<string, string | undefined>,
+  ) {
+    const hotelId = parseWithZod(billingIdParamSchema, hotelIdParam);
+
+    return this.billingService.listReceivables(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      query as any,
     );
   }
 

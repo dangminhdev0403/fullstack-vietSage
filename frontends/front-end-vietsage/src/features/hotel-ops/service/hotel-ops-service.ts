@@ -1008,6 +1008,83 @@ export class HotelOpsService {
     });
     return unwrapApiEnvelope<unknown>(payload).data;
   }
+
+  async listBookingPayments(
+    hotelId: string,
+    query?: Record<string, string | number | undefined>,
+    options: AuthRequestOptions = {},
+  ): Promise<unknown> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, "/billing/booking-payments"),
+      query,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<unknown>(payload).data;
+  }
+
+  async recordBookingPayment(
+    hotelId: string,
+    body: Record<string, unknown>,
+    options: AuthRequestOptions = {},
+  ): Promise<unknown> {
+    const payload = await this.httpClient.request<unknown, Record<string, unknown>>({
+      method: "POST",
+      path: hotelPath(hotelId, "/billing/booking-payments"),
+      body,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<unknown>(payload).data;
+  }
+
+  async listReceivables(
+    hotelId: string,
+    query?: Record<string, string | number | undefined>,
+    options: AuthRequestOptions = {},
+  ): Promise<unknown> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, "/billing/receivables"),
+      query,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<unknown>(payload).data;
+  }
+
+  async transferStayToReceivable(
+    hotelId: string,
+    stayId: string,
+    body: Record<string, unknown>,
+    options: AuthRequestOptions = {},
+  ): Promise<unknown> {
+    const payload = await this.httpClient.request<unknown, Record<string, unknown>>({
+      method: "POST",
+      path: hotelPath(hotelId, `/billing/stays/${encodeURIComponent(stayId)}/transfer-to-receivable`),
+      body,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<unknown>(payload).data;
+  }
+
+  async collectReceivable(
+    hotelId: string,
+    receivableId: string,
+    body: Record<string, unknown>,
+    options: AuthRequestOptions = {},
+  ): Promise<unknown> {
+    const payload = await this.httpClient.request<unknown, Record<string, unknown>>({
+      method: "POST",
+      path: hotelPath(hotelId, `/billing/receivables/${encodeURIComponent(receivableId)}/collect`),
+      body,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<unknown>(payload).data;
+  }
 }
 
 export function createHotelOpsService(
