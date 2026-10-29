@@ -1784,11 +1784,11 @@ export class ReservationsRepository {
       userIds.size > 0 && this.prisma.user?.findMany
         ? await this.prisma.user.findMany({
             where: { id: { in: Array.from(userIds) } },
-            select: { id: true, name: true, email: true },
+            select: { id: true, fullName: true, email: true },
           })
         : [];
     const userMap = new Map<string, string>(
-      users.map((u: any) => [u.id, u.name || u.email]),
+      users.map((u: any) => [u.id, u.fullName || u.email]),
     );
 
     const blocks: Array<{
@@ -1985,6 +1985,11 @@ export class ReservationsRepository {
         source: isOta ? "OTA" : "DIRECT",
         channel: channelName,
         channelName,
+        sourceCategory: null,
+        sourcePartnerId: null,
+        sourcePartnerName: null,
+        bookingOwnerUserId: s.createdByUserId ?? null,
+        bookingOwnerName: s.createdByUserId ? userMap.get(s.createdByUserId) ?? null : null,
         startDate: toYmd(checkIn, timeZone),
         endDate: toYmd(effectiveEnd, timeZone),
         startAt: checkIn.toISOString(),
@@ -1992,6 +1997,10 @@ export class ReservationsRepository {
         nights,
         nightlyRate,
         nightlyRateSnapshot: s.nightlyRateSnapshot ? s.nightlyRateSnapshot.toString() : null,
+        roomSubtotal: nightlyRate ? nightlyRate * nights : null,
+        serviceSubtotal: 0,
+        totalAmount: nightlyRate ? nightlyRate * nights : null,
+        services: [],
         updatedAt: s.updatedAt.toISOString(),
         expectedUpdatedAt: s.updatedAt.toISOString(),
         movable: false,
