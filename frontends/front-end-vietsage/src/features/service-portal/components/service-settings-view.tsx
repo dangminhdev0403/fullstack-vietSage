@@ -153,17 +153,17 @@ export function ServiceSettingsView({ data }: Readonly<{ data: ServicePortalData
         {/* Left Column: Brand Profile Card */}
         <div className="space-y-6 rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-7 shadow-[0_4px_20px_rgba(23,32,27,0.04)] h-fit">
           {/* Cover Header Banner */}
-          <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#17201b] via-[#24352b] to-[#121914] p-5 sm:p-6 text-[#f8f1e6]">
+          <div className="relative overflow-hidden rounded-xl bg-white p-5 sm:p-6 text-slate-800 border border-emerald-900/10 shadow-xs">
             <div className="flex items-center gap-4">
-              <div className="flex h-15 w-15 shrink-0 items-center justify-center rounded-2xl bg-[#e8b363] text-2xl font-black text-[#17201b] shadow-md border-2 border-white/20">
+              <div className="flex h-15 w-15 shrink-0 items-center justify-center rounded-2xl bg-amber-100/70 text-2xl font-black text-amber-900 shadow-xs border border-amber-300/60">
                 {data.profile.displayName.slice(0, 2).toUpperCase()}
               </div>
               <div className="space-y-1">
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-[#e8b363]/20 px-3 py-0.5 text-xs font-bold text-[#f5c77e] border border-[#e8b363]/30">
-                  <span className="h-2 w-2 rounded-full bg-[#e8b363] animate-pulse" />
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-200/80">
+                  <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
                   Đối tác thương hiệu đã xác minh
                 </div>
-                <h2 className="text-2xl font-extrabold text-[#fff8e8]">{data.profile.displayName}</h2>
+                <h2 className="text-2xl font-extrabold text-[#1a1c1c] text-balance">{data.profile.displayName}</h2>
               </div>
             </div>
           </div>
@@ -246,18 +246,18 @@ export function ServiceSettingsView({ data }: Readonly<{ data: ServicePortalData
         {/* Right Column: Location Verification Form Card */}
         <div className="space-y-6 rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-7 shadow-[0_4px_20px_rgba(23,32,27,0.04)] h-fit">
           {/* Cover Header Banner matching Left Card */}
-          <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#17201b] via-[#24352b] to-[#121914] p-5 sm:p-6 text-[#f8f1e6]">
+          <div className="relative overflow-hidden rounded-xl bg-white p-5 sm:p-6 text-slate-800 border border-emerald-900/10 shadow-xs">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-4 min-w-0">
-                <div className="flex h-15 w-15 shrink-0 items-center justify-center rounded-2xl bg-[#e8b363] text-2xl text-[#17201b] shadow-md border-2 border-white/20">
+                <div className="flex h-15 w-15 shrink-0 items-center justify-center rounded-2xl bg-amber-100/70 text-2xl text-amber-900 shadow-xs border border-amber-300/60">
                   📍
                 </div>
                 <div className="space-y-1">
-                  <div className="inline-flex items-center gap-1.5 rounded-full bg-[#e8b363]/20 px-3 py-0.5 text-xs font-bold text-[#f5c77e] border border-[#e8b363]/30">
-                    <span className="h-2 w-2 rounded-full bg-[#e8b363] animate-pulse" />
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-200/80">
+                    <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
                     Tọa độ phục vụ Marketplace
                   </div>
-                  <h2 className="text-2xl font-extrabold text-[#fff8e8]">Vị trí trên nền tảng</h2>
+                  <h2 className="text-2xl font-extrabold text-[#1a1c1c] text-balance">Vị trí trên nền tảng</h2>
                 </div>
               </div>
 
@@ -266,11 +266,11 @@ export function ServiceSettingsView({ data }: Readonly<{ data: ServicePortalData
                 type="button"
                 onClick={handleLocateGPS}
                 disabled={isLocating}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#e8b363] px-4.5 text-xs sm:text-sm font-bold text-[#17201b] shadow-md transition-all hover:bg-[#dfa652] disabled:opacity-60 shrink-0"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-4.5 text-xs sm:text-sm font-bold text-white shadow-xs transition-all hover:bg-[var(--primary-container)] disabled:opacity-60 shrink-0"
               >
                 {isLocating ? (
                   <>
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#17201b] border-t-transparent" />
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                     <span>Đang quét...</span>
                   </>
                 ) : (

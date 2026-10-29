@@ -224,18 +224,18 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
   return (
     <form onSubmit={submitHotel} className="space-y-6">
       {/* Top Banner & Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#17201b] via-[#24352b] to-[#121914] p-4 sm:p-6 text-[#f8f1e6] shadow-md">
+      <div className="relative overflow-hidden rounded-2xl bg-white p-4 sm:p-6 text-slate-800 shadow-xs border border-emerald-900/10">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-            <div className="flex h-14 w-14 sm:h-16 sm:w-16 shrink-0 items-center justify-center rounded-2xl bg-[#e8b363] text-2xl font-black text-[#17201b] shadow-md border-2 border-white/20">
+            <div className="flex h-14 w-14 sm:h-16 sm:w-16 shrink-0 items-center justify-center rounded-2xl bg-amber-100/70 text-2xl font-black text-amber-900 shadow-xs border border-amber-300/60">
               🏨
             </div>
             <div className="space-y-1 min-w-0 flex-1">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-[#e8b363]/20 px-3 py-0.5 text-xs font-bold text-[#f5c77e] border border-[#e8b363]/30 whitespace-nowrap">
-                <span className="h-2 w-2 rounded-full bg-[#e8b363] animate-pulse shrink-0" />
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-200/80 whitespace-nowrap">
+                <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse shrink-0" />
                 Hồ sơ vận hành chính thức
               </div>
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-[#fff8e8] truncate" title={hotel.name}>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-[#1a1c1c] text-balance truncate" title={hotel.name}>
                 {hotel.name}
               </h1>
             </div>
@@ -245,7 +245,7 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
             <button
               type="button"
               onClick={handleReset}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white/10 px-4 text-xs sm:text-sm font-bold text-[#f8f1e6] backdrop-blur-sm border border-white/20 transition-all hover:bg-white/20 active:scale-[0.98] whitespace-nowrap"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-100 px-4 text-xs sm:text-sm font-bold text-slate-700 border border-slate-200 transition-all hover:bg-slate-200 active:scale-[0.98] whitespace-nowrap"
             >
               <span>🔄</span>
               <span>Hoàn tác thay đổi</span>
@@ -254,11 +254,11 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
             <button
               type="submit"
               disabled={isSaving}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#e8b363] px-5 text-xs sm:text-sm font-bold text-[#17201b] shadow-md transition-all hover:bg-[#dfa652] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-5 text-xs sm:text-sm font-bold text-white shadow-xs transition-all hover:bg-[var(--primary-container)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
             >
               {isSaving ? (
                 <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#17201b] border-t-transparent" />
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   <span>Đang lưu...</span>
                 </>
               ) : (
@@ -407,7 +407,7 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
         <button
           type="submit"
           disabled={isSaving}
-          className="flex h-13 min-w-[240px] items-center justify-center gap-2.5 rounded-xl bg-[#17201b] px-8 text-base font-semibold text-[#f8f1e6] shadow-md transition-all hover:bg-[#27352d] disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-13 min-w-[240px] items-center justify-center gap-2.5 rounded-xl bg-[var(--primary)] px-8 text-base font-semibold text-white shadow-sm transition-all hover:bg-[var(--primary-container)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSaving ? (
             <>

@@ -402,7 +402,7 @@ export function OwnerNearbyProvidersClient({
                   {/* Left Section: Logo + Identity + Attributes */}
                   <div className="flex items-start gap-4 flex-1 min-w-0">
                     {/* Custom B2B V Shield Emblem */}
-                    <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#17201b] via-[#24352b] to-[#0e1511] border-2 border-[#e8b363]/60 shadow-xs group-hover:border-[#f5d089] group-hover:shadow-[0_0_12px_rgba(232,179,99,0.4)] group-hover:scale-105 transition-all overflow-hidden p-1.5">
+                    <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1c5443] via-[#246c56] to-[#164436] border-2 border-[#e8b363]/60 shadow-xs group-hover:border-[#f5d089] group-hover:shadow-[0_0_12px_rgba(232,179,99,0.4)] group-hover:scale-105 transition-all overflow-hidden p-1.5">
                       {coverImageUrl ? (
                         <Image
                           unoptimized
@@ -468,7 +468,7 @@ export function OwnerNearbyProvidersClient({
 
                       <span className="absolute bottom-1 right-1 flex h-2 w-2">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 ring-2 ring-[#17201b]" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 ring-2 ring-white" />
                       </span>
                     </div>
 

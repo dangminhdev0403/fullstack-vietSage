@@ -506,7 +506,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#134e35] via-[#1a6546] to-[#257d57] py-4 text-sm sm:text-base font-bold text-white shadow-md shadow-[#134e35]/25 transition-all duration-300 hover:brightness-110 hover:shadow-lg hover:shadow-[#134e35]/35 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 cursor-pointer"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#1c5d49] via-[#24755d] to-[#1c5d49] py-3.5 text-sm sm:text-base font-bold text-white shadow-sm shadow-[#1c5d49]/20 transition-all duration-200 hover:brightness-105 hover:shadow-md hover:shadow-[#1c5d49]/30 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70 cursor-pointer"
               >
                 {isSubmitting ? "Đang xử lý..." : "Đăng nhập"}
                 <VsIcon name="arrow_forward" className="text-[20px]" />

@@ -30,19 +30,19 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
   return (
     <div className="space-y-6">
       {/* Hero Welcome Banner */}
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#17201b] via-[#1f2e26] to-[#111814] p-6 sm:p-8 text-[#f8f1e6] shadow-md border border-[#2b3a31]">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full bg-[#e8b363]/12 blur-3xl" />
+      <section className="relative overflow-hidden rounded-2xl bg-white p-6 sm:p-8 text-slate-800 shadow-xs border border-emerald-900/10">
+
         <div className="relative z-10 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full bg-[#e8b363]/15 px-3.5 py-1 text-xs font-semibold text-[#f5c77e] backdrop-blur-md border border-[#e8b363]/25">
-              <span className="h-2 w-2 rounded-full bg-[#e8b363] animate-pulse" />
+            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3.5 py-1 text-xs font-semibold text-emerald-800 border border-emerald-200/80">
+              <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
               Cổng đối tác dịch vụ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#fff8e8]">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#1a1c1c] text-balance">
               {data.profile.displayName}
             </h1>
             {data.profile.address && (
-              <p className="text-sm font-medium text-[#d7cbb8] flex items-center gap-2">
+              <p className="text-sm font-medium text-slate-600 flex items-center gap-2">
                 <span>📍</span> {data.profile.address}
               </p>
             )}
@@ -52,14 +52,14 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
             <Link
               href="/service/catalog"
               prefetch={true}
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#e8b363] px-4.5 text-sm font-bold text-[#17201b] shadow-sm transition-all hover:bg-[#dfa652]"
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--primary)] px-4.5 text-sm font-bold text-white shadow-xs transition-all hover:bg-[var(--primary-container)]"
             >
               <span>+</span> Thêm dịch vụ
             </Link>
             <Link
               href="/service/orders"
               prefetch={true}
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-white/10 px-4.5 text-sm font-semibold text-[#f8f1e6] backdrop-blur-md transition-colors hover:bg-white/20 border border-white/15"
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-100 px-4.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-200 border border-slate-200"
             >
               📋 Đơn hàng ({pendingOrders.length} mới)
             </Link>
@@ -69,7 +69,7 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
 
       {/* Financial Overview Section */}
       <section className="space-y-3">
-        <h2 className="text-lg font-bold text-[#17201b] flex items-center gap-2">
+        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
           <span>💰</span> Doanh số & Công nợ quyết toán với Khách sạn
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -215,7 +215,7 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
         {/* Active & Recent Orders Section */}
         <div className="space-y-4 rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-5 sm:p-6 shadow-xs">
           <div className="flex items-center justify-between border-b border-[#eee7d8] pb-3.5">
-            <h2 className="text-lg font-bold text-[#17201b] flex items-center gap-2">
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <span>📋</span> Đơn hàng đang xử lý
               <span className="rounded-full bg-[#e8f2ee] px-2.5 py-0.5 text-xs font-bold text-[#1c553f] border border-[#c1e0d3]">
                 {activeOrders.length}
@@ -300,7 +300,7 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
         {/* Services Quick View Sidebar */}
         <div className="space-y-4 rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-5 sm:p-6 shadow-xs">
           <div className="flex items-center justify-between border-b border-[#eee7d8] pb-3.5">
-            <h2 className="text-lg font-bold text-[#17201b] flex items-center gap-2">
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <span>🛍️</span> Dịch vụ nổi bật
             </h2>
             <Link href="/service/catalog" prefetch={true} className="text-xs font-bold text-[#8c6d29] hover:underline">
