@@ -58,6 +58,12 @@ describe("ReservationsService & ReservationsRepository (AUD-04, AUD-10)", () => 
     const repo = new ReservationsRepository(mockPrisma);
     const mockHotelAccess: any = {
       assertHotelAccess: async () => ({ id: "hotel-1", tenantId: "tenant-1" }),
+      resolveRoomScope: async () => ({
+        hotel: { id: "hotel-1", tenantId: "tenant-1" },
+        allowedRoomId: null,
+        mode: "HOTEL_WIDE",
+      }),
+      assertRoomAccess: () => {},
     };
     const mockCodes: any = {};
     const service = new ReservationsService(repo, mockCodes, mockHotelAccess);
@@ -130,6 +136,12 @@ describe("ReservationsService & ReservationsRepository (AUD-04, AUD-10)", () => 
 
     const mockHotelAccess: any = {
       assertHotelAccess: async () => ({ id: "hotel-1", tenantId: "tenant-1" }),
+      resolveRoomScope: async () => ({
+        hotel: { id: "hotel-1", tenantId: "tenant-1" },
+        allowedRoomId: null,
+        mode: "HOTEL_WIDE",
+      }),
+      assertRoomAccess: () => {},
     };
     const service = new ReservationsService(mockRepo, {} as any, mockHotelAccess);
 

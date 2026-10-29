@@ -9,6 +9,7 @@ import type { StaffRequestListItem } from "@/features/hotel-ops/types/hotel-ops-
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import { playMessageAlertSound, playRequestAlertSound } from "@/features/request-realtime/audio-notifier";
 import {
+  invalidateHotelMessageRealtimeQueries,
   invalidateHotelRealtimeQueries,
   invalidateHotelRequestRealtimeQueries,
 } from "../utils/invalidate-hotel-realtime-queries";
@@ -60,7 +61,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         );
 
         // Invalidate TanStack Query caches seamlessly without full page reload
-        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        void invalidateHotelRequestRealtimeQueries(targetQueryClient, hotelId);
       },
       onUpdated: (request: Partial<StaffRequestListItem> & { id: string }) => {
         const status = String(request.status ?? "");
@@ -88,16 +89,16 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         } else if (status === "PENDING") {
           playRequestAlertSound(false);
         }
-        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        void invalidateHotelRequestRealtimeQueries(targetQueryClient, hotelId);
       },
       onAnswered: (request?: Partial<StaffRequestListItem> & { id?: string }) => {
         if (request?.id) {
           toast.dismiss(`hotel-ops-request-created-${request.id}`);
         }
-        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        void invalidateHotelRequestRealtimeQueries(targetQueryClient, hotelId);
       },
       onGuestMessageCreated: (event: unknown) => {
-        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        void invalidateHotelMessageRealtimeQueries(targetQueryClient, hotelId);
 
         const raw = event as {
           hotelId?: string;
@@ -130,7 +131,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         }
       },
       onConversationClosed: () => {
-        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        void invalidateHotelMessageRealtimeQueries(targetQueryClient, hotelId);
       },
       onExternalOrderCreated: (event: unknown) => {
         playRequestAlertSound(false);
@@ -163,24 +164,24 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
           },
         });
 
-        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        void invalidateHotelRequestRealtimeQueries(targetQueryClient, hotelId);
       },
       onExternalOrderStatusChanged: (event: unknown) => {
         const raw = event as { orderId?: string } | null;
         if (raw?.orderId) {
           toast.dismiss(`hotel-ops-ext-order-created-${raw.orderId}`);
         }
-        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        void invalidateHotelRequestRealtimeQueries(targetQueryClient, hotelId);
       },
       onExternalOrderHotelAcknowledged: (event: unknown) => {
         const raw = event as { orderId?: string } | null;
         if (raw?.orderId) {
           toast.dismiss(`hotel-ops-ext-order-created-${raw.orderId}`);
         }
-        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        void invalidateHotelRequestRealtimeQueries(targetQueryClient, hotelId);
       },
       onExternalOrderVoucherIssued: () => {
-        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        void invalidateHotelRequestRealtimeQueries(targetQueryClient, hotelId);
       },
       onChannelBookingCreated: (event: unknown) => {
         const raw = event as {
@@ -238,7 +239,6 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         });
 
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
-
       },
       onChannelBookingCancelled: (event: unknown) => {
         const raw = event as {
@@ -260,7 +260,6 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         });
 
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
-
       },
       onRoomStatusUpdated: (event: unknown) => {
         const raw = event as {
@@ -274,7 +273,6 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         if (raw?.hotelId && raw.hotelId !== hotelId) return;
 
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
-
 
         const statusLabels: Record<string, string> = {
           AVAILABLE: "TRỐNG (sẵn sàng đón khách)",

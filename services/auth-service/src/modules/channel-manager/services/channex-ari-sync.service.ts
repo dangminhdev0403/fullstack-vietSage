@@ -143,9 +143,15 @@ export class ChannexAriSyncService {
     const targetTypes = grid.roomTypes.map((rt) => rt.roomType);
 
     // 2. Resolve mapping readiness for all targets before first provider post
-    const readiness = await this.readinessService.assertReady(hotelId, targetTypes, {
-      ratePlanCode: options.ratePlanCode,
-    });
+    const readiness =
+      !options.ratePlanCode &&
+      grid?.readiness?.ready === true &&
+      grid.readiness.propertyChannexId &&
+      Array.isArray(grid.readiness.roomTypes)
+        ? grid.readiness
+        : await this.readinessService.assertReady(hotelId, targetTypes, {
+            ratePlanCode: options.ratePlanCode,
+          });
 
     const channexPropertyId = readiness.propertyChannexId!;
     const remoteProperty = options.availabilityOnly

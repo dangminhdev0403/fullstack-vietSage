@@ -682,6 +682,7 @@ model TenantUser {
 
   @@unique([tenantId, userId])
   @@index([tenantId, status])
+  @@index([userId, status])
 }
 
 model AuditLog {
@@ -912,7 +913,6 @@ model PlatformBillingContractRevision {
   billableDays     PlatformBillableDay[]
 
   @@unique([contractId, effectiveFrom])
-  @@index([contractId, effectiveFrom])
 }
 
 model PlatformUsage {
@@ -1223,6 +1223,7 @@ model Reservation {
 
   @@unique([hotelId, reservationCode])
   @@index([hotelId, status, plannedCheckInAt])
+  @@index([hotelId, plannedCheckInAt, plannedCheckOutAt])
   @@index([roomId, status, plannedCheckInAt, plannedCheckOutAt])
   @@index([hotelId, groupCode])
   @@index([hotelId, roomTypeId])
@@ -1340,7 +1341,8 @@ model GuestSession {
   guestCart                 GuestCart?
 
   @@index([stayId, status])
-  @@index([sessionTokenHash])
+  @@index([roomId, status])
+  @@index([roomQrCodeId])
   @@index([hotelId, status, lastSeenAt])
 }
 
@@ -1569,6 +1571,8 @@ model GuestMessage {
   @@index([hotelId, createdAt])
   @@index([stayId, createdAt])
   @@index([threadId, senderType, readAt])
+  @@index([hotelId, senderType, readAt, threadId])
+  @@index([stayId, hotelId, senderType, readAt])
 }
 
 model Folio {
@@ -1604,7 +1608,6 @@ model Folio {
   hotelReceivables          HotelReceivable[]
 
   @@unique([hotelId, folioNumber])
-  @@index([hotelId])
   @@index([stayId])
   @@index([roomId])
   @@index([status])
@@ -1655,7 +1658,6 @@ model FolioItem {
   postedBy               User?               @relation("FolioItemPostedBy", fields: [postedByUserId], references: [id], onDelete: SetNull)
   voidedBy               User?               @relation("FolioItemVoidedBy", fields: [voidedByUserId], references: [id], onDelete: SetNull)
 
-  @@index([hotelId])
   @@index([folioId])
   @@index([stayId])
   @@index([itemType])
@@ -1704,7 +1706,6 @@ model Invoice {
   hotelReceivables          HotelReceivable[]
 
   @@unique([hotelId, invoiceNumber])
-  @@index([hotelId])
   @@index([folioId])
   @@index([stayId])
   @@index([status])
@@ -1746,7 +1747,6 @@ model Payment {
   transactions      PaymentTransaction[]
 
   @@unique([hotelId, paymentNumber])
-  @@index([hotelId])
   @@index([hotelId, status, confirmedAt])
   @@index([invoiceId])
   @@index([folioId])
@@ -2307,7 +2307,6 @@ model ServiceVoucher {
   updatedAt        DateTime             @updatedAt
   order            MarketplaceOrder     @relation(fields: [orderId], references: [id], onDelete: Restrict)
 
-  @@index([voucherNumber])
   @@index([serviceTenantId, status])
   @@index([hotelId, status])
 }
@@ -2550,8 +2549,6 @@ model LocalMateProfile {
   telegramPairingTokens LocalMateTelegramPairingToken[]
 
   @@index([status])
-  @@index([guideCode])
-  @@index([userId])
   @@index([tenantId])
   @@index([position])
   @@index([serviceLatitude, serviceLongitude])
@@ -2580,7 +2577,6 @@ model LocalMateTourKnowledge {
   updatedAt      DateTime  @updatedAt
 
   @@index([title])
-  @@index([tourCode])
   @@index([provinceCode])
   @@index([tourScope])
   @@index([latitude, longitude])
@@ -2620,7 +2616,6 @@ model LocalMateTelegramPairingToken {
   localMateProfile   LocalMateProfile @relation(fields: [localMateProfileId], references: [id], onDelete: Cascade)
 
   @@index([localMateProfileId, expiresAt])
-  @@index([tokenHash])
 }
 
 model MarketplaceConversation {
@@ -2772,6 +2767,7 @@ model ChannelSyncLog {
   connection          ChannelConnection? @relation(fields: [channelConnectionId], references: [id], onDelete: Cascade)
 
   @@index([hotelId, createdAt])
+  @@index([hotelId, syncType, status])
   @@index([channelConnectionId, createdAt])
 }
 

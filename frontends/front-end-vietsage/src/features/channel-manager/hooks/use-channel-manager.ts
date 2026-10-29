@@ -60,7 +60,6 @@ export function useUpdateRestrictions(options: {
   roleScope?: "owner" | "admin";
 }) {
   const { hotelId, roleScope = "owner" } = options;
-  const queryClient = useQueryClient();
 
   const boundResource = useMemo(
     () => channelManagerResource.bind({ hotelId, roleScope }),
@@ -72,12 +71,7 @@ export function useUpdateRestrictions(options: {
     [boundResource],
   );
 
-  const mutation = useMutation({
-    ...mutationOptions,
-    onSuccess: async () => {
-      await boundResource.invalidate(queryClient);
-    },
-  });
+  const mutation = useMutation(mutationOptions);
 
   return {
     updateRestrictions: (items: RestrictionUpdateItem[]) =>
@@ -92,7 +86,6 @@ export function useUpdateAvailability(options: {
   roleScope?: "owner" | "admin";
 }) {
   const { hotelId, roleScope = "owner" } = options;
-  const queryClient = useQueryClient();
 
   const boundResource = useMemo(
     () => channelManagerResource.bind({ hotelId, roleScope }),
@@ -104,12 +97,7 @@ export function useUpdateAvailability(options: {
     [boundResource],
   );
 
-  const mutation = useMutation({
-    ...mutationOptions,
-    onSuccess: async () => {
-      await boundResource.invalidate(queryClient);
-    },
-  });
+  const mutation = useMutation(mutationOptions);
 
   return {
     updateAvailability: (items: AvailabilityUpdateItem[]) =>
@@ -124,7 +112,6 @@ export function useBulkUpdateRestrictions(options: {
   roleScope?: "owner" | "admin";
 }) {
   const { hotelId, roleScope = "owner" } = options;
-  const queryClient = useQueryClient();
 
   const boundResource = useMemo(
     () => channelManagerResource.bind({ hotelId, roleScope }),
@@ -136,12 +123,7 @@ export function useBulkUpdateRestrictions(options: {
     [boundResource],
   );
 
-  const mutation = useMutation({
-    ...mutationOptions,
-    onSuccess: async () => {
-      await boundResource.invalidate(queryClient);
-    },
-  });
+  const mutation = useMutation(mutationOptions);
 
   return {
     bulkUpdate: (payload: BulkUpdatePayload) => mutation.mutateAsync(payload),

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Put, Query, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req } from "@nestjs/common";
 import {
   ApiBody,
   ApiCreatedResponse,
@@ -7,6 +7,7 @@ import {
   ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
+import type { SchemaObject } from "@nestjs/swagger";
 import type { Request } from "express";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
@@ -27,6 +28,10 @@ import {
   updateReservationDatesBodySchema,
   groupCodeParamSchema,
   updateGroupReservationBodySchema,
+  createBookingSourcePartnerBodySchema,
+  updateBookingSourcePartnerBodySchema,
+  listBookingSourcePartnersQuerySchema,
+  upsertConfirmationTemplateBodySchema,
 } from "../domain/schemas/reservations.schema";
 import { hotelIdParamSchema, reservationIdParamSchema } from "../domain/schemas/shared.schema";
 
@@ -155,6 +160,174 @@ const groupReservationDetailResponseSchema = {
   },
 };
 
+const nightlyRateSwaggerSchema = {
+  oneOf: [
+    { type: "number", minimum: 0, maximum: 999_999_999_999.99, nullable: true },
+    { type: "string", minLength: 1 },
+  ],
+};
+
+const reservationChargeLineSwaggerSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["lineType", "nameSnapshot", "unitPriceSnapshot", "totalSnapshot"],
+  properties: {
+    lineType: { type: "string", enum: ["ROOM_NIGHT", "EXTRA"] },
+    serviceDate: { type: "string" },
+    serviceItemId: { type: "string" },
+    nameSnapshot: { type: "string", minLength: 1, maxLength: 160 },
+    codeSnapshot: { type: "string", maxLength: 80 },
+    quantity: { type: "integer", minimum: 1, default: 1 },
+    unitPriceSnapshot: { type: "number", minimum: 0 },
+    taxAmountSnapshot: { type: "number", minimum: 0, default: 0 },
+    discountAmountSnapshot: { type: "number", minimum: 0, default: 0 },
+    totalSnapshot: { type: "number", minimum: 0 },
+    currency: { type: "string", maxLength: 3, default: "VND" },
+  },
+};
+
+const bulkAllocationSwaggerSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["roomTypeId", "quantity"],
+  properties: {
+    roomTypeId: { type: "string", minLength: 1 },
+    quantity: { type: "integer", minimum: 1, maximum: 50 },
+    rate: nightlyRateSwaggerSchema,
+    nightlyRateSnapshot: nightlyRateSwaggerSchema,
+  },
+};
+
+const createReservationBodySwaggerSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["guestDisplayName", "plannedCheckInAt", "plannedCheckOutAt"],
+  properties: {
+    guestDisplayName: { type: "string", minLength: 2, maxLength: 120 },
+    guestPhone: { type: "string", maxLength: 40 },
+    plannedCheckInAt: { type: "string", format: "date-time" },
+    plannedCheckOutAt: { type: "string", format: "date-time" },
+    roomId: { type: "string", minLength: 1, nullable: true },
+    roomTypeId: { type: "string", minLength: 1 },
+    autoAssign: { type: "boolean" },
+    guestCount: { type: "integer", minimum: 1, maximum: 50 },
+    notes: { type: "string", maxLength: 500 },
+    rate: nightlyRateSwaggerSchema,
+    nightlyRateSnapshot: nightlyRateSwaggerSchema,
+    chargeLines: { type: "array", items: reservationChargeLineSwaggerSchema },
+    sourceCategory: {
+      type: "string",
+      enum: ["DIRECT", "OTA", "TA", "TRAVEL_AGENCY", "CORPORATE", "OTHER"],
+    },
+    sourcePartnerId: { type: "string", minLength: 1, nullable: true },
+    bookingOwnerUserId: { type: "string", minLength: 1, nullable: true },
+  },
+};
+
+const bulkReservationSwaggerProperties = {
+  leadGuestName: { type: "string", minLength: 2, maxLength: 120 },
+  guestDisplayName: { type: "string", minLength: 2, maxLength: 120 },
+  leadGuestPhone: { type: "string", maxLength: 40 },
+  guestPhone: { type: "string", maxLength: 40 },
+  checkInDate: { type: "string", description: "Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601." },
+  checkOutDate: { type: "string", description: "Ngày trả phòng theo ISO hoặc thời điểm ISO 8601." },
+  plannedCheckInAt: { type: "string", description: "Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601." },
+  plannedCheckOutAt: { type: "string", description: "Ngày trả phòng theo ISO hoặc thời điểm ISO 8601." },
+  roomIds: {
+    type: "array",
+    items: { type: "string", minLength: 1 },
+    minItems: 1,
+    maxItems: 50,
+    uniqueItems: true,
+  },
+  allocations: {
+    type: "array",
+    items: bulkAllocationSwaggerSchema,
+    minItems: 1,
+    maxItems: 20,
+  },
+  autoAssign: { type: "boolean" },
+  groupCode: { type: "string", maxLength: 80 },
+  groupName: { type: "string", maxLength: 120 },
+  notes: { type: "string" },
+  idempotencyKey: { type: "string", maxLength: 120 },
+  rate: nightlyRateSwaggerSchema,
+  nightlyRateSnapshot: nightlyRateSwaggerSchema,
+  roomRates: { type: "object", additionalProperties: nightlyRateSwaggerSchema },
+  chargeLines: { type: "array", items: reservationChargeLineSwaggerSchema },
+  sourceCategory: {
+    type: "string",
+    enum: ["DIRECT", "OTA", "TA", "TRAVEL_AGENCY", "CORPORATE", "OTHER"],
+  },
+  sourcePartnerId: { type: "string", minLength: 1, nullable: true },
+  bookingOwnerUserId: { type: "string", minLength: 1, nullable: true },
+};
+
+const createBulkReservationsBodySwaggerSchema: SchemaObject = {
+  type: "object",
+  additionalProperties: false,
+  properties: bulkReservationSwaggerProperties,
+  allOf: [
+    {
+      anyOf: [
+        {
+          required: ["leadGuestName"],
+          properties: { leadGuestName: bulkReservationSwaggerProperties.leadGuestName },
+        },
+        {
+          required: ["guestDisplayName"],
+          properties: { guestDisplayName: bulkReservationSwaggerProperties.guestDisplayName },
+        },
+      ],
+    },
+    {
+      anyOf: [
+        {
+          required: ["checkInDate"],
+          properties: { checkInDate: bulkReservationSwaggerProperties.checkInDate },
+        },
+        {
+          required: ["plannedCheckInAt"],
+          properties: { plannedCheckInAt: bulkReservationSwaggerProperties.plannedCheckInAt },
+        },
+      ],
+    },
+    {
+      anyOf: [
+        {
+          required: ["checkOutDate"],
+          properties: { checkOutDate: bulkReservationSwaggerProperties.checkOutDate },
+        },
+        {
+          required: ["plannedCheckOutAt"],
+          properties: { plannedCheckOutAt: bulkReservationSwaggerProperties.plannedCheckOutAt },
+        },
+      ],
+    },
+    {
+      anyOf: [
+        {
+          required: ["roomIds"],
+          properties: { roomIds: bulkReservationSwaggerProperties.roomIds },
+        },
+        {
+          required: ["allocations"],
+          properties: { allocations: bulkReservationSwaggerProperties.allocations },
+        },
+      ],
+    },
+  ],
+};
+
+const bulkReservationResponseSchema = {
+  type: "object",
+  required: ["groupCode", "reservations"],
+  properties: {
+    groupCode: { type: "string" },
+    reservations: { type: "array", items: reservationResponseSchema },
+  },
+};
+
 @ApiTags("hotel-reservations")
 @Controller("hotels")
 export class ReservationsController {
@@ -165,22 +338,7 @@ export class ReservationsController {
   @ApiDescript("Tạo đặt phòng chưa cần gán phòng")
   @ApiParam({ name: "hotelId", type: String })
   @ApiBody({
-    schema: {
-      type: "object",
-      required: ["guestDisplayName", "plannedCheckInAt", "plannedCheckOutAt"],
-      properties: {
-        guestDisplayName: { type: "string" },
-        guestPhone: { type: "string" },
-        plannedCheckInAt: { type: "string", format: "date-time" },
-        plannedCheckOutAt: { type: "string", format: "date-time" },
-        roomId: { type: "string", nullable: true },
-        rate: { type: "string", nullable: true },
-        roomTypeId: { type: "string", nullable: true },
-    guestCount: { type: "integer", nullable: true },
-    notes: { type: "string", nullable: true },
-    nightlyRateSnapshot: { type: "string", nullable: true },
-      },
-    },
+    schema: createReservationBodySwaggerSchema,
   })
   @ApiCreatedResponse({
     description: "Đã tạo đặt phòng ở trạng thái CONFIRMED",
@@ -409,39 +567,15 @@ export class ReservationsController {
   @RequirePermission("hotel.reservations.manage")
   @SuccessMessage("Tạo đặt phòng theo đoàn thành công")
   @ApiDescript(
-    "Tạo danh sách đặt phòng theo đoàn (2–50 phòng) với 1 groupCode chung và các reservation riêng biệt",
+    "Tạo danh sách đặt phòng theo đoàn (1–50 phòng) với 1 groupCode chung và các reservation riêng biệt",
   )
   @ApiParam({ name: "hotelId", type: String })
   @ApiBody({
-    schema: {
-      type: "object",
-      required: ["leadGuestName", "checkInDate", "checkOutDate", "roomIds"],
-      properties: {
-        leadGuestName: { type: "string" },
-        leadGuestPhone: { type: "string" },
-        checkInDate: { type: "string", format: "date-time" },
-        checkOutDate: { type: "string", format: "date-time" },
-        roomIds: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 50 },
-        groupCode: { type: "string" },
-        idempotencyKey: { type: "string" },
-        rate: { type: "string", nullable: true },
-        roomTypeId: { type: "string", nullable: true },
-    guestCount: { type: "integer", nullable: true },
-    notes: { type: "string", nullable: true },
-    nightlyRateSnapshot: { type: "string", nullable: true },
-      },
-    },
+    schema: createBulkReservationsBodySwaggerSchema,
   })
   @ApiCreatedResponse({
     description: "Đã tạo nhóm đặt phòng với groupCode và danh sách reservation",
-    schema: {
-      type: "object",
-      required: ["groupCode", "reservations"],
-      properties: {
-        groupCode: { type: "string" },
-        reservations: { type: "array", items: reservationResponseSchema },
-      },
-    },
+    schema: bulkReservationResponseSchema,
   })
   @Post(":hotelId/reservations/bulk")
   async createBulkReservations(
@@ -462,7 +596,7 @@ export class ReservationsController {
   @RequirePermission("hotel.reservations.manage")
   @SuccessMessage("Tạo đặt phòng theo đoàn thành công")
   @ApiDescript(
-    "Tạo danh sách đặt phòng theo đoàn (2–50 phòng) với 1 groupCode chung và các reservation riêng biệt",
+    "Tạo danh sách đặt phòng theo đoàn (1–50 phòng) với 1 groupCode chung và các reservation riêng biệt",
   )
   @ApiParam({ name: "hotelId", type: String })
   @RequirePermission(["hotel.reservations.view", "hotel.reservations.manage"])
@@ -567,6 +701,18 @@ export class ReservationsController {
   }
 
   @RequirePermission("hotel.reservations.manage")
+  @SuccessMessage("Tạo đặt phòng theo đoàn thành công")
+  @ApiDescript(
+    "Tạo danh sách đặt phòng theo đoàn (1–50 phòng) với 1 groupCode chung và các reservation riêng biệt",
+  )
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiBody({
+    schema: createBulkReservationsBodySwaggerSchema,
+  })
+  @ApiCreatedResponse({
+    description: "Đã tạo nhóm đặt phòng với groupCode và danh sách reservation",
+    schema: bulkReservationResponseSchema,
+  })
   @Post(":hotelId/reservations/group")
   async createGroupReservations(
     @Req() request: RequestWithUser,
@@ -581,6 +727,9 @@ export class ReservationsController {
   @ApiDescript("Lấy phiếu xác nhận đặt phòng theo đoàn bao gồm thông tin đoàn và từng phòng")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "groupCode", type: String })
+  @ApiOkResponse({
+    description: "Đã lấy phiếu xác nhận đặt phòng theo đoàn",
+  })
   @Get(":hotelId/reservations/groups/:groupCode/confirmation")
   async getGroupConfirmation(
     @Req() request: RequestWithUser,
@@ -662,10 +811,56 @@ export class ReservationsController {
   }
 
   @RequirePermission(["hotel.reservations.view", "hotel.reservations.manage"])
+  @SuccessMessage("Lấy mẫu xác nhận đặt phòng của khách sạn thành công")
+  @ApiDescript("Lấy mẫu xác nhận đặt phòng tùy chỉnh của khách sạn")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiOkResponse({
+    description: "Đã lấy cấu hình mẫu xác nhận đặt phòng",
+  })
+  @Get(":hotelId/reservations/confirmation-template")
+  async getConfirmationTemplate(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    return this.reservationsService.getConfirmationTemplate(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+    );
+  }
+
+  @RequirePermission("hotel.reservations.manage")
+  @SuccessMessage("Cập nhật mẫu xác nhận đặt phòng thành công")
+  @ApiDescript("Cập nhật cấu hình mẫu xác nhận đặt phòng tùy chỉnh của khách sạn")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiOkResponse({
+    description: "Đã cập nhật cấu hình mẫu xác nhận đặt phòng",
+  })
+  @Put(":hotelId/reservations/confirmation-template")
+  async upsertConfirmationTemplate(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const dto = parseWithZod(upsertConfirmationTemplateBodySchema, body);
+    return this.reservationsService.upsertConfirmationTemplate(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      dto,
+    );
+  }
+
+  @RequirePermission(["hotel.reservations.view", "hotel.reservations.manage"])
   @SuccessMessage("Lấy phiếu xác nhận đặt phòng thành công")
   @ApiDescript("Lấy phiếu xác nhận đặt phòng chuẩn bao gồm thông tin khách sạn, chi tiết đêm phòng và thanh toán")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "id", type: String })
+  @ApiOkResponse({
+    description: "Đã lấy phiếu xác nhận đặt phòng",
+  })
   @Get(":hotelId/reservations/:id/confirmation")
   async getReservationConfirmation(
     @Req() request: RequestWithUser,
@@ -679,6 +874,89 @@ export class ReservationsController {
       request.user.roleId,
       hotelId,
       reservationId,
+    );
+  }
+
+  @SuccessMessage("Lấy danh sách đối tác nguồn đặt phòng thành công")
+  @ApiDescript("Lấy danh sách đối tác nguồn đặt phòng của khách sạn")
+  @ApiParam({ name: "hotelId", type: String })
+  @Get(":hotelId/booking-partners")
+  @RequirePermission("hotel.reservations.view")
+  async listBookingPartners(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() queryParams: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const query = parseWithZod(listBookingSourcePartnersQuerySchema, queryParams);
+    return this.reservationsService.listBookingSourcePartners(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      query,
+    );
+  }
+
+  @SuccessMessage("Tạo mới đối tác nguồn đặt phòng thành công")
+  @ApiDescript("Tạo mới đối tác nguồn đặt phòng của khách sạn")
+  @ApiParam({ name: "hotelId", type: String })
+  @Post(":hotelId/booking-partners")
+  @RequirePermission(["hotel.booking-partners.manage", "hotel.reservations.manage"])
+  async createBookingPartner(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const dto = parseWithZod(createBookingSourcePartnerBodySchema, body);
+    return this.reservationsService.createBookingSourcePartner(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      dto,
+    );
+  }
+
+  @SuccessMessage("Cập nhật đối tác nguồn đặt phòng thành công")
+  @ApiDescript("Cập nhật đối tác nguồn đặt phòng của khách sạn")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "partnerId", type: String })
+  @Patch(":hotelId/booking-partners/:partnerId")
+  @RequirePermission(["hotel.booking-partners.manage", "hotel.reservations.manage"])
+  async updateBookingPartner(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("partnerId") partnerIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const dto = parseWithZod(updateBookingSourcePartnerBodySchema, body);
+    return this.reservationsService.updateBookingSourcePartner(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      partnerIdParam,
+      dto,
+    );
+  }
+
+  @SuccessMessage("Xóa đối tác nguồn đặt phòng thành công")
+  @ApiDescript("Xóa đối tác nguồn đặt phòng của khách sạn")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "partnerId", type: String })
+  @Delete(":hotelId/booking-partners/:partnerId")
+  @RequirePermission(["hotel.booking-partners.manage", "hotel.reservations.manage"])
+  async deleteBookingPartner(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("partnerId") partnerIdParam: string,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    return this.reservationsService.deleteBookingSourcePartner(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      partnerIdParam,
     );
   }
 }

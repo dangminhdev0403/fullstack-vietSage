@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import type { Hotel } from "@/features/admin/types/admin-contract";
@@ -16,15 +16,18 @@ import { OwnerServiceCatalogClient } from "../services/owner-service-catalog-cli
 import { OwnerNearbyProvidersClient } from "@/features/local-partners/components/staff-local-partners-client";
 import { KbttConnectionPage } from "@/features/kbtt/components/kbtt-connection-page";
 import { ChannexHubTab } from "@/features/channel-manager/components/channex-hub-tab";
+import { HotelConfirmationTemplateForm } from "@/features/hotel-ops/components/booking-confirmation-modal";
 
-export type OwnerSettingsTab =
-  | "rooms"
-  | "staff"
-  | "services"
-  | "partners"
-  | "integrations";
+import type { OwnerSettingsTab } from "@/features/owner/utils/owner-settings";
+export type { OwnerSettingsTab } from "@/features/owner/utils/owner-settings";
 
 type Props = {
+  availableTabs: OwnerSettingsTab[];
+  activeTab: OwnerSettingsTab;
+  canManageTemplate: boolean;
+  canManageServices: boolean;
+  canViewKbtt: boolean;
+  canViewChannels: boolean;
   hotelId: string;
   hotel: Readonly<Hotel>;
   tenantId: string | null;
@@ -73,9 +76,16 @@ const SETTINGS_TABS: Array<{
     icon: "hub",
     description: "Cấu hình khai báo lưu trú KBTT Công an và phân phối đa kênh OTA (Channex).",
   },
+  {
+    id: "confirmation-template",
+    label: "Mẫu phiếu xác nhận",
+    icon: "receipt_long",
+    description: "Cấu hình mẫu phiếu xác nhận đặt phòng của khách sạn: tiêu đề, chính sách nhận/trả phòng, logo và ghi chú.",
+  },
 ];
 
 export function OwnerHotelSettingsClient({
+  availableTabs, activeTab, canManageTemplate, canManageServices, canViewKbtt, canViewChannels,
   hotelId,
   hotel,
   tenantId,
@@ -88,27 +98,14 @@ export function OwnerHotelSettingsClient({
   canManageChannels,
 }: Props) {
   const searchParams = useSearchParams();
-  const rawTab = (searchParams.get("tab") || "").toLowerCase() as OwnerSettingsTab;
-  const initialTab: OwnerSettingsTab = SETTINGS_TABS.some((t) => t.id === rawTab)
-    ? rawTab
-    : "rooms";
-
-  const [activeTab, setActiveTab] = useState<OwnerSettingsTab>(initialTab);
-  const [integrationsSubTab, setIntegrationsSubTab] = useState<"kbtt" | "channels">("kbtt");
+  const router = useRouter();
+  const [integrationsSubTab, setIntegrationsSubTab] = useState<"kbtt" | "channels">(canViewKbtt ? "kbtt" : "channels");
 
   const handleTabChange = (tab: OwnerSettingsTab) => {
-    setActiveTab(tab);
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      url.searchParams.set("tab", tab);
-      window.history.replaceState(null, "", url.toString());
-    }
+    const query = new URLSearchParams(searchParams.toString());
+    query.set("tab", tab);
+    router.replace(`/owner/hotels/${encodeURIComponent(hotelId)}/settings?${query.toString()}`, { scroll: false });
   };
-
-  const currentTabMeta = useMemo(
-    () => SETTINGS_TABS.find((t) => t.id === activeTab) || SETTINGS_TABS[0],
-    [activeTab],
-  );
 
   return (
     <div className="space-y-6 pb-24">
@@ -128,7 +125,7 @@ export function OwnerHotelSettingsClient({
         aria-label="Cài đặt khách sạn"
         className="flex gap-1.5 overflow-x-auto border-b border-[#e5ddcd] pb-px scrollbar-thin"
       >
-        {SETTINGS_TABS.map((tab) => {
+        {SETTINGS_TABS.filter((tab) => availableTabs.includes(tab.id)).map((tab) => {
           const isActive = activeTab === tab.id;
           return (
             <button
@@ -136,7 +133,7 @@ export function OwnerHotelSettingsClient({
               role="tab"
               aria-selected={isActive}
               onClick={() => handleTabChange(tab.id)}
-              className={`min-h-11 shrink-0 flex items-center gap-2 rounded-t-xl border-b-2 px-4 py-2.5 text-xs sm:text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-[#735c00]/30 cursor-pointer whitespace-nowrap ${
+              className={`min-h-11 shrink-0 flex items-center gap-2 rounded-t-xl border-b-2 px-4 py-2.5 text-base font-bold transition-all focus:outline-none focus:ring-2 focus:ring-[#735c00]/30 cursor-pointer whitespace-nowrap ${
                 isActive
                   ? "border-[#735c00] bg-white text-[#735c00] shadow-2xs font-black"
                   : "border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"
@@ -154,6 +151,7 @@ export function OwnerHotelSettingsClient({
         {activeTab === "rooms" && (
           <section className="space-y-4">
             <OwnerRoomsClient
+              key={hotelId}
               hotelId={hotelId}
               initialRooms={initialRooms}
               surfaceMode="settings"
@@ -171,7 +169,7 @@ export function OwnerHotelSettingsClient({
                 onHotelPath={`/owner/hotels/${encodeURIComponent(hotelId)}/settings?tab=staff`}
               />
             ) : (
-              <div className="rounded-xl bg-[var(--surface-container-low)] p-8 text-center text-xs text-[var(--on-surface-variant)]">
+              <div className="rounded-xl bg-[var(--surface-container-low)] p-8 text-center text-sm text-[var(--on-surface-variant)]">
                 Không tìm thấy thông tin đơn vị quản lý khách sạn này.
               </div>
             )}
@@ -181,7 +179,9 @@ export function OwnerHotelSettingsClient({
         {activeTab === "services" && (
           <section className="space-y-4">
             <OwnerServiceCatalogClient
+              key={hotelId}
               hotelId={hotelId}
+              canManage={canManageServices}
               hasGoogleSheetConfig={Boolean(hotel.googleSheetId)}
               initialCategories={initialCategories}
               initialItems={initialItems}
@@ -204,8 +204,9 @@ export function OwnerHotelSettingsClient({
             <div className="flex gap-2 border-b border-slate-200 pb-2">
               <button
                 type="button"
+                disabled={!canViewKbtt}
                 onClick={() => setIntegrationsSubTab("kbtt")}
-                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition cursor-pointer whitespace-nowrap ${
                   integrationsSubTab === "kbtt"
                     ? "bg-[#123d2a] text-white shadow-xs"
                     : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -216,8 +217,9 @@ export function OwnerHotelSettingsClient({
               </button>
               <button
                 type="button"
+                disabled={!canViewChannels}
                 onClick={() => setIntegrationsSubTab("channels")}
-                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition cursor-pointer whitespace-nowrap ${
                   integrationsSubTab === "channels"
                     ? "bg-[#123d2a] text-white shadow-xs"
                     : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -241,6 +243,14 @@ export function OwnerHotelSettingsClient({
                 canManage={canManageChannels}
               />
             )}
+          </section>
+        )}
+
+        {activeTab === "confirmation-template" && (
+          <section className="space-y-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm max-w-2xl">
+              <HotelConfirmationTemplateForm hotelId={hotelId} canManage={canManageTemplate} />
+            </div>
           </section>
         )}
       </div>

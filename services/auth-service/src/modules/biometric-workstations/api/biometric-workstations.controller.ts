@@ -11,6 +11,7 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
+import { z } from "zod";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
@@ -20,6 +21,8 @@ import { BiometricWorkstationsService } from "../application/biometric-workstati
 import { pairBiometricWorkstationSchema } from "../domain/schemas/biometric-workstations.schema";
 
 type RequestWithUser = Request & { user: AuthenticatedUser };
+
+const hotelIdParamSchema = z.string().trim().min(1);
 
 function bearer(value: string | undefined) {
   const [scheme, token] = value?.trim().split(/\s+/, 2) ?? [];
@@ -53,7 +56,8 @@ export class BiometricWorkstationsController {
   @RequirePermission(["hotel.stays.manage", "hotel.stays.check-in"])
   @ApiDescript("Cấp mã ghép nối trạm sinh trắc học")
   @Post("hotels/:hotelId/biometric-workstations/pairing")
-  async issuePairing(@Req() request: RequestWithUser, @Param("hotelId") hotelId: string) {
+  async issuePairing(@Req() request: RequestWithUser, @Param("hotelId") hotelIdParam: string) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     await this.hotelAccessService.assertHotelAccess(
       request.user.userId,
       request.user.roleId,
@@ -66,7 +70,8 @@ export class BiometricWorkstationsController {
   @RequirePermission(["hotel.stays.manage", "hotel.stays.check-in"])
   @ApiDescript("Kiểm tra trạng thái trạm sinh trắc học")
   @Get("hotels/:hotelId/biometric-workstations/status")
-  async status(@Req() request: RequestWithUser, @Param("hotelId") hotelId: string) {
+  async status(@Req() request: RequestWithUser, @Param("hotelId") hotelIdParam: string) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     await this.hotelAccessService.assertHotelAccess(
       request.user.userId,
       request.user.roleId,
@@ -79,7 +84,8 @@ export class BiometricWorkstationsController {
   @RequirePermission(["hotel.stays.manage", "hotel.stays.check-in"])
   @ApiDescript("Thu hồi kết nối trạm sinh trắc học")
   @Delete("hotels/:hotelId/biometric-workstations")
-  async disconnect(@Req() request: RequestWithUser, @Param("hotelId") hotelId: string) {
+  async disconnect(@Req() request: RequestWithUser, @Param("hotelId") hotelIdParam: string) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     await this.hotelAccessService.assertHotelAccess(
       request.user.userId,
       request.user.roleId,

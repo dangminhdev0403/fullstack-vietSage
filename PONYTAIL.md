@@ -62,7 +62,7 @@ Pattern: `[code] → skipped: [X], add when [Y].`
 | Level | What change |
 |-------|------------|
 | **full** | The ladder enforced. Stdlib and native first. Shortest diff, shortest explanation. Default. |
-| **ultra (max)** | **Auto-enabled in Strict Audit Mode (`chế độ rà soát`)**. Deletion before addition, challenges the requirement/abstraction before building or keeping it, ruthless pruning of over-engineering, zero intermediate chatter, shortest possible root-cause correction. |
+| **ultra (max)** | **Auto-enabled in Strict Audit Mode (`siêu rà soát` / `chế độ rà soát`), Code Focus (`tập trung code`), and Focused Execution (`tập trung thực thi`)**. Deletion before addition, challenges the requirement/abstraction before building or keeping it, ruthless pruning of over-engineering, **100% silent tool/orchestration execution (zero pre-tool preamble or mid-turn commentary in Codex/Antigravity)**, single consolidated Final Report with `VIOLATION | GAP | COMPLIANT` evidence ledger, shortest possible root-cause correction. |
 
 Example: "Add a cache for these API responses."
 - full: "`@lru_cache(maxsize=1000)` on the fetch function. Skipped custom cache class, add when lru_cache measurably falls short."

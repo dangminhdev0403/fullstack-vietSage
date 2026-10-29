@@ -480,6 +480,8 @@ export function FrontDeskRoomDetailPanel({
 
   // Keyboard and focus management
   useEffect(() => {
+    if (!isOpen) return;
+
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -507,7 +509,7 @@ export function FrontDeskRoomDetailPanel({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [isOpen, onClose]);
 
   // Initial focus on open and return focus on close
   useEffect(() => {

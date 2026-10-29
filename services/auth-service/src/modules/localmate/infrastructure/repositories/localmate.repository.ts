@@ -19,8 +19,17 @@ export class LocalMateRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async generateNextGuideCode(): Promise<string> {
-    const count = await this.prisma.localMateProfile.count();
-    const sequence = String(count + 1).padStart(3, "0");
+    const [count, latest] = await Promise.all([
+      this.prisma.localMateProfile.count(),
+      this.prisma.localMateProfile.findFirst?.({
+        orderBy: { guideCode: "desc" },
+        select: { guideCode: true },
+      }) ?? Promise.resolve(null),
+    ]);
+    const match = latest?.guideCode?.match(/^LM-(\d+)$/);
+    const maxParsed = match ? Number.parseInt(match[1], 10) : 0;
+    const nextNumber = Math.max(count, Number.isFinite(maxParsed) ? maxParsed : 0) + 1;
+    const sequence = String(nextNumber).padStart(3, "0");
     return `LM-${sequence}`;
   }
 

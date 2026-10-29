@@ -138,6 +138,16 @@ export class HotelAccessService {
     activeRoleId: string,
     hotelId: string,
   ): Promise<HotelDetailRow> {
+    const { hotel } = await this.assertHotelAccessWithActor(actorUserId, activeRoleId, hotelId);
+    return hotel;
+  }
+
+  private async assertHotelAccessWithActor(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    preloadedHotel?: HotelDetailRow | null,
+  ) {
     const actor = await this.loadActorContext(actorUserId, activeRoleId);
 
     if (actor.isTenantOwner) {
@@ -149,10 +159,13 @@ export class HotelAccessService {
         throw new NotFoundException("Không tìm thấy khách sạn");
       }
 
-      return hotel;
+      return { hotel, actor };
     }
 
-    const hotel = await this.hotelCoreRepository.findHotelById(hotelId);
+    const hotel =
+      preloadedHotel !== undefined
+        ? preloadedHotel
+        : await this.hotelCoreRepository.findHotelById(hotelId);
     if (!hotel) {
       throw new NotFoundException("Không tìm thấy khách sạn");
     }
@@ -165,30 +178,34 @@ export class HotelAccessService {
       throw new ForbiddenException("Bạn chưa được phân công tại khách sạn này");
     }
 
-    return hotel;
+    return { hotel, actor };
   }
 
   async resolveRoomScope(actorUserId: string, arg2: string, arg3: string): Promise<HotelRoomScope> {
     let activeRoleId = arg2;
     let hotelId = arg3;
 
-    let hotel = await this.hotelCoreRepository.findHotelById(hotelId);
-    if (!hotel) {
+    let preloadedHotel = await this.hotelCoreRepository.findHotelById(hotelId);
+    if (!preloadedHotel) {
       const maybeHotel = await this.hotelCoreRepository.findHotelById(arg2);
       if (maybeHotel) {
         hotelId = arg2;
         activeRoleId = arg3;
-        hotel = maybeHotel;
+        preloadedHotel = maybeHotel;
       }
     }
 
-    hotel = await this.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const { hotel, actor } = await this.assertHotelAccessWithActor(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+      preloadedHotel,
+    );
     const mode = hotel.staffScopeMode ?? "HOTEL_WIDE";
     if (mode !== "ROOM_EXCLUSIVE") {
       return { hotel, allowedRoomId: null, mode: "HOTEL_WIDE" };
     }
 
-    const actor = await this.loadActorContext(actorUserId, activeRoleId);
     const isHotelOwner =
       actor.roleCodes.has("HOTEL_OWNER") || actor.baseRoleCodes?.has("HOTEL_OWNER");
     const isHotelManager =

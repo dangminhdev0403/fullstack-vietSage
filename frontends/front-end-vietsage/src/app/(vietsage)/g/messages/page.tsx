@@ -1,7 +1,7 @@
 "use client";
 
 import { type InfiniteData, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { VsBottomNav } from "../../_components/vs-bottom-nav";
 import { VsIcon } from "../../_components/vs-icon";
 import { VsTopBar } from "../../_components/vs-top-bar";
@@ -15,44 +15,10 @@ import type { GuestMessagesResult } from "@/features/guest-os/types/guest-os-con
 import { guestMessagesResource } from "@/features/guest-os/resources/guest-messages-resource";
 import { GUEST_REQUEST_REALTIME_BROWSER_EVENT, type GuestRequestRealtimeBrowserEvent } from "@/features/request-realtime/guest-request-realtime-notifier";
 
-function TypewriterMessageBody({ body, createdAt }: Readonly<{ body: string; createdAt: string }>) {
-  const [displayedText, setDisplayedText] = useState(() => {
-    if (typeof window === "undefined") return body;
-    const msgTime = new Date(createdAt).getTime();
-    const isNew = !Number.isNaN(msgTime) && Math.abs(Date.now() - msgTime) < 15000;
-    return isNew ? "" : body;
-  });
-  const [isTyping, setIsTyping] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const msgTime = new Date(createdAt).getTime();
-    return !Number.isNaN(msgTime) && Math.abs(Date.now() - msgTime) < 15000;
-  });
-
-  useEffect(() => {
-    const msgTime = new Date(createdAt).getTime();
-    const isNew = !Number.isNaN(msgTime) && Math.abs(Date.now() - msgTime) < 15000;
-
-    if (!isNew) return;
-
-    let currentIndex = 0;
-    const interval = setInterval(() => {
-      currentIndex += 1;
-      setDisplayedText(body.slice(0, currentIndex));
-      if (currentIndex >= body.length) {
-        clearInterval(interval);
-        setIsTyping(false);
-      }
-    }, 18);
-
-    return () => clearInterval(interval);
-  }, [body, createdAt]);
-
+function TypewriterMessageBody({ body }: Readonly<{ body: string; createdAt?: string }>) {
   return (
     <p className="whitespace-pre-wrap break-all [overflow-wrap:anywhere] text-left">
-      {displayedText}
-      {isTyping && (
-        <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-current animate-pulse rounded-sm align-middle opacity-80" />
-      )}
+      {body}
     </p>
   );
 }
@@ -98,16 +64,20 @@ export default function GuestMessagesPage() {
   );
 
   const pages = messagesQuery.data?.pages ?? [];
-  const items = pages
-    .slice()
-    .reverse()
-    .flatMap((page) => page.items)
-    .reduce<Array<(typeof pages)[number]["items"][number]>>((acc, item) => {
-      if (!acc.some((m) => m.id === item.id)) {
-        acc.push(item);
+  const items = useMemo(() => {
+    const pageList = messagesQuery.data?.pages ?? [];
+    const seen = new Set<string>();
+    const list: Array<(typeof pageList)[number]["items"][number]> = [];
+    for (let i = pageList.length - 1; i >= 0; i -= 1) {
+      for (const item of pageList[i].items) {
+        if (!seen.has(item.id)) {
+          seen.add(item.id);
+          list.push(item);
+        }
       }
-      return acc;
-    }, []);
+    }
+    return list;
+  }, [messagesQuery.data?.pages]);
   const unreadStaffMessageKey = items
     .filter((message) => message.senderType === "STAFF" && !message.readAt)
     .map((message) => message.id)
@@ -346,8 +316,6 @@ export default function GuestMessagesPage() {
     }
     send.mutate({ body: body.trim(), clientMessageId: crypto.randomUUID() });
   };
-
-
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

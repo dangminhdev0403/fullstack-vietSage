@@ -2,11 +2,19 @@
 
 These instructions are mandatory for Codex and any delegated coding agent working in this repository.
 
+## Execution Priority
+
+- Follow the current user intent. Audit-only stays read-only; explicit fixes authorize the scoped implementation through validation and handoff. Internal verification during an implementation task does not start another repository audit.
+- Apply [Efficient Execution and Validation](rules/zero-waste-validation.md) to every task. It is the canonical policy for file/read budgets, navigation exceptions, worker coordination, check selection and completion; it replaces older blanket quotas and repeated-check defaults. It does not override protected operations, explicit user limits or mandatory project gates.
+- Reuse instructions and evidence already loaded in this conversation. Read only missing or changed relevant sections. No new plan file, worker or full-system discovery for a local correction or documentation-only task.
+
 ---
 
 ## Graphify + Repomix Code Navigation Policy
 
 ### Primary Rule
+
+When the user types `/graphify`, use the installed Graphify skill/instructions first. Dirty `graphify-out/` files alone are not a reason to skip navigation.
 
 Do NOT scan the entire repository by default.
 
@@ -14,46 +22,15 @@ Always use `graphify-out/` as the primary navigation index, then use Repomix to 
 
 Treat `graphify-out/graph.json` as the authoritative project map.
 
-### Graph Schema Reference
+### Navigation References
 
-#### `graphify-out/graph.json`
-
-NetworkX node-link format (~160k lines, ~7 MB). Top-level keys:
-
-| Key | Purpose |
-|---|---|
-| `nodes[]` | Every symbol/file in the project. Each node has `id`, `label`, `source_file`, `source_location`, `community`, `norm_label`. |
-| `links[]` | Directed/undirected edges. Each link has `relation` (`contains`, `imports`, `imports_from`, `calls`, …), `source`, `target`, `source_file`, `source_location`, `confidence` (`EXTRACTED` / `INFERRED`), `weight`, `confidence_score`. |
-| `hyperedges[]` | Multi-target relationships (currently empty). |
-| `built_at_commit` | Git SHA the graph was built from. |
-
-#### `graphify-out/.graphify_analysis.json`
-
-Higher-level structural analysis (~5k lines). Top-level keys:
-
-| Key | Purpose |
-|---|---|
-| `communities` | Map of `community_id → [node_id, …]`. Groups of tightly-coupled symbols. |
-| `cohesion` | Map of `community_id → float`. Internal coupling density. |
-| `gods` | Array of hub nodes sorted by degree (highest-degree first). |
-| `surprises` | Unexpected cross-community edges with `source`, `target`, `source_files`, `confidence`, `relation`, `why`. |
-| `tokens` | LLM token accounting (informational). |
-
-#### `graphify-out/manifest.json`
-
-File-level metadata: `source_file → { mtime, ast_hash, semantic_hash }`. Use to check whether a file has changed since the graph was built.
-
-#### `graphify-out/cache/stat-index.json`
-
-Full filesystem stat index: absolute path → `{ size, mtime_ns, word_count, hashes }`.
-
-#### `graphify-out/cache/ast/v0.9.20/*.json`
-
-Per-file AST caches keyed by content hash.
+- `graphify-out/graph.json`: `nodes[]` identify symbols and source locations; `links[]` identify dependencies; `built_at_commit` records the graph revision.
+- `graphify-out/manifest.json`: check selected-file freshness before trusting cached relationships.
+- For broad architecture work, start from `graphify-out/wiki/index.md` when present. Read `graphify-out/GRAPH_REPORT.md` only when that scope needs it. Do not dump full graphs, manifests or AST caches.
 
 ### Required Workflow
 
-For every coding task:
+For implementation discovery (reuse a valid scoped map on continuation; docs/rules-only tasks use their exact named paths):
 
 1. **Start from the graph, not the filesystem — with Symbolic Anchoring.**
    - **DO NOT run `graphify query` with long natural-language user prompts** (> 3 words or descriptive error reports). Naive NL queries trigger broad BFS traversal and explode irrelevant nodes across the 14MB graph.
@@ -149,48 +126,22 @@ A "module completed" includes examples such as:
 
 **Do NOT** run Graphify after every file edit. Reuse the existing graph throughout implementation. Only refresh the graph once when the module is considered complete, so future tasks use the latest project structure.
 
-**Exemption for Minor Edits & Zero-Waste Validation Protocol:**
-- For routine, UI-focused, or small-scope changes (such as CSS/Tailwind tweaks, spacing, layout JSX, color, text/copy/label fixes, adding or editing presentation components, renaming variables/functions):
-  - **STRICTLY FORBIDDEN to run ANY test suites** (`node --test`, `npm test`, `pnpm test`, `jest`, `vitest`, `playwright`, etc.).
-  - **STRICTLY FORBIDDEN to run `tsc --noEmit`** when editing CSS/styling or JSX text (only permitted if new TypeScript imports/props/types were introduced).
-  - **STRICTLY FORBIDDEN to run full-repo lint** (`eslint .`, `pnpm lint`) or production build (`next build`).
-  - **STRICTLY FORBIDDEN to inspect unrelated files** via `git diff` or expand scope beyond assigned files.
-  - **STRICTLY FORBIDDEN to execute ad-hoc code snippets** (such as `node -e "..."`).
-  - **STRICTLY FORBIDDEN to run graphify update** (`graphify update .`) or database migration/seed scripts.
-  - **The ONLY validation command to run**: Run `node scripts/verify-ui-rules.cjs` (< 1s). Only run scoped `tsc --noEmit` if new imports/props/types were introduced to verify syntax.
+For minor edits and all validation selection, follow [Efficient Execution and Validation](rules/zero-waste-validation.md). Do not refresh Graphify for local corrections or documentation changes.
 
 ---
 
-## Focused Scope Gate & Anti-Expansion Standard (Cổng Đóng Băng Phạm Vi Bắt Buộc)
+## Scope and Protected Boundaries
 
-> [!CAUTION]
-> **NGUYÊN TẮC CỐT LÕI: BẢO GÌ LÀM NẤY - KHÔNG LÀM LAN MAN (STRICT PROMPT FIDELITY & ZERO SCOPE DRIFT)**
-> 1. **Chỉ làm đúng việc được giao (Zero Unsolicited Proactivity)**:
->    - Bảo gì làm nấy. Tuyệt đối không tự suy diễn, không "tiện tay làm thêm".
->    - Bảo kiểm tra -> CHỈ kiểm tra; bảo thêm data -> CHỈ thêm data; bảo sửa file A -> CHỈ sửa file A; bảo chạy lệnh X -> CHỈ chạy lệnh X.
->    - Hoàn thành là dừng ngay: Xong việc được giao lập tức dừng gọi tool và báo cáo, cấm chạy thêm lệnh kiểm tra thừa thãi hay tìm kiếm vu vơ.
->    - Phát hiện ngoài lề: CHỈ BÁO CÁO, CẤM TỰ SỬA. Dù thấy bug khác hay logic filter ẩn data, BẮT BUỘC chỉ báo cáo trong tin nhắn, cấm tự ý sửa khi chưa có lệnh.
-> 2. **Chặn ranh giới tầng & Miền tác vụ (Boundary Stop & Domain Isolation)**:
->    - **Task Database / Data / Seed / VPS Ops / Docker / Shell Scripts**:
->      * **CODEBASE FREEZE**: CẤM SỬA bất kỳ file mã nguồn ứng dụng nào (`.ts`, `.tsx`, `.js`, guards, services, controllers, store, components). Mã nguồn là READ-ONLY (chỉ đọc schema để tra cứu cấu trúc bảng).
->      * **CHỐNG TRÀN LỖI (Zero Failure Drift)**: Lệnh VPS/DB script lỗi (`Exit code != 0`) phải kiểm tra và sửa tại môi trường VPS/DB (stderr, syntax, SSH, env). CẤM lấy cớ đi lục lọi và sửa `authorization.guard.ts` hay `authorization.service.ts`.
->      * **DỪNG LẠI & HỎI USER (Stop & Report Gate)**: Nếu nghi ngờ code ứng dụng ẩn dữ liệu, BẮT BUỘC DỪNG LẠI và báo cáo User trước khi can thiệp vào mã nguồn.
->    - **Task UI / Alert UI / Styling / Copy / Layout**: CHỈ ĐƯỢC CHẠM vào 1-2 file UI đích (`.tsx`, `.css`).
->      * **NGHIÊM CẤM**: Chạm vào backend (`services/**`, controllers, repositories, Prisma, OpenAPI, BFF). Nếu UI nhận lỗi từ backend -> Xử lý hiển thị toast/alert thân thiện tại UI, **TUYỆT ĐỐI KHÔNG trace error để nhảy sang sửa backend**.
->      * **Task Alert UI / Toast**: Sửa alert toast/dialog/duration. CẤM lan sang `tape-chart`, `front-desk-arrival-detail-panel`, `front-desk-room-detail-panel`, `swal.ts` (trừ khi chính file đó được giao).
-> 3. **Hạn ngạch file (File Quota)**: Tối đa **1 - 3 files** cho một task. Chạm đến file thứ 4 khi không có lệnh là vi phạm nghiêm trọng.
-> 4. **Diệt đọc - suy nghĩ - đọc lại luẩn quẩn (Zero-Waste Read Budget & Anti-Loop)**:
->    - **Miễn trừ đọc docs**: Với task UI, alert, CSS, copy, fix bug cục bộ, hoặc task DB/Ops: **CẤM đọc lại `AGENTS.md`, `ARCHITECTURE.md`, `RULES.md`** (đã có trong System Prompt).
->    - **Đọc tối đa 1-3 file đích**: Đọc đúng vị trí cần sửa (`StartLine`/`EndLine`).
->    - **Zero Re-Reading**: CẤM gọi `read_file` lần thứ 2 trên cùng một file trong cùng một session.
->    - **Đọc là Sửa / Thực thi ngay**: Đọc file đích -> lập diff ngắn nhất -> gọi `edit_file` ngay. Không đọc lan man 5-10 file để "ngẫm nghĩ".
-> 5. **Cấm tuyệt đối dùng Terminal/Bash để đọc file (Chống popup hỏi quyền liên tục)**:
->    - **BẮT BUỘC dùng native tool (`read_file`, `edit_file`)** để xem nội dung hoặc chỉnh sửa file.
->    - **CẤM TUYỆT ĐỐI** gọi terminal (`run_command`, `Bash`) chạy các script ad-hoc như `node -e "const fs = ..."` hoặc `python -c "..."` chỉ để đọc file, đếm dòng hay duyệt code. Hành vi này khiến IDE liên tục bật popup hỏi quyền xác nhận làm phiền người dùng.
+- Implement only the requested outcome. Report unrelated findings without fixing them. Preserve unrelated dirty/untracked work.
+- Local UI/alert/style tasks stay in their assigned UI surface; do not change backend, BFF, contracts or other screens to hide an error.
+- During database/data/seed/VPS/Docker operations, application source is read-only. Diagnose failures in the requested environment. Application remediation needs separate authorization.
+- Migrations applied to a database, destructive data changes, user-file deletion, credentials, global configuration, package/lockfile changes, infrastructure, provider writes, deployment and commit/push/merge retain their existing approval gates. Finish independent safe work while a protected operation waits.
+- Use native file tools. If unavailable, use an available native runtime filesystem API on exact scoped paths; do not run shell snippets merely to read/edit files. Never dump environment variables, credentials or full process command lines.
+- Routine file/read limits and their justified exceptions are defined once in [Efficient Execution and Validation](rules/zero-waste-validation.md).
 
 ## Required Reading Before Changes
 
-Start from the closest relevant documentation scope. Do not load every markdown file by default.
+Start from the closest relevant documentation scope. The lists below route to missing relevant context; they are not a requirement to reload documents already supplied or read in this conversation. For local fixes, read only the needed section. Do not load every markdown file by default.
 
 ### Cross-system / repository-wide work
 
@@ -297,7 +248,7 @@ For any audit/review request (`audit`, `review`, `rà soát`, `soát code`, arch
 
 - `.agents/rules/strict-audit-mode.md`
 
-**Ponytail Max (`ultra`) Auto-Escalation**: Khi bật chế độ rà soát (`Strict Audit Mode`), mức độ Ponytail tự động chuyển lên **mức tối đa (`ultra` / max — `PONYTAIL_LEVEL: ultra`)**: ưu tiên xóa bỏ trước khi thêm mới (*deletion before addition*), chất vấn mọi tầng/abstraction dư thừa và ép hướng sửa lỗi (`Minimum correction`) về diff ngắn nhất tại nguyên nhân gốc. Audit read-only by default. Derive standards from the current repository; map actors, boundaries, contracts, state transitions, failure paths, and system invariants before checking technology fit. A violation requires repository-backed expectations, exact evidence, a concrete system effect, minimum correction, and a verification method. Every delegated reviewer MUST auto-activate strict audit and Ponytail `ultra` from task intent; its card carries `STRICT_AUDIT_MODE: true`, `PONYTAIL_LEVEL: ultra`, exact scope/invariants/write policy. **Chế độ rà soát tập trung (Silent Execution & Output-Only Standard)**: Reviewer bắt buộc thực thi ngầm, cấm spam lời thoại/tiến trình trung gian trong khi gọi tool (tương tự chế độ tập trung code), và chỉ trả lời đúng một Báo cáo Cuối cùng (Final Report) hoàn chỉnh bắt đầu bằng `STRICT AUDIT MODE: ACTIVE (PONYTAIL: ULTRA).`. One host owns the shared system map and final evidence; dispatch only the fewest useful specialists across disjoint system boundaries. Do not create fix/remediation tasks unless the user explicitly requests implementation.
+**Ponytail Max (`ultra`) Auto-Escalation & 100% Silent Execution**: Khi bật chế độ **Siêu Rà Soát (`Strict Audit Mode` / `siêu rà soát`)**, **Tập Trung Code (`Code Focus` / `tập trung code`)**, hoặc **Tập Trung Thực Thi (`Focused Execution` / `tập trung thực thi` / sửa lỗi sau rà soát / điều phối `orca-cli`)**, mức độ Ponytail tự động chuyển lên **mức tối đa (`ultra` / max — `PONYTAIL_LEVEL: ultra`)**: ưu tiên xóa bỏ trước khi thêm mới (*deletion before addition*), chất vấn mọi tầng/abstraction dư thừa và ép hướng sửa lỗi (`Minimum correction`) về diff ngắn nhất tại nguyên nhân gốc. Audit read-only by default. Derive standards from the current repository; map actors, boundaries, contracts, state transitions, failure paths, and system invariants before checking technology fit. A violation requires repository-backed expectations, exact evidence, a concrete system effect, minimum correction, and a verification method. Every delegated reviewer or remediation worker (`orca-cli` / subagent) MUST auto-activate strict audit and Ponytail `ultra` from task intent; its card carries `STRICT_AUDIT_MODE: true`, `PONYTAIL_LEVEL: ultra`, exact scope/invariants/write policy. **Chế độ Thực Thi Ngầm 100% (100% Silent Execution & Single Output-Only Standard)**: Agent (Codex, Antigravity và mọi worker) bắt buộc thực thi ngầm 100% — **NGHIÊM CẤM** phát sinh tin nhắn mở đầu (như *"Tôi sẽ sửa các lỗi..."*, *"Tôi sẽ dùng skill orca-cli..."*) hoặc spam tiến trình trung gian (`commentary`) trước/trong khi gọi tool hay điều phối multi-agent; chỉ xuất **DUY NHẤT một Báo cáo Cuối cùng (Final Report)** hoàn chỉnh khi toàn bộ quá trình kiểm tra, sửa lỗi, gom worker và chạy lệnh kiểm chứng đã hoàn tất 100%, bắt đầu bằng `STRICT AUDIT MODE: ACTIVE (PONYTAIL: ULTRA).` và kèm bảng bằng chứng xác thực phân loại rõ `VIOLATION | GAP | COMPLIANT`. One host owns the shared system map and final evidence; delegate only when requested by the user or explicitly required by applicable instructions; use the fewest useful specialists across disjoint system boundaries. Remediation follows the execution policy above; Ponytail ultra increases evidence quality, not the number of review rounds. Do not create fix/remediation tasks unless the user explicitly requests implementation.
 
 ## Before Final Report
 

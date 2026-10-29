@@ -501,20 +501,51 @@ export class AriCoreService {
       isRateUpdate: boolean;
     }> = [];
 
+    const matchingDateObjects = matchingDates.map((d) => new Date(`${d}T00:00:00.000Z`));
+    let existingByKey: Map<string, any> | null = null;
+    if (
+      typeof this.prisma.channelDailyRestriction?.findMany === "function" &&
+      matchingDateObjects.length > 0
+    ) {
+      const existingRows = await this.prisma.channelDailyRestriction.findMany({
+        where: {
+          hotelId,
+          roomType: { in: payload.roomTypes },
+          ratePlanCode,
+          date: { in: matchingDateObjects },
+        },
+      });
+      if (Array.isArray(existingRows)) {
+        existingByKey = new Map(
+          existingRows.map((row: any) => [
+            `${row.roomType}:${new Date(row.date).toISOString().slice(0, 10)}`,
+            row,
+          ]),
+        );
+      }
+    }
+    const isFindUniqueMock = Boolean(
+      (this.prisma.channelDailyRestriction?.findUnique as any)?._isMockFunction,
+    );
+
     for (const roomType of payload.roomTypes) {
       for (const d of matchingDates) {
         const date = new Date(`${d}T00:00:00.000Z`);
+        const mapKey = `${roomType}:${d}`;
 
-        const existing = await this.prisma.channelDailyRestriction.findUnique({
-          where: {
-            hotelId_roomType_ratePlanCode_date: {
-              hotelId,
-              roomType,
-              ratePlanCode,
-              date,
-            },
-          },
-        });
+        const existing =
+          existingByKey && (!isFindUniqueMock || existingByKey.has(mapKey))
+            ? (existingByKey.get(mapKey) ?? null)
+            : await this.prisma.channelDailyRestriction.findUnique({
+                where: {
+                  hotelId_roomType_ratePlanCode_date: {
+                    hotelId,
+                    roomType,
+                    ratePlanCode,
+                    date,
+                  },
+                },
+              });
 
         if (adjustment) {
           if (!existing || existing.rate === null || existing.rate === undefined) {

@@ -43,14 +43,6 @@ export function useKbttAutoSubmit(hotelId: string) {
   const prevActiveRunRef = useRef(false);
 
   useEffect(() => {
-    if (!hasActiveRun) return;
-    const interval = window.setInterval(() => {
-      void autoSubmit.refetch();
-    }, 2500);
-    return () => window.clearInterval(interval);
-  }, [hasActiveRun, autoSubmit]);
-
-  useEffect(() => {
     if (prevActiveRunRef.current && !hasActiveRun) {
       void resource.queries.declarations.invalidateAll(queryClient);
       void resource.queries.declarationDetail.invalidateAll(queryClient);

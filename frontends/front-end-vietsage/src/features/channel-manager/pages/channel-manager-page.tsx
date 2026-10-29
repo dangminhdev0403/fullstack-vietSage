@@ -46,7 +46,7 @@ const TAB_CONFIG: Record<
     icon: "bed",
   },
   CHANNELS: {
-    label: "Kênh bán phòng",
+    label: "Kênh bán & Ánh xạ OTA",
     icon: "hub",
   },
 };
@@ -70,10 +70,16 @@ function ChannelManagerContent({
     const res = resolveChannelManagerAccess(permissions, {
       allowPlatformAdmin: roleScope === "admin",
     });
-    if (roleScope === "owner") {
+    if (roleScope === "owner" && res.canViewInventory) {
+      const visibleTabs = [...res.visibleTabs];
+      if (!visibleTabs.includes("CHANNELS")) {
+        visibleTabs.push("CHANNELS");
+      }
       return {
         ...res,
-        visibleTabs: res.visibleTabs.filter((tab) => tab !== "CHANNELS"),
+        canViewChannels: true,
+        canManageChannels: res.canManageInventory ? true : res.canManageChannels,
+        visibleTabs,
       };
     }
     return res;
@@ -289,6 +295,26 @@ function ChannelManagerContent({
                   className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-blue-700 px-3.5 py-1.5 font-bold text-white shadow-2xs hover:bg-blue-800 transition text-xs cursor-pointer"
                 >
                   <span>Xem danh sách đơn OTA</span>
+                  <VsIcon name="arrow_forward" className="text-sm" />
+                </button>
+              </div>
+            )}
+
+            {/* Quick banner notice about OTA channels & room mapping */}
+            {visibleTabs.includes("CHANNELS") && (
+              <div className="flex flex-col gap-3 rounded-2xl border border-amber-200/90 bg-gradient-to-r from-amber-50/90 via-white to-amber-50/40 p-4 text-xs sm:flex-row sm:items-center sm:justify-between shadow-2xs">
+                <div className="flex items-center gap-2.5 text-amber-950">
+                  <VsIcon name="hub" className="text-lg text-[#735c00] shrink-0" />
+                  <span className="text-pretty">
+                    Cần kết nối thêm sàn OTA hoặc xem/chỉnh sửa <strong>ánh xạ (mapping) từng loại phòng</strong> giữa VietSage và các kênh?
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("CHANNELS")}
+                  className="shrink-0 inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-[#735c00] px-3.5 py-1.5 font-bold text-white shadow-2xs hover:bg-[#5b4900] transition text-xs cursor-pointer whitespace-nowrap"
+                >
+                  <span>Mở Kênh bán & Ánh xạ OTA</span>
                   <VsIcon name="arrow_forward" className="text-sm" />
                 </button>
               </div>

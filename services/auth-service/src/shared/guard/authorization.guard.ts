@@ -85,15 +85,26 @@ export class AuthorizationGuard implements CanActivate {
 
     const permissionKeys = Array.isArray(permissionKey) ? permissionKey : [permissionKey];
     let permissionAllowed = false;
-    for (const key of permissionKeys) {
-      const allowed = await this.authorizationService.checkUserBusinessPermission(
+    if (
+      permissionKeys.length > 1 &&
+      typeof this.authorizationService.checkUserAnyBusinessPermission === "function"
+    ) {
+      permissionAllowed = await this.authorizationService.checkUserAnyBusinessPermission(
         userId,
         roleId,
-        key,
+        permissionKeys,
       );
-      if (allowed) {
-        permissionAllowed = true;
-        break;
+    } else {
+      for (const key of permissionKeys) {
+        const allowed = await this.authorizationService.checkUserBusinessPermission(
+          userId,
+          roleId,
+          key,
+        );
+        if (allowed) {
+          permissionAllowed = true;
+          break;
+        }
       }
     }
 

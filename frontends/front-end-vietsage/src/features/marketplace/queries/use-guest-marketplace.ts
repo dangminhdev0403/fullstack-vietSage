@@ -12,7 +12,6 @@ export function useGuestMarketplace(sessionToken: string, categoryId?: string) {
     categories: useQuery({ ...resource.queries.categories.options(undefined as never), enabled }),
     services: useQuery({ ...resource.queries.services.options({ categoryId }), enabled }),
     orders: useQuery({ ...resource.queries.orders.options(undefined as never), enabled }),
-    cart: useQuery({ ...resource.queries.cart.options(undefined as never), enabled }),
     order: useMutation(resource.mutations.order.options()),
     paymentSession: useMutation(resource.mutations.paymentSession.options()),
     checkoutCart: useMutation(resource.mutations.checkoutCart.options()),
@@ -91,7 +90,7 @@ export function useGuestMarketplaceCartQuote(
 export function useGuestMarketplaceConversation(
   sessionToken: string,
   orderId?: string,
-  options?: { enabled?: boolean },
+  options?: { enabled?: boolean; isTerminal?: boolean },
 ) {
   const { locale } = useGuestI18n();
   const resource = guestMarketplaceResource.bind({ sessionToken, locale });
@@ -100,10 +99,14 @@ export function useGuestMarketplaceConversation(
     conversation: useQuery({
       ...resource.queries.conversation.options({ orderId: orderId ?? "" }),
       enabled,
-      refetchInterval: 4_000,
+      refetchInterval: (query) => {
+        if (options?.isTerminal || query.state.data?.status === "CLOSED") {
+          return false;
+        }
+        return 4_000;
+      },
     }),
     sendMessage: useMutation(resource.mutations.sendMessage.options()),
     cancelOrder: useMutation(resource.mutations.cancelOrder.options()),
   };
 }
-

@@ -43,7 +43,20 @@ export class HotelServicesService {
       limit,
     );
 
-    const items = await Promise.all(rows.map((row) => this.toServiceCategoryData(row)));
+    const groupMap =
+      rows.length > 0 &&
+      typeof this.hotelServiceCatalogRepository.getServiceCategoryTelegramGroups === "function"
+        ? await this.hotelServiceCatalogRepository.getServiceCategoryTelegramGroups(
+            hotelId,
+            rows.map((row) => row.id),
+          )
+        : null;
+
+    const items = await Promise.all(
+      rows.map((row) =>
+        this.toServiceCategoryData(row, groupMap ? (groupMap.get(row.id) ?? null) : undefined),
+      ),
+    );
     return { page, limit, total, items };
   }
 
@@ -251,23 +264,29 @@ export class HotelServicesService {
     return item;
   }
 
-  private async toServiceCategoryData(row: {
-    id: string;
-    hotelId: string;
-    name: string;
-    description: string | null;
-    defaultPrice: Prisma.Decimal;
-    currency: string;
-    sortOrder: number;
-    status: ServiceCatalogStatus;
-    createdAt: Date;
-    updatedAt: Date;
-    translations?: Array<{ locale: string; name: string; description: string | null }>;
-  }) {
-    const idGroup = await this.hotelServiceCatalogRepository.getServiceCategoryTelegramGroup(
-      row.hotelId,
-      row.id,
-    );
+  private async toServiceCategoryData(
+    row: {
+      id: string;
+      hotelId: string;
+      name: string;
+      description: string | null;
+      defaultPrice: Prisma.Decimal;
+      currency: string;
+      sortOrder: number;
+      status: ServiceCatalogStatus;
+      createdAt: Date;
+      updatedAt: Date;
+      translations?: Array<{ locale: string; name: string; description: string | null }>;
+    },
+    preloadedIdGroup?: string | null,
+  ) {
+    const idGroup =
+      preloadedIdGroup !== undefined
+        ? preloadedIdGroup
+        : await this.hotelServiceCatalogRepository.getServiceCategoryTelegramGroup(
+            row.hotelId,
+            row.id,
+          );
 
     return {
       id: row.id,

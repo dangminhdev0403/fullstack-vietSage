@@ -1787,4 +1787,204 @@ describe("ReservationsRepository transactional lifecycle", () => {
       ).rejects.toThrow("Ngày trả phòng phải sau ngày nhận phòng");
     });
   });
+
+  describe("createReservation atomic charge line persistence (F2)", () => {
+    it("persists assigned reservation and charge lines atomically and returns reservation", async () => {
+      const room = { id: "room-1", hotelId: "hotel-1", roomTypeId: "rt-1", price: new Prisma.Decimal(500000), status: RoomStatus.AVAILABLE };
+      const createdRes = { id: "res-1", hotelId: "hotel-1", roomId: "room-1", status: ReservationStatus.ARRIVAL_READY };
+      const tx = {
+        $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+        room: {
+          findFirst: jest.fn().mockResolvedValue(room),
+        },
+        reservation: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockResolvedValue(createdRes),
+        },
+        guestStay: {
+          findFirst: jest.fn().mockResolvedValue(null),
+        },
+        reservationChargeLine: {
+          createMany: jest.fn().mockResolvedValue({ count: 2 }),
+        },
+      };
+      const prisma = {
+        $transaction: jest.fn().mockImplementation(async (cb) => cb(tx)),
+      };
+      const repository = new ReservationsRepository(prisma as never);
+
+      const result = await repository.createReservation({
+        hotelId: "hotel-1",
+        reservationCode: "RES-101",
+        guestDisplayName: "Test Guest",
+        plannedCheckInAt: new Date("2026-10-21T14:00:00.000Z"),
+        plannedCheckOutAt: new Date("2026-10-23T12:00:00.000Z"),
+        createdByUserId: "user-1",
+        roomId: "room-1",
+        chargeLines: [
+          { lineType: "ROOM_NIGHT", serviceDate: "2026-10-21", nameSnapshot: "Night 1", quantity: 1, unitPriceSnapshot: 500000, totalSnapshot: 500000 },
+          { lineType: "EXTRA", nameSnapshot: "Breakfast", quantity: 1, unitPriceSnapshot: 100000, totalSnapshot: 100000 },
+        ],
+      });
+
+      expect(result).toEqual(createdRes);
+      expect(tx.reservation.create).toHaveBeenCalledTimes(1);
+      expect(tx.reservationChargeLine.createMany).toHaveBeenCalledTimes(1);
+      expect(tx.reservationChargeLine.createMany).toHaveBeenCalledWith({
+        data: expect.arrayContaining([
+          expect.objectContaining({ reservationId: "res-1", lineType: "ROOM_NIGHT" }),
+          expect.objectContaining({ reservationId: "res-1", lineType: "EXTRA" }),
+        ]),
+      });
+    });
+
+    it("rolls back unassigned reservation when charge line persistence fails", async () => {
+      const createdRes = { id: "res-unassigned", hotelId: "hotel-1", roomId: null, status: ReservationStatus.CONFIRMED };
+      const tx = {
+        roomType: {
+          findFirst: jest.fn().mockResolvedValue({ basePrice: new Prisma.Decimal(600000) }),
+        },
+        reservation: {
+          create: jest.fn().mockResolvedValue(createdRes),
+        },
+        reservationChargeLine: {
+          createMany: jest.fn().mockRejectedValue(new Error("CHARGE_LINE_WRITE_FAILED")),
+        },
+      };
+      const prisma = {
+        $transaction: jest.fn().mockImplementation(async (cb) => cb(tx)),
+      };
+      const repository = new ReservationsRepository(prisma as never);
+
+      await expect(
+        repository.createReservation({
+          hotelId: "hotel-1",
+          reservationCode: "RES-UNASSIGNED",
+          guestDisplayName: "Unassigned Guest",
+          plannedCheckInAt: new Date("2026-10-21T14:00:00.000Z"),
+          plannedCheckOutAt: new Date("2026-10-23T12:00:00.000Z"),
+          createdByUserId: "user-1",
+          roomTypeId: "rt-1",
+          chargeLines: [
+            { lineType: "EXTRA", nameSnapshot: "Airport Pickup", quantity: 1, unitPriceSnapshot: 200000, totalSnapshot: 200000 },
+          ],
+        }),
+      ).rejects.toThrow("CHARGE_LINE_WRITE_FAILED");
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(tx.reservation.create).toHaveBeenCalledTimes(1);
+      expect(tx.reservationChargeLine.createMany).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("createBulkReservations & createReservation restricted actor scope (F1)", () => {
+    it("allocates assigned room A when room B sorts first in candidates (positive candidate restriction)", async () => {
+      // Room B sorts first alphabetically ("101" vs "102"), but actor is restricted to room A ("room-A")
+      const roomA = { id: "room-A", hotelId: "hotel-1", roomNumber: "102", price: new Prisma.Decimal(500000), status: RoomStatus.AVAILABLE };
+      const createdRes = { id: "res-A", hotelId: "hotel-1", roomId: "room-A", status: ReservationStatus.CONFIRMED };
+      const roomAllocationService = {
+        allocateRoom: jest.fn().mockImplementation(async (_tx, input) => {
+          // Verify candidate restriction: requestedRoomId should be room-A and mode manual
+          if (input.requestedRoomId === "room-A") {
+            return { roomId: "room-A", roomNumber: "102", price: 500000, status: RoomStatus.AVAILABLE };
+          }
+          // Otherwise would have returned room B sorting first
+          return { roomId: "room-B", roomNumber: "101", price: 500000, status: RoomStatus.AVAILABLE };
+        }),
+      };
+      const tx = {
+        $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+        room: {
+          findMany: jest.fn().mockResolvedValue([roomA]),
+        },
+        reservation: {
+          create: jest.fn().mockResolvedValue(createdRes),
+        },
+        guestStay: {
+          findFirst: jest.fn().mockResolvedValue(null),
+        },
+      };
+      const prisma = {
+        $transaction: jest.fn().mockImplementation(async (cb) => cb(tx)),
+        reservation: {
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+      };
+      const repository = new ReservationsRepository(prisma as never);
+
+      const result = await repository.createBulkReservations({
+        hotelId: "hotel-1",
+        groupCode: "GRP-TEST",
+        leadGuestName: "Lead Guest",
+        checkInDate: new Date("2026-10-21T14:00:00.000Z"),
+        checkOutDate: new Date("2026-10-23T12:00:00.000Z"),
+        createdByUserId: "user-1",
+        allocations: [{ roomTypeId: "rt-1", quantity: 1, rate: 500000 }],
+        roomAllocationService,
+        allowedRoomId: "room-A",
+        generateReservationCode: jest.fn().mockResolvedValue("RES-001"),
+      });
+
+      expect(roomAllocationService.allocateRoom).toHaveBeenCalledWith(
+        tx,
+        expect.objectContaining({
+          requestedRoomId: "room-A",
+          mode: "manual",
+        }),
+      );
+      expect(result.reservations).toHaveLength(1);
+      expect(result.reservations[0].roomId).toBe("room-A");
+    });
+
+    it("rejects restricted actor allocating room B while assigned A and performs no write on denial", async () => {
+      const roomAllocationService = {
+        allocateRoom: jest.fn().mockResolvedValue({
+          roomId: "room-B", // Allocates room-B
+          roomNumber: "101",
+          price: 500000,
+          status: RoomStatus.AVAILABLE,
+        }),
+      };
+      const tx = {
+        $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+        room: {
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+        reservation: {
+          create: jest.fn(),
+        },
+      };
+      const prisma = {
+        $transaction: jest.fn().mockImplementation(async (cb) => cb(tx)),
+        reservation: {
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+      };
+      const repository = new ReservationsRepository(prisma as never);
+
+      const assertRoomAccessMock = jest.fn().mockImplementation((roomId: string) => {
+        if (roomId !== "room-A") {
+          throw new ConflictException("FORBIDDEN_ROOM_ACCESS");
+        }
+      });
+
+      await expect(
+        repository.createBulkReservations({
+          hotelId: "hotel-1",
+          groupCode: "GRP-TEST-DENY",
+          leadGuestName: "Lead Guest",
+          checkInDate: new Date("2026-10-21T14:00:00.000Z"),
+          checkOutDate: new Date("2026-10-23T12:00:00.000Z"),
+          createdByUserId: "user-1",
+          allocations: [{ roomTypeId: "rt-1", quantity: 1, rate: 500000 }],
+          roomAllocationService,
+          assertRoomAccess: assertRoomAccessMock,
+          generateReservationCode: jest.fn().mockResolvedValue("RES-001"),
+        }),
+      ).rejects.toThrow("FORBIDDEN_ROOM_ACCESS");
+
+      // Verify no write on denial
+      expect(tx.reservation.create).not.toHaveBeenCalled();
+    });
+  });
 });

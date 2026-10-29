@@ -494,9 +494,10 @@ export function RequestQueueClient({
     });
   }, [initialFilters]);
 
-  const externalOrdersQuery = useQuery(
-    localPartnersResource.bind({ hotelId }).queries.marketplaceOrders.options(undefined as never),
-  );
+  const externalOrdersQuery = useQuery({
+    ...localPartnersResource.bind({ hotelId }).queries.marketplaceOrders.options(undefined as never),
+    enabled: inboxTab !== "HOTEL_REQUESTS",
+  });
   const externalOrders = useMemo(
     () => externalOrdersQuery.data ?? [],
     [externalOrdersQuery.data],
@@ -534,20 +535,8 @@ export function RequestQueueClient({
           applyLiveRequestChange(request as Partial<StaffRequestListItem> & { id: string });
         }
       },
-      onExternalOrderCreated: () => {
-        void externalOrdersQuery.refetch();
-      },
-      onExternalOrderStatusChanged: () => {
-        void externalOrdersQuery.refetch();
-      },
-      onExternalOrderHotelAcknowledged: () => {
-        void externalOrdersQuery.refetch();
-      },
-      onExternalOrderVoucherIssued: () => {
-        void externalOrdersQuery.refetch();
-      },
     }),
-    [applyLiveRequestChange, externalOrdersQuery],
+    [applyLiveRequestChange],
   );
 
   useOwnerRequestRealtime(hotelId, realtimeHandlers);

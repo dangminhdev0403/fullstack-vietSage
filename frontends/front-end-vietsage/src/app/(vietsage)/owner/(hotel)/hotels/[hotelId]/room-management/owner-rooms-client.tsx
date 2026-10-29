@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   SwalVietSage,
   showConfirmDialog,
@@ -41,7 +41,6 @@ import {
   getRoomNumber,
 } from "./room-qr-utils";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
-import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import { RoomDetailDrawer } from "@/features/hotel-ops/components/room-detail-drawer";
 import { RoomTypesCatalogModal } from "@/features/hotel-ops/components/room-types-catalog-modal";
 
@@ -435,20 +434,29 @@ export function OwnerRoomsClient({
   const [isRoomTypesModalOpen, setIsRoomTypesModalOpen] = useState(false);
   const clientOrigin = useClientOrigin();
 
+  const [debouncedQuery, setDebouncedQuery] = useState(() => query.trim());
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(query.trim());
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
   const queryInput = useMemo(
     () => ({
-      q: query.trim() || undefined,
+      q: debouncedQuery || undefined,
       status: roomStatusFilter || undefined,
       type: roomTypeFilter || undefined,
       floor: floorFilter || undefined,
       page: 1,
       limit: 100,
     }),
-    [query, roomStatusFilter, roomTypeFilter, floorFilter],
+    [debouncedQuery, roomStatusFilter, roomTypeFilter, floorFilter],
   );
 
   const isDefaultQuery =
-    !query.trim() && !roomStatusFilter && !roomTypeFilter && !floorFilter;
+    !debouncedQuery && !roomStatusFilter && !roomTypeFilter && !floorFilter;
 
   const {
     data: roomsPage,
@@ -456,6 +464,7 @@ export function OwnerRoomsClient({
     isFetching,
   } = useQuery({
     ...ownerRoomsResource.bind({ hotelId }).queries.list.options(queryInput),
+    placeholderData: keepPreviousData,
     initialData: isDefaultQuery
       ? {
           page: 1,
@@ -477,20 +486,6 @@ export function OwnerRoomsClient({
   const createCatalogType = useMutation(roomTypesScope.mutations.create.options());
   const catalog = roomTypeData?.items ?? [];
   const selectedRoomType = catalog.find((item) => item.id === roomForm?.roomTypeId);
-
-  // Realtime updates for room status events
-  useOwnerRequestRealtime(
-    hotelId,
-    useMemo(
-      () => ({
-        onRoomStatusUpdated: () => {
-          void refetchRooms();
-        },
-      }),
-      [refetchRooms],
-    ),
-    { enabled: Boolean(hotelId), showConnectionToasts: false },
-  );
 
   const rooms = useMemo(
     () => roomsPage?.items ?? (isDefaultQuery ? initialRooms : []),

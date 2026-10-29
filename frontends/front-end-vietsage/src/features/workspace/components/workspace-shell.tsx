@@ -137,7 +137,7 @@ export function WorkspaceShell({
         <VsTopBar
           title="VietSage"
           brandLockup={false}
-          titleClassName="text-[30px] font-semibold leading-none tracking-[-0.04em] text-[#17201b] md:hidden"
+          titleClassName="text-[24px] font-semibold leading-none tracking-[-0.04em] text-[#17201b] md:hidden"
           showLeftControl={false}
           rightMode="profile"
           rightLabel={resolvedProfileName ?? definition.profileLabel}
@@ -146,15 +146,15 @@ export function WorkspaceShell({
           headerClassName={`transition-all duration-300 ${
             isCollapsed
               ? "md:left-20 md:w-[calc(100%-5rem)]"
-              : "md:left-72 2xl:left-80 md:w-[calc(100%-18rem)] 2xl:w-[calc(100%-20rem)]"
+              : sidebarWidth === "compact240"
+                ? "md:left-60 md:w-[calc(100%-15rem)]"
+                : "md:left-72 2xl:left-80 md:w-[calc(100%-18rem)] 2xl:w-[calc(100%-20rem)]"
           }`}
         />
         <VsDashboardSidebar
           activePath={activePath}
           items={effectiveNavItems}
           eyebrow={definition.eyebrow}
-          description={definition.description}
-          hotelName={resolvedHotelName}
           badgeByKey={badgeByKey}
           isCollapsed={isCollapsed}
           onToggleCollapse={toggleCollapse}
@@ -162,10 +162,10 @@ export function WorkspaceShell({
         />
       </div>
       <main
-        className={`min-h-screen px-4 pb-16 pt-20 transition-all duration-300 print:p-0 ${
+        className={`min-h-screen px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-20 transition-all duration-300 md:pb-16 print:p-0 ${
           isCollapsed
             ? "md:ml-20"
-            : "md:ml-72 2xl:ml-80"
+            : sidebarWidth === "compact240" ? "md:ml-60" : "md:ml-72 2xl:ml-80"
         } sm:px-6 lg:px-8 print:md:ml-0 ${
           printFriendly ? "owner-shell-main" : ""
         }`}
@@ -178,8 +178,8 @@ export function WorkspaceShell({
           {children}
         </div>
       </main>
-      <nav className="fixed inset-x-3 bottom-3 z-50 flex items-stretch justify-around gap-1 rounded-2xl border border-[#e8b363]/15 bg-[#17201b]/95 p-2 text-[#fff8e8] shadow-[0_18px_50px_rgba(232,179,99,0.18),0_18px_50px_rgba(23,32,27,0.28)] backdrop-blur-xl print:hidden md:hidden">
-        {effectiveNavItems.slice(0, 4).map((item) => {
+      <nav aria-label="Điều hướng" className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 flex items-stretch justify-around gap-1 rounded-2xl border border-[#e8b363]/15 bg-[#17201b]/95 p-2 text-[#fff8e8] shadow-[0_18px_50px_rgba(232,179,99,0.18),0_18px_50px_rgba(23,32,27,0.28)] backdrop-blur-xl print:hidden md:hidden">
+        {effectiveNavItems.slice(0, effectiveNavItems.length > 4 ? 3 : 4).map((item) => {
           const active = isNavItemActive(item.href, activePath, effectiveNavItems);
           const badge = badgeByKey[item.key] ?? 0;
           return (
@@ -187,7 +187,7 @@ export function WorkspaceShell({
               key={item.key}
               href={item.href}
               prefetch={true}
-              className={`relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-center text-xs font-bold ${
+              className={`relative flex min-h-11 min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-1 py-2 text-center text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
                 active ? "bg-[#f8f1e6] text-[#17201b]" : "text-[#d7cbb8]"
               }`}
             >
@@ -206,6 +206,29 @@ export function WorkspaceShell({
             </Link>
           );
         })}
+        {effectiveNavItems.length > 4 ? (
+          <details className="group min-w-0 flex-1">
+            <summary className="flex min-h-11 cursor-pointer list-none flex-col items-center gap-1 rounded-xl px-1 py-2 text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-white [&::-webkit-details-marker]:hidden">
+              <VsIcon name="menu" className="text-xl" />
+              <span className="whitespace-nowrap">Thêm</span>
+            </summary>
+            <div className="absolute inset-x-0 bottom-full mb-3 max-h-[calc(100dvh-10rem)] overflow-y-auto overscroll-contain rounded-2xl border border-white/20 bg-[#17201b] p-2 shadow-xl">
+              {effectiveNavItems.slice(3).map((item) => (
+                <Link
+                  key={item.key}
+                  href={item.href}
+                  aria-current={isNavItemActive(item.href, activePath, effectiveNavItems) ? "page" : undefined}
+                  onClick={(event) => event.currentTarget.closest("details")?.removeAttribute("open")}
+                  className="flex min-h-11 items-center gap-3 rounded-xl px-3 py-3 text-base font-semibold hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+                >
+                  <VsIcon name={item.icon} className="text-xl" />
+                  <span className="min-w-0 flex-1 break-words">{item.label}</span>
+                  {(badgeByKey[item.key] ?? 0) > 0 ? <span className="text-sm">{badgeByKey[item.key]}</span> : null}
+                </Link>
+              ))}
+            </div>
+          </details>
+        ) : null}
       </nav>
     </div>
   );

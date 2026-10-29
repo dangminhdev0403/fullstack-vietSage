@@ -2,9 +2,11 @@ import "server-only";
 
 import { clampBackendApiLimit, getBackendApiBaseUrl } from "@/core/http/backend-api-config";
 import { HttpError } from "@/core/http/http-error";
+import { toLogSafePayload } from "@/core/http/http-log-redactor";
 import type { HttpMethod, HttpQuery } from "@/core/http/http-client";
 import { isPublicApiPath } from "@/core/http/public-api-paths";
 import { HTTP_HEADER_TENANT_ID } from "@/core/http/tenant-scope";
+import { runtimeConsole } from "@/core/logging/runtime-console";
 
 type RequestHeaders = Record<string, string | undefined>;
 
@@ -21,6 +23,70 @@ export type HttpServerRequestConfig = {
 };
 
 const DEFAULT_TIMEOUT_MS = 10_000;
+const HTTP_RESPONSE_LOG_PREFIX = "[API_RES]";
+
+function extractApiResponseMessage(responseBody: unknown): string | undefined {
+  if (!responseBody || typeof responseBody !== "object" || Array.isArray(responseBody)) {
+    return undefined;
+  }
+
+  const message = (responseBody as { message?: unknown }).message;
+  if (typeof message !== "string") {
+    return undefined;
+  }
+
+  const trimmed = message.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function logApiResponse(params: {
+  method: HttpMethod;
+  requestUrl: string;
+  status: number;
+  ok: boolean;
+  durationMs: number;
+  responseBody: unknown;
+  message?: string;
+}): void {
+  const isServerError = params.status >= 500 || params.status === 0;
+  const level = params.ok ? "info" : isServerError ? "error" : "warn";
+  if (!runtimeConsole.enabled(level)) return;
+
+  let pathname = params.requestUrl;
+  try {
+    const url = new URL(params.requestUrl);
+    pathname = url.pathname;
+  } catch {
+    // Keep raw url if not a valid full URL
+  }
+
+  const metadata = {
+    method: params.method,
+    url: pathname,
+    status: params.status,
+    ok: params.ok,
+    durationMs: params.durationMs,
+    message: params.message ?? extractApiResponseMessage(params.responseBody),
+  };
+
+  const log = params.ok
+    ? runtimeConsole.info
+    : isServerError
+      ? runtimeConsole.error
+      : runtimeConsole.warn;
+
+  if (process.env.NODE_ENV === "production") {
+    if (!params.ok) {
+      log(HTTP_RESPONSE_LOG_PREFIX, metadata);
+    }
+    return;
+  }
+
+  log(HTTP_RESPONSE_LOG_PREFIX, {
+    ...metadata,
+    response: toLogSafePayload(params.responseBody),
+  });
+}
 
 function appendQuery(url: URL, query?: HttpQuery): void {
   if (!query) {
@@ -144,6 +210,7 @@ export async function request<TResponse, TBody = unknown>(
   const requestSignal =
     signals.length > 1 ? AbortSignal.any(signals) : signals[0];
   const headers = toHeaders(options.headers);
+  const requestStartedAt = Date.now();
 
   if (!headers.has("Accept")) {
     headers.set("Accept", "application/json");
@@ -168,6 +235,15 @@ export async function request<TResponse, TBody = unknown>(
       signal: requestSignal,
     });
 
+    logApiResponse({
+      method,
+      requestUrl: url.toString(),
+      status: first.response.status,
+      ok: first.response.ok,
+      durationMs: Date.now() - requestStartedAt,
+      responseBody: first.body,
+    });
+
     if (first.response.ok) {
       return first.body as TResponse;
     }
@@ -184,6 +260,15 @@ export async function request<TResponse, TBody = unknown>(
     }
 
     if (error instanceof DOMException && error.name === "AbortError") {
+      logApiResponse({
+        method,
+        requestUrl: url.toString(),
+        status: 408,
+        ok: false,
+        durationMs: Date.now() - requestStartedAt,
+        responseBody: null,
+        message: "Request timed out",
+      });
       throw new HttpError({
         message: "Request timed out",
         status: 408,
@@ -192,6 +277,15 @@ export async function request<TResponse, TBody = unknown>(
       });
     }
 
+    logApiResponse({
+      method,
+      requestUrl: url.toString(),
+      status: 0,
+      ok: false,
+      durationMs: Date.now() - requestStartedAt,
+      responseBody: null,
+      message: "Network request failed",
+    });
     throw new HttpError({
       message: "Network request failed",
       status: 0,

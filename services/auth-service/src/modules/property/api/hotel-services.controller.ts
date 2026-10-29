@@ -8,6 +8,7 @@ import {
   successEnvelopeSchema,
   updateServiceItemBodySchema as updateServiceItemBodyOpenApiSchema,
 } from "../../../common/openapi/contract-schemas";
+import { z } from "zod";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
@@ -61,9 +62,18 @@ export class HotelServicesController {
     @Body() body?: unknown,
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
-    const parsedBody = body
-      ? (body as { spreadsheetUrl?: string; mode?: "replace" | "upsert" })
-      : {};
+    const parsedBody =
+      parseWithZod(
+        z
+          .object({
+            spreadsheetUrl: z.string().trim().optional(),
+            mode: z.enum(["replace", "upsert"]).optional(),
+          })
+          .optional(),
+        body,
+      ) ?? {};
+
+
     return this.googleSheetsSyncService.syncHotel(
       hotelId,
       request.user.userId,

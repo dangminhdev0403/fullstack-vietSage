@@ -4,9 +4,7 @@ import { useMemo } from "react";
 import { toast } from "sonner";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
-import { guestMessagesResource } from "@/features/guest-os/resources/guest-messages-resource";
 import { useGuestStore } from "@/features/guest-os/store/guest-store";
 import type { GuestRequest } from "@/features/guest-os/types/guest-os-contract";
 import { guestMarketplaceResource } from "@/features/marketplace/resources/guest-marketplace-resource";
@@ -66,7 +64,6 @@ function dispatchGuestRequestRealtime(detail: GuestRequestRealtimeBrowserEvent) 
 }
 
 export function GuestRequestRealtimeNotifier() {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const sessionToken = useGuestStore((state) => state.sessionToken);
   const { locale, t } = useGuestI18n();
@@ -92,39 +89,8 @@ export function GuestRequestRealtimeNotifier() {
         dispatchGuestRequestRealtime({ kind: "answered", request });
         toast.success(t("requests.updatedAnswer"));
       },
-      onGuestMessageCreated: (event: unknown) => {
+      onGuestMessageCreated: () => {
         dispatchGuestRequestRealtime({ kind: "message" });
-        const rawMessage =
-          typeof event === "object" && event !== null && "message" in event
-            ? (event as { message?: { id?: string; senderType?: string; body?: string } }).message
-            : undefined;
-
-        if (sessionToken) {
-          void queryClient.invalidateQueries({
-            queryKey: guestMessagesResource
-              .bind({ sessionToken, locale })
-              .queries.unreadSummary.options(undefined as never).queryKey,
-          });
-        }
-
-        if (rawMessage?.senderType === "STAFF") {
-          playGuestRequestSound("updated");
-          const isMessagePage =
-            typeof window !== "undefined" && window.location.pathname.endsWith("/g/messages");
-
-          if (!isMessagePage) {
-            toast.info("Lễ tân vừa gửi tin nhắn mới", {
-              id: `guest-message-created-${rawMessage.id ?? Date.now()}`,
-              description:
-                typeof rawMessage.body === "string" ? rawMessage.body.slice(0, 80) : undefined,
-              duration: 6000,
-              action: {
-                label: "Xem ngay",
-                onClick: () => router.push("/g/messages"),
-              },
-            });
-          }
-        }
       },
       onMarketplaceConversationMessageCreated: (event: unknown) => {
         const orderId =
@@ -141,25 +107,42 @@ export function GuestRequestRealtimeNotifier() {
       },
       onExternalOrderHotelAcknowledged: (event: unknown) => {
         playGuestRequestSound("updated");
-        const hasVoucher = typeof event === "object" && event !== null && "voucherNumber" in event && Boolean((event as { voucherNumber?: string }).voucherNumber);
+        const hasVoucher =
+          typeof event === "object" &&
+          event !== null &&
+          "voucherNumber" in event &&
+          Boolean((event as { voucherNumber?: string }).voucherNumber);
         if (!hasVoucher) {
           toast.success("Khách sạn đã tiếp nhận đơn dịch vụ của bạn!", { id: "guest-ext-order-ack" });
         }
-        void queryClient.invalidateQueries();
+        void queryClient.invalidateQueries({
+          queryKey: ["vietsage", "guest", sessionToken, "guest-marketplace"],
+        });
       },
       onExternalOrderStatusChanged: () => {
         playGuestRequestSound("updated");
-        void queryClient.invalidateQueries();
+        void queryClient.invalidateQueries({
+          queryKey: ["vietsage", "guest", sessionToken, "guest-marketplace"],
+        });
         dispatchGuestRequestRealtime({ kind: "updated" });
       },
       onExternalOrderVoucherIssued: (event: unknown) => {
         playGuestRequestSound("answered");
-        const code = typeof event === "object" && event !== null && "voucherNumber" in event ? String((event as { voucherNumber?: string }).voucherNumber) : "";
-        toast.success(`Khách sạn đã phát hành Mã phiếu dịch vụ${code ? `: ${code}` : ""}!`, { id: "guest-ext-order-ack" });
-        void queryClient.invalidateQueries();
+        const code =
+          typeof event === "object" && event !== null && "voucherNumber" in event
+            ? String((event as { voucherNumber?: string }).voucherNumber)
+            : "";
+        toast.success(`Khách sạn đã phát hành Mã phiếu dịch vụ${code ? `: ${code}` : ""}!`, {
+          id: "guest-ext-order-ack",
+        });
+        void queryClient.invalidateQueries({
+          queryKey: ["vietsage", "guest", sessionToken, "guest-marketplace"],
+        });
       },
       onReconnect: () => {
-        void queryClient.invalidateQueries();
+        void queryClient.invalidateQueries({
+          queryKey: ["vietsage", "guest", sessionToken, "guest-marketplace"],
+        });
         dispatchGuestRequestRealtime({ kind: "reconnected" });
       },
       onError: () => {
@@ -169,10 +152,9 @@ export function GuestRequestRealtimeNotifier() {
         });
       },
     }),
-    [locale, queryClient, router, sessionToken, t],
+    [locale, queryClient, sessionToken, t],
   );
 
   useGuestRequestRealtime(sessionToken, handlers);
   return null;
 }
-

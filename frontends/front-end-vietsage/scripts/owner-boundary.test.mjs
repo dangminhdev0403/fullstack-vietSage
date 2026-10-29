@@ -13,7 +13,7 @@ const stayRouteSource = read(
   "src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/stay/page.tsx",
 );
 const roomsSource = read(
-  "src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/owner-rooms-client.tsx",
+  "src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/room-management/owner-rooms-client.tsx",
 );
 const biometricSource = read(
   "src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/biometric/page.tsx",
@@ -42,13 +42,9 @@ test("owner rooms client keeps metadata and QR configuration without stay operat
   assert.match(roomsSource, /exportAllQrCodes/);
 });
 
-test("legacy biometric route redirects inside owner workspace", () => {
-  // Biometric workstation tabs must not render for owner
-  assert.doesNotMatch(biometricSource, /BiometricOwnerTabs/);
-
-  // Must redirect inside owner hotel workspace
-  assert.match(biometricSource, /redirect\(`/);
-  assert.match(biometricSource, /\/owner\/hotels\//);
+test("owner biometric route reuses the capability-gated shared page", () => {
+  assert.match(biometricSource, /StaffHotelBiometricPage/);
+  assert.ok(biometricSource.includes('baseRoutePrefix="/owner/hotels"'));
 });
 
 test("billing folio client removes invoice issuance while retaining read-only drilldown and export order", () => {

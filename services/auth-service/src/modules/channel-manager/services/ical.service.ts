@@ -62,20 +62,28 @@ export class IcalService {
       throw new NotFoundException("Kết nối Channel Manager với token này không tồn tại");
     }
 
-    return this.generateOutboundIcal(connection.hotelId, outboundToken);
+    return this.generateOutboundIcal(connection.hotelId, outboundToken, connection);
   }
 
   /**
    * Sinh nội dung lịch RFC 5545 chứa các khoảng thời gian đã đặt hoặc đã chặn phòng
    */
-  async generateOutboundIcal(hotelId: string, outboundToken: string): Promise<string> {
-    const connection = await this.prisma.channelConnection.findUnique({
-      where: { outboundToken },
-      include: {
-        hotel: true,
-        roomMappings: true,
-      },
-    });
+  async generateOutboundIcal(
+    hotelId: string,
+    outboundToken: string,
+    preloadedConnection?: Awaited<ReturnType<PrismaService["channelConnection"]["findUnique"]>> & {
+      roomMappings: Array<{ roomId: string | null }>;
+    },
+  ): Promise<string> {
+    const connection =
+      preloadedConnection ??
+      (await this.prisma.channelConnection.findUnique({
+        where: { outboundToken },
+        include: {
+          hotel: true,
+          roomMappings: true,
+        },
+      }));
 
     if (!connection || connection.hotelId !== hotelId) {
       throw new NotFoundException("Không tìm thấy kết nối hoặc token không khớp khách sạn");

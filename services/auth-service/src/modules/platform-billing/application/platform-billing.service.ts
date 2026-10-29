@@ -650,6 +650,7 @@ export class PlatformBillingService {
       where: { contractId },
       include: { settlements: true, adjustments: true },
       orderBy: { periodStart: "desc" },
+      take: 200,
     });
     const noticeMap = await this.getPeriodNoticesMap(periods.map((p) => p.id));
     return periods.map((p) => attachPeriodProjection(p, noticeMap.get(p.id)));
@@ -737,6 +738,7 @@ export class PlatformBillingService {
           : {}),
       },
       include: { hotel: { select: { id: true, name: true, code: true } } },
+      take: 200,
     });
 
     const results: Array<{
@@ -1015,6 +1017,7 @@ export class PlatformBillingService {
         },
       },
       orderBy: { createdAt: "desc" },
+      take: 200,
     });
 
     const periodIds = contracts.flatMap((c) => (c.periods || []).map((p) => p.id));

@@ -26,6 +26,23 @@ async function parseResponseBody(response: Response): Promise<unknown> {
   return text.length > 0 ? text : null;
 }
 
+function clampInternalApiPathLimit(path: string): string {
+  const queryStart = path.indexOf("?");
+  if (queryStart === -1) return path;
+
+  const pathname = path.slice(0, queryStart);
+  const searchParams = new URLSearchParams(path.slice(queryStart + 1));
+  const rawLimit = searchParams.get("limit");
+  if (rawLimit !== null) {
+    const parsed = Number(rawLimit);
+    if (Number.isFinite(parsed) && parsed > 100) {
+      searchParams.set("limit", "100");
+      return `${pathname}?${searchParams.toString()}`;
+    }
+  }
+  return path;
+}
+
 function createRequestInit<TBody>(
   options: InternalApiRequestOptions<TBody>,
 ): RequestInit {
@@ -51,7 +68,7 @@ function createRequestInit<TBody>(
     method: options.method,
     headers,
     body,
-    signal: options.signal,
+    signal: options.signal ?? AbortSignal.timeout(15_000),
     credentials: "same-origin",
     cache: "no-store",
   };
@@ -102,7 +119,8 @@ async function fetchInternalApi<TData, TBody>(
   path: string,
   options: InternalApiRequestOptions<TBody>,
 ): Promise<ApiEnvelope<TData>> {
-  const response = await fetch(path, createRequestInit(options));
+  const safePath = clampInternalApiPathLimit(path);
+  const response = await fetch(safePath, createRequestInit(options));
   const payload = await parseResponseBody(response);
 
   if (!response.ok) {
@@ -110,7 +128,7 @@ async function fetchInternalApi<TData, TBody>(
     throw new HttpError({
       message,
       status: response.status,
-      requestUrl: path,
+      requestUrl: safePath,
       data: payload,
       headers: response.headers,
     });
@@ -151,8 +169,12 @@ export async function requestInternalApiEnvelope<TData, TBody = unknown>(
         dispatchAuthLogoutRequired("internal_api_refresh_failed", globalThis.location.pathname);
       }
 
-      // Return a pending promise so the component stays in loading state while window.location redirects to /login
-      return new Promise<never>(() => {});
+      throw new HttpError({
+        message: "UNAUTHORIZED",
+        status: 401,
+        requestUrl: path,
+        data: retryError instanceof HttpError ? retryError.data : error.data,
+      });
     }
   }
 }

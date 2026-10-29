@@ -14,6 +14,7 @@ import {
   UserStatus,
 } from "@prisma/client";
 import { PrismaService } from "../../../../prisma/prisma.service";
+import { getDayBounds, toYmd, VIETNAM_TIME_ZONE } from "../../../../common/time/vietnam-temporal";
 import { requestDetailInclude, requestListInclude } from "./guest-request-repository.types";
 
 interface BillingPriceSnapshot {
@@ -96,10 +97,10 @@ export class HotelRequestsRepository {
   }
 
   async summarizeOperationalRequests(where: Prisma.GuestRequestWhereInput) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const today = getDayBounds(toYmd(new Date(), VIETNAM_TIME_ZONE), VIETNAM_TIME_ZONE).start;
+    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+
+
     const activeStatuses = [GuestRequestStatus.PENDING, GuestRequestStatus.ACKNOWLEDGED];
 
     const [pending, urgent, unassigned, completedToday] = await Promise.all([
@@ -176,6 +177,7 @@ export class HotelRequestsRepository {
 
         if (input.status === GuestRequestStatus.COMPLETED) {
           const folioItem = await this.createServiceFolioItemFromGuestRequest(tx, {
+            request: existing as any,
             hotelId: input.hotelId,
             requestId: input.requestId,
             actorUserId: input.actorUserId,
@@ -346,7 +348,13 @@ export class HotelRequestsRepository {
 
   private async createServiceFolioItemFromGuestRequest(
     tx: Prisma.TransactionClient,
-    input: { hotelId: string; requestId: string; actorUserId: string; completedAt: Date },
+    input: {
+      hotelId: string;
+      requestId: string;
+      actorUserId: string;
+      completedAt: Date;
+      request?: any;
+    },
   ) {
     const existingFolioItem = await this.findExistingFolioItemByGuestRequest(tx, input.requestId);
 
@@ -355,7 +363,10 @@ export class HotelRequestsRepository {
       return existingFolioItem;
     }
 
-    const request = await tx.guestRequest.findFirstOrThrow({
+    const request =
+      input.request?.stay && input.request?.serviceItem !== undefined
+        ? input.request
+        : await tx.guestRequest.findFirstOrThrow({
       where: { id: input.requestId, hotelId: input.hotelId },
       include: {
         stay: { select: { id: true, status: true } },

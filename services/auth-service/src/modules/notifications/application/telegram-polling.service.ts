@@ -90,7 +90,7 @@ export class TelegramPollingService implements OnModuleInit, OnModuleDestroy {
       try {
         const body: Record<string, any> = {
           offset: this.offset,
-          timeout: 15,
+          timeout: 5,
           allowed_updates: ["message", "callback_query"],
         };
 

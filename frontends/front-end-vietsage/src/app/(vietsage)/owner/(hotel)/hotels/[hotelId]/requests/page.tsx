@@ -1,3 +1,4 @@
+import { normalizeDayFilter } from "@/features/hotel-ops/utils/request-date-filter";
 import { auth } from "@/auth";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import type { ListHotelRequestsQuery } from "@/features/hotel-ops/types/hotel-ops-contract";
@@ -20,15 +21,6 @@ function getPositiveInt(value: string | undefined, fallback: number): number {
   if (!value) return fallback;
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
-}
-
-function normalizeDayFilter(value: string | undefined, boundary: "start" | "end"): string | undefined {
-  if (!value) return undefined;
-  const trimmed = value.trim();
-  const displayMatch = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(trimmed);
-  if (!displayMatch) return trimmed;
-
-  return `${displayMatch[3]}-${displayMatch[2]}-${displayMatch[1]}T${boundary === "start" ? "00:00:00.000" : "23:59:59.999"}Z`;
 }
 
 export default async function OwnerHotelRequestsPage({ params, searchParams }: PageProps) {

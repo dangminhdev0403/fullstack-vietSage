@@ -134,6 +134,8 @@ export function FrontDeskArrivalDetailPanel({
 
   // Keyboard navigation and focus trap
   useEffect(() => {
+    if (!isOpen) return;
+
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -161,7 +163,7 @@ export function FrontDeskArrivalDetailPanel({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [isOpen, onClose]);
 
   // Initial focus on open and return focus to trigger on close
   useEffect(() => {
@@ -181,7 +183,7 @@ export function FrontDeskArrivalDetailPanel({
       status: "AVAILABLE",
       limit: 100,
     }),
-    enabled: Boolean(isOpen && canAssignRoom),
+    enabled: Boolean(isOpen && isAssigningMode && canAssignRoom),
     staleTime: 10_000,
   });
 
@@ -535,13 +537,7 @@ export function FrontDeskArrivalDetailPanel({
         referenceCode: depositReference.trim() || undefined,
       });
 
-      const refreshedPayments = await staffRoomsRepository.listBookingPayments(hotelId, {
-        reservationId: arrival.id,
-        groupCode: arrival.groupCode || undefined,
-      });
-      if (refreshedPayments) {
-        void refetchBookingPayments();
-      }
+      void refetchBookingPayments();
       setDepositAmount("");
       setDepositReference("");
       await showSuccessAlert(
@@ -568,10 +564,6 @@ export function FrontDeskArrivalDetailPanel({
         contactPhone: arrival.guestPhone || undefined,
         amount: totalEstimated,
       });
-      await staffRoomsRepository.listReceivables(hotelId, {
-        reservationId: arrival.id,
-        groupCode: arrival.groupCode || undefined,
-      });
       void refetchReceivables();
       await showSuccessAlert(
         "Chuyển công nợ thành công",
@@ -594,10 +586,6 @@ export function FrontDeskArrivalDetailPanel({
       await staffRoomsRepository.collectReceivable(hotelId, receivableId, {
         amount,
         paymentMethod: depositMethod,
-      });
-      await staffRoomsRepository.listReceivables(hotelId, {
-        reservationId: arrival?.id,
-        groupCode: arrival?.groupCode || undefined,
       });
       void refetchReceivables();
       await showSuccessAlert(

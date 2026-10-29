@@ -19,5 +19,5 @@ export default async function OwnerKbttConnectionPage({
   if (!canManage && !context.permissions.includes("hotel.kbtt.view"))
     notFound();
 
-  redirect(`/owner/hotels/${encodeURIComponent(hotelId)}/kbtt?tab=connection`);
+  redirect(`/owner/hotels/${encodeURIComponent(hotelId)}/settings?tab=integrations`);
 }

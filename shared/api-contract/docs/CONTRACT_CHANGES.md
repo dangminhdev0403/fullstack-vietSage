@@ -1,5 +1,22 @@
 # Contract Changes
 
+## 2026-10-28 — Hotel Reservations Schema Alignment & Group Endpoints
+
+- **Reservation creation Swagger schema alignment (`POST /hotels/{hotelId}/reservations`, `POST /hotels/{hotelId}/reservations/bulk`, `POST /hotels/{hotelId}/reservations/group`)**:
+  - Aligned Swagger schemas with runtime Zod definitions (`createReservationBodySchema` and `createBulkReservationsBodySchema`).
+  - Added `chargeLines` supporting `ROOM_NIGHT` and `EXTRA` line items with `serviceDate`, `unitPriceSnapshot`, `quantity`, and `totalSnapshot`.
+  - Added booking source attribution: `sourceCategory` (`DIRECT`, `OTA`, `TA`, `TRAVEL_AGENCY`, `CORPORATE`, `OTHER`), `sourcePartnerId`, and `bookingOwnerUserId`.
+  - Added support for flexible room allocation via `allocations` array (`roomTypeId`, `quantity`, `rate`, `nightlyRateSnapshot`) and individual room rates (`roomRates`).
+  - Updated `roomIds` bounds: 1 to 50 rooms (`minItems: 1`, `maxItems: 50`), with `roomIds` OR `allocations` fulfilling room requirements.
+  - Rate snapshots (`rate`, `nightlyRateSnapshot`) accept string/number/null values; optional arrays and non-nullable text fields retain runtime nullability.
+  - Generated types enforce independent name, arrival, departure and room-selection alternatives, including mixed date aliases.
+- **Group operations & confirmation endpoints**:
+  - Documented `GET /hotels/{hotelId}/reservations/groups/{groupCode}/confirmation` for printable group confirmation with room breakdown and financial summary.
+  - Documented `POST /hotels/{hotelId}/reservations/group` alias sharing bulk reservation schema and response model.
+  - Documented `GET /hotels/{hotelId}/reservations/confirmation-template` and `PUT /hotels/{hotelId}/reservations/confirmation-template` for custom hotel confirmation template configuration.
+  - Documented `GET /hotels/{hotelId}/reservations/{id}/confirmation` for individual reservation confirmation sheets.
+  - Synchronized generated TypeScript contract to `frontends/front-end-vietsage/src/generated/openapi/v1.ts`.
+
 ## 2026-09-22 — Health readiness
 
 - Added public `GET /health/ready`. Success confirms the application can query PostgreSQL; dependency

@@ -395,7 +395,7 @@ export function GuestFloatingChat() {
                       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#10b981] opacity-75" />
                       <span className="relative inline-flex h-2 w-2 rounded-full bg-[#10b981]" />
                     </span>
-                    <span className="text-[10.5px] font-bold uppercase tracking-wider text-[#916e15]">
+                    <span className="text-sm font-bold uppercase tracking-wider text-[#916e15]">
                       {uiText.teaserTag}
                     </span>
                   </div>
@@ -485,7 +485,7 @@ export function GuestFloatingChat() {
                       <h3 className="text-sm font-bold tracking-wide text-white">
                         LocalMate AI
                       </h3>
-                      <p className="text-[11.5px] text-[#e8e4dc]/85 flex items-center gap-1.5 mt-0.5">
+                      <p className="text-sm text-[#e8e4dc]/85 flex items-center gap-1.5 mt-0.5">
                         <span className="font-medium text-[#f3eedf]">{destinationSubtitle}</span>
                         <span>•</span>
                         <span className="text-[#a7f3d0] font-medium flex items-center gap-1">
@@ -567,7 +567,7 @@ export function GuestFloatingChat() {
               {/* Messages Scroll Area */}
               <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-gradient-to-b from-[#fbf9f4] via-[#f7f3ea]/70 to-[#f2ecdf]/50 p-4 space-y-3.5 text-sm">
                 <div className="text-center my-0.5">
-                  <span className="inline-block rounded-full bg-[#25483f]/8 px-3.5 py-1 text-[10.5px] font-medium text-[#485a51]">
+                  <span className="inline-block rounded-full bg-[#25483f]/8 px-3.5 py-1 text-sm font-medium text-[#485a51]">
                     {uiText.bannerText}
                   </span>
                 </div>
@@ -607,7 +607,7 @@ export function GuestFloatingChat() {
                         )}
 
                         <span
-                          className={`mt-1.5 block text-right text-[10.5px] ${
+                          className={`mt-1.5 block text-right text-sm ${
                             isGuest ? "text-[#fffdfa]/65" : "text-[#7a8880]"
                           }`}
                         >
@@ -647,7 +647,7 @@ export function GuestFloatingChat() {
                 return (
                   <div className="shrink-0 border-t border-[#25483f]/10 bg-[#fffdfa] px-3.5 pt-2.5 pb-2">
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="flex items-center gap-1.5 text-[11.5px] font-bold text-[#b18b26]">
+                      <span className="flex items-center gap-1.5 text-sm font-bold text-[#b18b26]">
                         <VsIcon name="sparkles" className="text-xs" />
                         {hasDynamic ? (
                           locale === "en" ? "Ask next:" :

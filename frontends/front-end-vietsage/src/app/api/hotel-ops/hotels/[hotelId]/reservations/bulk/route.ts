@@ -24,6 +24,20 @@ const bulkAllocationSchema = z
   })
   .strict();
 
+const chargeLineSchema = z.object({
+  lineType: z.enum(["ROOM_NIGHT", "EXTRA"]),
+  serviceDate: z.string().trim().optional(),
+  serviceItemId: z.string().trim().optional(),
+  nameSnapshot: z.string().trim().min(1),
+  codeSnapshot: z.string().trim().optional(),
+  quantity: z.number().int().min(1).default(1),
+  unitPriceSnapshot: z.number().nonnegative(),
+  taxAmountSnapshot: z.number().nonnegative().default(0),
+  discountAmountSnapshot: z.number().nonnegative().default(0),
+  totalSnapshot: z.number().nonnegative(),
+  currency: z.string().trim().default("VND"),
+});
+
 const bulkReservationSchema = z
   .object({
     leadGuestName: z
@@ -50,6 +64,10 @@ const bulkReservationSchema = z
     groupCode: z.string().trim().max(80).optional(),
     groupName: z.string().trim().max(120).optional(),
     notes: z.string().optional(),
+    chargeLines: z.array(chargeLineSchema).optional(),
+    sourceCategory: z.enum(["DIRECT", "OTA", "TA", "TRAVEL_AGENCY", "CORPORATE", "OTHER"]).optional(),
+    sourcePartnerId: z.string().trim().min(1).nullable().optional(),
+    bookingOwnerUserId: z.string().trim().min(1).nullable().optional(),
   })
   .strict()
   .refine(
@@ -115,6 +133,10 @@ export async function POST(request: Request, context: Params) {
             ...(parsed.data.groupCode ? { groupCode: parsed.data.groupCode } : {}),
             ...(parsed.data.groupName ? { groupName: parsed.data.groupName } : {}),
             ...(parsed.data.notes ? { notes: parsed.data.notes } : {}),
+            ...(parsed.data.chargeLines ? { chargeLines: parsed.data.chargeLines } : {}),
+            ...(parsed.data.sourceCategory ? { sourceCategory: parsed.data.sourceCategory } : {}),
+            ...(parsed.data.sourcePartnerId ? { sourcePartnerId: parsed.data.sourcePartnerId } : {}),
+            ...(parsed.data.bookingOwnerUserId ? { bookingOwnerUserId: parsed.data.bookingOwnerUserId } : {}),
           },
           accessToken,
         );

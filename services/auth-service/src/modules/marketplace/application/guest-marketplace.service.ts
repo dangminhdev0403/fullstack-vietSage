@@ -36,12 +36,17 @@ export class GuestMarketplaceService {
     return rows.map((row) => this.localizeCategory(row, locale));
   }
 
-  async services(hotelId: string, query: GuestMarketplaceQuery, locale: SupportedLocale) {
+  async services(
+    hotelId: string,
+    query: GuestMarketplaceQuery & { serviceId?: string },
+    locale: SupportedLocale,
+  ) {
     const hotel = await this.hotelLocation(hotelId);
     // ponytail: bounded in-memory geo sort; move to PostGIS only after >100 mapped active items/hotel is measured.
     const rows = await this.prisma.marketplaceService.findMany({
       where: {
         status: MarketplaceRecordStatus.ACTIVE,
+        ...(query.serviceId ? { id: query.serviceId } : {}),
         ...(query.serviceTenantId ? { serviceTenantId: query.serviceTenantId } : {}),
         serviceTenant: {
           type: "SERVICE",
@@ -100,7 +105,7 @@ export class GuestMarketplaceService {
   }
 
   async detail(hotelId: string, serviceId: string, locale: SupportedLocale) {
-    const result = await this.services(hotelId, { page: 1, limit: 100 }, locale);
+    const result = await this.services(hotelId, { page: 1, limit: 100, serviceId }, locale);
     const item = result.items.find((service) => service.id === serviceId);
     if (!item) throw new NotFoundException("Không tìm thấy dịch vụ Marketplace");
     return item;

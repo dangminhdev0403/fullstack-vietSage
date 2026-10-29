@@ -961,6 +961,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hotels/{hotelId}/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["HotelReportsController_getReports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/hotels/{hotelId}/reservations": {
         parameters: {
             query?: never;
@@ -1105,6 +1121,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hotels/{hotelId}/reservations/{reservationId}/dates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["ReservationsController_updateReservationDates"];
+        trace?: never;
+    };
     "/hotels/{hotelId}/reservations/group": {
         parameters: {
             query?: never;
@@ -1119,6 +1151,102 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/reservations/groups/{groupCode}/confirmation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ReservationsController_getGroupConfirmation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/reservations/groups/{groupCode}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ReservationsController_getGroupReservation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["ReservationsController_updateGroupReservation"];
+        trace?: never;
+    };
+    "/hotels/{hotelId}/reservations/confirmation-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ReservationsController_getConfirmationTemplate"];
+        put: operations["ReservationsController_upsertConfirmationTemplate"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/reservations/{id}/confirmation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ReservationsController_getReservationConfirmation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/booking-partners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ReservationsController_listBookingPartners"];
+        put?: never;
+        post: operations["ReservationsController_createBookingPartner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/booking-partners/{partnerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["ReservationsController_deleteBookingPartner"];
+        options?: never;
+        head?: never;
+        patch: operations["ReservationsController_updateBookingPartner"];
         trace?: never;
     };
     "/hotels/{hotelId}/staff-assignments": {
@@ -1339,6 +1467,70 @@ export interface paths {
         get: operations["PaymentController_getPaymentStatus"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/billing/booking-payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["PaymentController_listBookingPayments"];
+        put?: never;
+        post: operations["PaymentController_recordBookingPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/billing/receivables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["PaymentController_listReceivables"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/billing/stays/{stayId}/transfer-to-receivable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["PaymentController_transferToReceivable"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/billing/receivables/{receivableId}/collect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["PaymentController_collectReceivable"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3487,6 +3679,23 @@ export interface paths {
         put?: never;
         /** Manually authenticate saved credentials; refresh near expiry, otherwise re-login */
         post: operations["KbttController_check"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/kbtt/daily-movements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get daily arrivals or departures movement projection */
+        get: operations["KbttController_getDailyMovements"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7517,6 +7726,30 @@ export interface operations {
             };
         };
     };
+    HotelReportsController_getReports: {
+        parameters: {
+            query?: {
+                to?: string;
+                from?: string;
+                range?: string;
+            };
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Báo cáo và thống kê chi tiết khách sạn */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     ReservationsController_createReservation: {
         parameters: {
             query?: never;
@@ -7536,11 +7769,34 @@ export interface operations {
                     /** Format: date-time */
                     plannedCheckOutAt: string;
                     roomId?: string | null;
-                    rate?: string | null;
-                    roomTypeId?: string | null;
-                    guestCount?: number | null;
-                    notes?: string | null;
-                    nightlyRateSnapshot?: string | null;
+                    roomTypeId?: string;
+                    autoAssign?: boolean;
+                    guestCount?: number;
+                    notes?: string;
+                    rate?: (number | null) | string;
+                    nightlyRateSnapshot?: (number | null) | string;
+                    chargeLines?: {
+                        /** @enum {string} */
+                        lineType: "ROOM_NIGHT" | "EXTRA";
+                        serviceDate?: string;
+                        serviceItemId?: string;
+                        nameSnapshot: string;
+                        codeSnapshot?: string;
+                        /** @default 1 */
+                        quantity?: number;
+                        unitPriceSnapshot: number;
+                        /** @default 0 */
+                        taxAmountSnapshot?: number;
+                        /** @default 0 */
+                        discountAmountSnapshot?: number;
+                        totalSnapshot: number;
+                        /** @default VND */
+                        currency?: string;
+                    }[];
+                    /** @enum {string} */
+                    sourceCategory?: "DIRECT" | "OTA" | "TA" | "TRAVEL_AGENCY" | "CORPORATE" | "OTHER";
+                    sourcePartnerId?: string | null;
+                    bookingOwnerUserId?: string | null;
                 };
             };
         };
@@ -7845,21 +8101,83 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    leadGuestName: string;
+                    leadGuestName?: string;
+                    guestDisplayName?: string;
                     leadGuestPhone?: string;
-                    /** Format: date-time */
-                    checkInDate: string;
-                    /** Format: date-time */
-                    checkOutDate: string;
-                    roomIds: string[];
+                    guestPhone?: string;
+                    /** @description Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601. */
+                    checkInDate?: string;
+                    /** @description Ngày trả phòng theo ISO hoặc thời điểm ISO 8601. */
+                    checkOutDate?: string;
+                    /** @description Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601. */
+                    plannedCheckInAt?: string;
+                    /** @description Ngày trả phòng theo ISO hoặc thời điểm ISO 8601. */
+                    plannedCheckOutAt?: string;
+                    roomIds?: string[];
+                    allocations?: {
+                        roomTypeId: string;
+                        quantity: number;
+                        rate?: (number | null) | string;
+                        nightlyRateSnapshot?: (number | null) | string;
+                    }[];
+                    autoAssign?: boolean;
                     groupCode?: string;
+                    groupName?: string;
+                    notes?: string;
                     idempotencyKey?: string;
-                    rate?: string | null;
-                    roomTypeId?: string | null;
-                    guestCount?: number | null;
-                    notes?: string | null;
-                    nightlyRateSnapshot?: string | null;
-                };
+                    rate?: (number | null) | string;
+                    nightlyRateSnapshot?: (number | null) | string;
+                    roomRates?: {
+                        [key: string]: (number | null) | string;
+                    };
+                    chargeLines?: {
+                        /** @enum {string} */
+                        lineType: "ROOM_NIGHT" | "EXTRA";
+                        serviceDate?: string;
+                        serviceItemId?: string;
+                        nameSnapshot: string;
+                        codeSnapshot?: string;
+                        /** @default 1 */
+                        quantity?: number;
+                        unitPriceSnapshot: number;
+                        /** @default 0 */
+                        taxAmountSnapshot?: number;
+                        /** @default 0 */
+                        discountAmountSnapshot?: number;
+                        totalSnapshot: number;
+                        /** @default VND */
+                        currency?: string;
+                    }[];
+                    /** @enum {string} */
+                    sourceCategory?: "DIRECT" | "OTA" | "TA" | "TRAVEL_AGENCY" | "CORPORATE" | "OTHER";
+                    sourcePartnerId?: string | null;
+                    bookingOwnerUserId?: string | null;
+                } & (({
+                    leadGuestName: string;
+                } | {
+                    guestDisplayName: string;
+                }) & ({
+                    /** @description Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601. */
+                    checkInDate: string;
+                } | {
+                    /** @description Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601. */
+                    plannedCheckInAt: string;
+                }) & ({
+                    /** @description Ngày trả phòng theo ISO hoặc thời điểm ISO 8601. */
+                    checkOutDate: string;
+                } | {
+                    /** @description Ngày trả phòng theo ISO hoặc thời điểm ISO 8601. */
+                    plannedCheckOutAt: string;
+                }) & ({
+                    roomIds: string[];
+                } | {
+                    allocations: {
+                        roomTypeId: string;
+                        quantity: number;
+                        rate?: (number | null) | string;
+                        nightlyRateSnapshot?: (number | null) | string;
+                    }[];
+                }));
             };
         };
         responses: {
@@ -7947,7 +8265,410 @@ export interface operations {
             };
         };
     };
+    ReservationsController_updateReservationDates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                reservationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example 2026-10-22 */
+                    startDate?: string;
+                    /** @example 2026-10-25 */
+                    endDate?: string;
+                    /** Format: date-time */
+                    plannedCheckInAt?: string;
+                    /** Format: date-time */
+                    plannedCheckOutAt?: string;
+                    expectedUpdatedAt: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     ReservationsController_createGroupReservations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    leadGuestName?: string;
+                    guestDisplayName?: string;
+                    leadGuestPhone?: string;
+                    guestPhone?: string;
+                    /** @description Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601. */
+                    checkInDate?: string;
+                    /** @description Ngày trả phòng theo ISO hoặc thời điểm ISO 8601. */
+                    checkOutDate?: string;
+                    /** @description Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601. */
+                    plannedCheckInAt?: string;
+                    /** @description Ngày trả phòng theo ISO hoặc thời điểm ISO 8601. */
+                    plannedCheckOutAt?: string;
+                    roomIds?: string[];
+                    allocations?: {
+                        roomTypeId: string;
+                        quantity: number;
+                        rate?: (number | null) | string;
+                        nightlyRateSnapshot?: (number | null) | string;
+                    }[];
+                    autoAssign?: boolean;
+                    groupCode?: string;
+                    groupName?: string;
+                    notes?: string;
+                    idempotencyKey?: string;
+                    rate?: (number | null) | string;
+                    nightlyRateSnapshot?: (number | null) | string;
+                    roomRates?: {
+                        [key: string]: (number | null) | string;
+                    };
+                    chargeLines?: {
+                        /** @enum {string} */
+                        lineType: "ROOM_NIGHT" | "EXTRA";
+                        serviceDate?: string;
+                        serviceItemId?: string;
+                        nameSnapshot: string;
+                        codeSnapshot?: string;
+                        /** @default 1 */
+                        quantity?: number;
+                        unitPriceSnapshot: number;
+                        /** @default 0 */
+                        taxAmountSnapshot?: number;
+                        /** @default 0 */
+                        discountAmountSnapshot?: number;
+                        totalSnapshot: number;
+                        /** @default VND */
+                        currency?: string;
+                    }[];
+                    /** @enum {string} */
+                    sourceCategory?: "DIRECT" | "OTA" | "TA" | "TRAVEL_AGENCY" | "CORPORATE" | "OTHER";
+                    sourcePartnerId?: string | null;
+                    bookingOwnerUserId?: string | null;
+                } & (({
+                    leadGuestName: string;
+                } | {
+                    guestDisplayName: string;
+                }) & ({
+                    /** @description Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601. */
+                    checkInDate: string;
+                } | {
+                    /** @description Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601. */
+                    plannedCheckInAt: string;
+                }) & ({
+                    /** @description Ngày trả phòng theo ISO hoặc thời điểm ISO 8601. */
+                    checkOutDate: string;
+                } | {
+                    /** @description Ngày trả phòng theo ISO hoặc thời điểm ISO 8601. */
+                    plannedCheckOutAt: string;
+                }) & ({
+                    roomIds: string[];
+                } | {
+                    allocations: {
+                        roomTypeId: string;
+                        quantity: number;
+                        rate?: (number | null) | string;
+                        nightlyRateSnapshot?: (number | null) | string;
+                    }[];
+                }));
+            };
+        };
+        responses: {
+            /** @description Đã tạo nhóm đặt phòng với groupCode và danh sách reservation */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        groupCode: string;
+                        reservations: {
+                            id: string;
+                            hotelId: string;
+                            roomId?: string | null;
+                            roomTypeId?: string | null;
+                            guestCount?: number | null;
+                            notes?: string | null;
+                            nightlyRateSnapshot?: string | null;
+                            reservationCode: string;
+                            guestDisplayName: string;
+                            guestPhone?: string | null;
+                            /** @enum {string} */
+                            status: "CONFIRMED" | "ARRIVAL_READY" | "CHECKED_IN" | "CANCELLED" | "NO_SHOW";
+                            /** Format: date-time */
+                            plannedCheckInAt?: string;
+                            /** Format: date-time */
+                            plannedCheckOutAt?: string;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    ReservationsController_getGroupConfirmation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                groupCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Đã lấy phiếu xác nhận đặt phòng theo đoàn */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ReservationsController_getGroupReservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                groupCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Đã lấy thông tin chi tiết nhóm đoàn */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        groupCode: string;
+                        groupName?: string | null;
+                        leadGuestName: string;
+                        leadGuestPhone?: string | null;
+                        notes?: string | null;
+                        sourceCategory?: string | null;
+                        sourcePartnerId?: string | null;
+                        sourcePartnerName?: string | null;
+                        totalRooms: number;
+                        checkedInRooms: number;
+                        arrivingRooms: number;
+                        totalEstimatedAmount: number;
+                        reservations: {
+                            id: string;
+                            reservationCode: string;
+                            roomId?: string | null;
+                            roomNumber?: string | null;
+                            roomName?: string | null;
+                            roomTypeId?: string | null;
+                            roomTypeName?: string | null;
+                            roomTypeCode?: string | null;
+                            guestDisplayName?: string;
+                            guestPhone?: string | null;
+                            /** @enum {string} */
+                            status: "CONFIRMED" | "ARRIVAL_READY" | "CHECKED_IN" | "CANCELLED" | "NO_SHOW";
+                            /** Format: date-time */
+                            plannedCheckInAt: string;
+                            /** Format: date-time */
+                            plannedCheckOutAt: string;
+                            nightlyRateSnapshot?: string | null;
+                            baseNightlyRateSnapshot?: string | null;
+                            guestCount?: number | null;
+                            notes?: string | null;
+                            nights?: number;
+                            estimatedAmount?: number;
+                            /** Format: date-time */
+                            createdAt?: string;
+                            /** Format: date-time */
+                            updatedAt?: string;
+                        }[];
+                        /** Format: date-time */
+                        createdAt?: string;
+                        /** Format: date-time */
+                        updatedAt?: string;
+                    };
+                };
+            };
+        };
+    };
+    ReservationsController_updateGroupReservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                groupCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    groupName?: string | null;
+                    leadGuestName?: string;
+                    leadGuestPhone?: string | null;
+                    notes?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Đã cập nhật thông tin đoàn */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        groupCode: string;
+                        groupName?: string | null;
+                        leadGuestName: string;
+                        leadGuestPhone?: string | null;
+                        notes?: string | null;
+                        sourceCategory?: string | null;
+                        sourcePartnerId?: string | null;
+                        sourcePartnerName?: string | null;
+                        totalRooms: number;
+                        checkedInRooms: number;
+                        arrivingRooms: number;
+                        totalEstimatedAmount: number;
+                        reservations: {
+                            id: string;
+                            reservationCode: string;
+                            roomId?: string | null;
+                            roomNumber?: string | null;
+                            roomName?: string | null;
+                            roomTypeId?: string | null;
+                            roomTypeName?: string | null;
+                            roomTypeCode?: string | null;
+                            guestDisplayName?: string;
+                            guestPhone?: string | null;
+                            /** @enum {string} */
+                            status: "CONFIRMED" | "ARRIVAL_READY" | "CHECKED_IN" | "CANCELLED" | "NO_SHOW";
+                            /** Format: date-time */
+                            plannedCheckInAt: string;
+                            /** Format: date-time */
+                            plannedCheckOutAt: string;
+                            nightlyRateSnapshot?: string | null;
+                            baseNightlyRateSnapshot?: string | null;
+                            guestCount?: number | null;
+                            notes?: string | null;
+                            nights?: number;
+                            estimatedAmount?: number;
+                            /** Format: date-time */
+                            createdAt?: string;
+                            /** Format: date-time */
+                            updatedAt?: string;
+                        }[];
+                        /** Format: date-time */
+                        createdAt?: string;
+                        /** Format: date-time */
+                        updatedAt?: string;
+                    };
+                };
+            };
+        };
+    };
+    ReservationsController_getConfirmationTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Đã lấy cấu hình mẫu xác nhận đặt phòng */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ReservationsController_upsertConfirmationTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Đã cập nhật cấu hình mẫu xác nhận đặt phòng */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ReservationsController_getReservationConfirmation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Đã lấy phiếu xác nhận đặt phòng */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ReservationsController_listBookingPartners: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ReservationsController_createBookingPartner: {
         parameters: {
             query?: never;
             header?: never;
@@ -7959,6 +8680,46 @@ export interface operations {
         requestBody?: never;
         responses: {
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ReservationsController_deleteBookingPartner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                partnerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ReservationsController_updateBookingPartner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                partnerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8296,6 +9057,17 @@ export interface operations {
                         action: "provided" | "cancelled";
                         cancelReason?: string;
                     }[];
+                    isEarlyDeparture?: boolean;
+                    adjustments?: {
+                        clientRequestId: string;
+                        /** @enum {string} */
+                        itemType: "MANUAL_CHARGE" | "DISCOUNT";
+                        name: string;
+                        description?: string;
+                        amount: number;
+                        /** @default 1 */
+                        quantity?: number;
+                    }[];
                 };
             };
         };
@@ -8478,6 +9250,120 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Payment status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PaymentController_listBookingPayments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Danh sách BookingPayment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PaymentController_recordBookingPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Bản ghi thanh toán cọc BookingPayment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PaymentController_listReceivables: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Danh sách HotelReceivable */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PaymentController_transferToReceivable: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                stayId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Bản ghi công nợ HotelReceivable */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PaymentController_collectReceivable: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                receivableId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Cập nhật công nợ và bản ghi ReceivableCollection */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12033,6 +12919,53 @@ export interface operations {
                         };
                     };
                 };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_getDailyMovements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Authentication required */
             401: {

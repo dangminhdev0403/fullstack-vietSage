@@ -366,6 +366,14 @@ export class MarketplaceAdminService {
   }
 
   async updateServiceTenant(actorId: string, tenantId: string, body: ServiceTenantUpdateBody) {
+    const passwordHash =
+      body.owner?.password && body.owner.password.trim().length >= 8
+        ? await argon2.hash(body.owner.password)
+        : undefined;
+    const defaultPasswordHash =
+      !passwordHash && (body.owner?.email || body.owner?.fullName)
+        ? await argon2.hash("VietSage@2026")
+        : undefined;
     await this.serviceTenant(tenantId);
     if (body.categoryId) await this.activeCategory(body.categoryId);
     return this.prisma.$transaction(async (tx) => {
@@ -451,7 +459,7 @@ export class MarketplaceAdminService {
             userUpdateData.fullName = body.owner.fullName;
           }
           if (body.owner.password && body.owner.password.trim().length >= 8) {
-            userUpdateData.passwordHash = await argon2.hash(body.owner.password);
+            userUpdateData.passwordHash = passwordHash!;
             await tx.authSession.updateMany({
               where: { userId: ownerUser.id, status: "ACTIVE" },
               data: {
@@ -510,7 +518,7 @@ export class MarketplaceAdminService {
                 data: {
                   fullName,
                   ...(body.owner.password && body.owner.password.trim().length >= 8
-                    ? { passwordHash: await argon2.hash(body.owner.password) }
+                    ? { passwordHash }
                     : {}),
                 },
               })
@@ -518,10 +526,10 @@ export class MarketplaceAdminService {
                 data: {
                   email,
                   fullName,
-                  passwordHash: await argon2.hash(
+                  passwordHash: (
                     body.owner.password && body.owner.password.trim().length >= 8
-                      ? body.owner.password
-                      : "VietSage@2026",
+                      ? passwordHash!
+                      : defaultPasswordHash!
                   ),
                   status: UserStatus.ACTIVE,
                   userType: UserType.PARTNER,

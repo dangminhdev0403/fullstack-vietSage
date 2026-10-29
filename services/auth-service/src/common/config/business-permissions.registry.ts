@@ -32,6 +32,13 @@ export type BusinessPermissionKey =
   | "hotel.stays.check-out"
   | "hotel.reservations.view"
   | "hotel.reservations.manage"
+  | "hotel.reservations.pricing.manage"
+  | "hotel.booking-partners.manage"
+  | "hotel.booking-payments.view"
+  | "hotel.booking-payments.manage"
+  | "hotel.receivables.view"
+  | "hotel.receivables.manage"
+  | "hotel.receivables.collect"
   | "hotel.staff.view"
   | "hotel.staff.manage"
   | "hotel.requests.view"
@@ -152,6 +159,46 @@ export const BUSINESS_PERMISSIONS: readonly BusinessPermissionDefinition[] = [
     "hotel.reservations.manage",
     "hotel-reservations",
     "Quản lý đặt phòng, gán phòng và check-in",
+  ),
+  permission(
+    "hotel.reservations.pricing.manage",
+    "hotel-reservations",
+    "Quản lý giá từng đêm và phụ phí đặt trước",
+    "HIGH",
+  ),
+  permission(
+    "hotel.booking-partners.manage",
+    "hotel-reservations",
+    "Quản lý đối tác và nguồn đặt phòng",
+    "HIGH",
+  ),
+  permission(
+    "hotel.booking-payments.view",
+    "hotel-billing",
+    "Xem thanh toán đặt cọc và tiền phòng trả trước",
+  ),
+  permission(
+    "hotel.booking-payments.manage",
+    "hotel-billing",
+    "Ghi nhận và phân bổ tiền đặt cọc",
+    "HIGH",
+  ),
+  permission(
+    "hotel.receivables.view",
+    "hotel-billing",
+    "Xem danh sách công nợ phải thu",
+  ),
+  permission(
+    "hotel.receivables.manage",
+    "hotel-billing",
+    "Quản lý chuyển giao và theo dõi công nợ",
+    "HIGH",
+  ),
+  permission(
+    "hotel.receivables.collect",
+    "hotel-billing",
+    "Ghi nhận thu hồi nợ công nợ",
+    "CRITICAL",
   ),
   permission("hotel.staff.view", "hotel-staff", "Xem nhân viên và phân công khách sạn"),
   permission(

@@ -25,7 +25,11 @@ import type {
   GroupConfirmationData,
   HotelOpsPage,
   HotelRoomSummary,
+  HotelConfirmationTemplateConfig,
   ReservationConfirmationData,
+  BookingSourcePartnerItem,
+  CreateBookingSourcePartnerInput,
+  HotelStaffAssignmentItem,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 
 const baseStaffRoomsResource = createResource<{ hotelId: string }>()({
@@ -163,8 +167,65 @@ const baseStaffRoomsResource = createResource<{ hotelId: string }>()({
       >): Promise<HotelOpsPage<ReceivableItem>> =>
         staffRoomsRepository.listReceivables(scope.hotelId, input || undefined, signal),
     }),
+    confirmationTemplate: defineQuery({
+      inputKey: () => ["default"],
+      queryFn: ({
+        scope,
+        signal,
+      }: ResourceQueryContext<{ hotelId: string }, void>): Promise<HotelConfirmationTemplateConfig | null> =>
+        staffRoomsRepository.getConfirmationTemplate(scope.hotelId, signal),
+    }),
+    bookingPartners: defineQuery({
+      inputKey: (input?: { category?: string; q?: string }) => [
+        input?.category ?? "all",
+        input?.q ?? "",
+      ],
+      queryFn: ({
+        scope,
+        input,
+        signal,
+      }: ResourceQueryContext<
+        { hotelId: string },
+        { category?: string; q?: string } | void
+      >): Promise<BookingSourcePartnerItem[]> =>
+        staffRoomsRepository.listBookingPartners(scope.hotelId, input || undefined, signal),
+    }),
+    staffAssignments: defineQuery({
+      inputKey: () => ["all"],
+      queryFn: ({
+        scope,
+        signal,
+      }: ResourceQueryContext<{ hotelId: string }, void>): Promise<HotelStaffAssignmentItem[]> =>
+        staffRoomsRepository.listStaffAssignments(scope.hotelId, signal),
+    }),
   },
   mutations: {
+    createBookingPartner: defineMutation({
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<
+        { hotelId: string },
+        CreateBookingSourcePartnerInput
+      >): Promise<BookingSourcePartnerItem> =>
+        staffRoomsRepository.createBookingPartner(scope.hotelId, variables),
+      invalidates: [{ type: "query", operation: "bookingPartners" }],
+    }),
+    upsertConfirmationTemplate: defineMutation({
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<
+        { hotelId: string },
+        Partial<HotelConfirmationTemplateConfig>
+      >): Promise<HotelConfirmationTemplateConfig> =>
+        staffRoomsRepository.upsertConfirmationTemplate(scope.hotelId, variables),
+      invalidates: [
+        { type: "query", operation: "confirmationTemplate" },
+        { type: "query", operation: "reservationConfirmation" },
+        { type: "query", operation: "groupConfirmation" },
+      ],
+    }),
     createBulkReservations: defineMutation({
       mutationFn: ({
         scope,
@@ -347,6 +408,32 @@ export const staffRoomsResource = Object.assign(baseStaffRoomsResource, {
         }
         const { hotelId, ...rest } = hotelIdOrInput;
         return baseStaffRoomsResource.bind({ hotelId }).queries.receivables.options(rest);
+      },
+    },
+    confirmationTemplate: {
+      options: (hotelIdOrInput: string | { hotelId: string }) => {
+        const hotelId = typeof hotelIdOrInput === "string" ? hotelIdOrInput : hotelIdOrInput.hotelId;
+        return baseStaffRoomsResource.bind({ hotelId }).queries.confirmationTemplate.options(undefined);
+      },
+    },
+    bookingPartners: {
+      options: (
+        hotelIdOrInput: string | ({ hotelId: string } & { category?: string; q?: string }),
+        query?: { category?: string; q?: string },
+      ) => {
+        if (typeof hotelIdOrInput === "string") {
+          return baseStaffRoomsResource
+            .bind({ hotelId: hotelIdOrInput })
+            .queries.bookingPartners.options(query);
+        }
+        const { hotelId, ...rest } = hotelIdOrInput;
+        return baseStaffRoomsResource.bind({ hotelId }).queries.bookingPartners.options(rest);
+      },
+    },
+    staffAssignments: {
+      options: (hotelIdOrInput: string | { hotelId: string }) => {
+        const hotelId = typeof hotelIdOrInput === "string" ? hotelIdOrInput : hotelIdOrInput.hotelId;
+        return baseStaffRoomsResource.bind({ hotelId }).queries.staffAssignments.options(undefined);
       },
     },
   },

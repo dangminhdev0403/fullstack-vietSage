@@ -518,7 +518,15 @@ export class HotelRequestsService {
       ackDeadlineAt: priority === "URGENT" ? ackDeadlineAtDate.toISOString() : null,
       quantity: row.quantity,
       description: row.description,
-      latestNote: row.events?.[0]?.note ?? null,
+      latestNote:
+        (row.events.length > 1 &&
+        (row.events[0] as { createdAt?: Date }).createdAt !== undefined &&
+        (row.events[row.events.length - 1] as { createdAt?: Date }).createdAt !== undefined &&
+        (row.events[0] as { createdAt: Date }).createdAt <
+          (row.events[row.events.length - 1] as { createdAt: Date }).createdAt
+          ? row.events[row.events.length - 1]
+          : row.events[0]
+        )?.note ?? null,
       createdAt: row.createdAt.toISOString(),
       roomNumber: row.room.roomNumber,
       guestName: row.stay.guestDisplayName,
@@ -594,7 +602,15 @@ export class HotelRequestsService {
       status: this.toGuestPortalRequestStatus(row.status),
       quantity: row.quantity,
       description: row.description,
-      answer: row.events[0]?.note ?? null,
+      answer:
+        (row.events.length > 1 &&
+        (row.events[0] as { createdAt?: Date }).createdAt !== undefined &&
+        (row.events[row.events.length - 1] as { createdAt?: Date }).createdAt !== undefined &&
+        (row.events[0] as { createdAt: Date }).createdAt <
+          (row.events[row.events.length - 1] as { createdAt: Date }).createdAt
+          ? row.events[row.events.length - 1]
+          : row.events[0]
+        )?.note ?? null,
       createdAt: row.createdAt.toISOString(),
       canCancel: normalizeGuestRequestStatus(row.status) === GuestRequestStatus.PENDING,
     };

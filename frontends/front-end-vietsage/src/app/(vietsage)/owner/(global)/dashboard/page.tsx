@@ -191,6 +191,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
     platformBillingPromise,
   ]);
 
+  const billingAvailable = platformBilling !== null;
   const debtSummary = platformBilling?.debtSummary;
   const reminder = platformBilling?.reminder;
   const totalDebt = Number(
@@ -230,19 +231,19 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
           {/* Top Meta Badges */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#d6e5d8] bg-[#eef6f0] px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-[#1e5842]">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#d6e5d8] bg-[#eef6f0] px-3.5 py-1 text-sm font-bold uppercase tracking-wider text-[#1e5842]">
                 <span className="h-2 w-2 rounded-full bg-[#2a7a5c] animate-pulse" />
                 Không gian điều hành
               </span>
               {hotel ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-800">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   Đang vận hành
                 </span>
               ) : null}
             </div>
 
-            <div className="flex items-center gap-3 text-xs font-semibold text-[#5a6860]">
+            <div className="flex items-center gap-3 text-sm font-semibold text-[#5a6860]">
               {dashboard?.health?.score != null ? (
                 <div className="flex items-center gap-1.5 rounded-full border border-[#ead8bf] bg-[#fbf5eb] px-3.5 py-1 text-[#8c6d29]">
                   <span>★</span>
@@ -259,7 +260,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
           {/* Title & Hotel Selector */}
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-xs font-extrabold uppercase tracking-widest text-[#8c6d29]">
+              <p className="text-sm font-extrabold uppercase tracking-widest text-[#8c6d29]">
                 Chủ sở hữu &amp; Ban quản trị
               </p>
               <h1 className="mt-1 text-2xl sm:text-3xl font-bold tracking-tight text-[#17382F] md:text-4xl">
@@ -270,7 +271,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
             {/* Hotel Selector Pills if multiple hotels */}
             {workspaceContext.accessibleHotels.length > 1 ? (
               <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-[#e2dcd0] bg-white p-1.5 shadow-2xs">
-                <span className="px-2.5 text-xs font-bold text-[#65726a]">Khách sạn:</span>
+                <span className="px-2.5 text-sm font-bold text-[#65726a]">Khách sạn:</span>
                 {workspaceContext.accessibleHotels.map((h) => {
                   const isCurrent = h.id === hotel?.id;
                   return (
@@ -278,7 +279,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                       key={h.id}
                       href={`/owner/dashboard?hotelId=${h.id}`}
                       prefetch={true}
-                      className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
+                      className={`rounded-xl px-3 py-1.5 text-sm font-bold transition-all ${
                         isCurrent
                           ? "bg-[#215744] text-white shadow-xs"
                           : "text-[#5a6860] hover:bg-[#f4efe5] hover:text-[#17382F]"
@@ -295,11 +296,11 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
           {/* Quick Action Navigation Bar */}
           {hotel ? (
             <div className="flex flex-wrap items-center gap-2 border-t border-[#eee6d8] pt-4">
-              <span className="text-xs font-bold text-[#65726a] mr-1">Điều hướng nhanh:</span>
+              <span className="text-sm font-bold text-[#65726a] mr-1">Điều hướng nhanh:</span>
               <Link
                 href={`/owner/hotels/${hotel.id}/rooms`}
                 prefetch={true}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-xs font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-sm font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744]"
               >
                 <VsIcon name="door_front" className="text-[15px]" />
                 Sơ đồ phòng
@@ -307,7 +308,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
               <Link
                 href={`/owner/hotels/${hotel.id}/billing`}
                 prefetch={true}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-xs font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-sm font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744]"
               >
                 <VsIcon name="payments" className="text-[15px]" />
                 Tài chính &amp; Đối soát
@@ -315,7 +316,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
               <Link
                 href={`/owner/hotels/${hotel.id}/services`}
                 prefetch={true}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-xs font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-sm font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744]"
               >
                 <VsIcon name="room_service" className="text-[15px]" />
                 Danh mục dịch vụ
@@ -323,7 +324,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
               <Link
                 href={`/owner/hotels/${hotel.id}/staff`}
                 prefetch={true}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-xs font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-sm font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744]"
               >
                 <VsIcon name="group" className="text-[15px]" />
                 Nhân sự
@@ -331,7 +332,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
               <Link
                 href={`/owner/hotels/${hotel.id}/partners`}
                 prefetch={true}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-xs font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-sm font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744]"
               >
                 <VsIcon name="storefront" className="text-[15px]" />
                 Đối tác liên kết
@@ -339,7 +340,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
               <Link
                 href={`/owner/hotels/${hotel.id}/kbtt`}
                 prefetch={true}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-xs font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-sm font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744]"
               >
                 <VsIcon name="assignment" className="text-[15px]" />
                 Khai báo tạm trú
@@ -362,11 +363,11 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                   <h4 className="text-base font-bold text-red-900">
                     Cảnh báo công nợ VietSage SaaS — {overdueCount} kỳ hóa đơn quá hạn
                   </h4>
-                  <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-black uppercase text-white">
+                  <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-sm font-black uppercase text-white">
                     Cần thanh toán
                   </span>
                 </div>
-                <p className="text-xs text-red-700 leading-relaxed">
+                <p className="text-sm text-red-700 leading-relaxed">
                   Tổng dư nợ quá hạn: <strong className="font-extrabold">{formatVnd(overdueAmount)}</strong>.
                   {nearestDueAt ? (
                     <span className="ml-1">
@@ -380,7 +381,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
             <Link
               href={`/owner/hotels/${hotel.id}/billing?tab=saas`}
               prefetch={true}
-              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-red-600 px-5 text-xs font-bold text-white shadow-sm transition-all hover:bg-red-700"
+              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-red-600 px-5 text-sm font-bold text-white shadow-sm transition-all hover:bg-red-700"
             >
               Đối soát &amp; Thanh toán ngay &rarr;
             </Link>
@@ -400,11 +401,11 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                   <h4 className="text-base font-bold text-amber-900">
                     Sắp đến hạn thanh toán VietSage SaaS — {dueSoonCount} kỳ hóa đơn sắp đến hạn
                   </h4>
-                  <span className="rounded-full bg-amber-600 px-2.5 py-0.5 text-xs font-black uppercase text-white">
+                  <span className="rounded-full bg-amber-600 px-2.5 py-0.5 text-sm font-black uppercase text-white">
                     Trong 7 ngày
                   </span>
                 </div>
-                <p className="text-xs text-amber-700 leading-relaxed">
+                <p className="text-sm text-amber-700 leading-relaxed">
                   Số tiền cần thanh toán: <strong className="font-extrabold">{formatVnd(dueSoonAmount)}</strong>.
                   {nearestDueAt ? (
                     <span className="ml-1">
@@ -417,7 +418,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
             <Link
               href={`/owner/hotels/${hotel.id}/billing?tab=saas`}
               prefetch={true}
-              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-amber-600 px-5 text-xs font-bold text-white shadow-sm transition-all hover:bg-amber-700"
+              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-amber-600 px-5 text-sm font-bold text-white shadow-sm transition-all hover:bg-amber-700"
             >
               Xem chi tiết đối soát &rarr;
             </Link>
@@ -435,11 +436,11 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
           <SectionCard>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#eee6d8] pb-5">
               <div>
-                <span className="text-xs font-extrabold uppercase tracking-widest text-[#8c6d29]">Hiệu quả kinh doanh &amp; Tài chính</span>
+                <span className="text-sm font-extrabold uppercase tracking-widest text-[#8c6d29]">Hiệu quả kinh doanh &amp; Tài chính</span>
                 <h2 className="mt-0.5 text-xl sm:text-2xl font-bold tracking-tight text-[#17382F]">
                   Tài chính vận hành &amp; Dòng tiền
                 </h2>
-                <p className="mt-1 text-xs text-[#5a6860]">
+                <p className="mt-1 text-sm text-[#5a6860]">
                   Theo dõi doanh thu phòng, dịch vụ nội bộ và doanh thu dịch vụ đối tác liên kết.
                 </p>
               </div>
@@ -465,38 +466,38 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {/* Doanh thu hôm nay */}
               <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-5">
-                <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">Doanh thu hôm nay</p>
+                <p className="text-sm font-extrabold uppercase tracking-wider text-[#65726a]">Doanh thu hôm nay</p>
                 <p className="mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight text-[#17382F]">
                   {dashboard.revenue.available ? formatVnd(dashboard.revenue.today) : "Chưa đủ dữ liệu"}
                 </p>
-                <p className="mt-2 text-xs font-semibold text-[#8c6d29]">Ghi nhận phát sinh trong ngày</p>
+                <p className="mt-2 text-sm font-semibold text-[#8c6d29]">Ghi nhận phát sinh trong ngày</p>
               </div>
 
               {/* 7 ngày gần nhất */}
               <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-5">
-                <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">7 ngày gần nhất</p>
+                <p className="text-sm font-extrabold uppercase tracking-wider text-[#65726a]">7 ngày gần nhất</p>
                 <p className="mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight text-[#17382F]">
                   {dashboard.revenue.available ? formatVnd(dashboard.revenue.last7Days) : "Chưa đủ dữ liệu"}
                 </p>
-                <p className="mt-2 text-xs font-semibold text-[#5a6860]">Xu hướng tuần hiện tại</p>
+                <p className="mt-2 text-sm font-semibold text-[#5a6860]">Xu hướng tuần hiện tại</p>
               </div>
 
               {/* Doanh thu tháng này */}
               <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-5">
-                <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">Doanh thu tháng này</p>
+                <p className="text-sm font-extrabold uppercase tracking-wider text-[#65726a]">Doanh thu tháng này</p>
                 <p className="mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight text-[#17382F]">
                   {dashboard.revenue.available ? formatVnd(dashboard.revenue.currentMonth) : "Chưa đủ dữ liệu"}
                 </p>
-                <p className="mt-2 text-xs font-semibold text-[#5a6860]">Lũy kế tháng hiện hành</p>
+                <p className="mt-2 text-sm font-semibold text-[#5a6860]">Lũy kế tháng hiện hành</p>
               </div>
 
               {/* Doanh thu Marketplace lũy kế */}
               <div className="rounded-2xl border border-emerald-300 bg-emerald-50/70 p-5">
-                <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-900">Doanh thu Marketplace lũy kế</p>
+                <p className="text-sm font-extrabold uppercase tracking-wider text-emerald-900">Doanh thu Marketplace lũy kế</p>
                 <p className="mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight text-[#174e38]">
                   {formatVnd(Number(marketplaceRevenue?.grossAmount ?? 0))}
                 </p>
-                <p className="mt-2 text-xs font-bold text-emerald-800">
+                <p className="mt-2 text-sm font-bold text-emerald-800">
                   {marketplaceRevenue?.orderCount ?? 0} đơn ngoài đã hoàn tất
                 </p>
               </div>
@@ -513,7 +514,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                     <h3 className="text-base font-bold text-[#17382F]">
                       Công nợ &amp; Phí dịch vụ VietSage SaaS
                     </h3>
-                    <p className="text-xs text-[#5a6860]">
+                    <p className="text-sm text-[#5a6860]">
                       Nghĩa vụ chi phí nền tảng theo lượt check-in và trạng thái đối soát các kỳ hóa đơn.
                     </p>
                   </div>
@@ -521,10 +522,10 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                 <Link
                   href={`/owner/hotels/${hotel.id}/billing?tab=saas`}
                   prefetch={true}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#215744] hover:underline"
+                  className="inline-flex items-center gap-1.5 text-sm font-bold text-[#215744] hover:underline"
                 >
                   <span>Chi tiết đối soát &amp; Hóa đơn</span>
-                  <VsIcon name="arrow_forward" className="text-xs" />
+                  <VsIcon name="arrow_forward" className="text-sm" />
                 </Link>
               </div>
 
@@ -532,7 +533,9 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                 {/* Tổng công nợ còn phải trả */}
                 <div
                   className={`rounded-2xl border p-5 ${
-                    hasOverdue
+                    !billingAvailable
+                      ? "border-slate-200 bg-slate-50"
+                      : hasOverdue
                       ? "border-red-300 bg-red-50/70"
                       : hasDueSoon
                         ? "border-amber-300 bg-amber-50/70"
@@ -543,7 +546,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                 >
                   <div className="flex items-center justify-between">
                     <p
-                      className={`text-xs font-extrabold uppercase tracking-wider ${
+                      className={`text-sm font-extrabold uppercase tracking-wider ${
                         hasOverdue
                           ? "text-red-900"
                           : hasDueSoon
@@ -553,20 +556,22 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                     >
                       Công nợ cần trả VietSage
                     </p>
-                    {hasOverdue ? (
-                      <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-black uppercase text-white">
+                    {!billingAvailable ? (
+                      <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-sm font-bold text-slate-700">Chưa xác minh</span>
+                    ) : hasOverdue ? (
+                      <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-sm font-black uppercase text-white">
                         Quá hạn
                       </span>
                     ) : hasDueSoon ? (
-                      <span className="rounded-full bg-amber-600 px-2.5 py-0.5 text-xs font-black uppercase text-white">
+                      <span className="rounded-full bg-amber-600 px-2.5 py-0.5 text-sm font-black uppercase text-white">
                         Sắp đến hạn
                       </span>
                     ) : totalDebt === 0 ? (
-                      <span className="rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-0.5 text-xs font-bold">
+                      <span className="rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-0.5 text-sm font-bold">
                         Đã tất toán
                       </span>
                     ) : (
-                      <span className="rounded-full bg-amber-100 text-amber-800 px-2.5 py-0.5 text-xs font-bold">
+                      <span className="rounded-full bg-amber-100 text-amber-800 px-2.5 py-0.5 text-sm font-bold">
                         {unpaidCount} kỳ chưa trả
                       </span>
                     )}
@@ -580,10 +585,12 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                           : "text-[#17382F]"
                     }`}
                   >
-                    {formatVnd(totalDebt)}
+                    {billingAvailable ? formatVnd(totalDebt) : "Chưa có dữ liệu"}
                   </p>
-                  <p className="mt-2 text-xs font-semibold text-[#5a6860]">
-                    {hasOverdue
+                  <p className="mt-2 text-sm font-semibold text-[#5a6860]">
+                    {!billingAvailable
+                      ? "Không thể tải công nợ. Vui lòng thử lại hoặc mở chi tiết đối soát."
+                      : hasOverdue
                       ? `Có ${overdueCount} kỳ hóa đơn quá hạn thanh toán`
                       : hasDueSoon && nearestDueAt
                         ? `Hạn thanh toán: ${new Date(nearestDueAt).toLocaleDateString("vi-VN")}`
@@ -595,26 +602,26 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
 
                 {/* Phí VietSage SaaS tạm tính tháng này */}
                 <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-5">
-                  <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">
+                  <p className="text-sm font-extrabold uppercase tracking-wider text-[#65726a]">
                     Phí SaaS tháng này (tạm tính)
                   </p>
                   <p className="mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight text-[#17382F]">
-                    {formatVnd(estimatedFee)}
+                    {billingAvailable ? formatVnd(estimatedFee) : "Chưa có dữ liệu"}
                   </p>
-                  <p className="mt-2 text-xs font-semibold text-[#8c6d29]">
+                  <p className="mt-2 text-sm font-semibold text-[#8c6d29]">
                     Ước tính theo lượt check-in phát sinh
                   </p>
                 </div>
 
                 {/* Đã thanh toán cho VietSage */}
                 <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-5">
-                  <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">
+                  <p className="text-sm font-extrabold uppercase tracking-wider text-[#65726a]">
                     Đã thanh toán cho VietSage
                   </p>
                   <p className="mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight text-[#17382F]">
-                    {formatVnd(totalSettled)}
+                    {billingAvailable ? formatVnd(totalSettled) : "Chưa có dữ liệu"}
                   </p>
-                  <p className="mt-2 text-xs font-semibold text-[#5a6860]">
+                  <p className="mt-2 text-sm font-semibold text-[#5a6860]">
                     Lũy kế các khoản đã đối soát thành công
                   </p>
                 </div>
@@ -622,7 +629,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                 {/* Trạng thái hợp đồng nền tảng */}
                 <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-5 flex flex-col justify-between">
                   <div>
-                    <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">
+                    <p className="text-sm font-extrabold uppercase tracking-wider text-[#65726a]">
                       Hợp đồng nền tảng
                     </p>
                     <div className="mt-2 flex items-center gap-2">
@@ -634,7 +641,9 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                         }`}
                       />
                       <span className="text-sm font-bold text-[#17382F]">
-                        {platformBilling?.hasContract
+                        {!billingAvailable
+                          ? "Chưa xác minh"
+                          : platformBilling?.hasContract
                           ? "Đang hiệu lực"
                           : "Chưa kích hoạt"}
                       </span>
@@ -643,7 +652,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                   <Link
                     href={`/owner/hotels/${hotel.id}/billing?tab=saas`}
                     prefetch={true}
-                    className="mt-3 inline-flex min-h-9 items-center justify-center rounded-xl bg-[#215744] px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs transition-all hover:bg-[#184434]"
+                    className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#215744] px-3.5 py-1.5 text-sm font-bold text-white shadow-2xs transition-all hover:bg-[#184434]"
                   >
                     Xem sổ đối soát &amp; nợ &rarr;
                   </Link>
@@ -658,7 +667,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
             <article className="relative overflow-hidden rounded-[1.6rem] border border-[#e8dfcf] bg-white p-5 shadow-[0_4px_20px_rgba(23,32,27,0.03)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">Công suất phòng</p>
+                  <p className="text-sm font-extrabold uppercase tracking-wider text-[#65726a]">Công suất phòng</p>
                   <p className="mt-2 text-3xl font-extrabold tracking-tight text-[#17382F] md:text-4xl">
                     <AnimatedDashboardNumber value={`${occupancyPercent}%`} />
                   </p>
@@ -674,7 +683,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                     style={{ width: `${Math.min(100, Math.max(0, occupancyPercent))}%` }}
                   />
                 </div>
-                <p className="text-xs font-semibold text-[#5a6860]">
+                <p className="text-sm font-semibold text-[#5a6860]">
                   {dashboard.rooms.occupied} / {dashboard.rooms.total} phòng đang có khách
                 </p>
               </div>
@@ -684,7 +693,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
             <article className="relative overflow-hidden rounded-[1.6rem] border border-[#e8dfcf] bg-white p-5 shadow-[0_4px_20px_rgba(23,32,27,0.03)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">Phòng đang có khách</p>
+                  <p className="text-sm font-extrabold uppercase tracking-wider text-[#65726a]">Phòng đang có khách</p>
                   <p className="mt-2 text-3xl font-extrabold tracking-tight text-[#17382F] md:text-4xl">
                     <AnimatedDashboardNumber value={`${dashboard.rooms.occupied}/${dashboard.rooms.total}`} />
                   </p>
@@ -693,7 +702,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                   <VsIcon name="bed" className="text-[22px]" />
                 </span>
               </div>
-              <div className="mt-4 flex items-center justify-between text-xs font-semibold text-[#5a6860]">
+              <div className="mt-4 flex items-center justify-between text-sm font-semibold text-[#5a6860]">
                 <span className="text-emerald-800 font-bold">{availableRooms} phòng trống</span>
                 <span className="text-[#8c6d29] font-bold">{cleaningRooms} đang dọn</span>
               </div>
@@ -703,7 +712,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
             <article className="relative overflow-hidden rounded-[1.6rem] border border-[#e8dfcf] bg-white p-5 shadow-[0_4px_20px_rgba(23,32,27,0.03)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">Lượt đến / rời hôm nay</p>
+                  <p className="text-sm font-extrabold uppercase tracking-wider text-[#65726a]">Lượt đến / rời hôm nay</p>
                   <p className="mt-2 text-3xl font-extrabold tracking-tight text-[#17382F] md:text-4xl">
                     <AnimatedDashboardNumber value={`${dashboard.stays.todayCheckIns}/${dashboard.stays.todayCheckOuts}`} />
                   </p>
@@ -712,7 +721,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                   <VsIcon name="hotel" className="text-[22px]" />
                 </span>
               </div>
-              <div className="mt-4 flex items-center justify-between text-xs font-semibold text-[#5a6860]">
+              <div className="mt-4 flex items-center justify-between text-sm font-semibold text-[#5a6860]">
                 <span>{dashboard.stays.activeStays} khách đang ở</span>
                 {dashboard.stays.pendingCheckOuts > 0 ? (
                   <span className="text-[#9b3f2f] font-bold">{dashboard.stays.pendingCheckOuts} chờ check-out</span>
@@ -726,7 +735,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
             <article className="relative overflow-hidden rounded-[1.6rem] border border-[#e8dfcf] bg-white p-5 shadow-[0_4px_20px_rgba(23,32,27,0.03)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">Yêu cầu cần xử lý</p>
+                  <p className="text-sm font-extrabold uppercase tracking-wider text-[#65726a]">Yêu cầu cần xử lý</p>
                   <p className="mt-2 text-3xl font-extrabold tracking-tight text-[#17382F] md:text-4xl">
                     <AnimatedDashboardNumber value={dashboard.requests.unprocessed} />
                   </p>
@@ -735,7 +744,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                   <VsIcon name="pending_actions" className="text-[22px]" />
                 </span>
               </div>
-              <div className="mt-4 flex items-center justify-between text-xs font-semibold">
+              <div className="mt-4 flex items-center justify-between text-sm font-semibold">
                 {dashboard.requests.urgentUnprocessed && dashboard.requests.urgentUnprocessed > 0 ? (
                   <span className="rounded-full bg-red-100 px-2.5 py-0.5 font-bold text-red-800">
                     {dashboard.requests.urgentUnprocessed} khẩn cấp
@@ -757,12 +766,12 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
               <div className="flex items-center justify-between border-b border-[#eee6d8] pb-3.5">
                 <div>
                   <h3 className="text-lg font-bold text-[#17382F]">Phân bổ phòng thực tế</h3>
-                  <p className="text-xs text-[#5a6860]">Hiện trạng phòng vận hành trên toàn bộ cơ sở</p>
+                  <p className="text-sm text-[#5a6860]">Hiện trạng phòng vận hành trên toàn bộ cơ sở</p>
                 </div>
                 <Link
                   href={`/owner/hotels/${hotel.id}/rooms`}
                   prefetch={true}
-                  className="text-xs font-bold text-[#215744] hover:underline"
+                  className="text-sm font-bold text-[#215744] hover:underline"
                 >
                   Xem sơ đồ &rarr;
                 </Link>
@@ -798,7 +807,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                 </div>
 
                 {/* Legend list */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-xs font-semibold text-[#46534b]">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-sm font-semibold text-[#46534b]">
                   <div className="flex items-center gap-1.5">
                     <span className="h-2.5 w-2.5 rounded-full bg-[#215744]" />
                     <span>Có khách: {dashboard.rooms.occupied}</span>
@@ -821,11 +830,11 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
               {/* Health Factors summary */}
               {dashboard.health?.factors?.length ? (
                 <div className="mt-5 rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-4 space-y-2">
-                  <p className="text-xs font-bold text-[#17382F] flex items-center gap-1.5">
+                  <p className="text-sm font-bold text-[#17382F] flex items-center gap-1.5">
                     <span className="text-[#8c6d29]">✦</span>
                     Chỉ số chất lượng: {dashboard.health.title} {dashboard.health.score != null ? `(${dashboard.health.score}/100)` : ""}
                   </p>
-                  <div className="space-y-1.5 text-xs text-[#5a6860]">
+                  <div className="space-y-1.5 text-sm text-[#5a6860]">
                     {dashboard.health.factors.slice(0, 2).map((factor, idx) => (
                       <div key={idx} className="flex items-start gap-2">
                         <span className="text-emerald-700 font-bold">•</span>
@@ -842,12 +851,12 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
               <div className="flex items-center justify-between border-b border-[#eee6d8] pb-3.5">
                 <div>
                   <h3 className="text-lg font-bold text-[#17382F]">Hiệu suất dịch vụ &amp; SLA</h3>
-                  <p className="text-xs text-[#5a6860]">Tốc độ phản hồi và các dịch vụ được gọi nhiều nhất</p>
+                  <p className="text-sm text-[#5a6860]">Tốc độ phản hồi và các dịch vụ được gọi nhiều nhất</p>
                 </div>
                 <Link
                   href={`/owner/hotels/${hotel.id}/services`}
                   prefetch={true}
-                  className="text-xs font-bold text-[#215744] hover:underline"
+                  className="text-sm font-bold text-[#215744] hover:underline"
                 >
                   Menu dịch vụ &rarr;
                 </Link>
@@ -855,19 +864,19 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
 
               <div className="mt-5 grid grid-cols-3 gap-3">
                 <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-3.5 text-center">
-                  <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">Phản hồi TB</p>
+                  <p className="text-sm font-extrabold uppercase tracking-wider text-[#65726a]">Phản hồi TB</p>
                   <p className="mt-1 text-xl font-bold text-[#17382F]">
                     {dashboard.sla?.averageResponseMinutes != null ? `${dashboard.sla.averageResponseMinutes} phút` : "--"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-3.5 text-center">
-                  <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">Hoàn tất TB</p>
+                  <p className="text-sm font-extrabold uppercase tracking-wider text-[#65726a]">Hoàn tất TB</p>
                   <p className="mt-1 text-xl font-bold text-[#17382F]">
                     {dashboard.sla?.averageCompletionMinutes != null ? `${dashboard.sla.averageCompletionMinutes} phút` : "--"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-center">
-                  <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-900">Đúng SLA</p>
+                  <p className="text-sm font-extrabold uppercase tracking-wider text-emerald-900">Đúng SLA</p>
                   <p className="mt-1 text-xl font-bold text-[#174e38]">
                     {dashboard.sla?.completedWithinSlaPercent != null ? `${dashboard.sla.completedWithinSlaPercent}%` : "--"}
                   </p>
@@ -876,13 +885,13 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
 
               {/* Dịch vụ nổi bật list */}
               <div className="mt-5 space-y-2">
-                <p className="text-xs font-bold text-[#17382F]">Dịch vụ phát sinh gần đây:</p>
+                <p className="text-sm font-bold text-[#17382F]">Dịch vụ phát sinh gần đây:</p>
                 {dashboard.requests.topServices?.length ? (
                   <div className="space-y-2">
                     {dashboard.requests.topServices.slice(0, 3).map((item, idx) => (
                       <div
                         key={idx}
-                        className="flex items-center justify-between rounded-xl border border-[#eee6d8] bg-white px-3.5 py-2 text-xs font-semibold"
+                        className="flex items-center justify-between rounded-xl border border-[#eee6d8] bg-white px-3.5 py-2 text-sm font-semibold"
                       >
                         <span className="text-[#17382F]">{item.serviceName}</span>
                         <span className="rounded-full bg-[#f4ede0] px-2.5 py-0.5 text-[#8c6d29] font-bold">
@@ -892,7 +901,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-dashed border-[#dcd3c1] p-3 text-center text-xs font-medium text-[#65726a]">
+                  <div className="rounded-xl border border-dashed border-[#dcd3c1] p-3 text-center text-sm font-medium text-[#65726a]">
                     Chưa ghi nhận yêu cầu phát sinh mới trong ca trực.
                   </div>
                 )}
@@ -914,11 +923,11 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                     className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-4 space-y-1.5"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#8c6d29] uppercase tracking-wider">
+                      <span className="text-sm font-bold text-[#8c6d29] uppercase tracking-wider">
                         {insight.title}
                       </span>
                       {insight.metric?.changePercent != null ? (
-                        <span className="text-xs font-bold text-emerald-700">
+                        <span className="text-sm font-bold text-emerald-700">
                           +{insight.metric.changePercent}%
                         </span>
                       ) : null}

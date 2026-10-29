@@ -54,7 +54,7 @@ function TopBarRightControls({
   rightMode,
   rightLabel,
   subtitle,
-  hotelName: _hotelName,
+  hotelName,
   showRightInfo,
   languageBadge,
 }: {
@@ -73,7 +73,7 @@ function TopBarRightControls({
         <Link
           href="/g/language"
           aria-label="Change language"
-          className="flex size-11 items-center justify-center rounded-full bg-[#e8e5dc] text-xs font-black uppercase tracking-[0.08em] text-[#24473d] shadow-[inset_0_0_0_1px_rgba(36,71,61,0.04)] transition-colors hover:bg-[#ded9cc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26]"
+          className="flex size-11 items-center justify-center rounded-full bg-[#e8e5dc] text-sm font-black uppercase tracking-[0.08em] text-[#24473d] shadow-[inset_0_0_0_1px_rgba(36,71,61,0.04)] transition-colors hover:bg-[#ded9cc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26]"
         >
           {languageBadge}
         </Link>
@@ -98,24 +98,24 @@ function TopBarRightControls({
   const displaySubtitle = isDuplicateSubtitle ? null : subtitle;
 
   return (
-    <div className="flex min-w-0 items-center gap-4">
+    <div className="flex min-w-0 items-center gap-2 sm:gap-4">
       {showRightInfo ? (
         <div className="hidden min-w-0 max-w-[16rem] lg:max-w-[20rem] flex-col justify-center text-right leading-tight md:flex">
           <span className="truncate text-sm font-semibold text-[#17201b]">
             {rightLabel}
           </span>
-          {displaySubtitle ? (
-            <span className="mt-0.5 truncate text-xs font-semibold text-[#215744]">
-              {displaySubtitle}
+          {hotelName || displaySubtitle ? (
+            <span className="mt-0.5 truncate text-sm font-semibold text-[#215744]">
+              {hotelName || displaySubtitle}
             </span>
           ) : null}
         </div>
       ) : null}
 
       <ChangePasswordDialog />
-      <VsLogoutButton className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-[#24473d]/15 bg-white/50 px-3 py-2 text-xs font-semibold tracking-[0.04em] text-[#24473d] transition-colors hover:bg-[#f8f1e6] disabled:cursor-not-allowed disabled:opacity-60" />
+      <VsLogoutButton className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-[#24473d]/15 bg-white/50 px-3 py-2 text-base font-semibold tracking-[0.04em] text-[#24473d] transition-colors hover:bg-[#f8f1e6] disabled:cursor-not-allowed disabled:opacity-60" />
 
-      <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#24473d]/15 bg-white p-0.5 shadow-[0_10px_24px_rgba(31,61,53,0.12)]">
+      <div className="hidden size-10 shrink-0 sm:flex items-center justify-center overflow-hidden rounded-full border border-[#24473d]/15 bg-white p-0.5 shadow-[0_10px_24px_rgba(31,61,53,0.12)]">
         <Image
           src={profileImage}
           alt={`Logo VietSage (${rightLabel})`}

@@ -1,3 +1,4 @@
+import { itemTypeLabels, paymentMethodLabels, paymentStatusLabels, labelStatus, isExternalInvoiceItem } from "@/features/billing/utils/invoice-display";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
@@ -10,41 +11,6 @@ import { InvoiceActions } from "./invoice-actions";
 
 type PageProps = { params: Promise<{ hotelId: string; invoiceId: string }> };
 export const dynamic = "force-dynamic";
-
-const itemTypeLabels: Record<string, string> = {
-  ROOM_CHARGE: "Tiền phòng",
-  SERVICE: "Dịch vụ",
-  MANUAL_CHARGE: "Phụ thu",
-  DISCOUNT: "Giảm giá",
-  ADJUSTMENT: "Điều chỉnh",
-};
-
-const paymentMethodLabels: Record<string, string> = {
-  CASH: "Tiền mặt",
-  CARD: "Thẻ ngân hàng / POS",
-  BANK_TRANSFER: "Chuyển khoản",
-  MOMO: "Ví MoMo",
-  VNPAY: "VNPAY",
-  STRIPE: "Thẻ quốc tế",
-  MANUAL: "Xác nhận tại lễ tân",
-  MANUAL_FRONTDESK: "Xác nhận tại lễ tân",
-};
-
-const paymentStatusLabels: Record<string, string> = {
-  PENDING: "Đang xử lý",
-  PROCESSING: "Đang xử lý",
-  SUCCEEDED: "Thành công",
-  PAID: "Đã thanh toán",
-  FAILED: "Thất bại",
-  CANCELLED: "Đã hủy",
-  EXPIRED: "Hết hạn",
-  REFUNDED: "Đã hoàn tiền",
-};
-
-function labelStatus(labels: Record<string, string>, status?: string | null): string {
-  if (!status) return "-";
-  return labels[status] ?? status;
-}
 
 export default async function StaffInvoicePage({ params }: PageProps) {
   const { hotelId, invoiceId } = await Promise.resolve(params);
@@ -60,15 +26,6 @@ export default async function StaffInvoicePage({ params }: PageProps) {
   );
   const { invoice, folio, stay, items, payments } = detail;
   const isPaid = invoice.status === "PAID" || Number(invoice.balanceAmount ?? 0) <= 0;
-
-  function isExternalInvoiceItem(item: (typeof items)[number]): boolean {
-    if (item.type === "ROOM_CHARGE" || item.type === "DISCOUNT") return false;
-    if (item.serviceSource === "EXTERNAL") return true;
-    if (item.partnerName && item.partnerName !== "Khách sạn") return true;
-    const name = String(item.name ?? "");
-    const desc = String(item.description ?? "");
-    return /đối tác|bên ngoài|marketplace|external|massage|spa/i.test(name) || /đối tác|bên ngoài|marketplace|external|massage|spa/i.test(desc);
-  }
 
   const hotelServicesTotal = items
     .filter((item) => item.type !== "DISCOUNT" && !isExternalInvoiceItem(item))

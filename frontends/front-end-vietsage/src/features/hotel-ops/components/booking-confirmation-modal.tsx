@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useCallback, useId } from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useCallback, useEffect, useId, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
+import { showErrorAlert, showSuccessAlert } from "@/libs/swal";
 import type {
   GroupConfirmationData,
+  HotelConfirmationTemplateConfig,
   ReservationConfirmationData,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 
@@ -18,6 +20,8 @@ export type BookingConfirmationModalProps = {
   reservationId?: string | null;
   groupCode?: string | null;
   mode?: "single" | "group";
+  autoPrint?: boolean;
+  canManage?: boolean;
   initialData?: ReservationConfirmationData | GroupConfirmationData | null;
 };
 
@@ -80,6 +84,253 @@ function mapReservationStatus(status?: string): { label: string; className: stri
   }
 }
 
+export function HotelConfirmationTemplateForm({
+  hotelId,
+  onSaved,
+  canManage = true,
+  readOnly = false,
+}: {
+  hotelId: string;
+  onSaved?: () => void;
+  canManage?: boolean;
+  readOnly?: boolean;
+}) {
+  const isEditable = canManage && !readOnly;
+  const queryClient = useQueryClient();
+  const templateQueryOptions = staffRoomsResource.queries.confirmationTemplate.options({ hotelId });
+  const { data: templateData, isLoading } = useQuery<HotelConfirmationTemplateConfig | null>({
+    ...(templateQueryOptions as any),
+  });
+
+  const upsertMutation = useMutation(
+    staffRoomsResource.bind({ hotelId }).mutations.upsertConfirmationTemplate.options(),
+  );
+
+  const [title, setTitle] = useState("");
+  const [subtitle, setSubtitle] = useState("");
+  const [contactInfo, setContactInfo] = useState("");
+  const [checkInPolicy, setCheckInPolicy] = useState("");
+  const [checkOutPolicy, setCheckOutPolicy] = useState("");
+  const [paymentTerms, setPaymentTerms] = useState("");
+  const [footerNotes, setFooterNotes] = useState("");
+  const [showLogo, setShowLogo] = useState(true);
+  const [showPriceBreakdown, setShowPriceBreakdown] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  useEffect(() => {
+    if (templateData && !isInitialized) {
+      setTitle(templateData.title || "PHIẾU XÁC NHẬN ĐẶT PHÒNG");
+      setSubtitle(templateData.subtitle || "");
+      setContactInfo(templateData.contactInfo || "");
+      setCheckInPolicy(templateData.checkInPolicy || "");
+      setCheckOutPolicy(templateData.checkOutPolicy || "");
+      setPaymentTerms(templateData.paymentTerms || "");
+      setFooterNotes(templateData.footerNotes || "");
+      setShowLogo(templateData.showLogo !== false);
+      setShowPriceBreakdown(templateData.showPriceBreakdown !== false);
+      setIsInitialized(true);
+    } else if (!templateData && !isLoading && !isInitialized) {
+      setTitle("PHIẾU XÁC NHẬN ĐẶT PHÒNG");
+      setShowLogo(true);
+      setShowPriceBreakdown(true);
+      setIsInitialized(true);
+    }
+  }, [templateData, isLoading, isInitialized]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isEditable) {
+      await showErrorAlert(
+        "Không có quyền thao tác",
+        "Bạn không có quyền cập nhật mẫu phiếu xác nhận đặt phòng.",
+      );
+      return;
+    }
+    try {
+      await upsertMutation.mutateAsync({
+        title: title.trim() || "PHIẾU XÁC NHẬN ĐẶT PHÒNG",
+        subtitle: subtitle.trim() || null,
+        contactInfo: contactInfo.trim() || null,
+        checkInPolicy: checkInPolicy.trim() || null,
+        checkOutPolicy: checkOutPolicy.trim() || null,
+        paymentTerms: paymentTerms.trim() || null,
+        footerNotes: footerNotes.trim() || null,
+        showLogo,
+        showPriceBreakdown,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["hotelOps", hotelId] });
+      await showSuccessAlert(
+        "Lưu mẫu thành công",
+        "Đã cập nhật mẫu phiếu xác nhận của khách sạn.",
+      );
+      onSaved?.();
+    } catch (err: unknown) {
+      await showErrorAlert(
+        "Lỗi lưu mẫu phiếu",
+        err instanceof Error ? err.message : "Không thể lưu cài đặt mẫu phiếu.",
+      );
+    }
+  };
+
+  if (isLoading && !isInitialized) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[250px] gap-3 text-slate-500">
+        <div className="h-7 w-7 animate-spin rounded-full border-3 border-blue-800 border-t-transparent" />
+        <span className="text-xs font-semibold">Đang tải cấu hình mẫu phiếu...</span>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 text-xs text-slate-700">
+      <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3.5">
+        <p className="font-semibold text-blue-900 text-pretty">
+          Cài đặt mẫu phiếu xác nhận riêng của khách sạn. Nội dung này sẽ tự động áp dụng khi xuất phiếu và gửi khách.
+        </p>
+      </div>
+
+      {!isEditable && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-amber-900">
+          <p className="font-semibold text-pretty">
+            Chế độ chỉ xem: Bạn không có quyền (hotel.reservations.manage) để cập nhật mẫu phiếu xác nhận.
+          </p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block font-bold text-slate-800 mb-1">Tiêu đề phiếu</label>
+          <input
+            type="text"
+            disabled={!isEditable}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="PHIẾU XÁC NHẬN ĐẶT PHÒNG"
+            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-blue-600 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500"
+          />
+        </div>
+        <div>
+          <label className="block font-bold text-slate-800 mb-1">Lời chào đón / Tiêu đề phụ</label>
+          <input
+            type="text"
+            disabled={!isEditable}
+            value={subtitle}
+            onChange={(e) => setSubtitle(e.target.value)}
+            placeholder="Kính chúc quý khách có kỳ nghỉ thoải mái và trọn vẹn"
+            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-blue-600 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block font-bold text-slate-800 mb-1">Thông tin liên hệ bổ sung</label>
+        <input
+          type="text"
+          disabled={!isEditable}
+          value={contactInfo}
+          onChange={(e) => setContactInfo(e.target.value)}
+          placeholder="Hotline đặt phòng: 0912 345 678 · Email: booking@khachsan.vn"
+          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-blue-600 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block font-bold text-slate-800 mb-1">Quy định nhận phòng (Check-in)</label>
+          <input
+            type="text"
+            disabled={!isEditable}
+            value={checkInPolicy}
+            onChange={(e) => setCheckInPolicy(e.target.value)}
+            placeholder="Từ 14:00 (Nhận phòng sớm tùy thuộc tình trạng phòng)"
+            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-blue-600 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500"
+          />
+        </div>
+        <div>
+          <label className="block font-bold text-slate-800 mb-1">Quy định trả phòng (Check-out)</label>
+          <input
+            type="text"
+            disabled={!isEditable}
+            value={checkOutPolicy}
+            onChange={(e) => setCheckOutPolicy(e.target.value)}
+            placeholder="Trước 12:00 (Trả phòng trễ áp dụng phụ thu theo giờ)"
+            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-blue-600 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block font-bold text-slate-800 mb-1">Điều khoản hủy phòng & thanh toán</label>
+        <textarea
+          rows={2}
+          disabled={!isEditable}
+          value={paymentTerms}
+          onChange={(e) => setPaymentTerms(e.target.value)}
+          placeholder="Miễn phí hủy phòng trước 24 giờ. Hủy phòng muộn hoặc vắng mặt chịu phí đêm đầu tiên."
+          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-blue-600 focus:outline-none resize-none disabled:bg-slate-100 disabled:text-slate-500"
+        />
+      </div>
+
+      <div>
+        <label className="block font-bold text-slate-800 mb-1">Ghi chú chân trang / Lời cảm ơn</label>
+        <textarea
+          rows={2}
+          disabled={!isEditable}
+          value={footerNotes}
+          onChange={(e) => setFooterNotes(e.target.value)}
+          placeholder="Cảm ơn quý khách đã tin tưởng và đồng hành cùng khách sạn."
+          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-blue-600 focus:outline-none resize-none disabled:bg-slate-100 disabled:text-slate-500"
+        />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-6 pt-2">
+        <label className="inline-flex items-center gap-2 cursor-pointer font-semibold text-slate-800">
+          <input
+            type="checkbox"
+            disabled={!isEditable}
+            checked={showLogo}
+            onChange={(e) => setShowLogo(e.target.checked)}
+            className="h-4 w-4 rounded border-slate-300 text-blue-900 focus:ring-blue-500 disabled:opacity-50"
+          />
+          <span>Hiển thị logo khách sạn trên phiếu</span>
+        </label>
+        <label className="inline-flex items-center gap-2 cursor-pointer font-semibold text-slate-800">
+          <input
+            type="checkbox"
+            disabled={!isEditable}
+            checked={showPriceBreakdown}
+            onChange={(e) => setShowPriceBreakdown(e.target.checked)}
+            className="h-4 w-4 rounded border-slate-300 text-blue-900 focus:ring-blue-500 disabled:opacity-50"
+          />
+          <span>Hiển thị chi tiết bảng giá từng đêm</span>
+        </label>
+      </div>
+
+      <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-3">
+        {onSaved ? (
+          <button
+            type="button"
+            onClick={onSaved}
+            className="inline-flex min-h-[38px] items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-xs font-bold text-slate-700 transition hover:bg-slate-100 cursor-pointer whitespace-nowrap"
+          >
+            <span>{isEditable ? "Hủy bỏ" : "Đóng"}</span>
+          </button>
+        ) : null}
+        {isEditable ? (
+          <button
+            type="submit"
+            disabled={upsertMutation.isPending}
+            className="inline-flex min-h-[38px] items-center justify-center gap-1.5 rounded-xl bg-blue-900 px-5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-800 disabled:opacity-50 cursor-pointer whitespace-nowrap"
+          >
+            <VsIcon name="save" className="text-base" />
+            <span>{upsertMutation.isPending ? "Đang lưu..." : "Lưu mẫu khách sạn"}</span>
+          </button>
+        ) : null}
+      </div>
+    </form>
+  );
+}
+
 export function BookingConfirmationPrintView({
   data,
   mode = "single",
@@ -87,10 +338,17 @@ export function BookingConfirmationPrintView({
   const isGroup = mode === "group" || ("rooms" in data && Array.isArray((data as GroupConfirmationData).rooms));
   const hotel = data.hotel;
   const policies = data.policies;
+  const template = data.template;
 
   const codeValue = isGroup
     ? (data as GroupConfirmationData).group.groupCode
     : (data as ReservationConfirmationData).reservation.reservationCode;
+
+  const titleText = template?.title || (isGroup ? "Xác nhận đặt đoàn" : "Phiếu xác nhận đặt phòng");
+  const displayLogo = template?.showLogo !== false;
+  const showPriceBreakdown = template?.showPriceBreakdown !== false;
+  const cancellationPolicy = template?.paymentTerms || policies.cancellationPolicy;
+  const footerNote = template?.footerNotes || policies.footerNoteText;
 
   return (
     <div className="bg-white text-slate-900 font-sans print:p-0 print:m-0 print:w-full print:max-w-none">
@@ -129,25 +387,37 @@ export function BookingConfirmationPrintView({
         <header className="print-header border-b border-slate-200 pb-6 mb-6">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
             <div className="flex items-start gap-4">
-              {hotel.logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={hotel.logoUrl}
-                  alt={hotel.name}
-                  className="h-16 w-16 object-contain rounded-xl border border-slate-200 p-1"
-                />
-              ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-blue-900 text-white font-black text-xl tracking-tight">
-                  {hotel.code || "VS"}
-                </div>
-              )}
+              {displayLogo ? (
+                hotel.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={hotel.logoUrl}
+                    alt={hotel.name}
+                    className="h-16 w-16 object-contain rounded-xl border border-slate-200 p-1"
+                  />
+                ) : (
+                  <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-blue-900 text-white font-black text-xl tracking-tight">
+                    {hotel.code || "VS"}
+                  </div>
+                )
+              ) : null}
               <div className="space-y-1">
                 <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight text-balance">
                   {hotel.name}
                 </h1>
+                {template?.subtitle ? (
+                  <p className="text-xs text-blue-900 font-semibold italic text-pretty">
+                    {template.subtitle}
+                  </p>
+                ) : null}
                 <p className="text-xs text-slate-600 text-pretty">
                   {hotel.address}
                 </p>
+                {template?.contactInfo && template.contactInfo !== hotel.phone ? (
+                  <p className="text-xs text-slate-500 font-medium text-pretty">
+                    {template.contactInfo}
+                  </p>
+                ) : null}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 pt-0.5">
                   <span>Điện thoại: {hotel.phone}</span>
                   {hotel.email ? <span>Email: {hotel.email}</span> : null}
@@ -158,7 +428,7 @@ export function BookingConfirmationPrintView({
             <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-3 bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-xl border border-slate-200 sm:border-none">
               <div className="text-left sm:text-right">
                 <div className="inline-block rounded-lg bg-blue-900 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white whitespace-nowrap">
-                  {isGroup ? "Xác nhận đặt đoàn" : "Phiếu xác nhận đặt phòng"}
+                  {titleText}
                 </div>
                 <div className="text-xs text-slate-500 pt-1 font-medium">
                   Ngày lập: {formatDateVi(new Date())}
@@ -272,28 +542,35 @@ export function BookingConfirmationPrintView({
                     </span>
                   </div>
 
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold">
-                        <th className="py-2.5 px-4">Đêm lưu trú / Dịch vụ</th>
-                        <th className="py-2.5 px-4">Diễn giải</th>
-                        <th className="py-2.5 px-4 text-right">Đơn giá</th>
-                        <th className="py-2.5 px-4 text-right">Thành tiền</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {pricing.nightlyBreakdown.map((item, index) => (
-                        <tr key={index} className="hover:bg-slate-50/50">
-                          <td className="py-2 px-4 font-semibold text-slate-800">
-                            {item.date ? formatDateVi(item.date) : `Đêm ${index + 1}`}
-                          </td>
-                          <td className="py-2 px-4 text-slate-600">{item.description}</td>
-                          <td className="py-2 px-4 text-right text-slate-700">{formatVnd(item.rate)}</td>
-                          <td className="py-2 px-4 text-right font-semibold text-slate-900">{formatVnd(item.rate)}</td>
+                  {showPriceBreakdown ? (
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold">
+                          <th className="py-2.5 px-4">Đêm lưu trú / Dịch vụ</th>
+                          <th className="py-2.5 px-4">Diễn giải</th>
+                          <th className="py-2.5 px-4 text-right">Đơn giá</th>
+                          <th className="py-2.5 px-4 text-right">Thành tiền</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {pricing.nightlyBreakdown.map((item, index) => (
+                          <tr key={index} className="hover:bg-slate-50/50">
+                            <td className="py-2 px-4 font-semibold text-slate-800">
+                              {item.date ? formatDateVi(item.date) : `Đêm ${index + 1}`}
+                            </td>
+                            <td className="py-2 px-4 text-slate-600">{item.description}</td>
+                            <td className="py-2 px-4 text-right text-slate-700">{formatVnd(item.rate)}</td>
+                            <td className="py-2 px-4 text-right font-semibold text-slate-900">{formatVnd(item.rate)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="p-4 bg-slate-50/50 flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-slate-700">Giá phòng trọn gói ({res.nights} đêm):</span>
+                      <span className="text-sm font-bold text-slate-900">{formatVnd(pricing.roomSubtotal)}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Subtotal & Balance calculation card */}
@@ -362,48 +639,55 @@ export function BookingConfirmationPrintView({
                       Danh sách phòng đặt theo đoàn ({grpData.rooms.length} phòng)
                     </span>
                     <span className="text-xs text-slate-600 font-medium">
-                      Tổng số khách: {pricing.totalGuests}
+                      Thời lượng lưu trú: {grpData.group.nights} đêm
                     </span>
                   </div>
 
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold">
-                          <th className="py-2.5 px-3">STT</th>
-                          <th className="py-2.5 px-3">Mã đơn</th>
-                          <th className="py-2.5 px-3">Phòng / Hạng phòng</th>
-                          <th className="py-2.5 px-3">Khách nhận phòng</th>
-                          <th className="py-2.5 px-3 text-center">Số đêm</th>
-                          <th className="py-2.5 px-3 text-right">Đơn giá/đêm</th>
-                          <th className="py-2.5 px-3 text-right">Thành tiền</th>
-                          <th className="py-2.5 px-3 text-right">Đã trả</th>
-                          <th className="py-2.5 px-3 text-right">Còn lại</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {grpData.rooms.map((room, idx) => (
-                          <tr key={room.reservationId} className="hover:bg-slate-50/50">
-                            <td className="py-2 px-3 text-slate-500">{idx + 1}</td>
-                            <td className="py-2 px-3 font-semibold text-slate-900">{room.reservationCode}</td>
-                            <td className="py-2 px-3">
-                              <span className="font-bold text-slate-900">{room.roomNumber}</span>
-                              <span className="text-slate-500 block">{room.roomTypeName}</span>
-                            </td>
-                            <td className="py-2 px-3 text-slate-800">
-                              <span className="font-semibold block">{room.guestDisplayName}</span>
-                              {room.guestPhone ? <span className="text-slate-500">{room.guestPhone}</span> : null}
-                            </td>
-                            <td className="py-2 px-3 text-center text-slate-700">{room.nights}</td>
-                            <td className="py-2 px-3 text-right text-slate-700">{formatVnd(room.nightlyRate)}</td>
-                            <td className="py-2 px-3 text-right font-semibold text-slate-900">{formatVnd(room.roomSubtotal)}</td>
-                            <td className="py-2 px-3 text-right text-emerald-700">{formatVnd(room.paidAmount)}</td>
-                            <td className="py-2 px-3 text-right font-semibold text-rose-700">{formatVnd(room.balanceAmount)}</td>
+                  {showPriceBreakdown ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold">
+                            <th className="py-2.5 px-3">STT</th>
+                            <th className="py-2.5 px-3">Mã đặt</th>
+                            <th className="py-2.5 px-3">Phòng / Hạng</th>
+                            <th className="py-2.5 px-3">Khách nhận</th>
+                            <th className="py-2.5 px-3 text-center">Đêm</th>
+                            <th className="py-2.5 px-3 text-right">Đơn giá</th>
+                            <th className="py-2.5 px-3 text-right">Tiền phòng</th>
+                            <th className="py-2.5 px-3 text-right">Đã trả</th>
+                            <th className="py-2.5 px-3 text-right">Còn lại</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {grpData.rooms.map((room, idx) => (
+                            <tr key={room.reservationId} className="hover:bg-slate-50/50">
+                              <td className="py-2 px-3 text-slate-500">{idx + 1}</td>
+                              <td className="py-2 px-3 font-semibold text-slate-900">{room.reservationCode}</td>
+                              <td className="py-2 px-3">
+                                <span className="font-bold text-slate-900">{room.roomNumber}</span>
+                                <span className="text-slate-500 block">{room.roomTypeName}</span>
+                              </td>
+                              <td className="py-2 px-3 text-slate-800">
+                                <span className="font-semibold block">{room.guestDisplayName}</span>
+                                {room.guestPhone ? <span className="text-slate-500">{room.guestPhone}</span> : null}
+                              </td>
+                              <td className="py-2 px-3 text-center text-slate-700">{room.nights}</td>
+                              <td className="py-2 px-3 text-right text-slate-700">{formatVnd(room.nightlyRate)}</td>
+                              <td className="py-2 px-3 text-right font-semibold text-slate-900">{formatVnd(room.roomSubtotal)}</td>
+                              <td className="py-2 px-3 text-right text-emerald-700">{formatVnd(room.paidAmount)}</td>
+                              <td className="py-2 px-3 text-right font-semibold text-rose-700">{formatVnd(room.balanceAmount)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-slate-50/50 flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-slate-700">Tổng quy mô đoàn ({grpData.rooms.length} phòng · {grpData.group.nights} đêm):</span>
+                      <span className="text-sm font-bold text-slate-900">{formatVnd(pricing.roomSubtotal)}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Group Summary card */}
@@ -454,9 +738,9 @@ export function BookingConfirmationPrintView({
             <div>
               <strong className="text-slate-800">Thời gian quy định:</strong> Nhận phòng từ {policies.checkInTime} và trả phòng trước {policies.checkOutTime}.
             </div>
-            {policies.cancellationPolicy ? (
+            {cancellationPolicy ? (
               <div>
-                <strong className="text-slate-800">Chính sách hủy phòng:</strong> {policies.cancellationPolicy}
+                <strong className="text-slate-800">Chính sách hủy phòng:</strong> {cancellationPolicy}
               </div>
             ) : null}
             {policies.terms && policies.terms.length > 0 ? (
@@ -491,8 +775,8 @@ export function BookingConfirmationPrintView({
             </div>
           </div>
 
-          <div className="text-center text-xs text-slate-400 pt-8 border-t border-slate-100 mt-6">
-            Cảm ơn quý khách đã tin tưởng và lựa chọn {hotel.name}. Kính chúc quý khách có kỳ lưu trú thoải mái và trọn vẹn!
+          <div className="text-center text-xs text-slate-400 pt-8 border-t border-slate-100 mt-6 text-pretty">
+            {footerNote || `Cảm ơn quý khách đã tin tưởng và lựa chọn ${hotel.name}. Kính chúc quý khách có kỳ lưu trú thoải mái và trọn vẹn!`}
           </div>
         </footer>
       </div>
@@ -507,9 +791,12 @@ export function BookingConfirmationModal({
   reservationId,
   groupCode,
   mode = "single",
+  autoPrint = false,
+  canManage = true,
   initialData,
 }: BookingConfirmationModalProps) {
   const titleId = useId();
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
 
   const handlePrint = useCallback(() => {
     window.print();
@@ -537,10 +824,19 @@ export function BookingConfirmationModal({
   } = useQuery<ReservationConfirmationData | GroupConfirmationData>({
     ...(baseConfirmationOptions as any),
     enabled: shouldQuery,
-    staleTime: 60_000,
+    staleTime: 30_000,
   });
 
   const effectiveData = initialData ?? queriedData;
+
+  useEffect(() => {
+    if (autoPrint && effectiveData && isOpen && !isLoading) {
+      const timer = setTimeout(() => {
+        window.print();
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [autoPrint, effectiveData, isOpen, isLoading]);
 
   if (!isOpen) return null;
 
@@ -560,10 +856,16 @@ export function BookingConfirmationModal({
             </div>
             <div>
               <h2 id={titleId} className="text-base font-bold text-slate-900 text-balance">
-                {mode === "group" ? "Phiếu xác nhận đặt phòng đoàn" : "Phiếu xác nhận đặt phòng"}
+                {isConfigOpen
+                  ? "Cài đặt mẫu phiếu xác nhận"
+                  : mode === "group"
+                    ? "Phiếu xác nhận đặt phòng đoàn"
+                    : "Phiếu xác nhận đặt phòng"}
               </h2>
               <p className="text-xs text-slate-500 text-pretty">
-                Xem trước bản in chính thức hoặc tải xuống lưu trữ
+                {isConfigOpen
+                  ? "Tùy chỉnh thông tin và chính sách hiển thị trên phiếu xuất của khách sạn"
+                  : "Xem trước bản in chính thức hoặc tải xuống lưu trữ gửi khách"}
               </p>
             </div>
           </div>
@@ -571,13 +873,23 @@ export function BookingConfirmationModal({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={handlePrint}
-              disabled={isLoading || isError || !effectiveData}
-              className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs px-4 py-2 shadow-xs transition-all cursor-pointer disabled:opacity-50 whitespace-nowrap"
+              onClick={() => setIsConfigOpen((prev) => !prev)}
+              className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs px-3.5 py-2 shadow-2xs transition-all cursor-pointer whitespace-nowrap"
             >
-              <VsIcon name="print" className="text-base" />
-              <span>In phiếu / Lưu PDF</span>
+              <VsIcon name={isConfigOpen ? "visibility" : "tune"} className="text-base text-slate-600" />
+              <span>{isConfigOpen ? "Xem trước phiếu" : "Tùy chỉnh mẫu"}</span>
             </button>
+            {!isConfigOpen ? (
+              <button
+                type="button"
+                onClick={handlePrint}
+                disabled={isLoading || isError || !effectiveData}
+                className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs px-4 py-2 shadow-xs transition-all cursor-pointer disabled:opacity-50 whitespace-nowrap"
+              >
+                <VsIcon name="print" className="text-base" />
+                <span>In phiếu / Lưu PDF</span>
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={onClose}
@@ -591,7 +903,18 @@ export function BookingConfirmationModal({
 
         {/* Scrollable Printable Document Container */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-100/50">
-          {isLoading ? (
+          {isConfigOpen ? (
+            <div className="max-w-2xl mx-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <HotelConfirmationTemplateForm
+                hotelId={hotelId}
+                canManage={canManage}
+                onSaved={() => {
+                  setIsConfigOpen(false);
+                  void refetch();
+                }}
+              />
+            </div>
+          ) : isLoading ? (
             <div className="flex flex-col items-center justify-center min-h-[300px] gap-3 text-slate-500">
               <div className="h-8 w-8 animate-spin rounded-full border-3 border-blue-800 border-t-transparent" />
               <span className="text-xs font-semibold">Đang tạo dữ liệu phiếu xác nhận...</span>
@@ -625,23 +948,34 @@ export function BookingConfirmationModal({
         </div>
 
         {/* Screen-only Modal Footer */}
-        <footer className="no-print flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-3.5 bg-slate-50/80 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-slate-300 bg-white hover:bg-slate-100 px-4 py-2 text-xs font-bold text-slate-700 transition cursor-pointer whitespace-nowrap"
-          >
-            <span>Đóng</span>
-          </button>
-          <button
-            type="button"
-            onClick={handlePrint}
-            disabled={isLoading || isError || !effectiveData}
-            className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs px-5 py-2 shadow-xs transition cursor-pointer disabled:opacity-50 whitespace-nowrap"
-          >
-            <VsIcon name="print" className="text-base" />
-            <span>In phiếu / Lưu PDF</span>
-          </button>
+        <footer className="no-print flex items-center justify-between border-t border-slate-200 px-6 py-3.5 bg-slate-50/80 shrink-0">
+          <div className="text-xs text-slate-500">
+            {isConfigOpen ? (
+              <span>Cài đặt mẫu sẽ áp dụng cho tất cả phiếu xuất của khách sạn</span>
+            ) : (
+              <span>Có thể in trực tiếp ra giấy hoặc lưu dưới dạng PDF để gửi khách</span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-slate-300 bg-white hover:bg-slate-100 px-4 py-2 text-xs font-bold text-slate-700 transition cursor-pointer whitespace-nowrap"
+            >
+              <span>Đóng</span>
+            </button>
+            {!isConfigOpen ? (
+              <button
+                type="button"
+                onClick={handlePrint}
+                disabled={isLoading || isError || !effectiveData}
+                className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs px-5 py-2 shadow-xs transition cursor-pointer disabled:opacity-50 whitespace-nowrap"
+              >
+                <VsIcon name="print" className="text-base" />
+                <span>In phiếu / Lưu PDF</span>
+              </button>
+            ) : null}
+          </div>
         </footer>
       </div>
     </div>

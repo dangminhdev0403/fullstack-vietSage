@@ -34,6 +34,19 @@ describe("Group Reservations Service & Repository (Lane A)", () => {
             timezone: "Asia/Ho_Chi_Minh",
           });
         }),
+        resolveRoomScope: jest.fn().mockImplementation(async (actorUserId, activeRoleId, hotelId) => {
+          const hotel = await accessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+          return {
+            hotel,
+            allowedRoomId: null,
+            mode: "HOTEL_WIDE" as const,
+          };
+        }),
+        assertRoomAccess: jest.fn().mockImplementation((scope, roomId) => {
+          if (typeof scope === "object" && scope !== null && scope.allowedRoomId !== null && scope.allowedRoomId !== roomId) {
+            throw new NotFoundException("Không tìm thấy phòng");
+          }
+        }),
       };
 
       const codesService = {
@@ -245,6 +258,100 @@ describe("Group Reservations Service & Repository (Lane A)", () => {
       expect(result.groupName).toBe("Tập đoàn ABC Mới");
       expect(result.leadGuestName).toBe("Trần Văn Mới");
       expect(result.notes).toBe("Ghi chú đã cập nhật");
+    });
+
+    it("rejects restricted actor reading mixed A+B group to prevent data leakage (F1)", async () => {
+      const mixedGroupMock = {
+        groupCode: "GRP-MIXED",
+        reservations: [
+          { id: "res-1", roomId: "room-A", assignedRoomId: "room-A" },
+          { id: "res-2", roomId: "room-B", assignedRoomId: "room-B" },
+        ],
+      };
+      const { service, accessService } = createService({
+        findGroupByCode: jest.fn().mockResolvedValue(mixedGroupMock),
+      });
+      accessService.resolveRoomScope.mockResolvedValue({
+        hotel: { id: "hotel-1", tenantId: "tenant-1" },
+        allowedRoomId: "room-A",
+        mode: "ROOM_EXCLUSIVE",
+      });
+
+      await expect(
+        service.getGroupReservation("actor-restricted", "role-staff", "hotel-1", "GRP-MIXED"),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it("allows restricted actor reading own-only group containing only room A (F1)", async () => {
+      const ownGroupMock = {
+        groupCode: "GRP-OWN",
+        reservations: [
+          { id: "res-1", roomId: "room-A", assignedRoomId: "room-A" },
+        ],
+      };
+      const { service, accessService } = createService({
+        findGroupByCode: jest.fn().mockResolvedValue(ownGroupMock),
+      });
+      accessService.resolveRoomScope.mockResolvedValue({
+        hotel: { id: "hotel-1", tenantId: "tenant-1" },
+        allowedRoomId: "room-A",
+        mode: "ROOM_EXCLUSIVE",
+      });
+
+      const result = await service.getGroupReservation("actor-restricted", "role-staff", "hotel-1", "GRP-OWN");
+      expect(result).toEqual(ownGroupMock);
+    });
+
+    it("rejects restricted actor reading mixed A+B group confirmation (F1)", async () => {
+      const mixedConfirmationMock = {
+        hotel: { id: "hotel-1" },
+        groupRecord: { groupCode: "GRP-MIXED" },
+        reservations: [
+          { id: "res-1", roomId: "room-A", assignedRoomId: "room-A" },
+          { id: "res-2", roomId: "room-B", assignedRoomId: "room-B" },
+        ],
+      };
+      const { service, accessService } = createService({
+        findGroupConfirmation: jest.fn().mockResolvedValue(mixedConfirmationMock),
+      });
+      accessService.resolveRoomScope.mockResolvedValue({
+        hotel: { id: "hotel-1", tenantId: "tenant-1" },
+        allowedRoomId: "room-A",
+        mode: "ROOM_EXCLUSIVE",
+      });
+
+      await expect(
+        service.getGroupConfirmation("actor-restricted", "role-staff", "hotel-1", "GRP-MIXED"),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it("allows restricted actor reading own-only group confirmation (F1)", async () => {
+      const ownConfirmationMock = {
+        hotel: { id: "hotel-1", timezone: "Asia/Ho_Chi_Minh" },
+        groupRecord: { groupCode: "GRP-OWN" },
+        reservations: [
+          {
+            id: "res-1",
+            roomId: "room-A",
+            assignedRoomId: "room-A",
+            plannedCheckInAt: new Date("2026-11-01T14:00:00.000Z"),
+            plannedCheckOutAt: new Date("2026-11-03T12:00:00.000Z"),
+            chargeLines: [],
+            bookingPayments: [],
+          },
+        ],
+      };
+      const { service, accessService } = createService({
+        findGroupConfirmation: jest.fn().mockResolvedValue(ownConfirmationMock),
+      });
+      accessService.resolveRoomScope.mockResolvedValue({
+        hotel: { id: "hotel-1", tenantId: "tenant-1" },
+        allowedRoomId: "room-A",
+        mode: "ROOM_EXCLUSIVE",
+      });
+
+      const result = await service.getGroupConfirmation("actor-restricted", "role-staff", "hotel-1", "GRP-OWN");
+      expect(result).toBeDefined();
     });
   });
 

@@ -37,8 +37,12 @@ import type {
   UpdateServiceItemInput,
   GroupConfirmationData,
   ReservationConfirmationData,
+  HotelConfirmationTemplateConfig,
   RoomPlanResponse,
   UpdateReservationPlacementInput,
+  BookingSourcePartnerItem,
+  CreateBookingSourcePartnerInput,
+  HotelStaffAssignmentItem,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 
 export type HotelOpsServiceOptions = {
@@ -168,6 +172,51 @@ export class HotelOpsService {
       accessToken,
     });
     return unwrapApiEnvelope<BulkReservationResult>(payload).data;
+  }
+
+  async listBookingPartners(
+    hotelId: string,
+    query?: { category?: string; isActive?: boolean; q?: string },
+    accessToken?: string,
+  ): Promise<BookingSourcePartnerItem[]> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, "/booking-partners"),
+      query,
+      accessToken,
+    });
+    return unwrapApiEnvelope<BookingSourcePartnerItem[]>(payload).data;
+  }
+
+  async createBookingPartner(
+    hotelId: string,
+    body: CreateBookingSourcePartnerInput,
+    accessToken?: string,
+  ): Promise<BookingSourcePartnerItem> {
+    const payload = await this.httpClient.request<
+      unknown,
+      CreateBookingSourcePartnerInput
+    >({
+      method: "POST",
+      path: hotelPath(hotelId, "/booking-partners"),
+      body,
+      accessToken,
+    });
+    return unwrapApiEnvelope<BookingSourcePartnerItem>(payload).data;
+  }
+
+  async listStaffAssignments(
+    hotelId: string,
+    query?: { page?: number; limit?: number; status?: string },
+    accessToken?: string,
+  ): Promise<HotelOpsPage<HotelStaffAssignmentItem>> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, "/staff-assignments"),
+      query,
+      accessToken,
+    });
+    return unwrapApiEnvelope<HotelOpsPage<HotelStaffAssignmentItem>>(payload).data;
   }
 
   async assignReservationRoom(
@@ -977,6 +1026,34 @@ export class HotelOpsService {
       accessTokenExpiresAt: options.accessTokenExpiresAt,
     });
     return unwrapApiEnvelope<GroupConfirmationData>(payload).data;
+  }
+
+  async getConfirmationTemplate(
+    hotelId: string,
+    options: AuthRequestOptions = {},
+  ): Promise<HotelConfirmationTemplateConfig | null> {
+    const payload = await this.httpClient.request<HotelConfirmationTemplateConfig | null>({
+      method: "GET",
+      path: hotelPath(hotelId, "/reservations/confirmation-template"),
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<HotelConfirmationTemplateConfig | null>(payload).data;
+  }
+
+  async upsertConfirmationTemplate(
+    hotelId: string,
+    body: Partial<HotelConfirmationTemplateConfig>,
+    options: AuthRequestOptions = {},
+  ): Promise<HotelConfirmationTemplateConfig> {
+    const payload = await this.httpClient.request<HotelConfirmationTemplateConfig>({
+      method: "PUT",
+      path: hotelPath(hotelId, "/reservations/confirmation-template"),
+      body,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<HotelConfirmationTemplateConfig>(payload).data;
   }
 
   async getGroupDetails(

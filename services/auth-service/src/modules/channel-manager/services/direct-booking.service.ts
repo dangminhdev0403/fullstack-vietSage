@@ -98,13 +98,22 @@ export class DirectBookingService {
     private readonly codesService?: CodesService,
   ) {}
 
+  private pruneExpiredHolds(now = Date.now()): void {
+    for (const [holdId, hold] of this.holds.entries()) {
+      if (hold.expiresAt.getTime() <= now) {
+        this.holds.delete(holdId);
+      }
+    }
+  }
+
   private async resolveEffectiveHotelAndRoomType(
     rawHotelId: string,
     rawRoomTypeId: string,
   ): Promise<{ hotelId: string; roomTypeId: string; candidateRoomIds: string[] }> {
     let hotel: any = null;
+    const trimmedHotelId = rawHotelId?.trim() ?? "";
     if (this.prisma.hotel?.findFirst) {
-      if (rawHotelId && rawHotelId.includes("@")) {
+      if (trimmedHotelId && trimmedHotelId.includes("@")) {
         hotel = await this.prisma.hotel.findFirst({
           where: {
             OR: [
@@ -112,7 +121,7 @@ export class DirectBookingService {
                 staffAssignments: {
                   some: {
                     user: {
-                      email: { equals: rawHotelId.trim(), mode: "insensitive" },
+                      email: { equals: trimmedHotelId, mode: "insensitive" },
                     },
                   },
                 },
@@ -122,7 +131,7 @@ export class DirectBookingService {
                   tenantUsers: {
                     some: {
                       user: {
-                        email: { equals: rawHotelId.trim(), mode: "insensitive" },
+                        email: { equals: trimmedHotelId, mode: "insensitive" },
                       },
                     },
                   },
@@ -133,7 +142,7 @@ export class DirectBookingService {
         });
       }
 
-      if (!hotel) {
+      if (!hotel && trimmedHotelId) {
         hotel = await this.prisma.hotel.findFirst({
           where: {
             OR: [{ id: rawHotelId }, { code: rawHotelId }],
@@ -142,6 +151,9 @@ export class DirectBookingService {
       }
 
       if (!hotel) {
+        if (trimmedHotelId) {
+          throw new NotFoundException(`Hotel '${rawHotelId}' not found`);
+        }
         hotel = await this.prisma.hotel.findFirst({
           where: { status: HotelStatus.ACTIVE },
           orderBy: { createdAt: "asc" },
@@ -278,6 +290,7 @@ export class DirectBookingService {
 
     // 3. Tính toán các hold đang giữ chỗ chưa hết hạn trong bộ nhớ
     const now = Date.now();
+    this.pruneExpiredHolds(now);
     let currentHeldCount = 0;
     for (const hold of this.holds.values()) {
       if (
@@ -751,7 +764,7 @@ export class DirectBookingService {
         });
       }
 
-      if (!hotel) {
+      if (!hotel && rawHotelId?.trim()) {
         hotel = await this.prisma.hotel.findFirst({
           where: {
             OR: [{ id: rawHotelId }, { code: rawHotelId }],
@@ -760,6 +773,9 @@ export class DirectBookingService {
       }
 
       if (!hotel) {
+        if (rawHotelId && rawHotelId.trim().length > 0) {
+          throw new NotFoundException(`Hotel '${rawHotelId}' not found`);
+        }
         hotel = await this.prisma.hotel.findFirst({
           where: { status: HotelStatus.ACTIVE },
           orderBy: { createdAt: "asc" },

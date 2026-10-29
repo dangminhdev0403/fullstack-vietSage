@@ -31,6 +31,7 @@ type Props = {
   initialCategories: HotelServiceCategory[];
   initialItems: HotelServiceItem[];
   hasGoogleSheetConfig: boolean;
+  canManage?: boolean;
 };
 
 type PriceUpdateMode = "CATEGORY_ONLY" | "OVERRIDE_ALL_ITEMS";
@@ -208,7 +209,7 @@ function sortIndicator<TKey extends string>(
 }
 
 function sortableHeaderClass(isActive: boolean): string {
-  return `inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-bold uppercase tracking-[0.08em] transition-colors hover:bg-white hover:text-[var(--primary)] ${isActive ? "text-[var(--primary)]" : "text-[var(--on-surface-variant)]"}`;
+  return `inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-sm font-bold uppercase tracking-[0.08em] transition-colors hover:bg-white hover:text-[var(--primary)] ${isActive ? "text-[var(--primary)]" : "text-[var(--on-surface-variant)]"}`;
 }
 
 function getPageCount(totalItems: number, pageSize: PageSize): number {
@@ -524,6 +525,7 @@ export function OwnerServiceCatalogClient({
   initialCategories,
   initialItems,
   hasGoogleSheetConfig,
+  canManage = true,
 }: Props) {
   const router = useRouter();
   const previewMutation = useOwnerServiceCatalogPreview(hotelId);
@@ -674,7 +676,7 @@ export function OwnerServiceCatalogClient({
             className={sortableHeaderClass(categorySort.key === "name")}
           >
             Tên{" "}
-            <span className="text-xs normal-case tracking-normal">
+            <span className="text-sm normal-case tracking-normal">
               {sortIndicator(categorySort, "name")}
             </span>
           </button>
@@ -684,7 +686,7 @@ export function OwnerServiceCatalogClient({
             <p className="font-semibold text-[var(--primary)]">
               {category.name}
             </p>
-            <p className="text-xs text-[var(--on-surface-variant)]">
+            <p className="text-sm text-[var(--on-surface-variant)]">
               {category.description ?? "--"}
             </p>
           </div>
@@ -695,11 +697,11 @@ export function OwnerServiceCatalogClient({
         header: "Telegram",
         cell: (category) =>
           category.id_group ? (
-            <span className="rounded-full bg-[var(--primary-fixed)] px-2.5 py-1 text-xs font-bold text-[var(--on-primary-fixed-variant)]">
+            <span className="rounded-full bg-[var(--primary-fixed)] px-2.5 py-1 text-sm font-bold text-[var(--on-primary-fixed-variant)]">
               {category.id_group}
             </span>
           ) : (
-            <span className="text-xs text-[var(--on-surface-variant)]">
+            <span className="text-sm text-[var(--on-surface-variant)]">
               Tùy chọn
             </span>
           ),
@@ -715,7 +717,7 @@ export function OwnerServiceCatalogClient({
             className={sortableHeaderClass(categorySort.key === "price")}
           >
             Giá mặc định{" "}
-            <span className="text-xs normal-case tracking-normal">
+            <span className="text-sm normal-case tracking-normal">
               {sortIndicator(categorySort, "price")}
             </span>
           </button>
@@ -737,7 +739,7 @@ export function OwnerServiceCatalogClient({
             className={sortableHeaderClass(categorySort.key === "sortOrder")}
           >
             Thứ tự{" "}
-            <span className="text-xs normal-case tracking-normal">
+            <span className="text-sm normal-case tracking-normal">
               {sortIndicator(categorySort, "sortOrder")}
             </span>
           </button>
@@ -755,36 +757,40 @@ export function OwnerServiceCatalogClient({
             className={sortableHeaderClass(categorySort.key === "status")}
           >
             Trạng thái{" "}
-            <span className="text-xs normal-case tracking-normal">
+            <span className="text-sm normal-case tracking-normal">
               {sortIndicator(categorySort, "status")}
             </span>
           </button>
         ),
         cell: (category) => (
           <span
-            className={`rounded-full px-2.5 py-1 text-xs font-bold ${serviceStatusTone(category.status)}`}
+            className={`rounded-full px-2.5 py-1 text-sm font-bold ${serviceStatusTone(category.status)}`}
           >
             {serviceStatusLabelMap[category.status]}
           </span>
         ),
       },
-      {
-        key: "actions",
-        header: "Thao tác",
-        headerClassName: "text-right",
-        className: "text-right",
-        cell: (category) => (
-          <button
-            type="button"
-            onClick={() => setCategoryForm(categoryToForm(category))}
-            className="cursor-pointer rounded-lg px-3 py-2 text-sm font-semibold text-[var(--primary)] transition-colors hover:bg-[var(--surface-container-low)]"
-          >
-            Sửa
-          </button>
-        ),
-      },
+      ...(canManage
+        ? [
+            {
+              key: "actions",
+              header: "Thao tác",
+              headerClassName: "text-right",
+              className: "text-right",
+              cell: (category: HotelServiceCategory) => (
+                <button
+                  type="button"
+                  onClick={() => setCategoryForm(categoryToForm(category))}
+                  className="cursor-pointer rounded-lg px-3 py-2 text-sm font-semibold text-[var(--primary)] transition-colors hover:bg-[var(--surface-container-low)]"
+                >
+                  Sửa
+                </button>
+              ),
+            },
+          ]
+        : []),
     ],
-    [categorySort],
+    [canManage, categorySort],
   );
 
   const itemColumns = useMemo<DataTableColumn<HotelServiceItem>[]>(
@@ -800,7 +806,7 @@ export function OwnerServiceCatalogClient({
             className={sortableHeaderClass(itemSort.key === "name")}
           >
             Tên dịch vụ{" "}
-            <span className="text-xs normal-case tracking-normal">
+            <span className="text-sm normal-case tracking-normal">
               {sortIndicator(itemSort, "name")}
             </span>
           </button>
@@ -808,7 +814,7 @@ export function OwnerServiceCatalogClient({
         cell: (item) => (
           <div>
             <p className="font-semibold text-[var(--primary)]">{item.name}</p>
-            <p className="text-xs text-[var(--on-surface-variant)]">
+            <p className="text-sm text-[var(--on-surface-variant)]">
               {item.description ?? "--"}
             </p>
           </div>
@@ -825,7 +831,7 @@ export function OwnerServiceCatalogClient({
             className={sortableHeaderClass(itemSort.key === "category")}
           >
             Nhóm dịch vụ{" "}
-            <span className="text-xs normal-case tracking-normal">
+            <span className="text-sm normal-case tracking-normal">
               {sortIndicator(itemSort, "category")}
             </span>
           </button>
@@ -846,7 +852,7 @@ export function OwnerServiceCatalogClient({
             className={sortableHeaderClass(itemSort.key === "price")}
           >
             Giá{" "}
-            <span className="text-xs normal-case tracking-normal">
+            <span className="text-sm normal-case tracking-normal">
               {sortIndicator(itemSort, "price")}
             </span>
           </button>
@@ -867,11 +873,11 @@ export function OwnerServiceCatalogClient({
               </p>
               <div className="mt-1 flex flex-wrap gap-1">
                 <span
-                  className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${hasOverride ? "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed-variant)]" : "bg-[var(--surface-container-high)] text-[var(--on-surface-variant)]"}`}
+                  className={`inline-flex rounded-full px-2.5 py-1 text-sm font-bold ${hasOverride ? "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed-variant)]" : "bg-[var(--surface-container-high)] text-[var(--on-surface-variant)]"}`}
                 >
                   {hasOverride ? "Giá riêng" : "Theo nhóm"}
                 </span>
-                <span className="inline-flex rounded-full bg-[var(--surface-container-high)] px-2.5 py-1 text-xs font-bold text-[var(--on-surface-variant)]">
+                <span className="inline-flex rounded-full bg-[var(--surface-container-high)] px-2.5 py-1 text-sm font-bold text-[var(--on-surface-variant)]">
                   {formatQuantityRule(item)}
                 </span>
               </div>
@@ -890,14 +896,14 @@ export function OwnerServiceCatalogClient({
             className={sortableHeaderClass(itemSort.key === "status")}
           >
             Trạng thái{" "}
-            <span className="text-xs normal-case tracking-normal">
+            <span className="text-sm normal-case tracking-normal">
               {sortIndicator(itemSort, "status")}
             </span>
           </button>
         ),
         cell: (item) => (
           <span
-            className={`rounded-full px-2.5 py-1 text-xs font-bold ${serviceStatusTone(item.status)}`}
+            className={`rounded-full px-2.5 py-1 text-sm font-bold ${serviceStatusTone(item.status)}`}
           >
             {serviceStatusLabelMap[item.status]}
           </span>
@@ -908,18 +914,19 @@ export function OwnerServiceCatalogClient({
         header: "Thao tác",
         headerClassName: "text-right",
         className: "text-right",
-        cell: (item) => (
+        cell: (item) => canManage ? (
           <button
             type="button"
+            disabled={!canManage}
             onClick={() => setItemForm(itemToForm(item))}
             className="cursor-pointer rounded-lg px-3 py-2 text-sm font-semibold text-[var(--primary)] transition-colors hover:bg-[var(--surface-container-low)]"
           >
             Sửa
           </button>
-        ),
+        ) : null,
       },
     ],
-    [categoryById, itemSort],
+    [canManage, categoryById, itemSort],
   );
 
   async function selectOverrideAllItemsMode() {
@@ -944,6 +951,7 @@ export function OwnerServiceCatalogClient({
 
   async function saveCategory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canManage) return;
     if (!categoryForm) return;
 
     const defaultPrice = Number(categoryForm.defaultPrice);
@@ -1086,7 +1094,7 @@ export function OwnerServiceCatalogClient({
   } | null>(null);
 
   const handlePreviewWithConfig = () => {
-    if (!hasGoogleSheetConfig) return;
+    if (!canManage || !hasGoogleSheetConfig) return;
     setPreviewError(null);
     setSyncNotice(null);
     previewMutation.mutate(
@@ -1104,7 +1112,7 @@ export function OwnerServiceCatalogClient({
   };
 
   const handleCommitSheet = () => {
-    if (!sheetPreview) return;
+    if (!canManage || !sheetPreview) return;
     if (sheetPreview.summary.errors > 0) return;
 
     const creates = sheetPreview.summary.create ?? 0;
@@ -1152,6 +1160,7 @@ export function OwnerServiceCatalogClient({
 
   async function saveItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canManage) return;
     if (!itemForm) return;
 
     if (!itemForm.name.trim()) {
@@ -1289,10 +1298,11 @@ export function OwnerServiceCatalogClient({
           <button
             type="button"
             onClick={() =>
-              tab === "categories"
+              !canManage ? undefined : tab === "categories"
                 ? setCategoryForm(emptyCategoryForm)
                 : setItemForm(emptyItemForm(categories[0]?.id ?? ""))
             }
+            disabled={!canManage}
             className="shrink-0 cursor-pointer rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)] transition-colors hover:bg-[color:rgba(0,0,60,0.88)]"
           >
             {tab === "categories" ? "Tạo nhóm" : "Tạo dịch vụ"}
@@ -1307,7 +1317,7 @@ export function OwnerServiceCatalogClient({
               <VsIcon name="table_chart" className="text-xl text-[var(--primary)]" />
               Đồng bộ dịch vụ qua Google Sheets / Excel Online
             </h2>
-            <p className="text-xs font-semibold text-[var(--on-surface-variant)] mt-0.5">
+            <p className="text-sm font-semibold text-[var(--on-surface-variant)] mt-0.5">
               {hasGoogleSheetConfig
                 ? "Google Sheets đã được cấu hình bởi Super Admin. Nhấn Xem trước thay đổi để kiểm tra trước khi áp dụng."
                 : "Super Admin chưa cấu hình Google Sheets cho khách sạn này."}
@@ -1318,7 +1328,7 @@ export function OwnerServiceCatalogClient({
         <button
           type="button"
           onClick={handlePreviewWithConfig}
-          disabled={previewMutation.isPending || !hasGoogleSheetConfig}
+          disabled={!canManage || previewMutation.isPending || !hasGoogleSheetConfig}
           className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--primary)] px-6 py-3 text-sm font-bold text-[var(--on-primary)] shadow-xs hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
         >
           <VsIcon name={previewMutation.isPending ? "progress_activity" : "preview"} className={`text-lg ${previewMutation.isPending ? "animate-spin" : ""}`} />
@@ -1347,27 +1357,27 @@ export function OwnerServiceCatalogClient({
             {/* Summary Metrics */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-emerald-900">
-                <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Tạo mới</p>
+                <p className="text-sm font-bold uppercase tracking-wider text-emerald-700">Tạo mới</p>
                 <p className="text-2xl font-extrabold">{sheetPreview.summary.create ?? 0}</p>
               </div>
               <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-amber-900">
-                <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Cập nhật</p>
+                <p className="text-sm font-bold uppercase tracking-wider text-amber-700">Cập nhật</p>
                 <p className="text-2xl font-extrabold">{sheetPreview.summary.update ?? 0}</p>
               </div>
               <div className="rounded-xl border border-rose-200 bg-rose-50/70 p-3 text-rose-900">
-                <p className="text-xs font-bold uppercase tracking-wider text-rose-700">Vô hiệu hóa</p>
+                <p className="text-sm font-bold uppercase tracking-wider text-rose-700">Vô hiệu hóa</p>
                 <p className="text-2xl font-extrabold">{sheetPreview.summary.disable ?? 0}</p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-900">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Không đổi</p>
+                <p className="text-sm font-bold uppercase tracking-wider text-slate-600">Không đổi</p>
                 <p className="text-2xl font-extrabold">{sheetPreview.summary.unchanged ?? 0}</p>
               </div>
               <div className={`rounded-xl border p-3 ${sheetPreview.summary.errors > 0 ? "border-rose-300 bg-rose-50 text-rose-900" : "border-slate-200 bg-slate-50 text-slate-900"}`}>
-                <p className={`text-xs font-bold uppercase tracking-wider ${sheetPreview.summary.errors > 0 ? "text-rose-700" : "text-slate-600"}`}>Lỗi</p>
+                <p className={`text-sm font-bold uppercase tracking-wider ${sheetPreview.summary.errors > 0 ? "text-rose-700" : "text-slate-600"}`}>Lỗi</p>
                 <p className="text-2xl font-extrabold">{sheetPreview.summary.errors ?? 0}</p>
               </div>
               <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-3 text-sky-900">
-                <p className="text-xs font-bold uppercase tracking-wider text-sky-700">Cảnh báo</p>
+                <p className="text-sm font-bold uppercase tracking-wider text-sky-700">Cảnh báo</p>
                 <p className="text-2xl font-extrabold">{sheetPreview.summary.warnings ?? 0}</p>
               </div>
             </div>
@@ -1381,7 +1391,7 @@ export function OwnerServiceCatalogClient({
                 </p>
                 <div className="max-h-48 overflow-y-auto space-y-1.5 pr-2">
                   {sheetPreview.validation.map((v, idx) => (
-                    <div key={idx} className="text-xs font-semibold text-rose-800 bg-white/80 p-2.5 rounded-lg border border-rose-200/80 flex items-start gap-2">
+                    <div key={idx} className="text-sm font-semibold text-rose-800 bg-white/80 p-2.5 rounded-lg border border-rose-200/80 flex items-start gap-2">
                       <span className={`font-mono font-bold px-1.5 py-0.5 rounded shrink-0 ${v.severity === "error" ? "bg-rose-100" : "bg-amber-100 text-amber-800"}`}>
                         {v.severity === "error" ? "Lỗi" : "Cảnh báo"}
                       </span>
@@ -1397,7 +1407,7 @@ export function OwnerServiceCatalogClient({
               <div className="space-y-2">
                 <p className="text-sm font-extrabold text-[var(--primary)]">Xem trước thay đổi ({sheetPreview.diff.length} mục):</p>
                 <div className="max-h-60 overflow-y-auto rounded-xl border border-[var(--outline-variant)] bg-white">
-                  <table className="w-full text-left border-collapse text-xs">
+                  <table className="w-full text-left border-collapse text-sm">
                     <colgroup>
                       <col className="w-[25%]" />
                       <col className="w-[20%]" />
@@ -1441,7 +1451,7 @@ export function OwnerServiceCatalogClient({
               <button
                 type="button"
                 onClick={handleCommitSheet}
-                disabled={commitMutation.isPending || isImporting || sheetPreview.summary.errors > 0}
+                disabled={!canManage || commitMutation.isPending || isImporting || sheetPreview.summary.errors > 0}
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--primary)] px-7 py-3 text-sm font-bold text-[var(--on-primary)] shadow-md hover:opacity-90 disabled:opacity-50 transition-all"
               >
                 <VsIcon name={commitMutation.isPending || isImporting ? "progress_activity" : "check_circle"} className={`text-lg ${commitMutation.isPending || isImporting ? "animate-spin" : ""}`} />
@@ -1480,8 +1490,8 @@ export function OwnerServiceCatalogClient({
             </div>
             {syncNotice.details && syncNotice.details.length > 0 ? (
               <div className="mt-3 border-t border-current/20 pt-3">
-                <p className="font-bold text-xs uppercase tracking-wider mb-1.5 opacity-80">Chi tiết cảnh báo / dòng bỏ qua:</p>
-                <ul className="list-disc pl-5 space-y-1 text-xs font-mono">
+                <p className="font-bold text-sm uppercase tracking-wider mb-1.5 opacity-80">Chi tiết cảnh báo / dòng bỏ qua:</p>
+                <ul className="list-disc pl-5 space-y-1 text-sm font-mono">
                   {syncNotice.details.map((detail, idx) => (
                     <li key={idx} className="whitespace-pre-wrap">{detail}</li>
                   ))}
@@ -1546,7 +1556,7 @@ export function OwnerServiceCatalogClient({
             </h2>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="space-y-2 md:col-span-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
+                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
                   Tên nhóm dịch vụ
                 </span>
                 <input
@@ -1563,7 +1573,7 @@ export function OwnerServiceCatalogClient({
                 />
               </label>
               <label className="space-y-2 md:col-span-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
+                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
                   ID group Telegram (tùy chọn)
                 </span>
                 <input
@@ -1577,13 +1587,13 @@ export function OwnerServiceCatalogClient({
                   placeholder="VD: -1001234567890"
                   className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]"
                 />
-                <span className="block text-xs text-[var(--on-surface-variant)]">
+                <span className="block text-sm text-[var(--on-surface-variant)]">
                   Chỉ nhập khi nhóm dịch vụ cần bắn thông báo vào group Telegram
                   riêng.
                 </span>
               </label>
               <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
+                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
                   Giá mặc định
                 </span>
                 <input
@@ -1611,7 +1621,7 @@ export function OwnerServiceCatalogClient({
                 />
               </label>
               <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
+                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
                   Tiền tệ
                 </span>
                 <input
@@ -1628,7 +1638,7 @@ export function OwnerServiceCatalogClient({
                 />
               </label>
               <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
+                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
                   Thứ tự hiển thị
                 </span>
                 <input
@@ -1648,7 +1658,7 @@ export function OwnerServiceCatalogClient({
                 />
               </label>
               <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
+                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
                   Trạng thái
                 </span>
                 <select
@@ -1667,7 +1677,7 @@ export function OwnerServiceCatalogClient({
                 </select>
               </label>
               <label className="space-y-2 md:col-span-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
+                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
                   Mô tả
                 </span>
                 <textarea
@@ -1697,14 +1707,14 @@ export function OwnerServiceCatalogClient({
                     onClick={() =>
                       setCategoryForm({ ...categoryForm, activeLocale: key })
                     }
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold uppercase transition ${categoryForm.activeLocale === key ? "bg-[var(--primary)] text-[var(--on-primary)]" : "bg-[var(--surface-container-low)] text-[var(--on-surface-variant)] hover:text-[var(--primary)]"}`}
+                    className={`rounded-full px-3 py-1.5 text-sm font-semibold uppercase transition ${categoryForm.activeLocale === key ? "bg-[var(--primary)] text-[var(--on-primary)]" : "bg-[var(--surface-container-low)] text-[var(--on-surface-variant)] hover:text-[var(--primary)]"}`}
                   >
                     {key}
                   </button>
                 ))}
               </div>
               {categoryForm.activeLocale === "vi" ? (
-                <p className="mt-3 text-xs text-[var(--on-surface-variant)]">
+                <p className="mt-3 text-sm text-[var(--on-surface-variant)]">
                   Tiếng Việt dùng các trường Tên nhóm dịch vụ và Mô tả ở trên.
                 </p>
               ) : (
@@ -1822,7 +1832,7 @@ export function OwnerServiceCatalogClient({
             </h2>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
+                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
                   Tên dịch vụ
                 </span>
                 <input
@@ -1836,7 +1846,7 @@ export function OwnerServiceCatalogClient({
                 />
               </label>
               <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
+                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
                   Nhóm dịch vụ
                 </span>
                 <select
@@ -1856,7 +1866,7 @@ export function OwnerServiceCatalogClient({
                 </select>
               </label>
               <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
+                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
                   Trạng thái
                 </span>
                 <select
@@ -1877,7 +1887,7 @@ export function OwnerServiceCatalogClient({
                 </select>
               </label>
               <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
+                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
                   Giá riêng
                 </span>
                 <input
@@ -1903,7 +1913,7 @@ export function OwnerServiceCatalogClient({
                   className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]"
                 />
               </label>
-              <p className="text-xs text-[var(--on-surface-variant)] md:col-span-2">
+              <p className="text-sm text-[var(--on-surface-variant)] md:col-span-2">
                 Để trống giá riêng để sử dụng giá mặc định của nhóm dịch vụ.
               </p>
               <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-[var(--outline-variant)] p-3 md:col-span-2">
@@ -1922,13 +1932,13 @@ export function OwnerServiceCatalogClient({
                   <span className="block text-sm font-semibold text-[var(--primary)]">
                     Yêu cầu khách chọn số lượng
                   </span>
-                  <span className="block text-xs text-[var(--on-surface-variant)]">
+                  <span className="block text-sm text-[var(--on-surface-variant)]">
                     Bật khi dịch vụ cần số lượng như khăn, nước uống, bàn chải.
                   </span>
                 </span>
               </label>
               <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
+                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
                   Số lượng tối thiểu
                 </span>
                 <input
@@ -1948,7 +1958,7 @@ export function OwnerServiceCatalogClient({
                 />
               </label>
               <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
+                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
                   Số lượng tối đa
                 </span>
                 <input
@@ -1968,7 +1978,7 @@ export function OwnerServiceCatalogClient({
                 />
               </label>
               <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
+                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
                   Thứ tự hiển thị
                 </span>
                 <input
@@ -1984,7 +1994,7 @@ export function OwnerServiceCatalogClient({
                 />
               </label>
               <label className="space-y-2 md:col-span-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
+                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
                   Mô tả
                 </span>
                 <textarea
@@ -2014,14 +2024,14 @@ export function OwnerServiceCatalogClient({
                     onClick={() =>
                       setItemForm({ ...itemForm, activeLocale: key })
                     }
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold uppercase transition ${itemForm.activeLocale === key ? "bg-[var(--primary)] text-[var(--on-primary)]" : "bg-[var(--surface-container-low)] text-[var(--on-surface-variant)] hover:text-[var(--primary)]"}`}
+                    className={`rounded-full px-3 py-1.5 text-sm font-semibold uppercase transition ${itemForm.activeLocale === key ? "bg-[var(--primary)] text-[var(--on-primary)]" : "bg-[var(--surface-container-low)] text-[var(--on-surface-variant)] hover:text-[var(--primary)]"}`}
                   >
                     {key}
                   </button>
                 ))}
               </div>
               {itemForm.activeLocale === "vi" ? (
-                <p className="mt-3 text-xs text-[var(--on-surface-variant)]">
+                <p className="mt-3 text-sm text-[var(--on-surface-variant)]">
                   Tiếng Việt dùng các trường Tên dịch vụ và Mô tả ở trên.
                 </p>
               ) : (

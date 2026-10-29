@@ -238,6 +238,7 @@ interface DraggableRoomRowProps {
   todayYmd?: string;
   readOnly?: boolean;
   roomBlocks: RoomPlanBlock[];
+  occupiedRoomDaySet: Set<string>;
   dragOverCellKey: string | null;
   dragOverDayYmd?: string | null;
   handleDragOverCell: (e: React.DragEvent, cellKey: string, dayYmd?: string) => void;
@@ -276,6 +277,7 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
   todayYmd = getTodayInVietnam(),
   readOnly = false,
   roomBlocks,
+  occupiedRoomDaySet,
   dragOverCellKey,
   dragOverDayYmd,
   handleDragOverCell,
@@ -478,9 +480,7 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
       <div className="relative flex flex-1 min-w-0 overflow-x-clip">
         {/* Day Cell Grid Lines */}
         {daysList.map((day) => {
-          const isCellOccupied = roomBlocks.some(
-            (b) => b.startDate <= day.ymd && b.endDate > day.ymd,
-          );
+          const isCellOccupied = occupiedRoomDaySet.has(`${room.id}:${day.ymd}`);
           const isPastDay = day.ymd < todayYmd;
 
           const isRoomInDraft = Boolean(
@@ -1355,6 +1355,7 @@ interface CategoryRoomTableProps {
   todayYmd?: string;
   readOnly?: boolean;
   blocksByRoomId: Map<string, RoomPlanBlock[]>;
+  occupiedRoomDaySet: Set<string>;
   dragOverCellKey: string | null;
   dragOverDayYmd?: string | null;
   handleDragOverCell: (e: React.DragEvent, cellKey: string, dayYmd?: string) => void;
@@ -1367,7 +1368,7 @@ interface CategoryRoomTableProps {
   onToggleRoomBlocked?: (room: RoomPlanRoom) => Promise<void> | void;
   onProcessingRoomClick?: (room: RoomPlanRoom) => Promise<void> | void;
   isCollapsed: boolean;
-  onToggleCollapse: () => void;
+  onToggleCollapse: (cat: string) => void;
   draftSelection: DraftBookingSelection | null;
   isDraggingRange: boolean;
   activeDragRange?: ActiveDragRange | null;
@@ -1387,13 +1388,14 @@ interface CategoryRoomTableProps {
   onFocusOverdueRoom?: (room: RoomPlanRoom) => void;
 }
 
-function CategoryRoomTable({
+const CategoryRoomTable = memo(function CategoryRoomTable({
   cat,
   catRooms,
   daysList,
   todayYmd = getTodayInVietnam(),
   readOnly = false,
   blocksByRoomId,
+  occupiedRoomDaySet,
   dragOverCellKey,
   dragOverDayYmd,
   handleDragOverCell,
@@ -1422,6 +1424,9 @@ function CategoryRoomTable({
   onStartDraftAdjust,
   onFocusOverdueRoom,
 }: CategoryRoomTableProps) {
+  const handleToggleCollapseClick = useCallback(() => {
+    onToggleCollapse(cat);
+  }, [onToggleCollapse, cat]);
   // TanStack table instance for headless table model
   const columns = useMemo<ColumnDef<RoomPlanRoom>[]>(
     () => [
@@ -1457,7 +1462,7 @@ function CategoryRoomTable({
         <div className="sticky left-0 z-20 w-48 min-w-[192px] max-w-[192px] shrink-0 bg-slate-100/90 px-3 flex items-center justify-between">
           <button
             type="button"
-            onClick={onToggleCollapse}
+            onClick={handleToggleCollapseClick}
             className="flex items-center gap-1.5 min-w-0 text-left hover:text-emerald-800 transition cursor-pointer group flex-1 mr-2"
             title={
               isCollapsed
@@ -1478,15 +1483,12 @@ function CategoryRoomTable({
           </span>
         </div>
 
-        <div className="flex flex-1 min-w-0 cursor-pointer" onClick={onToggleCollapse}>
+        <div className="flex flex-1 min-w-0 cursor-pointer" onClick={handleToggleCollapseClick}>
           {daysList.map((day) => {
-            const occupiedCount = catRooms.reduce((acc, room) => {
-              const blocks = blocksByRoomId.get(room.id) || [];
-              const isOccupied = blocks.some(
-                (b) => b.startDate <= day.ymd && b.endDate > day.ymd,
-              );
-              return acc + (isOccupied ? 1 : 0);
-            }, 0);
+            const occupiedCount = catRooms.reduce(
+              (acc, room) => acc + (occupiedRoomDaySet.has(`${room.id}:${day.ymd}`) ? 1 : 0),
+              0,
+            );
             const avail = Math.max(0, catRooms.length - occupiedCount);
             const isSoldOut = avail === 0 && catRooms.length > 0;
             const occPercent = catRooms.length > 0 ? Math.round((occupiedCount / catRooms.length) * 100) : 0;
@@ -1540,6 +1542,7 @@ function CategoryRoomTable({
               todayYmd={todayYmd}
               readOnly={readOnly}
               roomBlocks={blocksByRoomId.get(row.original.id) || EMPTY_BLOCKS}
+              occupiedRoomDaySet={occupiedRoomDaySet}
               dragOverCellKey={dragOverCellKey}
               dragOverDayYmd={dragOverDayYmd}
               handleDragOverCell={handleDragOverCell}
@@ -1571,7 +1574,7 @@ function CategoryRoomTable({
       )}
     </div>
   );
-}
+});
 
 export function TapeChartView({
   hotelId,
@@ -1768,6 +1771,11 @@ export function TapeChartView({
     }));
   }, [planData?.rooms, propRooms]);
 
+  const roomById = useMemo(
+    () => new Map(allRooms.map((r) => [r.id, r])),
+    [allRooms],
+  );
+
   // Authoritative blocks from planData with resilient normalization
   const allBlocks: RoomPlanBlock[] = useMemo(() => {
     if (!planData?.blocks) return [];
@@ -1797,14 +1805,16 @@ export function TapeChartView({
         raw.nightlyRate ??
         (raw.nightlyRateSnapshot ? Number(raw.nightlyRateSnapshot) : null);
 
+      const matchedRoom = roomById.get(String(raw.roomId));
+
       const roomNumber =
         raw.roomNumber ||
-        allRooms.find((r) => r.id === raw.roomId)?.roomNumber ||
+        matchedRoom?.roomNumber ||
         "";
 
       const roomTypeName =
         raw.roomTypeName ||
-        allRooms.find((r) => r.id === raw.roomId)?.roomTypeName ||
+        matchedRoom?.roomTypeName ||
         null;
 
       return {
@@ -1837,7 +1847,7 @@ export function TapeChartView({
         notes: raw.notes || null,
       };
     });
-  }, [planData?.blocks, allRooms]);
+  }, [planData?.blocks, roomById]);
 
   // Generate days timeline list
   const daysList = useMemo(() => {
@@ -1906,6 +1916,19 @@ export function TapeChartView({
     });
     return map;
   }, [allBlocks]);
+
+  const occupiedRoomDaySet = useMemo(() => {
+    const set = new Set<string>();
+    for (const b of allBlocks) {
+      if (b.status === "CANCELLED") continue;
+      for (const day of daysList) {
+        if (b.startDate <= day.ymd && b.endDate > day.ymd) {
+          set.add(`${b.roomId}:${day.ymd}`);
+        }
+      }
+    }
+    return set;
+  }, [allBlocks, daysList]);
 
   // Count overdue rooms across all rooms for emergency alert banner & status filter
   const overdueRooms = useMemo(() => {
@@ -2330,13 +2353,10 @@ export function TapeChartView({
     let todayPercent = 0;
 
     const daily = daysList.map((day) => {
-      const occupied = roomsToCount.reduce((acc, room) => {
-        const blocks = blocksByRoomId.get(room.id) || [];
-        const isOccupied = blocks.some(
-          (b) => b.startDate <= day.ymd && b.endDate > day.ymd && b.status !== "CANCELLED",
-        );
-        return acc + (isOccupied ? 1 : 0);
-      }, 0);
+      const occupied = roomsToCount.reduce(
+        (acc, room) => acc + (occupiedRoomDaySet.has(`${room.id}:${day.ymd}`) ? 1 : 0),
+        0,
+      );
 
       const percent = Math.round((occupied / totalRooms) * 100);
       totalOccupiedSum += occupied;
@@ -2360,7 +2380,7 @@ export function TapeChartView({
     const avgPercent = Math.round(totalOccupiedSum / (totalRooms * daysList.length) * 100);
 
     return { daily, avgPercent, todayPercent, todayOccupied, totalRooms };
-  }, [allRooms, orderedFilteredRooms, blocksByRoomId, daysList]);
+  }, [allRooms, orderedFilteredRooms, occupiedRoomDaySet, daysList]);
 
   // Navigation handlers with 1-day overlap as requested by user
   // When viewMode is week (7 days), stepping is 6 days so the last day of the previous view
@@ -4465,6 +4485,7 @@ export function TapeChartView({
                   todayYmd={todayYmd}
                   readOnly={isReadOnly}
                   blocksByRoomId={blocksByRoomId}
+                  occupiedRoomDaySet={occupiedRoomDaySet}
                   dragOverCellKey={dragOverCellKey}
                   dragOverDayYmd={dragOverDayYmd}
                   handleDragOverCell={handleDragOverCell}
@@ -4479,7 +4500,7 @@ export function TapeChartView({
                   onProcessingRoomClick={onProcessingRoomClick}
                   onFocusOverdueRoom={focusOverdueRoom}
                   isCollapsed={Boolean(collapsedCategories[categoryName])}
-                  onToggleCollapse={() => toggleCategory(categoryName)}
+                  onToggleCollapse={toggleCategory}
                   draftSelection={draftSelection}
                   isDraggingRange={Boolean(activeDragRange) || Boolean(activeDraftAdjust)}
                   activeDragRange={activeDragRange}

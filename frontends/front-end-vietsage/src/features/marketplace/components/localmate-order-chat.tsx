@@ -36,9 +36,14 @@ export function LocalMateOrderChat({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { data: order } = useGuestMarketplaceOrder(sessionToken, orderId);
+  const isOrderTerminal =
+    order?.status === "COMPLETED" ||
+    order?.status === "CANCELLED" ||
+    order?.status === "REJECTED";
   const { conversation, sendMessage } = useGuestMarketplaceConversation(
     sessionToken,
     orderId,
+    { isTerminal: isOrderTerminal },
   );
 
   const messages: MarketplaceConversationMessage[] = useMemo(() => {
@@ -46,14 +51,8 @@ export function LocalMateOrderChat({
   }, [conversation.data?.items]);
 
   const isTerminal = useMemo(() => {
-    const status = order?.status;
-    return (
-      status === "COMPLETED" ||
-      status === "CANCELLED" ||
-      status === "REJECTED" ||
-      conversation.data?.status === "CLOSED"
-    );
-  }, [order?.status, conversation.data?.status]);
+    return isOrderTerminal || conversation.data?.status === "CLOSED";
+  }, [isOrderTerminal, conversation.data?.status]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

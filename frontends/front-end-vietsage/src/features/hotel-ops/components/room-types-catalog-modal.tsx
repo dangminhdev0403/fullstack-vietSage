@@ -46,7 +46,10 @@ export function RoomTypesCatalogModal({
     isLoading,
     isError,
     refetch,
-  } = useQuery(roomTypesScope.queries.list.options(undefined));
+  } = useQuery({
+    ...roomTypesScope.queries.list.options(undefined),
+    enabled: isOpen,
+  });
 
   const updatePriceMutation = useMutation(roomTypesScope.mutations.updatePrice.options());
   const createTypeMutation = useMutation(roomTypesScope.mutations.create.options());
@@ -115,7 +118,7 @@ export function RoomTypesCatalogModal({
       }
 
       await refetch();
-      await queryClient.invalidateQueries({ queryKey: ["vietsage", "owner-room-types", "hotel", hotelId] });
+      await roomTypesScope.invalidate(queryClient);
       await queryClient.invalidateQueries({ queryKey: ["vietsage", "owner-rooms", "hotel", hotelId] });
 
       setEditingPrices((prev) => {
@@ -170,7 +173,7 @@ export function RoomTypesCatalogModal({
       });
 
       await refetch();
-      await queryClient.invalidateQueries({ queryKey: ["vietsage", "owner-room-types", "hotel", hotelId] });
+      await roomTypesScope.invalidate(queryClient);
       await queryClient.invalidateQueries({ queryKey: ["vietsage", "owner-rooms", "hotel", hotelId] });
 
       setNewTypeName("");

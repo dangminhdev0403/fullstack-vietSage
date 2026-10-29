@@ -1,3 +1,4 @@
+import { collectCatalogPages } from "@/features/owner/utils/owner-settings";
 import { z } from "zod";
 
 import { HttpError } from "@/core/http/http-error";
@@ -32,17 +33,42 @@ const createCategorySchema = z
   })
   .strict();
 
-export async function GET(_request: Request, context: Params) {
+export async function GET(request: Request, context: Params) {
   const { hotelId } = await context.params;
   if (!hotelId) {
     return validationErrorResponse("hotelId is required");
   }
 
+  const { searchParams } = new URL(request.url);
+  const pageParam = searchParams.get("page");
+  const limitParam = searchParams.get("limit");
+  const pagination = z.object({
+    page: z.coerce.number().int().min(1).optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+  }).safeParse({ page: pageParam ?? undefined, limit: limitParam ?? undefined });
+  if (!pagination.success) return validationErrorResponse("Phân trang danh mục không hợp lệ.");
+
   try {
-    const data = await executeOwnerBackendRequest("list owner service categories", (accessToken) => hotelOpsService.listServiceCategories(hotelId, {
-      query: { page: 1, limit: 100 },
-      accessToken,
-    }));
+    const data = await executeOwnerBackendRequest(
+      "list owner service categories",
+      async (accessToken) => {
+        if (pageParam || limitParam) {
+          const page = pagination.data.page ?? 1;
+          const limit = pagination.data.limit ?? 100;
+          return hotelOpsService.listServiceCategories(hotelId, {
+            query: { page, limit },
+            accessToken,
+          });
+        }
+        const items = await collectCatalogPages((page) => hotelOpsService.listServiceCategories(hotelId, { query: { page, limit: 100 }, accessToken }));
+        return {
+          items,
+          total: items.length,
+          page: 1,
+          limit: Math.max(1, items.length),
+        };
+      },
+    );
     if (data instanceof Response) return data;
     return successResponse(data, 200, "Owner service categories fetched successfully");
   } catch (error) {

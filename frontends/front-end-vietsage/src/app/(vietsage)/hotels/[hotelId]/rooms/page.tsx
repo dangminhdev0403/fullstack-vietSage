@@ -71,7 +71,6 @@ export default async function StaffRoomsPage({
   }
 
   let roomsPage: Awaited<ReturnType<typeof hotelOpsService.listRooms>>;
-  let dashboard: Awaited<ReturnType<typeof hotelOpsService.getDashboard>> | undefined;
 
   try {
     const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
@@ -91,11 +90,6 @@ export default async function StaffRoomsPage({
         accessToken,
       }),
     );
-    dashboard = isHousekeeping
-      ? undefined
-      : await authorizedApi("load room dashboard", (accessToken) =>
-          hotelOpsService.getDashboard(hotelId, { accessToken }),
-        );
   } catch (error) {
     console.error("[STAFF_ROOMS_PAGE_ERROR]", {
       hotelId,
@@ -161,7 +155,6 @@ export default async function StaffRoomsPage({
           hotelId={hotelId}
           baseRoutePrefix={baseRoutePrefix}
           initialRoomsPage={roomsPage}
-          initialByStatus={dashboard?.rooms.byStatus}
           canManageRooms={!isHousekeeping && context.permissions.includes("hotel.rooms.manage")}
           canManageReservations={
             !isHousekeeping &&
@@ -222,6 +215,15 @@ export default async function StaffRoomsPage({
           initialStartDate={initialStartDate}
           initialViewMode={initialViewMode}
           isHousekeeping={isHousekeeping}
+          currentUser={
+            session?.user
+              ? {
+                  id: session.user.id || (session.user as any).userId || "",
+                  name: session.user.name,
+                  email: session.user.email,
+                }
+              : undefined
+          }
           enabledFeatures={
             context.accessibleHotels.find((hotel) => hotel.id === hotelId)
               ?.enabledFeatures ?? []

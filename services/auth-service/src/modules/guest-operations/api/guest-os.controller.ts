@@ -168,11 +168,26 @@ export class GuestOsController {
   @Post("messages")
   async sendMessage(@Req() request: RequestWithGuestSession, @Body() body: unknown) {
     const parsed = parseWithZod(guestMessageBodySchema, body);
-    const session = await this.guestOsService.getCurrentSession(request.guestSession);
+    const sessionCtx = request.guestSession as RequestWithGuestSession["guestSession"] & {
+      plannedCheckOutAt?: Date | string;
+      stay?: { plannedCheckOutAt?: Date | string };
+    };
+    const directCheckOutAt =
+      sessionCtx.plannedCheckOutAt ??
+      sessionCtx.stay?.plannedCheckOutAt ??
+      (sessionCtx.hotelId && sessionCtx.stayId && sessionCtx.roomId && sessionCtx.expiresAt
+        ? sessionCtx.expiresAt
+        : undefined);
+    const plannedCheckOutAt = directCheckOutAt
+      ? new Date(directCheckOutAt)
+      : new Date(
+          (await this.guestOsService.getCurrentSession(request.guestSession)).session.stay
+            .plannedCheckOutAt,
+        );
     return this.guestMessagesService.sendFromGuest(
       request.guestSession,
       parsed.body,
-      new Date(session.session.stay.plannedCheckOutAt),
+      plannedCheckOutAt,
       parsed.clientMessageId,
     );
   }

@@ -1,7 +1,7 @@
 "use client";
 
 import { type InfiniteData, type QueryKey, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type FormEvent, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { HttpError } from "@/core/http/http-error";
@@ -62,44 +62,10 @@ function formatMessageTime(dateString: string): string {
   }).format(date);
 }
 
-function TypewriterMessageBody({ body, createdAt }: Readonly<{ body: string; createdAt: string }>) {
-  const [displayedText, setDisplayedText] = useState(() => {
-    if (typeof window === "undefined") return body;
-    const msgTime = new Date(createdAt).getTime();
-    const isNew = !Number.isNaN(msgTime) && Math.abs(Date.now() - msgTime) < 15000;
-    return isNew ? "" : body;
-  });
-  const [isTyping, setIsTyping] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const msgTime = new Date(createdAt).getTime();
-    return !Number.isNaN(msgTime) && Math.abs(Date.now() - msgTime) < 15000;
-  });
-
-  useEffect(() => {
-    const msgTime = new Date(createdAt).getTime();
-    const isNew = !Number.isNaN(msgTime) && Math.abs(Date.now() - msgTime) < 15000;
-
-    if (!isNew) return;
-
-    let currentIndex = 0;
-    const interval = setInterval(() => {
-      currentIndex += 1;
-      setDisplayedText(body.slice(0, currentIndex));
-      if (currentIndex >= body.length) {
-        clearInterval(interval);
-        setIsTyping(false);
-      }
-    }, 18);
-
-    return () => clearInterval(interval);
-  }, [body, createdAt]);
-
+function TypewriterMessageBody({ body }: Readonly<{ body: string; createdAt?: string }>) {
   return (
     <p className="whitespace-pre-wrap break-all [overflow-wrap:anywhere] text-left">
-      {displayedText}
-      {isTyping && (
-        <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-current animate-pulse rounded-sm align-middle opacity-80" />
-      )}
+      {body}
     </p>
   );
 }
@@ -410,12 +376,19 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
     refetchInterval: 30_000,
   });
 
-  const threadItems = (threads.data?.pages ?? [])
-    .flatMap((page) => page.items)
-    .reduce<Thread[]>((items, thread) => {
-      if (!items.some((item) => item.id === thread.id)) items.push(thread);
-      return items;
-    }, []);
+  const threadItems = useMemo(() => {
+    const seen = new Set<string>();
+    const items: Thread[] = [];
+    for (const page of threads.data?.pages ?? []) {
+      for (const thread of page.items) {
+        if (!seen.has(thread.id)) {
+          seen.add(thread.id);
+          items.push(thread);
+        }
+      }
+    }
+    return items;
+  }, [threads.data?.pages]);
 
   const totalUnreadCount = threadItems.reduce((acc, t) => acc + (t.unreadCount || 0), 0);
   const unreadThreadsCount = threadItems.filter((t) => (t.unreadCount || 0) > 0).length;
@@ -479,16 +452,20 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
   // Flatten messages from pages in chronological order (oldest page first, newest page last)
   const pages = detail.data?.pages ?? [];
   const activeThread = pages[0]?.thread;
-  const messages = pages
-    .slice()
-    .reverse()
-    .flatMap((page) => page.items)
-    .reduce<Message[]>((acc, item) => {
-      if (!acc.some((m) => m.id === item.id)) {
-        acc.push(item);
+  const messages = useMemo(() => {
+    const pageList = detail.data?.pages ?? [];
+    const seen = new Set<string>();
+    const list: Message[] = [];
+    for (let i = pageList.length - 1; i >= 0; i -= 1) {
+      for (const item of pageList[i].items) {
+        if (!seen.has(item.id)) {
+          seen.add(item.id);
+          list.push(item);
+        }
       }
-      return acc;
-    }, []);
+    }
+    return list;
+  }, [detail.data?.pages]);
   const selectedThread = activeThread ?? threadItems.find((thread) => thread.id === selectedId);
   const conversationClosed = Boolean(
     selectedThread && (

@@ -6,7 +6,11 @@ import type {
   HotelArrival,
   HotelOpsPage,
   HotelRoomSummary,
+  HotelConfirmationTemplateConfig,
   ReservationConfirmationData,
+  BookingSourcePartnerItem,
+  CreateBookingSourcePartnerInput,
+  HotelStaffAssignmentItem,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 import type {
   BillingPage,
@@ -322,6 +326,31 @@ export const staffRoomsRepository = {
     return response.data;
   },
 
+  async getConfirmationTemplate(
+    hotelId: string,
+    signal?: AbortSignal,
+  ): Promise<HotelConfirmationTemplateConfig | null> {
+    const response = await requestInternalApiEnvelope<HotelConfirmationTemplateConfig | null>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/confirmation-template`,
+      { method: "GET", signal },
+    );
+    return response.data;
+  },
+
+  async upsertConfirmationTemplate(
+    hotelId: string,
+    body: Partial<HotelConfirmationTemplateConfig>,
+  ): Promise<HotelConfirmationTemplateConfig> {
+    const response = await requestInternalApiEnvelope<HotelConfirmationTemplateConfig>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/confirmation-template`,
+      {
+        method: "PUT",
+        body,
+      },
+    );
+    return response.data;
+  },
+
   async listGroupArrivals(
     hotelId: string,
     groupCode: string,
@@ -631,5 +660,48 @@ export const staffRoomsRepository = {
       },
     );
     return response.data;
+  },
+
+  async listBookingPartners(
+    hotelId: string,
+    query?: { category?: string; q?: string },
+    signal?: AbortSignal,
+  ): Promise<BookingSourcePartnerItem[]> {
+    const params = new URLSearchParams();
+    if (query?.category) params.set("category", query.category);
+    if (query?.q) params.set("q", query.q);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    const response = await requestInternalApiEnvelope<BookingSourcePartnerItem[]>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/booking-partners${qs}`,
+      { method: "GET", signal },
+    );
+    return response.data ?? [];
+  },
+
+  async createBookingPartner(
+    hotelId: string,
+    payload: CreateBookingSourcePartnerInput,
+    signal?: AbortSignal,
+  ): Promise<BookingSourcePartnerItem> {
+    const response = await requestInternalApiEnvelope<BookingSourcePartnerItem>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/booking-partners`,
+      {
+        method: "POST",
+        body: payload,
+        signal,
+      },
+    );
+    return response.data;
+  },
+
+  async listStaffAssignments(
+    hotelId: string,
+    signal?: AbortSignal,
+  ): Promise<HotelStaffAssignmentItem[]> {
+    const response = await requestInternalApiEnvelope<HotelOpsPage<HotelStaffAssignmentItem>>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/staff-assignments?limit=100`,
+      { method: "GET", signal },
+    );
+    return response.data?.items ?? [];
   },
 };

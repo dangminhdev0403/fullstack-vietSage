@@ -335,7 +335,7 @@ export class GuestMessagesRepository {
           : []),
       ],
     };
-    const [total, items] = await this.prisma.$transaction([
+    const [total, items] = await Promise.all([
       this.prisma.guestMessageThread.count({ where: baseWhere }),
       this.prisma.guestMessageThread.findMany({
         where,

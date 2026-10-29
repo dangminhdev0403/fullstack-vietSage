@@ -11,18 +11,18 @@ export class HotelServiceCatalogRepository {
     skip: number,
     take: number,
   ) {
-    return this.prisma.$transaction(async (tx) => {
-      const total = await tx.hotelServiceCategory.count({ where });
-      const rows = await tx.hotelServiceCategory.findMany({
+    const [total, rows] = await Promise.all([
+      this.prisma.hotelServiceCategory.count({ where }),
+      this.prisma.hotelServiceCategory.findMany({
         where,
         include: { translations: true },
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
         skip,
         take,
-      });
+      }),
+    ]);
 
-      return [total, rows] as const;
-    });
+    return [total, rows] as const;
   }
 
   async getServiceCategoryTelegramGroup(hotelId: string, serviceCategoryId: string) {
@@ -33,6 +33,34 @@ export class HotelServiceCatalogRepository {
     });
 
     return route?.telegramChatId ?? null;
+  }
+
+  async getServiceCategoryTelegramGroups(
+    hotelId: string,
+    serviceCategoryIds: string[],
+  ): Promise<Map<string, string | null>> {
+    const result = new Map<string, string | null>();
+    if (serviceCategoryIds.length === 0) {
+      return result;
+    }
+
+    const routes = await this.prisma.notificationRoute.findMany({
+      where: {
+        hotelId,
+        serviceCategoryId: { in: serviceCategoryIds },
+        isActive: true,
+      },
+      orderBy: { updatedAt: "desc" },
+      select: { serviceCategoryId: true, telegramChatId: true },
+    });
+
+    for (const route of routes) {
+      if (route.serviceCategoryId && !result.has(route.serviceCategoryId)) {
+        result.set(route.serviceCategoryId, route.telegramChatId ?? null);
+      }
+    }
+
+    return result;
   }
 
   async syncServiceCategoryTelegramGroup(input: {
@@ -159,18 +187,18 @@ export class HotelServiceCatalogRepository {
   }
 
   async listServiceItems(where: Prisma.HotelServiceItemWhereInput, skip: number, take: number) {
-    return this.prisma.$transaction(async (tx) => {
-      const total = await tx.hotelServiceItem.count({ where });
-      const rows = await tx.hotelServiceItem.findMany({
+    const [total, rows] = await Promise.all([
+      this.prisma.hotelServiceItem.count({ where }),
+      this.prisma.hotelServiceItem.findMany({
         where,
         include: serviceItemInclude,
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
         skip,
         take,
-      });
+      }),
+    ]);
 
-      return [total, rows] as const;
-    });
+    return [total, rows] as const;
   }
 
   async createServiceItem(input: {

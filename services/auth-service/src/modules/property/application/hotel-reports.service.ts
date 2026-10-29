@@ -222,7 +222,7 @@ export interface HotelReportsData {
   revenueBySource: Array<{
     sourceKey: string;
     sourceName: string;
-    sourceType: "OTA" | "DIRECT" | "WALK_IN";
+    sourceType: "OTA" | "DIRECT" | "WALK_IN" | "TA" | "CORPORATE" | "OTHER";
     bookingCount: number;
     guestCount: number;
     totalRevenue: number;
@@ -241,6 +241,26 @@ export interface HotelReportsData {
     cardAmount: number;
     otherAmount: number;
   }>;
+  revenueByBookingOwner?: Array<{
+    ownerUserId: string;
+    ownerName: string;
+    bookingCount: number;
+    roomNights: number;
+    revenue: number;
+  }>;
+  receivablesSummary?: {
+    totalOriginal: number;
+    totalPaid: number;
+    totalOutstanding: number;
+    openCount: number;
+    overdueCount: number;
+    count: number;
+  };
+  bookingPaymentsSummary?: {
+    totalRequested: number;
+    totalReceived: number;
+    depositCount: number;
+  };
   guestAnalytics: {
     nationalities: Array<{
       nationality: string;
@@ -305,6 +325,10 @@ type StayRecord = {
     status: string;
     guestCount: number | null;
     createdByUserId: string | null;
+    sourceCategory?: any;
+    sourcePartnerId?: string | null;
+    bookingOwnerUserId?: string | null;
+    sourcePartner?: { id: string; name: string; category?: any } | null;
   } | null;
 };
 
@@ -373,6 +397,8 @@ export class HotelReportsService {
       allFolioItems,
       allStaysRaw,
       staffAssignments,
+      allReceivablesRaw,
+      allBookingPaymentsRaw,
     ] = await Promise.all([
       this.prisma.room.count({ where: roomWhere }),
       this.prisma.room.count({ where: { ...roomWhere, status: RoomStatus.OCCUPIED } }),
@@ -467,6 +493,10 @@ export class HotelReportsService {
               status: true,
               guestCount: true,
               createdByUserId: true,
+              sourceCategory: true,
+              sourcePartnerId: true,
+              bookingOwnerUserId: true,
+              sourcePartner: { select: { id: true, name: true, category: true } },
             },
           },
         },
@@ -498,6 +528,38 @@ export class HotelReportsService {
           },
         },
       }),
+      (this.prisma as any).hotelReceivable
+        ? (this.prisma as any).hotelReceivable.findMany({
+            where: { hotelId },
+            select: {
+              id: true,
+              originalAmount: true,
+              paidAmount: true,
+              outstandingAmount: true,
+              status: true,
+              dueDate: true,
+              debtorName: true,
+              debtorType: true,
+            },
+          })
+        : Promise.resolve([]),
+      (this.prisma as any).bookingPayment
+        ? (this.prisma as any).bookingPayment.findMany({
+            where: {
+              hotelId,
+              createdAt: { gte: queryWindowStartDate, lte: endDate },
+            },
+            select: {
+              id: true,
+              intent: true,
+              receivedAmount: true,
+              requestedAmount: true,
+              status: true,
+              paymentMethod: true,
+              createdAt: true,
+            },
+          })
+        : Promise.resolve([]),
     ]);
 
     const allStays = (allStaysRaw as StayRecord[]).filter(
@@ -687,6 +749,22 @@ export class HotelReportsService {
     // 9. Payment Methods Breakdown
     const paymentMethods = this.buildPaymentMethodsBreakdown(succeededPayments);
 
+    // 10. Revenue by Booking Owner
+    const revenueByBookingOwner = this.buildBookingOwnerBreakdown(
+      stays,
+      timeZone,
+      startPlain,
+      endPlain,
+      adr,
+      staffAssignments,
+    );
+
+    // 11. Receivables Summary
+    const receivablesSummary = this.buildReceivablesSummary(allReceivablesRaw);
+
+    // 12. Booking Payments / Deposits Summary
+    const bookingPaymentsSummary = this.buildBookingPaymentsSummary(allBookingPaymentsRaw);
+
     return {
       hotelId,
       hotelName,
@@ -714,8 +792,11 @@ export class HotelReportsService {
       revenueByMonth,
       revenueBySource,
       revenueByStaff,
+      revenueByBookingOwner,
       guestAnalytics,
       paymentMethods,
+      receivablesSummary,
+      bookingPaymentsSummary,
     };
   }
 
@@ -1052,7 +1133,7 @@ export class HotelReportsService {
       {
         sourceKey: string;
         sourceName: string;
-        sourceType: "OTA" | "DIRECT" | "WALK_IN";
+        sourceType: "OTA" | "DIRECT" | "WALK_IN" | "TA" | "CORPORATE" | "OTHER";
         bookingCount: number;
         guestCount: number;
         roomNights: number;
@@ -1063,7 +1144,7 @@ export class HotelReportsService {
     const getOrCreate = (
       key: string,
       name: string,
-      type: "OTA" | "DIRECT" | "WALK_IN",
+      type: "OTA" | "DIRECT" | "WALK_IN" | "TA" | "CORPORATE" | "OTHER",
     ) => {
       let entry = sourcesMap.get(key);
       if (!entry) {
@@ -1103,7 +1184,33 @@ export class HotelReportsService {
       );
 
       let target;
-      if (code.includes("BOOKING") || code.includes("BDC") || group.includes("BOOKING")) {
+      if (stay.reservation?.sourceCategory) {
+        const cat = String(stay.reservation.sourceCategory);
+        const partnerName = (stay.reservation as any).sourcePartner?.name;
+        if (cat === "OTA") {
+          target = getOrCreate(
+            partnerName ? `OTA_${partnerName.toUpperCase().replace(/\s+/g, "_")}` : "OTA_OTHER",
+            partnerName || "Kênh OTA",
+            "OTA",
+          );
+        } else if (cat === "TA" || cat === "TRAVEL_AGENCY") {
+          target = getOrCreate(
+            partnerName ? `TA_${partnerName.toUpperCase().replace(/\s+/g, "_")}` : "TA_OTHER",
+            partnerName ? `Đại lý du lịch - ${partnerName}` : "Đại lý du lịch (TA)",
+            "TA",
+          );
+        } else if (cat === "CORPORATE") {
+          target = getOrCreate(
+            partnerName ? `CORP_${partnerName.toUpperCase().replace(/\s+/g, "_")}` : "CORPORATE_OTHER",
+            partnerName ? `Doanh nghiệp - ${partnerName}` : "Khách hàng doanh nghiệp",
+            "CORPORATE",
+          );
+        } else if (cat === "DIRECT") {
+          target = getOrCreate("DIRECT", "Đặt phòng trực tiếp (Direct)", "DIRECT");
+        } else {
+          target = getOrCreate("OTHER", "Nguồn khác", "OTHER");
+        }
+      } else if (code.includes("BOOKING") || code.includes("BDC") || group.includes("BOOKING")) {
         target = getOrCreate("OTA_BOOKING", "Booking.com", "OTA");
       } else if (code.includes("AGODA") || group.includes("AGODA")) {
         target = getOrCreate("OTA_AGODA", "Agoda", "OTA");
@@ -1169,6 +1276,122 @@ export class HotelReportsService {
         };
       })
       .sort((a, b) => b.totalRevenue - a.totalRevenue);
+  }
+
+  private buildBookingOwnerBreakdown(
+    stays: any[],
+    timeZone: string,
+    startPlain: Temporal.PlainDate,
+    endPlain: Temporal.PlainDate,
+    baseAdr: number,
+    staffAssignments: any[] = [],
+  ) {
+    const ownerMap = new Map<
+      string,
+      {
+        ownerUserId: string;
+        ownerName: string;
+        bookingCount: number;
+        roomNights: number;
+        revenue: number;
+      }
+    >();
+
+    for (const stay of stays) {
+      const ownerId = stay.reservation?.bookingOwnerUserId || "UNASSIGNED";
+      const assigned = staffAssignments.find(
+        (s) => s.userId === ownerId || s.user?.id === ownerId,
+      );
+      const ownerName =
+        ownerId === "UNASSIGNED"
+          ? "Chưa phân công"
+          : assigned?.user?.fullName || `Nhân viên #${ownerId.slice(-6)}`;
+
+      let entry = ownerMap.get(ownerId);
+      if (!entry) {
+        entry = {
+          ownerUserId: ownerId,
+          ownerName,
+          bookingCount: 0,
+          roomNights: 0,
+          revenue: 0,
+        };
+        ownerMap.set(ownerId, entry);
+      }
+
+      const rate = resolveStayNightlyRate(stay, baseAdr);
+      const sStart = stay.checkedInAt || stay.plannedCheckInAt;
+      const sEnd = stay.checkedOutAt || stay.plannedCheckOutAt;
+      const activeNights = Math.max(
+        1,
+        getStayActivePlainDates(sStart, sEnd, timeZone).filter(
+          (d) =>
+            Temporal.PlainDate.compare(d, startPlain) >= 0 &&
+            Temporal.PlainDate.compare(d, endPlain) <= 0,
+        ).length,
+      );
+
+      entry.bookingCount += 1;
+      entry.roomNights += activeNights;
+      entry.revenue += rate * activeNights;
+    }
+
+    return Array.from(ownerMap.values()).sort((a, b) => b.revenue - a.revenue);
+  }
+
+  private buildReceivablesSummary(receivables: any[]) {
+    let totalOriginal = 0;
+    let totalPaid = 0;
+    let totalOutstanding = 0;
+    let openCount = 0;
+    let overdueCount = 0;
+    const now = new Date();
+
+    for (const r of receivables) {
+      const orig = toNumber(r.originalAmount);
+      const paid = toNumber(r.paidAmount);
+      const out = toNumber(r.outstandingAmount);
+      totalOriginal += orig;
+      totalPaid += paid;
+      totalOutstanding += out;
+      if (
+        r.status === "OPEN" ||
+        r.status === "PARTIAL" ||
+        r.status === "PARTIALLY_COLLECTED"
+      ) {
+        openCount++;
+        if (r.dueDate && new Date(r.dueDate) < now) {
+          overdueCount++;
+        }
+      }
+    }
+
+    return {
+      totalOriginal,
+      totalPaid,
+      totalOutstanding,
+      openCount,
+      overdueCount,
+      count: receivables.length,
+    };
+  }
+
+  private buildBookingPaymentsSummary(payments: any[]) {
+    let totalRequested = 0;
+    let totalReceived = 0;
+    let depositCount = 0;
+
+    for (const p of payments) {
+      totalRequested += toNumber(p.requestedAmount ?? p.amountRequested);
+      totalReceived += toNumber(p.receivedAmount ?? p.amountReceived);
+      depositCount++;
+    }
+
+    return {
+      totalRequested,
+      totalReceived,
+      depositCount,
+    };
   }
 
   private buildStaffBreakdown(

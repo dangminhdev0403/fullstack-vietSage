@@ -16,10 +16,12 @@ import type {
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import { formatFriendlyCheckInError } from "@/features/hotel-ops/utils/check-in-error";
 import {
+  escapeHtml,
   showConfirmDialog,
   showSuccessAlert,
   showWarningAlert,
 } from "@/libs/swal";
+import { BookingConfirmationModal } from "./booking-confirmation-modal";
 
 export type GroupRoomItem = {
   reservationId: string;
@@ -234,6 +236,7 @@ export function GroupOperationsDrawer({
   const [resultsMap, setResultsMap] = useState<Record<string, BatchOperationResult>>({});
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [processingProgress, setProcessingProgress] = useState<{ current: number; total: number } | null>(null);
+  const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState<boolean>(false);
 
   // Synchronize when initialGroupCode changes
   useEffect(() => {
@@ -431,9 +434,9 @@ export function GroupOperationsDrawer({
       title: "Xác nhận nhận phòng hàng loạt?",
       html: `
         <div style="text-align: left; font-size: 14px; line-height: 1.6; color: #334155;">
-          <p>Bạn đang chuẩn bị nhận phòng đồng thời cho <strong>${targetItems.length} phòng</strong> thuộc đoàn <strong>#${activeGroupCode}</strong>:</p>
+          <p>Bạn đang chuẩn bị nhận phòng đồng thời cho <strong>${targetItems.length} phòng</strong> thuộc đoàn <strong>#${escapeHtml(activeGroupCode)}</strong>:</p>
           <div style="margin: 10px 0; padding: 10px; background-color: #f1f5f9; border-radius: 8px; font-weight: 600; color: #0f172a; max-height: 120px; overflow-y: auto;">
-            ${roomNames}
+            ${escapeHtml(roomNames)}
           </div>
           <p style="color: #64748b; font-size: 13px;">Hệ thống sẽ kích hoạt lưu trú và cấp mã truy cập số GuestOS cho từng phòng.</p>
         </div>
@@ -549,9 +552,9 @@ export function GroupOperationsDrawer({
       title: "Xác nhận trả phòng hàng loạt?",
       html: `
         <div style="text-align: left; font-size: 14px; line-height: 1.6; color: #334155;">
-          <p>Bạn đang chuẩn bị trả phòng đồng thời cho <strong>${targetItems.length} phòng</strong> thuộc đoàn <strong>#${activeGroupCode}</strong>:</p>
+          <p>Bạn đang chuẩn bị trả phòng đồng thời cho <strong>${targetItems.length} phòng</strong> thuộc đoàn <strong>#${escapeHtml(activeGroupCode)}</strong>:</p>
           <div style="margin: 10px 0; padding: 10px; background-color: #f1f5f9; border-radius: 8px; font-weight: 600; color: #0f172a; max-height: 120px; overflow-y: auto;">
-            ${roomNames}
+            ${escapeHtml(roomNames)}
           </div>
           <p style="color: #64748b; font-size: 13px;">Các phòng sau khi trả sẽ chuyển sang trạng thái chờ dọn dẹp để phục vụ lượt khách kế tiếp.</p>
         </div>
@@ -711,17 +714,28 @@ export function GroupOperationsDrawer({
                 <span>Tra cứu đoàn</span>
               </button>
               {activeGroupCode ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    void refetchGroupArrivals();
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer shadow-2xs min-h-[44px]"
-                  title="Tải lại dữ liệu đoàn"
-                >
-                  <VsIcon name="refresh" className="text-base text-slate-500" />
-                  <span>Đồng bộ</span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void refetchGroupArrivals();
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer shadow-2xs min-h-[44px] whitespace-nowrap"
+                    title="Tải lại dữ liệu đoàn"
+                  >
+                    <VsIcon name="refresh" className="text-base text-slate-500" />
+                    <span>Đồng bộ</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsConfirmationModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 px-3 py-2.5 text-xs font-bold text-purple-800 transition cursor-pointer shadow-2xs min-h-[44px] whitespace-nowrap"
+                    title="In bản xác nhận đặt phòng đoàn"
+                  >
+                    <VsIcon name="print" className="text-base text-purple-700" />
+                    <span>In xác nhận đoàn</span>
+                  </button>
+                </>
               ) : null}
             </form>
           </section>
@@ -1064,6 +1078,15 @@ export function GroupOperationsDrawer({
           </div>
         </div>
       </div>
+      {activeGroupCode && (
+        <BookingConfirmationModal
+          isOpen={isConfirmationModalOpen}
+          onClose={() => setIsConfirmationModalOpen(false)}
+          hotelId={hotelId}
+          groupCode={activeGroupCode}
+          mode="group"
+        />
+      )}
     </div>
   );
 }

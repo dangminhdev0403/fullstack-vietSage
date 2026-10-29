@@ -493,6 +493,7 @@ export class HotelDashboardService {
           status: GuestRequestStatus.COMPLETED,
           completedAt: { not: null },
         },
+        orderBy: { completedAt: "desc" },
         select: { id: true, createdAt: true, completedAt: true },
         take: 500,
       }),
@@ -512,6 +513,7 @@ export class HotelDashboardService {
           id: true,
           occupants: { select: { id: true } },
         },
+        take: 1000,
       }),
       this.prisma.reservation.findMany({
         where: {
@@ -528,6 +530,7 @@ export class HotelDashboardService {
             },
           },
         },
+        take: 1000,
       }),
       this.prisma.guestStay.findMany({
         where: {
@@ -540,6 +543,7 @@ export class HotelDashboardService {
           plannedCheckInAt: true,
           occupants: { select: { id: true } },
         },
+        take: 1000,
       }),
     ]);
 

@@ -32,7 +32,7 @@ interface RequestWithUser extends Request {
 export class HotelStaffAssignmentsController {
   constructor(private readonly hotelStaffAssignmentsService: HotelStaffAssignmentsService) {}
 
-  @RequirePermission("hotel.staff.view")
+  @RequirePermission(["hotel.staff.view", "hotel.reservations.view"])
   @SuccessMessage("Lấy danh sách phân công nhân viên thành công")
   @ApiDescript("Xem phân công nhân viên khách sạn")
   @ApiParam({ name: "hotelId", type: String })

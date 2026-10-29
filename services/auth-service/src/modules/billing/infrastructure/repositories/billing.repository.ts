@@ -32,6 +32,21 @@ export const folioListSelect = {
       plannedCheckOutAt: true,
       baseNightlyRateSnapshot: true,
       nightlyRateSnapshot: true,
+      reservationId: true,
+      reservation: {
+        select: {
+          chargeLines: {
+            where: { lineType: "ROOM_NIGHT" },
+            select: {
+              id: true,
+              lineType: true,
+              serviceDate: true,
+              unitPriceSnapshot: true,
+              totalSnapshot: true,
+            },
+          },
+        },
+      },
     },
   },
   invoices: {
@@ -57,6 +72,21 @@ export const folioDetailInclude = {
       checkedOutAt: true,
       baseNightlyRateSnapshot: true,
       nightlyRateSnapshot: true,
+      reservationId: true,
+      reservation: {
+        select: {
+          chargeLines: {
+            where: { lineType: "ROOM_NIGHT" },
+            select: {
+              id: true,
+              lineType: true,
+              serviceDate: true,
+              unitPriceSnapshot: true,
+              totalSnapshot: true,
+            },
+          },
+        },
+      },
     },
   },
   createdBy: { select: { id: true, fullName: true, email: true } },
@@ -108,20 +138,18 @@ export class BillingRepository {
         : {}),
     };
 
-    return this.prisma.$transaction(async (tx) => {
-      const [total, rows] = await Promise.all([
-        tx.folio.count({ where }),
-        tx.folio.findMany({
-          where,
-          select: folioListSelect,
-          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-          skip: input.skip,
-          take: input.take,
-        }),
-      ]);
+    const [total, rows] = await Promise.all([
+      this.prisma.folio.count({ where }),
+      this.prisma.folio.findMany({
+        where,
+        select: folioListSelect,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip: input.skip,
+        take: input.take,
+      }),
+    ]);
 
-      return { total, rows };
-    });
+    return { total, rows };
   }
 
   async findFolioDetail(hotelId: string, folioId: string) {
@@ -152,99 +180,108 @@ export class BillingRepository {
       folioId: input.folioId,
     };
 
-    return this.prisma.$transaction(async (tx) => {
-      const [total, rows] = await Promise.all([
-        tx.folioItem.count({ where }),
-        tx.folioItem.findMany({
-          where,
-          include: folioItemListInclude,
-          orderBy: [{ postedAt: "desc" }, { id: "desc" }],
-          skip: input.skip,
-          take: input.take,
-        }),
-      ]);
+    const [total, rows] = await Promise.all([
+      this.prisma.folioItem.count({ where }),
+      this.prisma.folioItem.findMany({
+        where,
+        include: folioItemListInclude,
+        orderBy: [{ postedAt: "desc" }, { id: "desc" }],
+        skip: input.skip,
+        take: input.take,
+      }),
+    ]);
 
-      return { total, rows };
-    });
+    return { total, rows };
   }
 
   async getFolioSummary(hotelId: string, folioId: string) {
-    return this.prisma.$transaction(async (tx) => {
-      const folio = await tx.folio.findFirst({
-        where: { id: folioId, hotelId },
-        select: {
-          id: true,
-          hotelId: true,
-          stayId: true,
-          folioNumber: true,
-          status: true,
-          currency: true,
-          subtotalAmount: true,
-          taxAmount: true,
-          discountAmount: true,
-          totalAmount: true,
-          openedAt: true,
-          createdAt: true,
-          updatedAt: true,
-          room: { select: { id: true, roomNumber: true, price: true } },
-          invoices: { select: { id: true, invoiceNumber: true, status: true, totalAmount: true, paidAmount: true, balanceAmount: true }, orderBy: [{ issuedAt: "desc" }, { id: "desc" }], take: 1 },
-          stay: {
-            select: {
-              id: true,
-              checkedInAt: true,
-              checkedOutAt: true,
-              plannedCheckInAt: true,
-              plannedCheckOutAt: true,
-              baseNightlyRateSnapshot: true,
-              nightlyRateSnapshot: true,
+    const folio = await this.prisma.folio.findFirst({
+      where: { id: folioId, hotelId },
+      select: {
+        id: true,
+        hotelId: true,
+        stayId: true,
+        folioNumber: true,
+        status: true,
+        currency: true,
+        subtotalAmount: true,
+        taxAmount: true,
+        discountAmount: true,
+        totalAmount: true,
+        openedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        room: { select: { id: true, roomNumber: true, price: true } },
+        invoices: { select: { id: true, invoiceNumber: true, status: true, totalAmount: true, paidAmount: true, balanceAmount: true }, orderBy: [{ issuedAt: "desc" }, { id: "desc" }], take: 1 },
+        stay: {
+          select: {
+            id: true,
+            checkedInAt: true,
+            checkedOutAt: true,
+            plannedCheckInAt: true,
+            plannedCheckOutAt: true,
+            baseNightlyRateSnapshot: true,
+            nightlyRateSnapshot: true,
+            reservationId: true,
+            reservation: {
+              select: {
+                chargeLines: {
+                  where: { lineType: "ROOM_NIGHT" },
+                  select: {
+                    id: true,
+                    lineType: true,
+                    serviceDate: true,
+                    unitPriceSnapshot: true,
+                    totalSnapshot: true,
+                  },
+                },
+              },
             },
           },
         },
-      });
-
-      if (!folio) {
-        return null;
-      }
-
-      const [grouped, latestItem] = await Promise.all([
-        tx.folioItem.groupBy({
-          by: ["itemType"],
-          where: { hotelId, folioId, voidedAt: null },
-          _count: { _all: true },
-        }),
-        tx.folioItem.aggregate({
-          where: { hotelId, folioId, voidedAt: null },
-          _max: { postedAt: true },
-        }),
-      ]);
-
-      return { folio, grouped, latestItemPostedAt: latestItem._max.postedAt };
+      },
     });
+
+    if (!folio) {
+      return null;
+    }
+
+    const [grouped, latestItem] = await Promise.all([
+      this.prisma.folioItem.groupBy({
+        by: ["itemType"],
+        where: { hotelId, folioId, voidedAt: null },
+        _count: { _all: true },
+      }),
+      this.prisma.folioItem.aggregate({
+        where: { hotelId, folioId, voidedAt: null },
+        _max: { postedAt: true },
+      }),
+    ]);
+
+    return { folio, grouped, latestItemPostedAt: latestItem._max.postedAt };
   }
 
   async findInvoiceDetail(hotelId: string, invoiceId: string) {
-    return this.prisma.$transaction(async (tx) => {
-      const invoice = await tx.invoice.findFirst({
-        where: { id: invoiceId, hotelId },
-        include: invoiceDetailInclude,
-      });
-
-      if (!invoice) {
-        return null;
-      }
-
-      const [items, payments] = await Promise.all([
-        tx.folioItem.findMany({
-          where: { hotelId, folioId: invoice.folioId, voidedAt: null },
-          orderBy: [{ postedAt: "asc" }, { id: "asc" }],
-        }),
-        tx.payment.findMany({
-          where: { hotelId, invoiceId: invoice.id },
-          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        }),
-      ]);
-
-      return { invoice, items, payments };
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id: invoiceId, hotelId },
+      include: invoiceDetailInclude,
     });
+
+    if (!invoice) {
+      return null;
+    }
+
+    const [items, payments] = await Promise.all([
+      this.prisma.folioItem.findMany({
+        where: { hotelId, folioId: invoice.folioId, voidedAt: null },
+        orderBy: [{ postedAt: "asc" }, { id: "asc" }],
+      }),
+      this.prisma.payment.findMany({
+        where: { hotelId, invoiceId: invoice.id },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      }),
+    ]);
+
+    return { invoice, items, payments };
   }
 }

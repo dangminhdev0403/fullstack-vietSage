@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   HttpException,
   Injectable,
   Logger,
@@ -1779,6 +1780,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           );
 
           const remainingTransient: typeof currentWaveItems = [];
+          let reloggedInWave = false;
 
           for (let i = 0; i < settled.length; i++) {
             const res = settled[i];
@@ -1834,7 +1836,12 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             }
 
             // Outcome is AMBIGUOUS
-            if ((outcome.code === "HTTP_401" || outcome.code === "HTTP_403") && wave === 1) {
+            if (
+              (outcome.code === "HTTP_401" || outcome.code === "HTTP_403") &&
+              wave === 1 &&
+              !reloggedInWave
+            ) {
+              reloggedInWave = true;
               this.sessions.delete(hotelId);
               const conn = await this.repository.find(hotelId);
               if (conn) {
@@ -2427,6 +2434,11 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     hotelId: string,
     options?: { generateNewIdentityNumbers?: boolean },
   ) {
+    if (process.env.NODE_ENV === "production") {
+      throw new ForbiddenException(
+        "Thao tác này không khả dụng trên môi trường vận hành chính thức",
+      );
+    }
     await this.access.assertHotelAccess(userId, roleId, hotelId);
     const resetCount = await this.repository.resetAllDeclarationsToDraft(hotelId);
 
@@ -2474,8 +2486,8 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     return {
       success: true,
       message: options?.generateNewIdentityNumbers
-        ? `Đã đổi trạng thái toàn bộ ${resetCount} hồ sơ về Chưa gửi và sinh mới ${generatedCount} Số giấy tờ ngẫu nhiên hợp lệ trong DB.`
-        : `Đã đổi trạng thái toàn bộ ${resetCount} hồ sơ về Chưa gửi (DRAFT). Bạn có thể chỉnh sửa và bấm Upload tất cả test đẩy BCA ngay.`,
+        ? `Đã đặt lại trạng thái toàn bộ ${resetCount} hồ sơ về Chưa gửi và tạo mới ${generatedCount} Số giấy tờ hợp lệ.`
+        : `Đã đặt lại trạng thái toàn bộ ${resetCount} hồ sơ về Chưa gửi. Bạn có thể kiểm tra thông tin và gửi hồ sơ lên Cổng dịch vụ công lưu trú.`,
       resetCount,
       generatedCount,
     };
@@ -2495,6 +2507,11 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       resetToDraft?: boolean;
     }>,
   ) {
+    if (process.env.NODE_ENV === "production") {
+      throw new ForbiddenException(
+        "Thao tác này không khả dụng trên môi trường vận hành chính thức",
+      );
+    }
     await this.access.assertHotelAccess(userId, roleId, hotelId);
     let updatedCount = 0;
 
@@ -2556,7 +2573,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
     return {
       success: true,
-      message: `Đã can thiệp DB cập nhật thành công thông tin / Số giấy tờ cho ${updatedCount} khách lưu trú.`,
+      message: `Đã cập nhật thành công thông tin giấy tờ cho ${updatedCount} khách lưu trú.`,
       updatedCount,
     };
   }

@@ -14,9 +14,7 @@ import { VsIcon } from "./vs-icon";
 
 type VsDashboardSidebarProps = {
   activePath: string;
-  description?: string;
   eyebrow?: string;
-  hotelName?: string | null;
   items?: readonly DashboardNavItem[];
   badgeByKey?: Readonly<Record<string, number>>;
   isCollapsed?: boolean;
@@ -40,14 +38,12 @@ const SECTION_LABELS: Record<DashboardNavSection, string> = {
 
 export function VsDashboardSidebar({
   activePath,
-  description: _description = "Trung tâm điều hành theo phạm vi và quyền của phiên hiện tại.",
   eyebrow = "Workspace",
-  hotelName: _hotelName,
   items,
   badgeByKey,
   isCollapsed = false,
   onToggleCollapse,
-  sidebarWidth: _sidebarWidth = "default",
+  sidebarWidth = "default",
 }: Readonly<VsDashboardSidebarProps>) {
   const navigationItems = useMemo(() => items ?? [], [items]);
 
@@ -72,7 +68,7 @@ export function VsDashboardSidebar({
     })).filter((group) => group.items.length > 0);
   }, [navigationItems]);
 
-  const sidebarWidthClass = "w-72 2xl:w-80";
+  const sidebarWidthClass = sidebarWidth === "compact240" ? "w-60" : "w-72 2xl:w-80";
 
   return (
     <aside
@@ -93,7 +89,7 @@ export function VsDashboardSidebar({
         >
           <VsIcon
             name="chevron_left"
-            className={`text-xs transition-transform duration-300 ${
+            className={`text-sm transition-transform duration-300 ${
               isCollapsed ? "rotate-180" : "rotate-0"
             }`}
           />
@@ -126,7 +122,7 @@ export function VsDashboardSidebar({
             </div>
             {eyebrow ? (
               <div>
-                <span className="inline-block rounded-full border border-[#e8b363]/30 bg-[#e8b363]/10 px-2.5 py-0.5 text-xs font-bold uppercase tracking-[0.18em] text-[#e8b363]">
+                <span className="inline-block rounded-full border border-[#e8b363]/30 bg-[#e8b363]/10 px-2.5 py-0.5 text-sm font-bold uppercase tracking-[0.18em] text-[#e8b363]">
                   {eyebrow}
                 </span>
               </div>
@@ -146,7 +142,7 @@ export function VsDashboardSidebar({
             {/* Section Header */}
             {!isCollapsed ? (
               <div className="px-3 pb-1 pt-2">
-                <span className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[#e8b363]/85">
+                <span className="text-sm font-semibold uppercase tracking-[0.18em] text-[#e8b363]/85">
                   {group.label}
                 </span>
               </div>
@@ -183,7 +179,7 @@ export function VsDashboardSidebar({
                         </span>
                         {badge > 0 ? (
                           <span
-                            className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e8b363] px-1 text-xs font-semibold text-[#17201b] shadow"
+                            className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e8b363] px-1 text-sm font-semibold text-[#17201b] shadow"
                             aria-label={`${item.label}, ${badge} tin chưa đọc`}
                           >
                             {badge > 99 ? "99+" : badge}
@@ -192,10 +188,10 @@ export function VsDashboardSidebar({
                       </Link>
 
                       {/* Tooltip on hover when collapsed */}
-                      <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50 hidden group-hover:flex items-center gap-2 rounded-xl border border-[#e8b363]/25 bg-[#17201b] px-3.5 py-2 text-xs font-semibold text-[#f8f1e6] shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md whitespace-nowrap">
+                      <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50 hidden group-hover:flex items-center gap-2 rounded-xl border border-[#e8b363]/25 bg-[#17201b] px-3.5 py-2 text-sm font-semibold text-[#f8f1e6] shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md whitespace-nowrap">
                         <span>{item.label}</span>
                         {badge > 0 ? (
-                          <span className="rounded-full bg-[#e8b363] px-1.5 py-0.5 text-xs font-semibold text-[#17201b]">
+                          <span className="rounded-full bg-[#e8b363] px-1.5 py-0.5 text-sm font-semibold text-[#17201b]">
                             {badge > 99 ? "99+" : badge}
                           </span>
                         ) : null}
@@ -209,7 +205,7 @@ export function VsDashboardSidebar({
                     key={item.key}
                     href={item.href}
                     prefetch={true}
-                    className={`group flex h-[52px] items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-all duration-200 ${
+                    className={`group flex h-[52px] items-center gap-3 rounded-xl px-3 text-base font-semibold transition-all duration-200 ${
                       isActive
                         ? "bg-[#f8f1e6] text-[#17201b] shadow-[0_4px_16px_rgba(0,0,0,0.18)]"
                         : "text-[#d7cbb8] hover:bg-white/10 hover:text-[#fff8e8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
@@ -224,10 +220,10 @@ export function VsDashboardSidebar({
                     >
                       <VsIcon name={item.icon} className="text-[19px]" />
                     </span>
-                    <span className="min-w-0 flex-1 truncate font-medium text-sm whitespace-nowrap">{item.label}</span>
+                    <span className="min-w-0 flex-1 truncate font-medium text-base whitespace-nowrap">{item.label}</span>
                     {badge > 0 ? (
                       <span
-                        className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#e8b363] px-1.5 text-xs font-semibold text-[#17201b] shadow-sm transition-all"
+                        className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#e8b363] px-1.5 text-sm font-semibold text-[#17201b] shadow-sm transition-all"
                         aria-label={`${item.label}, ${badge} tin chưa đọc`}
                       >
                         {badge > 99 ? "99+" : badge}

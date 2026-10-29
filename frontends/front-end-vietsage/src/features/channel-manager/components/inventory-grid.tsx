@@ -8,7 +8,6 @@ import {
   useUpdateAvailability,
   useUpdateRestrictions,
 } from "../hooks/use-channel-manager";
-import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import type { DayInventory } from "../types/channel-manager.types";
 import { formatChannexBlockersExplanation } from "../types/channel-manager.types";
 import { BulkUpdateModal } from "./bulk-update-modal";
@@ -89,23 +88,6 @@ export function InventoryGrid({
       dateTo: endDate,
       roleScope,
     });
-
-  // Listen for realtime booking creation and cancellation to update ARI cells immediately
-  useOwnerRequestRealtime(
-    hotelId,
-    useMemo(
-      () => ({
-        onChannelBookingCreated: () => {
-          void refetch();
-        },
-        onChannelBookingCancelled: () => {
-          void refetch();
-        },
-      }),
-      [refetch],
-    ),
-    { enabled: Boolean(hotelId), showConnectionToasts: false },
-  );
 
   const { updateRestrictions, isUpdating: isUpdatingRestrictions } =
     useUpdateRestrictions({ hotelId, roleScope });
@@ -278,7 +260,6 @@ export function InventoryGrid({
           { id: `rate-${rtId}-${date}`, duration: 2000 },
         );
       }
-      void refetch();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Lỗi lưu dữ liệu";
       toast.error(msg, { id: `err-${rtId}-${date}` });
@@ -336,7 +317,6 @@ export function InventoryGrid({
           : `Đã mở bán ${roomType.roomTypeCode} (${day.date})`,
         { id: `stopsell-${rtId}-${day.date}`, duration: 2000 },
       );
-      await refetch();
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "Không thể cập nhật đóng/mở bán";
@@ -412,7 +392,6 @@ export function InventoryGrid({
           : `Đã mở bán ${items.length} ngày cho "${roomType.roomTypeName}"`,
         { id: `quick-success-${rtId}`, duration: 2500 },
       );
-      await refetch();
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "Không thể cập nhật nhanh";

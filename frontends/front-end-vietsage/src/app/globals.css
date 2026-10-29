@@ -1171,7 +1171,7 @@ p.text-center {
   .invoice-items-table {
     width: 100% !important;
     table-layout: fixed !important;
-    font-size: 9.5px !important;
+    font-size: 12px !important;
   }
 
   .invoice-items-table th,
@@ -1302,7 +1302,7 @@ p.text-center {
 .vs-urgent-alert__body dt {
   margin: 0 0 8px;
   color: #9b7168;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 950;
   letter-spacing: 0.08em;
   line-height: 1.2;
@@ -1682,7 +1682,7 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
   justify-content: flex-end;
   gap: 0.65rem;
   color: rgba(23, 62, 44, 0.48);
-  font-size: 0.68rem;
+  font-size: 0.875rem;
   font-style: normal;
   font-weight: 850;
   letter-spacing: 0.12em;
@@ -1949,7 +1949,7 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
   align-items: center;
   gap: 0.75rem;
   color: rgba(184, 135, 47, 0.85);
-  font-size: 0.66rem;
+  font-size: 0.875rem;
   font-weight: 850;
   letter-spacing: 0.2em;
   text-transform: uppercase;

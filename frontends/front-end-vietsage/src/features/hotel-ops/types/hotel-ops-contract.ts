@@ -188,6 +188,68 @@ export type AssignReservationRoomInput = {
   expectedRoomId?: string | null;
 };
 
+export type ReservationChargeLineInput = {
+  lineType: "ROOM_NIGHT" | "EXTRA";
+  serviceDate?: string;
+  serviceItemId?: string;
+  nameSnapshot: string;
+  codeSnapshot?: string;
+  quantity?: number;
+  unitPriceSnapshot: number;
+  taxAmountSnapshot?: number;
+  discountAmountSnapshot?: number;
+  totalSnapshot: number;
+  currency?: string;
+};
+
+export type BookingSourceCategoryType =
+  | "DIRECT"
+  | "OTA"
+  | "TA"
+  | "TRAVEL_AGENCY"
+  | "CORPORATE"
+  | "OTHER";
+
+export type BookingSourcePartnerItem = {
+  id: string;
+  hotelId: string;
+  name: string;
+  code: string;
+  category: BookingSourceCategoryType;
+  contactPerson?: string | null;
+  contactPhone?: string | null;
+  contactEmail?: string | null;
+  notes?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateBookingSourcePartnerInput = {
+  name: string;
+  code: string;
+  category?: BookingSourceCategoryType;
+  contactPerson?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  notes?: string;
+  isActive?: boolean;
+};
+
+export type HotelStaffAssignmentItem = {
+  id: string;
+  hotelId: string;
+  userId: string;
+  status: "ACTIVE" | "REVOKED";
+  role?: string;
+  user: {
+    id: string;
+    fullName: string;
+    email?: string | null;
+    phone?: string | null;
+  };
+};
+
 export type HotelReservationInput = {
   guestDisplayName: string;
   guestPhone?: string;
@@ -198,6 +260,10 @@ export type HotelReservationInput = {
   guestCount?: number;
   notes?: string;
   nightlyRateSnapshot?: number | string;
+  chargeLines?: ReservationChargeLineInput[];
+  sourceCategory?: BookingSourceCategoryType;
+  sourcePartnerId?: string | null;
+  bookingOwnerUserId?: string | null;
 };
 
 export type HotelReservationCheckInResult = {
@@ -227,6 +293,10 @@ export type BulkReservationInput = {
   rate?: number | string | null;
   nightlyRateSnapshot?: number | string | null;
   roomRates?: Record<string, number | string | null>;
+  chargeLines?: ReservationChargeLineInput[];
+  sourceCategory?: BookingSourceCategoryType;
+  sourcePartnerId?: string | null;
+  bookingOwnerUserId?: string | null;
 };
 
 export type BulkReservationResult = {
@@ -716,10 +786,26 @@ export type ConfirmationPolicies = {
   checkOutTime: string;
   cancellationPolicy: string;
   terms: string[];
+  footerNoteText?: string;
+};
+
+export type HotelConfirmationTemplateConfig = {
+  id?: string;
+  hotelId?: string;
+  title?: string;
+  subtitle?: string | null;
+  contactInfo?: string | null;
+  checkInPolicy?: string | null;
+  checkOutPolicy?: string | null;
+  paymentTerms?: string | null;
+  footerNotes?: string | null;
+  showLogo?: boolean;
+  showPriceBreakdown?: boolean;
 };
 
 export type ReservationConfirmationData = {
   hotel: ConfirmationHotelInfo;
+  template?: HotelConfirmationTemplateConfig | null;
   reservation: {
     id: string;
     reservationCode: string;
@@ -761,6 +847,7 @@ export type GroupConfirmationRoomItem = {
 
 export type GroupConfirmationData = {
   hotel: ConfirmationHotelInfo;
+  template?: HotelConfirmationTemplateConfig | null;
   group: {
     groupCode: string;
     groupName: string | null;

@@ -620,6 +620,7 @@ export class HotelRoomsRepository {
             status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY] },
             plannedCheckInAt: { gte: dateStart },
           },
+          distinct: ["roomId"],
           select: {
             id: true,
             hotelId: true,
@@ -815,6 +816,7 @@ export class HotelRoomsRepository {
                   status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY] },
                   plannedCheckInAt: { gt: now },
                 },
+                distinct: ["roomId"],
                 select: {
                   id: true,
                   hotelId: true,
@@ -1137,14 +1139,12 @@ export class HotelRoomsRepository {
   }
 
   async findRoomInHotel(hotelId: string, roomId: string) {
-    return this.prisma.$transaction(async (tx) => {
-      const room = await tx.room.findFirst({
-        where: { id: roomId, hotelId },
-        include: roomListInclude,
-      });
-      if (!room) return null;
-      return (await this.withActiveGuestDeviceCounts(tx, [room]))[0] ?? null;
+    const room = await this.prisma.room.findFirst({
+      where: { id: roomId, hotelId },
+      include: roomListInclude,
     });
+    if (!room) return null;
+    return (await this.withActiveGuestDeviceCounts(this.prisma, [room]))[0] ?? null;
   }
 
   async createStay(input: {

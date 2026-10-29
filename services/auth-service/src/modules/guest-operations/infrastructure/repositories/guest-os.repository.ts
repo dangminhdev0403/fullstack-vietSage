@@ -395,18 +395,32 @@ export class GuestOsRepository {
   }
 
   async listRequests(where: Prisma.GuestRequestWhereInput, skip: number, take: number) {
-    return this.prisma.$transaction(async (tx) => {
-      const total = await tx.guestRequest.count({ where });
-      const rows = await tx.guestRequest.findMany({
+    if (!this.prisma.guestRequest && typeof this.prisma.$transaction === "function") {
+      return this.prisma.$transaction(async (tx) => {
+        const total = await tx.guestRequest.count({ where });
+        const rows = await tx.guestRequest.findMany({
+          where,
+          include: guestRequestGuestInclude,
+          orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
+          skip,
+          take,
+        });
+        return [total, rows] as const;
+      });
+    }
+
+    const [total, rows] = await Promise.all([
+      this.prisma.guestRequest.count({ where }),
+      this.prisma.guestRequest.findMany({
         where,
         include: guestRequestGuestInclude,
         orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
         skip,
         take,
-      });
+      }),
+    ]);
 
-      return [total, rows] as const;
-    });
+    return [total, rows] as const;
   }
 
   async findRequestForGuest(requestId: string, stayId: string) {

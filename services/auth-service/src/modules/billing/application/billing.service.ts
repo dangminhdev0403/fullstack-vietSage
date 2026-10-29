@@ -39,7 +39,7 @@ import { CodesService } from "../../codes/codes-public";
 import { HotelAccessService } from "../../property/property-public";
 import { activeGuestRequestStatuses } from "../../guest-operations/guest-operations-public";
 import { BillingRepository } from "../infrastructure/repositories/billing.repository";
-import { diffCalendarDays, VIETNAM_TIME_ZONE } from "../../../common/time/vietnam-temporal";
+import { addDaysYmd, diffCalendarDays, toYmd, VIETNAM_TIME_ZONE } from "../../../common/time/vietnam-temporal";
 import {
   CollectReceivableInput,
   CreateBookingPaymentInput,
@@ -207,26 +207,12 @@ export class BillingService {
 
         let subtotal = folio.subtotalAmount;
         let total = folio.totalAmount;
-        let estimatedRoomCharge: {
-          nights: number;
-          nightlyRate: Prisma.Decimal;
-          subtotal: Prisma.Decimal;
-          roomNumber: string | null;
-          rateComparison: {
-            direction: "INCREASE" | "DECREASE" | "UNCHANGED";
-            baseNightlyRate: Prisma.Decimal;
-            appliedNightlyRate: Prisma.Decimal;
-            nightlyDifference: Prisma.Decimal;
-            baseSubtotal: Prisma.Decimal;
-            appliedSubtotal: Prisma.Decimal;
-            totalDifference: Prisma.Decimal;
-          } | null;
-        } | null = null;
+        let estimatedRoomCharge: ReturnType<BillingService["calculateEstimatedRoomCharge"]> | null = null;
 
         if (folio.status === FolioStatus.OPEN && !invoice) {
           try {
             estimatedRoomCharge = this.calculateEstimatedRoomCharge(folio);
-            if (!hasRoomChargeItem) {
+            if (estimatedRoomCharge && !hasRoomChargeItem) {
               subtotal = subtotal.add(estimatedRoomCharge.subtotal);
               total = total.add(estimatedRoomCharge.subtotal);
             }
@@ -1931,21 +1917,38 @@ export class BillingService {
         plannedCheckOutAt?: Date | string | null;
         baseNightlyRateSnapshot?: Prisma.Decimal | number | string | null;
         nightlyRateSnapshot?: Prisma.Decimal | number | string | null;
+        roomNightChargeLines?: Array<{
+          serviceDate?: Date | string | null;
+          unitPriceSnapshot?: Prisma.Decimal | number | string;
+          totalSnapshot?: Prisma.Decimal | number | string;
+        }>;
+        reservation?: {
+          chargeLines?: Array<{
+            lineType: string;
+            serviceDate?: Date | string | null;
+            unitPriceSnapshot?: Prisma.Decimal | number | string;
+            totalSnapshot?: Prisma.Decimal | number | string;
+          }>;
+        } | null;
       } | null;
+      roomNightChargeLines?: Array<{
+        serviceDate?: Date | string | null;
+        unitPriceSnapshot?: Prisma.Decimal | number | string;
+        totalSnapshot?: Prisma.Decimal | number | string;
+      }>;
     },
     options?: { isEarlyDeparture?: boolean },
   ) {
-    if (
-      folio.stay?.nightlyRateSnapshot === null ||
-      folio.stay?.nightlyRateSnapshot === undefined
-    ) {
-      throw new ConflictException("MISSING_AGREED_ROOM_RATE_SNAPSHOT");
-    }
     const isVnd = ((folio as any).currency ?? "VND").toUpperCase() === "VND";
-    const rawUnitPrice = new Prisma.Decimal(folio.stay.nightlyRateSnapshot);
-    const unitPrice = isVnd
-      ? rawUnitPrice.toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
-      : rawUnitPrice;
+    const hasNightlyRateSnapshot =
+      folio.stay?.nightlyRateSnapshot !== null &&
+      folio.stay?.nightlyRateSnapshot !== undefined;
+    const rawUnitPrice = hasNightlyRateSnapshot
+      ? new Prisma.Decimal(folio.stay!.nightlyRateSnapshot!)
+      : null;
+    const unitPrice = rawUnitPrice
+      ? (isVnd ? rawUnitPrice.toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP) : rawUnitPrice)
+      : null;
 
     const rawStart =
       folio.stay?.checkedInAt ??
@@ -1965,7 +1968,6 @@ export class BillingService {
       ? (rawPlannedEnd instanceof Date ? rawPlannedEnd : new Date(rawPlannedEnd))
       : chargeStart;
     const plannedNights = this.calculateVietnamNights(plannedStart, committedEnd);
-    const plannedSubtotal = unitPrice.mul(plannedNights);
 
     const actualEndRaw = folio.stay?.checkedOutAt;
     const actualEnd = actualEndRaw
@@ -1985,35 +1987,134 @@ export class BillingService {
         : plannedNights;
     const chargeEnd = isEarlyDeparture || isOverdueStay ? actualEnd : committedEnd;
 
-    const subtotal = isVnd
-      ? unitPrice.mul(nights).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
-      : unitPrice.mul(nights);
+    // Collect date-specific ROOM_NIGHT charge lines if present
+    const rawLines: any[] =
+      (folio as any).roomNightChargeLines ??
+      (folio.stay as any)?.roomNightChargeLines ??
+      (folio.stay as any)?.reservation?.chargeLines?.filter((l: any) => l.lineType === "ROOM_NIGHT") ??
+      [];
+
+    const scheduleByDate = new Map<string, Prisma.Decimal>();
+    const orderedSchedule: Prisma.Decimal[] = [];
+
+    for (const line of rawLines) {
+      const linePrice = new Prisma.Decimal(line.totalSnapshot ?? line.unitPriceSnapshot ?? 0);
+      const roundedLinePrice = isVnd
+        ? linePrice.toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
+        : linePrice;
+      orderedSchedule.push(roundedLinePrice);
+      if (line.serviceDate) {
+        const lineDate = line.serviceDate instanceof Date ? line.serviceDate : new Date(line.serviceDate);
+        const ymd = toYmd(lineDate, VIETNAM_TIME_ZONE);
+        scheduleByDate.set(ymd, roundedLinePrice);
+      }
+    }
+
+    const hasDatedSchedule = scheduleByDate.size > 0;
+    const hasUndatedSchedule = !hasDatedSchedule && orderedSchedule.length > 0;
+
+    if (!hasNightlyRateSnapshot && !hasDatedSchedule && !hasUndatedSchedule) {
+      throw new ConflictException("MISSING_AGREED_ROOM_RATE_SNAPSHOT");
+    }
+
+    const computeRangeTotal = (nightCount: number, rangeStart: Date): Prisma.Decimal => {
+      if (nightCount <= 0) {
+        return new Prisma.Decimal(0);
+      }
+
+      if (hasDatedSchedule) {
+        const rangeStartYmd = toYmd(rangeStart, VIETNAM_TIME_ZONE);
+        const endYmd = addDaysYmd(rangeStartYmd, nightCount);
+        const matching: Prisma.Decimal[] = [];
+        for (const [ymd, rate] of scheduleByDate.entries()) {
+          if (ymd >= rangeStartYmd && ymd < endYmd) {
+            matching.push(rate);
+          }
+        }
+
+        if (unitPrice != null) {
+          let total = unitPrice.mul(nightCount);
+          for (const rate of matching) {
+            total = total.add(rate.sub(unitPrice));
+          }
+          return isVnd ? total.toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP) : total;
+        }
+
+        if (matching.length < nightCount) {
+          throw new ConflictException("MISSING_AGREED_ROOM_RATE_SNAPSHOT");
+        }
+
+        let total = new Prisma.Decimal(0);
+        for (const rate of matching) {
+          total = total.add(rate);
+        }
+        return isVnd ? total.toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP) : total;
+      }
+
+      if (hasUndatedSchedule) {
+        const offset = diffCalendarDays(plannedStart, rangeStart, VIETNAM_TIME_ZONE);
+        const firstIndex = Math.max(0, offset);
+        const lastIndex = Math.min(orderedSchedule.length, offset + nightCount);
+        const overriddenCount = Math.max(0, lastIndex - firstIndex);
+        let total = new Prisma.Decimal(0);
+        for (let i = firstIndex; i < lastIndex; i++) {
+          total = total.add(orderedSchedule[i]);
+        }
+        const remainingNights = nightCount - overriddenCount;
+        if (remainingNights > 0) {
+          if (unitPrice == null) {
+            throw new ConflictException("MISSING_AGREED_ROOM_RATE_SNAPSHOT");
+          }
+          total = total.add(unitPrice.mul(remainingNights));
+        }
+        return isVnd ? total.toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP) : total;
+      }
+
+      if (unitPrice == null) {
+        throw new ConflictException("MISSING_AGREED_ROOM_RATE_SNAPSHOT");
+      }
+      const total = unitPrice.mul(nightCount);
+      return isVnd ? total.toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP) : total;
+    };
+
+    const plannedSubtotal = computeRangeTotal(plannedNights, plannedStart);
+    const subtotal = computeRangeTotal(nights, isEarlyDeparture ? chargeStart : plannedStart);
+
+    const effectiveNightlyRate =
+      nights > 0
+        ? isVnd
+          ? subtotal.div(nights).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
+          : subtotal.div(nights)
+        : (unitPrice ?? (orderedSchedule[0] ?? new Prisma.Decimal(0)));
+
     const baseNightlyRate =
       folio.stay?.baseNightlyRateSnapshot !== null &&
       folio.stay?.baseNightlyRateSnapshot !== undefined
         ? new Prisma.Decimal(folio.stay.baseNightlyRateSnapshot)
         : null;
-    const nightlyDifference = baseNightlyRate ? unitPrice.sub(baseNightlyRate) : null;
+    const baseSubtotal = baseNightlyRate ? baseNightlyRate.mul(nights) : null;
+    const totalDifference = baseSubtotal ? subtotal.sub(baseSubtotal) : null;
+    const nightlyDifference = totalDifference && nights > 0 ? totalDifference.div(nights) : null;
     const rateComparison =
       baseNightlyRate && nightlyDifference
         ? {
-            direction: (nightlyDifference.gt(0)
+            direction: (totalDifference!.gt(0)
               ? "INCREASE"
-              : nightlyDifference.lt(0)
+              : totalDifference!.lt(0)
                 ? "DECREASE"
                 : "UNCHANGED") as "INCREASE" | "DECREASE" | "UNCHANGED",
             baseNightlyRate,
-            appliedNightlyRate: unitPrice,
+            appliedNightlyRate: effectiveNightlyRate,
             nightlyDifference,
-            baseSubtotal: baseNightlyRate.mul(nights),
+            baseSubtotal,
             appliedSubtotal: subtotal,
-            totalDifference: nightlyDifference.mul(nights),
+            totalDifference,
           }
         : null;
 
     return {
       nights,
-      nightlyRate: unitPrice,
+      nightlyRate: effectiveNightlyRate,
       subtotal,
       roomNumber: folio.room?.roomNumber ?? null,
       rateComparison,
@@ -2035,6 +2136,28 @@ export class BillingService {
       throw new ConflictException("ROOM_CHARGE_RECALCULATION_REQUIRES_OPEN_FOLIO");
     }
 
+    let roomNightChargeLines: any[] =
+      (folio as any).roomNightChargeLines ??
+      (folio.stay as any)?.roomNightChargeLines ??
+      (folio.stay as any)?.reservation?.chargeLines?.filter((l: any) => l.lineType === "ROOM_NIGHT") ??
+      [];
+
+    if (roomNightChargeLines.length === 0 && folio.stay?.reservationId && tx.reservationChargeLine) {
+      roomNightChargeLines = await tx.reservationChargeLine.findMany({
+        where: {
+          reservationId: folio.stay.reservationId,
+          hotelId: folio.hotelId,
+          lineType: "ROOM_NIGHT",
+        },
+        orderBy: [{ serviceDate: "asc" }, { id: "asc" }],
+      });
+    }
+
+    const folioWithLines = {
+      ...folio,
+      roomNightChargeLines,
+    };
+
     const existing = await tx.folioItem.findFirst({
       where: {
         folioId: folio.id,
@@ -2044,7 +2167,7 @@ export class BillingService {
         voidedAt: null,
       },
     });
-    const est = this.calculateEstimatedRoomCharge(folio, options);
+    const est = this.calculateEstimatedRoomCharge(folioWithLines, options);
     const chargeStart = folio.stay.checkedInAt ?? folio.stay.plannedCheckInAt;
     const chargeEnd = est.chargeEnd;
     const unitPrice = est.nightlyRate;
@@ -2105,6 +2228,19 @@ export class BillingService {
           taxAmount: totals.taxAmount,
           discountAmount: totals.discountAmount,
           totalAmount: totals.totalAmount,
+        },
+      });
+    }
+
+    if (roomNightChargeLines.length > 0 && tx.reservationChargeLine?.updateMany) {
+      await tx.reservationChargeLine.updateMany({
+        where: {
+          id: { in: roomNightChargeLines.map((l) => l.id) },
+          hotelId: folio.hotelId,
+        },
+        data: {
+          isPostedToFolio: true,
+          postedFolioItemId: itemResult.id,
         },
       });
     }
@@ -2379,6 +2515,7 @@ export class BillingService {
       );
     }
 
+    let hasCreatedFolioItem = false;
     for (const req of activeRequests) {
       const rec = reconciliationsMap.get(req.id)!;
       if (rec.action === "cancelled") {
@@ -2406,17 +2543,7 @@ export class BillingService {
           });
         }
       } else if (rec.action === "provided") {
-        let priceSnapshot = extractBillingPriceSnapshot(req.metadata);
-        if (!priceSnapshot) {
-          const fallbackRaw =
-            req.serviceItem?.priceOverride ?? req.serviceItem?.category?.defaultPrice;
-          if (fallbackRaw !== undefined && fallbackRaw !== null) {
-            priceSnapshot = {
-              unitPrice: new Prisma.Decimal(fallbackRaw),
-              currency: folio.currency ?? "VND",
-            };
-          }
-        }
+        const priceSnapshot = extractBillingPriceSnapshot(req.metadata);
         if (!priceSnapshot) {
           throw new BadRequestException("Guest request is missing a valid billing price snapshot");
         }
@@ -2479,6 +2606,7 @@ export class BillingService {
             },
           });
           folioItemIdToLink = newItem.id;
+          hasCreatedFolioItem = true;
         }
 
         await tx.guestRequest.update({
@@ -2508,6 +2636,22 @@ export class BillingService {
           });
         }
       }
+    }
+
+    if (hasCreatedFolioItem && tx.folioItem?.findMany && tx.folio?.update) {
+      const activeItems = await tx.folioItem.findMany({
+        where: { folioId: folio.id, voidedAt: null },
+      });
+      const totals = this.computeTotalsFromFolioItems(activeItems);
+      await tx.folio.update({
+        where: { id: folio.id },
+        data: {
+          subtotalAmount: totals.subtotalAmount,
+          taxAmount: totals.taxAmount,
+          discountAmount: totals.discountAmount,
+          totalAmount: totals.totalAmount,
+        },
+      });
     }
   }
 
@@ -2911,7 +3055,11 @@ export class BillingService {
     stayId: string,
     input: TransferToReceivableInput,
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const hotel = await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
 
     const now = new Date();
     const result = await this.prisma.$transaction(
@@ -3064,7 +3212,7 @@ export class BillingService {
           await (tx as any).auditLog.create({
             data: {
               actorId: actorUserId,
-              tenantId: (stay as any).hotel?.tenantId ?? hotelId,
+              tenantId: (hotel as any)?.tenantId ?? (stay as any).hotel?.tenantId ?? hotelId,
               action: "STAY_TRANSFERRED_TO_RECEIVABLE",
               entityType: "HotelReceivable",
               entityId: receivable.id,
@@ -3115,7 +3263,11 @@ export class BillingService {
     receivableId: string,
     input: CollectReceivableInput,
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const hotel = await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
 
     return this.prisma.$transaction(
       async (tx) => {
@@ -3211,7 +3363,7 @@ export class BillingService {
           await (tx as any).auditLog.create({
             data: {
               actorId: actorUserId,
-              tenantId: hotelId,
+              tenantId: (hotel as any)?.tenantId ?? (receivable as any).hotel?.tenantId ?? hotelId,
               action: "HOTEL_RECEIVABLE_COLLECTED",
               entityType: "HotelReceivable",
               entityId: receivable.id,

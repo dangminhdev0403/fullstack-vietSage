@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { Prisma, ReservationStatus, RoomStatus } from "@prisma/client";
 import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 import {
@@ -25,6 +25,10 @@ import type {
   UpdateReservationPlacementBodyInput,
   UpdateReservationDatesBodyInput,
   UpdateGroupReservationBodyInput,
+  CreateBookingSourcePartnerBodyInput,
+  UpdateBookingSourcePartnerBodyInput,
+  ListBookingSourcePartnersQueryInput,
+  UpsertConfirmationTemplateBodyInput,
 } from "../domain/schemas/reservations.schema";
 import { ReservationsRepository } from "../infrastructure/repositories/reservations.repository";
 import { getBusinessDateRange } from "../infrastructure/repositories/hotel-rooms.repository";
@@ -80,10 +84,22 @@ export class ReservationsService {
     hotelId: string,
     dto: CreateBulkReservationsBodyInput,
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = await this.hotelAccessService.resolveRoomScope(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
     if (dto.roomIds && dto.roomIds.length > 0) {
       for (const roomId of dto.roomIds) {
-        await this.hotelAccessService.assertRoomAccess(actorUserId, activeRoleId, hotelId, roomId);
+        this.hotelAccessService.assertRoomAccess(scope, roomId);
+      }
+    }
+    if (scope.allowedRoomId !== null) {
+      if (dto.roomIds && dto.roomIds.length > 1) {
+        throw new ForbiddenException("Tài khoản chỉ được phép thao tác trên phòng được phân công");
+      }
+      if (dto.allocations && dto.allocations.reduce((acc, a) => acc + (a.quantity || 0), 0) > 1) {
+        throw new ForbiddenException("Tài khoản chỉ được phép thao tác trên phòng được phân công");
       }
     }
 
@@ -121,6 +137,13 @@ export class ReservationsService {
       generateReservationCode: (tx: Prisma.TransactionClient) =>
         this.codesService.generateEntityCode("RESERVATION", tx),
       roomAllocationService: this.roomAllocationService,
+      allowedRoomId: scope.allowedRoomId,
+      assertRoomAccess: (roomId: string) =>
+        this.hotelAccessService.assertRoomAccess(scope, roomId),
+      chargeLines: dto.chargeLines,
+      sourceCategory: dto.sourceCategory,
+      sourcePartnerId: dto.sourcePartnerId,
+      bookingOwnerUserId: dto.bookingOwnerUserId,
     });
   }
 
@@ -158,7 +181,14 @@ export class ReservationsService {
       notes: dto.notes,
       autoAssign: dto.autoAssign,
       roomAllocationService: this.roomAllocationService,
+      allowedRoomId: scope.allowedRoomId,
+      assertRoomAccess: (rid: string) =>
+        this.hotelAccessService.assertRoomAccess(scope, rid),
       nightlyRateSnapshot,
+      chargeLines: dto.chargeLines,
+      sourceCategory: dto.sourceCategory,
+      sourcePartnerId: dto.sourcePartnerId,
+      bookingOwnerUserId: dto.bookingOwnerUserId,
     });
   }
 
@@ -535,8 +565,17 @@ export class ReservationsService {
     hotelId: string,
     groupCode: string,
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    return this.reservationsRepository.findGroupByCode(hotelId, groupCode);
+    const scope = await this.hotelAccessService.resolveRoomScope(actorUserId, activeRoleId, hotelId);
+    const group = await this.reservationsRepository.findGroupByCode(hotelId, groupCode);
+    if (scope.allowedRoomId !== null) {
+      const hasUnauthorizedRoom = group?.reservations?.some(
+        (r: any) => (r.roomId ?? r.assignedRoomId) !== scope.allowedRoomId,
+      );
+      if (hasUnauthorizedRoom || !group?.reservations || group.reservations.length === 0) {
+        throw new ForbiddenException("Tài khoản không có quyền truy cập thông tin đoàn có phòng ngoài phạm vi phân công");
+      }
+    }
+    return group;
   }
 
   async getGroupDetails(
@@ -555,7 +594,16 @@ export class ReservationsService {
     groupCode: string,
     dto: UpdateGroupReservationBodyInput,
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = await this.hotelAccessService.resolveRoomScope(actorUserId, activeRoleId, hotelId);
+    if (scope.allowedRoomId !== null) {
+      const group = await this.reservationsRepository.findGroupByCode(hotelId, groupCode);
+      const hasUnauthorizedRoom = group?.reservations?.some(
+        (r: any) => (r.roomId ?? r.assignedRoomId) !== scope.allowedRoomId,
+      );
+      if (hasUnauthorizedRoom || !group?.reservations || group.reservations.length === 0) {
+        throw new ForbiddenException("Tài khoản chỉ được phép thao tác trên phòng được phân công");
+      }
+    }
     return this.reservationsRepository.updateGroupByCode(hotelId, groupCode, dto);
   }
 
@@ -565,11 +613,16 @@ export class ReservationsService {
     hotelId: string,
     reservationId: string,
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = await this.hotelAccessService.resolveRoomScope(actorUserId, activeRoleId, hotelId);
     const reservation = await this.reservationsRepository.findReservationConfirmation(
       hotelId,
       reservationId,
     );
+    if (reservation.roomId) {
+      this.hotelAccessService.assertRoomAccess(scope, reservation.roomId);
+    } else if (scope.allowedRoomId !== null) {
+      throw new NotFoundException("Không tìm thấy đặt phòng");
+    }
     return this.projectReservationConfirmation(reservation);
   }
 
@@ -579,9 +632,36 @@ export class ReservationsService {
     hotelId: string,
     groupCode: string,
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = await this.hotelAccessService.resolveRoomScope(actorUserId, activeRoleId, hotelId);
     const data = await this.reservationsRepository.findGroupConfirmation(hotelId, groupCode);
+    if (scope.allowedRoomId !== null) {
+      const hasUnauthorizedRoom = data?.reservations?.some(
+        (r: any) => (r.roomId ?? r.assignedRoomId) !== scope.allowedRoomId,
+      );
+      if (hasUnauthorizedRoom || !data?.reservations || data.reservations.length === 0) {
+        throw new ForbiddenException("Tài khoản không có quyền truy cập thông tin đoàn có phòng ngoài phạm vi phân công");
+      }
+    }
     return this.projectGroupConfirmation(data);
+  }
+
+  async getConfirmationTemplate(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    return this.reservationsRepository.findConfirmationTemplate(hotelId);
+  }
+
+  async upsertConfirmationTemplate(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    dto: UpsertConfirmationTemplateBodyInput,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    return this.reservationsRepository.upsertConfirmationTemplate(hotelId, dto);
   }
 
   private projectReservationConfirmation(data: any) {
@@ -604,6 +684,7 @@ export class ReservationsService {
       code: hotel.code,
       address:
         nonEmpty(template?.hotelAddress) ||
+        nonEmpty(template?.contactInfo) ||
         brandSettings.address ||
         [hotel.area, hotel.province].filter(Boolean).join(", ") ||
         "Địa chỉ khách sạn",
@@ -616,12 +697,17 @@ export class ReservationsService {
         nonEmpty(template?.hotelEmail) ||
         brandSettings.email ||
         "Email liên hệ",
-      logoUrl: brandSettings.logoUrl || brandSettings.logo || null,
+      logoUrl:
+        template?.showLogo === false
+          ? null
+          : brandSettings.logoUrl || brandSettings.logo || null,
       checkInTimePolicy:
+        nonEmpty(template?.checkInPolicy) ||
         nonEmpty(template?.checkInTimeText) ||
         brandSettings.checkInTime ||
         "14:00",
       checkOutTimePolicy:
+        nonEmpty(template?.checkOutPolicy) ||
         nonEmpty(template?.checkOutTimeText) ||
         brandSettings.checkOutTime ||
         "12:00",
@@ -689,10 +775,11 @@ export class ReservationsService {
     const balanceAmount = Math.max(0, totalAmount - paidAmount);
 
     const cancellationPolicy =
+      nonEmpty(template?.paymentTerms) ||
       nonEmpty(template?.cancellationPolicyText) ||
       brandSettings.cancellationPolicy ||
       "Miễn phí hủy phòng trước 24 giờ so với giờ nhận phòng tiêu chuẩn. Hủy phòng muộn hoặc vắng mặt sẽ chịu phí đêm đầu tiên.";
-    const footerNote = nonEmpty(template?.footerNoteText);
+    const footerNote = nonEmpty(template?.footerNotes) || nonEmpty(template?.footerNoteText);
     const terms = [
       "Quý khách vui lòng xuất trình giấy tờ tùy thân hợp lệ (CMND/CCCD hoặc Hộ chiếu) khi làm thủ tục nhận phòng.",
       `Thời gian nhận phòng tiêu chuẩn từ ${hotelProjection.checkInTimePolicy} và trả phòng trước ${hotelProjection.checkOutTimePolicy}.`,
@@ -703,6 +790,19 @@ export class ReservationsService {
 
     return {
       hotel: hotelProjection,
+      template: template
+        ? {
+            title: template.title || "PHIẾU XÁC NHẬN ĐẶT PHÒNG",
+            subtitle: template.subtitle ?? null,
+            contactInfo: template.contactInfo ?? null,
+            checkInPolicy: template.checkInPolicy ?? null,
+            checkOutPolicy: template.checkOutPolicy ?? null,
+            paymentTerms: template.paymentTerms ?? null,
+            footerNotes: template.footerNotes ?? null,
+            showLogo: template.showLogo ?? true,
+            showPriceBreakdown: template.showPriceBreakdown ?? true,
+          }
+        : null,
       reservation: {
         id: data.id,
         reservationCode: data.reservationCode,
@@ -766,6 +866,7 @@ export class ReservationsService {
       code: hotel.code,
       address:
         nonEmpty(template?.hotelAddress) ||
+        nonEmpty(template?.contactInfo) ||
         brandSettings.address ||
         [hotel.area, hotel.province].filter(Boolean).join(", ") ||
         "Địa chỉ khách sạn",
@@ -778,12 +879,17 @@ export class ReservationsService {
         nonEmpty(template?.hotelEmail) ||
         brandSettings.email ||
         "Email liên hệ",
-      logoUrl: brandSettings.logoUrl || brandSettings.logo || null,
+      logoUrl:
+        template?.showLogo === false
+          ? null
+          : brandSettings.logoUrl || brandSettings.logo || null,
       checkInTimePolicy:
+        nonEmpty(template?.checkInPolicy) ||
         nonEmpty(template?.checkInTimeText) ||
         brandSettings.checkInTime ||
         "14:00",
       checkOutTimePolicy:
+        nonEmpty(template?.checkOutPolicy) ||
         nonEmpty(template?.checkOutTimeText) ||
         brandSettings.checkOutTime ||
         "12:00",
@@ -883,10 +989,11 @@ export class ReservationsService {
     const totalBalanceAmount = Math.max(0, totalAmount - totalPaidAmount);
 
     const cancellationPolicy =
+      nonEmpty(template?.paymentTerms) ||
       nonEmpty(template?.cancellationPolicyText) ||
       brandSettings.cancellationPolicy ||
       "Miễn phí hủy phòng đoàn trước 7 ngày so với ngày nhận phòng. Hủy phòng sau thời hạn sẽ chịu phí 50% tổng giá trị tiền phòng.";
-    const footerNote = nonEmpty(template?.footerNoteText);
+    const footerNote = nonEmpty(template?.footerNotes) || nonEmpty(template?.footerNoteText);
     const terms = [
       "Quý khách vui lòng cung cấp danh sách đoàn và xuất trình giấy tờ tùy thân hợp lệ khi làm thủ tục nhận phòng.",
       `Thời gian nhận phòng tiêu chuẩn từ ${hotelProjection.checkInTimePolicy} và trả phòng trước ${hotelProjection.checkOutTimePolicy}.`,
@@ -897,6 +1004,19 @@ export class ReservationsService {
 
     return {
       hotel: hotelProjection,
+      template: template
+        ? {
+            title: template.title || "PHIẾU XÁC NHẬN ĐẶT PHÒNG ĐOÀN",
+            subtitle: template.subtitle ?? null,
+            contactInfo: template.contactInfo ?? null,
+            checkInPolicy: template.checkInPolicy ?? null,
+            checkOutPolicy: template.checkOutPolicy ?? null,
+            paymentTerms: template.paymentTerms ?? null,
+            footerNotes: template.footerNotes ?? null,
+            showLogo: template.showLogo ?? true,
+            showPriceBreakdown: template.showPriceBreakdown ?? true,
+          }
+        : null,
       group: {
         groupCode,
         groupName,
@@ -929,5 +1049,46 @@ export class ReservationsService {
         terms,
       },
     };
+  }
+
+  async listBookingSourcePartners(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    query: ListBookingSourcePartnersQueryInput,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    return this.reservationsRepository.listBookingSourcePartners(hotelId, query);
+  }
+
+  async createBookingSourcePartner(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    dto: CreateBookingSourcePartnerBodyInput,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    return this.reservationsRepository.createBookingSourcePartner(hotelId, dto);
+  }
+
+  async updateBookingSourcePartner(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    partnerId: string,
+    dto: UpdateBookingSourcePartnerBodyInput,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    return this.reservationsRepository.updateBookingSourcePartner(hotelId, partnerId, dto);
+  }
+
+  async deleteBookingSourcePartner(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    partnerId: string,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    return this.reservationsRepository.deleteBookingSourcePartner(hotelId, partnerId);
   }
 }

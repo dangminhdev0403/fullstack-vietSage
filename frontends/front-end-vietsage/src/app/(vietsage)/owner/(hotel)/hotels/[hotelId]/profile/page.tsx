@@ -15,18 +15,6 @@ type PageProps = {
 
 export const dynamic = "force-dynamic";
 
-async function getOwnerVisibleHotel(
-  hotelId: string,
-  accessToken: string | undefined,
-): Promise<Hotel | null> {
-  const hotelsPage = await adminService.listHotels({
-    query: { page: 1, limit: 100 },
-    accessToken,
-  });
-
-  return hotelsPage.items.find((item) => item.id === hotelId) ?? null;
-}
-
 export default async function OwnerHotelProfilePage({ params }: PageProps) {
   const { hotelId } = await params;
   const session = await auth();
@@ -37,7 +25,7 @@ export default async function OwnerHotelProfilePage({ params }: PageProps) {
 
   try {
     hotel = await authorizedApi("get owner hotel profile", (accessToken) =>
-      getOwnerVisibleHotel(hotelId, accessToken),
+      adminService.getHotel(hotelId, accessToken),
     );
   } catch (error) {
     if (error instanceof HttpError && error.status === 404) {

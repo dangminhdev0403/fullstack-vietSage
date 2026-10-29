@@ -6932,6 +6932,53 @@
         ]
       }
     },
+    "/hotels/{hotelId}/reports": {
+      "get": {
+        "operationId": "HotelReportsController_getReports",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "range",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Báo cáo và thống kê chi tiết khách sạn"
+          }
+        },
+        "tags": [
+          "hotel-reports"
+        ]
+      }
+    },
     "/hotels/{hotelId}/reservations": {
       "post": {
         "operationId": "ReservationsController_createReservation",
@@ -6951,6 +6998,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
+                "additionalProperties": false,
                 "required": [
                   "guestDisplayName",
                   "plannedCheckInAt",
@@ -6958,10 +7006,13 @@
                 ],
                 "properties": {
                   "guestDisplayName": {
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
                   },
                   "guestPhone": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 40
                   },
                   "plannedCheckInAt": {
                     "type": "string",
@@ -6973,26 +7024,137 @@
                   },
                   "roomId": {
                     "type": "string",
-                    "nullable": true
-                  },
-                  "rate": {
-                    "type": "string",
+                    "minLength": 1,
                     "nullable": true
                   },
                   "roomTypeId": {
                     "type": "string",
-                    "nullable": true
+                    "minLength": 1
+                  },
+                  "autoAssign": {
+                    "type": "boolean"
                   },
                   "guestCount": {
                     "type": "integer",
-                    "nullable": true
+                    "minimum": 1,
+                    "maximum": 50
                   },
                   "notes": {
                     "type": "string",
-                    "nullable": true
+                    "maxLength": 500
+                  },
+                  "rate": {
+                    "oneOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 999999999999.99,
+                        "nullable": true
+                      },
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    ]
                   },
                   "nightlyRateSnapshot": {
+                    "oneOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 999999999999.99,
+                        "nullable": true
+                      },
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    ]
+                  },
+                  "chargeLines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "lineType",
+                        "nameSnapshot",
+                        "unitPriceSnapshot",
+                        "totalSnapshot"
+                      ],
+                      "properties": {
+                        "lineType": {
+                          "type": "string",
+                          "enum": [
+                            "ROOM_NIGHT",
+                            "EXTRA"
+                          ]
+                        },
+                        "serviceDate": {
+                          "type": "string"
+                        },
+                        "serviceItemId": {
+                          "type": "string"
+                        },
+                        "nameSnapshot": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 160
+                        },
+                        "codeSnapshot": {
+                          "type": "string",
+                          "maxLength": 80
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "default": 1
+                        },
+                        "unitPriceSnapshot": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "taxAmountSnapshot": {
+                          "type": "number",
+                          "minimum": 0,
+                          "default": 0
+                        },
+                        "discountAmountSnapshot": {
+                          "type": "number",
+                          "minimum": 0,
+                          "default": 0
+                        },
+                        "totalSnapshot": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "currency": {
+                          "type": "string",
+                          "maxLength": 3,
+                          "default": "VND"
+                        }
+                      }
+                    }
+                  },
+                  "sourceCategory": {
                     "type": "string",
+                    "enum": [
+                      "DIRECT",
+                      "OTA",
+                      "TA",
+                      "TRAVEL_AGENCY",
+                      "CORPORATE",
+                      "OTHER"
+                    ]
+                  },
+                  "sourcePartnerId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "nullable": true
+                  },
+                  "bookingOwnerUserId": {
+                    "type": "string",
+                    "minLength": 1,
                     "nullable": true
                   }
                 }
@@ -7812,62 +7974,416 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "leadGuestName",
-                  "checkInDate",
-                  "checkOutDate",
-                  "roomIds"
-                ],
+                "additionalProperties": false,
                 "properties": {
                   "leadGuestName": {
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "guestDisplayName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
                   },
                   "leadGuestPhone": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "guestPhone": {
+                    "type": "string",
+                    "maxLength": 40
                   },
                   "checkInDate": {
                     "type": "string",
-                    "format": "date-time"
+                    "description": "Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601."
                   },
                   "checkOutDate": {
                     "type": "string",
-                    "format": "date-time"
+                    "description": "Ngày trả phòng theo ISO hoặc thời điểm ISO 8601."
+                  },
+                  "plannedCheckInAt": {
+                    "type": "string",
+                    "description": "Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601."
+                  },
+                  "plannedCheckOutAt": {
+                    "type": "string",
+                    "description": "Ngày trả phòng theo ISO hoặc thời điểm ISO 8601."
                   },
                   "roomIds": {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "type": "string",
+                      "minLength": 1
                     },
-                    "minItems": 2,
-                    "maxItems": 50
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "uniqueItems": true
+                  },
+                  "allocations": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "roomTypeId",
+                        "quantity"
+                      ],
+                      "properties": {
+                        "roomTypeId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 50
+                        },
+                        "rate": {
+                          "oneOf": [
+                            {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 999999999999.99,
+                              "nullable": true
+                            },
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          ]
+                        },
+                        "nightlyRateSnapshot": {
+                          "oneOf": [
+                            {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 999999999999.99,
+                              "nullable": true
+                            },
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "minItems": 1,
+                    "maxItems": 20
+                  },
+                  "autoAssign": {
+                    "type": "boolean"
                   },
                   "groupCode": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "groupName": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "notes": {
                     "type": "string"
                   },
                   "idempotencyKey": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 120
                   },
                   "rate": {
-                    "type": "string",
-                    "nullable": true
-                  },
-                  "roomTypeId": {
-                    "type": "string",
-                    "nullable": true
-                  },
-                  "guestCount": {
-                    "type": "integer",
-                    "nullable": true
-                  },
-                  "notes": {
-                    "type": "string",
-                    "nullable": true
+                    "oneOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 999999999999.99,
+                        "nullable": true
+                      },
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    ]
                   },
                   "nightlyRateSnapshot": {
+                    "oneOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 999999999999.99,
+                        "nullable": true
+                      },
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    ]
+                  },
+                  "roomRates": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "oneOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 999999999999.99,
+                          "nullable": true
+                        },
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      ]
+                    }
+                  },
+                  "chargeLines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "lineType",
+                        "nameSnapshot",
+                        "unitPriceSnapshot",
+                        "totalSnapshot"
+                      ],
+                      "properties": {
+                        "lineType": {
+                          "type": "string",
+                          "enum": [
+                            "ROOM_NIGHT",
+                            "EXTRA"
+                          ]
+                        },
+                        "serviceDate": {
+                          "type": "string"
+                        },
+                        "serviceItemId": {
+                          "type": "string"
+                        },
+                        "nameSnapshot": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 160
+                        },
+                        "codeSnapshot": {
+                          "type": "string",
+                          "maxLength": 80
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "default": 1
+                        },
+                        "unitPriceSnapshot": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "taxAmountSnapshot": {
+                          "type": "number",
+                          "minimum": 0,
+                          "default": 0
+                        },
+                        "discountAmountSnapshot": {
+                          "type": "number",
+                          "minimum": 0,
+                          "default": 0
+                        },
+                        "totalSnapshot": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "currency": {
+                          "type": "string",
+                          "maxLength": 3,
+                          "default": "VND"
+                        }
+                      }
+                    }
+                  },
+                  "sourceCategory": {
                     "type": "string",
+                    "enum": [
+                      "DIRECT",
+                      "OTA",
+                      "TA",
+                      "TRAVEL_AGENCY",
+                      "CORPORATE",
+                      "OTHER"
+                    ]
+                  },
+                  "sourcePartnerId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "nullable": true
+                  },
+                  "bookingOwnerUserId": {
+                    "type": "string",
+                    "minLength": 1,
                     "nullable": true
                   }
-                }
+                },
+                "allOf": [
+                  {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "leadGuestName"
+                        ],
+                        "properties": {
+                          "leadGuestName": {
+                            "type": "string",
+                            "minLength": 2,
+                            "maxLength": 120
+                          }
+                        }
+                      },
+                      {
+                        "required": [
+                          "guestDisplayName"
+                        ],
+                        "properties": {
+                          "guestDisplayName": {
+                            "type": "string",
+                            "minLength": 2,
+                            "maxLength": 120
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "checkInDate"
+                        ],
+                        "properties": {
+                          "checkInDate": {
+                            "type": "string",
+                            "description": "Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601."
+                          }
+                        }
+                      },
+                      {
+                        "required": [
+                          "plannedCheckInAt"
+                        ],
+                        "properties": {
+                          "plannedCheckInAt": {
+                            "type": "string",
+                            "description": "Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601."
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "checkOutDate"
+                        ],
+                        "properties": {
+                          "checkOutDate": {
+                            "type": "string",
+                            "description": "Ngày trả phòng theo ISO hoặc thời điểm ISO 8601."
+                          }
+                        }
+                      },
+                      {
+                        "required": [
+                          "plannedCheckOutAt"
+                        ],
+                        "properties": {
+                          "plannedCheckOutAt": {
+                            "type": "string",
+                            "description": "Ngày trả phòng theo ISO hoặc thời điểm ISO 8601."
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "roomIds"
+                        ],
+                        "properties": {
+                          "roomIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "minItems": 1,
+                            "maxItems": 50,
+                            "uniqueItems": true
+                          }
+                        }
+                      },
+                      {
+                        "required": [
+                          "allocations"
+                        ],
+                        "properties": {
+                          "allocations": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "roomTypeId",
+                                "quantity"
+                              ],
+                              "properties": {
+                                "roomTypeId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "quantity": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 50
+                                },
+                                "rate": {
+                                  "oneOf": [
+                                    {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 999999999999.99,
+                                      "nullable": true
+                                    },
+                                    {
+                                      "type": "string",
+                                      "minLength": 1
+                                    }
+                                  ]
+                                },
+                                "nightlyRateSnapshot": {
+                                  "oneOf": [
+                                    {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 999999999999.99,
+                                      "nullable": true
+                                    },
+                                    {
+                                      "type": "string",
+                                      "minLength": 1
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "minItems": 1,
+                            "maxItems": 20
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
               }
             }
           }
@@ -8065,6 +8581,71 @@
         ]
       }
     },
+    "/hotels/{hotelId}/reservations/{reservationId}/dates": {
+      "patch": {
+        "operationId": "ReservationsController_updateReservationDates",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reservationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "startDate": {
+                    "type": "string",
+                    "example": "2026-10-22"
+                  },
+                  "endDate": {
+                    "type": "string",
+                    "example": "2026-10-25"
+                  },
+                  "plannedCheckInAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "plannedCheckOutAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "expectedUpdatedAt": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "expectedUpdatedAt"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      }
+    },
     "/hotels/{hotelId}/reservations/group": {
       "post": {
         "operationId": "ReservationsController_createGroupReservations",
@@ -8078,8 +8659,1146 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "leadGuestName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "guestDisplayName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "leadGuestPhone": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "guestPhone": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "checkInDate": {
+                    "type": "string",
+                    "description": "Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601."
+                  },
+                  "checkOutDate": {
+                    "type": "string",
+                    "description": "Ngày trả phòng theo ISO hoặc thời điểm ISO 8601."
+                  },
+                  "plannedCheckInAt": {
+                    "type": "string",
+                    "description": "Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601."
+                  },
+                  "plannedCheckOutAt": {
+                    "type": "string",
+                    "description": "Ngày trả phòng theo ISO hoặc thời điểm ISO 8601."
+                  },
+                  "roomIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "uniqueItems": true
+                  },
+                  "allocations": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "roomTypeId",
+                        "quantity"
+                      ],
+                      "properties": {
+                        "roomTypeId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 50
+                        },
+                        "rate": {
+                          "oneOf": [
+                            {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 999999999999.99,
+                              "nullable": true
+                            },
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          ]
+                        },
+                        "nightlyRateSnapshot": {
+                          "oneOf": [
+                            {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 999999999999.99,
+                              "nullable": true
+                            },
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "minItems": 1,
+                    "maxItems": 20
+                  },
+                  "autoAssign": {
+                    "type": "boolean"
+                  },
+                  "groupCode": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "groupName": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "idempotencyKey": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "rate": {
+                    "oneOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 999999999999.99,
+                        "nullable": true
+                      },
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    ]
+                  },
+                  "nightlyRateSnapshot": {
+                    "oneOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 999999999999.99,
+                        "nullable": true
+                      },
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    ]
+                  },
+                  "roomRates": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "oneOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 999999999999.99,
+                          "nullable": true
+                        },
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      ]
+                    }
+                  },
+                  "chargeLines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "lineType",
+                        "nameSnapshot",
+                        "unitPriceSnapshot",
+                        "totalSnapshot"
+                      ],
+                      "properties": {
+                        "lineType": {
+                          "type": "string",
+                          "enum": [
+                            "ROOM_NIGHT",
+                            "EXTRA"
+                          ]
+                        },
+                        "serviceDate": {
+                          "type": "string"
+                        },
+                        "serviceItemId": {
+                          "type": "string"
+                        },
+                        "nameSnapshot": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 160
+                        },
+                        "codeSnapshot": {
+                          "type": "string",
+                          "maxLength": 80
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "default": 1
+                        },
+                        "unitPriceSnapshot": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "taxAmountSnapshot": {
+                          "type": "number",
+                          "minimum": 0,
+                          "default": 0
+                        },
+                        "discountAmountSnapshot": {
+                          "type": "number",
+                          "minimum": 0,
+                          "default": 0
+                        },
+                        "totalSnapshot": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "currency": {
+                          "type": "string",
+                          "maxLength": 3,
+                          "default": "VND"
+                        }
+                      }
+                    }
+                  },
+                  "sourceCategory": {
+                    "type": "string",
+                    "enum": [
+                      "DIRECT",
+                      "OTA",
+                      "TA",
+                      "TRAVEL_AGENCY",
+                      "CORPORATE",
+                      "OTHER"
+                    ]
+                  },
+                  "sourcePartnerId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "nullable": true
+                  },
+                  "bookingOwnerUserId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "nullable": true
+                  }
+                },
+                "allOf": [
+                  {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "leadGuestName"
+                        ],
+                        "properties": {
+                          "leadGuestName": {
+                            "type": "string",
+                            "minLength": 2,
+                            "maxLength": 120
+                          }
+                        }
+                      },
+                      {
+                        "required": [
+                          "guestDisplayName"
+                        ],
+                        "properties": {
+                          "guestDisplayName": {
+                            "type": "string",
+                            "minLength": 2,
+                            "maxLength": 120
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "checkInDate"
+                        ],
+                        "properties": {
+                          "checkInDate": {
+                            "type": "string",
+                            "description": "Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601."
+                          }
+                        }
+                      },
+                      {
+                        "required": [
+                          "plannedCheckInAt"
+                        ],
+                        "properties": {
+                          "plannedCheckInAt": {
+                            "type": "string",
+                            "description": "Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601."
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "checkOutDate"
+                        ],
+                        "properties": {
+                          "checkOutDate": {
+                            "type": "string",
+                            "description": "Ngày trả phòng theo ISO hoặc thời điểm ISO 8601."
+                          }
+                        }
+                      },
+                      {
+                        "required": [
+                          "plannedCheckOutAt"
+                        ],
+                        "properties": {
+                          "plannedCheckOutAt": {
+                            "type": "string",
+                            "description": "Ngày trả phòng theo ISO hoặc thời điểm ISO 8601."
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "roomIds"
+                        ],
+                        "properties": {
+                          "roomIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "minItems": 1,
+                            "maxItems": 50,
+                            "uniqueItems": true
+                          }
+                        }
+                      },
+                      {
+                        "required": [
+                          "allocations"
+                        ],
+                        "properties": {
+                          "allocations": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "roomTypeId",
+                                "quantity"
+                              ],
+                              "properties": {
+                                "roomTypeId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "quantity": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 50
+                                },
+                                "rate": {
+                                  "oneOf": [
+                                    {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 999999999999.99,
+                                      "nullable": true
+                                    },
+                                    {
+                                      "type": "string",
+                                      "minLength": 1
+                                    }
+                                  ]
+                                },
+                                "nightlyRateSnapshot": {
+                                  "oneOf": [
+                                    {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 999999999999.99,
+                                      "nullable": true
+                                    },
+                                    {
+                                      "type": "string",
+                                      "minLength": 1
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "minItems": 1,
+                            "maxItems": 20
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
+            "description": "Đã tạo nhóm đặt phòng với groupCode và danh sách reservation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "groupCode",
+                    "reservations"
+                  ],
+                  "properties": {
+                    "groupCode": {
+                      "type": "string"
+                    },
+                    "reservations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "hotelId",
+                          "reservationCode",
+                          "guestDisplayName",
+                          "status"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "hotelId": {
+                            "type": "string"
+                          },
+                          "roomId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "roomTypeId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "guestCount": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "notes": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "nightlyRateSnapshot": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "reservationCode": {
+                            "type": "string"
+                          },
+                          "guestDisplayName": {
+                            "type": "string"
+                          },
+                          "guestPhone": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "CONFIRMED",
+                              "ARRIVAL_READY",
+                              "CHECKED_IN",
+                              "CANCELLED",
+                              "NO_SHOW"
+                            ]
+                          },
+                          "plannedCheckInAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "plannedCheckOutAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/reservations/groups/{groupCode}/confirmation": {
+      "get": {
+        "operationId": "ReservationsController_getGroupConfirmation",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Đã lấy phiếu xác nhận đặt phòng theo đoàn"
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/reservations/groups/{groupCode}": {
+      "get": {
+        "operationId": "ReservationsController_getGroupReservation",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Đã lấy thông tin chi tiết nhóm đoàn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "groupCode",
+                    "leadGuestName",
+                    "totalRooms",
+                    "checkedInRooms",
+                    "arrivingRooms",
+                    "totalEstimatedAmount",
+                    "reservations"
+                  ],
+                  "properties": {
+                    "groupCode": {
+                      "type": "string"
+                    },
+                    "groupName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "leadGuestName": {
+                      "type": "string"
+                    },
+                    "leadGuestPhone": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "notes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "sourceCategory": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "sourcePartnerId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "sourcePartnerName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "totalRooms": {
+                      "type": "integer"
+                    },
+                    "checkedInRooms": {
+                      "type": "integer"
+                    },
+                    "arrivingRooms": {
+                      "type": "integer"
+                    },
+                    "totalEstimatedAmount": {
+                      "type": "number"
+                    },
+                    "reservations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "reservationCode",
+                          "status",
+                          "plannedCheckInAt",
+                          "plannedCheckOutAt"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "reservationCode": {
+                            "type": "string"
+                          },
+                          "roomId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "roomNumber": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "roomName": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "roomTypeId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "roomTypeName": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "roomTypeCode": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "guestDisplayName": {
+                            "type": "string"
+                          },
+                          "guestPhone": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "CONFIRMED",
+                              "ARRIVAL_READY",
+                              "CHECKED_IN",
+                              "CANCELLED",
+                              "NO_SHOW"
+                            ]
+                          },
+                          "plannedCheckInAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "plannedCheckOutAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "nightlyRateSnapshot": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "baseNightlyRateSnapshot": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "guestCount": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "notes": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "nights": {
+                            "type": "integer"
+                          },
+                          "estimatedAmount": {
+                            "type": "number"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      },
+      "patch": {
+        "operationId": "ReservationsController_updateGroupReservation",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "groupName": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "leadGuestName": {
+                    "type": "string"
+                  },
+                  "leadGuestPhone": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Đã cập nhật thông tin đoàn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "groupCode",
+                    "leadGuestName",
+                    "totalRooms",
+                    "checkedInRooms",
+                    "arrivingRooms",
+                    "totalEstimatedAmount",
+                    "reservations"
+                  ],
+                  "properties": {
+                    "groupCode": {
+                      "type": "string"
+                    },
+                    "groupName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "leadGuestName": {
+                      "type": "string"
+                    },
+                    "leadGuestPhone": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "notes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "sourceCategory": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "sourcePartnerId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "sourcePartnerName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "totalRooms": {
+                      "type": "integer"
+                    },
+                    "checkedInRooms": {
+                      "type": "integer"
+                    },
+                    "arrivingRooms": {
+                      "type": "integer"
+                    },
+                    "totalEstimatedAmount": {
+                      "type": "number"
+                    },
+                    "reservations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "reservationCode",
+                          "status",
+                          "plannedCheckInAt",
+                          "plannedCheckOutAt"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "reservationCode": {
+                            "type": "string"
+                          },
+                          "roomId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "roomNumber": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "roomName": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "roomTypeId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "roomTypeName": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "roomTypeCode": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "guestDisplayName": {
+                            "type": "string"
+                          },
+                          "guestPhone": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "CONFIRMED",
+                              "ARRIVAL_READY",
+                              "CHECKED_IN",
+                              "CANCELLED",
+                              "NO_SHOW"
+                            ]
+                          },
+                          "plannedCheckInAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "plannedCheckOutAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "nightlyRateSnapshot": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "baseNightlyRateSnapshot": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "guestCount": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "notes": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "nights": {
+                            "type": "integer"
+                          },
+                          "estimatedAmount": {
+                            "type": "number"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/reservations/confirmation-template": {
+      "get": {
+        "operationId": "ReservationsController_getConfirmationTemplate",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Đã lấy cấu hình mẫu xác nhận đặt phòng"
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      },
+      "put": {
+        "operationId": "ReservationsController_upsertConfirmationTemplate",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Đã cập nhật cấu hình mẫu xác nhận đặt phòng"
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/reservations/{id}/confirmation": {
+      "get": {
+        "operationId": "ReservationsController_getReservationConfirmation",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Đã lấy phiếu xác nhận đặt phòng"
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/booking-partners": {
+      "get": {
+        "operationId": "ReservationsController_listBookingPartners",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      },
+      "post": {
+        "operationId": "ReservationsController_createBookingPartner",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/booking-partners/{partnerId}": {
+      "patch": {
+        "operationId": "ReservationsController_updateBookingPartner",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "partnerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      },
+      "delete": {
+        "operationId": "ReservationsController_deleteBookingPartner",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "partnerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
             "description": ""
           }
         },
@@ -8893,6 +10612,48 @@
                         }
                       }
                     }
+                  },
+                  "isEarlyDeparture": {
+                    "type": "boolean"
+                  },
+                  "adjustments": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "clientRequestId",
+                        "itemType",
+                        "name",
+                        "amount"
+                      ],
+                      "properties": {
+                        "clientRequestId": {
+                          "type": "string"
+                        },
+                        "itemType": {
+                          "type": "string",
+                          "enum": [
+                            "MANUAL_CHARGE",
+                            "DISCOUNT"
+                          ]
+                        },
+                        "name": {
+                          "type": "string",
+                          "maxLength": 160
+                        },
+                        "description": {
+                          "type": "string",
+                          "maxLength": 1000
+                        },
+                        "amount": {
+                          "type": "number"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "default": 1
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -9176,6 +10937,165 @@
         "responses": {
           "200": {
             "description": "Payment status"
+          }
+        },
+        "tags": [
+          "billing-payments"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/billing/booking-payments": {
+      "post": {
+        "operationId": "PaymentController_recordBookingPayment",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bản ghi thanh toán cọc BookingPayment"
+          }
+        },
+        "tags": [
+          "billing-payments"
+        ]
+      },
+      "get": {
+        "operationId": "PaymentController_listBookingPayments",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách BookingPayment"
+          }
+        },
+        "tags": [
+          "billing-payments"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/billing/receivables": {
+      "get": {
+        "operationId": "PaymentController_listReceivables",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách HotelReceivable"
+          }
+        },
+        "tags": [
+          "billing-payments"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/billing/stays/{stayId}/transfer-to-receivable": {
+      "post": {
+        "operationId": "PaymentController_transferToReceivable",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stayId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bản ghi công nợ HotelReceivable"
+          }
+        },
+        "tags": [
+          "billing-payments"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/billing/receivables/{receivableId}/collect": {
+      "post": {
+        "operationId": "PaymentController_collectReceivable",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "receivableId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cập nhật công nợ và bản ghi ReceivableCollection"
           }
         },
         "tags": [
@@ -14226,6 +16146,47 @@
           }
         ],
         "summary": "Manually authenticate saved credentials; refresh near expiry, otherwise re-login",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/kbtt/daily-movements": {
+      "get": {
+        "operationId": "KbttController_getDailyMovements",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get daily arrivals or departures movement projection",
         "tags": [
           "hotel-kbtt"
         ]

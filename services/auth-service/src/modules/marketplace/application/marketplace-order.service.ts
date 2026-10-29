@@ -473,6 +473,17 @@ export class MarketplaceOrderService {
       }
 
       if (order.capacityReservationStatus === CapacityReservationStatus.RESERVED) {
+        if (order.items && order.items.length > 0) {
+          for (const item of order.items) {
+            await tx.marketplaceService.update({
+              where: { id: item.serviceId },
+              data: {
+                capacityAvailable: { increment: item.quantity },
+                version: { increment: 1 },
+              },
+            });
+          }
+        } else
         await tx.marketplaceService.update({
           where: { id: order.serviceId },
           data: {
@@ -2214,6 +2225,7 @@ export class MarketplaceOrderService {
   async listPartnerSettlements(userId: string, status?: string) {
     const serviceTenantId = await this.portal.tenantId(userId);
     return this.prisma.marketplaceSettlement.findMany({
+      take: 200,
       where: {
         serviceTenantId,
         ...(status ? { status: status as any } : {}),
@@ -2243,6 +2255,7 @@ export class MarketplaceOrderService {
     filter?: { status?: string; serviceTenantId?: string },
   ) {
     return this.prisma.marketplaceSettlement.findMany({
+      take: 200,
       where: {
         hotelId,
         ...(filter?.status ? { status: filter.status as any } : {}),
@@ -2319,7 +2332,18 @@ export class MarketplaceOrderService {
 
     const now = new Date();
     await this.prisma.$transaction(
-      settlements.map((s) =>
+      typeof this.prisma.marketplaceSettlement.updateMany === "function"
+        ? [
+            this.prisma.marketplaceSettlement.updateMany({
+              where: { id: { in: settlements.map((s) => s.id) } },
+              data: {
+                status: "SETTLED",
+                settledAt: now,
+                settledBy: userId,
+              },
+            }),
+          ]
+        : settlements.map((s) =>
         this.prisma.marketplaceSettlement.update({
           where: { id: s.id },
           data: {

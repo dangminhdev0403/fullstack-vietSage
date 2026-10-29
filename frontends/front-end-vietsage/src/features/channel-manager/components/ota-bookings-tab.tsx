@@ -11,8 +11,6 @@ import {
 } from "@/libs/swal";
 import { useChannex } from "../hooks/use-channel-manager";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
-import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
-import { mapSimulatedBookings } from "../api/channel-manager.mapper";
 import type {
   SimulatedBookingItem,
   SimulatedBookingSegmentItem,
@@ -200,9 +198,10 @@ export function OtaBookingsTab({
     loadPendingModifications: showTechnicalTools,
   });
 
-  const simulatedBookings = useMemo(() => {
-    return mapSimulatedBookings(rawSimulatedBookings || []);
-  }, [rawSimulatedBookings]);
+  const simulatedBookings = useMemo(
+    () => rawSimulatedBookings ?? [],
+    [rawSimulatedBookings],
+  );
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
@@ -226,7 +225,7 @@ export function OtaBookingsTab({
   }, []);
 
   // Query available rooms for quick assignment
-  const { data: availableRooms = [], refetch: refetchAvailableRooms } =
+  const { data: availableRooms = [] } =
     useQuery({
       ...staffRoomsResource.bind({ hotelId }).queries.list.options({
         status: "AVAILABLE",
@@ -302,7 +301,6 @@ export function OtaBookingsTab({
         setAssigningBooking(target as SimulatedBookingItem);
       }
       setSelectedRoomIdToAssign("");
-      void refetchAvailableRooms();
       return;
     }
 
@@ -363,7 +361,6 @@ export function OtaBookingsTab({
       roomNumber: seg?.roomNumber ?? null,
     });
     setSelectedRoomIdToAssign("");
-    void refetchAvailableRooms();
   };
 
   // Assign Room & Navigate to Check-In
@@ -488,28 +485,6 @@ export function OtaBookingsTab({
       return () => window.removeEventListener("keydown", handleKeyDown);
     }
   }, [selectedBooking, assigningBooking]);
-
-  // Realtime WebSocket synchronization (data refetch only - toasts handled by page/layout notifier)
-  const realtimeHandlers = useMemo(
-    () => ({
-      onChannelBookingCreated: () => {
-        void refreshSimulatedBookings();
-        void invalidateHotelRealtimeQueries(queryClient, hotelId);
-      },
-      onChannelBookingCancelled: () => {
-        void refreshSimulatedBookings();
-        void invalidateHotelRealtimeQueries(queryClient, hotelId);
-      },
-      onRoomStatusUpdated: () => {
-        void refreshSimulatedBookings();
-        void invalidateHotelRealtimeQueries(queryClient, hotelId);
-      },
-    }),
-    [queryClient, hotelId, refreshSimulatedBookings],
-  );
-  useOwnerRequestRealtime(hotelId, realtimeHandlers, {
-    showConnectionToasts: false,
-  });
 
   const handleCopy = (text: string, id: string) => {
     void navigator.clipboard.writeText(text);

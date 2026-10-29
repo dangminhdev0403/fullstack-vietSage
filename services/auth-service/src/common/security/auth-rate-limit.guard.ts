@@ -20,6 +20,7 @@ export class AuthRateLimitGuard implements CanActivate {
   private static readonly MAX_BUCKETS = 10_000;
   private static readonly CLEANUP_BATCH_SIZE = 100;
   private readonly buckets = new Map<string, RateLimitBucket>();
+  private readonly appConfig = loadAppConfig();
 
   constructor(private readonly reflector: Reflector) {}
 
@@ -35,7 +36,7 @@ export class AuthRateLimitGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<Request>();
     const configKey = key === "change-password" ? "login" : key;
-    const config = loadAppConfig().rateLimits[configKey];
+    const config = this.appConfig.rateLimits[configKey];
     const now = Date.now();
     this.removeExpiredBuckets(now);
     const bucketKey = `${key}:${this.resolveClientId(request)}`;
@@ -68,7 +69,7 @@ export class AuthRateLimitGuard implements CanActivate {
     const peerAddress = request.ip ?? request.socket.remoteAddress ?? "unknown";
     const forwardedFor = request.headers["x-forwarded-for"];
     const trustedProxies = new Set(
-      loadAppConfig().trustedProxies.map((address) => this.normalizeIp(address)),
+      this.appConfig.trustedProxies.map((address) => this.normalizeIp(address)),
     );
     if (trustedProxies.has(this.normalizeIp(peerAddress))) {
       const chain = (Array.isArray(forwardedFor) ? forwardedFor.join(",") : forwardedFor)
@@ -89,11 +90,12 @@ export class AuthRateLimitGuard implements CanActivate {
   }
 
   private removeExpiredBuckets(now: number): void {
-    const batch = Array.from(this.buckets.entries()).slice(
-      0,
-      AuthRateLimitGuard.CLEANUP_BATCH_SIZE,
-    );
-    for (const [key, bucket] of batch) {
+    const limit = Math.min(this.buckets.size, AuthRateLimitGuard.CLEANUP_BATCH_SIZE);
+    let checked = 0;
+    for (const [key, bucket] of this.buckets.entries()) {
+      if (++checked > limit) {
+        break;
+      }
       this.buckets.delete(key);
       if (bucket.resetAt <= now) {
         continue;

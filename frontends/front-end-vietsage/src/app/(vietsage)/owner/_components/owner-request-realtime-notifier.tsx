@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -9,6 +9,7 @@ import type { StaffRequestListItem } from "@/features/hotel-ops/types/hotel-ops-
 import { useOwnerHotelsQuery } from "@/features/owner/queries/use-owner-hotels-query";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import {
+  invalidateHotelMessageRealtimeQueries,
   invalidateHotelRealtimeQueries,
   invalidateHotelRequestRealtimeQueries,
 } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
@@ -89,7 +90,7 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
             },
           },
         );
-        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
       },
       onUpdated: (request: Partial<StaffRequestListItem> & { id: string }) => {
         const status = String(request.status ?? "");
@@ -115,16 +116,16 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
             },
           );
         }
-        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
       },
       onAnswered: (request?: Partial<StaffRequestListItem> & { id?: string }) => {
         if (request?.id) {
           toast.dismiss(`owner-request-created-${request.id}`);
         }
-        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
       },
       onGuestMessageCreated: (event: unknown) => {
-        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        void invalidateHotelMessageRealtimeQueries(queryClient, hotelId);
         const raw = event as {
           hotelId?: string;
           thread?: { roomNumber?: string };
@@ -142,7 +143,7 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
         }
       },
       onConversationClosed: () => {
-        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        void invalidateHotelMessageRealtimeQueries(queryClient, hotelId);
       },
       onExternalOrderCreated: (event: unknown) => {
         const raw = event as {
@@ -173,24 +174,24 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
           },
         });
 
-        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
       },
       onExternalOrderStatusChanged: (event: unknown) => {
         const raw = event as { orderId?: string } | null;
         if (raw?.orderId) {
           toast.dismiss(`owner-ext-order-created-${raw.orderId}`);
         }
-        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
       },
       onExternalOrderHotelAcknowledged: (event: unknown) => {
         const raw = event as { orderId?: string } | null;
         if (raw?.orderId) {
           toast.dismiss(`owner-ext-order-created-${raw.orderId}`);
         }
-        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
       },
       onExternalOrderVoucherIssued: () => {
-        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
       },
       onChannelBookingCreated: (event: unknown) => {
         const raw = event as {
@@ -248,7 +249,6 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
         });
 
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-
       },
       onChannelBookingCancelled: (event: unknown) => {
         const raw = event as {
@@ -270,7 +270,6 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
         });
 
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-
       },
       onRoomStatusUpdated: (event: unknown) => {
         const raw = event as {
@@ -284,7 +283,6 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
         if (raw?.hotelId && raw.hotelId !== hotelId) return;
 
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-
 
         const statusLabels: Record<string, string> = {
           AVAILABLE: "TRỐNG (sẵn sàng đón khách)",
@@ -319,16 +317,13 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
 }
 
 export function OwnerRequestRealtimeNotifier() {
+  const params = useParams<{ hotelId?: string }>();
   const hotelsQuery = useOwnerHotelsQuery();
   const hotels = hotelsQuery.data?.items ?? [];
+  const activeHotelId =
+    (typeof params?.hotelId === "string" && params.hotelId) || hotels[0]?.id;
 
-  if (hotels.length === 0) return null;
+  if (!activeHotelId) return null;
 
-  return (
-    <>
-      {hotels.map((hotel) => (
-        <OwnerHotelRequestRealtimeNotifier key={hotel.id} hotelId={hotel.id} />
-      ))}
-    </>
-  );
+  return <OwnerHotelRequestRealtimeNotifier key={activeHotelId} hotelId={activeHotelId} />;
 }

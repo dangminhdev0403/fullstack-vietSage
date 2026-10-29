@@ -109,7 +109,6 @@ export class BiometricWorkstationsRepository {
           revokedAt: null,
           expiresAt: { gt: at },
           lastSeenAt: { gte: cutoff },
-          hotel: { featureEntitlements: enabledScannerFeature },
         },
       })) > 0
     );

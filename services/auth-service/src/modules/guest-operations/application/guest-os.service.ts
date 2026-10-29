@@ -754,6 +754,14 @@ export class GuestOsService {
         ? GuestSessionStatus.IDLE
         : GuestSessionStatus.ACTIVE;
 
+    if (
+      session.lastSeenAt &&
+      session.status === nextStatus &&
+      now.getTime() - session.lastSeenAt.getTime() < 30_000
+    ) {
+      return session;
+    }
+
     return this.guestOsRepository.updateSessionHeartbeat(session.id, nextStatus);
   }
 

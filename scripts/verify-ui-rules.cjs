@@ -37,7 +37,7 @@ function collectFiles(dir) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       results = results.concat(collectFiles(fullPath));
-    } else if (/\.(tsx|jsx|ts|js)$/.test(entry.name) && !entry.name.endsWith('.d.ts')) {
+    } else if (/\.(tsx|jsx|ts|js|css)$/.test(entry.name) && !entry.name.endsWith('.d.ts')) {
       results.push(fullPath);
     }
   }
@@ -50,8 +50,9 @@ let violationCount = 0;
 let fixedCount = 0;
 const violations = [];
 
-const SUB_12PX_REGEX = /text-\[(\d+)px\]/g;
-const SUB_REM_REGEX = /text-\[(0\.[0-6]\d*)rem\]/g;
+const SUB_12PX_REGEX = /text-\[(\d+(?:\.\d+)?)px\]/g;
+const SUB_REM_REGEX = /text-\[((?:\d+(?:\.\d+)?|\.\d+))rem\]/g;
+const CSS_FONT_REGEX = /\bfont-size\s*:\s*(\d*\.?\d+)\s*(px|rem)\b/g;
 const FORBIDDEN_FLUFF = [
   { pattern: /lorem\s+ipsum/i, label: 'Lorem Ipsum dummy text' },
   { pattern: /test\s*123/i, label: 'Developer test dummy text' },
@@ -68,7 +69,7 @@ for (const filePath of allFiles) {
     let match;
     SUB_12PX_REGEX.lastIndex = 0;
     while ((match = SUB_12PX_REGEX.exec(line)) !== null) {
-      const px = parseInt(match[1], 10);
+      const px = Number(match[1]);
       if (px < 12) {
         violationCount++;
         violations.push({
@@ -84,6 +85,7 @@ for (const filePath of allFiles) {
     // 2. Check sub-0.75rem text
     SUB_REM_REGEX.lastIndex = 0;
     while ((match = SUB_REM_REGEX.exec(line)) !== null) {
+      if (Number(match[1]) >= 0.75) continue;
       violationCount++;
       violations.push({
         file: path.relative(repoRoot, filePath),
@@ -92,6 +94,21 @@ for (const filePath of allFiles) {
         detail: `Found forbidden micro-font '${match[0]}' (< 0.75rem). Use 'text-xs' instead.`,
         snippet: line.trim(),
       });
+    }
+
+    if (filePath.endsWith('.css')) {
+      CSS_FONT_REGEX.lastIndex = 0;
+      while ((match = CSS_FONT_REGEX.exec(line)) !== null) {
+        const px = Number(match[1]) * (match[2] === 'rem' ? 16 : 1);
+        if (px >= 12) continue;
+        violationCount++;
+        violations.push({
+          file: path.relative(repoRoot, filePath), line: lineIndex + 1,
+          type: 'SUB_12PX_CSS_FONT',
+          detail: `CSS font size ${match[1]}${match[2]} is below 12px.`,
+          snippet: line.trim(),
+        });
+      }
     }
 
     // 3. Check forbidden fluff strings
@@ -111,12 +128,14 @@ for (const filePath of allFiles) {
 
   if (isFixMode) {
     const updatedContent = content
-      .replace(/text-\[(?:10|11|9|8|7)px\]/g, () => {
+      .replace(SUB_12PX_REGEX, (value, pixels) => {
+        if (Number(pixels) >= 12) return value;
         fixedCount++;
         fileModified = true;
         return 'text-xs';
       })
-      .replace(/text-\[0\.[0-6]\d*rem\]/g, () => {
+      .replace(SUB_REM_REGEX, (value, rem) => {
+        if (Number(rem) >= 0.75) return value;
         fixedCount++;
         fileModified = true;
         return 'text-xs';
@@ -134,9 +153,10 @@ console.log('='.repeat(70));
 console.log(`Scanned: ${allFiles.length} frontend files in frontends/front-end-vietsage/src`);
 
 if (violations.length === 0) {
-  console.log('\n[PASS] All UI typography, anti-widow balance and copywriting guardrails verified clean.');
+  console.log('\n[PASS] Static font-floor and configured copywriting checks passed.');
   console.log('  - Minimum font size >= 12px (text-xs) satisfied.');
-  console.log('  - Typographic balance & anti-widow wrap standard satisfied.');
+  console.log('  - Integer/decimal Tailwind sizes and literal CSS font sizes checked.');
+  console.log('  - Rendered readability, responsive layout and text wrapping require separate verification.');
   console.log('  - Zero forbidden fluff or developer placeholder text detected.\n');
   process.exit(0);
 } else {

@@ -28,6 +28,8 @@ import {
   FrontDeskRoomDetailPanel,
   resolveRoomStatusModel,
 } from "@/features/hotel-ops/components/front-desk-room-detail-panel";
+import { FrontDeskArrivalDetailPanel } from "@/features/hotel-ops/components/front-desk-arrival-detail-panel";
+import { DailyMovementsModal } from "@/features/hotel-ops/components/daily-movements-modal";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import { roomPlanResource } from "@/features/hotel-ops/resources/room-plan-resource";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
@@ -37,28 +39,67 @@ import {
 } from "@/features/hotel-ops/utils/hotel-ops-display";
 import { getArrivalDateRange } from "@/features/hotel-ops/utils/arrival-date-range";
 import type {
+  BookingSourcePartnerItem,
   BulkReservationInput,
   HotelArrival,
   HotelCheckInResult,
   HotelOpsPage,
   HotelRoomSummary,
+  HotelStaffAssignmentItem,
+  HotelStaySummary,
   RoomPlanBlock,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { TapeChartView } from "@/features/hotel-ops/components/tape-chart/tape-chart-view";
+import { BookingConfirmationModal } from "@/features/hotel-ops/components/booking-confirmation-modal";
 import { useRoomViewStore } from "@/features/hotel-ops/store/room-view-store";
 import { channelManagerResource } from "@/features/channel-manager/api/channel-manager.resource";
 import type { SimulatedBookingItem } from "@/features/channel-manager/types/channel-manager.types";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 
+export type PrebookedServiceItem = {
+  id: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+};
+
+const PREBOOKED_SERVICE_PRESETS = [
+  { name: "Nhận phòng sớm", defaultPrice: 100000 },
+  { name: "Trả phòng muộn", defaultPrice: 100000 },
+  { name: "Ăn sáng buffet", defaultPrice: 70000 },
+  { name: "Đưa đón sân bay", defaultPrice: 250000 },
+  { name: "Kê giường phụ", defaultPrice: 150000 },
+];
+
+function generatePartnerCode(name: string): string {
+  const clean = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .toUpperCase();
+  const prefix = clean.slice(0, 8) || "PARTNER";
+  const suffix = Math.floor(100 + Math.random() * 900).toString();
+  return `${prefix}_${suffix}`;
+}
+
+function formatVnDateStr(ymd: string): string {
+  if (!ymd) return "";
+  const parts = ymd.slice(0, 10).split("-");
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return ymd;
+}
+
+function getVnWeekday(ymd: string): string {
+  if (!ymd) return "";
+  const d = new Date(`${ymd}T00:00:00`);
+  const days = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"];
+  return days[d.getDay()] || "";
+}
+
 export type StaffRoomsClientProps = {
   hotelId: string;
   initialRoomsPage: HotelOpsPage<HotelRoomSummary>;
-  initialByStatus?: {
-    available: number;
-    occupied: number;
-    processing: number;
-    maintenance: number;
-  };
   canManageRooms: boolean;
   canManageReservations?: boolean;
   canManageStays: boolean;
@@ -77,6 +118,11 @@ export type StaffRoomsClientProps = {
   initialStartDate?: string;
   initialViewMode?: "week" | "biweek" | "month";
   baseRoutePrefix?: string;
+  currentUser?: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+  };
 };
 
 type RoomStatusFilter =
@@ -620,7 +666,6 @@ function renderPaginationButtons(
 export function StaffRoomsClient({
   hotelId,
   initialRoomsPage,
-  initialByStatus,
   canManageRooms,
   canManageReservations = false,
   canManageStays,
@@ -639,6 +684,7 @@ export function StaffRoomsClient({
   initialStartDate,
   initialViewMode,
   baseRoutePrefix,
+  currentUser,
 }: StaffRoomsClientProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -915,6 +961,43 @@ export function StaffRoomsClient({
     useState<boolean>(false);
   const reservationPriceInputRef = useRef<HTMLInputElement>(null);
 
+  // Single Reservation Channel Source, Partner & Staff/Sale
+  const [reservationSourceCategory, setReservationSourceCategory] = useState<
+    "DIRECT" | "OTA" | "TA" | "CORPORATE" | "OTHER"
+  >("DIRECT");
+  const [reservationSourcePartnerId, setReservationSourcePartnerId] = useState<string>("");
+  const [reservationCustomPartnerName, setReservationCustomPartnerName] = useState<string>("");
+  const [reservationIsAddingNewPartner, setReservationIsAddingNewPartner] = useState(false);
+  const [reservationBookingOwnerUserId, setReservationBookingOwnerUserId] = useState<string>(
+    currentUser?.id || "",
+  );
+  const [reservationIsCustomNightlyRates, setReservationIsCustomNightlyRates] = useState(false);
+  const [reservationNightlyRates, setReservationNightlyRates] = useState<Record<string, number>>({});
+  const [reservationPrebookedServices, setReservationPrebookedServices] = useState<PrebookedServiceItem[]>([]);
+
+  // Booking Source Partners & Staff Directory Queries
+  const bookingPartnersQuery = useQuery({
+    ...staffRoomsResource.bind({ hotelId }).queries.bookingPartners.options(undefined),
+    enabled: Boolean(!isHousekeeping && (isReservationOpen || isBulkModalOpen)),
+  });
+  const staffAssignmentsQuery = useQuery({
+    ...staffRoomsResource.bind({ hotelId }).queries.staffAssignments.options(undefined),
+    enabled: Boolean(!isHousekeeping && (isReservationOpen || isBulkModalOpen)),
+  });
+  const createBookingPartnerMutation = useMutation(
+    staffRoomsResource.bind({ hotelId }).mutations.createBookingPartner.options(),
+  );
+
+  const bookingPartnersList = useMemo<BookingSourcePartnerItem[]>(
+    () => (Array.isArray(bookingPartnersQuery.data) ? bookingPartnersQuery.data : []),
+    [bookingPartnersQuery.data],
+  );
+
+  const staffList = useMemo<HotelStaffAssignmentItem[]>(
+    () => (Array.isArray(staffAssignmentsQuery.data) ? staffAssignmentsQuery.data : []),
+    [staffAssignmentsQuery.data],
+  );
+
   // Bulk Reservation (Lane D) State
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [bulkMode, setBulkMode] = useState<"auto" | "manual">("auto");
@@ -938,12 +1021,35 @@ export function StaffRoomsClient({
   const [bulkRoomTypeCustomPrices, setBulkRoomTypeCustomPrices] = useState<
     Record<string, number | null>
   >({});
+
+  // Bulk Reservation Channel Source, Partner & Staff/Sale
+  const [bulkSourceCategory, setBulkSourceCategory] = useState<
+    "DIRECT" | "OTA" | "TA" | "CORPORATE" | "OTHER"
+  >("DIRECT");
+  const [bulkSourcePartnerId, setBulkSourcePartnerId] = useState<string>("");
+  const [bulkCustomPartnerName, setBulkCustomPartnerName] = useState<string>("");
+  const [bulkIsAddingNewPartner, setBulkIsAddingNewPartner] = useState(false);
+  const [bulkBookingOwnerUserId, setBulkBookingOwnerUserId] = useState<string>(
+    currentUser?.id || "",
+  );
+  const [bulkIsCustomNightlyRates, setBulkIsCustomNightlyRates] = useState(false);
+  const [bulkNightlyRates, setBulkNightlyRates] = useState<Record<string, number>>({});
+  const [bulkPrebookedServices, setBulkPrebookedServices] = useState<PrebookedServiceItem[]>([]);
+
   const bulkReservationsMutation = useMutation(
     staffRoomsResource
       .bind({ hotelId })
       .mutations.createBulkReservations.options(),
   );
   const isBulkSubmitting = bulkReservationsMutation.isPending;
+
+  const [confirmationModalState, setConfirmationModalState] = useState<{
+    isOpen: boolean;
+    mode: "single" | "group";
+    reservationId?: string | null;
+    groupCode?: string | null;
+    autoPrint?: boolean;
+  }>({ isOpen: false, mode: "single" });
 
   const roomPlanScope = useMemo(
     () => roomPlanResource.bind({ hotelId }),
@@ -1186,6 +1292,11 @@ export function StaffRoomsClient({
   const [arrivalsList, setArrivalsList] = useState<HotelArrival[]>([]);
   const [arrivalsLoading, setArrivalsLoading] = useState(false);
 
+  // Daily Movements (Khách đến & Khách đi trong ngày) Modal State
+  const [isDailyMovementsOpen, setIsDailyMovementsOpen] = useState(false);
+  const [dailyMovementsTab, setDailyMovementsTab] = useState<"arrivals" | "departures">("arrivals");
+  const [selectedArrivalForDetail, setSelectedArrivalForDetail] = useState<HotelArrival | null>(null);
+
   function handleBusinessDateChange(newDate: string) {
     setBusinessDate(newDate);
     if (typeof window !== "undefined") {
@@ -1287,10 +1398,81 @@ export function StaffRoomsClient({
       const checkInIso = new Date(reservationCheckIn).toISOString();
       const checkOutIso = new Date(reservationCheckOut).toISOString();
 
+      let effectivePartnerId =
+        reservationSourcePartnerId && reservationSourcePartnerId !== "NEW"
+          ? reservationSourcePartnerId
+          : null;
+      if (
+        reservationSourceCategory !== "DIRECT" &&
+        (reservationSourcePartnerId === "NEW" || reservationIsAddingNewPartner) &&
+        reservationCustomPartnerName.trim()
+      ) {
+        try {
+          const createdPartner = await createBookingPartnerMutation.mutateAsync({
+            name: reservationCustomPartnerName.trim(),
+            code: generatePartnerCode(reservationCustomPartnerName.trim()),
+            category: reservationSourceCategory,
+            notes: "Tự động tạo từ đặt phòng trước",
+          });
+          effectivePartnerId = createdPartner.id;
+        } catch (err) {
+          console.error("Lỗi tự động tạo đối tác:", err);
+        }
+      }
+
+      const chargeLines: Array<{
+        lineType: "ROOM_NIGHT" | "EXTRA";
+        serviceDate?: string;
+        nameSnapshot: string;
+        quantity: number;
+        unitPriceSnapshot: number;
+        totalSnapshot: number;
+        currency: string;
+      }> = [];
+
+      const baseRateNum = reservationNightlyRate
+        ? Number(reservationNightlyRate.replace(/\D/g, "")) || 0
+        : selectedReservationRoom?.price
+          ? Number(selectedReservationRoom.price)
+          : 0;
+
+      if (reservationIsCustomNightlyRates && reservationNightDates.length > 0) {
+        for (const d of reservationNightDates) {
+          const rateForNight = reservationNightlyRates[d] ?? baseRateNum;
+          chargeLines.push({
+            lineType: "ROOM_NIGHT",
+            serviceDate: `${d}T14:00:00+07:00`,
+            nameSnapshot: `Tiền phòng đêm ${formatVnDateStr(d)}`,
+            quantity: 1,
+            unitPriceSnapshot: rateForNight,
+            totalSnapshot: rateForNight,
+            currency: "VND",
+          });
+        }
+      }
+
+      for (const s of reservationPrebookedServices) {
+        if (s.name.trim() && s.unitPrice >= 0 && s.quantity > 0) {
+          chargeLines.push({
+            lineType: "EXTRA",
+            nameSnapshot: s.name.trim(),
+            quantity: s.quantity,
+            unitPriceSnapshot: s.unitPrice,
+            totalSnapshot: s.total,
+            currency: "VND",
+          });
+        }
+      }
+
       const payload: Record<string, unknown> = {
         guestDisplayName: reservationGuestName.trim(),
         plannedCheckInAt: checkInIso,
         plannedCheckOutAt: checkOutIso,
+        sourceCategory: reservationSourceCategory,
+        sourcePartnerId: effectivePartnerId,
+        bookingOwnerUserId:
+          reservationBookingOwnerUserId || currentUser?.id || null,
+        ...(chargeLines.length > 0 ? { chargeLines } : {}),
       };
       if (reservationGuestPhone.trim()) {
         payload.guestPhone = reservationGuestPhone.trim();
@@ -1298,10 +1480,8 @@ export function StaffRoomsClient({
       if (reservationRoomId.trim()) {
         payload.roomId = reservationRoomId.trim();
       }
-      if (reservationNightlyRate.trim()) {
-        const num = Number(reservationNightlyRate.replace(/[^0-9.-]+/g, ""));
-        payload.nightlyRateSnapshot =
-          !isNaN(num) && num > 0 ? num : reservationNightlyRate.trim();
+      if (baseRateNum > 0) {
+        payload.nightlyRateSnapshot = baseRateNum;
       }
 
       const res = await requestInternalApiEnvelope<HotelArrival>(
@@ -1317,13 +1497,83 @@ export function StaffRoomsClient({
       setReservationGuestPhone("");
       setReservationNightlyRate("");
       setReservationRoomId("");
+      setReservationSourceCategory("DIRECT");
+      setReservationSourcePartnerId("");
+      setReservationCustomPartnerName("");
+      setReservationIsAddingNewPartner(false);
+      setReservationNightlyRates({});
+      setReservationIsCustomNightlyRates(false);
+      setReservationPrebookedServices([]);
 
-      await showSuccessAlert(
-        "Đặt phòng thành công",
-        `Đã tạo đặt phòng thành công cho khách ${res.data?.guestDisplayName || reservationGuestName}.`,
-      );
+      const createdGuestName = res.data?.guestDisplayName || reservationGuestName;
+      const reservationCode = (res.data as any)?.reservationCode || (res.data as any)?.code || (res.data as any)?.id || "";
+      const createdReservationId = res.data?.id;
+
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       void refetch();
+
+      await SwalVietSage.fire({
+        icon: "success",
+        title: "Tạo đặt phòng thành công!",
+        html: `
+          <div style="font-size:14px;color:#334155;display:flex;flex-direction:column;gap:14px;margin-top:2px;">
+            <p style="margin:0;text-align:center;color:#475569;font-size:14px;line-height:1.5;">
+              Đã tạo thành công đặt phòng cho khách <strong>${escapeHtml(createdGuestName)}</strong>.
+            </p>
+            ${reservationCode ? `
+            <div style="padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <div style="text-align:left;">
+                <span style="font-size:12px;color:#64748b;font-weight:500;display:block;margin-bottom:2px;">Mã xác nhận đặt phòng</span>
+                <strong style="font-size:16px;color:#0f172a;letter-spacing:0.5px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;">${escapeHtml(reservationCode)}</strong>
+              </div>
+              <button id="swal-btn-copy-single-code" type="button" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:#ffffff;border:1px solid #cbd5e1;color:#1e293b;font-weight:600;font-size:12px;cursor:pointer;transition:all 0.15s ease;box-shadow:0 1px 2px rgba(0,0,0,0.05);white-space:nowrap;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                <span id="swal-single-copy-label">Sao chép</span>
+              </button>
+            </div>
+            ` : ""}
+            ${createdReservationId ? `
+            <button id="swal-btn-print-single-voucher" type="button" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:10px 16px;border-radius:12px;background:#1e3a8a;color:#ffffff;font-weight:700;font-size:13px;cursor:pointer;border:none;box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:background 0.15s ease;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="14" y="14"/></svg>
+              <span>In / Tải phiếu xác nhận gửi khách</span>
+            </button>
+            ` : ""}
+          </div>
+        `,
+        showConfirmButton: true,
+        confirmButtonText: "Hoàn tất",
+        didOpen: () => {
+          const copyBtn = document.getElementById("swal-btn-copy-single-code");
+          const copyLabel = document.getElementById("swal-single-copy-label");
+          if (copyBtn && reservationCode) {
+            copyBtn.addEventListener("click", () => {
+              void navigator.clipboard.writeText(reservationCode);
+              if (copyLabel) copyLabel.innerText = "Đã sao chép";
+              copyBtn.style.borderColor = "#86efac";
+              copyBtn.style.color = "#166534";
+              copyBtn.style.backgroundColor = "#f0fdf4";
+              setTimeout(() => {
+                if (copyLabel) copyLabel.innerText = "Sao chép";
+                copyBtn.style.borderColor = "#cbd5e1";
+                copyBtn.style.color = "#1e293b";
+                copyBtn.style.backgroundColor = "#ffffff";
+              }, 2000);
+            });
+          }
+
+          const printBtn = document.getElementById("swal-btn-print-single-voucher");
+          if (printBtn && createdReservationId) {
+            printBtn.addEventListener("click", () => {
+              SwalVietSage.close();
+              setConfirmationModalState({
+                isOpen: true,
+                mode: "single",
+                reservationId: createdReservationId,
+              });
+            });
+          }
+        },
+      });
     } catch (err: unknown) {
       const errorObj = err as {
         status?: number;
@@ -1552,7 +1802,7 @@ export function StaffRoomsClient({
       vipOnly: false,
       businessDate: isFutureDate ? businessDate : undefined,
     }),
-    refetchInterval: 60_000,
+    refetchInterval: operationalViewMode === "grid" ? 60_000 : false,
     refetchIntervalInBackground: false,
     placeholderData: keepPreviousData,
     initialData:
@@ -1586,6 +1836,41 @@ export function StaffRoomsClient({
       (error as { status?: number })?.status === 403);
 
   const rooms = roomsPage?.items ?? [];
+
+  const activeMovementsTargetYmd = businessDate || todayYmd;
+
+  const todayArrivalsList = useMemo(() => {
+    return arrivalsList.filter((arr) => {
+      const arrYmd = arr.plannedCheckInAt ? arr.plannedCheckInAt.slice(0, 10) : "";
+      return arrYmd === activeMovementsTargetYmd;
+    });
+  }, [arrivalsList, activeMovementsTargetYmd]);
+
+  const todayDeparturesList = useMemo(() => {
+    const list: Array<{
+      room: HotelRoomSummary;
+      stay: HotelStaySummary;
+      status: "DUE_TODAY" | "OVERDUE" | "CHECKED_OUT";
+    }> = [];
+    for (const room of rooms) {
+      const stay = room.activeStay;
+      if (!stay) continue;
+
+      const outYmd = stay.plannedCheckOutAt ? stay.plannedCheckOutAt.slice(0, 10) : "";
+      const actualOutYmd = stay.checkedOutAt ? stay.checkedOutAt.slice(0, 10) : "";
+
+      if (stay.checkedOutAt && actualOutYmd === activeMovementsTargetYmd) {
+        list.push({ room, stay, status: "CHECKED_OUT" });
+      } else if (!stay.checkedOutAt) {
+        if (outYmd === activeMovementsTargetYmd) {
+          list.push({ room, stay, status: "DUE_TODAY" });
+        } else if (outYmd && outYmd < activeMovementsTargetYmd) {
+          list.push({ room, stay, status: "OVERDUE" });
+        }
+      }
+    }
+    return list;
+  }, [rooms, activeMovementsTargetYmd]);
   const floors = useMemo(() => {
     const rawFloors = roomsPage?.floors ?? initialRoomsPage.floors ?? [];
     return [...new Set(rawFloors)].sort((a, b) => a.localeCompare(b));
@@ -1646,7 +1931,7 @@ export function StaffRoomsClient({
       undefined as never,
     ),
     enabled: !isHousekeeping,
-    refetchInterval: isHousekeeping ? false : 30_000,
+    refetchInterval: operationalViewMode === "grid" ? 30_000 : false,
     staleTime: 10_000,
   });
 
@@ -2018,29 +2303,154 @@ export function StaffRoomsClient({
     return Math.max(1, Math.round((outTime - inTime) / (1000 * 60 * 60 * 24)));
   }, [bulkCheckInDate, bulkCheckOutDate]);
 
+  const bulkNightDates = useMemo(() => {
+    if (!bulkCheckInDate || !bulkCheckOutDate) return [];
+    const start = new Date(`${bulkCheckInDate.slice(0, 10)}T00:00:00`);
+    const end = new Date(`${bulkCheckOutDate.slice(0, 10)}T00:00:00`);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return [];
+    const dates: string[] = [];
+    const cur = new Date(start);
+    while (cur < end) {
+      const y = cur.getFullYear();
+      const m = String(cur.getMonth() + 1).padStart(2, "0");
+      const d = String(cur.getDate()).padStart(2, "0");
+      dates.push(`${y}-${m}-${d}`);
+      cur.setDate(cur.getDate() + 1);
+    }
+    return dates;
+  }, [bulkCheckInDate, bulkCheckOutDate]);
+
+  const reservationNightDates = useMemo(() => {
+    if (!reservationCheckIn || !reservationCheckOut) return [];
+    const start = new Date(reservationCheckIn);
+    const end = new Date(reservationCheckOut);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return [];
+    const dates: string[] = [];
+    const cur = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const endDate = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    while (cur < endDate) {
+      const y = cur.getFullYear();
+      const m = String(cur.getMonth() + 1).padStart(2, "0");
+      const d = String(cur.getDate()).padStart(2, "0");
+      dates.push(`${y}-${m}-${d}`);
+      cur.setDate(cur.getDate() + 1);
+    }
+    return dates;
+  }, [reservationCheckIn, reservationCheckOut]);
+
+  const addBulkPrebookedService = useCallback(
+    (name: string, defaultPrice: number = 0) => {
+      setBulkPrebookedServices((prev) => [
+        ...prev,
+        {
+          id: `prebook_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          name,
+          quantity: 1,
+          unitPrice: defaultPrice,
+          total: defaultPrice,
+        },
+      ]);
+    },
+    [],
+  );
+
+  const updateBulkPrebookedService = useCallback(
+    (id: string, updates: Partial<PrebookedServiceItem>) => {
+      setBulkPrebookedServices((prev) =>
+        prev.map((item) => {
+          if (item.id !== id) return item;
+          const next = { ...item, ...updates };
+          next.total = Math.max(0, (next.quantity || 1) * (next.unitPrice || 0));
+          return next;
+        }),
+      );
+    },
+    [],
+  );
+
+  const removeBulkPrebookedService = useCallback((id: string) => {
+    setBulkPrebookedServices((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
+  const addReservationPrebookedService = useCallback(
+    (name: string, defaultPrice: number = 0) => {
+      setReservationPrebookedServices((prev) => [
+        ...prev,
+        {
+          id: `res_prebook_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          name,
+          quantity: 1,
+          unitPrice: defaultPrice,
+          total: defaultPrice,
+        },
+      ]);
+    },
+    [],
+  );
+
+  const updateReservationPrebookedService = useCallback(
+    (id: string, updates: Partial<PrebookedServiceItem>) => {
+      setReservationPrebookedServices((prev) =>
+        prev.map((item) => {
+          if (item.id !== id) return item;
+          const next = { ...item, ...updates };
+          next.total = Math.max(0, (next.quantity || 1) * (next.unitPrice || 0));
+          return next;
+        }),
+      );
+    },
+    [],
+  );
+
+  const removeReservationPrebookedService = useCallback((id: string) => {
+    setReservationPrebookedServices((prev) =>
+      prev.filter((item) => item.id !== id),
+    );
+  }, []);
+
+  const bulkEstimatedServicesTotal = useMemo(
+    () => bulkPrebookedServices.reduce((sum, s) => sum + (s.total || 0), 0),
+    [bulkPrebookedServices],
+  );
+
   const bulkEstimatedTotalPrice = useMemo(() => {
+    let roomTotal = 0;
     if (bulkMode === "auto") {
-      let total = 0;
       for (const rt of roomTypeSummaryList) {
         const count = bulkRoomTypeCounts[rt.roomTypeId] || 0;
         if (count > 0) {
-          const rate =
+          const defaultRate =
             bulkRoomTypeCustomPrices[rt.roomTypeId] ?? rt.price ?? 0;
-          total += rate * count * bulkNightsCount;
+          if (bulkIsCustomNightlyRates && bulkNightDates.length > 0) {
+            const sumOfNights = bulkNightDates.reduce(
+              (sum, d) => sum + (bulkNightlyRates[d] ?? defaultRate),
+              0,
+            );
+            roomTotal += sumOfNights * count;
+          } else {
+            roomTotal += defaultRate * count * bulkNightsCount;
+          }
         }
       }
-      return total;
     } else {
-      let total = 0;
       for (const roomId of bulkSelectedRoomIds) {
         const room = roomPoolMap.get(roomId);
-        const rate =
+        const defaultRate =
           bulkRoomCustomPrices[roomId] ??
           (typeof room?.price === "number" ? room.price : 0);
-        total += rate * bulkNightsCount;
+        if (bulkIsCustomNightlyRates && bulkNightDates.length > 0) {
+          const sumOfNights = bulkNightDates.reduce(
+            (sum, d) => sum + (bulkNightlyRates[d] ?? defaultRate),
+            0,
+          );
+          roomTotal += sumOfNights;
+        } else {
+          roomTotal += defaultRate * bulkNightsCount;
+        }
       }
-      return total;
     }
+
+    return roomTotal + bulkEstimatedServicesTotal;
   }, [
     bulkMode,
     bulkRoomTypeCounts,
@@ -2050,7 +2460,484 @@ export function StaffRoomsClient({
     bulkRoomCustomPrices,
     bulkNightsCount,
     roomPoolMap,
+    bulkIsCustomNightlyRates,
+    bulkNightDates,
+    bulkNightlyRates,
+    bulkEstimatedServicesTotal,
   ]);
+
+  const bulkEstimatedRoomsTotal = useMemo(
+    () => Math.max(0, bulkEstimatedTotalPrice - bulkEstimatedServicesTotal),
+    [bulkEstimatedTotalPrice, bulkEstimatedServicesTotal],
+  );
+
+  const reservationEstimatedServicesTotal = useMemo(
+    () =>
+      reservationPrebookedServices.reduce(
+        (sum, s) => sum + (s.total || 0),
+        0,
+      ),
+    [reservationPrebookedServices],
+  );
+
+  const reservationEstimatedRoomsTotal = useMemo(() => {
+    const baseRateNum = reservationNightlyRate
+      ? Number(reservationNightlyRate.replace(/\D/g, "")) || 0
+      : selectedReservationRoom?.price
+        ? Number(selectedReservationRoom.price)
+        : 0;
+
+    if (reservationIsCustomNightlyRates && reservationNightDates.length > 0) {
+      return reservationNightDates.reduce(
+        (sum, d) => sum + (reservationNightlyRates[d] ?? baseRateNum),
+        0,
+      );
+    }
+    return baseRateNum * Math.max(1, reservationNightDates.length);
+  }, [
+    reservationNightlyRate,
+    selectedReservationRoom?.price,
+    reservationIsCustomNightlyRates,
+    reservationNightDates,
+    reservationNightlyRates,
+  ]);
+
+  const reservationEstimatedTotalPrice = useMemo(
+    () => reservationEstimatedRoomsTotal + reservationEstimatedServicesTotal,
+    [reservationEstimatedRoomsTotal, reservationEstimatedServicesTotal],
+  );
+
+  function renderBulkNightlyRatesSection() {
+    if (bulkNightDates.length < 2) return null;
+
+    return (
+      <div className="rounded-2xl border border-purple-200/90 bg-purple-50/40 p-3.5 transition-all">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 text-purple-700">
+              <VsIcon name="calendar_month" className="text-base" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-purple-950">
+                  Giá các đêm khác nhau
+                </span>
+                <span className="rounded-full bg-purple-200/80 px-2 py-0.5 text-xs font-bold text-purple-900 whitespace-nowrap">
+                  {bulkNightDates.length} đêm
+                </span>
+              </div>
+              <p className="text-xs text-purple-800/80 mt-0.5 text-pretty">
+                Tùy chỉnh đơn giá theo từng đêm (ngày lễ, cuối tuần hoặc giá khuyến mãi theo ngày).
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setBulkIsCustomNightlyRates((prev) => !prev)}
+            className="px-3 py-1.5 rounded-xl border border-purple-300 bg-white text-xs font-bold text-purple-800 hover:bg-purple-100 transition whitespace-nowrap cursor-pointer shadow-2xs"
+          >
+            {bulkIsCustomNightlyRates ? "Tắt tùy chỉnh riêng" : "Tùy chỉnh giá từng đêm"}
+          </button>
+        </div>
+
+        {bulkIsCustomNightlyRates && (
+          <div className="mt-3 pt-3 border-t border-purple-200/70">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+              {bulkNightDates.map((dateStr, idx) => {
+                const weekday = getVnWeekday(dateStr);
+                const currentVal = bulkNightlyRates[dateStr] ?? "";
+                return (
+                  <div
+                    key={dateStr}
+                    className="p-2.5 rounded-xl bg-white border border-purple-200 shadow-2xs flex flex-col justify-between"
+                  >
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="font-bold text-slate-800">
+                        Đêm {idx + 1} ({weekday})
+                      </span>
+                      <span className="text-slate-500 font-medium">
+                        {formatVnDateStr(dateStr)}
+                      </span>
+                    </div>
+                    <div className="relative flex items-center mt-1">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="Theo giá loại phòng"
+                        value={formatPriceInput(currentVal)}
+                        onChange={(e) => {
+                          const digits = e.target.value.replace(/\D/g, "");
+                          setBulkNightlyRates((prev) => ({
+                            ...prev,
+                            [dateStr]: digits ? Number(digits) : 0,
+                          }));
+                        }}
+                        className="w-full text-xs font-bold text-purple-950 bg-purple-50/30 border border-purple-200 rounded-lg pl-2 pr-9 py-1.5 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none"
+                      />
+                      <span className="absolute right-2 text-xs font-semibold text-slate-400 pointer-events-none">
+                        đ
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function renderBulkPrebookedServicesSection() {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5 transition-all">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+              <VsIcon name="add_shopping_cart" className="text-base" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-slate-900">
+                  Phụ thu & Dịch vụ khách đặt trước
+                </span>
+                {bulkPrebookedServices.length > 0 ? (
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800 whitespace-nowrap">
+                    {bulkPrebookedServices.length} mục · {formatMoney({ price: bulkEstimatedServicesTotal, currency: "VND" })}
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5 text-pretty">
+                Thêm trước các dịch vụ, ăn sáng, phụ thu nhận sớm/trả muộn để tự động kết chuyển vào Folio khi khách nhận phòng.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => addBulkPrebookedService("Phụ thu khác", 0)}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-700 hover:bg-slate-100 transition whitespace-nowrap cursor-pointer shadow-2xs"
+          >
+            <VsIcon name="add" className="text-sm" />
+            <span>Thêm dịch vụ khác</span>
+          </button>
+        </div>
+
+        {/* Quick preset buttons */}
+        <div className="flex flex-wrap items-center gap-1.5 py-1">
+          <span className="text-xs font-semibold text-slate-500 mr-1">
+            Gợi ý nhanh:
+          </span>
+          {PREBOOKED_SERVICE_PRESETS.map((preset) => (
+            <button
+              key={preset.name}
+              type="button"
+              onClick={() => addBulkPrebookedService(preset.name, preset.defaultPrice)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-900 text-xs font-medium text-slate-700 transition cursor-pointer shadow-2xs whitespace-nowrap"
+            >
+              <VsIcon name="add" className="text-xs text-emerald-600" />
+              <span>{preset.name}</span>
+              <span className="text-slate-400 font-normal">
+                ({new Intl.NumberFormat("vi-VN").format(preset.defaultPrice)}đ)
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Prebooked Services List */}
+        {bulkPrebookedServices.length > 0 ? (
+          <div className="mt-3 divide-y divide-slate-200/80 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+            <div className="grid grid-cols-12 gap-2 bg-slate-100/80 px-3 py-2 text-xs font-bold text-slate-600 uppercase tracking-wider">
+              <div className="col-span-5 sm:col-span-6">Tên dịch vụ / Phụ thu</div>
+              <div className="col-span-2 text-center">Số lượng</div>
+              <div className="col-span-3 sm:col-span-2 text-right">Đơn giá (₫)</div>
+              <div className="col-span-2 sm:col-span-2 text-right">Thành tiền</div>
+            </div>
+            {bulkPrebookedServices.map((item) => (
+              <div
+                key={item.id}
+                className="grid grid-cols-12 gap-2 px-3 py-2.5 items-center hover:bg-slate-50/60 transition text-xs"
+              >
+                <div className="col-span-5 sm:col-span-6">
+                  <input
+                    type="text"
+                    value={item.name}
+                    onChange={(e) => updateBulkPrebookedService(item.id, { name: e.target.value })}
+                    placeholder="Tên dịch vụ..."
+                    className="w-full h-8 px-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+                <div className="col-span-2 flex items-center justify-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => updateBulkPrebookedService(item.id, { quantity: Math.max(1, item.quantity - 1) })}
+                    className="h-7 w-7 rounded border border-slate-300 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-100"
+                  >
+                    -
+                  </button>
+                  <span className="w-6 text-center font-bold text-slate-800">
+                    {item.quantity}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => updateBulkPrebookedService(item.id, { quantity: item.quantity + 1 })}
+                    className="h-7 w-7 rounded border border-slate-300 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-100"
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="col-span-3 sm:col-span-2 text-right">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formatPriceInput(item.unitPrice)}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "");
+                      updateBulkPrebookedService(item.id, { unitPrice: digits ? Number(digits) : 0 });
+                    }}
+                    placeholder="0"
+                    className="w-full h-8 px-2 text-right rounded-lg border border-slate-200 text-xs font-semibold text-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+                <div className="col-span-2 sm:col-span-2 flex items-center justify-end gap-1.5">
+                  <span className="font-bold text-slate-900 whitespace-nowrap">
+                    {formatMoney({ price: item.total, currency: "VND" })}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeBulkPrebookedService(item.id)}
+                    className="h-7 w-7 text-slate-400 hover:text-rose-600 rounded flex items-center justify-center hover:bg-rose-50 transition cursor-pointer"
+                    title="Xóa dịch vụ này"
+                  >
+                    <VsIcon name="delete" className="text-sm" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  function renderReservationNightlyRatesSection() {
+    if (reservationNightDates.length < 2) return null;
+
+    const baseRateNum = reservationNightlyRate
+      ? Number(reservationNightlyRate.replace(/\D/g, "")) || 0
+      : selectedReservationRoom?.price
+        ? Number(selectedReservationRoom.price)
+        : 0;
+
+    return (
+      <div className="rounded-2xl border border-emerald-200/90 bg-emerald-50/40 p-3.5 transition-all">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+              <VsIcon name="calendar_month" className="text-base" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-emerald-950">
+                  Giá các đêm khác nhau
+                </span>
+                <span className="rounded-full bg-emerald-200/80 px-2 py-0.5 text-xs font-bold text-emerald-900 whitespace-nowrap">
+                  {reservationNightDates.length} đêm
+                </span>
+              </div>
+              <p className="text-xs text-emerald-800/80 mt-0.5 text-pretty">
+                Tùy chỉnh giá riêng từng đêm (cuối tuần, lễ hội hoặc thỏa thuận theo ngày).
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setReservationIsCustomNightlyRates((prev) => !prev)}
+            className="px-3 py-1.5 rounded-xl border border-emerald-300 bg-white text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition whitespace-nowrap cursor-pointer shadow-2xs"
+          >
+            {reservationIsCustomNightlyRates ? "Tắt tùy chỉnh riêng" : "Tùy chỉnh giá từng đêm"}
+          </button>
+        </div>
+
+        {reservationIsCustomNightlyRates && (
+          <div className="mt-3 pt-3 border-t border-emerald-200/70">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+              {reservationNightDates.map((dateStr, idx) => {
+                const weekday = getVnWeekday(dateStr);
+                const currentVal = reservationNightlyRates[dateStr] ?? baseRateNum;
+                return (
+                  <div
+                    key={dateStr}
+                    className="p-2.5 rounded-xl bg-white border border-emerald-200 shadow-2xs flex flex-col justify-between"
+                  >
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="font-bold text-slate-800">
+                        Đêm {idx + 1} ({weekday})
+                      </span>
+                      <span className="text-slate-500 font-medium">
+                        {formatVnDateStr(dateStr)}
+                      </span>
+                    </div>
+                    <div className="relative flex items-center mt-1">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder={baseRateNum > 0 ? String(baseRateNum) : "0"}
+                        value={formatPriceInput(currentVal)}
+                        onChange={(e) => {
+                          const digits = e.target.value.replace(/\D/g, "");
+                          setReservationNightlyRates((prev) => ({
+                            ...prev,
+                            [dateStr]: digits ? Number(digits) : 0,
+                          }));
+                        }}
+                        className="w-full text-xs font-bold text-emerald-950 bg-emerald-50/30 border border-emerald-200 rounded-lg pl-2 pr-9 py-1.5 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none"
+                      />
+                      <span className="absolute right-2 text-xs font-semibold text-slate-400 pointer-events-none">
+                        đ
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function renderReservationPrebookedServicesSection() {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5 transition-all">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+              <VsIcon name="add_shopping_cart" className="text-base" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-slate-900">
+                  Phụ thu & Dịch vụ khách đặt trước
+                </span>
+                {reservationPrebookedServices.length > 0 ? (
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800 whitespace-nowrap">
+                    {reservationPrebookedServices.length} mục · {formatMoney({ price: reservationEstimatedServicesTotal, currency: "VND" })}
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5 text-pretty">
+                Dịch vụ đặt trước sẽ tự động tính vào hóa đơn Folio khi khách check-in.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => addReservationPrebookedService("Phụ thu khác", 0)}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-700 hover:bg-slate-100 transition whitespace-nowrap cursor-pointer shadow-2xs"
+          >
+            <VsIcon name="add" className="text-sm" />
+            <span>Thêm dịch vụ khác</span>
+          </button>
+        </div>
+
+        {/* Quick presets */}
+        <div className="flex flex-wrap items-center gap-1.5 py-1">
+          <span className="text-xs font-semibold text-slate-500 mr-1">
+            Gợi ý nhanh:
+          </span>
+          {PREBOOKED_SERVICE_PRESETS.map((preset) => (
+            <button
+              key={preset.name}
+              type="button"
+              onClick={() => addReservationPrebookedService(preset.name, preset.defaultPrice)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-900 text-xs font-medium text-slate-700 transition cursor-pointer shadow-2xs whitespace-nowrap"
+            >
+              <VsIcon name="add" className="text-xs text-emerald-600" />
+              <span>{preset.name}</span>
+              <span className="text-slate-400 font-normal">
+                ({new Intl.NumberFormat("vi-VN").format(preset.defaultPrice)}đ)
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* List of services */}
+        {reservationPrebookedServices.length > 0 ? (
+          <div className="mt-3 divide-y divide-slate-200/80 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+            <div className="grid grid-cols-12 gap-2 bg-slate-100/80 px-3 py-2 text-xs font-bold text-slate-600 uppercase tracking-wider">
+              <div className="col-span-5 sm:col-span-6">Tên dịch vụ / Phụ thu</div>
+              <div className="col-span-2 text-center">Số lượng</div>
+              <div className="col-span-3 sm:col-span-2 text-right">Đơn giá (₫)</div>
+              <div className="col-span-2 sm:col-span-2 text-right">Thành tiền</div>
+            </div>
+            {reservationPrebookedServices.map((item) => (
+              <div
+                key={item.id}
+                className="grid grid-cols-12 gap-2 px-3 py-2.5 items-center hover:bg-slate-50/60 transition text-xs"
+              >
+                <div className="col-span-5 sm:col-span-6">
+                  <input
+                    type="text"
+                    value={item.name}
+                    onChange={(e) => updateReservationPrebookedService(item.id, { name: e.target.value })}
+                    placeholder="Tên dịch vụ..."
+                    className="w-full h-8 px-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+                <div className="col-span-2 flex items-center justify-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => updateReservationPrebookedService(item.id, { quantity: Math.max(1, item.quantity - 1) })}
+                    className="h-7 w-7 rounded border border-slate-300 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-100"
+                  >
+                    -
+                  </button>
+                  <span className="w-6 text-center font-bold text-slate-800">
+                    {item.quantity}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => updateReservationPrebookedService(item.id, { quantity: item.quantity + 1 })}
+                    className="h-7 w-7 rounded border border-slate-300 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-100"
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="col-span-3 sm:col-span-2 text-right">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formatPriceInput(item.unitPrice)}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "");
+                      updateReservationPrebookedService(item.id, { unitPrice: digits ? Number(digits) : 0 });
+                    }}
+                    placeholder="0"
+                    className="w-full h-8 px-2 text-right rounded-lg border border-slate-200 text-xs font-semibold text-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+                <div className="col-span-2 sm:col-span-2 flex items-center justify-end gap-1.5">
+                  <span className="font-bold text-slate-900 whitespace-nowrap">
+                    {formatMoney({ price: item.total, currency: "VND" })}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeReservationPrebookedService(item.id)}
+                    className="h-7 w-7 text-slate-400 hover:text-rose-600 rounded flex items-center justify-center hover:bg-rose-50 transition cursor-pointer"
+                    title="Xóa dịch vụ này"
+                  >
+                    <VsIcon name="delete" className="text-sm" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   async function submitBulkReservations(e?: React.FormEvent) {
     if (e) e.preventDefault();
@@ -2176,6 +3063,68 @@ export function StaffRoomsClient({
         ? bulkCheckOutDate
         : `${bulkCheckOutDate}T12:00:00+07:00`;
 
+      // Resolve Booking Partner if new partner was typed
+      let effectivePartnerId =
+        bulkSourcePartnerId && bulkSourcePartnerId !== "NEW"
+          ? bulkSourcePartnerId
+          : null;
+      if (
+        bulkSourceCategory !== "DIRECT" &&
+        (bulkSourcePartnerId === "NEW" || bulkIsAddingNewPartner) &&
+        bulkCustomPartnerName.trim()
+      ) {
+        try {
+          const createdPartner = await createBookingPartnerMutation.mutateAsync({
+            name: bulkCustomPartnerName.trim(),
+            code: generatePartnerCode(bulkCustomPartnerName.trim()),
+            category: bulkSourceCategory,
+            notes: "Tự động tạo từ đặt phòng đoàn",
+          });
+          effectivePartnerId = createdPartner.id;
+        } catch (err) {
+          console.error("Lỗi tự động tạo đối tác:", err);
+        }
+      }
+
+      // Build Charge Lines (Nightly rates & Pre-booked extras)
+      const chargeLines: Array<{
+        lineType: "ROOM_NIGHT" | "EXTRA";
+        serviceDate?: string;
+        nameSnapshot: string;
+        quantity: number;
+        unitPriceSnapshot: number;
+        totalSnapshot: number;
+        currency: string;
+      }> = [];
+
+      if (bulkIsCustomNightlyRates && bulkNightDates.length > 0) {
+        for (const d of bulkNightDates) {
+          const rateForNight = bulkNightlyRates[d] ?? uniformRateNum ?? 0;
+          chargeLines.push({
+            lineType: "ROOM_NIGHT",
+            serviceDate: `${d}T14:00:00+07:00`,
+            nameSnapshot: `Tiền phòng đêm ${formatVnDateStr(d)}`,
+            quantity: 1,
+            unitPriceSnapshot: rateForNight,
+            totalSnapshot: rateForNight,
+            currency: "VND",
+          });
+        }
+      }
+
+      for (const s of bulkPrebookedServices) {
+        if (s.name.trim() && s.unitPrice >= 0 && s.quantity > 0) {
+          chargeLines.push({
+            lineType: "EXTRA",
+            nameSnapshot: s.name.trim(),
+            quantity: s.quantity,
+            unitPriceSnapshot: s.unitPrice,
+            totalSnapshot: s.total,
+            currency: "VND",
+          });
+        }
+      }
+
       const payload: BulkReservationInput = isAuto
         ? {
             leadGuestName: trimmedLeadName,
@@ -2184,6 +3133,10 @@ export function StaffRoomsClient({
             allocations,
             autoAssign: true,
             ...(uniformRateNum !== undefined ? { rate: uniformRateNum } : {}),
+            ...(chargeLines.length > 0 ? { chargeLines } : {}),
+            sourceCategory: bulkSourceCategory,
+            sourcePartnerId: effectivePartnerId,
+            bookingOwnerUserId: bulkBookingOwnerUserId || currentUser?.id || null,
           }
         : {
             leadGuestName: trimmedLeadName,
@@ -2192,6 +3145,10 @@ export function StaffRoomsClient({
             roomIds: Array.from(bulkSelectedRoomIds),
             roomRates,
             ...(uniformRateNum !== undefined ? { rate: uniformRateNum } : {}),
+            ...(chargeLines.length > 0 ? { chargeLines } : {}),
+            sourceCategory: bulkSourceCategory,
+            sourcePartnerId: effectivePartnerId,
+            bookingOwnerUserId: bulkBookingOwnerUserId || currentUser?.id || null,
           };
 
       const result = await bulkReservationsMutation.mutateAsync(payload);
@@ -2204,6 +3161,13 @@ export function StaffRoomsClient({
       setBulkRoomTypeCustomPrices({});
       setBulkUniformPrice("");
       setBulkLeadName("");
+      setBulkSourceCategory("DIRECT");
+      setBulkSourcePartnerId("");
+      setBulkCustomPartnerName("");
+      setBulkIsAddingNewPartner(false);
+      setBulkNightlyRates({});
+      setBulkIsCustomNightlyRates(false);
+      setBulkPrebookedServices([]);
 
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       void refetch();
@@ -2226,6 +3190,10 @@ export function StaffRoomsClient({
                 <span id="swal-copy-label">Sao chép</span>
               </button>
             </div>
+            <button id="swal-btn-print-bulk-voucher" type="button" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:10px 16px;border-radius:12px;background:#1e3a8a;color:#ffffff;font-weight:700;font-size:13px;cursor:pointer;border:none;box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:background 0.15s ease;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="14" y="14"/></svg>
+              <span>In / Tải phiếu xác nhận đoàn</span>
+            </button>
           </div>
         `,
         showConfirmButton: true,
@@ -2246,6 +3214,18 @@ export function StaffRoomsClient({
                 btn.style.color = "#1e293b";
                 btn.style.backgroundColor = "#ffffff";
               }, 2000);
+            });
+          }
+
+          const printBtn = document.getElementById("swal-btn-print-bulk-voucher");
+          if (printBtn) {
+            printBtn.addEventListener("click", () => {
+              SwalVietSage.close();
+              setConfirmationModalState({
+                isOpen: true,
+                mode: "group",
+                groupCode: result.groupCode,
+              });
             });
           }
         },
@@ -4866,15 +5846,40 @@ export function StaffRoomsClient({
                 <VsIcon name="group_add" className="text-base" />
                 <span>Đặt trước nhanh / Đoàn</span>
               </button>
-              <button
-                type="button"
-                onClick={printActiveStayList}
-                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 px-3.5 text-sm font-bold text-slate-800 hover:text-slate-950 whitespace-nowrap shadow-2xs transition cursor-pointer min-h-[40px]"
-                title="In danh sách khách đang lưu trú tại khách sạn"
-              >
-                <VsIcon name="print" className="text-base text-slate-500" />
-                <span>In danh sách lưu trú</span>
-              </button>
+              {/* Daily Arrivals & Departures Movements Button Group */}
+              <div className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white p-1 shadow-2xs gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDailyMovementsTab("arrivals");
+                    setIsDailyMovementsOpen(true);
+                  }}
+                  className="inline-flex h-full items-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs font-bold transition hover:bg-emerald-50 text-emerald-800 cursor-pointer min-h-[32px]"
+                  title="Danh sách khách đến trong ngày (Nhận phòng IN, Gán/Tráo phòng, Sửa booking)"
+                >
+                  <VsIcon name="login" className="text-sm text-emerald-600" />
+                  <span className="whitespace-nowrap">Khách đến</span>
+                  <span className="rounded-full bg-emerald-100 text-emerald-800 px-1.5 py-0.2 text-xs font-black">
+                    {todayArrivalsList.length}
+                  </span>
+                </button>
+                <div className="h-4 w-px bg-slate-200" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDailyMovementsTab("departures");
+                    setIsDailyMovementsOpen(true);
+                  }}
+                  className="inline-flex h-full items-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs font-bold transition hover:bg-amber-50 text-amber-800 cursor-pointer min-h-[32px]"
+                  title="Danh sách khách đi trong ngày (Trả phòng OUT, Gia hạn, Đổi phòng)"
+                >
+                  <VsIcon name="logout" className="text-sm text-amber-600" />
+                  <span className="whitespace-nowrap">Khách đi</span>
+                  <span className="rounded-full bg-amber-100 text-amber-800 px-1.5 py-0.2 text-xs font-black">
+                    {todayDeparturesList.length}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
         ) : null}
@@ -6002,8 +7007,8 @@ export function StaffRoomsClient({
                 }
               }}
             >
-              <div className="my-auto w-full max-w-2xl rounded-2xl bg-white p-6 sm:p-8 shadow-2xl text-left">
-                <div className="flex items-start justify-between gap-4 border-b border-[var(--outline-variant)] pb-4">
+              <div className="my-auto w-full max-w-3xl rounded-2xl bg-white p-5 sm:p-7 shadow-2xl text-left max-h-[92vh] flex flex-col">
+                <div className="flex items-start justify-between gap-4 border-b border-[var(--outline-variant)] pb-4 shrink-0">
                   <div>
                     <p className="text-xs sm:text-sm font-bold uppercase tracking-[0.16em] text-emerald-700">
                       {selectedReservationRoom?.type
@@ -6012,7 +7017,7 @@ export function StaffRoomsClient({
                     </p>
                     <h2
                       id="future-reservation-title"
-                      className="vs-display mt-1 text-2xl sm:text-3xl font-bold text-[var(--primary)]"
+                      className="vs-display mt-1 text-2xl sm:text-3xl font-bold text-[var(--primary)] text-balance"
                     >
                       {selectedReservationRoom
                         ? `Tạo lịch đặt trước phòng ${getRoomNumber(selectedReservationRoom)}`
@@ -6033,7 +7038,7 @@ export function StaffRoomsClient({
 
                 <form
                   onSubmit={submitFutureReservation}
-                  className="mt-6 space-y-4 sm:space-y-5"
+                  className="mt-4 flex-1 overflow-y-auto space-y-4 pr-1 min-h-0"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-purple-50 p-3 border border-purple-200">
                     <span className="text-xs font-semibold text-purple-900 text-pretty">
@@ -6332,6 +7337,153 @@ export function StaffRoomsClient({
                     </div>
                   </div>
 
+                  {/* Booking Source (TA/OTA/CO/DIRECT) & Partner & Booking Owner (Staff/Sale) */}
+                  <div className="py-2.5 px-3.5 bg-slate-50/90 border border-slate-200/90 rounded-2xl grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Nguồn đặt phòng (Kênh bán) <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={reservationSourceCategory}
+                        onChange={(e) => {
+                          const val = e.target.value as "DIRECT" | "OTA" | "TA" | "CORPORATE" | "OTHER";
+                          setReservationSourceCategory(val);
+                          setReservationSourcePartnerId("");
+                          setReservationCustomPartnerName("");
+                          setReservationIsAddingNewPartner(false);
+                        }}
+                        className="w-full h-10 rounded-xl border border-slate-300 bg-white px-3 text-xs sm:text-sm font-semibold text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none cursor-pointer"
+                      >
+                        <option value="DIRECT">Trực tiếp / Vãng lai (Khách lẻ)</option>
+                        <option value="TA">Đại lý du lịch / Lữ hành (TA)</option>
+                        <option value="OTA">Kênh trực tuyến (OTA)</option>
+                        <option value="CORPORATE">Doanh nghiệp / Công ty (CO)</option>
+                        <option value="OTHER">Nguồn khác</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-bold text-slate-700">
+                          {reservationSourceCategory === "TA"
+                            ? "Công ty lữ hành / Đại lý (TA)"
+                            : reservationSourceCategory === "OTA"
+                              ? "Nền tảng OTA cụ thể"
+                              : reservationSourceCategory === "CORPORATE"
+                                ? "Công ty / Doanh nghiệp đối tác"
+                                : "Đối tác / Ghi chú nguồn"}
+                        </label>
+                        {reservationSourceCategory !== "DIRECT" && !reservationIsAddingNewPartner ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReservationIsAddingNewPartner(true);
+                              setReservationSourcePartnerId("");
+                            }}
+                            className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
+                          >
+                            + Thêm đối tác mới
+                          </button>
+                        ) : null}
+                      </div>
+
+                      {reservationSourceCategory === "DIRECT" ? (
+                        <input
+                          type="text"
+                          disabled
+                          value="Khách đặt trực tiếp tại quầy / Hotline"
+                          className="w-full h-10 rounded-xl border border-slate-200 bg-slate-100 px-3 text-xs text-slate-500 font-medium cursor-not-allowed"
+                        />
+                      ) : reservationIsAddingNewPartner ? (
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            value={reservationCustomPartnerName}
+                            onChange={(e) => setReservationCustomPartnerName(e.target.value)}
+                            placeholder={
+                              reservationSourceCategory === "TA"
+                                ? "VD: Vietravel, Saigontourist..."
+                                : reservationSourceCategory === "OTA"
+                                  ? "VD: Agoda, Booking.com..."
+                                  : "VD: FPT Telecom, Viettel..."
+                            }
+                            className="flex-1 h-10 rounded-xl border border-emerald-300 bg-white px-3 text-xs sm:text-sm font-semibold text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReservationIsAddingNewPartner(false);
+                              setReservationCustomPartnerName("");
+                            }}
+                            className="h-10 px-2.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-100 whitespace-nowrap cursor-pointer"
+                            title="Quay lại danh sách có sẵn"
+                          >
+                            Hủy
+                          </button>
+                        </div>
+                      ) : (
+                        <select
+                          value={reservationSourcePartnerId}
+                          onChange={(e) => {
+                            if (e.target.value === "NEW") {
+                              setReservationIsAddingNewPartner(true);
+                              setReservationSourcePartnerId("");
+                            } else {
+                              setReservationSourcePartnerId(e.target.value);
+                            }
+                          }}
+                          className="w-full h-10 rounded-xl border border-slate-300 bg-white px-3 text-xs sm:text-sm font-semibold text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none cursor-pointer"
+                        >
+                          <option value="">-- Chọn công ty / đối tác --</option>
+                          {bookingPartnersList
+                            .filter(
+                              (p) =>
+                                !p.category ||
+                                p.category === reservationSourceCategory ||
+                                (reservationSourceCategory === "TA" && p.category === "TRAVEL_AGENCY"),
+                            )
+                            .map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name} {p.code ? `(${p.code})` : ""}
+                              </option>
+                            ))}
+                          <option value="NEW">+ Nhập tên công ty / đối tác mới...</option>
+                        </select>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Người đặt / Sale phụ trách
+                      </label>
+                      <select
+                        value={reservationBookingOwnerUserId}
+                        onChange={(e) => setReservationBookingOwnerUserId(e.target.value)}
+                        className="w-full h-10 rounded-xl border border-slate-300 bg-white px-3 text-xs sm:text-sm font-semibold text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none cursor-pointer"
+                      >
+                        <option value="">-- Chọn nhân viên phụ trách doanh thu --</option>
+                        {currentUser?.id ? (
+                          <option value={currentUser.id}>
+                            {currentUser.name || currentUser.email || "Tôi (Tài khoản hiện tại)"} (Hiện tại)
+                          </option>
+                        ) : null}
+                        {staffList
+                          .filter((s) => s.user?.id && s.user.id !== currentUser?.id)
+                          .map((s) => (
+                            <option key={s.id} value={s.user?.id}>
+                              {s.user?.fullName || s.user?.email || s.id} ({s.role || "Nhân viên"})
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Nightly Rates for Different Nights */}
+                  {renderReservationNightlyRatesSection()}
+
+                  {/* Prebooked Services & Surcharges */}
+                  {renderReservationPrebookedServicesSection()}
+
                   {/* Conflict Alert & Alternative Rooms Recommendation */}
                   {reservationConflict ? (
                     <div className="rounded-2xl border-2 border-rose-300 bg-rose-50/90 p-4 sm:p-5 text-left transition-all shadow-xs">
@@ -6386,36 +7538,51 @@ export function StaffRoomsClient({
                     </div>
                   ) : null}
 
-                  <div className="mt-6 flex items-center justify-end gap-3 border-t border-[var(--outline-variant)] pt-4">
-                    <button
-                      type="button"
-                      onClick={() => setIsReservationOpen(false)}
-                      disabled={reservationSubmitting}
-                      className="px-5 py-2.5 rounded-xl border border-slate-300 text-sm sm:text-base font-bold text-slate-700 hover:bg-slate-100 transition min-h-[48px] cursor-pointer"
-                    >
-                      Hủy
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={
-                        reservationSubmitting || Boolean(reservationConflict)
-                      }
-                      className="px-6 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-sm sm:text-base font-bold text-white shadow-sm hover:shadow transition min-h-[48px] cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={
-                        reservationConflict
-                          ? "Vui lòng chọn ngày khác hoặc chọn phòng còn trống"
-                          : undefined
-                      }
-                    >
-                      {reservationSubmitting ? (
-                        <>
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                          <span>Đang xử lý...</span>
-                        </>
-                      ) : (
-                        <span>Xác nhận đặt phòng</span>
-                      )}
-                    </button>
+                  {/* Summary & Footer Actions */}
+                  <div className="mt-4 pt-3 border-t border-[var(--outline-variant)] flex flex-wrap items-center justify-between gap-3 shrink-0">
+                    <div className="text-xs text-slate-600 flex flex-wrap items-center gap-2">
+                      <span>
+                        Tiền phòng: <strong>{formatMoney({ price: reservationEstimatedRoomsTotal, currency: "VND" })}</strong>
+                        {reservationEstimatedServicesTotal > 0 ? (
+                          <> · Phụ thu: <strong>{formatMoney({ price: reservationEstimatedServicesTotal, currency: "VND" })}</strong></>
+                        ) : null}
+                      </span>
+                      <span className="font-bold text-emerald-900 bg-emerald-100/90 px-2.5 py-1 rounded-lg border border-emerald-300">
+                        Tổng tạm tính: {formatMoney({ price: reservationEstimatedTotalPrice, currency: "VND" })}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setIsReservationOpen(false)}
+                        disabled={reservationSubmitting}
+                        className="px-4 py-2 rounded-xl border border-slate-300 text-sm font-bold text-slate-700 hover:bg-slate-100 transition min-h-[42px] cursor-pointer"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={
+                          reservationSubmitting || Boolean(reservationConflict)
+                        }
+                        className="px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-sm font-bold text-white shadow-sm hover:shadow transition min-h-[42px] cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={
+                          reservationConflict
+                            ? "Vui lòng chọn ngày khác hoặc chọn phòng còn trống"
+                            : undefined
+                        }
+                      >
+                        {reservationSubmitting ? (
+                          <>
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                            <span>Đang xử lý...</span>
+                          </>
+                        ) : (
+                          <span>Xác nhận đặt phòng</span>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </form>
               </div>
@@ -6531,6 +7698,147 @@ export function StaffRoomsClient({
                         onChange={(e) => setBulkCheckOutDate(e.target.value)}
                         className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm sm:text-base text-slate-900 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none transition"
                       />
+                    </div>
+                  </div>
+
+                  {/* Booking Source (TA/OTA/CO/DIRECT) & Partner & Booking Owner (Staff/Sale) */}
+                  <div className="my-2.5 py-2.5 px-3.5 bg-slate-50/90 border border-slate-200/90 rounded-2xl grid grid-cols-1 md:grid-cols-3 gap-3 shrink-0">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Nguồn đặt phòng (Kênh bán) <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={bulkSourceCategory}
+                        onChange={(e) => {
+                          const val = e.target.value as "DIRECT" | "OTA" | "TA" | "CORPORATE" | "OTHER";
+                          setBulkSourceCategory(val);
+                          setBulkSourcePartnerId("");
+                          setBulkCustomPartnerName("");
+                          setBulkIsAddingNewPartner(false);
+                        }}
+                        className="w-full h-10 rounded-xl border border-slate-300 bg-white px-3 text-xs sm:text-sm font-semibold text-slate-900 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none cursor-pointer"
+                      >
+                        <option value="DIRECT">Trực tiếp / Vãng lai (Khách lẻ)</option>
+                        <option value="TA">Đại lý du lịch / Lữ hành (TA)</option>
+                        <option value="OTA">Kênh trực tuyến (OTA)</option>
+                        <option value="CORPORATE">Doanh nghiệp / Công ty (CO)</option>
+                        <option value="OTHER">Nguồn khác</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-bold text-slate-700">
+                          {bulkSourceCategory === "TA"
+                            ? "Công ty lữ hành / Đại lý (TA)"
+                            : bulkSourceCategory === "OTA"
+                              ? "Nền tảng OTA cụ thể"
+                              : bulkSourceCategory === "CORPORATE"
+                                ? "Công ty / Doanh nghiệp đối tác"
+                                : "Đối tác / Ghi chú nguồn"}
+                        </label>
+                        {bulkSourceCategory !== "DIRECT" && !bulkIsAddingNewPartner ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBulkIsAddingNewPartner(true);
+                              setBulkSourcePartnerId("");
+                            }}
+                            className="text-xs font-bold text-purple-700 hover:text-purple-800 hover:underline cursor-pointer"
+                          >
+                            + Thêm đối tác mới
+                          </button>
+                        ) : null}
+                      </div>
+
+                      {bulkSourceCategory === "DIRECT" ? (
+                        <input
+                          type="text"
+                          disabled
+                          value="Khách đặt trực tiếp tại quầy / Hotline"
+                          className="w-full h-10 rounded-xl border border-slate-200 bg-slate-100 px-3 text-xs text-slate-500 font-medium cursor-not-allowed"
+                        />
+                      ) : bulkIsAddingNewPartner ? (
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            value={bulkCustomPartnerName}
+                            onChange={(e) => setBulkCustomPartnerName(e.target.value)}
+                            placeholder={
+                              bulkSourceCategory === "TA"
+                                ? "VD: Vietravel, Saigontourist..."
+                                : bulkSourceCategory === "OTA"
+                                  ? "VD: Agoda, Booking.com..."
+                                  : "VD: FPT Telecom, Viettel..."
+                            }
+                            className="flex-1 h-10 rounded-xl border border-purple-300 bg-white px-3 text-xs sm:text-sm font-semibold text-slate-900 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBulkIsAddingNewPartner(false);
+                              setBulkCustomPartnerName("");
+                            }}
+                            className="h-10 px-2.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-100 whitespace-nowrap cursor-pointer"
+                            title="Quay lại danh sách có sẵn"
+                          >
+                            Hủy
+                          </button>
+                        </div>
+                      ) : (
+                        <select
+                          value={bulkSourcePartnerId}
+                          onChange={(e) => {
+                            if (e.target.value === "NEW") {
+                              setBulkIsAddingNewPartner(true);
+                              setBulkSourcePartnerId("");
+                            } else {
+                              setBulkSourcePartnerId(e.target.value);
+                            }
+                          }}
+                          className="w-full h-10 rounded-xl border border-slate-300 bg-white px-3 text-xs sm:text-sm font-semibold text-slate-900 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none cursor-pointer"
+                        >
+                          <option value="">-- Chọn công ty / đối tác --</option>
+                          {bookingPartnersList
+                            .filter(
+                              (p) =>
+                                !p.category ||
+                                p.category === bulkSourceCategory ||
+                                (bulkSourceCategory === "TA" && p.category === "TRAVEL_AGENCY"),
+                            )
+                            .map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name} {p.code ? `(${p.code})` : ""}
+                              </option>
+                            ))}
+                          <option value="NEW">+ Nhập tên công ty / đối tác mới...</option>
+                        </select>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Người đặt / Sale phụ trách
+                      </label>
+                      <select
+                        value={bulkBookingOwnerUserId}
+                        onChange={(e) => setBulkBookingOwnerUserId(e.target.value)}
+                        className="w-full h-10 rounded-xl border border-slate-300 bg-white px-3 text-xs sm:text-sm font-semibold text-slate-900 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none cursor-pointer"
+                      >
+                        <option value="">-- Chọn nhân viên phụ trách doanh thu --</option>
+                        {currentUser?.id ? (
+                          <option value={currentUser.id}>
+                            {currentUser.name || currentUser.email || "Tôi (Tài khoản hiện tại)"} (Hiện tại)
+                          </option>
+                        ) : null}
+                        {staffList
+                          .filter((s) => s.user?.id && s.user.id !== currentUser?.id)
+                          .map((s) => (
+                            <option key={s.id} value={s.user?.id}>
+                              {s.user?.fullName || s.user?.email || s.id} ({s.role || "Nhân viên"})
+                            </option>
+                          ))}
+                      </select>
                     </div>
                   </div>
 
@@ -6673,6 +7981,12 @@ export function StaffRoomsClient({
                           })}
                         </div>
                       )}
+
+                      {/* Nightly Rates & Prebooked Services */}
+                      <div className="space-y-3 pt-1">
+                        {renderBulkNightlyRatesSection()}
+                        {renderBulkPrebookedServicesSection()}
+                      </div>
                     </div>
                   ) : (
                     <>
@@ -7018,6 +8332,12 @@ export function StaffRoomsClient({
                             )}
                           </div>
                         )}
+
+                        {/* Nightly Rates & Prebooked Services */}
+                        <div className="mt-3.5 space-y-3 pb-1">
+                          {renderBulkNightlyRatesSection()}
+                          {renderBulkPrebookedServicesSection()}
+                        </div>
                       </div>
                     </>
                   )}
@@ -7035,10 +8355,14 @@ export function StaffRoomsClient({
                             <div className="flex flex-wrap items-center gap-2">
                               <span>
                                 Đã chọn <strong>{total}</strong> phòng ·{" "}
-                                <strong>{bulkNightsCount}</strong> đêm.
+                                <strong>{bulkNightsCount}</strong> đêm
+                                (Tiền phòng: <strong>{formatMoney({ price: bulkEstimatedRoomsTotal, currency: "VND" })}</strong>
+                                {bulkEstimatedServicesTotal > 0 ? (
+                                  <> · Phụ thu: <strong>{formatMoney({ price: bulkEstimatedServicesTotal, currency: "VND" })}</strong></>
+                                ) : null})
                               </span>
-                              <span className="font-bold text-purple-800 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
-                                Tạm tính:{" "}
+                              <span className="font-bold text-purple-900 bg-purple-100/90 px-2.5 py-1 rounded-lg border border-purple-300">
+                                Tổng tạm tính:{" "}
                                 {formatMoney({
                                   price: bulkEstimatedTotalPrice,
                                   currency: "VND",
@@ -7053,10 +8377,14 @@ export function StaffRoomsClient({
                         <div className="flex flex-wrap items-center gap-2">
                           <span>
                             Đã chọn <strong>{bulkSelectedRoomIds.size}</strong>{" "}
-                            phòng · <strong>{bulkNightsCount}</strong> đêm.
+                            phòng · <strong>{bulkNightsCount}</strong> đêm
+                            (Tiền phòng: <strong>{formatMoney({ price: bulkEstimatedRoomsTotal, currency: "VND" })}</strong>
+                            {bulkEstimatedServicesTotal > 0 ? (
+                              <> · Phụ thu: <strong>{formatMoney({ price: bulkEstimatedServicesTotal, currency: "VND" })}</strong></>
+                            ) : null})
                           </span>
-                          <span className="font-bold text-purple-800 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
-                            Tạm tính:{" "}
+                          <span className="font-bold text-purple-900 bg-purple-100/90 px-2.5 py-1 rounded-lg border border-purple-300">
+                            Tổng tạm tính:{" "}
                             {formatMoney({
                               price: bulkEstimatedTotalPrice,
                               currency: "VND",
@@ -7458,6 +8786,63 @@ export function StaffRoomsClient({
           setIsCheckInOpen(true);
         }}
         triggerElementRef={activeTriggerRef}
+      />
+
+      <BookingConfirmationModal
+        isOpen={confirmationModalState.isOpen}
+        onClose={() => setConfirmationModalState((prev) => ({ ...prev, isOpen: false }))}
+        hotelId={hotelId}
+        mode={confirmationModalState.mode}
+        reservationId={confirmationModalState.reservationId}
+        groupCode={confirmationModalState.groupCode}
+        autoPrint={confirmationModalState.autoPrint}
+      />
+
+      <DailyMovementsModal
+        isOpen={isDailyMovementsOpen}
+        onClose={() => setIsDailyMovementsOpen(false)}
+        hotelId={hotelId}
+        businessDate={businessDate}
+        todayYmd={todayYmd}
+        initialTab={dailyMovementsTab}
+        rooms={rooms}
+        arrivalsList={arrivalsList}
+        onRefreshData={async () => {
+          await Promise.all([refetch(), loadArrivals(arrivalsRange)]);
+        }}
+        onCheckInArrival={(arr) => {
+          setIsDailyMovementsOpen(false);
+          handleCheckInArrival(arr);
+        }}
+        onExtendStay={(r) => {
+          setIsDailyMovementsOpen(false);
+          void handleExtendStayModal(r);
+        }}
+        onOpenRoomDetail={(r) => {
+          setIsDailyMovementsOpen(false);
+          setSelectedContextRoom(r);
+        }}
+        onOpenArrivalDetail={(arr) => {
+          setIsDailyMovementsOpen(false);
+          setSelectedArrivalForDetail(arr);
+        }}
+        onPrintActiveStays={printActiveStayList}
+        canCheckInStay={canCheckInStay}
+        canCheckOutStay={canCheckOutStay}
+        canManageReservations={canManageReservations}
+        canViewBilling={canViewBilling}
+        canCheckoutBilling={canCheckoutBilling}
+      />
+
+      <FrontDeskArrivalDetailPanel
+        isOpen={Boolean(selectedArrivalForDetail)}
+        onClose={() => setSelectedArrivalForDetail(null)}
+        hotelId={hotelId}
+        arrival={selectedArrivalForDetail}
+        todayYmd={todayYmd}
+        canCheckInStay={canCheckInStay}
+        canManageReservations={canManageReservations}
+        canOperateArrivals={Boolean(canManageReservations || canCheckInStay)}
       />
     </div>
   );

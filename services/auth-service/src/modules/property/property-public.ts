@@ -15,6 +15,8 @@ export {
   groupCodeParamSchema,
   updateGroupReservationBodySchema,
   type UpdateGroupReservationBodyInput,
+  upsertConfirmationTemplateBodySchema,
+  type UpsertConfirmationTemplateBodyInput,
 } from "./domain/schemas/reservations.schema";
 export { HotelFeatureEntitlementsService } from "./application/hotel-feature-entitlements.service";
 export { ReservationRoomAllocationService } from "./application/reservation-room-allocation.service";

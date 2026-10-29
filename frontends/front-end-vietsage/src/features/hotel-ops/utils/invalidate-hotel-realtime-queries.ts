@@ -5,6 +5,18 @@ import { roomPlanResource } from "../resources/room-plan-resource";
 import { localPartnersResource } from "@/features/local-partners/resources/local-partners-resource";
 import { channelManagerResource } from "@/features/channel-manager/api/channel-manager.resource";
 
+export async function invalidateHotelMessageRealtimeQueries(
+  queryClient: QueryClient,
+  hotelId: string,
+): Promise<void> {
+  if (!hotelId) return;
+
+  await queryClient.invalidateQueries({
+    queryKey: ["vietsage", "hotel", hotelId, "hotel-messages"],
+    refetchType: "active",
+  });
+}
+
 export async function invalidateHotelRequestRealtimeQueries(
   queryClient: QueryClient,
   hotelId: string,
@@ -14,16 +26,14 @@ export async function invalidateHotelRequestRealtimeQueries(
   const localPartnersBound = localPartnersResource.bind({ hotelId });
 
   await Promise.allSettled([
-    queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId], refetchType: "active" }),
-    queryClient.invalidateQueries({ queryKey: ["owner-requests", hotelId], refetchType: "active" }),
+    queryClient.invalidateQueries({
+      queryKey: ["vietsage", "request-queue"],
+      refetchType: "active",
+    }),
     localPartnersBound.queries.marketplaceOrders.invalidateAll(queryClient),
     queryClient.invalidateQueries({
-      queryKey: ["vietsage", "local-partners", "hotel", hotelId],
-      refetchType: "all",
-    }),
-    queryClient.invalidateQueries({
-      queryKey: ["hotel-ops", hotelId, "messages", "unread-summary"],
-      refetchType: "all",
+      queryKey: ["vietsage", "hotel", hotelId, "hotel-messages"],
+      refetchType: "active",
     }),
   ]);
 }
@@ -50,39 +60,13 @@ export async function invalidateHotelRealtimeQueries(
     cmOwnerBound.queries.inventoryGrid.invalidateAll(queryClient),
     cmAdminBound.queries.simulatedBookings.invalidateAll(queryClient),
     cmOwnerBound.queries.simulatedBookings.invalidateAll(queryClient),
-    cmAdminBound.invalidate(queryClient),
-    cmOwnerBound.invalidate(queryClient),
     queryClient.invalidateQueries({
-      queryKey: ["vietsage", "room-plan"],
-      refetchType: "all",
+      queryKey: ["vietsage", "request-queue"],
+      refetchType: "active",
     }),
     queryClient.invalidateQueries({
       queryKey: ["vietsage", "hotel", hotelId],
-      refetchType: "all",
-    }),
-    queryClient.invalidateQueries({
-      queryKey: ["hotel-ops", hotelId],
-      refetchType: "all",
-    }),
-    queryClient.invalidateQueries({
-      queryKey: ["hotel-requests", hotelId],
-      refetchType: "all",
-    }),
-    queryClient.invalidateQueries({
-      queryKey: ["owner-requests", hotelId],
-      refetchType: "all",
-    }),
-    queryClient.invalidateQueries({
-      queryKey: ["channel-manager", hotelId],
-      refetchType: "all",
-    }),
-    queryClient.refetchQueries({
-      queryKey: ["vietsage", "room-plan"],
-      type: "active",
-    }),
-    queryClient.refetchQueries({
-      queryKey: ["vietsage", "hotel", hotelId],
-      type: "active",
+      refetchType: "active",
     }),
   ]);
 }

@@ -53,8 +53,8 @@ test("owner operational reset contract: backend and frontend integration", () =>
   );
   const serviceContent = fs.readFileSync(servicePath, "utf-8");
   assert.match(serviceContent, /resetOperationalData/);
-  assert.match(serviceContent, /MAX_RESETS = 2/);
-  assert.match(serviceContent, /!actor\.isSuperAdmin && currentCount >= MAX_RESETS/);
+  assert.match(serviceContent, /unlimited: actor\.isSuperAdmin/);
+  assert.match(serviceContent, /tenantIds: actor\.isSuperAdmin/);
 
   const repositoryPath = path.join(
     rootDir,
@@ -62,6 +62,8 @@ test("owner operational reset contract: backend and frontend integration", () =>
   );
   const repositoryContent = fs.readFileSync(repositoryPath, "utf-8");
   assert.match(repositoryContent, /resetHotelOperationalData/);
+  assert.match(repositoryContent, /FOR UPDATE/);
+  assert.match(repositoryContent, /!options\.unlimited && currentCount >= 2/);
   assert.match(repositoryContent, /RoomStatus\.AVAILABLE/);
   assert.match(repositoryContent, /marketplaceRevenueEntry\.deleteMany/);
   assert.match(repositoryContent, /serviceVoucher\.deleteMany/);
@@ -78,7 +80,7 @@ test("owner operational reset contract: backend and frontend integration", () =>
   // 5. Check Owner Rooms Client UI has operational reset action
   const roomsClientPath = path.join(
     rootDir,
-    "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/owner-rooms-client.tsx",
+    "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/room-management/owner-rooms-client.tsx",
   );
   const roomsClientContent = fs.readFileSync(roomsClientPath, "utf-8");
   assert.match(roomsClientContent, /handleOperationalReset/);

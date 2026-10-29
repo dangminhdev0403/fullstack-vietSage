@@ -23,6 +23,31 @@ export const nightlyRateSnapshotSchema = z
   .nullable()
   .optional();
 
+export const bookingSourceCategorySchema = z.enum([
+  "DIRECT",
+  "OTA",
+  "TA",
+  "TRAVEL_AGENCY",
+  "CORPORATE",
+  "OTHER",
+]);
+
+export const reservationChargeLineInputSchema = z
+  .object({
+    lineType: z.enum(["ROOM_NIGHT", "EXTRA"]),
+    serviceDate: z.string().trim().optional(),
+    serviceItemId: z.string().trim().optional(),
+    nameSnapshot: z.string().trim().min(1).max(160),
+    codeSnapshot: z.string().trim().max(80).optional(),
+    quantity: z.number().int().min(1).default(1),
+    unitPriceSnapshot: z.number().nonnegative(),
+    taxAmountSnapshot: z.number().nonnegative().default(0),
+    discountAmountSnapshot: z.number().nonnegative().default(0),
+    totalSnapshot: z.number().nonnegative(),
+    currency: z.string().trim().max(3).default("VND"),
+  })
+  .strict();
+
 export const createReservationBodySchema = z
   .object({
     guestDisplayName: z.string().trim().min(2).max(120),
@@ -36,6 +61,10 @@ export const createReservationBodySchema = z
     notes: z.string().trim().max(500).optional(),
     rate: nightlyRateSnapshotSchema,
     nightlyRateSnapshot: nightlyRateSnapshotSchema,
+    chargeLines: z.array(reservationChargeLineInputSchema).optional(),
+    sourceCategory: bookingSourceCategorySchema.optional(),
+    sourcePartnerId: z.string().trim().min(1).nullable().optional(),
+    bookingOwnerUserId: z.string().trim().min(1).nullable().optional(),
   })
   .strict()
   .refine((value) => value.plannedCheckOutAt > value.plannedCheckInAt, {
@@ -179,6 +208,10 @@ export const createBulkReservationsBodySchema = z
     rate: nightlyRateSnapshotSchema,
     nightlyRateSnapshot: nightlyRateSnapshotSchema,
     roomRates: z.record(z.string(), nightlyRateSnapshotSchema).optional(),
+    chargeLines: z.array(reservationChargeLineInputSchema).optional(),
+    sourceCategory: bookingSourceCategorySchema.optional(),
+    sourcePartnerId: z.string().trim().min(1).nullable().optional(),
+    bookingOwnerUserId: z.string().trim().min(1).nullable().optional(),
   })
   .strict()
   .refine(
@@ -300,6 +333,10 @@ export const updateReservationDatesBodySchema = z
     plannedCheckOutAt: z.coerce.date().optional(),
     rate: nightlyRateSnapshotSchema.optional(),
     nightlyRateSnapshot: nightlyRateSnapshotSchema.optional(),
+    chargeLines: z.array(reservationChargeLineInputSchema).optional(),
+    sourceCategory: bookingSourceCategorySchema.optional(),
+    sourcePartnerId: z.string().trim().min(1).nullable().optional(),
+    bookingOwnerUserId: z.string().trim().min(1).nullable().optional(),
     expectedUpdatedAt: z.string().trim().min(1, "expectedUpdatedAt là bắt buộc"),
   })
   .strict();
@@ -320,9 +357,76 @@ export const updateGroupReservationBodySchema = z
     leadGuestName: z.string().trim().min(2, "Tên trưởng đoàn tối thiểu 2 ký tự").max(120).optional(),
     leadGuestPhone: z.string().trim().max(40).nullable().optional(),
     notes: z.string().trim().max(500).nullable().optional(),
+    sourceCategory: bookingSourceCategorySchema.optional(),
+    sourcePartnerId: z.string().trim().min(1).nullable().optional(),
+    bookingOwnerUserId: z.string().trim().min(1).nullable().optional(),
   })
   .strict();
 
 export type UpdateGroupReservationBodyInput = z.infer<
   typeof updateGroupReservationBodySchema
+>;
+
+export const createBookingSourcePartnerBodySchema = z
+  .object({
+    name: z.string().trim().min(1, "Tên đối tác không được để trống").max(120),
+    code: z.string().trim().min(1, "Mã đối tác không được để trống").max(40),
+    category: bookingSourceCategorySchema.default("DIRECT"),
+    contactPerson: z.string().trim().max(120).optional(),
+    contactPhone: z.string().trim().max(40).optional(),
+    contactEmail: z.string().trim().email("Email không hợp lệ").max(160).optional(),
+    notes: z.string().trim().max(500).optional(),
+    isActive: z.boolean().default(true),
+  })
+  .strict();
+
+export type CreateBookingSourcePartnerBodyInput = z.infer<
+  typeof createBookingSourcePartnerBodySchema
+>;
+
+export const updateBookingSourcePartnerBodySchema = z
+  .object({
+    name: z.string().trim().min(1).max(120).optional(),
+    code: z.string().trim().min(1).max(40).optional(),
+    category: bookingSourceCategorySchema.optional(),
+    contactPerson: z.string().trim().max(120).nullable().optional(),
+    contactPhone: z.string().trim().max(40).nullable().optional(),
+    contactEmail: z.string().trim().email("Email không hợp lệ").max(160).nullable().optional(),
+    notes: z.string().trim().max(500).nullable().optional(),
+    isActive: z.boolean().optional(),
+  })
+  .strict();
+
+export type UpdateBookingSourcePartnerBodyInput = z.infer<
+  typeof updateBookingSourcePartnerBodySchema
+>;
+
+export const listBookingSourcePartnersQuerySchema = z
+  .object({
+    category: bookingSourceCategorySchema.optional(),
+    isActive: z.coerce.boolean().optional(),
+    q: z.string().trim().max(100).optional(),
+  })
+  .strict();
+
+export type ListBookingSourcePartnersQueryInput = z.infer<
+  typeof listBookingSourcePartnersQuerySchema
+>;
+
+export const upsertConfirmationTemplateBodySchema = z
+  .object({
+    title: z.string().trim().min(1).max(160).optional(),
+    subtitle: z.string().trim().max(255).nullable().optional(),
+    contactInfo: z.string().trim().max(500).nullable().optional(),
+    checkInPolicy: z.string().trim().max(1000).nullable().optional(),
+    checkOutPolicy: z.string().trim().max(1000).nullable().optional(),
+    paymentTerms: z.string().trim().max(1000).nullable().optional(),
+    footerNotes: z.string().trim().max(1000).nullable().optional(),
+    showLogo: z.boolean().optional(),
+    showPriceBreakdown: z.boolean().optional(),
+  })
+  .strict();
+
+export type UpsertConfirmationTemplateBodyInput = z.infer<
+  typeof upsertConfirmationTemplateBodySchema
 >;

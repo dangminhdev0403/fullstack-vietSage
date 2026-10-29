@@ -7,6 +7,8 @@ import {
 import {
   BookingPaymentStatus,
   DomainEventStatus,
+  FolioItemSourceType,
+  FolioItemType,
   FolioStatus,
   GuestStayStatus,
   Prisma,
@@ -76,6 +78,12 @@ export class ReservationsRepository {
     idempotencyKey?: string;
     generateReservationCode: (tx: Prisma.TransactionClient) => Promise<string>;
     roomAllocationService?: any;
+    allowedRoomId?: string | null;
+    assertRoomAccess?: (roomId: string) => void | Promise<void>;
+    chargeLines?: any[];
+    sourceCategory?: any;
+    sourcePartnerId?: string | null;
+    bookingOwnerUserId?: string | null;
   }) {
     return this.runSerializable(async (tx) => {
       let resolvedRoomIds = input.roomIds ? [...input.roomIds] : [];
@@ -88,13 +96,18 @@ export class ReservationsRepository {
           const allocRate = alloc.rate !== undefined ? alloc.rate : alloc.nightlyRateSnapshot;
           for (let i = 0; i < alloc.quantity; i++) {
             try {
-              const allocated = await input.roomAllocationService.allocateRoom(tx, {
+              const allocationPayload: any = {
                 hotelId: input.hotelId,
                 roomTypeId: alloc.roomTypeId,
                 interval: { checkInAt: input.checkInDate, checkOutAt: input.checkOutDate },
                 excludedRoomIds: resolvedRoomIds,
-                mode: "auto",
-              });
+                mode: input.allowedRoomId ? "manual" : "auto",
+                ...(input.allowedRoomId ? { requestedRoomId: input.allowedRoomId } : {}),
+              };
+              const allocated = await input.roomAllocationService.allocateRoom(tx, allocationPayload);
+              if (input.assertRoomAccess) {
+                await input.assertRoomAccess(allocated.roomId);
+              }
               resolvedRoomIds.push(allocated.roomId);
               if (allocRate !== undefined) {
                 allocatedRoomRates.set(allocated.roomId, allocRate);
@@ -120,6 +133,9 @@ export class ReservationsRepository {
       const sortedRoomIds = [...uniqueRoomIds].sort();
 
       for (const roomId of sortedRoomIds) {
+        if (input.assertRoomAccess) {
+          await input.assertRoomAccess(roomId);
+        }
         await tx.$queryRawUnsafe(
           'SELECT id FROM "Room" WHERE id = $1 AND "hotelId" = $2 FOR UPDATE',
           roomId,
@@ -315,13 +331,62 @@ export class ReservationsRepository {
           assignedByUserId: input.createdByUserId,
           baseNightlyRateSnapshot: room.price,
           nightlyRateSnapshot,
+          sourceCategory: (input.sourceCategory === "TA" ? "TRAVEL_AGENCY" : input.sourceCategory) ?? undefined,
+          sourcePartnerId: input.sourcePartnerId ?? undefined,
+          bookingOwnerUserId: input.bookingOwnerUserId ?? undefined,
         };
 
         const reservation = await (tx.reservation.create as any)({
           data: reservationData,
           include: { room: true },
         });
+
+        const activeChargeLines: any[] = input.chargeLines ?? [];
+        if (activeChargeLines.length > 0 && tx.reservationChargeLine) {
+          await tx.reservationChargeLine.createMany({
+            data: activeChargeLines.map((line: any) => ({
+              hotelId: input.hotelId,
+              reservationId: reservation.id,
+              lineType: line.lineType,
+              serviceDate: line.serviceDate ? new Date(line.serviceDate) : null,
+              serviceItemId: line.serviceItemId || null,
+              nameSnapshot: line.nameSnapshot,
+              codeSnapshot: line.codeSnapshot || null,
+              quantity: line.quantity || 1,
+              unitPriceSnapshot: new Prisma.Decimal(line.unitPriceSnapshot || 0),
+              taxAmountSnapshot: new Prisma.Decimal(line.taxAmountSnapshot || 0),
+              discountAmountSnapshot: new Prisma.Decimal(line.discountAmountSnapshot || 0),
+              totalSnapshot: new Prisma.Decimal(line.totalSnapshot || 0),
+              currency: line.currency || "VND",
+            })),
+          });
+        }
+
         reservations.push(reservation);
+      }
+
+      if (tx.reservationGroup?.upsert) {
+        await tx.reservationGroup.upsert({
+          where: {
+            hotelId_groupCode: { hotelId: input.hotelId, groupCode: input.groupCode },
+          },
+          update: {
+            leadGuestName: input.leadGuestName,
+            leadGuestPhone: input.leadGuestPhone || null,
+            sourceCategory: (input.sourceCategory === "TA" ? "TRAVEL_AGENCY" : input.sourceCategory) ?? undefined,
+            sourcePartnerId: input.sourcePartnerId ?? undefined,
+            bookingOwnerUserId: input.bookingOwnerUserId ?? undefined,
+          },
+          create: {
+            hotelId: input.hotelId,
+            groupCode: input.groupCode,
+            leadGuestName: input.leadGuestName,
+            leadGuestPhone: input.leadGuestPhone || null,
+            sourceCategory: (input.sourceCategory === "TA" ? "TRAVEL_AGENCY" : input.sourceCategory) ?? undefined,
+            sourcePartnerId: input.sourcePartnerId ?? undefined,
+            bookingOwnerUserId: input.bookingOwnerUserId ?? undefined,
+          },
+        });
       }
 
       return {
@@ -345,24 +410,36 @@ export class ReservationsRepository {
     notes?: string | null;
     autoAssign?: boolean;
     roomAllocationService?: any;
+    allowedRoomId?: string | null;
+    assertRoomAccess?: (roomId: string) => void | Promise<void>;
     nightlyRateSnapshot?: Prisma.Decimal | number | string | null;
+    chargeLines?: any[];
+    sourceCategory?: any;
+    sourcePartnerId?: string | null;
+    bookingOwnerUserId?: string | null;
   }) {
     if (input.roomId || ((input.autoAssign || input.roomTypeId) && input.roomAllocationService)) {
       return this.runSerializable(async (tx) => {
         let roomId = input.roomId;
         if (!roomId && (input.autoAssign || input.roomTypeId) && input.roomAllocationService) {
-          const allocated = await input.roomAllocationService.allocateRoom(tx, {
+          const allocationPayload: any = {
             hotelId: input.hotelId,
             roomTypeId: input.roomTypeId ?? undefined,
             interval: { checkInAt: input.plannedCheckInAt, checkOutAt: input.plannedCheckOutAt },
             guestCount: input.guestCount,
-            mode: "auto",
-          });
+            mode: input.allowedRoomId ? "manual" : "auto",
+            ...(input.allowedRoomId ? { requestedRoomId: input.allowedRoomId } : {}),
+          };
+          const allocated = await input.roomAllocationService.allocateRoom(tx, allocationPayload);
           roomId = allocated.roomId;
         }
 
         if (!roomId) {
           throw new BadRequestException("Không thể xác định phòng");
+        }
+
+        if (input.assertRoomAccess) {
+          await input.assertRoomAccess(roomId);
         }
 
         await tx.$queryRawUnsafe(
@@ -431,7 +508,7 @@ export class ReservationsRepository {
           throw new ConflictException("ROOM_RESERVATION_OVERLAP");
         }
 
-        return tx.reservation.create({
+        const reservation = await tx.reservation.create({
           data: {
             hotelId: input.hotelId,
             roomId,
@@ -450,40 +527,94 @@ export class ReservationsRepository {
             baseNightlyRateSnapshot: room.price,
             nightlyRateSnapshot:
               input.nightlyRateSnapshot !== undefined ? input.nightlyRateSnapshot : room.price,
+            sourceCategory: (input.sourceCategory === "TA" ? "TRAVEL_AGENCY" : input.sourceCategory) ?? undefined,
+            sourcePartnerId: input.sourcePartnerId ?? undefined,
+            bookingOwnerUserId: input.bookingOwnerUserId ?? undefined,
           },
           include: { room: true, roomType: true },
         });
+
+        const activeChargeLines: any[] = input.chargeLines ?? [];
+        if (activeChargeLines.length > 0 && tx.reservationChargeLine) {
+          await tx.reservationChargeLine.createMany({
+            data: activeChargeLines.map((line: any) => ({
+              hotelId: input.hotelId,
+              reservationId: reservation.id,
+              lineType: line.lineType,
+              serviceDate: line.serviceDate ? new Date(line.serviceDate) : null,
+              serviceItemId: line.serviceItemId || null,
+              nameSnapshot: line.nameSnapshot,
+              codeSnapshot: line.codeSnapshot || null,
+              quantity: line.quantity || 1,
+              unitPriceSnapshot: new Prisma.Decimal(line.unitPriceSnapshot || 0),
+              taxAmountSnapshot: new Prisma.Decimal(line.taxAmountSnapshot || 0),
+              discountAmountSnapshot: new Prisma.Decimal(line.discountAmountSnapshot || 0),
+              totalSnapshot: new Prisma.Decimal(line.totalSnapshot || 0),
+              currency: line.currency || "VND",
+            })),
+          });
+        }
+
+        return reservation;
       }, "RESERVATION_ROOM_ASSIGNMENT_CONCURRENCY_CONFLICT");
     }
 
-    let defaultBaseRate: Prisma.Decimal | null = null;
-    if (input.roomTypeId && this.prisma.roomType?.findFirst) {
-      const rt = await this.prisma.roomType.findFirst({
-        where: { id: input.roomTypeId, hotelId: input.hotelId },
-        select: { basePrice: true },
-      });
-      defaultBaseRate = rt?.basePrice ?? null;
-    }
+    return this.prisma.$transaction(async (tx) => {
+      let defaultBaseRate: Prisma.Decimal | null = null;
+      if (input.roomTypeId && tx.roomType?.findFirst) {
+        const rt = await tx.roomType.findFirst({
+          where: { id: input.roomTypeId, hotelId: input.hotelId },
+          select: { basePrice: true },
+        });
+        defaultBaseRate = rt?.basePrice ?? null;
+      }
 
-    return this.prisma.reservation.create({
-      data: {
-        hotelId: input.hotelId,
-        roomId: null,
-        roomTypeId: input.roomTypeId ?? null,
-        guestCount: input.guestCount ?? null,
-        notes: input.notes ?? null,
-        reservationCode: input.reservationCode,
-        guestDisplayName: input.guestDisplayName,
-        guestPhone: input.guestPhone,
-        plannedCheckInAt: input.plannedCheckInAt,
-        plannedCheckOutAt: input.plannedCheckOutAt,
-        createdByUserId: input.createdByUserId,
-        status: ReservationStatus.CONFIRMED,
-        baseNightlyRateSnapshot: defaultBaseRate,
-        nightlyRateSnapshot:
-          input.nightlyRateSnapshot !== undefined ? input.nightlyRateSnapshot : defaultBaseRate,
-      },
-      include: { roomType: true },
+      const reservation = await tx.reservation.create({
+        data: {
+          hotelId: input.hotelId,
+          roomId: null,
+          roomTypeId: input.roomTypeId ?? null,
+          guestCount: input.guestCount ?? null,
+          notes: input.notes ?? null,
+          reservationCode: input.reservationCode,
+          guestDisplayName: input.guestDisplayName,
+          guestPhone: input.guestPhone,
+          plannedCheckInAt: input.plannedCheckInAt,
+          plannedCheckOutAt: input.plannedCheckOutAt,
+          createdByUserId: input.createdByUserId,
+          status: ReservationStatus.CONFIRMED,
+          baseNightlyRateSnapshot: defaultBaseRate,
+          nightlyRateSnapshot:
+            input.nightlyRateSnapshot !== undefined ? input.nightlyRateSnapshot : defaultBaseRate,
+          sourceCategory: input.sourceCategory ?? undefined,
+          sourcePartnerId: input.sourcePartnerId ?? undefined,
+          bookingOwnerUserId: input.bookingOwnerUserId ?? undefined,
+        },
+        include: { roomType: true },
+      });
+
+      const fallbackLines = input.chargeLines;
+      if (fallbackLines && fallbackLines.length > 0 && tx.reservationChargeLine) {
+        await tx.reservationChargeLine.createMany({
+          data: fallbackLines.map((line: any) => ({
+            hotelId: input.hotelId,
+            reservationId: reservation.id,
+            lineType: line.lineType,
+            serviceDate: line.serviceDate ? new Date(line.serviceDate) : null,
+            serviceItemId: line.serviceItemId || null,
+            nameSnapshot: line.nameSnapshot,
+            codeSnapshot: line.codeSnapshot || null,
+            quantity: line.quantity || 1,
+            unitPriceSnapshot: new Prisma.Decimal(line.unitPriceSnapshot || 0),
+            taxAmountSnapshot: new Prisma.Decimal(line.taxAmountSnapshot || 0),
+            discountAmountSnapshot: new Prisma.Decimal(line.discountAmountSnapshot || 0),
+            totalSnapshot: new Prisma.Decimal(line.totalSnapshot || 0),
+            currency: line.currency || "VND",
+          })),
+        });
+      }
+
+      return reservation;
     });
   }
 
@@ -600,6 +731,60 @@ export class ReservationsRepository {
       reservations,
       groupRecord,
     };
+  }
+
+  async findConfirmationTemplate(hotelId: string) {
+    if (!(this.prisma as any).hotelConfirmationTemplate) {
+      return null;
+    }
+    return (this.prisma as any).hotelConfirmationTemplate.findUnique({
+      where: { hotelId },
+    });
+  }
+
+  async upsertConfirmationTemplate(
+    hotelId: string,
+    dto: {
+      title?: string;
+      subtitle?: string | null;
+      contactInfo?: string | null;
+      checkInPolicy?: string | null;
+      checkOutPolicy?: string | null;
+      paymentTerms?: string | null;
+      footerNotes?: string | null;
+      showLogo?: boolean;
+      showPriceBreakdown?: boolean;
+    },
+  ) {
+    if (!(this.prisma as any).hotelConfirmationTemplate) {
+      return null;
+    }
+    return (this.prisma as any).hotelConfirmationTemplate.upsert({
+      where: { hotelId },
+      create: {
+        hotelId,
+        title: dto.title ?? "PHIẾU XÁC NHẬN ĐẶT PHÒNG",
+        subtitle: dto.subtitle ?? null,
+        contactInfo: dto.contactInfo ?? null,
+        checkInPolicy: dto.checkInPolicy ?? null,
+        checkOutPolicy: dto.checkOutPolicy ?? null,
+        paymentTerms: dto.paymentTerms ?? null,
+        footerNotes: dto.footerNotes ?? null,
+        showLogo: dto.showLogo ?? true,
+        showPriceBreakdown: dto.showPriceBreakdown ?? true,
+      },
+      update: {
+        ...(dto.title !== undefined ? { title: dto.title } : {}),
+        ...(dto.subtitle !== undefined ? { subtitle: dto.subtitle } : {}),
+        ...(dto.contactInfo !== undefined ? { contactInfo: dto.contactInfo } : {}),
+        ...(dto.checkInPolicy !== undefined ? { checkInPolicy: dto.checkInPolicy } : {}),
+        ...(dto.checkOutPolicy !== undefined ? { checkOutPolicy: dto.checkOutPolicy } : {}),
+        ...(dto.paymentTerms !== undefined ? { paymentTerms: dto.paymentTerms } : {}),
+        ...(dto.footerNotes !== undefined ? { footerNotes: dto.footerNotes } : {}),
+        ...(dto.showLogo !== undefined ? { showLogo: dto.showLogo } : {}),
+        ...(dto.showPriceBreakdown !== undefined ? { showPriceBreakdown: dto.showPriceBreakdown } : {}),
+      },
+    });
   }
 
   async listArrivals(input: {
@@ -1094,6 +1279,54 @@ export class ReservationsRepository {
           createdByUserId: input.actorUserId,
         },
       });
+
+      if (tx.reservationChargeLine && tx.folioItem) {
+        const unpostedExtras = await tx.reservationChargeLine.findMany({
+          where: {
+            reservationId: reservation.id,
+            hotelId: input.hotelId,
+            lineType: "EXTRA",
+            isPostedToFolio: false,
+          },
+        });
+        for (const extra of unpostedExtras) {
+          const item = await tx.folioItem.create({
+            data: {
+              hotelId: input.hotelId,
+              folioId: folio.id,
+              stayId: stay.id,
+              itemType: FolioItemType.SERVICE,
+              sourceType: FolioItemSourceType.ROOM,
+              sourceId: extra.id,
+              roomId: room.id,
+              serviceItemId: extra.serviceItemId || null,
+              codeSnapshot: extra.codeSnapshot || null,
+              nameSnapshot: extra.nameSnapshot,
+              quantity: extra.quantity,
+              unitPriceSnapshot: extra.unitPriceSnapshot,
+              taxAmountSnapshot: extra.taxAmountSnapshot,
+              discountAmountSnapshot: extra.discountAmountSnapshot,
+              subtotalSnapshot: extra.unitPriceSnapshot.mul(extra.quantity),
+              totalSnapshot: extra.totalSnapshot,
+              currency: extra.currency,
+              billingSourceSnapshot: {
+                source: "RESERVATION_CHARGE_LINE",
+                chargeLineId: extra.id,
+                reservationId: reservation.id,
+              },
+              postedAt: now,
+              postedByUserId: input.actorUserId,
+            },
+          });
+          await tx.reservationChargeLine.update({
+            where: { id: extra.id },
+            data: {
+              isPostedToFolio: true,
+              postedFolioItemId: item.id,
+            },
+          });
+        }
+      }
       await tx.roomQRCode.updateMany({
         where: {
           roomId: room.id,
@@ -2398,5 +2631,115 @@ export class ReservationsRepository {
     }
 
     return this.findGroupByCode(hotelId, trimmedGroupCode);
+  }
+
+  async listBookingSourcePartners(
+    hotelId: string,
+    query: { category?: any; isActive?: boolean; q?: string },
+  ) {
+    const where: any = { hotelId };
+    if (query.category) where.category = query.category;
+    if (query.isActive !== undefined) where.isActive = query.isActive;
+    if (query.q) {
+      where.OR = [
+        { name: { contains: query.q, mode: "insensitive" } },
+        { code: { contains: query.q, mode: "insensitive" } },
+        { contactPerson: { contains: query.q, mode: "insensitive" } },
+      ];
+    }
+    return (this.prisma as any).bookingSourcePartner.findMany({
+      where,
+      orderBy: [{ isActive: "desc" }, { name: "asc" }],
+    });
+  }
+
+  async createBookingSourcePartner(
+    hotelId: string,
+    dto: {
+      name: string;
+      code: string;
+      category?: any;
+      contactPerson?: string;
+      contactPhone?: string;
+      contactEmail?: string;
+      notes?: string;
+      isActive?: boolean;
+    },
+  ) {
+    const existing = await (this.prisma as any).bookingSourcePartner.findFirst({
+      where: { hotelId, code: dto.code.trim().toUpperCase() },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new ConflictException(`Mã đối tác ${dto.code} đã tồn tại trong khách sạn`);
+    }
+    return (this.prisma as any).bookingSourcePartner.create({
+      data: {
+        hotelId,
+        name: dto.name.trim(),
+        code: dto.code.trim().toUpperCase(),
+        category: (dto.category === "TA" ? "TRAVEL_AGENCY" : dto.category) ?? "DIRECT",
+        contactPerson: dto.contactPerson?.trim() || null,
+        contactPhone: dto.contactPhone?.trim() || null,
+        contactEmail: dto.contactEmail?.trim() || null,
+        notes: dto.notes?.trim() || null,
+        isActive: dto.isActive ?? true,
+      },
+    });
+  }
+
+  async updateBookingSourcePartner(
+    hotelId: string,
+    partnerId: string,
+    dto: {
+      name?: string;
+      code?: string;
+      category?: any;
+      contactPerson?: string | null;
+      contactPhone?: string | null;
+      contactEmail?: string | null;
+      notes?: string | null;
+      isActive?: boolean;
+    },
+  ) {
+    const partner = await (this.prisma as any).bookingSourcePartner.findFirst({
+      where: { id: partnerId, hotelId },
+    });
+    if (!partner) {
+      throw new NotFoundException("Không tìm thấy đối tác đặt phòng");
+    }
+    if (dto.code && dto.code.trim().toUpperCase() !== partner.code) {
+      const codeConflict = await (this.prisma as any).bookingSourcePartner.findFirst({
+        where: { hotelId, code: dto.code.trim().toUpperCase(), id: { not: partnerId } },
+      });
+      if (codeConflict) {
+        throw new ConflictException(`Mã đối tác ${dto.code} đã tồn tại`);
+      }
+    }
+    return (this.prisma as any).bookingSourcePartner.update({
+      where: { id: partnerId },
+      data: {
+        ...(dto.name ? { name: dto.name.trim() } : {}),
+        ...(dto.code ? { code: dto.code.trim().toUpperCase() } : {}),
+        ...(dto.category ? { category: dto.category } : {}),
+        ...(dto.contactPerson !== undefined ? { contactPerson: dto.contactPerson } : {}),
+        ...(dto.contactPhone !== undefined ? { contactPhone: dto.contactPhone } : {}),
+        ...(dto.contactEmail !== undefined ? { contactEmail: dto.contactEmail } : {}),
+        ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+      },
+    });
+  }
+
+  async deleteBookingSourcePartner(hotelId: string, partnerId: string) {
+    const partner = await (this.prisma as any).bookingSourcePartner.findFirst({
+      where: { id: partnerId, hotelId },
+    });
+    if (!partner) {
+      throw new NotFoundException("Không tìm thấy đối tác đặt phòng");
+    }
+    return (this.prisma as any).bookingSourcePartner.delete({
+      where: { id: partnerId },
+    });
   }
 }

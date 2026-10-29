@@ -100,6 +100,7 @@ export class KbttRepository {
           hotelId,
           ...(occupantIds ? { occupantId: { in: occupantIds } } : {}),
         },
+        distinct: ["occupantId"],
         orderBy: [{ occupantId: "asc" }, { revision: "desc" }, { createdAt: "desc" }],
       });
     } catch {

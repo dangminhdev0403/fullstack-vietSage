@@ -10,6 +10,20 @@ import {
 } from "@/app/api/hotel-ops/_utils";
 
 type Params = { params: Promise<{ hotelId: string }> };
+const chargeLineSchema = z.object({
+  lineType: z.enum(["ROOM_NIGHT", "EXTRA"]),
+  serviceDate: z.string().trim().optional(),
+  serviceItemId: z.string().trim().optional(),
+  nameSnapshot: z.string().trim().min(1),
+  codeSnapshot: z.string().trim().optional(),
+  quantity: z.number().int().min(1).default(1),
+  unitPriceSnapshot: z.number().nonnegative(),
+  taxAmountSnapshot: z.number().nonnegative().default(0),
+  discountAmountSnapshot: z.number().nonnegative().default(0),
+  totalSnapshot: z.number().nonnegative(),
+  currency: z.string().trim().default("VND"),
+});
+
 const schema = z.object({
   guestDisplayName: z.string().trim().min(2, "Tên khách lưu trú tối thiểu 2 ký tự").max(120),
   guestPhone: z.string().trim().max(40).optional(),
@@ -20,6 +34,10 @@ const schema = z.object({
   guestCount: z.coerce.number().int().min(1).max(50).optional(),
   notes: z.string().trim().max(500).optional(),
   nightlyRateSnapshot: z.union([z.number(), z.string().trim().min(1)]).optional(),
+  chargeLines: z.array(chargeLineSchema).optional(),
+  sourceCategory: z.enum(["DIRECT", "OTA", "TA", "TRAVEL_AGENCY", "CORPORATE", "OTHER"]).optional(),
+  sourcePartnerId: z.string().trim().min(1).nullable().optional(),
+  bookingOwnerUserId: z.string().trim().min(1).nullable().optional(),
 }).strict();
 
 export async function POST(request: Request, context: Params) {
@@ -41,6 +59,10 @@ export async function POST(request: Request, context: Params) {
           guestCount: parsed.data.guestCount,
           notes: parsed.data.notes,
           nightlyRateSnapshot: parsed.data.nightlyRateSnapshot,
+          chargeLines: parsed.data.chargeLines,
+          sourceCategory: parsed.data.sourceCategory,
+          sourcePartnerId: parsed.data.sourcePartnerId,
+          bookingOwnerUserId: parsed.data.bookingOwnerUserId,
         },
         accessToken,
       );

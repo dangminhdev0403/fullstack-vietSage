@@ -30,6 +30,8 @@ RATE_LIMIT_GLOBALS = (
 RATE_LIMITED_LOCATIONS = {
     "location /api/auth/ {": "limit_req zone=auth_rate burst=20 nodelay;",
     "location = /api/health {": "limit_req zone=api_rate burst=120 nodelay;",
+    "location = /webhooks/stripe {": "limit_req zone=api_rate burst=120 nodelay;",
+    "location = /payments/webhook/stripe {": "limit_req zone=api_rate burst=120 nodelay;",
     "location = /api/v1/channel-manager/channex/webhook {": "limit_req zone=api_rate burst=120 nodelay;",
     "location ^~ /api/cccd-mobile/ {": "limit_req zone=upload_rate burst=8 nodelay;",
     "location /api/ {": "limit_req zone=api_rate burst=120 nodelay;",
@@ -85,6 +87,21 @@ def verify_rate_limits(label: str, config: str, failures: list[str]) -> None:
             fail(f"{label} must set {inherited} once for each public application host", failures)
 
 
+def verify_stripe_webhooks(label: str, config: str, upstream: str, failures: list[str]) -> None:
+    for route in ("/webhooks/stripe", "/payments/webhook/stripe"):
+        blocks = location_blocks(config, f"location = {route} {{")
+        if len(blocks) != 2:
+            fail(f"{label} must route {route} for both public hosts", failures)
+            continue
+        for block in blocks:
+            if f"proxy_pass {upstream}/webhooks/stripe;" not in block:
+                fail(f"{label} {route} must reach the canonical backend Stripe handler", failures)
+            if "proxy_set_body" in block or re.search(
+                r"proxy_pass_request_(?:body|headers)\s+off\s*;", block
+            ):
+                fail(f"{label} {route} must preserve the signed request body and headers", failures)
+
+
 def main() -> int:
     compose = COMPOSE_PATH.read_text(encoding="utf-8")
     failures: list[str] = []
@@ -124,6 +141,7 @@ def main() -> int:
 
     if nginx:
         verify_rate_limits("Docker HTTP Nginx", nginx, failures)
+        verify_stripe_webhooks("Docker HTTP Nginx", nginx, "http://auth-service:8080", failures)
         if "127.0.0.1:3000" in nginx or "127.0.0.1:8080" in nginx:
             fail("Docker Nginx config must not use host-loopback upstreams", failures)
         required_routes = {
@@ -166,11 +184,13 @@ def main() -> int:
         fail("missing Docker TLS Nginx config", failures)
     else:
         verify_rate_limits("Docker TLS Nginx", tls_nginx, failures)
+        verify_stripe_webhooks("Docker TLS Nginx", tls_nginx, "http://auth-service:8080", failures)
 
     host_nginx = HOST_NGINX_PATH.read_text(encoding="utf-8") if HOST_NGINX_PATH.is_file() else ""
     if not host_nginx:
         fail("missing host Nginx config", failures)
     else:
+        verify_stripe_webhooks("Host Nginx", host_nginx, "http://127.0.0.1:8080", failures)
         webhook_blocks = location_blocks(
             host_nginx,
             "location = /api/v1/channel-manager/channex/webhook {",

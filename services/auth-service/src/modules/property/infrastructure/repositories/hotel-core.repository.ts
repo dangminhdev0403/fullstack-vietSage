@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import {
   HotelStatus,
   HotelFeatureStatus,
@@ -110,27 +110,47 @@ export class HotelCoreRepository {
   }
 
   async updateHotel(hotelId: string, data: Prisma.HotelUpdateInput) {
-    return this.prisma.hotel.update({
-      where: { id: hotelId },
-      data,
-      include: hotelDetailInclude,
-    });
+    const hotel = await this.updateHotelScoped(hotelId, undefined, data);
+    if (!hotel) throw new NotFoundException("Không tìm thấy khách sạn");
+    return hotel;
   }
 
-  async updateHotelScoped(hotelId: string, tenantIds: string[], data: Prisma.HotelUpdateInput) {
+  async updateHotelScoped(
+    hotelId: string,
+    tenantIds: string[] | undefined,
+    data: Prisma.HotelUpdateInput,
+  ) {
     return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Hotel" WHERE id = ${hotelId} FOR UPDATE`;
       const hotel = await tx.hotel.findFirst({
-        where: { id: hotelId, tenantId: { in: tenantIds } },
-        select: { id: true },
+        where: { id: hotelId, ...(tenantIds ? { tenantId: { in: tenantIds } } : {}) },
+        select: { id: true, brandSettings: true },
       });
+      if (!hotel) return null;
 
-      if (!hotel) {
-        return null;
+      let brandSettings = data.brandSettings;
+      if (brandSettings !== undefined) {
+        const current = hotel.brandSettings;
+        const settings: Prisma.InputJsonObject =
+          brandSettings && typeof brandSettings === "object" &&
+          brandSettings !== Prisma.JsonNull && brandSettings !== Prisma.DbNull &&
+          !Array.isArray(brandSettings)
+            ? Object.fromEntries(Object.entries(brandSettings)) : {};
+        const metadata = current && typeof current === "object" && !Array.isArray(current)
+          ? current : {};
+        const sanitized = { ...settings };
+        delete sanitized.operationalResetCount;
+        delete sanitized.lastOperationalResetAt;
+        for (const key of ["operationalResetCount", "lastOperationalResetAt"]) {
+          if (Object.prototype.hasOwnProperty.call(metadata, key)) sanitized[key] = metadata[key];
+        }
+        brandSettings = Object.keys(sanitized).length ||
+          (data.brandSettings !== Prisma.JsonNull && data.brandSettings !== Prisma.DbNull)
+          ? sanitized : Prisma.JsonNull;
       }
-
       return tx.hotel.update({
         where: { id: hotel.id },
-        data,
+        data: { ...data, brandSettings },
         include: hotelDetailInclude,
       });
     });
@@ -152,8 +172,29 @@ export class HotelCoreRepository {
 
   async resetHotelOperationalData(
     hotelId: string,
+    options: { unlimited?: boolean; tenantIds?: string[] } = {},
   ): Promise<{ operationalResetCount: number; remainingResets: number }> {
     return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Hotel" WHERE id = ${hotelId} FOR UPDATE`;
+      const currentHotel = await tx.hotel.findFirst({
+        where: {
+          id: hotelId,
+          ...(options.tenantIds ? { tenantId: { in: options.tenantIds } } : {}),
+        },
+        select: { brandSettings: true },
+      });
+      if (!currentHotel) throw new NotFoundException("Khách sạn không tồn tại");
+      const currentSettings =
+        currentHotel.brandSettings && typeof currentHotel.brandSettings === "object" &&
+        !Array.isArray(currentHotel.brandSettings) ? currentHotel.brandSettings : {};
+      const currentCount = typeof currentSettings.operationalResetCount === "number"
+        ? currentSettings.operationalResetCount : 0;
+      if (!options.unlimited && currentCount >= 2) {
+        throw new ForbiddenException(
+          "Khách sạn đã sử dụng hết số lần thiết lập lại dữ liệu vận hành (tối đa 2 lần).",
+        );
+      }
+
       // 1. Delete Marketplace Revenue, Settlements, Vouchers, Carts, and Orders
       await tx.marketplaceRevenueEntry.deleteMany({ where: { hotelId } });
       await tx.serviceVoucher.deleteMany({ where: { hotelId } });
@@ -230,20 +271,7 @@ export class HotelCoreRepository {
         data: { status: RoomStatus.AVAILABLE },
       });
 
-      // 16. Fetch current brandSettings, increment operationalResetCount
-      const currentHotel = await tx.hotel.findUnique({
-        where: { id: hotelId },
-        select: { brandSettings: true },
-      });
-
-      const currentSettings =
-        currentHotel?.brandSettings && typeof currentHotel.brandSettings === "object"
-          ? (currentHotel.brandSettings as Record<string, unknown>)
-          : {};
-      const currentCount =
-        typeof currentSettings.operationalResetCount === "number"
-          ? currentSettings.operationalResetCount
-          : 0;
+      // Increment only after all destructive work succeeds, under the same row lock.
       const nextCount = currentCount + 1;
 
       const updatedSettings = {

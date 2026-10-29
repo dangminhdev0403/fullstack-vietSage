@@ -233,29 +233,10 @@ export class HotelsService {
       );
     }
 
-    const hotel = await this.hotelCoreRepository.findHotelById(hotelId);
-    if (!hotel) {
-      throw new NotFoundException("Khách sạn không tồn tại");
-    }
-
-    const currentBrandSettings =
-      hotel.brandSettings && typeof hotel.brandSettings === "object"
-        ? (hotel.brandSettings as Record<string, unknown>)
-        : {};
-
-    const currentCount =
-      typeof currentBrandSettings.operationalResetCount === "number"
-        ? currentBrandSettings.operationalResetCount
-        : 0;
-
-    const MAX_RESETS = 2;
-    if (!actor.isSuperAdmin && currentCount >= MAX_RESETS) {
-      throw new ForbiddenException(
-        `Khách sạn đã sử dụng hết số lần thiết lập lại dữ liệu vận hành (tối đa ${MAX_RESETS} lần).`,
-      );
-    }
-
-    const result = await this.hotelCoreRepository.resetHotelOperationalData(hotelId);
+    const result = await this.hotelCoreRepository.resetHotelOperationalData(hotelId, {
+      unlimited: actor.isSuperAdmin,
+      tenantIds: actor.isSuperAdmin ? undefined : Array.from(actor.tenantIds),
+    });
 
     this.logBusinessEvent(
       "Đã thiết lập lại dữ liệu vận hành khách sạn",

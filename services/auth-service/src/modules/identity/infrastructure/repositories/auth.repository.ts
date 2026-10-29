@@ -515,6 +515,44 @@ export class AuthRepository {
     });
   }
 
+  async countUserWithAnyBusinessPermission(
+    userId: string,
+    roleId: string,
+    permissionKeys: string[],
+  ) {
+    if (permissionKeys.length === 0) return 0;
+    if (permissionKeys.length === 1) {
+      return this.countUserWithBusinessPermission(userId, roleId, permissionKeys[0]!);
+    }
+    return this.prisma.user.count({
+      where: {
+        id: userId,
+        userRoles: {
+          some: {
+            roleId,
+            status: UserRoleStatus.ACTIVE,
+            role: {
+              status: RoleStatus.ACTIVE,
+              OR: [
+                { code: "SUPER_ADMIN" },
+                {
+                  rolePermissions: {
+                    some: {
+                      permission: {
+                        method: HttpMethod.OPTIONS,
+                        path: { in: permissionKeys },
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+  }
+
   async upsertBusinessPermission(data: { key: string; description: string; moduleKey: string }) {
     return this.upsertPermission(HttpMethod.OPTIONS, data.key, data.description, data.moduleKey);
   }

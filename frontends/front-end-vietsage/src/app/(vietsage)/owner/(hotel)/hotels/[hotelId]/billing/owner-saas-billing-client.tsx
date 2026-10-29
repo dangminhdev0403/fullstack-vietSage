@@ -143,7 +143,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="rounded-2xl border border-slate-200 bg-white p-12 text-right shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="inline-flex h-12 w-12 animate-spin items-center justify-center rounded-full border-4 border-emerald-500 border-t-transparent text-emerald-500"></div>
         <p className="mt-4 text-base font-semibold text-slate-600 dark:text-slate-400">
           Đang đối soát dữ liệu phí VietSage SaaS &amp; Bảo vệ doanh thu...
@@ -154,14 +154,14 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50/80 p-8 text-center dark:border-red-900/50 dark:bg-red-950/30">
+      <div className="rounded-2xl border border-red-200 bg-red-50/80 p-8 text-right dark:border-red-900/50 dark:bg-red-950/30">
         <p className="text-sm font-bold text-red-800 dark:text-red-200">
           {error}
         </p>
         <button
           type="button"
           onClick={() => void analytics.refetch()}
-          className="mt-4 inline-flex items-center justify-center rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-red-700"
+          className="mt-4 inline-flex items-center justify-center rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-red-700"
         >
           Thử lại
         </button>
@@ -172,7 +172,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
   if (!data?.hasContract) {
     return (
       <div className="rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50/60 p-10 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
-        <div className="flex flex-col items-center text-center">
+        <div className="flex flex-col items-center text-right">
           <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600">
             <VsIcon name="info" className="text-3xl" />
           </div>
@@ -326,11 +326,11 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0 space-y-2.5">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold tracking-wide text-white shadow-sm shadow-emerald-600/20">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1 text-sm font-bold tracking-wide text-white shadow-sm shadow-emerald-600/20">
                 <span className="h-2 w-2 rounded-full bg-white animate-pulse"></span>
                 Hợp đồng đang hoạt động
               </span>
-              <span className="rounded-lg bg-slate-900/5 px-2.5 py-1 text-xs font-bold text-slate-700 dark:bg-white/10 dark:text-slate-200">
+              <span className="rounded-lg bg-slate-900/5 px-2.5 py-1 text-sm font-bold text-slate-700 dark:bg-white/10 dark:text-slate-200">
                 Mã HĐ:{" "}
                 {data.contract?.id
                   ? `${data.contract.id.slice(0, 12)}...`
@@ -346,13 +346,13 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
             </p>
           </div>
           <div className="shrink-0 rounded-2xl border border-emerald-200/60 bg-white p-4 shadow-sm lg:text-right dark:border-emerald-900/50 dark:bg-slate-900">
-            <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <div className="text-sm font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Đơn giá hợp đồng
             </div>
             <div className="mt-1 text-2xl font-extrabold tabular-nums tracking-tight text-emerald-600 sm:text-3xl dark:text-emerald-400">
               {formatVnd(data.unitPrice)}
             </div>
-            <div className="text-xs font-semibold text-slate-500">
+            <div className="text-sm font-semibold text-slate-500">
               VND / lượt check-in
             </div>
           </div>
@@ -367,7 +367,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
             className={`rounded-2xl border ${card.border} bg-white p-5 shadow-xs transition-shadow duration-200 hover:shadow-md dark:bg-slate-900`}
           >
             <div className="flex items-start justify-between gap-3">
-              <span className="text-xs font-extrabold uppercase leading-tight tracking-[0.12em] text-slate-500 dark:text-slate-400">
+              <span className="text-sm font-extrabold uppercase leading-tight tracking-[0.12em] text-slate-500 dark:text-slate-400">
                 {card.label}
               </span>
               <div
@@ -382,12 +382,12 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
               >
                 {card.value}
               </span>
-              <span className="text-xs font-bold text-slate-500">
+              <span className="text-sm font-bold text-slate-500">
                 {card.unit}
               </span>
             </div>
             {card.chipText ? (
-              <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
                 {card.chipText}
               </p>
             ) : null}
@@ -402,7 +402,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
             <h3 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
               Thống kê phòng theo tháng
             </h3>
-            <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+            <p className="text-sm leading-relaxed text-slate-500 dark:text-slate-400">
               Lượt tính phí là số lượt check-in thành công phát sinh trong tháng
               đã chọn.
             </p>
@@ -425,7 +425,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                   type="button"
                   onClick={() => setRoomQuery("")}
                   aria-label="Xóa từ khóa tìm phòng"
-                  className="ml-1.5 text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  className="ml-1.5 text-sm font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                 >
                   ✕
                 </button>
@@ -464,21 +464,21 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                 <col className="w-[20%]" />
                 <col className="w-[16%]" />
               </colgroup>
-              <thead className="border-b border-slate-200/80 bg-slate-50/90 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300">
+              <thead className="border-b border-slate-200/80 bg-slate-50/90 text-sm sm:text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300">
                 <tr>
                   <th scope="col" className="px-5 py-4">
                     Phòng
                   </th>
-                  <th scope="col" className="px-5 py-4 text-center">
+                  <th scope="col" className="px-5 py-4 text-right">
                     Lượt lưu trú
                   </th>
-                  <th scope="col" className="px-5 py-4 text-center">
+                  <th scope="col" className="px-5 py-4 text-right">
                     Lượt tính phí
                   </th>
-                  <th scope="col" className="px-5 py-4 text-center">
+                  <th scope="col" className="px-5 py-4 text-right">
                     Phí VietSage SaaS
                   </th>
-                  <th scope="col" className="px-5 py-4 text-center">
+                  <th scope="col" className="px-5 py-4 text-right">
                     Trạng thái
                   </th>
                 </tr>
@@ -503,36 +503,36 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                           Phòng {item.roomNumber}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-center text-base sm:text-lg font-bold tabular-nums text-slate-900 dark:text-white">
+                      <td className="px-5 py-4 text-right text-base sm:text-lg font-bold tabular-nums text-slate-900 dark:text-white">
                         {item.usageCount}
                       </td>
-                      <td className="px-5 py-4 text-center text-base sm:text-lg font-bold tabular-nums text-slate-900 dark:text-white">
+                      <td className="px-5 py-4 text-right text-base sm:text-lg font-bold tabular-nums text-slate-900 dark:text-white">
                         {item.billableDaysCount}
                       </td>
-                      <td className="px-5 py-4 text-center text-base sm:text-lg font-extrabold tabular-nums text-slate-900 dark:text-white">
+                      <td className="px-5 py-4 text-right text-base sm:text-lg font-extrabold tabular-nums text-slate-900 dark:text-white">
                         <span title="Phí tương ứng">
                           {formatVnd(item.billedAmount)}
                         </span>{" "}
-                        <span className="text-xs sm:text-sm font-semibold text-slate-400">
+                        <span className="text-sm sm:text-sm font-semibold text-slate-400">
                           {item.currency || "VND"}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-center">
+                      <td className="px-5 py-4 text-right">
                         {carriedOver ? (
                           <span
-                            className="inline-flex items-center gap-1.5 rounded-full border border-cyan-200/80 bg-cyan-50 px-3.5 py-1 text-xs sm:text-sm font-bold text-cyan-800 dark:border-cyan-900/60 dark:bg-cyan-950/60 dark:text-cyan-300"
+                            className="inline-flex items-center gap-1.5 rounded-full border border-cyan-200/80 bg-cyan-50 px-3.5 py-1 text-sm sm:text-sm font-bold text-cyan-800 dark:border-cyan-900/60 dark:bg-cyan-950/60 dark:text-cyan-300"
                             title="Khách nhận phòng từ tháng trước và tiếp tục lưu trú trong tháng này"
                           >
                             <span className="h-2 w-2 rounded-full bg-cyan-600" />
                             Dữ liệu phí lịch sử
                           </span>
                         ) : isBillable ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50 px-3.5 py-1 text-xs sm:text-sm font-bold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300">
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50 px-3.5 py-1 text-sm sm:text-sm font-bold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300">
                             <span className="h-2 w-2 rounded-full bg-emerald-600" />
                             Có phát sinh phí
                           </span>
                         ) : (
-                          <span className="inline-flex items-center rounded-full bg-slate-100 px-3.5 py-1 text-xs sm:text-sm font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                          <span className="inline-flex items-center rounded-full bg-slate-100 px-3.5 py-1 text-sm sm:text-sm font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
                             Chưa phát sinh
                           </span>
                         )}
@@ -544,22 +544,22 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
               {filteredRoomRows.length > 0 && (
                 <tfoot className="border-t-2 border-slate-200 bg-slate-50/90 text-base font-extrabold text-slate-900 dark:border-slate-800 dark:bg-slate-800/80 dark:text-white">
                   <tr>
-                    <td className="px-5 py-4 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                    <td className="px-5 py-4 text-sm sm:text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
                       Tổng tháng {month}
                     </td>
-                    <td className="px-5 py-4 text-center text-base sm:text-lg tabular-nums">
+                    <td className="px-5 py-4 text-right text-base sm:text-lg tabular-nums">
                       {data.usageCount ?? 0}
                     </td>
-                    <td className="px-5 py-4 text-center text-base sm:text-lg tabular-nums">
+                    <td className="px-5 py-4 text-right text-base sm:text-lg tabular-nums">
                       {data.billableDaysCount ?? 0}
                     </td>
-                    <td className="px-5 py-4 text-center text-base sm:text-lg tabular-nums">
+                    <td className="px-5 py-4 text-right text-base sm:text-lg tabular-nums">
                       {formatVnd(data.estimatedFee)}{" "}
-                      <span className="text-xs sm:text-sm font-semibold text-slate-400">
+                      <span className="text-sm sm:text-sm font-semibold text-slate-400">
                         VND
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-center" />
+                    <td className="px-5 py-4 text-right" />
                   </tr>
                 </tfoot>
               )}
@@ -567,7 +567,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
           </div>
 
           {filteredRoomRows.length === 0 && (
-            <div className="p-10 text-center text-sm font-medium text-slate-500">
+            <div className="p-10 text-right text-sm font-medium text-slate-500">
               {roomRows.length === 0
                 ? "Chưa có phòng nào phát sinh lượt lưu trú hoặc phí trong tháng này."
                 : `Không tìm thấy phòng phù hợp với từ khóa “${roomQuery}”`}
@@ -593,21 +593,21 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                   <col className="w-[20%]" />
                   <col className="w-[16%]" />
                 </colgroup>
-                <thead className="border-b border-slate-200/80 bg-slate-50/90 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300">
+                <thead className="border-b border-slate-200/80 bg-slate-50/90 text-sm sm:text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300">
                   <tr>
                     <th scope="col" className="px-5 py-4">
                       Chu kỳ chốt sổ
                     </th>
-                    <th scope="col" className="px-5 py-4 text-center">
+                    <th scope="col" className="px-5 py-4 text-right">
                       Trạng thái thanh toán
                     </th>
-                    <th scope="col" className="px-5 py-4 text-center">
+                    <th scope="col" className="px-5 py-4 text-right">
                       Hạn thanh toán
                     </th>
-                    <th scope="col" className="px-5 py-4 text-center">
+                    <th scope="col" className="px-5 py-4 text-right">
                       Tổng tiền &amp; Dư nợ
                     </th>
-                    <th scope="col" className="px-5 py-4 text-center">
+                    <th scope="col" className="px-5 py-4 text-right">
                       Đối soát
                     </th>
                   </tr>
@@ -626,10 +626,10 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                           {new Date(p.periodStart).toLocaleDateString("vi-VN")}{" "}
                           — {new Date(p.periodEnd).toLocaleDateString("vi-VN")}
                         </td>
-                        <td className="px-5 py-4 text-center">
+                        <td className="px-5 py-4 text-right">
                           <div className="flex flex-wrap items-center justify-center gap-2">
                             <span
-                              className={`inline-flex rounded-full px-3.5 py-1 text-xs sm:text-sm font-bold ${
+                              className={`inline-flex rounded-full px-3.5 py-1 text-sm sm:text-sm font-bold ${
                                 p.paymentState === "PAID"
                                   ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                                   : p.paymentState === "PARTIALLY_PAID"
@@ -644,37 +644,37 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                                   : "Chưa thanh toán"}
                             </span>
                             {p.isOverdue && (
-                              <span className="inline-flex rounded-full bg-red-100 px-3 py-1 text-xs sm:text-sm font-extrabold text-red-800 dark:bg-red-950 dark:text-red-300">
+                              <span className="inline-flex rounded-full bg-red-100 px-3 py-1 text-sm sm:text-sm font-extrabold text-red-800 dark:bg-red-950 dark:text-red-300">
                                 Quá hạn
                               </span>
                             )}
                           </div>
                         </td>
-                        <td className="px-5 py-4 text-center text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
+                        <td className="px-5 py-4 text-right text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                           {p.dueAt
                             ? new Date(p.dueAt).toLocaleDateString("vi-VN")
                             : "Hàng tháng"}
                         </td>
-                        <td className="px-5 py-4 text-center text-slate-900 dark:text-white">
+                        <td className="px-5 py-4 text-right text-slate-900 dark:text-white">
                           <div className="text-base sm:text-lg font-extrabold tabular-nums">
                             {formatVnd(p.total)}{" "}
-                            <span className="text-xs sm:text-sm font-semibold text-slate-400">
+                            <span className="text-sm sm:text-sm font-semibold text-slate-400">
                               VND
                             </span>
                           </div>
                           {!isFullyPaid &&
                             p.outstandingAmount !== undefined && (
-                              <div className="mt-1 text-xs sm:text-sm font-semibold tabular-nums text-amber-600 dark:text-amber-400">
+                              <div className="mt-1 text-sm sm:text-sm font-semibold tabular-nums text-amber-600 dark:text-amber-400">
                                 Còn phải trả: {formatVnd(p.outstandingAmount)}{" "}
                                 VND
                               </div>
                             )}
                         </td>
-                        <td className="px-5 py-4 text-center">
+                        <td className="px-5 py-4 text-right">
                           <button
                             type="button"
                             onClick={() => setStatementPeriodId(p.id)}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs sm:text-sm font-bold text-slate-700 shadow-xs transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200"
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm sm:text-sm font-bold text-slate-700 shadow-xs transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200"
                           >
                             <VsIcon
                               name="receipt_long"
@@ -709,7 +709,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                   onClick={() =>
                     updateQueryParams({ periodPage: String(periodPage - 1) })
                   }
-                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs sm:text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200"
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm sm:text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200"
                 >
                   Trang trước
                 </button>
@@ -719,7 +719,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                   onClick={() =>
                     updateQueryParams({ periodPage: String(periodPage + 1) })
                   }
-                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs sm:text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200"
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm sm:text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200"
                 >
                   Trang sau
                 </button>

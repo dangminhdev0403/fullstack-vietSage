@@ -1749,6 +1749,298 @@ describe("BillingService checkout safety", () => {
     expect(earlyCharge.subtotal).toEqual(new Prisma.Decimal(500000));
   });
 
+  it("F3: calculateEstimatedRoomCharge preserves agreed dated nightly prices (500k + 700k = 1.2M)", () => {
+    const service = createService({});
+    const charge = service.calculateEstimatedRoomCharge({
+      room: { roomNumber: "101", price: new Prisma.Decimal(600000) },
+      stay: {
+        plannedCheckInAt: new Date("2026-10-21T14:00:00.000Z"),
+        plannedCheckOutAt: new Date("2026-10-23T12:00:00.000Z"),
+        checkedInAt: new Date("2026-10-21T14:00:00.000Z"),
+        nightlyRateSnapshot: new Prisma.Decimal(500000),
+        roomNightChargeLines: [
+          { serviceDate: new Date("2026-10-21T00:00:00.000Z"), totalSnapshot: 500000 },
+          { serviceDate: new Date("2026-10-22T00:00:00.000Z"), totalSnapshot: 700000 },
+        ],
+      },
+    });
+
+    expect(charge.nights).toBe(2);
+    expect(charge.plannedNights).toBe(2);
+    expect(charge.subtotal).toEqual(new Prisma.Decimal(1200000));
+    expect(charge.plannedSubtotal).toEqual(new Prisma.Decimal(1200000));
+  });
+
+  it("F3: calculateEstimatedRoomCharge on early checkout after night 1 charges exact first night 500k (not flat 600k average)", () => {
+    const service = createService({});
+    jest.useFakeTimers().setSystemTime(new Date("2026-10-22T10:00:00.000Z"));
+
+    const earlyCharge = service.calculateEstimatedRoomCharge(
+      {
+        room: { roomNumber: "101", price: new Prisma.Decimal(600000) },
+        stay: {
+          plannedCheckInAt: new Date("2026-10-21T14:00:00.000Z"),
+          plannedCheckOutAt: new Date("2026-10-23T12:00:00.000Z"),
+          checkedInAt: new Date("2026-10-21T14:00:00.000Z"),
+          nightlyRateSnapshot: new Prisma.Decimal(500000),
+          roomNightChargeLines: [
+            { serviceDate: new Date("2026-10-21T00:00:00.000Z"), totalSnapshot: 500000 },
+            { serviceDate: new Date("2026-10-22T00:00:00.000Z"), totalSnapshot: 700000 },
+          ],
+        },
+      },
+      { isEarlyDeparture: true },
+    );
+
+    expect(earlyCharge.nights).toBe(1);
+    expect(earlyCharge.subtotal).toEqual(new Prisma.Decimal(500000));
+    expect(earlyCharge.plannedSubtotal).toEqual(new Prisma.Decimal(1200000));
+  });
+
+  it("F3: calculateEstimatedRoomCharge on extension falls back to flat nightlyRateSnapshot for unscheduled dates", () => {
+    const service = createService({});
+    jest.useFakeTimers().setSystemTime(new Date("2026-10-24T10:00:00.000Z"));
+
+    const extensionCharge = service.calculateEstimatedRoomCharge({
+      room: { roomNumber: "101", price: new Prisma.Decimal(600000) },
+      stay: {
+        plannedCheckInAt: new Date("2026-10-21T14:00:00.000Z"),
+        plannedCheckOutAt: new Date("2026-10-23T12:00:00.000Z"),
+        checkedInAt: new Date("2026-10-21T14:00:00.000Z"),
+        nightlyRateSnapshot: new Prisma.Decimal(500000),
+        roomNightChargeLines: [
+          { serviceDate: new Date("2026-10-21T00:00:00.000Z"), totalSnapshot: 500000 },
+          { serviceDate: new Date("2026-10-22T00:00:00.000Z"), totalSnapshot: 700000 },
+        ],
+      },
+    });
+
+    expect(extensionCharge.nights).toBe(3);
+    expect(extensionCharge.plannedNights).toBe(2);
+    expect(extensionCharge.subtotal).toEqual(new Prisma.Decimal(1700000));
+    expect(extensionCharge.plannedSubtotal).toEqual(new Prisma.Decimal(1200000));
+  });
+
+  it("F3: calculateEstimatedRoomCharge handles sparse second-night override (500k flat + 700k override = 1.2M)", () => {
+    const service = createService({});
+    const charge = service.calculateEstimatedRoomCharge({
+      stay: {
+        plannedCheckInAt: new Date("2026-10-21T14:00:00.000Z"),
+        plannedCheckOutAt: new Date("2026-10-23T12:00:00.000Z"),
+        nightlyRateSnapshot: new Prisma.Decimal(500000),
+        roomNightChargeLines: [
+          // Sparse: only night 2 has a chargeLine
+          { serviceDate: new Date("2026-10-22T00:00:00.000Z"), totalSnapshot: 700000 },
+        ],
+      },
+    });
+
+    expect(charge.nights).toBe(2);
+    expect(charge.subtotal).toEqual(new Prisma.Decimal(1200000));
+  });
+
+  it("F3: calculateEstimatedRoomCharge allows complete dated schedule when flat snapshot is null", () => {
+    const service = createService({});
+    const charge = service.calculateEstimatedRoomCharge({
+      stay: {
+        plannedCheckInAt: new Date("2026-10-21T14:00:00.000Z"),
+        plannedCheckOutAt: new Date("2026-10-23T12:00:00.000Z"),
+        nightlyRateSnapshot: null,
+        roomNightChargeLines: [
+          { serviceDate: new Date("2026-10-21T00:00:00.000Z"), totalSnapshot: 500000 },
+          { serviceDate: new Date("2026-10-22T00:00:00.000Z"), totalSnapshot: 700000 },
+        ],
+      },
+    });
+
+    expect(charge.nights).toBe(2);
+    expect(charge.subtotal).toEqual(new Prisma.Decimal(1200000));
+  });
+
+  it("F3: calculateEstimatedRoomCharge rejects incomplete dated schedule when flat snapshot is null", () => {
+    const service = createService({});
+    expect(() =>
+      service.calculateEstimatedRoomCharge({
+        stay: {
+          plannedCheckInAt: new Date("2026-10-21T14:00:00.000Z"),
+          plannedCheckOutAt: new Date("2026-10-23T12:00:00.000Z"),
+          nightlyRateSnapshot: null,
+          roomNightChargeLines: [
+            // Only night 2 is dated, night 1 has no fallback
+            { serviceDate: new Date("2026-10-22T00:00:00.000Z"), totalSnapshot: 700000 },
+          ],
+        },
+      }),
+    ).toThrow(ConflictException);
+  });
+
+  it.each([true, false])("F3: early departure after late check-in uses occupied dates (dated schedule: %s)", (dated) => {
+    const charge = createService({}).calculateEstimatedRoomCharge({
+      room: { roomNumber: "101" },
+      stay: {
+        plannedCheckInAt: new Date("2026-10-21T07:00:00.000Z"),
+        plannedCheckOutAt: new Date("2026-10-24T05:00:00.000Z"),
+        checkedInAt: new Date("2026-10-22T07:00:00.000Z"),
+        checkedOutAt: new Date("2026-10-23T05:00:00.000Z"),
+        nightlyRateSnapshot: new Prisma.Decimal(500000),
+        reservation: {
+          chargeLines: [500000, 700000, 900000].map((rate, index) => ({
+            lineType: "ROOM_NIGHT",
+            serviceDate: dated ? new Date(`2026-10-${21 + index}T07:00:00.000Z`) : null,
+            totalSnapshot: rate,
+          })),
+        },
+      },
+    }, { isEarlyDeparture: true });
+
+    expect(charge.nights).toBe(1);
+    expect(charge.subtotal).toEqual(new Prisma.Decimal(700000));
+    expect(charge.plannedSubtotal).toEqual(new Prisma.Decimal(2100000));
+  });
+
+  it("F3 seam: issueInvoice uses repository-loaded dated chargeLines to compute correct folio and invoice total (1.2M)", async () => {
+    const createdItems: any[] = [];
+    const tx = {
+      $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+      folio: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "folio-1",
+          hotelId: "hotel-1",
+          stayId: "stay-1",
+          roomId: "room-1",
+          folioNumber: "FOL-001",
+          status: FolioStatus.OPEN,
+          currency: "VND",
+          openedAt: new Date("2026-10-21T14:00:00.000Z"),
+          subtotalAmount: new Prisma.Decimal(0),
+          taxAmount: new Prisma.Decimal(0),
+          discountAmount: new Prisma.Decimal(0),
+          totalAmount: new Prisma.Decimal(0),
+          updatedAt: new Date("2026-10-21T14:00:00.000Z"),
+          hotel: { id: "hotel-1", name: "Hotel" },
+          room: { id: "room-1", roomNumber: "101", price: new Prisma.Decimal(600000) },
+          stay: {
+            id: "stay-1",
+            reservationId: "res-1",
+            plannedCheckInAt: new Date("2026-10-21T14:00:00.000Z"),
+            plannedCheckOutAt: new Date("2026-10-23T12:00:00.000Z"),
+            checkedInAt: new Date("2026-10-21T14:00:00.000Z"),
+            nightlyRateSnapshot: new Prisma.Decimal(500000),
+            reservation: {
+              chargeLines: [
+                {
+                  id: "rcl-1",
+                  lineType: "ROOM_NIGHT",
+                  serviceDate: new Date("2026-10-21T00:00:00.000Z"),
+                  unitPriceSnapshot: new Prisma.Decimal(500000),
+                  totalSnapshot: new Prisma.Decimal(500000),
+                },
+                {
+                  id: "rcl-2",
+                  lineType: "ROOM_NIGHT",
+                  serviceDate: new Date("2026-10-22T00:00:00.000Z"),
+                  unitPriceSnapshot: new Prisma.Decimal(700000),
+                  totalSnapshot: new Prisma.Decimal(700000),
+                },
+              ],
+            },
+          },
+        }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      invoice: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: "invoice-1", ...data })),
+      },
+      folioItem: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockImplementation((payload) => {
+          const item = { id: "room-charge-1", ...payload.data };
+          createdItems.push(item);
+          return Promise.resolve(item);
+        }),
+        findMany: jest.fn().mockImplementation(() => Promise.resolve(createdItems)),
+      },
+      reservationChargeLine: {
+        updateMany: jest.fn().mockResolvedValue({ count: 2 }),
+      },
+      guestStay: { update: jest.fn() },
+      room: { update: jest.fn() },
+      roomQRCode: { updateMany: jest.fn() },
+    };
+    const prisma = {
+      invoice: { findFirst: jest.fn().mockResolvedValue(null) },
+      $transaction: jest.fn((callback: (tx: any) => Promise<unknown>) => callback(tx)),
+    };
+    const repository = {
+      getFolioSummary: jest.fn().mockResolvedValue({
+        latestItemPostedAt: null,
+        grouped: [],
+        folio: {
+          id: "folio-1",
+          hotelId: "hotel-1",
+          stayId: "stay-1",
+          folioNumber: "FOL-001",
+          status: FolioStatus.OPEN,
+          currency: "VND",
+          subtotalAmount: new Prisma.Decimal(0),
+          taxAmount: new Prisma.Decimal(0),
+          discountAmount: new Prisma.Decimal(0),
+          totalAmount: new Prisma.Decimal(0),
+          updatedAt: new Date("2026-10-21T14:00:00.000Z"),
+          room: { id: "room-1", roomNumber: "101", price: new Prisma.Decimal(600000) },
+          stay: {
+            id: "stay-1",
+            reservationId: "res-1",
+            plannedCheckInAt: new Date("2026-10-21T14:00:00.000Z"),
+            plannedCheckOutAt: new Date("2026-10-23T12:00:00.000Z"),
+            checkedInAt: new Date("2026-10-21T14:00:00.000Z"),
+            nightlyRateSnapshot: new Prisma.Decimal(500000),
+            reservation: {
+              chargeLines: [
+                {
+                  id: "rcl-1",
+                  lineType: "ROOM_NIGHT",
+                  serviceDate: new Date("2026-10-21T00:00:00.000Z"),
+                  unitPriceSnapshot: new Prisma.Decimal(500000),
+                  totalSnapshot: new Prisma.Decimal(500000),
+                },
+                {
+                  id: "rcl-2",
+                  lineType: "ROOM_NIGHT",
+                  serviceDate: new Date("2026-10-22T00:00:00.000Z"),
+                  unitPriceSnapshot: new Prisma.Decimal(700000),
+                  totalSnapshot: new Prisma.Decimal(700000),
+                },
+              ],
+            },
+          },
+        },
+      }),
+    };
+    const service = createService(prisma, repository);
+
+    const invoice = await service.issueInvoice("user-1", "active-role", "hotel-1", "folio-1");
+
+    expect(tx.folioItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          subtotalSnapshot: new Prisma.Decimal(1200000),
+          totalSnapshot: new Prisma.Decimal(1200000),
+        }),
+      }),
+    );
+    expect(tx.invoice.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          totalAmount: new Prisma.Decimal(1200000),
+          subtotalAmount: new Prisma.Decimal(1200000),
+        }),
+      }),
+    );
+    expect(invoice.totalAmount).toEqual(new Prisma.Decimal(1200000));
+  });
+
   it("H4: addFolioItem rejects discount/adjustment that makes total negative", async () => {
     const tx = {
       folio: {
