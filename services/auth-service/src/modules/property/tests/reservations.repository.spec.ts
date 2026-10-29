@@ -1694,10 +1694,12 @@ describe("ReservationsRepository transactional lifecycle", () => {
       const unknownBlock = result.blocks.find((b) => b.reservationId === "res-unknown-count");
       expect(unknownBlock).toBeDefined();
       expect(unknownBlock?.guestCount).toBeNull();
+      expect(unknownBlock?.groupCode).toBeNull();
 
       const knownBlock = result.blocks.find((b) => b.reservationId === "res-known-count");
       expect(knownBlock).toBeDefined();
       expect(knownBlock?.guestCount).toBe(3);
+      expect(knownBlock?.groupCode).toBe("OTA-Agoda");
     });
   });
 

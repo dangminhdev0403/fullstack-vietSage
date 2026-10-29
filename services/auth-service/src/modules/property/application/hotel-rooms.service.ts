@@ -619,6 +619,7 @@ export class HotelRoomsService {
       createdByUserId: actorUserId,
       tenantId: hotel.tenantId,
       occupants: dto.occupants,
+      reservationCode: dto.reservationCode?.trim() || undefined,
       generateReservationCode: (tx) => this.codesService.generateEntityCode("RESERVATION", tx),
       generateFolioNumber: (tx) => this.codesService.generateEntityCode("FOLIO", tx),
     });
@@ -792,6 +793,7 @@ export class HotelRoomsService {
       accessCodeHash: hashOpaqueToken(accessCode),
       accessCodeExpiresAt: addHours(new Date(), 24),
       tenantId: hotel.tenantId,
+      reservationCode: dto.reservationCode?.trim() || undefined,
       generateReservationCode: (tx) => this.codesService.generateEntityCode("RESERVATION", tx),
       generateFolioNumber: (tx) => this.codesService.generateEntityCode("FOLIO", tx),
     });

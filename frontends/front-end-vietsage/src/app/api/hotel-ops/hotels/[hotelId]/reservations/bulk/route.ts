@@ -68,6 +68,7 @@ const bulkReservationSchema = z
     sourceCategory: z.enum(["DIRECT", "OTA", "TA", "TRAVEL_AGENCY", "CORPORATE", "OTHER"]).optional(),
     sourcePartnerId: z.string().trim().min(1).nullable().optional(),
     bookingOwnerUserId: z.string().trim().min(1).nullable().optional(),
+    reservationCode: z.string().trim().max(80).optional(),
   })
   .strict()
   .refine(
@@ -137,6 +138,7 @@ export async function POST(request: Request, context: Params) {
             ...(parsed.data.sourceCategory ? { sourceCategory: parsed.data.sourceCategory } : {}),
             ...(parsed.data.sourcePartnerId ? { sourcePartnerId: parsed.data.sourcePartnerId } : {}),
             ...(parsed.data.bookingOwnerUserId ? { bookingOwnerUserId: parsed.data.bookingOwnerUserId } : {}),
+            ...(parsed.data.reservationCode ? { reservationCode: parsed.data.reservationCode } : {}),
           },
           accessToken,
         );

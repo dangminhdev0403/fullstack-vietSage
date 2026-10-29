@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   showConfirmDialog,
   showErrorAlert,
@@ -41,6 +41,127 @@ function getTodayInVietnam(): string {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
+}
+
+function formatVnd(value: number): string {
+  return new Intl.NumberFormat("vi-VN").format(Math.round(value)) + " ₫";
+}
+
+function countMatchingDays(
+  dateFrom: string,
+  dateTo: string,
+  selectedDays: number[],
+): number {
+  if (!dateFrom || !dateTo || dateFrom > dateTo || selectedDays.length === 0) {
+    return 0;
+  }
+  let count = 0;
+  const current = new Date(`${dateFrom}T00:00:00`);
+  const end = new Date(`${dateTo}T00:00:00`);
+  while (current <= end) {
+    const dow = current.getDay();
+    if (selectedDays.includes(dow)) {
+      count++;
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  return count;
+}
+
+interface RoomCurrentPriceInfo {
+  basePrice: number | null;
+  minRate: number | null;
+  maxRate: number | null;
+  avgRate: number | null;
+  isRange: boolean;
+}
+
+function getRoomCurrentPrice(
+  rt: RoomTypeInventory,
+  dateFrom: string,
+  dateTo: string,
+  selectedDays: number[],
+): RoomCurrentPriceInfo {
+  const basePrice =
+    rt.basePrice !== null && rt.basePrice !== undefined && Number(rt.basePrice) > 0
+      ? Number(rt.basePrice)
+      : null;
+
+  const matchingDayRates = (rt.days ?? [])
+    .filter((d) => {
+      if (dateFrom && d.date < dateFrom) return false;
+      if (dateTo && d.date > dateTo) return false;
+      if (selectedDays && selectedDays.length > 0) {
+        const [y, m, day] = d.date.split("-").map(Number);
+        const dow = new Date(y, m - 1, day).getDay();
+        if (!selectedDays.includes(dow)) return false;
+      }
+      return true;
+    })
+    .map((d) =>
+      d.rate !== null && d.rate !== undefined && Number(d.rate) > 0
+        ? Number(d.rate)
+        : basePrice,
+    )
+    .filter((r): r is number => r !== null && r !== undefined && r > 0);
+
+  if (matchingDayRates.length > 0) {
+    const minRate = Math.min(...matchingDayRates);
+    const maxRate = Math.max(...matchingDayRates);
+    const avgRate = Math.round(
+      matchingDayRates.reduce((acc, curr) => acc + curr, 0) /
+        matchingDayRates.length,
+    );
+    return {
+      basePrice,
+      minRate,
+      maxRate,
+      avgRate,
+      isRange: minRate !== maxRate,
+    };
+  }
+
+  return {
+    basePrice,
+    minRate: basePrice,
+    maxRate: basePrice,
+    avgRate: basePrice,
+    isRange: false,
+  };
+}
+
+function calculateNewRate(
+  currentRate: number,
+  rateMode: "SET" | "INCREASE" | "DECREASE",
+  rateInput: string,
+  adjustmentKind: "FIXED" | "PERCENT",
+  adjustmentValue: string,
+): number {
+  if (rateMode === "SET") {
+    if (rateInput.trim() === "") return currentRate;
+    const parsed = Number(rateInput);
+    return !Number.isNaN(parsed) && parsed > 0 ? parsed : currentRate;
+  }
+
+  if (adjustmentValue.trim() === "") return currentRate;
+  const adj = Number(adjustmentValue);
+  if (Number.isNaN(adj) || adj <= 0) return currentRate;
+
+  if (rateMode === "INCREASE") {
+    if (adjustmentKind === "FIXED") {
+      return currentRate + adj;
+    }
+    return Math.round(currentRate * (1 + adj / 100));
+  }
+
+  if (rateMode === "DECREASE") {
+    if (adjustmentKind === "FIXED") {
+      return Math.max(0, currentRate - adj);
+    }
+    return Math.max(0, Math.round(currentRate * (1 - adj / 100)));
+  }
+
+  return currentRate;
 }
 
 export function BulkUpdateModal({
@@ -93,6 +214,109 @@ export function BulkUpdateModal({
   const areAllEligibleSelected =
     eligibleIds.length > 0 &&
     eligibleIds.every((id) => selectedRoomTypes.includes(id));
+
+  // Tính số ngày và giá hiện tại cho từng hạng phòng
+  const matchingDaysCount = useMemo(
+    () => countMatchingDays(dateFrom, dateTo, selectedDays),
+    [dateFrom, dateTo, selectedDays],
+  );
+
+  const roomPriceMap = useMemo(() => {
+    const map = new Map<string, RoomCurrentPriceInfo>();
+    for (const rt of roomTypes) {
+      map.set(
+        rt.roomTypeId,
+        getRoomCurrentPrice(rt, dateFrom, dateTo, selectedDays),
+      );
+    }
+    return map;
+  }, [roomTypes, dateFrom, dateTo, selectedDays]);
+
+  // Dự toán giá mới và dòng tiền cho các hạng phòng được chọn
+  const selectedRoomTypePreviews = useMemo(() => {
+    return selectedRoomTypes
+      .map((id) => roomTypes.find((r) => r.roomTypeId === id))
+      .filter((r): r is RoomTypeInventory => Boolean(r && !isRoomTypeBlocked(r)))
+      .map((rt) => {
+        const priceInfo = roomPriceMap.get(rt.roomTypeId) ?? {
+          basePrice: null,
+          minRate: null,
+          maxRate: null,
+          avgRate: null,
+          isRange: false,
+        };
+
+        const currentRate = priceInfo.avgRate ?? priceInfo.basePrice ?? 0;
+        const newRate =
+          currentRate > 0
+            ? calculateNewRate(
+                currentRate,
+                rateMode,
+                rate,
+                adjustmentKind,
+                adjustmentValue,
+              )
+            : rateMode === "SET" && Number(rate) > 0
+              ? Number(rate)
+              : 0;
+
+        const rateDiff = newRate - currentRate;
+        const percentDiff =
+          currentRate > 0 ? Math.round((rateDiff / currentRate) * 100) : 0;
+
+        const maxCashflowOld = currentRate * rt.totalRooms;
+        const maxCashflowNew = newRate * rt.totalRooms;
+        const cashflowDiff = maxCashflowNew - maxCashflowOld;
+
+        return {
+          roomTypeId: rt.roomTypeId,
+          roomTypeName: rt.roomTypeName,
+          roomTypeCode: rt.roomTypeCode,
+          totalRooms: rt.totalRooms,
+          priceInfo,
+          currentRate,
+          newRate,
+          rateDiff,
+          percentDiff,
+          maxCashflowOld,
+          maxCashflowNew,
+          cashflowDiff,
+        };
+      });
+  }, [
+    selectedRoomTypes,
+    roomTypes,
+    roomPriceMap,
+    rateMode,
+    rate,
+    adjustmentKind,
+    adjustmentValue,
+  ]);
+
+  const totalRoomsSelected = useMemo(
+    () => selectedRoomTypePreviews.reduce((acc, p) => acc + p.totalRooms, 0),
+    [selectedRoomTypePreviews],
+  );
+
+  const totalCurrentCashflowPerNight = useMemo(
+    () => selectedRoomTypePreviews.reduce((acc, p) => acc + p.maxCashflowOld, 0),
+    [selectedRoomTypePreviews],
+  );
+
+  const totalNewCashflowPerNight = useMemo(
+    () => selectedRoomTypePreviews.reduce((acc, p) => acc + p.maxCashflowNew, 0),
+    [selectedRoomTypePreviews],
+  );
+
+  const totalCashflowDiffPerNight =
+    totalNewCashflowPerNight - totalCurrentCashflowPerNight;
+  const totalCycleCashflow = totalNewCashflowPerNight * matchingDaysCount;
+
+  const hasRateChange =
+    (rateMode === "SET" && rate.trim() !== "" && Number(rate) > 0) ||
+    (rateMode !== "SET" &&
+      adjustmentValue.trim() !== "" &&
+      Number(adjustmentValue) > 0);
 
   if (!isOpen) return null;
 
@@ -216,7 +440,11 @@ export function BulkUpdateModal({
           );
           return;
         }
-        if (adjustmentKind === "PERCENT" && parsed > 100 && rateMode === "DECREASE") {
+        if (
+          adjustmentKind === "PERCENT" &&
+          parsed > 100 &&
+          rateMode === "DECREASE"
+        ) {
           await showErrorAlert(
             "Giá trị điều chỉnh không hợp lệ",
             "Tỷ lệ giảm giá không được vượt quá 100%.",
@@ -260,9 +488,20 @@ export function BulkUpdateModal({
           ? false
           : undefined;
 
+    const rateSummaryText =
+      rateMode === "SET" && rateNum !== undefined
+        ? `Đặt giá cố định ${formatVnd(rateNum)}/đêm`
+        : adjustmentPayload !== undefined
+          ? `${rateMode === "INCREASE" ? "Tăng" : "Giảm"} ${
+              adjustmentKind === "FIXED"
+                ? formatVnd(adjustmentPayload.value)
+                : `${adjustmentPayload.value}%`
+            } từ giá hiện có`
+          : "Giữ nguyên giá phòng";
+
     const confirmResult = await showConfirmDialog({
       title: "Xác nhận cập nhật hàng loạt",
-      text: `Bạn có chắc chắn muốn cập nhật giá/điều kiện bán cho các hạng phòng đã chọn từ ${dateFrom} đến ${dateTo}?`,
+      text: `Áp dụng cho ${validRoomTypeIds.length} hạng phòng (${totalRoomsSelected} phòng) từ ${dateFrom} đến ${dateTo} (${matchingDaysCount} ngày áp dụng). ${rateSummaryText}. Dòng tiền tối đa dự kiến: ${formatVnd(totalNewCashflowPerNight)}/đêm.`,
       confirmText: "Cập nhật ngay",
       cancelText: "Hủy bỏ",
       icon: "warning",
@@ -302,7 +541,7 @@ export function BulkUpdateModal({
       aria-modal="true"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
     >
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-2xl w-full max-h-[92vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-emerald-900 to-[#1a352d] text-white">
           <div>
@@ -310,13 +549,12 @@ export function BulkUpdateModal({
               <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/10 text-emerald-300 font-bold">
                 ⚡
               </span>
-              <h2 className="text-xl font-extrabold tracking-tight text-white">
+              <h2 className="text-xl font-extrabold tracking-tight text-white text-balance">
                 Cập Nhật Bảng Giá Hàng Loạt
               </h2>
             </div>
-            <p className="text-sm font-medium text-emerald-100/90 mt-1 pl-10">
-              Đồng bộ giá, số đêm tối thiểu & trạng thái đóng bán đồng thời cho
-              nhiều ngày
+            <p className="text-sm font-medium text-emerald-100/90 mt-1 pl-10 text-pretty">
+              Đồng bộ giá, kiểm soát dòng tiền, số đêm tối thiểu & trạng thái đóng bán đồng thời
             </p>
           </div>
           <button
@@ -372,6 +610,13 @@ export function BulkUpdateModal({
                 const explanation = blocked
                   ? formatChannexBlockersExplanation(blockers)
                   : "";
+                const priceInfo = roomPriceMap.get(rt.roomTypeId);
+                const priceDisplay =
+                  priceInfo?.avgRate !== null &&
+                  priceInfo?.avgRate !== undefined &&
+                  priceInfo.avgRate > 0
+                    ? formatVnd(priceInfo.avgRate)
+                    : "Chưa có giá";
 
                 if (blocked) {
                   return (
@@ -380,14 +625,14 @@ export function BulkUpdateModal({
                       aria-disabled={true}
                       tabIndex={-1}
                       title={`Chưa liên kết OTA: ${explanation}`}
-                      className="flex items-center justify-between p-3 rounded-2xl border border-slate-200 bg-slate-50 text-slate-400 opacity-60 cursor-not-allowed select-none pointer-events-none"
+                      className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 bg-slate-50 text-slate-400 opacity-60 cursor-not-allowed select-none pointer-events-none"
                     >
                       <div>
                         <div className="text-sm font-semibold text-slate-600">
                           {rt.roomTypeName}
                         </div>
                         <div className="text-xs text-slate-400 font-mono">
-                          Mã: {rt.roomTypeCode} ({rt.totalRooms} phòng)
+                          Mã: {rt.roomTypeCode} ({rt.totalRooms} phòng) • Giá: {priceDisplay}
                         </div>
                         <div className="mt-1 inline-flex items-center gap-1 rounded bg-amber-100/90 px-1.5 py-0.5 text-xs font-bold text-amber-900">
                           <VsIcon
@@ -409,16 +654,29 @@ export function BulkUpdateModal({
                     key={rt.roomTypeId}
                     type="button"
                     onClick={() => toggleRoomType(rt.roomTypeId)}
-                    className={`flex items-center justify-between p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                    className={`flex items-center justify-between p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                       isChecked
-                        ? "bg-emerald-50/80 border-emerald-500 text-emerald-950 font-bold shadow-xs"
+                        ? "bg-emerald-50/80 border-emerald-500 text-emerald-950 font-bold shadow-xs ring-1 ring-emerald-400/30"
                         : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 font-medium"
                     }`}
                   >
                     <div>
-                      <div className="text-sm">{rt.roomTypeName}</div>
+                      <div className="text-sm font-bold text-slate-900">
+                        {rt.roomTypeName}
+                      </div>
                       <div className="text-xs text-slate-500 font-mono">
                         Mã: {rt.roomTypeCode} ({rt.totalRooms} phòng)
+                      </div>
+                      <div className="mt-1 flex items-center gap-1.5 text-xs">
+                        <span className="text-slate-500">Giá hiện có:</span>
+                        <span className="font-extrabold text-emerald-800">
+                          {priceDisplay}
+                        </span>
+                        {priceInfo?.isRange && (
+                          <span className="text-slate-400 text-xs font-normal">
+                            ({formatVnd(priceInfo.minRate ?? 0)} - {formatVnd(priceInfo.maxRate ?? 0)})
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div
@@ -497,9 +755,14 @@ export function BulkUpdateModal({
           {/* Day of Week */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-base font-bold text-slate-900">
-                3. Các ngày trong tuần
-              </label>
+              <div className="flex items-center gap-2">
+                <label className="text-base font-bold text-slate-900">
+                  3. Các ngày trong tuần
+                </label>
+                <span className="text-xs font-semibold text-slate-500">
+                  ({matchingDaysCount} ngày được chọn)
+                </span>
+              </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -549,72 +812,102 @@ export function BulkUpdateModal({
           </div>
 
           {/* New values to apply */}
-          <div className="space-y-4 pt-2 border-t border-slate-100">
-            <label className="text-base font-bold text-slate-900 block">
-              4. Giá trị thiết lập mới
+          <div className="space-y-5 pt-3 border-t border-slate-100">
+            <label className="text-base font-bold text-slate-900 block text-balance">
+              4. Giá trị thiết lập mới & Kiểm soát dòng tiền
             </label>
 
             {/* Rate Mode Control */}
             <fieldset disabled={isBulkUpdating} className="space-y-2">
               <legend className="text-sm font-semibold text-slate-700">
-                Điều chỉnh giá phòng
+                Lựa chọn phương thức điều chỉnh giá
               </legend>
-              <div className="grid grid-cols-3 gap-2 [&_button]:focus-visible:outline-2 [&_button]:focus-visible:outline-offset-2 [&_button]:focus-visible:outline-emerald-700 [&_button]:disabled:opacity-50">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 [&_button]:focus-visible:outline-2 [&_button]:focus-visible:outline-offset-2 [&_button]:focus-visible:outline-emerald-700 [&_button]:disabled:opacity-50">
                 <button
                   type="button"
                   aria-pressed={rateMode === "SET"}
                   onClick={() => setRateMode("SET")}
                   className={
-                    "min-h-11 rounded-xl border px-3 py-2 text-sm font-bold transition-all " +
+                    "min-h-12 rounded-2xl border px-3.5 py-2.5 text-left transition-all " +
                     (rateMode === "SET"
-                      ? "border-emerald-700 bg-emerald-700 text-white shadow-xs"
+                      ? "border-emerald-700 bg-emerald-700 text-white shadow-md shadow-emerald-700/20"
                       : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
                   }
                 >
-                  Thiết lập
+                  <div className="text-sm font-extrabold flex items-center gap-1.5">
+                    <span>🎯</span>
+                    <span>Cài giá mới cố định</span>
+                  </div>
+                  <div
+                    className={`text-xs mt-0.5 ${
+                      rateMode === "SET" ? "text-emerald-100" : "text-slate-500"
+                    }`}
+                  >
+                    Áp dụng chung 1 mức giá cụ thể
+                  </div>
                 </button>
                 <button
                   type="button"
                   aria-pressed={rateMode === "INCREASE"}
                   onClick={() => setRateMode("INCREASE")}
                   className={
-                    "min-h-11 rounded-xl border px-3 py-2 text-sm font-bold transition-all " +
+                    "min-h-12 rounded-2xl border px-3.5 py-2.5 text-left transition-all " +
                     (rateMode === "INCREASE"
-                      ? "border-emerald-700 bg-emerald-700 text-white shadow-xs"
+                      ? "border-emerald-700 bg-emerald-700 text-white shadow-md shadow-emerald-700/20"
                       : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
                   }
                 >
-                  Tăng
+                  <div className="text-sm font-extrabold flex items-center gap-1.5">
+                    <span>📈</span>
+                    <span>Tăng từ giá hiện có</span>
+                  </div>
+                  <div
+                    className={`text-xs mt-0.5 ${
+                      rateMode === "INCREASE" ? "text-emerald-100" : "text-slate-500"
+                    }`}
+                  >
+                    Cộng thêm số tiền hoặc %
+                  </div>
                 </button>
                 <button
                   type="button"
                   aria-pressed={rateMode === "DECREASE"}
                   onClick={() => setRateMode("DECREASE")}
                   className={
-                    "min-h-11 rounded-xl border px-3 py-2 text-sm font-bold transition-all " +
+                    "min-h-12 rounded-2xl border px-3.5 py-2.5 text-left transition-all " +
                     (rateMode === "DECREASE"
-                      ? "border-emerald-700 bg-emerald-700 text-white shadow-xs"
+                      ? "border-emerald-700 bg-emerald-700 text-white shadow-md shadow-emerald-700/20"
                       : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
                   }
                 >
-                  Giảm
+                  <div className="text-sm font-extrabold flex items-center gap-1.5">
+                    <span>📉</span>
+                    <span>Giảm từ giá hiện có</span>
+                  </div>
+                  <div
+                    className={`text-xs mt-0.5 ${
+                      rateMode === "DECREASE" ? "text-emerald-100" : "text-slate-500"
+                    }`}
+                  >
+                    Trừ bớt số tiền hoặc %
+                  </div>
                 </button>
               </div>
             </fieldset>
 
             {/* Absolute Rate Input */}
             {rateMode === "SET" && (
-              <div>
-                <div className="flex items-center justify-between mb-1">
+              <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-2">
+                <div className="flex items-center justify-between">
                   <label
                     htmlFor="bulk-rate-input"
-                    className="text-sm font-semibold text-slate-700"
+                    className="text-sm font-bold text-slate-800"
                   >
-                    Mức giá mới (VND / đêm)
+                    Mức giá mới cố định (VND / đêm)
                   </label>
                   {rate && Number(rate) > 0 && (
-                    <span className="text-xs font-bold text-emerald-700">
-                      {new Intl.NumberFormat("vi-VN").format(Number(rate))} ₫
+                    <span className="text-xs font-extrabold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md">
+                      {formatVnd(Number(rate))}
                     </span>
                   )}
                 </div>
@@ -626,48 +919,51 @@ export function BulkUpdateModal({
                     placeholder="Để trống nếu không muốn đổi giá"
                     value={rate}
                     onChange={(e) => setRate(e.target.value)}
-                    className="w-full h-11 pl-4 pr-12 rounded-2xl border border-slate-200 bg-white text-slate-900 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                    className="w-full h-11 pl-4 pr-14 rounded-2xl border border-slate-300 bg-white text-slate-900 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
                     VND
                   </span>
                 </div>
+                <p className="text-xs text-slate-500 text-pretty">
+                  Mức giá cố định này sẽ ghi đè giá bán của tất cả các hạng phòng và ngày được chọn.
+                </p>
               </div>
             )}
 
             {/* Relative Adjustment Controls */}
             {rateMode !== "SET" && (
-              <div className="space-y-3 p-4 rounded-2xl border border-emerald-100 bg-emerald-50/40">
+              <div className="space-y-3.5 p-4 rounded-2xl border border-emerald-200 bg-emerald-50/40">
                 <div>
-                  <span className="block text-sm font-semibold text-slate-700 mb-1.5">
-                    Hình thức {rateMode === "INCREASE" ? "tăng" : "giảm"}
+                  <span className="block text-sm font-bold text-slate-800 mb-1.5">
+                    Hình thức {rateMode === "INCREASE" ? "tăng giá" : "giảm giá"}
                   </span>
-                  <div className="grid grid-cols-2 gap-2 [&_button]:focus-visible:outline-2 [&_button]:focus-visible:outline-offset-2 [&_button]:focus-visible:outline-emerald-700 [&_button]:disabled:opacity-50">
+                  <div className="grid grid-cols-2 gap-2.5 [&_button]:focus-visible:outline-2 [&_button]:focus-visible:outline-offset-2 [&_button]:focus-visible:outline-emerald-700 [&_button]:disabled:opacity-50">
                     <button
                       type="button"
                       aria-pressed={adjustmentKind === "FIXED"}
                       onClick={() => setAdjustmentKind("FIXED")}
                       className={
-                        "min-h-10 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all " +
+                        "min-h-11 rounded-xl border px-3.5 py-2 text-xs font-bold transition-all " +
                         (adjustmentKind === "FIXED"
                           ? "border-emerald-700 bg-emerald-700 text-white shadow-xs"
                           : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
                       }
                     >
-                      Số tiền cố định (VND)
+                      💰 Số tiền cố định (VND)
                     </button>
                     <button
                       type="button"
                       aria-pressed={adjustmentKind === "PERCENT"}
                       onClick={() => setAdjustmentKind("PERCENT")}
                       className={
-                        "min-h-10 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all " +
+                        "min-h-11 rounded-xl border px-3.5 py-2 text-xs font-bold transition-all " +
                         (adjustmentKind === "PERCENT"
                           ? "border-emerald-700 bg-emerald-700 text-white shadow-xs"
                           : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
                       }
                     >
-                      Phần trăm (%)
+                      📊 Phần trăm (%) từ giá hiện có
                     </button>
                   </div>
                 </div>
@@ -676,10 +972,10 @@ export function BulkUpdateModal({
                   <div className="flex items-center justify-between mb-1">
                     <label
                       htmlFor="bulk-adjustment-input"
-                      className="text-sm font-semibold text-slate-700"
+                      className="text-sm font-bold text-slate-800"
                     >
-                      Mức {rateMode === "INCREASE" ? "tăng" : "giảm"}{" "}
-                      {adjustmentKind === "FIXED" ? "(VND)" : "(%)"}
+                      Mức {rateMode === "INCREASE" ? "tăng thêm" : "giảm bớt"}{" "}
+                      {adjustmentKind === "FIXED" ? "(VND / đêm)" : "(%)"}
                     </label>
                   </div>
                   <div className="relative">
@@ -688,40 +984,228 @@ export function BulkUpdateModal({
                       type="number"
                       step={adjustmentKind === "FIXED" ? "10000" : "1"}
                       min="1"
+                      max={
+                        adjustmentKind === "PERCENT" && rateMode === "DECREASE"
+                          ? "100"
+                          : undefined
+                      }
                       placeholder={
                         adjustmentKind === "FIXED"
-                          ? "50.000 (để trống nếu không đổi)"
-                          : "10 (để trống nếu không đổi)"
+                          ? "Ví dụ: 50.000 (để trống nếu không đổi)"
+                          : "Ví dụ: 10 (để trống nếu không đổi)"
                       }
                       value={adjustmentValue}
                       onChange={(e) => setAdjustmentValue(e.target.value)}
-                      className="w-full h-11 pl-4 pr-14 rounded-2xl border border-slate-200 bg-white text-slate-900 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      className="w-full h-11 pl-4 pr-16 rounded-2xl border border-slate-300 bg-white text-slate-900 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-500">
                       {adjustmentKind === "FIXED" ? "VND" : "%"}
                     </span>
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-emerald-100/80">
-                  <div className="flex items-center gap-1.5 text-xs">
-                    <span className="font-semibold text-slate-600">
-                      Xem trước:
+                {/* Quick Presets */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-xs font-semibold text-slate-500 mr-1">
+                    Gợi ý nhanh:
+                  </span>
+                  {adjustmentKind === "FIXED" ? (
+                    <>
+                      {[20000, 50000, 100000, 200000, 500000].map((amt) => (
+                        <button
+                          key={amt}
+                          type="button"
+                          onClick={() => setAdjustmentValue(amt.toString())}
+                          className="px-2.5 py-1 text-xs font-bold rounded-lg bg-white border border-emerald-300 text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
+                        >
+                          {rateMode === "INCREASE" ? "+" : "-"}
+                          {formatVnd(amt)}
+                        </button>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      {[5, 10, 15, 20, 30].map((pct) => (
+                        <button
+                          key={pct}
+                          type="button"
+                          onClick={() => setAdjustmentValue(pct.toString())}
+                          className="px-2.5 py-1 text-xs font-bold rounded-lg bg-white border border-emerald-300 text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
+                        >
+                          {rateMode === "INCREASE" ? "+" : "-"}
+                          {pct}%
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* BẢNG ĐỐI SOÁT GIÁ MỚI & KIỂM SOÁT DÒNG TIỀN */}
+            {selectedRoomTypes.length > 0 && (
+              <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/70 via-white to-teal-50/40 p-4 shadow-xs space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-700 text-white text-xs font-bold">
+                      ₫
                     </span>
-                    {adjustmentValue && Number(adjustmentValue) > 0 ? (
-                      <span className="font-bold text-emerald-800">
-                        {rateMode === "INCREASE" ? "Tăng +" : "Giảm -"}
-                        {adjustmentKind === "FIXED"
-                          ? `${new Intl.NumberFormat("vi-VN").format(Number(adjustmentValue))} ₫`
-                          : `${Number(adjustmentValue)}%`}{" "}
-                        so với giá hiện tại của từng ngày
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900 text-balance">
+                        Đối soát giá mới & Kiểm soát dòng tiền
+                      </h4>
+                      <p className="text-xs text-slate-500 text-pretty">
+                        Dự toán giá sau điều chỉnh và dòng tiền tiềm năng ({matchingDaysCount} ngày áp dụng)
+                      </p>
+                    </div>
+                  </div>
+                  {hasRateChange && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800 whitespace-nowrap">
+                      {rateMode === "SET"
+                        ? `Cài giá mới: ${formatVnd(Number(rate))}`
+                        : rateMode === "INCREASE"
+                          ? `Tăng +${
+                              adjustmentKind === "FIXED"
+                                ? formatVnd(Number(adjustmentValue))
+                                : `${adjustmentValue}%`
+                            }`
+                          : `Giảm -${
+                              adjustmentKind === "FIXED"
+                                ? formatVnd(Number(adjustmentValue))
+                                : `${adjustmentValue}%`
+                            }`}
+                    </span>
+                  )}
+                </div>
+
+                {/* Table of selected rooms */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50 text-slate-700 font-bold">
+                        <th className="py-2.5 px-3 whitespace-nowrap">Hạng phòng</th>
+                        <th className="py-2.5 px-3 text-right whitespace-nowrap">
+                          Giá hiện có
+                        </th>
+                        <th className="py-2.5 px-3 text-center whitespace-nowrap">
+                          Điều chỉnh
+                        </th>
+                        <th className="py-2.5 px-3 text-right whitespace-nowrap">
+                          Giá mới áp dụng
+                        </th>
+                        <th className="py-2.5 px-3 text-right whitespace-nowrap">
+                          Dòng tiền tối đa / đêm
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {selectedRoomTypePreviews.map((item) => {
+                        const isModified = item.rateDiff !== 0;
+                        const isIncrease = item.rateDiff > 0;
+
+                        return (
+                          <tr
+                            key={item.roomTypeId}
+                            className="hover:bg-slate-50/70 transition-colors"
+                          >
+                            <td className="py-2.5 px-3">
+                              <div className="font-bold text-slate-900">
+                                {item.roomTypeName}
+                              </div>
+                              <div className="text-slate-500 text-xs">
+                                {item.totalRooms} phòng
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-medium text-slate-600 whitespace-nowrap">
+                              {item.currentRate > 0
+                                ? formatVnd(item.currentRate)
+                                : "Chưa có"}
+                            </td>
+                            <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                              {isModified ? (
+                                <span
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-full font-bold text-xs whitespace-nowrap ${
+                                    isIncrease
+                                      ? "bg-emerald-100 text-emerald-800"
+                                      : "bg-rose-100 text-rose-800"
+                                  }`}
+                                >
+                                  {isIncrease ? "+" : ""}
+                                  {formatVnd(item.rateDiff)} ({item.percentDiff > 0 ? "+" : ""}
+                                  {item.percentDiff}%)
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 italic">
+                                  Giữ nguyên
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-extrabold text-emerald-800 text-sm whitespace-nowrap">
+                              {item.newRate > 0 ? formatVnd(item.newRate) : "Chưa có"}
+                            </td>
+                            <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                              <div className="font-bold text-slate-900">
+                                {formatVnd(item.maxCashflowNew)}
+                              </div>
+                              {item.cashflowDiff !== 0 && (
+                                <div
+                                  className={`text-xs font-semibold ${
+                                    item.cashflowDiff > 0
+                                      ? "text-emerald-700"
+                                      : "text-rose-600"
+                                  }`}
+                                >
+                                  {item.cashflowDiff > 0 ? "+" : ""}
+                                  {formatVnd(item.cashflowDiff)}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Cashflow Summary Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                  <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                    <span className="block text-slate-500 text-xs font-medium">
+                      Tổng phòng áp dụng
+                    </span>
+                    <span className="text-base font-extrabold text-slate-900">
+                      {totalRoomsSelected} phòng
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white border border-emerald-200 shadow-2xs">
+                    <span className="block text-slate-500 text-xs font-medium">
+                      Dòng tiền tối đa / đêm
+                    </span>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-base font-extrabold text-emerald-800">
+                        {formatVnd(totalNewCashflowPerNight)}
                       </span>
-                    ) : (
-                      <span className="text-slate-500 italic">
-                        Để trống sẽ giữ nguyên giá hiện tại (chỉ cập nhật điều
-                        kiện khác nếu có)
-                      </span>
-                    )}
+                      {totalCashflowDiffPerNight !== 0 && (
+                        <span
+                          className={`text-xs font-bold ${
+                            totalCashflowDiffPerNight > 0
+                              ? "text-emerald-700"
+                              : "text-rose-600"
+                          }`}
+                        >
+                          ({totalCashflowDiffPerNight > 0 ? "+" : ""}
+                          {formatVnd(totalCashflowDiffPerNight)})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white border border-teal-200 shadow-2xs">
+                    <span className="block text-slate-500 text-xs font-medium">
+                      Dòng tiền chu kỳ ({matchingDaysCount} ngày)
+                    </span>
+                    <span className="text-base font-extrabold text-teal-900">
+                      {formatVnd(totalCycleCashflow)}
+                    </span>
                   </div>
                 </div>
               </div>

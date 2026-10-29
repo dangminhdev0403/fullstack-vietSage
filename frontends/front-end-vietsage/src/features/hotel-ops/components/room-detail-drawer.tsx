@@ -423,11 +423,12 @@ function RoomDetailDialog({
             <button
               type="button"
               onClick={onClose}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition focus:outline-none focus:ring-2 focus:ring-amber-500/30 shadow-2xs"
-              title="Đóng"
-              aria-label="Đóng chi tiết phòng"
+              className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 px-3.5 text-xs sm:text-sm font-bold shadow-2xs transition active:scale-[0.98] cursor-pointer min-h-[40px] shrink-0"
+              title="Quay lại"
+              aria-label="Quay lại"
             >
-              <VsIcon name="close" className="text-xl" />
+              <VsIcon name="arrow_back" className="text-lg text-slate-600" />
+              <span>Quay lại</span>
             </button>
           </div>
         </div>

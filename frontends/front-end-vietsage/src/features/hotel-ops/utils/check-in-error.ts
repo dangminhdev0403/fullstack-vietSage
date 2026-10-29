@@ -51,7 +51,7 @@ export function formatFriendlyCheckInError(error: unknown): string {
   }
 
   if (normalized.includes("ROOM_NOT_READY_FOR_CHECK_IN")) {
-    return "Phòng chưa sẵn sàng để đón khách (đang bảo trì hoặc chưa dọn dẹp). Vui lòng kiểm tra lại trạng thái phòng hoặc phân bổ phòng trống khác.";
+    return "Phòng chưa sẵn sàng (đang có khách ở, bảo trì hoặc chưa dọn dẹp). Vui lòng kiểm tra lại trạng thái phòng hoặc đổi phòng trống khác.";
   }
 
   if (normalized.includes("RESERVATION_NOT_READY_FOR_CHECK_IN")) {
@@ -59,7 +59,7 @@ export function formatFriendlyCheckInError(error: unknown): string {
   }
 
   if (normalized.includes("ROOM_ALREADY_HAS_ACTIVE_STAY_OR_FOLIO")) {
-    return "Phòng hiện đang có lượt lưu trú khác đang hoạt động. Vui lòng hoàn tất trả phòng cho khách trước hoặc phân bổ phòng trống khác.";
+    return "Phòng còn lượt lưu trú hoặc hồ sơ hóa đơn (Folio) chưa tất toán. Vui lòng kiểm tra trả phòng/đóng folio trước hoặc đổi phòng trống khác.";
   }
 
   return msg || "Đã có lỗi xảy ra khi nhận phòng. Vui lòng thử lại.";

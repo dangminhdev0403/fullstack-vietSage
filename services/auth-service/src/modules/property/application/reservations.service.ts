@@ -123,6 +123,7 @@ export class ReservationsService {
     return this.reservationsRepository.createBulkReservations({
       hotelId,
       groupCode,
+      reservationCode: dto.reservationCode?.trim() || undefined,
       leadGuestName,
       leadGuestPhone,
       checkInDate,
@@ -162,7 +163,9 @@ export class ReservationsService {
     if (roomId) {
       await this.hotelAccessService.assertRoomAccess(actorUserId, activeRoleId, hotelId, roomId);
     }
-    const reservationCode = await this.codesService.generateEntityCode("RESERVATION");
+    const reservationCode =
+      dto.reservationCode?.trim() ||
+      (await this.codesService.generateEntityCode("RESERVATION"));
     const rawRate = dto.rate !== undefined ? dto.rate : dto.nightlyRateSnapshot;
     const nightlyRateSnapshot =
       rawRate !== undefined && rawRate !== null ? new Prisma.Decimal(rawRate).toFixed(2) : null;
@@ -170,6 +173,7 @@ export class ReservationsService {
     return this.reservationsRepository.createReservation({
       hotelId,
       reservationCode,
+      groupCode: dto.groupCode?.trim() || undefined,
       guestDisplayName: dto.guestDisplayName.trim(),
       guestPhone: dto.guestPhone?.trim(),
       plannedCheckInAt: dto.plannedCheckInAt,

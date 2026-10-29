@@ -1172,6 +1172,7 @@ export class HotelRoomsRepository {
       residencePlace?: string;
       isPrimary?: boolean;
     }>;
+    reservationCode?: string;
     generateReservationCode: (tx: Prisma.TransactionClient) => Promise<string>;
     generateFolioNumber: (tx: Prisma.TransactionClient) => Promise<string>;
   }) {
@@ -1211,7 +1212,8 @@ export class HotelRoomsRepository {
         throw new ConflictException("ROOM_CAPACITY_OVERFLOW");
       }
 
-      const reservationCode = await input.generateReservationCode(tx);
+      const reservationCode =
+        input.reservationCode?.trim() || (await input.generateReservationCode(tx));
       const appliedNightlyRate =
         input.nightlyRateSnapshot !== undefined ? input.nightlyRateSnapshot : room.price;
       const stay = await tx.guestStay.create({
@@ -1565,6 +1567,7 @@ export class HotelRoomsRepository {
       residencePlace?: string;
       isPrimary?: boolean;
     }>;
+    reservationCode?: string;
     generateReservationCode: (tx: Prisma.TransactionClient) => Promise<string>;
     generateFolioNumber: (tx: Prisma.TransactionClient) => Promise<string>;
   }) {
@@ -1635,7 +1638,8 @@ export class HotelRoomsRepository {
         roomId: input.roomId,
       });
 
-      const reservationCode = await input.generateReservationCode(tx);
+      const reservationCode =
+        input.reservationCode?.trim() || (await input.generateReservationCode(tx));
       const appliedNightlyRate =
         input.nightlyRateSnapshot !== undefined ? input.nightlyRateSnapshot : room.price;
       const stay = await tx.guestStay.create({

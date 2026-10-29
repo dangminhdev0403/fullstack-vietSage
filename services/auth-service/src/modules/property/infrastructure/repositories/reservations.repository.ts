@@ -63,6 +63,7 @@ export class ReservationsRepository {
   async createBulkReservations(input: {
     hotelId: string;
     groupCode: string;
+    reservationCode?: string;
     leadGuestName: string;
     leadGuestPhone?: string;
     checkInDate: Date;
@@ -312,7 +313,8 @@ export class ReservationsRepository {
       const reservations: any[] = [];
 
       for (const roomId of uniqueRoomIds) {
-        const reservationCode = await input.generateReservationCode(tx);
+        const reservationCode =
+          input.reservationCode?.trim() || (await input.generateReservationCode(tx));
         const room = rooms.find((candidate) => candidate.id === roomId)!;
         const specificRate = input.roomRates?.[roomId] ?? allocatedRoomRates.get(roomId);
         const effectiveRaw =
@@ -419,6 +421,7 @@ export class ReservationsRepository {
   async createReservation(input: {
     hotelId: string;
     reservationCode: string;
+    groupCode?: string | null;
     guestDisplayName: string;
     guestPhone?: string;
     plannedCheckInAt: Date;
@@ -536,6 +539,7 @@ export class ReservationsRepository {
             guestCount: input.guestCount ?? null,
             notes: input.notes ?? null,
             reservationCode: input.reservationCode,
+            groupCode: input.groupCode ?? undefined,
             guestDisplayName: input.guestDisplayName,
             guestPhone: input.guestPhone,
             plannedCheckInAt: input.plannedCheckInAt,
@@ -597,6 +601,7 @@ export class ReservationsRepository {
           guestCount: input.guestCount ?? null,
           notes: input.notes ?? null,
           reservationCode: input.reservationCode,
+          groupCode: input.groupCode ?? undefined,
           guestDisplayName: input.guestDisplayName,
           guestPhone: input.guestPhone,
           plannedCheckInAt: input.plannedCheckInAt,
@@ -1732,6 +1737,9 @@ export class ReservationsRepository {
           occupants: {
             select: { id: true },
           },
+          reservation: {
+            select: { groupCode: true },
+          },
         },
         orderBy: { plannedCheckInAt: "asc" },
       }),
@@ -1802,6 +1810,7 @@ export class ReservationsRepository {
       roomTypeId: string | null;
       roomTypeName: string | null;
       reservationCode: string | null;
+      groupCode: string | null;
       guestName: string;
       guestDisplayName: string;
       phone: string | null;
@@ -1909,6 +1918,7 @@ export class ReservationsRepository {
           roomTypeId: r.room?.roomTypeId ?? null,
           roomTypeName: r.room?.roomType?.name ?? r.room?.type ?? null,
           reservationCode: r.reservationCode,
+          groupCode: r.groupCode || null,
           guestName: r.guestDisplayName,
           guestDisplayName: r.guestDisplayName,
           phone: r.guestPhone,
@@ -1976,6 +1986,7 @@ export class ReservationsRepository {
         roomTypeId: s.room?.roomTypeId ?? null,
         roomTypeName: s.room?.roomType?.name ?? s.room?.type ?? null,
         reservationCode: s.reservationCode,
+        groupCode: (s as any).reservation?.groupCode || null,
         guestName: s.guestDisplayName,
         guestDisplayName: s.guestDisplayName,
         phone: s.guestPhone,

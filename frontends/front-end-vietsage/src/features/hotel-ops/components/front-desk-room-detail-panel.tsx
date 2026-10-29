@@ -679,10 +679,12 @@ export function FrontDeskRoomDetailPanel({
             ref={closeButtonRef}
             type="button"
             onClick={onClose}
-            aria-label="Đóng chi tiết phòng"
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-200 transition cursor-pointer min-h-[44px]"
+            aria-label="Quay lại"
+            title="Quay lại"
+            className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 px-3.5 text-xs sm:text-sm font-bold shadow-2xs transition active:scale-[0.98] cursor-pointer min-h-[40px] shrink-0"
           >
-            <VsIcon name="close" className="text-2xl" />
+            <VsIcon name="arrow_back" className="text-lg text-slate-600" />
+            <span>Quay lại</span>
           </button>
         </header>
 

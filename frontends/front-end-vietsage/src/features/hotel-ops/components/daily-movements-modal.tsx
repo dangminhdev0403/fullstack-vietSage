@@ -18,7 +18,6 @@ import {
   showErrorAlert,
   showSuccessAlert,
   showWarningAlert,
-  SwalVietSage,
 } from "@/libs/swal";
 
 export type DailyMovementsModalProps = {
@@ -139,6 +138,7 @@ export function DailyMovementsModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [arrivalFilter, setArrivalFilter] = useState<ArrivalFilter>("all");
   const [departureFilter, setDepartureFilter] = useState<DepartureFilter>("all");
+  const [isAutoCheckInAfterAssign, setIsAutoCheckInAfterAssign] = useState(false);
 
   // Sub-dialog states
   const [editingArrival, setEditingArrival] = useState<HotelArrival | null>(null);
@@ -152,10 +152,11 @@ export function DailyMovementsModal({
       setSearchQuery("");
       setArrivalFilter("all");
       setDepartureFilter("all");
+      setIsAutoCheckInAfterAssign(false);
     }
   }, [isOpen, initialTab]);
 
-  // Keyboard escape
+  // Keyboard escape: closes modal if on list
   useEffect(() => {
     if (!isOpen) return;
     function handleKeyDown(e: KeyboardEvent) {
@@ -244,6 +245,7 @@ export function DailyMovementsModal({
   const handleQuickCheckIn = useCallback(
     async (arrival: HotelArrival) => {
       if (!arrival.roomId) {
+        setIsAutoCheckInAfterAssign(true);
         setAssigningArrival(arrival);
         return;
       }
@@ -313,462 +315,392 @@ export function DailyMovementsModal({
         }
       }}
     >
-      <div className="relative my-auto flex flex-col w-full max-w-6xl max-h-[92vh] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden text-left">
-        {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/80 px-5 sm:px-7 py-4 shrink-0">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-sky-100 text-sky-800 border border-sky-200 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap">
-                <VsIcon name="calendar_today" className="text-sm" />
-                <span>Ngày vận hành: {formatDateVi(targetDateYmd)}</span>
-              </span>
-              {businessDate && businessDate !== todayYmd ? (
-                <span className="rounded-lg bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 text-xs font-bold whitespace-nowrap">
-                  Xem ngày chỉ định
-                </span>
-              ) : null}
-            </div>
-            <h2 id={titleId} className="vs-display mt-1 text-xl sm:text-2xl font-black text-slate-900 text-balance">
-              Danh sách khách đến / khách đi trong ngày
-            </h2>
-            <p className="text-xs text-slate-500 text-pretty">
-              Theo dõi và thực hiện nhận phòng (IN), trả phòng (OUT), gán/tráo phòng hoặc chỉnh sửa thông tin đặt phòng trực tiếp.
-            </p>
-          </div>
+      <div className="relative my-auto flex flex-col w-full max-w-[96vw] 2xl:max-w-[1600px] xl:max-w-[1440px] max-h-[92vh] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden text-left">
 
-          <div className="flex items-center gap-2 shrink-0">
-            {onPrintActiveStays ? (
-              <button
-                type="button"
-                onClick={onPrintActiveStays}
-                className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 px-3.5 text-xs font-bold shadow-2xs transition cursor-pointer min-h-[40px] whitespace-nowrap"
-                title="In danh sách khách đang lưu trú tại khách sạn"
-              >
-                <VsIcon name="print" className="text-base text-slate-500" />
-                <span>In danh sách lưu trú</span>
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition cursor-pointer"
-              aria-label="Đóng hộp thoại"
-            >
-              <VsIcon name="close" className="text-xl" />
-            </button>
-          </div>
-        </div>
+            {/* Header */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/80 px-5 sm:px-7 py-4 shrink-0">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-sky-100 text-sky-800 border border-sky-200 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap">
+                    <VsIcon name="calendar_today" className="text-sm" />
+                    <span>Ngày vận hành: {formatDateVi(targetDateYmd)}</span>
+                  </span>
+                  {businessDate && businessDate !== todayYmd ? (
+                    <span className="rounded-lg bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 text-xs font-bold whitespace-nowrap">
+                      Xem ngày chỉ định
+                    </span>
+                  ) : null}
+                </div>
+                <h2 id={titleId} className="vs-display mt-1 text-xl sm:text-2xl font-black text-slate-900 text-balance">
+                  Danh sách khách đến / khách đi trong ngày
+                </h2>
+                <p className="text-xs text-slate-500 text-pretty">
+                  Theo dõi và thực hiện nhận phòng (IN), trả phòng (OUT), gán/tráo phòng hoặc chỉnh sửa thông tin đặt phòng trực tiếp.
+                </p>
+              </div>
 
-        {/* Tab Switcher & Filters */}
-        <div className="border-b border-slate-200 bg-white px-5 sm:px-7 py-3 shrink-0 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          {/* Tabs */}
-          <div className="inline-flex h-11 items-center rounded-xl border border-slate-200 bg-slate-100 p-1 shadow-2xs">
-            <button
-              type="button"
-              onClick={() => setActiveTab("arrivals")}
-              className={`inline-flex h-full items-center gap-2 rounded-lg px-3.5 text-xs sm:text-sm font-bold transition cursor-pointer ${
-                activeTab === "arrivals"
-                  ? "bg-white text-emerald-800 shadow-xs font-black border border-slate-200"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
-              }`}
-            >
-              <VsIcon name="login" className="text-base text-emerald-600" />
-              <span>Khách đến trong ngày</span>
-              <span className="rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-xs font-black">
-                {targetArrivals.length}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("departures")}
-              className={`inline-flex h-full items-center gap-2 rounded-lg px-3.5 text-xs sm:text-sm font-bold transition cursor-pointer ${
-                activeTab === "departures"
-                  ? "bg-white text-amber-900 shadow-xs font-black border border-slate-200"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
-              }`}
-            >
-              <VsIcon name="logout" className="text-base text-amber-600" />
-              <span>Khách đi trong ngày</span>
-              <span className="rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-xs font-black">
-                {targetDepartures.length}
-              </span>
-            </button>
-          </div>
-
-          {/* Search & Status Filters */}
-          <div className="flex flex-wrap items-center gap-2.5 flex-1 max-w-xl md:justify-end">
-            <div className="relative flex-1 min-w-[200px]">
-              <VsIcon
-                name="search"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base text-slate-400"
-              />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={
-                  activeTab === "arrivals"
-                    ? "Tìm tên khách, SĐT, số phòng, mã đặt..."
-                    : "Tìm tên khách, số phòng, SĐT..."
-                }
-                className="h-10 w-full rounded-xl border border-slate-300 pl-9 pr-3 text-xs sm:text-sm font-semibold text-slate-800 focus:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-              />
-              {searchQuery ? (
+              <div className="flex items-center gap-2 shrink-0">
+                {onPrintActiveStays ? (
+                  <button
+                    type="button"
+                    onClick={onPrintActiveStays}
+                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 px-3.5 text-xs font-bold shadow-2xs transition cursor-pointer min-h-[40px] whitespace-nowrap"
+                    title="In danh sách khách đang lưu trú tại khách sạn"
+                  >
+                    <VsIcon name="print" className="text-base text-slate-500" />
+                    <span>In danh sách lưu trú</span>
+                  </button>
+                ) : null}
                 <button
                   type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                  onClick={onClose}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition cursor-pointer"
+                  aria-label="Đóng hộp thoại"
                 >
-                  <VsIcon name="close" className="text-sm" />
+                  <VsIcon name="close" className="text-xl" />
                 </button>
-              ) : null}
+              </div>
             </div>
 
-            {activeTab === "arrivals" ? (
-              <select
-                value={arrivalFilter}
-                onChange={(e) => setArrivalFilter(e.target.value as ArrivalFilter)}
-                className="h-10 rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs focus:border-sky-600 focus:outline-none"
-              >
-                <option value="all">Tất cả trạng thái</option>
-                <option value="unassigned">Chưa gán phòng</option>
-                <option value="assigned">Đã gán phòng</option>
-                <option value="checked_in">Đã nhận phòng (IN)</option>
-              </select>
-            ) : (
-              <select
-                value={departureFilter}
-                onChange={(e) => setDepartureFilter(e.target.value as DepartureFilter)}
-                className="h-10 rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs focus:border-sky-600 focus:outline-none"
-              >
-                <option value="all">Tất cả tình trạng</option>
-                <option value="due_today">Chờ trả phòng hôm nay</option>
-                <option value="overdue">Quá hạn trả phòng</option>
-                <option value="checked_out">Đã trả phòng (OUT)</option>
-              </select>
-            )}
-          </div>
-        </div>
-
-        {/* Content Body */}
-        <div className="flex-1 overflow-y-auto overflow-x-auto p-4 sm:p-6">
-          {activeTab === "arrivals" ? (
-            /* TAB 1: ARRIVALS TABLE */
-            filteredArrivals.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center text-slate-500 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200">
-                <VsIcon name="login" className="text-4xl text-slate-300 mb-2" />
-                <p className="text-sm font-bold text-slate-700">Không có khách đến trong ngày phù hợp</p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Kiểm tra lại bộ lọc tìm kiếm hoặc xem các ngày khác trên sơ đồ phòng.
-                </p>
+            {/* Tab Switcher & Filters */}
+            <div className="border-b border-slate-200 bg-white px-5 sm:px-7 py-3 shrink-0 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              {/* Tabs */}
+              <div className="inline-flex h-11 items-center rounded-xl border border-slate-200 bg-slate-100 p-1 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("arrivals")}
+                  className={`inline-flex h-full items-center gap-2 rounded-lg px-3.5 text-xs sm:text-sm font-bold transition cursor-pointer ${
+                    activeTab === "arrivals"
+                      ? "bg-white text-emerald-800 shadow-xs font-black border border-slate-200"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                  }`}
+                >
+                  <VsIcon name="login" className="text-base text-emerald-600" />
+                  <span>Khách đến trong ngày</span>
+                  <span className="rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-xs font-black">
+                    {targetArrivals.length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("departures")}
+                  className={`inline-flex h-full items-center gap-2 rounded-lg px-3.5 text-xs sm:text-sm font-bold transition cursor-pointer ${
+                    activeTab === "departures"
+                      ? "bg-white text-amber-900 shadow-xs font-black border border-slate-200"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                  }`}
+                >
+                  <VsIcon name="logout" className="text-base text-amber-600" />
+                  <span>Khách đi trong ngày</span>
+                  <span className="rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-xs font-black">
+                    {targetDepartures.length}
+                  </span>
+                </button>
               </div>
-            ) : (
-              <div className="overflow-hidden rounded-2xl border border-slate-200 shadow-2xs bg-white">
-                <table className="w-full min-w-[780px] border-collapse text-left">
-                  <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500">
-                      <th scope="col" className="px-4 py-3">Khách hàng</th>
-                      <th scope="col" className="px-4 py-3 whitespace-nowrap">Phòng</th>
-                      <th scope="col" className="px-4 py-3 whitespace-nowrap">Dự kiến nhận</th>
-                      <th scope="col" className="px-4 py-3 whitespace-nowrap">Dự kiến trả</th>
-                      <th scope="col" className="px-4 py-3 whitespace-nowrap">Giá phòng</th>
-                      <th scope="col" className="px-4 py-3 whitespace-nowrap">Trạng thái</th>
-                      <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredArrivals.map((arrival) => {
-                      const isCheckedIn = arrival.status === "CHECKED_IN";
-                      return (
-                        <tr
-                          key={arrival.id}
-                          className="group transition-colors hover:bg-sky-50/50"
-                        >
-                          {/* Khách hàng */}
-                          <td className="px-4 py-3 align-middle">
-                            <div className="font-bold text-slate-900 text-sm">
-                              {arrival.guestDisplayName}
-                            </div>
-                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                              {arrival.guestPhone ? (
-                                <span className="text-xs text-slate-500 font-medium">
-                                  {arrival.guestPhone}
-                                </span>
-                              ) : null}
-                              <span className="text-xs text-slate-400 font-mono">
-                                · Mã: {arrival.reservationCode || arrival.id.slice(0, 8)}
-                              </span>
-                              {arrival.groupCode ? (
-                                <span className="rounded bg-purple-50 text-purple-700 px-1.5 py-0.2 text-xs font-bold">
-                                  Đoàn: {arrival.groupCode}
-                                </span>
-                              ) : null}
-                            </div>
-                          </td>
 
-                          {/* Phòng */}
-                          <td className="px-4 py-3 align-middle whitespace-nowrap">
-                            {arrival.room?.roomNumber ? (
-                              <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 text-xs font-bold">
-                                <VsIcon name="meeting_room" className="text-sm text-emerald-600" />
-                                Phòng {arrival.room.roomNumber}
-                                {arrival.room.type ? ` (${arrival.room.type})` : ""}
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-300 px-2.5 py-1 text-xs font-bold">
-                                <VsIcon name="warning" className="text-sm text-amber-600" />
-                                Chưa gán phòng
-                              </span>
-                            )}
-                          </td>
+              {/* Search & Status Filters */}
+              <div className="flex flex-wrap items-center gap-2.5 flex-1 max-w-xl md:justify-end">
+                <div className="relative flex-1 min-w-[200px]">
+                  <VsIcon
+                    name="search"
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base text-slate-400"
+                  />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={
+                      activeTab === "arrivals"
+                        ? "Tìm tên khách, SĐT, số phòng, mã đặt..."
+                        : "Tìm tên khách, số phòng, SĐT..."
+                    }
+                    className="h-10 w-full rounded-xl border border-slate-300 pl-9 pr-3 text-xs sm:text-sm font-semibold text-slate-800 focus:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                  />
+                  {searchQuery ? (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                    >
+                      <VsIcon name="close" className="text-sm" />
+                    </button>
+                  ) : null}
+                </div>
 
-                          {/* Dự kiến nhận */}
-                          <td className="px-4 py-3 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">
-                            {formatDateTimeVi(arrival.plannedCheckInAt)}
-                          </td>
+                {activeTab === "arrivals" ? (
+                  <select
+                    value={arrivalFilter}
+                    onChange={(e) => setArrivalFilter(e.target.value as ArrivalFilter)}
+                    className="h-10 rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs focus:border-sky-600 focus:outline-none"
+                  >
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="unassigned">Chưa gán phòng</option>
+                    <option value="assigned">Đã gán phòng</option>
+                    <option value="checked_in">Đã nhận phòng (IN)</option>
+                  </select>
+                ) : (
+                  <select
+                    value={departureFilter}
+                    onChange={(e) => setDepartureFilter(e.target.value as DepartureFilter)}
+                    className="h-10 rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs focus:border-sky-600 focus:outline-none"
+                  >
+                    <option value="all">Tất cả tình trạng</option>
+                    <option value="due_today">Chờ trả phòng hôm nay</option>
+                    <option value="overdue">Quá hạn trả phòng</option>
+                    <option value="checked_out">Đã trả phòng (OUT)</option>
+                  </select>
+                )}
+              </div>
+            </div>
 
-                          {/* Dự kiến trả */}
-                          <td className="px-4 py-3 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">
-                            {formatDateTimeVi(arrival.plannedCheckOutAt)}
-                          </td>
-
-                          {/* Giá */}
-                          <td className="px-4 py-3 align-middle whitespace-nowrap text-xs font-bold text-slate-900">
-                            {formatVnd(arrival.rate || arrival.nightlyRateSnapshot)}
-                          </td>
-
-                          {/* Trạng thái */}
-                          <td className="px-4 py-3 align-middle whitespace-nowrap">
-                            {isCheckedIn ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-0.5 text-xs font-bold">
-                                <VsIcon name="check" className="text-xs" />
-                                Đã nhận phòng (IN)
-                              </span>
-                            ) : arrival.roomId ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-800 px-2.5 py-0.5 text-xs font-bold">
-                                Sẵn sàng đón
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2.5 py-0.5 text-xs font-bold">
-                                Chờ xếp phòng
-                              </span>
-                            )}
-                          </td>
-
-                          {/* Thao tác */}
-                          <td className="px-4 py-3 align-middle text-right whitespace-nowrap">
-                            <div className="inline-flex items-center justify-end gap-1.5">
-                              {/* 1. Nút IN: Nhận phòng */}
-                              {!isCheckedIn && canCheckInStay ? (
-                                <button
-                                  type="button"
-                                  onClick={() => void handleQuickCheckIn(arrival)}
-                                  className="inline-flex h-8 items-center gap-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white px-2.5 text-xs font-bold shadow-2xs transition cursor-pointer"
-                                  title="Làm thủ tục nhận phòng (Check-in IN) cho khách"
-                                >
-                                  <VsIcon name="login" className="text-sm" />
-                                  <span>Nhận phòng</span>
-                                </button>
-                              ) : null}
-
-                              {/* 2. Tráo phòng / Gán phòng */}
-                              {canManageReservations && !isCheckedIn ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setAssigningArrival(arrival)}
-                                  className={`inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-xs font-bold shadow-2xs transition cursor-pointer ${
-                                    arrival.roomId
-                                      ? "border border-slate-300 bg-white hover:bg-slate-50 text-slate-700"
-                                      : "bg-amber-600 hover:bg-amber-700 text-white"
-                                  }`}
-                                  title={
-                                    arrival.roomId
-                                      ? "Tráo phòng với đơn đặt khác hoặc đổi phòng trống"
-                                      : "Gán phòng trống cho khách"
-                                  }
-                                >
-                                  <VsIcon
-                                    name={arrival.roomId ? "swap_horiz" : "meeting_room"}
-                                    className="text-sm text-sky-600"
-                                  />
-                                  <span>{arrival.roomId ? "Tráo/Đổi" : "Gán phòng"}</span>
-                                </button>
-                              ) : null}
-
-                              {/* 3. Sửa booking */}
-                              {canManageReservations && !isCheckedIn ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingArrival(arrival)}
-                                  className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 px-2.5 text-xs font-bold shadow-2xs transition cursor-pointer"
-                                  title="Chỉnh sửa ngày nhận/trả, giá phòng hoặc thông tin đặt phòng"
-                                >
-                                  <VsIcon name="edit" className="text-sm text-slate-500" />
-                                  <span>Sửa</span>
-                                </button>
-                              ) : null}
-
-                              {/* 4. Xem chi tiết */}
-                              {onOpenArrivalDetail ? (
-                                <button
-                                  type="button"
-                                  onClick={() => onOpenArrivalDetail(arrival)}
-                                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 shadow-2xs transition cursor-pointer"
-                                  title="Xem toàn bộ hồ sơ chi tiết đặt phòng"
-                                >
-                                  <VsIcon name="visibility" className="text-sm" />
-                                </button>
-                              ) : null}
-                            </div>
-                          </td>
+            {/* Content Body: Clean Tables with zero overflow */}
+            <div className="flex-1 overflow-y-auto overflow-x-auto p-4 sm:p-6">
+              {activeTab === "arrivals" ? (
+                /* TAB 1: ARRIVALS TABLE */
+                filteredArrivals.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center text-slate-500 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200">
+                    <VsIcon name="login" className="text-4xl text-slate-300 mb-2" />
+                    <p className="text-sm font-bold text-slate-700">Không có khách đến trong ngày phù hợp</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Kiểm tra lại bộ lọc tìm kiếm hoặc xem các ngày khác trên sơ đồ phòng.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-hidden rounded-2xl border border-slate-200 shadow-2xs bg-white">
+                    <table className="w-full border-collapse text-left">
+                      <thead>
+                        <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500">
+                          <th scope="col" className="px-5 py-3.5">Khách hàng</th>
+                          <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Phòng</th>
+                          <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Dự kiến nhận</th>
+                          <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Dự kiến trả</th>
+                          <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Giá phòng</th>
+                          <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Trạng thái</th>
+                          <th scope="col" className="px-5 py-3.5 text-right whitespace-nowrap">Thao tác</th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )
-          ) : (
-            /* TAB 2: DEPARTURES TABLE */
-            filteredDepartures.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center text-slate-500 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200">
-                <VsIcon name="logout" className="text-4xl text-slate-300 mb-2" />
-                <p className="text-sm font-bold text-slate-700">Không có khách đi trong ngày phù hợp</p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Không có phòng nào lên lịch trả phòng hoặc quá hạn vào ngày vận hành đã chọn.
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-hidden rounded-2xl border border-slate-200 shadow-2xs bg-white">
-                <table className="w-full min-w-[780px] border-collapse text-left">
-                  <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500">
-                      <th scope="col" className="px-4 py-3">Khách hàng</th>
-                      <th scope="col" className="px-4 py-3 whitespace-nowrap">Phòng</th>
-                      <th scope="col" className="px-4 py-3 whitespace-nowrap">Đã nhận phòng</th>
-                      <th scope="col" className="px-4 py-3 whitespace-nowrap">Dự kiến trả</th>
-                      <th scope="col" className="px-4 py-3 whitespace-nowrap">Tình trạng</th>
-                      <th scope="col" className="px-4 py-3 text-right whitespace-nowrap">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredDepartures.map(({ room, stay, status }) => {
-                      const isCheckedOut = status === "CHECKED_OUT" || Boolean(stay.checkedOutAt);
-                      const isOverdue = status === "OVERDUE";
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredArrivals.map((arrival) => {
+                          const isCheckedIn = arrival.status === "CHECKED_IN";
+                          return (
+                            <tr
+                              key={arrival.id}
+                              onClick={() => onOpenArrivalDetail?.(arrival)}
+                              className="group transition-colors hover:bg-sky-50/70 cursor-pointer"
+                              title="Nhấn vào hàng để xem chi tiết đầy đủ và thao tác"
+                            >
+                              {/* Khách hàng (gọn gàng, không nhồi nhét mã/đoàn rườm rà) */}
+                              <td className="px-5 py-3.5 align-middle">
+                                <div className="font-bold text-slate-900 text-sm group-hover:text-sky-800 transition-colors">
+                                  {arrival.guestDisplayName}
+                                </div>
+                                {arrival.guestPhone ? (
+                                  <div className="text-xs text-slate-500 font-medium mt-0.5">
+                                    {arrival.guestPhone}
+                                  </div>
+                                ) : null}
+                              </td>
 
-                      return (
-                        <tr
-                          key={stay.id}
-                          className="group transition-colors hover:bg-amber-50/40"
-                        >
-                          {/* Khách hàng */}
-                          <td className="px-4 py-3 align-middle">
-                            <div className="font-bold text-slate-900 text-sm">
-                              {stay.guestDisplayName || "Khách lưu trú"}
-                            </div>
-                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                              {stay.guestPhone ? (
-                                <span className="text-xs text-slate-500 font-medium">
-                                  {stay.guestPhone}
-                                </span>
-                              ) : null}
-                              {stay.occupants && stay.occupants.length > 1 ? (
-                                <span className="rounded bg-slate-100 text-slate-700 px-1.5 py-0.2 text-xs font-semibold">
-                                  {stay.occupants.length} khách ở cùng
-                                </span>
-                              ) : null}
-                            </div>
-                          </td>
+                              {/* Phòng */}
+                              <td className="px-4 py-3.5 align-middle whitespace-nowrap">
+                                {arrival.room?.roomNumber ? (
+                                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1 text-xs font-bold whitespace-nowrap">
+                                    <VsIcon name="meeting_room" className="text-sm text-emerald-600" />
+                                    <span>Phòng {arrival.room.roomNumber}</span>
+                                    {arrival.room.type ? <span className="font-normal text-emerald-700">({arrival.room.type})</span> : null}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-300 px-3 py-1 text-xs font-bold whitespace-nowrap">
+                                    <VsIcon name="warning" className="text-sm text-amber-600" />
+                                    <span>Chưa gán phòng</span>
+                                  </span>
+                                )}
+                              </td>
 
-                          {/* Phòng */}
-                          <td className="px-4 py-3 align-middle whitespace-nowrap">
-                            <span className="inline-flex items-center gap-1 rounded-lg bg-slate-100 text-slate-800 border border-slate-200 px-2.5 py-1 text-xs font-bold">
-                              <VsIcon name="meeting_room" className="text-sm text-slate-600" />
-                              Phòng {room.roomNumber || room.id}
-                              {room.type ? ` (${room.type})` : ""}
-                            </span>
-                          </td>
+                              {/* Dự kiến nhận */}
+                              <td className="px-4 py-3.5 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">
+                                {formatDateTimeVi(arrival.plannedCheckInAt)}
+                              </td>
 
-                          {/* Đã nhận phòng */}
-                          <td className="px-4 py-3 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">
-                            {formatDateTimeVi(stay.checkedInAt)}
-                          </td>
+                              {/* Dự kiến trả */}
+                              <td className="px-4 py-3.5 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">
+                                {formatDateTimeVi(arrival.plannedCheckOutAt)}
+                              </td>
 
-                          {/* Dự kiến trả */}
-                          <td className="px-4 py-3 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">
-                            {formatDateTimeVi(stay.plannedCheckOutAt)}
-                          </td>
+                              {/* Giá */}
+                              <td className="px-4 py-3.5 align-middle whitespace-nowrap text-xs font-bold text-slate-900">
+                                {formatVnd(arrival.rate || arrival.nightlyRateSnapshot)}
+                              </td>
 
-                          {/* Tình trạng */}
-                          <td className="px-4 py-3 align-middle whitespace-nowrap">
-                            {isCheckedOut ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-700 px-2.5 py-0.5 text-xs font-bold">
-                                ✓ Đã trả phòng (OUT)
-                              </span>
-                            ) : isOverdue ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 text-rose-800 border border-rose-300 px-2.5 py-0.5 text-xs font-bold animate-pulse">
-                                <VsIcon name="priority_high" className="text-xs" />
-                                Quá hạn trả phòng
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 text-xs font-bold">
-                                <VsIcon name="schedule" className="text-xs" />
-                                Chờ trả phòng hôm nay
-                              </span>
-                            )}
-                          </td>
+                              {/* Trạng thái */}
+                              <td className="px-4 py-3.5 align-middle whitespace-nowrap">
+                                {isCheckedIn ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-3 py-0.5 text-xs font-bold whitespace-nowrap">
+                                    <VsIcon name="check" className="text-xs" />
+                                    <span>Đã nhận phòng</span>
+                                  </span>
+                                ) : arrival.roomId ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-800 px-3 py-0.5 text-xs font-bold whitespace-nowrap">
+                                    <span>Sẵn sàng đón</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-3 py-0.5 text-xs font-bold whitespace-nowrap">
+                                    <span>Chờ xếp phòng</span>
+                                  </span>
+                                )}
+                              </td>
 
-                          {/* Thao tác */}
-                          <td className="px-4 py-3 align-middle text-right whitespace-nowrap">
-                            <div className="inline-flex items-center justify-end gap-1.5">
-                              {/* 1. Nút OUT: Trả phòng */}
-                              {!isCheckedOut && (canCheckOutStay || canCheckoutBilling) ? (
-                                <button
-                                  type="button"
-                                  onClick={() => void handleQuickCheckOut(room, stay)}
-                                  className="inline-flex h-8 items-center gap-1 rounded-lg bg-rose-700 hover:bg-rose-800 text-white px-2.5 text-xs font-bold shadow-2xs transition cursor-pointer"
-                                  title="Thực hiện trả phòng (Check-out OUT)"
-                                >
-                                  <VsIcon name="logout" className="text-sm" />
-                                  <span>Trả phòng (OUT)</span>
-                                </button>
-                              ) : null}
-
-                              {/* 2. Gia hạn lưu trú */}
-                              {!isCheckedOut && onExtendStay ? (
-                                <button
-                                  type="button"
-                                  onClick={() => onExtendStay(room)}
-                                  className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 px-2.5 text-xs font-bold shadow-2xs transition cursor-pointer"
-                                  title="Gia hạn thời gian lưu trú cho khách"
-                                >
-                                  <VsIcon name="update" className="text-sm text-sky-600" />
-                                  <span>Gia hạn</span>
-                                </button>
-                              ) : null}
-
-                              {/* 3. Xem chi tiết / Hóa đơn */}
-                              {onOpenRoomDetail ? (
-                                <button
-                                  type="button"
-                                  onClick={() => onOpenRoomDetail(room)}
-                                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 shadow-2xs transition cursor-pointer"
-                                  title="Mở hồ sơ phòng và hóa đơn lưu trú"
-                                >
-                                  <VsIcon name="visibility" className="text-sm" />
-                                </button>
-                              ) : null}
-                            </div>
-                          </td>
+                              {/* Thao tác: Giữ gọn gàng, xoá nút Sửa & icon Mắt, click row để xem chi tiết */}
+                              <td className="px-5 py-3.5 align-middle text-right whitespace-nowrap">
+                                <div className="inline-flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                                  {!isCheckedIn && canCheckInStay ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleQuickCheckIn(arrival)}
+                                      className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white px-3 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap min-h-[32px]"
+                                      title="Làm thủ tục nhận phòng (Check-in IN) nhanh"
+                                    >
+                                      <VsIcon name="login" className="text-sm" />
+                                      <span>Nhận phòng</span>
+                                    </button>
+                                  ) : null}
+                                  <button
+                                    type="button"
+                                    onClick={() => onOpenArrivalDetail?.(arrival)}
+                                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white hover:bg-sky-50 hover:border-sky-300 text-slate-700 hover:text-sky-800 px-2.5 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap min-h-[32px]"
+                                    title="Xem chi tiết đầy đủ và thao tác"
+                                  >
+                                    <span>Chi tiết</span>
+                                    <VsIcon name="chevron_right" className="text-sm text-slate-400" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              ) : (
+                /* TAB 2: DEPARTURES TABLE */
+                filteredDepartures.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center text-slate-500 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200">
+                    <VsIcon name="logout" className="text-4xl text-slate-300 mb-2" />
+                    <p className="text-sm font-bold text-slate-700">Không có khách đi trong ngày phù hợp</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Không có phòng nào lên lịch trả phòng hoặc quá hạn vào ngày vận hành đã chọn.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-hidden rounded-2xl border border-slate-200 shadow-2xs bg-white">
+                    <table className="w-full border-collapse text-left">
+                      <thead>
+                        <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500">
+                          <th scope="col" className="px-5 py-3.5">Khách hàng</th>
+                          <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Phòng</th>
+                          <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Đã nhận phòng</th>
+                          <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Dự kiến trả</th>
+                          <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Tình trạng</th>
+                          <th scope="col" className="px-5 py-3.5 text-right whitespace-nowrap">Thao tác</th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )
-          )}
-        </div>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredDepartures.map(({ room, stay, status }) => {
+                          const isCheckedOut = status === "CHECKED_OUT" || Boolean(stay.checkedOutAt);
+                          const isOverdue = status === "OVERDUE";
+
+                          return (
+                            <tr
+                              key={stay.id}
+                              onClick={() => onOpenRoomDetail?.({ ...room, activeStay: stay })}
+                              className="group transition-colors hover:bg-amber-50/50 cursor-pointer"
+                              title="Nhấn vào hàng để xem chi tiết đầy đủ và thao tác"
+                            >
+                              {/* Khách hàng */}
+                              <td className="px-5 py-3.5 align-middle">
+                                <div className="font-bold text-slate-900 text-sm group-hover:text-amber-900 transition-colors">
+                                  {stay.guestDisplayName || "Khách lưu trú"}
+                                </div>
+                                {stay.guestPhone ? (
+                                  <div className="text-xs text-slate-500 font-medium mt-0.5">
+                                    {stay.guestPhone}
+                                  </div>
+                                ) : null}
+                              </td>
+
+                              {/* Phòng */}
+                              <td className="px-4 py-3.5 align-middle whitespace-nowrap">
+                                <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 text-slate-800 border border-slate-200 px-3 py-1 text-xs font-bold whitespace-nowrap">
+                                  <VsIcon name="meeting_room" className="text-sm text-slate-600" />
+                                  <span>Phòng {room.roomNumber || room.id}</span>
+                                  {room.type ? <span className="font-normal text-slate-600">({room.type})</span> : null}
+                                </span>
+                              </td>
+
+                              {/* Đã nhận phòng */}
+                              <td className="px-4 py-3.5 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">
+                                {formatDateTimeVi(stay.checkedInAt)}
+                              </td>
+
+                              {/* Dự kiến trả */}
+                              <td className="px-4 py-3.5 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">
+                                {formatDateTimeVi(stay.plannedCheckOutAt)}
+                              </td>
+
+                              {/* Tình trạng */}
+                              <td className="px-4 py-3.5 align-middle whitespace-nowrap">
+                                {isCheckedOut ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-700 px-3 py-0.5 text-xs font-bold whitespace-nowrap">
+                                    <span>✓ Đã trả phòng</span>
+                                  </span>
+                                ) : isOverdue ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 text-rose-800 border border-rose-300 px-3 py-0.5 text-xs font-bold whitespace-nowrap">
+                                    <VsIcon name="priority_high" className="text-xs" />
+                                    <span>Quá hạn trả phòng</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 px-3 py-0.5 text-xs font-bold whitespace-nowrap">
+                                    <VsIcon name="schedule" className="text-xs" />
+                                    <span>Chờ trả phòng</span>
+                                  </span>
+                                )}
+                              </td>
+
+                              {/* Thao tác: Giữ gọn gàng, xoá nút Sửa & icon Mắt, click row để xem chi tiết */}
+                              <td className="px-5 py-3.5 align-middle text-right whitespace-nowrap">
+                                <div className="inline-flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                                  {!isCheckedOut && (canCheckOutStay || canCheckoutBilling) ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleQuickCheckOut(room, stay)}
+                                      className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-rose-700 hover:bg-rose-800 text-white px-3 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap min-h-[32px]"
+                                      title="Thực hiện trả phòng (Check-out OUT) nhanh"
+                                    >
+                                      <VsIcon name="logout" className="text-sm" />
+                                      <span>Trả phòng (OUT)</span>
+                                    </button>
+                                  ) : null}
+                                  <button
+                                    type="button"
+                                    onClick={() => onOpenRoomDetail?.({ ...room, activeStay: stay })}
+                                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white hover:bg-amber-50 hover:border-amber-300 text-slate-700 hover:text-amber-900 px-2.5 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap min-h-[32px]"
+                                    title="Xem chi tiết đầy đủ và thao tác"
+                                  >
+                                    <span>Chi tiết</span>
+                                    <VsIcon name="chevron_right" className="text-sm text-slate-400" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              )}
+            </div>
       </div>
 
       {/* Sub-Modal: Sửa thông tin booking */}
@@ -792,15 +724,20 @@ export function DailyMovementsModal({
           hotelId={hotelId}
           rooms={rooms}
           otherArrivals={arrivalsList.filter((a) => a.id !== assigningArrival.id && a.status !== "CHECKED_IN")}
-          onClose={() => setAssigningArrival(null)}
+          onClose={() => {
+            setIsAutoCheckInAfterAssign(false);
+            setAssigningArrival(null);
+          }}
           onSuccess={async (assignedRoomId) => {
             setAssigningArrival(null);
             await invalidateHotelRealtimeQueries(queryClient, hotelId);
             await onRefreshData();
-            // If user initiated assignment via check-in button, automatically trigger check-in
-            const updated = arrivalsList.find((a) => a.id === assigningArrival.id);
-            if (updated) {
-              onCheckInArrival({ ...updated, roomId: assignedRoomId });
+            if (isAutoCheckInAfterAssign) {
+              setIsAutoCheckInAfterAssign(false);
+              const updated = arrivalsList.find((a) => a.id === assigningArrival.id);
+              if (updated) {
+                onCheckInArrival({ ...updated, roomId: assignedRoomId });
+              }
             }
           }}
         />

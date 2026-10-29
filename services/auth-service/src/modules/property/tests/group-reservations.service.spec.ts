@@ -537,5 +537,52 @@ describe("Group Reservations Service & Repository (Lane A)", () => {
       expect(result.groupName).toBe("Tên Mới");
       expect(result.leadGuestName).toBe("Trưởng Mới");
     });
+
+    it("cho phép mã đặt phòng (reservationCode) giống nhau cho tất cả các phòng khi đặt trước theo đoàn", async () => {
+      const createdReservations: any[] = [];
+      const mockTx = {
+        $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+        room: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: "room-1", status: "AVAILABLE", price: "500000.00", roomTypeId: "rt-std", roomType: { name: "Standard" } },
+            { id: "room-2", status: "AVAILABLE", price: "500000.00", roomTypeId: "rt-std", roomType: { name: "Standard" } },
+          ]),
+        },
+        reservation: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockImplementation(({ data }) => {
+            createdReservations.push(data);
+            return Promise.resolve({ id: `res-${createdReservations.length}`, ...data });
+          }),
+        },
+        guestStay: {
+          findFirst: jest.fn().mockResolvedValue(null),
+        },
+      };
+
+      const repository = createRepo({
+        $transaction: jest.fn().mockImplementation((cb) => cb(mockTx)),
+      });
+
+      const result = await repository.createBulkReservations({
+        hotelId: "hotel-1",
+        groupCode: "GRP-SHARED-2026",
+        reservationCode: "SHARED-RES-CODE-001",
+        leadGuestName: "Đoàn Du Lịch Vietravel",
+        checkInDate: new Date("2026-11-10T14:00:00.000Z"),
+        checkOutDate: new Date("2026-11-12T12:00:00.000Z"),
+        roomIds: ["room-1", "room-2"],
+        createdByUserId: "staff-1",
+        generateReservationCode: jest.fn().mockResolvedValue("UNUSED-GENERATED-CODE"),
+      });
+
+      expect(result.groupCode).toBe("GRP-SHARED-2026");
+      expect(result.reservations).toHaveLength(2);
+      // All rooms in the group share the exact same reservationCode
+      expect(result.reservations[0].reservationCode).toBe("SHARED-RES-CODE-001");
+      expect(result.reservations[1].reservationCode).toBe("SHARED-RES-CODE-001");
+      expect(createdReservations[0].reservationCode).toBe("SHARED-RES-CODE-001");
+      expect(createdReservations[1].reservationCode).toBe("SHARED-RES-CODE-001");
+    });
   });
 });

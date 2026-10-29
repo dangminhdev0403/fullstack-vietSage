@@ -264,6 +264,8 @@ export type HotelReservationInput = {
   sourceCategory?: BookingSourceCategoryType;
   sourcePartnerId?: string | null;
   bookingOwnerUserId?: string | null;
+  reservationCode?: string;
+  groupCode?: string;
 };
 
 export type HotelReservationCheckInResult = {
@@ -297,6 +299,8 @@ export type BulkReservationInput = {
   sourceCategory?: BookingSourceCategoryType;
   sourcePartnerId?: string | null;
   bookingOwnerUserId?: string | null;
+  reservationCode?: string;
+  groupCode?: string;
 };
 
 export type BulkReservationResult = {
@@ -715,6 +719,7 @@ export type RoomPlanBlock = {
   reservationId: string | null;
   guestStayId: string | null;
   reservationCode: string | null;
+  groupCode?: string | null;
   guestName: string;
   guestCount?: number | null;
   phone: string | null;

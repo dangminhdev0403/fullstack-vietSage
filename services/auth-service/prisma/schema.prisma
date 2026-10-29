@@ -1221,7 +1221,7 @@ model Reservation {
   chargeLines         ReservationChargeLine[]
   bookingPayments     BookingPayment[]
 
-  @@unique([hotelId, reservationCode])
+  @@index([hotelId, reservationCode])
   @@index([hotelId, status, plannedCheckInAt])
   @@index([hotelId, plannedCheckInAt, plannedCheckOutAt])
   @@index([roomId, status, plannedCheckInAt, plannedCheckOutAt])

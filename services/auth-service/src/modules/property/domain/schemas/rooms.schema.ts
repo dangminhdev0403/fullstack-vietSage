@@ -299,6 +299,8 @@ export const createStayBodySchema = z
       .max(999_999_999_999.99)
       .optional(),
     occupants: z.array(stayOccupantInputSchema).optional(),
+    reservationCode: z.string().trim().max(80).optional(),
+    groupCode: z.string().trim().max(80).optional(),
   })
   .strict()
   .refine((value) => value.plannedCheckOutAt > value.plannedCheckInAt, {

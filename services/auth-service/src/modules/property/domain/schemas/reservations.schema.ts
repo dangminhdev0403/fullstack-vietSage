@@ -65,6 +65,8 @@ export const createReservationBodySchema = z
     sourceCategory: bookingSourceCategorySchema.optional(),
     sourcePartnerId: z.string().trim().min(1).nullable().optional(),
     bookingOwnerUserId: z.string().trim().min(1).nullable().optional(),
+    reservationCode: z.string().trim().max(80).optional(),
+    groupCode: z.string().trim().max(80).optional(),
   })
   .strict()
   .refine((value) => value.plannedCheckOutAt > value.plannedCheckInAt, {
@@ -212,6 +214,7 @@ export const createBulkReservationsBodySchema = z
     sourceCategory: bookingSourceCategorySchema.optional(),
     sourcePartnerId: z.string().trim().min(1).nullable().optional(),
     bookingOwnerUserId: z.string().trim().min(1).nullable().optional(),
+    reservationCode: z.string().trim().max(80).optional(),
   })
   .strict()
   .refine(

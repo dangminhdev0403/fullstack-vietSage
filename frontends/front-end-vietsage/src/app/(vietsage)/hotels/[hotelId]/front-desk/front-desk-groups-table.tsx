@@ -5,82 +5,12 @@ import React, { useRef, useState } from "react";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { GroupOperationsDrawer } from "@/features/hotel-ops/components/group-operations-drawer";
 import type { HotelArrival } from "@/features/hotel-ops/types/hotel-ops-contract";
+import {
+  buildFrontDeskGroupSummaries,
+  type FrontDeskGroupSummary,
+} from "@/features/hotel-ops/utils/front-desk-groups";
 
-export type FrontDeskGroupSummary = {
-  groupCode: string;
-  leadGuestName: string;
-  leadGuestPhone: string | null;
-  totalRooms: number;
-  checkedInRooms: number;
-  arrivingRooms: number;
-  earliestCheckInAt: string | null;
-  latestCheckOutAt: string | null;
-  totalEstimatedAmount: number;
-  assignedRoomNumbers: string[];
-  unassignedRoomCount: number;
-  arrivals: HotelArrival[];
-};
-
-export function buildFrontDeskGroupSummaries(arrivals: HotelArrival[]): FrontDeskGroupSummary[] {
-  const map = new Map<string, FrontDeskGroupSummary>();
-
-  for (const arrival of arrivals) {
-    const rawCode = arrival.groupCode?.trim();
-    if (!rawCode) continue;
-
-    const groupKey = rawCode.toUpperCase();
-    const existing = map.get(groupKey);
-
-    const isCheckedIn = arrival.status === "CHECKED_IN";
-    const isArriving = arrival.status === "CONFIRMED" || arrival.status === "ARRIVAL_READY";
-    const roomNum = arrival.room?.roomNumber;
-    const rate = Number(arrival.rate ?? arrival.nightlyRateSnapshot ?? 0);
-
-    if (!existing) {
-      map.set(groupKey, {
-        groupCode: rawCode,
-        leadGuestName: arrival.guestDisplayName || "Khách đặt đoàn",
-        leadGuestPhone: arrival.guestPhone || null,
-        totalRooms: 1,
-        checkedInRooms: isCheckedIn ? 1 : 0,
-        arrivingRooms: isArriving ? 1 : 0,
-        earliestCheckInAt: arrival.plannedCheckInAt || null,
-        latestCheckOutAt: arrival.plannedCheckOutAt || null,
-        totalEstimatedAmount: Number.isFinite(rate) ? rate : 0,
-        assignedRoomNumbers: roomNum ? [roomNum] : [],
-        unassignedRoomCount: roomNum ? 0 : 1,
-        arrivals: [arrival],
-      });
-    } else {
-      existing.totalRooms += 1;
-      if (isCheckedIn) existing.checkedInRooms += 1;
-      if (isArriving) existing.arrivingRooms += 1;
-      if (Number.isFinite(rate)) existing.totalEstimatedAmount += rate;
-
-      if (roomNum && !existing.assignedRoomNumbers.includes(roomNum)) {
-        existing.assignedRoomNumbers.push(roomNum);
-      } else if (!roomNum) {
-        existing.unassignedRoomCount += 1;
-      }
-
-      if (arrival.plannedCheckInAt) {
-        if (!existing.earliestCheckInAt || new Date(arrival.plannedCheckInAt) < new Date(existing.earliestCheckInAt)) {
-          existing.earliestCheckInAt = arrival.plannedCheckInAt;
-        }
-      }
-
-      if (arrival.plannedCheckOutAt) {
-        if (!existing.latestCheckOutAt || new Date(arrival.plannedCheckOutAt) > new Date(existing.latestCheckOutAt)) {
-          existing.latestCheckOutAt = arrival.plannedCheckOutAt;
-        }
-      }
-
-      existing.arrivals.push(arrival);
-    }
-  }
-
-  return Array.from(map.values());
-}
+export { buildFrontDeskGroupSummaries, type FrontDeskGroupSummary };
 
 export type FrontDeskGroupsTableProps = {
   hotelId: string;
@@ -93,14 +23,13 @@ export type FrontDeskGroupsTableProps = {
   initialSelectedGroupCode?: string | null;
 };
 
-function formatDateTime(value?: string | null): string {
+function formatDateOnly(value?: string | null): string {
   if (!value) return "Chưa xác định";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Chưa xác định";
   return new Intl.DateTimeFormat("vi-VN", {
     timeZone: "Asia/Ho_Chi_Minh",
     dateStyle: "short",
-    timeStyle: "short",
   }).format(date);
 }
 
@@ -143,7 +72,7 @@ export function FrontDeskGroupsTable({
           <table className="w-full min-w-[850px] border-collapse text-left">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500">
-                <th scope="col" className="px-4 py-3">Mã &amp; Tên đoàn</th>
+                <th scope="col" className="px-4 py-3 whitespace-nowrap">Đoàn khách</th>
                 <th scope="col" className="px-4 py-3 whitespace-nowrap">Quy mô phòng</th>
                 <th scope="col" className="px-4 py-3 whitespace-nowrap">Dự kiến nhận</th>
                 <th scope="col" className="px-4 py-3 whitespace-nowrap">Dự kiến trả</th>
@@ -178,60 +107,45 @@ export function FrontDeskGroupsTable({
                     }}
                     className="group cursor-pointer transition-colors hover:bg-purple-50/50 focus-visible:bg-purple-50/70 focus-visible:outline-none"
                   >
-                    {/* Mã & Tên đoàn */}
-                    <td className="px-4 py-3 align-middle">
-                      <div className="flex items-center gap-1.5">
-                        <span className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs font-bold text-purple-700 whitespace-nowrap shadow-2xs">
+                    {/* Đoàn khách (Gọn gàng: Mã + Tên, không nhồi SĐT) */}
+                    <td className="px-4 py-3 align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs font-bold text-purple-700 whitespace-nowrap font-mono shadow-2xs">
                           <VsIcon name="groups" className="h-3.5 w-3.5 text-purple-600" />
-                          <span className="font-mono">#{group.groupCode}</span>
+                          <span>#{group.groupCode}</span>
+                        </span>
+                        <span className="font-bold text-slate-900 text-sm group-hover:text-purple-900 transition-colors">
+                          {group.leadGuestName}
                         </span>
                       </div>
-                      <div className="mt-1 font-bold text-slate-900 text-base leading-tight group-hover:text-purple-900 transition-colors">
-                        {group.leadGuestName}
-                      </div>
-                      {group.leadGuestPhone ? (
-                        <div className="mt-0.5 text-xs font-medium text-slate-500 whitespace-nowrap">
-                          <span>{group.leadGuestPhone}</span>
-                        </div>
-                      ) : null}
                     </td>
 
-                    {/* Quy mô phòng */}
+                    {/* Quy mô phòng (Gọn gàng: Số phòng + Tag gán, không dump danh sách số phòng) */}
                     <td className="px-4 py-3 align-middle whitespace-nowrap">
-                      <div className="font-bold text-slate-800 text-sm">
-                        {group.totalRooms} phòng
-                      </div>
-                      <div className="mt-0.5 text-xs font-medium text-slate-500 whitespace-nowrap">
-                        {group.checkedInRooms > 0 ? (
-                          <span className="font-semibold text-emerald-700">{group.checkedInRooms} đã nhận</span>
-                        ) : null}
-                        {group.checkedInRooms > 0 && group.arrivingRooms > 0 ? <span> · </span> : null}
-                        {group.arrivingRooms > 0 ? (
-                          <span className="font-semibold text-blue-700">{group.arrivingRooms} chờ nhận</span>
-                        ) : null}
-                      </div>
-                      {group.assignedRoomNumbers.length > 0 ? (
-                        <div
-                          className="mt-0.5 max-w-[200px] truncate text-xs font-medium text-slate-600"
-                          title={group.assignedRoomNumbers.map((n) => `P.${n}`).join(", ")}
-                        >
-                          {group.assignedRoomNumbers.map((n) => `P.${n}`).join(", ")}
-                        </div>
-                      ) : (
-                        <span className="mt-0.5 inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-800 whitespace-nowrap">
-                          Chưa gán phòng
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-800 text-sm">
+                          {group.totalRooms} phòng
                         </span>
-                      )}
+                        {group.unassignedRoomCount > 0 ? (
+                          <span className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-800 whitespace-nowrap">
+                            {group.unassignedRoomCount} chưa gán
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-xs font-semibold text-emerald-800 whitespace-nowrap">
+                            Đã gán đủ
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Dự kiến nhận */}
                     <td className="px-4 py-3 align-middle whitespace-nowrap text-sm font-medium text-slate-700">
-                      {formatDateTime(group.earliestCheckInAt)}
+                      {formatDateOnly(group.earliestCheckInAt)}
                     </td>
 
                     {/* Dự kiến trả */}
                     <td className="px-4 py-3 align-middle whitespace-nowrap text-sm font-medium text-slate-700">
-                      {formatDateTime(group.latestCheckOutAt)}
+                      {formatDateOnly(group.latestCheckOutAt)}
                     </td>
 
                     {/* Tạm tính */}

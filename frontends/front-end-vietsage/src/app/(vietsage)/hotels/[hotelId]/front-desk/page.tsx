@@ -26,10 +26,8 @@ import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { KbttDeclarationsPage } from "@/features/kbtt/components/kbtt-declarations-page";
 import { FrontDeskInHouseTable } from "./front-desk-in-house-table";
 import { FrontDeskArrivalsTable } from "./front-desk-arrivals-table";
-import {
-  FrontDeskGroupsTable,
-  buildFrontDeskGroupSummaries,
-} from "./front-desk-groups-table";
+import { FrontDeskGroupsTable } from "./front-desk-groups-table";
+import { buildFrontDeskGroupSummaries } from "@/features/hotel-ops/utils/front-desk-groups";
 
 export const dynamic = "force-dynamic";
 

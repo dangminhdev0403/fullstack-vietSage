@@ -56,7 +56,7 @@ import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-r
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import { useRoomOrderStore } from "@/features/hotel-ops/store/room-order-store";
 
-export type TapeChartViewMode = "week" | "biweek" | "month";
+export type TapeChartViewMode = "week" | "biweek";
 
 export interface ActiveBlockResize {
   block: RoomPlanBlock;
@@ -108,6 +108,7 @@ export interface TapeChartViewProps {
   roleScope?: "owner" | "tenant" | "staff";
   canCheckInStay?: boolean;
   canManageRooms?: boolean;
+  onOpenGroupCheckIn?: (groupCode: string) => void;
   onOpenCheckIn?: (room: HotelRoomSummary | RoomPlanRoom, initialDate?: string) => void;
   onCheckInReservation?: (reservation: RoomPlanBlock) => void | Promise<void>;
   onOpenQuickReservation?: (
@@ -1271,11 +1272,11 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                       ? "cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-purple-300"
                       : "cursor-pointer hover:ring-2 hover:ring-slate-300"
               }`}
-              title={`${b.guestName}${b.guestCount && b.guestCount > 1 ? ` (${b.guestCount} khách)` : ""}${!isDirect ? ` • ${channelBadge.label}` : ""}${
+              title={`${b.guestName}${b.guestCount && b.guestCount > 1 ? ` (${b.guestCount} khách)` : ""}${b.groupCode ? ` • Khách đoàn #${b.groupCode}` : ""}${!isDirect ? ` • ${channelBadge.label}` : ""}${
                 isSpilloverToNext ? " • Kéo dài sang tuần sau (bấm '>' để xem tiếp)" : ""
               }${
                 isSpilloverFromPast ? " • Bắt đầu từ tuần trước (bấm '<' để xem)" : ""
-              }${!readOnly && b.movable ? " • Kéo thả để đổi phòng" : ""}${!readOnly && canResizeRight && !isSpilloverToNext ? " • Kéo mép phải để gia hạn lưu trú" : " • Nhấp để xem thông tin chi tiết"}`}
+              }${!readOnly && b.movable ? " • Kéo thả để đổi phòng" : ""}${!readOnly && canResizeRight && !isSpilloverToNext ? " • Kéo mép phải để gia hạn lưu trú" : b.groupCode && b.kind === "RESERVATION" ? " • Nhấp để kích hoạt nhận phòng cho cả đoàn" : " • Nhấp để xem thông tin chi tiết"}`}
             >
               {/* Spillover from previous week indicator */}
               {isSpilloverFromPast && (
@@ -1319,6 +1320,15 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                   className={`px-1.5 py-0.5 rounded text-xs font-black uppercase tracking-wider shrink-0 whitespace-nowrap ${channelBadge.bg} ${channelBadge.text}`}
                 >
                   {channelBadge.label}
+                </span>
+              )}
+              {b.groupCode && (
+                <span
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-black uppercase tracking-wider shrink-0 whitespace-nowrap bg-purple-950/60 text-purple-200 border border-purple-400/40 shadow-2xs"
+                  title={`Khách đoàn #${b.groupCode}`}
+                >
+                  <VsIcon name="groups" className="text-xs" />
+                  <span>#{b.groupCode}</span>
                 </span>
               )}
               <span className="truncate font-black whitespace-nowrap text-left flex-1 min-w-0">
@@ -1619,6 +1629,7 @@ export function TapeChartView({
   roleScope,
   canCheckInStay = true,
   canManageRooms = true,
+  onOpenGroupCheckIn,
   onOpenCheckIn,
   onCheckInReservation,
   onOpenQuickReservation,
@@ -1655,11 +1666,11 @@ export function TapeChartView({
     if (typeof window !== "undefined") {
       const sp = new URLSearchParams(window.location.search);
       const urlMode = sp.get("viewMode");
-      if (urlMode === "biweek" || urlMode === "week" || urlMode === "month") {
+      if (urlMode === "biweek" || urlMode === "week") {
         return urlMode;
       }
     }
-    if (initialViewMode === "biweek" || initialViewMode === "week" || initialViewMode === "month") {
+    if (initialViewMode === "biweek" || initialViewMode === "week") {
       return initialViewMode;
     }
     return "week";
@@ -1715,10 +1726,17 @@ export function TapeChartView({
   const [drawerTab, setDrawerTab] = useState<"info" | "services" | "history">("info");
   const [copiedCode, setCopiedCode] = useState(false);
 
-  const handleSelectBlock = useCallback((block: RoomPlanBlock | null) => {
-    setSelectedBlock(block);
-    setDrawerTab("info");
-  }, []);
+  const handleSelectBlock = useCallback(
+    (block: RoomPlanBlock | null) => {
+      if (block?.groupCode && block.kind === "RESERVATION" && onOpenGroupCheckIn) {
+        onOpenGroupCheckIn(block.groupCode);
+        return;
+      }
+      setSelectedBlock(block);
+      setDrawerTab("info");
+    },
+    [onOpenGroupCheckIn],
+  );
 
   // Placement Modal state (accessible fallback for Move/Swap)
   const [placementModalOpen, setPlacementModalOpen] = useState(false);
@@ -1731,8 +1749,8 @@ export function TapeChartView({
   const [dragOverDayYmd, setDragOverDayYmd] = useState<string | null>(null);
   const [draggedBlock, setDraggedBlock] = useState<DraggedReservationPayload | null>(null);
 
-  // Compute number of days based on view mode (Week = 7, Biweek = 14, Month = 30)
-  const numDays = viewMode === "week" ? 7 : viewMode === "biweek" ? 14 : 30;
+  // Compute number of days based on view mode (Week = 7, Biweek = 14)
+  const numDays = viewMode === "week" ? 7 : 14;
   const endDate = useMemo(() => addDaysYmd(startDate, numDays - 1), [startDate, numDays]);
 
   // Query Room Plan from backend
@@ -2445,7 +2463,7 @@ export function TapeChartView({
   const handleNextDay = useCallback(() => setStartDate((prev) => addDaysYmd(prev, 1)), []);
   const handleGoToday = useCallback(() => setStartDate(todayYmd), [todayYmd]);
 
-  // Keyboard navigation shortcuts (ArrowLeft / ArrowRight to step days, 'T' for today, 'W' for week/month)
+  // Keyboard navigation shortcuts (ArrowLeft / ArrowRight to step days, 'T' for today, 'W' for week/biweek)
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       const target = e.target as HTMLElement | null;
@@ -2479,7 +2497,7 @@ export function TapeChartView({
         handleGoToday();
       } else if (e.key === "w" || e.key === "W") {
         e.preventDefault();
-        setViewMode((v) => (v === "week" ? "biweek" : v === "biweek" ? "month" : "week"));
+        setViewMode((v) => (v === "week" ? "biweek" : "week"));
       }
     }
 
@@ -3939,7 +3957,7 @@ export function TapeChartView({
               </button>
             </div>
 
-            {/* Week / Biweek / Month Segmented Toggle */}
+            {/* Week / Biweek Segmented Toggle */}
             <div
               className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-slate-100/80 p-0.5"
               role="group"
@@ -3966,17 +3984,6 @@ export function TapeChartView({
                 }`}
               >
                 14 ngày
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("month")}
-                className={`inline-flex h-8 items-center px-3 text-xs rounded-md transition cursor-pointer whitespace-nowrap ${
-                  viewMode === "month"
-                    ? "bg-white text-emerald-950 shadow-2xs ring-1 ring-slate-200/80 font-black"
-                    : "font-bold text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                30 ngày
               </button>
             </div>
 
@@ -4025,6 +4032,19 @@ export function TapeChartView({
                     {(overdueFocusIndex % overdueRooms.length) + 1}/{overdueRooms.length}
                   </span>
                 )}
+              </button>
+            )}
+
+            {/* Primary CTA: Group Check-in / Operations */}
+            {!isReadOnly && onOpenGroupCheckIn && (
+              <button
+                type="button"
+                onClick={() => onOpenGroupCheckIn("")}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 font-bold px-3 text-xs shadow-2xs transition cursor-pointer whitespace-nowrap"
+                title="Quản lý và nhận phòng nhanh theo đoàn"
+              >
+                <VsIcon name="groups" className="text-base text-purple-700" />
+                <span>Check-in đoàn</span>
               </button>
             )}
 
@@ -4357,7 +4377,7 @@ export function TapeChartView({
           </span>
           <span
             className="hidden xl:inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 border border-slate-200/80 whitespace-nowrap"
-            title="Phím tắt: [← / →] Trượt 1 ngày • [Shift + ← / →] Trượt kỳ • [T] Hôm nay • [W] Đổi khung 7/14/30 ngày"
+            title="Phím tắt: [← / →] Trượt 1 ngày • [Shift + ← / →] Trượt kỳ • [T] Hôm nay • [W] Đổi khung 7/14 ngày"
           >
             <strong className="font-bold text-slate-700">Phím tắt:</strong>
             <span>←/→ trượt ngày · T hôm nay · W khung ngày</span>
@@ -4638,6 +4658,12 @@ export function TapeChartView({
                   <span className="text-xs font-semibold text-slate-500 bg-white border border-slate-200/70 px-2.5 py-0.5 rounded-full whitespace-nowrap">
                     {selectedBlock.roomTypeName || "Hạng phòng tiêu chuẩn"}
                   </span>
+                  {selectedBlock.groupCode && (
+                    <span className="inline-flex items-center gap-1 text-xs font-black text-purple-900 bg-purple-100 border border-purple-300 px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                      <VsIcon name="groups" className="text-xs text-purple-700" />
+                      <span>Đoàn #{selectedBlock.groupCode}</span>
+                    </span>
+                  )}
                   {isReadOnly && (
                     <span className="text-xs font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full whitespace-nowrap">
                       Chế độ xem
@@ -4766,6 +4792,29 @@ export function TapeChartView({
                           </span>
                         )}
                       </div>
+
+                      {selectedBlock.groupCode && (
+                        <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-purple-50/80 border border-purple-200 text-purple-950 text-xs">
+                          <div className="flex items-center gap-2 font-bold">
+                            <VsIcon name="groups" className="text-base text-purple-700" />
+                            <span>Đơn thuộc đoàn: <span className="font-mono text-purple-900 font-black">#{selectedBlock.groupCode}</span></span>
+                          </div>
+                          {onOpenGroupCheckIn && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const code = selectedBlock.groupCode!;
+                                setSelectedBlock(null);
+                                onOpenGroupCheckIn(code);
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-700 hover:bg-purple-800 text-white font-bold transition cursor-pointer shadow-2xs whitespace-nowrap"
+                            >
+                              <VsIcon name="groups" className="text-xs" />
+                              <span>{selectedBlock.kind === "RESERVATION" ? "Mở Check-in đoàn" : "Quản lý đoàn"}</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Dòng 2: Hồ sơ Khách hàng & Phòng gán trong cùng 1 khối */}
@@ -4996,14 +5045,56 @@ export function TapeChartView({
             {/* Bottom Actions */}
             <div className="border-t border-slate-100 p-4 sm:px-6 flex flex-wrap items-center justify-end gap-2.5 bg-slate-50/70 shrink-0">
               {/* Nút Nhận phòng cho phòng Đặt trước */}
-              {!isReadOnly && selectedBlock.kind === "RESERVATION" && (canCheckInStay ?? true) && (onCheckInReservation || onOpenCheckIn) && (
+              {!isReadOnly && selectedBlock.kind === "RESERVATION" && (canCheckInStay ?? true) && (
+                selectedBlock.groupCode && onOpenGroupCheckIn ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const code = selectedBlock.groupCode!;
+                        setSelectedBlock(null);
+                        onOpenGroupCheckIn(code);
+                      }}
+                      className="flex items-center justify-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-black px-5 py-2.5 text-xs shadow-xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
+                    >
+                      <VsIcon name="groups" className="text-base" />
+                      <span>Check-in cho đoàn</span>
+                    </button>
+                    {(onCheckInReservation || onOpenCheckIn) && (
+                      <button
+                        type="button"
+                        onClick={() => void handleDrawerCheckIn()}
+                        className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 font-bold px-4 py-2.5 text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
+                      >
+                        <span>Chỉ nhận phòng này (P.{selectedBlock.roomNumber})</span>
+                      </button>
+                    )}
+                  </>
+                ) : (onCheckInReservation || onOpenCheckIn) ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleDrawerCheckIn()}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black px-5 py-2.5 text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
+                  >
+                    <VsIcon name="login" className="text-base" />
+                    <span>Nhận phòng (Check-in)</span>
+                  </button>
+                ) : null
+              )}
+
+              {/* Nút Quản lý đoàn nếu đang lưu trú thuộc đoàn */}
+              {!isReadOnly && selectedBlock.kind === "STAY" && selectedBlock.groupCode && onOpenGroupCheckIn && (
                 <button
                   type="button"
-                  onClick={() => void handleDrawerCheckIn()}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black px-5 py-2.5 text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
+                  onClick={() => {
+                    const code = selectedBlock.groupCode!;
+                    setSelectedBlock(null);
+                    onOpenGroupCheckIn(code);
+                  }}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 font-bold px-4 py-2.5 text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
                 >
-                  <VsIcon name="login" className="text-base" />
-                  <span>Nhận phòng (Check-in)</span>
+                  <VsIcon name="groups" className="text-base text-purple-700" />
+                  <span>Quản lý đoàn</span>
                 </button>
               )}
 

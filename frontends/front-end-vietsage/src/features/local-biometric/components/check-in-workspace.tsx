@@ -1393,7 +1393,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                           </option>
                           {nationalities.map((item) => (
                             <option key={item.code} value={item.code}>
-                              {item.nameVi} ({item.code})
+                              {item.nameVi}
                             </option>
                           ))}
                         </select>
@@ -1602,7 +1602,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                             </option>
                             {nationalities.map((item) => (
                               <option key={item.code} value={item.code}>
-                                {item.nameVi} ({item.code})
+                                {item.nameVi}
                               </option>
                             ))}
                           </select>

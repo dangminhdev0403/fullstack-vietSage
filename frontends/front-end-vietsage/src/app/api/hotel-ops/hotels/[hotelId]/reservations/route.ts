@@ -38,6 +38,8 @@ const schema = z.object({
   sourceCategory: z.enum(["DIRECT", "OTA", "TA", "TRAVEL_AGENCY", "CORPORATE", "OTHER"]).optional(),
   sourcePartnerId: z.string().trim().min(1).nullable().optional(),
   bookingOwnerUserId: z.string().trim().min(1).nullable().optional(),
+  reservationCode: z.string().trim().max(80).optional(),
+  groupCode: z.string().trim().max(80).optional(),
 }).strict();
 
 export async function POST(request: Request, context: Params) {
@@ -63,6 +65,8 @@ export async function POST(request: Request, context: Params) {
           sourceCategory: parsed.data.sourceCategory,
           sourcePartnerId: parsed.data.sourcePartnerId,
           bookingOwnerUserId: parsed.data.bookingOwnerUserId,
+          ...(parsed.data.reservationCode ? { reservationCode: parsed.data.reservationCode } : {}),
+          ...(parsed.data.groupCode ? { groupCode: parsed.data.groupCode } : {}),
         },
         accessToken,
       );

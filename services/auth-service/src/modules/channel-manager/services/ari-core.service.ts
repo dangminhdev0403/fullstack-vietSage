@@ -528,6 +528,22 @@ export class AriCoreService {
       (this.prisma.channelDailyRestriction?.findUnique as any)?._isMockFunction,
     );
 
+    const roomTypeCatalog =
+      typeof this.prisma.roomType?.findMany === "function"
+        ? await this.prisma.roomType.findMany({
+            where: { hotelId },
+            select: { id: true, name: true, normalizedKey: true, basePrice: true },
+          })
+        : [];
+    const basePriceByRoomType = new Map<string, number>();
+    for (const item of roomTypeCatalog) {
+      if (item.basePrice !== null && item.basePrice !== undefined && Number(item.basePrice) > 0) {
+        basePriceByRoomType.set(item.id, Number(item.basePrice));
+        basePriceByRoomType.set(item.name, Number(item.basePrice));
+        basePriceByRoomType.set(item.normalizedKey, Number(item.basePrice));
+      }
+    }
+
     for (const roomType of payload.roomTypes) {
       for (const d of matchingDates) {
         const date = new Date(`${d}T00:00:00.000Z`);
@@ -548,12 +564,20 @@ export class AriCoreService {
               });
 
         if (adjustment) {
-          if (!existing || existing.rate === null || existing.rate === undefined) {
+          const currentRate =
+            existing?.rate !== null && existing?.rate !== undefined
+              ? Number(existing.rate)
+              : basePriceByRoomType.get(roomType) ??
+                basePriceByRoomType.get(
+                  roomType.normalize("NFKC").replace(/\s+/g, " ").toLowerCase(),
+                ) ??
+                null;
+
+          if (currentRate === null || currentRate === undefined) {
             throw new BadRequestException(
-              `Hạng phòng ${roomType} ngày ${d} chưa có giá trong DB; không thể áp dụng điều chỉnh tương đối`,
+              `Hạng phòng ${roomType} ngày ${d} chưa có giá trong hệ thống; không thể áp dụng điều chỉnh tương đối`,
             );
           }
-          const currentRate = Number(existing.rate);
           const calculatedRate = calculateAdjustedRate(currentRate, adjustment);
           if (calculatedRate < 0) {
             throw new BadRequestException(
@@ -575,15 +599,24 @@ export class AriCoreService {
           });
         } else {
           // Cập nhật hạn chế thuần túy (restriction-only)
-          if (!existing) {
+          const currentRate =
+            existing?.rate !== null && existing?.rate !== undefined
+              ? Number(existing.rate)
+              : basePriceByRoomType.get(roomType) ??
+                basePriceByRoomType.get(
+                  roomType.normalize("NFKC").replace(/\s+/g, " ").toLowerCase(),
+                ) ??
+                null;
+
+          if (currentRate === null || currentRate === undefined) {
             throw new BadRequestException(
-              `Hạng phòng ${roomType} chưa có giá trong DB; vui lòng nhập giá khi cập nhật`,
+              `Hạng phòng ${roomType} chưa có giá trong hệ thống; vui lòng nhập giá khi cập nhật`,
             );
           }
           plannedUpdates.push({
             roomType,
             date,
-            effectiveRate: Number(existing.rate),
+            effectiveRate: currentRate,
             isRateUpdate: false,
           });
         }

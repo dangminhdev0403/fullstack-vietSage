@@ -76,7 +76,26 @@ The application follows the design language in `@DESIGN.md` and enforces the fol
 - **No Blur Overload**: Avoid ambient blur or glow elements (`blur-[160px]`) that reduce contrast and distract users.
 - **No Decorative-Only Badges**: Only display badges or indicators when they represent genuine dynamic data.
 
-### 3. UI Verification Gate & Zero-Waste Protocol
+### 3. Dialog & Modal Layout Standard (Chuẩn Box Ngang - Cấm Tuyệt Đối Box Dọc)
+- **BẮT BUỘC DÙNG BOX NGANG (Centered Horizontal Modal / Dialog)**:
+  - Mọi màn hình popup thao tác, bảng dữ liệu, form nghiệp vụ, chi tiết đặt phòng, quản lý đoàn hoặc thao tác hàng loạt BẮT BUỘC thiết kế theo dạng **Box Ngang** căn giữa màn hình (`fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6 bg-slate-900/60 backdrop-blur-xs overflow-y-auto`).
+  - Container box ngang: Rộng rãi (`max-w-4xl` đến `max-w-6xl`, chiều cao tối đa `max-h-[90vh]` hoặc `max-h-[92vh]`), bo góc chuẩn `rounded-2xl`, đổ bóng `shadow-2xl`, viền mỏng `border border-slate-200`, có thanh cuộn nội bộ mượt mà khi nội dung dài.
+- **NGHIÊM CẤM DÙNG BOX DỌC (Side Drawer / Right Slide-Over Dọc)**:
+  - CẤM TUYỆT ĐỐI thiết kế dạng Box Dọc (right-side drawer trượt từ cạnh phải và kéo dài suốt chiều dọc màn hình `fixed inset-y-0 right-0`) cho các màn hình nghiệp vụ, thao tác tác vụ hay hiển thị bảng dữ liệu.
+  - Lý do: Box dọc chiếm một dải hẹp dọc toàn màn hình, bóp nghẹt các cột trong bảng dữ liệu, chèn ép thanh công cụ thao tác và để trống lãng phí phần lớn không gian màn hình bên trái.
+
+### 4. Table Lean-Information Standard (Chuẩn Bảng Tinh Gọn - Tách Biệt Table & Detail View)
+- **Mục đích của Table (Chỉ quét nhanh & chọn dòng)**:
+  - Bảng dữ liệu (Table) CHỈ phục vụ mục đích quét mắt nhanh (fast scan), so sánh tổng quan và chọn dòng để thao tác hàng loạt.
+  - **NGHIÊM CẤM nhồi nhét full thông tin hoặc text linh tinh vào Table**:
+    - CẤM nhồi mã kỹ thuật/UUID dài ngoằng (`#RES-TC-OTA-Booking-882194...`), số điện thoại, giá phòng chi tiết, danh sách liệt kê số phòng (`P.101, P.102, P.103...`), hoặc diễn giải thời gian cồng kềnh trong các ô của bảng.
+    - CẤM chồng 3-4 tầng text (multi-stacking) trong cùng 1 cell khiến hàng table bị phình to, lộn xộn, rối mắt.
+    - Mỗi ô cell chỉ hiển thị duy nhất 1 thông tin cốt lõi (primary data point) với tối đa 1 badge/nhãn phân loại ngắn gọn.
+- **Trách nhiệm độc quyền của Detail View (Xem chi tiết khi click vào row)**:
+  - Mọi thông tin đầy đủ, chi tiết, mã booking dài, số điện thoại liên hệ, email, ghi chú đặc biệt, cấu trúc giá, danh sách phòng chi tiết và lịch sử giao dịch là **trách nhiệm độc quyền của màn hình Xem Chi Tiết (Box Ngang - Centered Modal)** khi người dùng nhấp vào dòng (row click) hoặc nút "Chi tiết".
+  - Table chỉ đóng vai trò là "chỉ mục điều hướng" (Index / Overview), tuyệt đối không gánh thay vai trò của Detail View.
+
+### 5. UI Verification Gate & Zero-Waste Protocol
 - **Quy tắc miễn trừ kiểm thử khi sửa UI**:
   - Khi chỉnh sửa UI, CSS, Tailwind classes, khoảng cách, màu sắc, JSX layout, copy/text hoặc thêm presentation components:
     - **CẤM CHẠY**: Mọi test suites (`node --test`, `npm test`, `jest`, `vitest`, `playwright`), full-repo lint (`eslint .`), build bundling (`next build`), soi `git diff` file ngoài phạm vi, `node -e`.

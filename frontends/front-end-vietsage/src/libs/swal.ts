@@ -103,27 +103,58 @@ export function resolveAlertContent(
   return formatAsError ? { html: formatAlertErrorMessage(orphanSafe) } : { text: orphanSafe };
 }
 
+export interface AlertOptions {
+  timer?: number | false;
+  confirmButtonText?: string;
+  showCancelButton?: boolean;
+  cancelButtonText?: string;
+  reverseButtons?: boolean;
+  customClass?: {
+    popup?: string;
+    title?: string;
+    htmlContainer?: string;
+    confirmButton?: string;
+    cancelButton?: string;
+    actions?: string;
+  };
+}
+
 export function showSuccessAlert(
   title: string,
   messageOrHtml: string | TrustedAlertHtml,
+  options?: AlertOptions,
 ) {
   const content = resolveAlertContent(messageOrHtml);
   const isHtml = "html" in content;
+  const timer =
+    options?.timer === false
+      ? undefined
+      : options?.timer !== undefined
+        ? options.timer
+        : isHtml
+          ? 3500
+          : 2000;
+  const timerProgressBar = timer !== undefined;
   return SwalVietSage.fire({
     titleText: preventOrphans(title),
     ...content,
     icon: "success",
-    timer: isHtml ? 3500 : 2000,
-    timerProgressBar: true,
+    timer,
+    timerProgressBar,
     showConfirmButton: true,
-    confirmButtonText: "OK",
+    confirmButtonText: options?.confirmButtonText ?? "OK",
+    showCancelButton: options?.showCancelButton ?? false,
+    cancelButtonText: options?.cancelButtonText ?? "Hủy bỏ",
+    reverseButtons: options?.reverseButtons ?? false,
     customClass: {
-      popup: isHtml ? SWAL_POPUP_MEDIUM : SWAL_POPUP_STANDARD,
-      title: SWAL_TITLE_CLASS,
-      htmlContainer: isHtml ? SWAL_HTML_CONTAINER_LEFT_CLASS : SWAL_HTML_CONTAINER_CLASS,
-      confirmButton: SWAL_CONFIRM_BTN_CLASS,
-      cancelButton: SWAL_CANCEL_BTN_CLASS,
-      actions: SWAL_ACTIONS_CLASS,
+      popup: options?.customClass?.popup ?? (isHtml ? SWAL_POPUP_MEDIUM : SWAL_POPUP_STANDARD),
+      title: options?.customClass?.title ?? SWAL_TITLE_CLASS,
+      htmlContainer:
+        options?.customClass?.htmlContainer ??
+        (isHtml ? SWAL_HTML_CONTAINER_LEFT_CLASS : SWAL_HTML_CONTAINER_CLASS),
+      confirmButton: options?.customClass?.confirmButton ?? SWAL_CONFIRM_BTN_CLASS,
+      cancelButton: options?.customClass?.cancelButton ?? SWAL_CANCEL_BTN_CLASS,
+      actions: options?.customClass?.actions ?? SWAL_ACTIONS_CLASS,
     },
   });
 }
@@ -1451,24 +1482,39 @@ export function showConfirmDialog(options: ConfirmDialogOptions) {
 export function showWarningAlert(
   title: string,
   messageOrHtml: string | TrustedAlertHtml,
+  options?: AlertOptions,
 ) {
   const content = resolveAlertContent(messageOrHtml);
   const isHtml = "html" in content;
+  const timer =
+    options?.timer === false
+      ? undefined
+      : options?.timer !== undefined
+        ? options.timer
+        : isHtml
+          ? 4000
+          : 2500;
+  const timerProgressBar = timer !== undefined;
   return SwalVietSage.fire({
     titleText: preventOrphans(title),
     ...content,
     icon: "warning",
-    timer: isHtml ? 4000 : 2500,
-    timerProgressBar: true,
+    timer,
+    timerProgressBar,
     showConfirmButton: true,
-    confirmButtonText: "OK",
+    confirmButtonText: options?.confirmButtonText ?? "OK",
+    showCancelButton: options?.showCancelButton ?? false,
+    cancelButtonText: options?.cancelButtonText ?? "Hủy bỏ",
+    reverseButtons: options?.reverseButtons ?? false,
     customClass: {
-      popup: isHtml ? SWAL_POPUP_MEDIUM : SWAL_POPUP_STANDARD,
-      title: SWAL_TITLE_CLASS,
-      htmlContainer: isHtml ? SWAL_HTML_CONTAINER_LEFT_CLASS : SWAL_HTML_CONTAINER_CLASS,
-      confirmButton: SWAL_CONFIRM_BTN_CLASS,
-      cancelButton: SWAL_CANCEL_BTN_CLASS,
-      actions: SWAL_ACTIONS_CLASS,
+      popup: options?.customClass?.popup ?? (isHtml ? SWAL_POPUP_MEDIUM : SWAL_POPUP_STANDARD),
+      title: options?.customClass?.title ?? SWAL_TITLE_CLASS,
+      htmlContainer:
+        options?.customClass?.htmlContainer ??
+        (isHtml ? SWAL_HTML_CONTAINER_LEFT_CLASS : SWAL_HTML_CONTAINER_CLASS),
+      confirmButton: options?.customClass?.confirmButton ?? SWAL_CONFIRM_BTN_CLASS,
+      cancelButton: options?.customClass?.cancelButton ?? SWAL_CANCEL_BTN_CLASS,
+      actions: options?.customClass?.actions ?? SWAL_ACTIONS_CLASS,
     },
   });
 }

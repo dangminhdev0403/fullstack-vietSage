@@ -50,6 +50,12 @@ import type {
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { TapeChartView } from "@/features/hotel-ops/components/tape-chart/tape-chart-view";
 import { BookingConfirmationModal } from "@/features/hotel-ops/components/booking-confirmation-modal";
+import {
+  GroupOperationsDrawer,
+  buildGroupRoomItems,
+  type GroupRoomItem,
+} from "@/features/hotel-ops/components/group-operations-drawer";
+import { GroupCheckInModal } from "@/features/hotel-ops/components/group-check-in-modal";
 import { useRoomViewStore } from "@/features/hotel-ops/store/room-view-store";
 import { channelManagerResource } from "@/features/channel-manager/api/channel-manager.resource";
 import type { SimulatedBookingItem } from "@/features/channel-manager/types/channel-manager.types";
@@ -971,6 +977,8 @@ export function StaffRoomsClient({
   const [reservationIsCustomNightlyRates, setReservationIsCustomNightlyRates] = useState(false);
   const [reservationNightlyRates, setReservationNightlyRates] = useState<Record<string, number>>({});
   const [reservationPrebookedServices, setReservationPrebookedServices] = useState<PrebookedServiceItem[]>([]);
+  const [reservationCodeInput, setReservationCodeInput] = useState<string>("");
+  const [reservationGroupCodeInput, setReservationGroupCodeInput] = useState<string>("");
 
   // Bulk Reservation (Lane D) State
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
@@ -1281,6 +1289,16 @@ export function StaffRoomsClient({
   const [isDailyMovementsOpen, setIsDailyMovementsOpen] = useState(false);
   const [dailyMovementsTab, setDailyMovementsTab] = useState<"arrivals" | "departures">("arrivals");
   const [selectedArrivalForDetail, setSelectedArrivalForDetail] = useState<HotelArrival | null>(null);
+  const [returnToDailyMovements, setReturnToDailyMovements] = useState(false);
+
+  // Dedicated Group Check-in with CCCD/Passport Verification Modal State
+  const [isGroupCheckInOpen, setIsGroupCheckInOpen] = useState(false);
+  const [groupCheckInCode, setGroupCheckInCode] = useState<string | null>(null);
+  const [groupCheckInRooms, setGroupCheckInRooms] = useState<GroupRoomItem[]>([]);
+
+  // Group Operations Modal State - routed directly to GroupCheckInModal to eliminate intermediate overview box
+  const [isGroupOperationsOpen, setIsGroupOperationsOpen] = useState(false);
+  const [groupOperationsCode, setGroupOperationsCode] = useState<string | null>(null);
 
   function handleBusinessDateChange(newDate: string) {
     setBusinessDate(newDate);
@@ -1350,6 +1368,8 @@ export function StaffRoomsClient({
           .slice(0, 16),
       );
     }
+    setReservationCodeInput("");
+    setReservationGroupCodeInput("");
     setIsReservationOpen(true);
   }
 
@@ -1467,6 +1487,12 @@ export function StaffRoomsClient({
       if (baseRateNum > 0) {
         payload.nightlyRateSnapshot = baseRateNum;
       }
+      if (reservationCodeInput.trim()) {
+        payload.reservationCode = reservationCodeInput.trim();
+      }
+      if (reservationGroupCodeInput.trim()) {
+        payload.groupCode = reservationGroupCodeInput.trim();
+      }
 
       const res = await requestInternalApiEnvelope<HotelArrival>(
         `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations`,
@@ -1477,6 +1503,8 @@ export function StaffRoomsClient({
       );
 
       setIsReservationOpen(false);
+      setReservationCodeInput("");
+      setReservationGroupCodeInput("");
       setReservationGuestName("");
       setReservationGuestPhone("");
       setReservationNightlyRate("");
@@ -1723,6 +1751,10 @@ export function StaffRoomsClient({
 
   function handleCheckInArrival(arrival: HotelArrival) {
     if (!canCheckInStay) return;
+    if (arrival.groupCode) {
+      openGroupCheckIn(arrival.groupCode);
+      return;
+    }
     if (!arrival.roomId) {
       void showWarningAlert(
         "Chưa gán phòng",
@@ -1820,6 +1852,47 @@ export function StaffRoomsClient({
       (error as { status?: number })?.status === 403);
 
   const rooms = roomsPage?.items ?? [];
+
+  const openGroupCheckIn = useCallback((code?: string | null, targetRooms?: GroupRoomItem[]) => {
+    let resolvedCode = code?.trim() || null;
+    if (!resolvedCode) {
+      // Find first group with pending check-in from arrivalsList or rooms
+      const firstArrivingGroup = arrivalsList.find(
+        (a) => a.groupCode && (a.status === "ARRIVAL_READY" || a.status === "CONFIRMED"),
+      );
+      resolvedCode =
+        firstArrivingGroup?.groupCode ||
+        arrivalsList.find((a) => a.groupCode)?.groupCode ||
+        rooms.find((r) => r.upcomingReservation?.groupCode || r.projectedReservation?.groupCode)
+          ?.upcomingReservation?.groupCode ||
+        rooms.find((r) => r.projectedReservation?.groupCode)?.projectedReservation?.groupCode ||
+        null;
+    }
+
+    if (!resolvedCode) {
+      void showWarningAlert(
+        "Chưa có đoàn khách",
+        "Không tìm thấy đoàn khách nào có lịch nhận phòng hôm nay trên sơ đồ.",
+      );
+      return;
+    }
+
+    const roomsToUse = targetRooms && targetRooms.length > 0
+      ? targetRooms
+      : buildGroupRoomItems({
+          activeGroupCode: resolvedCode,
+          initialArrivals: arrivalsList,
+          rooms,
+        }).filter((r) => r.status === "ARRIVAL_READY" || r.status === "CONFIRMED");
+
+    setGroupCheckInCode(resolvedCode);
+    setGroupCheckInRooms(roomsToUse);
+    setIsGroupCheckInOpen(true);
+  }, [arrivalsList, rooms]);
+
+  const openGroupOperations = useCallback((code?: string | null) => {
+    openGroupCheckIn(code);
+  }, [openGroupCheckIn]);
 
   const activeMovementsTargetYmd = businessDate || todayYmd;
 
@@ -3759,10 +3832,20 @@ export function StaffRoomsClient({
       guestPhone?: string | null;
       plannedCheckOutAt: string;
       reservationCode?: string;
+      groupCode?: string | null;
       arrival?: HotelArrival | null;
     },
   ) {
     if (!canCheckInStay) return;
+    const groupCode =
+      res.groupCode ||
+      res.arrival?.groupCode ||
+      room.projectedReservation?.groupCode ||
+      room.upcomingReservation?.groupCode;
+    if (groupCode) {
+      openGroupCheckIn(groupCode);
+      return;
+    }
     const reservationId =
       res.arrival?.id ||
       room.projectedReservation?.id ||
@@ -4749,6 +4832,13 @@ export function StaffRoomsClient({
       ? `OTA · ${incomingOta.otaName}`
       : null;
 
+    const incomingGroupCode =
+      todayArrival?.groupCode ||
+      resDetails?.arrival?.groupCode ||
+      room.projectedReservation?.groupCode ||
+      room.upcomingReservation?.groupCode ||
+      null;
+
     // Phân loại trạng thái lưu trú vận hành theo yêu cầu của lễ tân
     let stateCategory:
       | "turnaround"
@@ -5024,11 +5114,19 @@ export function StaffRoomsClient({
                     </span>
                   )}
                 </div>
-                {incomingSource && (
-                  <span className="text-xs font-bold text-purple-700 whitespace-nowrap bg-purple-100/90 border border-purple-200/80 px-1.5 py-0.5 rounded-md shrink-0">
-                    {incomingSource}
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {incomingGroupCode && (
+                    <span className="inline-flex items-center gap-1 text-xs font-black text-purple-900 bg-purple-100 border border-purple-300 px-1.5 py-0.5 rounded-md whitespace-nowrap shadow-2xs">
+                      <VsIcon name="groups" className="text-xs text-purple-700" />
+                      <span>Đoàn #{incomingGroupCode}</span>
+                    </span>
+                  )}
+                  {incomingSource && (
+                    <span className="text-xs font-bold text-purple-700 whitespace-nowrap bg-purple-100/90 border border-purple-200/80 px-1.5 py-0.5 rounded-md shrink-0">
+                      {incomingSource}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2 rounded-xl bg-purple-50/80 border border-purple-200/80 p-2 sm:p-2.5">
                 <div>
@@ -5212,7 +5310,9 @@ export function StaffRoomsClient({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (resDetails?.arrival) {
+                  if (incomingGroupCode) {
+                    openGroupCheckIn(incomingGroupCode);
+                  } else if (resDetails?.arrival) {
                     handleCheckInArrival(resDetails.arrival);
                   } else {
                     openRoomContextPanel(room, e.currentTarget);
@@ -5220,8 +5320,8 @@ export function StaffRoomsClient({
                 }}
                 className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
               >
-                <VsIcon name="login" className="text-base shrink-0" />
-                <span>Nhận phòng</span>
+                <VsIcon name={incomingGroupCode ? "groups" : "login"} className="text-base shrink-0" />
+                <span>{incomingGroupCode ? "Check-in đoàn" : "Nhận phòng"}</span>
               </button>
             </div>
           ) : stateCategory === "departing_today" ? (
@@ -5241,7 +5341,9 @@ export function StaffRoomsClient({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                if (incomingOta && canManageStays) {
+                if (incomingGroupCode) {
+                  openGroupCheckIn(incomingGroupCode);
+                } else if (incomingOta && canManageStays) {
                   void handleOtaFastCheckIn(incomingOta, room);
                 } else if (resDetails?.arrival) {
                   handleCheckInArrival(resDetails.arrival);
@@ -5253,8 +5355,8 @@ export function StaffRoomsClient({
               }}
               className="flex w-full h-9 sm:h-[38px] items-center justify-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
             >
-              <VsIcon name="login" className="text-base shrink-0" />
-              <span>Làm thủ tục nhận phòng</span>
+              <VsIcon name={incomingGroupCode ? "groups" : "login"} className="text-base shrink-0" />
+              <span>{incomingGroupCode ? "Check-in cho đoàn" : "Làm thủ tục nhận phòng"}</span>
             </button>
           ) : stateCategory === "occupied" ? (
             <button
@@ -5816,6 +5918,16 @@ export function StaffRoomsClient({
                 <VsIcon name="group_add" className="text-base" />
                 <span>Đặt trước nhanh / Đoàn</span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => openGroupCheckIn()}
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-900 px-3.5 text-sm font-bold shadow-xs transition cursor-pointer min-h-[40px] whitespace-nowrap"
+                title="Quản lý và làm thủ tục nhận phòng theo đoàn"
+              >
+                <VsIcon name="groups" className="text-base text-purple-700" />
+                <span>Check-in đoàn</span>
+              </button>
               {/* Daily Arrivals & Departures Movements Button Group */}
               <div className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white p-1 shadow-2xs gap-1">
                 <button
@@ -6038,6 +6150,9 @@ export function StaffRoomsClient({
           initialViewMode={initialViewMode}
           canCheckInStay={canCheckInStay}
           canManageRooms={canManageRooms}
+          onOpenGroupCheckIn={(groupCode) => {
+            openGroupCheckIn(groupCode);
+          }}
           readOnly={false}
           roleScope="staff"
           onSelectRoom={(room) => {
@@ -6066,6 +6181,10 @@ export function StaffRoomsClient({
             setIsCheckInOpen(true);
           }}
           onCheckInReservation={(block) => {
+            if (block.groupCode) {
+              openGroupCheckIn(block.groupCode);
+              return;
+            }
             const room = rooms.find((r) => r.id === block.roomId);
             if (!room) {
               void showWarningAlert(
@@ -7303,6 +7422,40 @@ export function StaffRoomsClient({
                         value={reservationCheckOut}
                         onChange={(e) => setReservationCheckOut(e.target.value)}
                         className="w-full h-12 rounded-xl border border-slate-300 bg-white px-4 text-base font-medium text-slate-900 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px] cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Mã đặt phòng & Mã đoàn (Tùy chọn - cho phép giống nhau khi đặt theo đoàn) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+                        Mã đặt phòng{" "}
+                        <span className="text-xs text-slate-500 font-normal">
+                          (Tùy chọn · Cho phép trùng nếu thuộc đoàn)
+                        </span>
+                      </label>
+                      <input
+                        type="text"
+                        value={reservationCodeInput}
+                        onChange={(e) => setReservationCodeInput(e.target.value)}
+                        placeholder="VD: RES-2026-001 (để trống để tự sinh)"
+                        className="w-full h-12 rounded-xl border border-slate-300 bg-white px-4 font-mono text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px] uppercase"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+                        Mã đoàn{" "}
+                        <span className="text-xs text-slate-500 font-normal">
+                          (Tùy chọn · Nếu phòng này thuộc đoàn)
+                        </span>
+                      </label>
+                      <input
+                        type="text"
+                        value={reservationGroupCodeInput}
+                        onChange={(e) => setReservationGroupCodeInput(e.target.value)}
+                        placeholder="VD: GRP-2026-001"
+                        className="w-full h-12 rounded-xl border border-slate-300 bg-white px-4 font-mono text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px] uppercase"
                       />
                     </div>
                   </div>
@@ -8642,7 +8795,13 @@ export function StaffRoomsClient({
 
       <FrontDeskRoomDetailPanel
         isOpen={Boolean(selectedContextRoom)}
-        onClose={() => setSelectedContextRoom(null)}
+        onClose={() => {
+          setSelectedContextRoom(null);
+          if (returnToDailyMovements) {
+            setReturnToDailyMovements(false);
+            setIsDailyMovementsOpen(true);
+          }
+        }}
         hotelId={hotelId}
         room={
           selectedContextRoom && isFutureDate
@@ -8739,10 +8898,12 @@ export function StaffRoomsClient({
           void handleExtendStayModal(r);
         }}
         onOpenRoomDetail={(r) => {
+          setReturnToDailyMovements(true);
           setIsDailyMovementsOpen(false);
           setSelectedContextRoom(r);
         }}
         onOpenArrivalDetail={(arr) => {
+          setReturnToDailyMovements(true);
           setIsDailyMovementsOpen(false);
           setSelectedArrivalForDetail(arr);
         }}
@@ -8756,7 +8917,13 @@ export function StaffRoomsClient({
 
       <FrontDeskArrivalDetailPanel
         isOpen={Boolean(selectedArrivalForDetail)}
-        onClose={() => setSelectedArrivalForDetail(null)}
+        onClose={() => {
+          setSelectedArrivalForDetail(null);
+          if (returnToDailyMovements) {
+            setReturnToDailyMovements(false);
+            setIsDailyMovementsOpen(true);
+          }
+        }}
         hotelId={hotelId}
         arrival={selectedArrivalForDetail}
         todayYmd={todayYmd}
@@ -8764,6 +8931,46 @@ export function StaffRoomsClient({
         canManageReservations={canManageReservations}
         canOperateArrivals={Boolean(canManageReservations || canCheckInStay)}
       />
+
+      <GroupOperationsDrawer
+        isOpen={isGroupOperationsOpen}
+        onClose={() => {
+          setIsGroupOperationsOpen(false);
+          setGroupOperationsCode(null);
+        }}
+        hotelId={hotelId}
+        groupCode={groupOperationsCode}
+        initialArrivals={arrivalsList}
+        todayYmd={todayYmd}
+        canOperateArrivals={Boolean(canManageReservations || canCheckInStay)}
+        canCheckInStay={canCheckInStay}
+        canCheckOutStay={canCheckOutStay}
+        onSuccess={async () => {
+          await invalidateHotelRealtimeQueries(queryClient, hotelId);
+          await Promise.all([refetch(), loadArrivals(arrivalsRange)]);
+        }}
+      />
+
+      {/* Dedicated Group Check-in with CCCD/Passport Verification Modal */}
+      {isGroupCheckInOpen && groupCheckInCode && (
+        <GroupCheckInModal
+          isOpen={isGroupCheckInOpen}
+          onClose={() => {
+            setIsGroupCheckInOpen(false);
+            setGroupCheckInCode(null);
+            setGroupCheckInRooms([]);
+          }}
+          hotelId={hotelId}
+          groupCode={groupCheckInCode}
+          rooms={groupCheckInRooms}
+          initialArrivals={arrivalsList}
+          enabledFeatures={enabledFeatures}
+          onSuccess={async () => {
+            await invalidateHotelRealtimeQueries(queryClient, hotelId);
+            await Promise.all([refetch(), loadArrivals(arrivalsRange)]);
+          }}
+        />
+      )}
     </div>
   );
 }
