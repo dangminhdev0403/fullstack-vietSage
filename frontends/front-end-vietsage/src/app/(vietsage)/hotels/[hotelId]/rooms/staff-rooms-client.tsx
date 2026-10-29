@@ -975,29 +975,6 @@ export function StaffRoomsClient({
   const [reservationNightlyRates, setReservationNightlyRates] = useState<Record<string, number>>({});
   const [reservationPrebookedServices, setReservationPrebookedServices] = useState<PrebookedServiceItem[]>([]);
 
-  // Booking Source Partners & Staff Directory Queries
-  const bookingPartnersQuery = useQuery({
-    ...staffRoomsResource.bind({ hotelId }).queries.bookingPartners.options(undefined),
-    enabled: Boolean(!isHousekeeping && (isReservationOpen || isBulkModalOpen)),
-  });
-  const staffAssignmentsQuery = useQuery({
-    ...staffRoomsResource.bind({ hotelId }).queries.staffAssignments.options(undefined),
-    enabled: Boolean(!isHousekeeping && (isReservationOpen || isBulkModalOpen)),
-  });
-  const createBookingPartnerMutation = useMutation(
-    staffRoomsResource.bind({ hotelId }).mutations.createBookingPartner.options(),
-  );
-
-  const bookingPartnersList = useMemo<BookingSourcePartnerItem[]>(
-    () => (Array.isArray(bookingPartnersQuery.data) ? bookingPartnersQuery.data : []),
-    [bookingPartnersQuery.data],
-  );
-
-  const staffList = useMemo<HotelStaffAssignmentItem[]>(
-    () => (Array.isArray(staffAssignmentsQuery.data) ? staffAssignmentsQuery.data : []),
-    [staffAssignmentsQuery.data],
-  );
-
   // Bulk Reservation (Lane D) State
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [bulkMode, setBulkMode] = useState<"auto" | "manual">("auto");
@@ -1035,6 +1012,29 @@ export function StaffRoomsClient({
   const [bulkIsCustomNightlyRates, setBulkIsCustomNightlyRates] = useState(false);
   const [bulkNightlyRates, setBulkNightlyRates] = useState<Record<string, number>>({});
   const [bulkPrebookedServices, setBulkPrebookedServices] = useState<PrebookedServiceItem[]>([]);
+
+  // Booking Source Partners & Staff Directory Queries
+  const bookingPartnersQuery = useQuery({
+    ...staffRoomsResource.bind({ hotelId }).queries.bookingPartners.options(undefined),
+    enabled: Boolean(!isHousekeeping && (isReservationOpen || isBulkModalOpen)),
+  });
+  const staffAssignmentsQuery = useQuery({
+    ...staffRoomsResource.bind({ hotelId }).queries.staffAssignments.options(undefined),
+    enabled: Boolean(!isHousekeeping && (isReservationOpen || isBulkModalOpen)),
+  });
+  const createBookingPartnerMutation = useMutation(
+    staffRoomsResource.bind({ hotelId }).mutations.createBookingPartner.options(),
+  );
+
+  const bookingPartnersList = useMemo<BookingSourcePartnerItem[]>(
+    () => (Array.isArray(bookingPartnersQuery.data) ? bookingPartnersQuery.data : []),
+    [bookingPartnersQuery.data],
+  );
+
+  const staffList = useMemo<HotelStaffAssignmentItem[]>(
+    () => (Array.isArray(staffAssignmentsQuery.data) ? staffAssignmentsQuery.data : []),
+    [staffAssignmentsQuery.data],
+  );
 
   const bulkReservationsMutation = useMutation(
     staffRoomsResource
@@ -3713,25 +3713,21 @@ export function StaffRoomsClient({
       available:
         roomsPage?.byStatus?.available ??
         initialRoomsPage.byStatus?.available ??
-        initialByStatus?.available ??
         0,
       occupied:
         roomsPage?.byStatus?.occupied ??
         initialRoomsPage.byStatus?.occupied ??
-        initialByStatus?.occupied ??
         0,
       processing:
         roomsPage?.byStatus?.processing ??
         initialRoomsPage.byStatus?.processing ??
-        initialByStatus?.processing ??
         0,
       maintenance:
         roomsPage?.byStatus?.maintenance ??
         initialRoomsPage.byStatus?.maintenance ??
-        initialByStatus?.maintenance ??
         0,
     };
-  }, [roomsPage?.byStatus, initialRoomsPage.byStatus, initialByStatus]);
+  }, [roomsPage?.byStatus, initialRoomsPage.byStatus]);
 
   function printActiveStayList() {
     const printedAt = new Date();

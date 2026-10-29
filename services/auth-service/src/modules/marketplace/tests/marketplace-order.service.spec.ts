@@ -765,6 +765,55 @@ describe("Marketplace orders", () => {
     );
   });
 
+  it("settles each batch amount atomically even when updateMany is available", async () => {
+    const settlements = [450000, 120000].map((amount, index) => ({
+      id: `settle-${index}`,
+      hotelId: "hotel-1",
+      serviceTenantId: "provider-1",
+      netAmount: new Prisma.Decimal(amount),
+      status: "UNSETTLED",
+    }));
+    const update = jest.fn().mockImplementation(() => Promise.resolve({}));
+    const updateMany = jest.fn();
+    const prisma = {
+      marketplaceSettlement: {
+        findMany: jest.fn().mockResolvedValue(settlements),
+        update,
+        updateMany,
+      },
+      $transaction: jest.fn().mockImplementation((operations) => Promise.all(operations)),
+    };
+    const emit = jest.spyOn(RequestRealtimeEmitter, "emitPartnerSettlementUpdated")
+      .mockImplementation(() => {});
+    const service = new MarketplaceOrderService(prisma as never, {} as never);
+    const ids = settlements.map((s) => s.id);
+
+    await expect(service.settlePartnerOrdersBatch("user-hotel", "hotel-1", ids))
+      .resolves.toEqual({ settledCount: 2, settlementIds: ids });
+
+    expect(prisma.marketplaceSettlement.findMany).toHaveBeenCalledWith({
+      where: { id: { in: ids }, hotelId: "hotel-1", status: { not: "SETTLED" } },
+    });
+    expect(updateMany).not.toHaveBeenCalled();
+    for (const [index, settlement] of settlements.entries()) {
+      expect(update).toHaveBeenNthCalledWith(index + 1, {
+        where: { id: settlement.id },
+        data: {
+          status: "SETTLED", settledAt: expect.any(Date),
+          settledBy: "user-hotel", settledAmount: settlement.netAmount,
+        },
+      });
+    }
+    expect(prisma.$transaction).toHaveBeenCalledWith(update.mock.results.map((r) => r.value));
+    expect(emit).toHaveBeenCalledTimes(2);
+
+    prisma.$transaction.mockRejectedValueOnce(new Error("transaction failed"));
+    emit.mockClear();
+    await expect(service.settlePartnerOrdersBatch("user-hotel", "hotel-1", ids))
+      .rejects.toThrow("transaction failed");
+    expect(emit).not.toHaveBeenCalled();
+  });
+
   it("updates partner settlement to SETTLED and records audit fields", async () => {
     const existingSettlement = {
       id: "settle-1",

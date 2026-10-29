@@ -1,72 +1,20 @@
 # STRICT AUDIT MODE (SYSTEM DESIGN COMPLIANCE AUDIT)
 
-## Activation
+## Activation and scope
 
-Activate when the user requests an audit/review, focused execution/remediation of audited findings, or says:
+Use this mode for an audit/review deliverable or an explicit audit trigger such as `siêu rà soát`, `rà soát khó tính`, `soát code`, `strict audit focus`, or `ACTIVATE STRICT AUDIT MODE ON`.
 
-- `ACTIVATE STRICT AUDIT MODE ON`
-- `BẬT CHẾ ĐỘ SIÊU RÀ SOÁT`
-- `CHẾ ĐỘ SIÊU RÀ SOÁT`
-- `SIÊU RÀ SOÁT`
-- `BẬT CHẾ ĐỘ RÀ SOÁT KHÓ TÍNH`
-- `RÀ SOÁT SIÊU KHÓ TÍNH`
-- `SOAT CODE`
-- `BẬT CHẾ ĐỘ TẬP TRUNG RÀ SOÁT`
-- `CHẾ ĐỘ TẬP TRUNG RÀ SOÁT`
-- `RÀ SOÁT TẬP TRUNG`
-- `TẬP TRUNG RÀ SOÁT`
-- `BẬT CHẾ ĐỘ TẬP TRUNG THỰC THI`
-- `CHẾ ĐỘ TẬP TRUNG THỰC THI`
-- `TẬP TRUNG THỰC THI`
-- `BẬT CHẾ ĐỘ TẬP TRUNG CODE`
-- `CHẾ ĐỘ TẬP TRUNG CODE`
-- `TẬP TRUNG CODE`
-- `STRICT AUDIT FOCUS`
-- `FOCUS AUDIT`
+Audit is read-only by default: inspect and run necessary non-destructive checks; do not edit, install, mutate data, deploy or dispatch implementation workers without authorization. Strictness improves evidence quality, not permissions.
 
-Deactivate only on:
+An explicit instruction to fix audited findings authorizes scoped implementation and validation. Code Focus, Focused Execution and remediation are implementation styles; they do not activate this audit workflow, require an activation turn, or require an audit ledger. Reuse the existing findings instead of auditing again. For implementation follow the global [focused-execution](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/SKILL.md) profile and [Efficient Execution and Validation](zero-waste-validation.md).
 
-- `TURN OFF STRICT AUDIT MODE`
-- `TẮT CHẾ ĐỘ SIÊU RÀ SOÁT`
-- `TẮT CHẾ ĐỘ RÀ SOÁT KHÓ TÍNH`
-- `TẮT CHẾ ĐỘ TẬP TRUNG RÀ SOÁT`
+## Reporting and delegation
 
-A review request is read-only by default. Non-destructive inspection and verification are allowed. Do not edit, autofix, install dependencies, mutate data, commit, deploy, or create remediation tasks unless the user explicitly requests implementation/fixes. Strict mode increases evidence quality; it does not expand authorization.
-
-### Silent Execution, Ponytail Max (`ultra`) & Output-Only Standard (Chuẩn Thực Thi Ngầm 100% — Siêu Rà Soát, Tập Trung Code & Tập Trung Thực Thi)
-
-Khi bật **Chế độ Siêu Rà Soát (`Strict Audit Mode`)**, **Tập Trung Code (`Code Focus`)**, hoặc **Tập Trung Thực Thi (`Focused Execution / Remediation`)**, mức độ **Ponytail tự động kích hoạt ở mức tối đa (`ultra` / max)** và **khóa cứng cơ chế Thực Thi Ngầm 100% (100% Silent Execution)** xuyên suốt cả lượt rà soát lẫn lượt sửa lỗi / điều phối đa agent (`orca-cli`):
-- **Ponytail Max (`ultra`)**: Áp dụng triết lý *deletion before addition* — chất vấn sự cần thiết của mọi tầng trung gian, abstraction, helper, config hoặc đoạn code phình đại; ưu tiên cắt bỏ code thừa trước khi đề xuất thêm code mới; hướng khắc phục (`Minimum correction`) bắt buộc là phương án tối giản nhất, ngắn nhất và đi thẳng vào nguyên nhân gốc (root cause).
-
-Bắt buộc thực thi trong trạng thái **hoàn toàn im lặng (100% ngầm) và chỉ trả lời đúng một lần ở đầu ra cuối cùng**:
-
-1. **Zero Pre-Tool Preamble & Zero Intermediate Chatter (CẤM TUYỆT ĐỐI spam tin nhắn mở đầu hoặc trung gian khi gọi tool)**:
-   - Ngay khi nhận lệnh (dù là rà soát, code trực tiếp, hay sửa lỗi hàng loạt qua `orca-cli` nhiều tab Codex/Antigravity), agent **BẮT BUỘC gọi tool ngay lập tức mà KHÔNG kèm bất kỳ đoạn văn bản mở đầu nào**.
-   - **NGHIÊM CẤM** phát sinh các câu tự thuật kế hoạch trước hoặc giữa các lần gọi tool (ví dụ: CẤM viết *"Tôi sẽ sửa các lỗi đã xác nhận trong cả hai lượt rà soát..."*, *"Tôi sẽ dùng skill orca-cli để kiểm tra các tab..."*, *"Tôi đang đọc file X..."*, *"Chờ tôi chạy lệnh test..."*).
-   - Trên Codex CLI / Codex Desktop, **CẤM phát thông điệp ở kênh `commentary`** trước/giữa chuỗi tool calls. Mọi phân tích, lập kế hoạch chia lane `orca-cli`, đối chiếu invariants và kiểm tra kết quả diễn ra 100% trong suy nghĩ nội bộ (`<thought>`) và payload công cụ.
-2. **Single Consolidated Output (Đầu ra duy nhất - Báo cáo Cuối cùng hoàn chỉnh với bằng chứng `VIOLATION | GAP | COMPLIANT`)**:
-   - Chỉ xuất ra tin nhắn trả lời người dùng **ĐÚNG MỘT LẦN DUY NHẤT** khi toàn bộ quá trình rà soát HOẶC toàn bộ quá trình sửa lỗi + gom kết quả worker + chạy lệnh kiểm chứng (validation gates) đã hoàn thành 100%.
-   - Bắt đầu báo cáo tổng hợp cuối cùng này với marker `STRICT AUDIT MODE: ACTIVE (PONYTAIL: ULTRA).` Tuyệt đối không gửi marker này trơ trọi thành một tin nhắn rác trước khi chạy tool.
-   - Cả ở lượt **Rà soát (Audit)** lẫn lượt **Thực thi sửa lỗi (Remediation / Focused Execution)**, báo cáo cuối cùng BẮT BUỘC có bảng đối chiếu bằng chứng xác thực phân loại rõ từng mục theo chuẩn `VIOLATION | GAP | COMPLIANT` (nếu là lượt sửa lỗi thì chứng minh rõ từng mục từ `VIOLATION -> COMPLIANT` kèm `file:line`, diff tóm tắt, lệnh test đã chạy + exit code, và các mục còn là `GAP` nếu chưa chạy môi trường thực).
-3. **Quiet Subagent & `orca-cli` Multi-Tab Aggregation (Điều phối đa agent 100% ngầm)**:
-   - Khi fan-out subagent hoặc điều phối nhiều tab Codex/Antigravity qua `orca-cli` (P1–P4 theo Ponytail), Lead Host thực hiện kiểm tra terminal, tạo run, gửi prompt, chờ hoàn tất và kiểm chứng diff **hoàn toàn ngầm**; không thông báo kế hoạch chia tab hay cập nhật trạng thái chờ giữa chừng cho người dùng.
-   - Lead Host tự tổng hợp kết quả, loại bỏ trùng lặp, kiểm tra lại bằng chứng thực tế trên mã nguồn/test, và chỉ xuất trình duy nhất một Báo cáo Cuối cùng (Final Report) chuẩn mực.
-
-### Mandatory agent auto-activation
-
-Any delegated agent assigned audit, review, verification, architecture assessment, code review, QA review, or security review MUST activate this mode and **Ponytail `ultra` (max)** from task intent. This is mandatory, not subjective.
-
-Every review card/prompt MUST include:
-
-```text
-STRICT_AUDIT_MODE: true
-PONYTAIL_LEVEL: ultra
-AUDIT_SCOPE: <exact paths, symbols, flows, or boundary>
-AUDIT_INVARIANTS: <repository-backed behavior to verify>
-WRITE_POLICY: read-only | remediation-authorized
-```
-
-The reviewer runs all evidence collection silently, includes `STRICT AUDIT MODE: ACTIVE.` at the top of its single consolidated final report/handoff, and presents only verified findings. Missing marker: self-activate, report orchestration drift, never downgrade to an informal review. Descendant review cards inherit the marker and exact boundary. Unrelated implementation cards do not. Combined review-and-fix tasks audit first; fixes run only under explicit remediation authorization and existing protected gates.
+- Apply Ponytail ultra to audit reasoning: challenge unnecessary complexity and recommend the smallest root-cause correction.
+- Consolidate verified findings into one final audit report, starting with `STRICT AUDIT MODE: ACTIVE (PONYTAIL: ULTRA).`. Avoid play-by-play; retain any progress updates and lifecycle messages required by the runtime.
+- Delegated audit reviewers inherit the exact review boundary, invariants and read-only policy. Their task brief needs those task-specific facts, not a copy of this ruleset.
+- Ordinary implementation workers and their focused tests remain implementation. They report changed behavior, checks and remaining gaps without audit markers, a separate evidence ledger or a settlement essay.
+- The host owns the shared map, evidence consolidation and final report. Use the fewest disjoint reviewers only when delegation is authorized. Keep Orca's actual Task/Dispatch lifecycle intact and do not repeat its preamble in task briefs.
 
 ## Core Standard
 
@@ -184,22 +132,22 @@ Minimum correction:
 Verification (exact command, exit code, unique test count, or runtime proof):
 ```
 
-Do not emit severity labels disconnected from a violated invariant. `Impact` controls remediation order; `Confidence` states evidence quality. During a remediation / focused execution turn (`Tập trung thực thi`), every previously identified `VIOLATION` must be re-verified and explicitly transitioned to `COMPLIANT` (with positive code + test evidence) or `GAP` (if a runtime/environment gate could not be executed).
+Do not emit severity labels disconnected from a violated invariant. Impact controls remediation order; Confidence states evidence quality. Keep missing runtime evidence explicit.
 
 ## Final Report
 
-Emit a **single consolidated Final Report** (after 100% silent execution of all reads, edits, `orca-cli` workers, and validation commands) starting with `STRICT AUDIT MODE: ACTIVE (PONYTAIL: ULTRA).`:
+For an audit deliverable, emit one consolidated final report starting with `STRICT AUDIT MODE: ACTIVE (PONYTAIL: ULTRA).`:
 
 1. `Verdict: PASS | FAIL | PARTIAL | BLOCKED`.
 2. Scope, baseline, and compact system map.
 3. Coverage & Verification Matrix: `COMPLIANT | VIOLATION | GAP | N/A`, each backed by concrete source/test/runtime evidence.
-4. Deduplicated findings / remediated items ledger (`VIOLATION | GAP | COMPLIANT`) ordered by dependency and user impact.
+4. Deduplicated findings ledger (`VIOLATION | GAP | COMPLIANT`) ordered by dependency and user impact.
 5. Commands/tools run with real outcomes (exact command, exit code, unique test count).
-6. Agents/`orca-cli` tabs used or skipped, exact lane ownership, and disagreements resolved (executed 100% silently without intermediate user messages).
+6. Agents/`orca-cli` tabs used or skipped, exact lane ownership, and disagreements resolved.
 7. Untested surfaces, blockers, and protected next actions.
 
 ## Closure
 
 The **audit** is complete when the scoped system map and invariants are explicit, every applicable matrix area has evidence or a declared gap, findings are verified/deduplicated, and skipped checks are named. Audit completion does not require code changes.
 
-**Remediation / Focused Execution (`Tập trung thực thi`)** follows the exact same **100% Silent Execution & Single Final Report** discipline: confirmed violations fixed at the root cause with zero pre-tool or mid-turn chatter, invalidated checks rerun, integrated behavior verified, and every item reported in the final `VIOLATION | GAP | COMPLIANT` ledger. Never claim audit or remediation success from 100% line coverage, a scanner-only result, or one generic build command.
+**Remediation / Focused Execution** uses the shared focused-execution profile and project validation policy: fix confirmed causes, validate affected behavior, and report changes, checks and remaining gaps concisely. Do not require another audit report or matrix unless the user requested one. Never claim success from line coverage, a scanner-only result or one generic build command.

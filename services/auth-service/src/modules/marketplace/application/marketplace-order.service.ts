@@ -2332,18 +2332,7 @@ export class MarketplaceOrderService {
 
     const now = new Date();
     await this.prisma.$transaction(
-      typeof this.prisma.marketplaceSettlement.updateMany === "function"
-        ? [
-            this.prisma.marketplaceSettlement.updateMany({
-              where: { id: { in: settlements.map((s) => s.id) } },
-              data: {
-                status: "SETTLED",
-                settledAt: now,
-                settledBy: userId,
-              },
-            }),
-          ]
-        : settlements.map((s) =>
+      settlements.map((s) =>
         this.prisma.marketplaceSettlement.update({
           where: { id: s.id },
           data: {

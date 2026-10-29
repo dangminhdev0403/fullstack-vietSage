@@ -296,11 +296,11 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
           {/* Quick Action Navigation Bar */}
           {hotel ? (
             <div className="flex flex-wrap items-center gap-2 border-t border-[#eee6d8] pt-4">
-              <span className="text-sm font-bold text-[#65726a] mr-1">Điều hướng nhanh:</span>
+              <span className="text-sm font-bold text-[#65726a] mr-1 whitespace-nowrap">Điều hướng nhanh:</span>
               <Link
                 href={`/owner/hotels/${hotel.id}/rooms`}
                 prefetch={true}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-sm font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-sm font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744] whitespace-nowrap"
               >
                 <VsIcon name="door_front" className="text-[15px]" />
                 Sơ đồ phòng
@@ -308,7 +308,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
               <Link
                 href={`/owner/hotels/${hotel.id}/billing`}
                 prefetch={true}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-sm font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-sm font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744] whitespace-nowrap"
               >
                 <VsIcon name="payments" className="text-[15px]" />
                 Tài chính &amp; Đối soát
@@ -316,7 +316,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
               <Link
                 href={`/owner/hotels/${hotel.id}/services`}
                 prefetch={true}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-sm font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-sm font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744] whitespace-nowrap"
               >
                 <VsIcon name="room_service" className="text-[15px]" />
                 Danh mục dịch vụ
@@ -324,7 +324,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
               <Link
                 href={`/owner/hotels/${hotel.id}/staff`}
                 prefetch={true}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-sm font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-sm font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744] whitespace-nowrap"
               >
                 <VsIcon name="group" className="text-[15px]" />
                 Nhân sự
@@ -332,7 +332,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
               <Link
                 href={`/owner/hotels/${hotel.id}/partners`}
                 prefetch={true}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-sm font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-sm font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744] whitespace-nowrap"
               >
                 <VsIcon name="storefront" className="text-[15px]" />
                 Đối tác liên kết
@@ -340,7 +340,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
               <Link
                 href={`/owner/hotels/${hotel.id}/kbtt`}
                 prefetch={true}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-sm font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c1] bg-white px-3.5 py-1.5 text-sm font-bold text-[#215744] shadow-2xs transition-all hover:bg-[#215744] hover:text-white hover:border-[#215744] whitespace-nowrap"
               >
                 <VsIcon name="assignment" className="text-[15px]" />
                 Khai báo tạm trú
@@ -353,7 +353,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
       {/* High-priority Platform Debt Alert Banner */}
       {hotel && hasOverdue && (
         <div className="rounded-2xl border border-red-200 bg-red-50/90 p-5 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-4">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-700">
                 <VsIcon name="warning" className="text-2xl" />
@@ -381,7 +381,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
             <Link
               href={`/owner/hotels/${hotel.id}/billing?tab=saas`}
               prefetch={true}
-              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-red-600 px-5 text-sm font-bold text-white shadow-sm transition-all hover:bg-red-700"
+              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-red-600 px-5 text-sm font-bold text-white shadow-sm transition-all hover:bg-red-700 whitespace-nowrap"
             >
               Đối soát &amp; Thanh toán ngay &rarr;
             </Link>
@@ -391,7 +391,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
 
       {hotel && hasDueSoon && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50/90 p-5 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-4">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
                 <VsIcon name="schedule" className="text-2xl" />
@@ -418,7 +418,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
             <Link
               href={`/owner/hotels/${hotel.id}/billing?tab=saas`}
               prefetch={true}
-              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-amber-600 px-5 text-sm font-bold text-white shadow-sm transition-all hover:bg-amber-700"
+              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-amber-600 px-5 text-sm font-bold text-white shadow-sm transition-all hover:bg-amber-700 whitespace-nowrap"
             >
               Xem chi tiết đối soát &rarr;
             </Link>
@@ -434,7 +434,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
         <>
           {/* Decision-Grade Financial Hub - Prominently Displayed for Owners */}
           <SectionCard>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#eee6d8] pb-5">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between border-b border-[#eee6d8] pb-5">
               <div>
                 <span className="text-sm font-extrabold uppercase tracking-widest text-[#8c6d29]">Hiệu quả kinh doanh &amp; Tài chính</span>
                 <h2 className="mt-0.5 text-xl sm:text-2xl font-bold tracking-tight text-[#17382F]">
@@ -505,7 +505,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
 
             {/* Công nợ & Phí dịch vụ VietSage SaaS */}
             <div className="mt-7 border-t border-[#eee6d8] pt-6">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
+              <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between mb-4">
                 <div className="flex items-center gap-2.5">
                   <span className="grid size-9 place-items-center rounded-xl bg-[#f0fdf4] text-[#1e5842] border border-[#d6e5d8]">
                     <VsIcon name="account_balance" className="text-xl" />
@@ -522,7 +522,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                 <Link
                   href={`/owner/hotels/${hotel.id}/billing?tab=saas`}
                   prefetch={true}
-                  className="inline-flex items-center gap-1.5 text-sm font-bold text-[#215744] hover:underline"
+                  className="inline-flex items-center gap-1.5 text-sm font-bold text-[#215744] hover:underline whitespace-nowrap"
                 >
                   <span>Chi tiết đối soát &amp; Hóa đơn</span>
                   <VsIcon name="arrow_forward" className="text-sm" />

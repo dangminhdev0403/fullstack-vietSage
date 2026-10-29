@@ -224,26 +224,28 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
   return (
     <form onSubmit={submitHotel} className="space-y-6">
       {/* Top Banner & Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#17201b] via-[#24352b] to-[#121914] p-6 text-[#f8f1e6] shadow-md">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4 min-w-0">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#e8b363] text-2xl font-black text-[#17201b] shadow-md border-2 border-white/20">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#17201b] via-[#24352b] to-[#121914] p-4 sm:p-6 text-[#f8f1e6] shadow-md">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+            <div className="flex h-14 w-14 sm:h-16 sm:w-16 shrink-0 items-center justify-center rounded-2xl bg-[#e8b363] text-2xl font-black text-[#17201b] shadow-md border-2 border-white/20">
               🏨
             </div>
-            <div className="space-y-1 min-w-0">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-[#e8b363]/20 px-3 py-0.5 text-xs font-bold text-[#f5c77e] border border-[#e8b363]/30">
-                <span className="h-2 w-2 rounded-full bg-[#e8b363] animate-pulse" />
+            <div className="space-y-1 min-w-0 flex-1">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-[#e8b363]/20 px-3 py-0.5 text-xs font-bold text-[#f5c77e] border border-[#e8b363]/30 whitespace-nowrap">
+                <span className="h-2 w-2 rounded-full bg-[#e8b363] animate-pulse shrink-0" />
                 Hồ sơ vận hành chính thức
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-[#fff8e8] truncate">{hotel.name}</h1>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-[#fff8e8] truncate" title={hotel.name}>
+                {hotel.name}
+              </h1>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 shrink-0">
             <button
               type="button"
               onClick={handleReset}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white/10 px-4 text-xs sm:text-sm font-bold text-[#f8f1e6] backdrop-blur-sm border border-white/20 transition-all hover:bg-white/20 active:scale-[0.98]"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white/10 px-4 text-xs sm:text-sm font-bold text-[#f8f1e6] backdrop-blur-sm border border-white/20 transition-all hover:bg-white/20 active:scale-[0.98] whitespace-nowrap"
             >
               <span>🔄</span>
               <span>Hoàn tác thay đổi</span>
@@ -252,7 +254,7 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
             <button
               type="submit"
               disabled={isSaving}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#e8b363] px-5 text-xs sm:text-sm font-bold text-[#17201b] shadow-md transition-all hover:bg-[#dfa652] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#e8b363] px-5 text-xs sm:text-sm font-bold text-[#17201b] shadow-md transition-all hover:bg-[#dfa652] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
             >
               {isSaving ? (
                 <>
@@ -310,18 +312,18 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
 
       {/* Operational Reset Card (Khởi động lại) - Only visible if remainingResets > 0 */}
       {remainingResets > 0 ? (
-        <div className="rounded-2xl border border-amber-300/80 bg-gradient-to-br from-amber-50/80 to-orange-50/60 p-7 shadow-sm space-y-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-amber-200/80 pb-4">
+        <div className="rounded-2xl border border-amber-300/80 bg-gradient-to-br from-amber-50/80 to-orange-50/60 p-5 sm:p-7 shadow-sm space-y-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-amber-200/80 pb-4">
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-amber-950 flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg sm:text-xl font-bold text-amber-950 flex items-center gap-2">
                   <span>⚡</span> Khởi động lại dữ liệu vận hành
                 </h2>
-                <span className="inline-flex items-center rounded-full bg-amber-200/80 px-2.5 py-0.5 text-xs font-bold text-amber-900 border border-amber-300">
+                <span className="inline-flex items-center rounded-full bg-amber-200/80 px-2.5 py-0.5 text-xs font-bold text-amber-900 border border-amber-300 whitespace-nowrap">
                   Còn {remainingResets}/2 lượt
                 </span>
               </div>
-              <p className="mt-1 text-sm text-amber-900/80">
+              <p className="mt-1 text-sm text-amber-900/80 text-pretty">
                 Làm mới toàn bộ dữ liệu kiểm thử về trạng thái sạch ban đầu để chuẩn bị đón khách hoặc nghiệm thu hệ thống.
               </p>
             </div>
@@ -330,7 +332,7 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
               type="button"
               disabled={isResetting || isSaving}
               onClick={handleOperationalReset}
-              className="shrink-0 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-amber-600 px-5 text-sm font-bold text-white shadow-sm transition-all hover:bg-amber-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+              className="shrink-0 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-amber-600 px-5 text-sm font-bold text-white shadow-sm transition-all hover:bg-amber-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
             >
               {isResetting ? (
                 <>

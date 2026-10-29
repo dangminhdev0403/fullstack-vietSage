@@ -248,14 +248,10 @@ For any audit/review request (`audit`, `review`, `rà soát`, `soát code`, arch
 
 - `.agents/rules/strict-audit-mode.md`
 
-**Ponytail Max (`ultra`) Auto-Escalation & 100% Silent Execution**: Khi bật chế độ **Siêu Rà Soát (`Strict Audit Mode` / `siêu rà soát`)**, **Tập Trung Code (`Code Focus` / `tập trung code`)**, hoặc **Tập Trung Thực Thi (`Focused Execution` / `tập trung thực thi` / sửa lỗi sau rà soát / điều phối `orca-cli`)**, mức độ Ponytail tự động chuyển lên **mức tối đa (`ultra` / max — `PONYTAIL_LEVEL: ultra`)**: ưu tiên xóa bỏ trước khi thêm mới (*deletion before addition*), chất vấn mọi tầng/abstraction dư thừa và ép hướng sửa lỗi (`Minimum correction`) về diff ngắn nhất tại nguyên nhân gốc. Audit read-only by default. Derive standards from the current repository; map actors, boundaries, contracts, state transitions, failure paths, and system invariants before checking technology fit. A violation requires repository-backed expectations, exact evidence, a concrete system effect, minimum correction, and a verification method. Every delegated reviewer or remediation worker (`orca-cli` / subagent) MUST auto-activate strict audit and Ponytail `ultra` from task intent; its card carries `STRICT_AUDIT_MODE: true`, `PONYTAIL_LEVEL: ultra`, exact scope/invariants/write policy. **Chế độ Thực Thi Ngầm 100% (100% Silent Execution & Single Output-Only Standard)**: Agent (Codex, Antigravity và mọi worker) bắt buộc thực thi ngầm 100% — **NGHIÊM CẤM** phát sinh tin nhắn mở đầu (như *"Tôi sẽ sửa các lỗi..."*, *"Tôi sẽ dùng skill orca-cli..."*) hoặc spam tiến trình trung gian (`commentary`) trước/trong khi gọi tool hay điều phối multi-agent; chỉ xuất **DUY NHẤT một Báo cáo Cuối cùng (Final Report)** hoàn chỉnh khi toàn bộ quá trình kiểm tra, sửa lỗi, gom worker và chạy lệnh kiểm chứng đã hoàn tất 100%, bắt đầu bằng `STRICT AUDIT MODE: ACTIVE (PONYTAIL: ULTRA).` và kèm bảng bằng chứng xác thực phân loại rõ `VIOLATION | GAP | COMPLIANT`. One host owns the shared system map and final evidence; delegate only when requested by the user or explicitly required by applicable instructions; use the fewest useful specialists across disjoint system boundaries. Remediation follows the execution policy above; Ponytail ultra increases evidence quality, not the number of review rounds. Do not create fix/remediation tasks unless the user explicitly requests implementation.
+Audit/review deliverables use Ponytail ultra and the evidence/reporting format in the linked audit rules. Code Focus, Focused Execution and authorized remediation use [focused-execution](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/SKILL.md) and [Efficient Execution and Validation](rules/zero-waste-validation.md); they do not become a fresh audit.
+
+Worker briefs contain outcome, owned files, invariants/negative cases and the completion check. Reuse loaded instructions and source maps. The runtime owns dispatch identity and lifecycle; do not paste its preamble or after-completion boilerplate into each brief. One host consolidates worker evidence and runs remaining shared gates after files freeze.
 
 ## Before Final Report
 
-Report:
-
-- files inspected;
-- files changed;
-- validation commands run and real results;
-- docs updated;
-- remaining risks/blockers.
+For implementation, report changed behavior/files, actual validation outcomes and remaining blockers or unverified surfaces. Include docs only when changed or materially relevant. No mandatory file-inspection inventory, audit marker or evidence table unless that deliverable was requested. For audits, use the linked audit report format.
