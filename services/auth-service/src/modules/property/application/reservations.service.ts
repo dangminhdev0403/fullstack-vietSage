@@ -143,7 +143,7 @@ export class ReservationsService {
       chargeLines: dto.chargeLines,
       sourceCategory: dto.sourceCategory,
       sourcePartnerId: dto.sourcePartnerId,
-      bookingOwnerUserId: dto.bookingOwnerUserId,
+      bookingOwnerUserId: dto.bookingOwnerUserId?.trim() || actorUserId,
     });
   }
 
@@ -188,7 +188,7 @@ export class ReservationsService {
       chargeLines: dto.chargeLines,
       sourceCategory: dto.sourceCategory,
       sourcePartnerId: dto.sourcePartnerId,
-      bookingOwnerUserId: dto.bookingOwnerUserId,
+      bookingOwnerUserId: dto.bookingOwnerUserId?.trim() || actorUserId,
     });
   }
 
@@ -678,25 +678,40 @@ export class ReservationsService {
     const nonEmpty = (val: unknown): string | undefined =>
       typeof val === "string" && val.trim().length > 0 ? val.trim() : undefined;
 
+    const sanitizeContact = (val: unknown): string | null => {
+      if (typeof val !== "string") return null;
+      const trimmed = val.trim();
+      if (!trimmed) return null;
+      const lower = trimmed.toLowerCase();
+      if (
+        lower.includes("liên hệ") ||
+        lower.includes("chưa xác định") ||
+        lower.includes("địa chỉ khách sạn")
+      ) {
+        return null;
+      }
+      return trimmed;
+    };
+
     const hotelProjection = {
       id: hotel.id,
       name: hotel.name,
       code: hotel.code,
       address:
-        nonEmpty(template?.hotelAddress) ||
-        nonEmpty(template?.contactInfo) ||
-        brandSettings.address ||
+        sanitizeContact(template?.hotelAddress) ||
+        sanitizeContact(template?.contactInfo) ||
+        sanitizeContact(brandSettings.address) ||
         [hotel.area, hotel.province].filter(Boolean).join(", ") ||
         "Địa chỉ khách sạn",
       phone:
-        nonEmpty(template?.hotelPhone) ||
-        brandSettings.phone ||
-        brandSettings.hotline ||
-        "Số điện thoại liên hệ",
+        sanitizeContact(template?.hotelPhone) ||
+        sanitizeContact(brandSettings.phone) ||
+        sanitizeContact(brandSettings.hotline) ||
+        null,
       email:
-        nonEmpty(template?.hotelEmail) ||
-        brandSettings.email ||
-        "Email liên hệ",
+        sanitizeContact(template?.hotelEmail) ||
+        sanitizeContact(brandSettings.email) ||
+        null,
       logoUrl:
         template?.showLogo === false
           ? null
@@ -728,9 +743,9 @@ export class ReservationsService {
     }> = [];
 
     if (roomChargeLines.length > 0) {
-      nightlyBreakdown = roomChargeLines.map((l: any) => ({
+      nightlyBreakdown = roomChargeLines.map((l: any, idx: number) => ({
         date: l.serviceDate ? toYmd(new Date(l.serviceDate), tz) : toYmd(checkInDate, tz),
-        description: l.nameSnapshot || "Tiền phòng",
+        description: l.nameSnapshot || `Đêm ${idx + 1}`,
         rate: Number(l.unitPriceSnapshot ?? l.totalSnapshot ?? 0),
         lineType: "ROOM_NIGHT",
       }));
@@ -742,7 +757,7 @@ export class ReservationsService {
         const nightDate = addDaysYmd(toYmd(checkInDate, tz), i);
         nightlyBreakdown.push({
           date: nightDate,
-          description: `Tiền phòng đêm ${nightDate}`,
+          description: `Đêm ${i + 1}`,
           rate: nightlyRate,
           lineType: "ROOM_NIGHT",
         });
@@ -751,8 +766,14 @@ export class ReservationsService {
 
     const roomSubtotal = nightlyBreakdown.reduce((sum, item) => sum + item.rate, 0);
     const extraLines = (data.chargeLines || []).filter((l: any) => l.lineType !== "ROOM_NIGHT");
-    const serviceAmount = extraLines.reduce(
-      (sum: number, l: any) => sum + Number(l.totalSnapshot || 0),
+    const serviceBreakdown = extraLines.map((l: any) => ({
+      name: l.nameSnapshot || "Dịch vụ",
+      quantity: Number(l.quantity || 1),
+      unitPrice: Number(l.unitPriceSnapshot ?? l.totalSnapshot ?? 0),
+      total: Number(l.totalSnapshot ?? (Number(l.unitPriceSnapshot || 0) * Number(l.quantity || 1))),
+    }));
+    const serviceAmount = serviceBreakdown.reduce(
+      (sum: number, l: any) => sum + l.total,
       0,
     );
     const taxAmount = (data.chargeLines || []).reduce(
@@ -823,10 +844,15 @@ export class ReservationsService {
         plannedCheckOutAt: checkOutDate.toISOString(),
         nights,
         notes: data.notes || null,
+        sourceCategory: data.sourceCategory ?? null,
+        sourcePartnerId: data.sourcePartnerId ?? null,
+        sourcePartnerName: data.sourcePartner?.name ?? null,
+        bookingOwnerUserId: data.bookingOwnerUserId ?? null,
         createdAt: data.createdAt ? new Date(data.createdAt).toISOString() : new Date().toISOString(),
       },
       pricing: {
         nightlyBreakdown,
+        serviceBreakdown,
         roomSubtotal,
         taxAmount,
         serviceAmount,
@@ -860,25 +886,40 @@ export class ReservationsService {
     const nonEmpty = (val: unknown): string | undefined =>
       typeof val === "string" && val.trim().length > 0 ? val.trim() : undefined;
 
+    const sanitizeContact = (val: unknown): string | null => {
+      if (typeof val !== "string") return null;
+      const trimmed = val.trim();
+      if (!trimmed) return null;
+      const lower = trimmed.toLowerCase();
+      if (
+        lower.includes("liên hệ") ||
+        lower.includes("chưa xác định") ||
+        lower.includes("địa chỉ khách sạn")
+      ) {
+        return null;
+      }
+      return trimmed;
+    };
+
     const hotelProjection = {
       id: hotel.id,
       name: hotel.name,
       code: hotel.code,
       address:
-        nonEmpty(template?.hotelAddress) ||
-        nonEmpty(template?.contactInfo) ||
-        brandSettings.address ||
+        sanitizeContact(template?.hotelAddress) ||
+        sanitizeContact(template?.contactInfo) ||
+        sanitizeContact(brandSettings.address) ||
         [hotel.area, hotel.province].filter(Boolean).join(", ") ||
         "Địa chỉ khách sạn",
       phone:
-        nonEmpty(template?.hotelPhone) ||
-        brandSettings.phone ||
-        brandSettings.hotline ||
-        "Số điện thoại liên hệ",
+        sanitizeContact(template?.hotelPhone) ||
+        sanitizeContact(brandSettings.phone) ||
+        sanitizeContact(brandSettings.hotline) ||
+        null,
       email:
-        nonEmpty(template?.hotelEmail) ||
-        brandSettings.email ||
-        "Email liên hệ",
+        sanitizeContact(template?.hotelEmail) ||
+        sanitizeContact(brandSettings.email) ||
+        null,
       logoUrl:
         template?.showLogo === false
           ? null
@@ -913,10 +954,25 @@ export class ReservationsService {
       if (cOut > latestCheckOut) latestCheckOut = cOut;
 
       const rNights = Math.max(1, diffCalendarDays(cIn, cOut, tz));
-      const rNightlyRate = Number(
-        r.nightlyRateSnapshot ?? r.room?.price ?? r.roomType?.basePrice ?? 0,
+      const roomChargeLines = (r.chargeLines || []).filter(
+        (l: any) => l.lineType === "ROOM_NIGHT",
       );
-      const rRoomSubtotal = rNightlyRate * rNights;
+
+      let rRoomSubtotal = 0;
+      if (roomChargeLines.length > 0) {
+        rRoomSubtotal = roomChargeLines.reduce(
+          (sum: number, l: any) => sum + Number(l.totalSnapshot || l.unitPriceSnapshot || 0),
+          0,
+        );
+      } else {
+        const fallbackRate = Number(
+          r.nightlyRateSnapshot ?? r.room?.price ?? r.roomType?.basePrice ?? 0,
+        );
+        rRoomSubtotal = fallbackRate * rNights;
+      }
+
+      const rNightlyRate = rNights > 0 ? Math.round(rRoomSubtotal / rNights) : 0;
+
       const rPaid = (r.bookingPayments || [])
         .filter((p: any) => p.status === "COMPLETED" || p.status === "ALLOCATED")
         .reduce((sum: number, p: any) => sum + Number(p.receivedAmount || 0), 0);
@@ -935,6 +991,13 @@ export class ReservationsService {
           : Array.isArray(rawGuestStays) && rawGuestStays.length > 0
             ? rawGuestStays[0]
             : null;
+
+      const resolvedRoomTypeName =
+        r.roomType?.name ||
+        r.room?.roomType?.name ||
+        r.room?.type ||
+        r.roomTypeSnapshot ||
+        "Tiêu chuẩn";
 
       return {
         reservationId: r.id,
@@ -958,7 +1021,7 @@ export class ReservationsService {
         roomNumber: r.room?.roomNumber ? `P.${r.room.roomNumber}` : "Chưa gán phòng",
         assignedRoomNumber: r.room?.roomNumber ?? r.assignedRoom?.roomNumber ?? null,
         floor: r.room?.floor || null,
-        roomTypeName: r.roomType?.name || r.roomTypeSnapshot || "Tiêu chuẩn",
+        roomTypeName: resolvedRoomTypeName,
         plannedCheckInAt: cIn.toISOString(),
         plannedCheckOutAt: cOut.toISOString(),
         checkInDate: cIn.toISOString(),
@@ -976,6 +1039,35 @@ export class ReservationsService {
       };
     });
 
+    const extraLines = data.reservations.flatMap((r: any) =>
+      (r.chargeLines || []).filter((l: any) => l.lineType !== "ROOM_NIGHT"),
+    );
+    const serviceBreakdown = extraLines.map((l: any) => ({
+      name: l.nameSnapshot || "Dịch vụ",
+      quantity: Number(l.quantity || 1),
+      unitPrice: Number(l.unitPriceSnapshot ?? l.totalSnapshot ?? 0),
+      total: Number(l.totalSnapshot ?? (Number(l.unitPriceSnapshot || 0) * Number(l.quantity || 1))),
+    }));
+    const totalServiceAmount = serviceBreakdown.reduce((sum: number, l: any) => sum + l.total, 0);
+    const totalTaxAmount = data.reservations.reduce((acc: number, r: any) => {
+      return (
+        acc +
+        (r.chargeLines || []).reduce(
+          (sum: number, l: any) => sum + Number(l.taxAmountSnapshot || 0),
+          0,
+        )
+      );
+    }, 0);
+    const totalDiscountAmount = data.reservations.reduce((acc: number, r: any) => {
+      return (
+        acc +
+        (r.chargeLines || []).reduce(
+          (sum: number, l: any) => sum + Number(l.discountAmountSnapshot || 0),
+          0,
+        )
+      );
+    }, 0);
+
     const groupNights = Math.max(1, diffCalendarDays(earliestCheckIn, latestCheckOut, tz));
     const totalRooms = rooms.length;
     const totalGuests = rooms.reduce((s: number, r: any) => s + r.guestCount, 0);
@@ -985,7 +1077,7 @@ export class ReservationsService {
       .filter((p: any) => p.status === "COMPLETED" || p.status === "ALLOCATED")
       .reduce((sum: number, p: any) => sum + Number(p.receivedAmount || 0), 0);
     const totalPaidAmount = roomsPaid + groupDirectPaid;
-    const totalAmount = roomSubtotal;
+    const totalAmount = roomSubtotal + totalServiceAmount + totalTaxAmount - totalDiscountAmount;
     const totalBalanceAmount = Math.max(0, totalAmount - totalPaidAmount);
 
     const cancellationPolicy =
@@ -1033,9 +1125,10 @@ export class ReservationsService {
         totalRooms,
         totalGuests,
         roomSubtotal,
-        taxAmount: 0,
-        serviceAmount: 0,
-        discountAmount: 0,
+        serviceBreakdown,
+        taxAmount: totalTaxAmount,
+        serviceAmount: totalServiceAmount,
+        discountAmount: totalDiscountAmount,
         totalAmount,
         paidAmount: totalPaidAmount,
         balanceAmount: totalBalanceAmount,

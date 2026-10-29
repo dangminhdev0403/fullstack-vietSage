@@ -188,6 +188,38 @@ function getChannelBadge(channel?: string | null): {
   if (key.includes("agoda")) return CHANNEL_BADGES["agoda"];
   if (key.includes("airbnb")) return CHANNEL_BADGES["airbnb"];
   if (key.includes("traveloka")) return CHANNEL_BADGES["traveloka"];
+  if (
+    key === "co" ||
+    key.includes("corporate") ||
+    key.includes("doanh nghiệp") ||
+    key.includes("công ty")
+  ) {
+    return {
+      bg: "bg-indigo-100",
+      text: "text-indigo-800",
+      border: "border-indigo-300",
+      label:
+        channel && channel.trim() !== "CO" && channel.trim() !== "CORPORATE"
+          ? channel.trim()
+          : "Doanh nghiệp (CO)",
+    };
+  }
+  if (
+    key === "ta" ||
+    key.includes("travel_agency") ||
+    key.includes("đại lý") ||
+    key.includes("lữ hành")
+  ) {
+    return {
+      bg: "bg-purple-100",
+      text: "text-purple-800",
+      border: "border-purple-300",
+      label:
+        channel && channel.trim() !== "TA" && channel.trim() !== "TRAVEL_AGENCY"
+          ? channel.trim()
+          : "Đại lý (TA)",
+    };
+  }
   if (key.includes("trực tiếp") || key.includes("direct")) return CHANNEL_BADGES["trực tiếp"];
   if (CHANNEL_BADGES[key]) return CHANNEL_BADGES[key];
   return {
@@ -1799,11 +1831,22 @@ export function TapeChartView({
       const channel =
         raw.channel ||
         raw.channelName ||
-        (raw.source === "OTA" ? "OTA" : "Trực tiếp");
+        (raw.source === "OTA"
+          ? "OTA"
+          : raw.source === "CO"
+            ? "Doanh nghiệp (CO)"
+            : raw.source === "TA"
+              ? "Đại lý (TA)"
+              : "Trực tiếp");
 
       const nightlyRate =
         raw.nightlyRate ??
         (raw.nightlyRateSnapshot ? Number(raw.nightlyRateSnapshot) : null);
+
+      const roomSubtotal =
+        typeof raw.roomSubtotal === "number"
+          ? raw.roomSubtotal
+          : (nightlyRate ? nightlyRate * diffNights : null);
 
       const matchedRoom = roomById.get(String(raw.roomId));
 
@@ -1828,6 +1871,12 @@ export function TapeChartView({
         phone: raw.phone ?? raw.guestPhone ?? null,
         source: raw.source ?? null,
         channel,
+        channelName: raw.channelName || raw.channel || null,
+        sourceCategory: raw.sourceCategory || null,
+        sourcePartnerId: raw.sourcePartnerId || null,
+        sourcePartnerName: raw.sourcePartnerName || null,
+        bookingOwnerUserId: raw.bookingOwnerUserId || null,
+        bookingOwnerName: raw.bookingOwnerName || null,
         status: String(raw.status || "CONFIRMED"),
         roomId: String(raw.roomId),
         roomNumber,
@@ -1837,6 +1886,10 @@ export function TapeChartView({
         endDate,
         nights: diffNights,
         nightlyRate,
+        roomSubtotal,
+        serviceSubtotal: typeof raw.serviceSubtotal === "number" ? raw.serviceSubtotal : null,
+        totalAmount: typeof raw.totalAmount === "number" ? raw.totalAmount : null,
+        services: Array.isArray(raw.services) ? raw.services : [],
         movable: Boolean(
           raw.movable !== undefined
             ? (raw.movable || (raw.status !== "CHECKED_OUT" && raw.status !== "CANCELLED"))
@@ -4682,7 +4735,7 @@ export function TapeChartView({
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-semibold text-slate-500">Kênh:</span>
                         <span
                           className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black whitespace-nowrap shadow-2xs ${
@@ -4691,6 +4744,20 @@ export function TapeChartView({
                         >
                           {getChannelBadge(selectedBlock.channel || selectedBlock.source).label}
                         </span>
+
+                        {selectedBlock.sourcePartnerName && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-900 border border-indigo-200 shadow-2xs whitespace-nowrap">
+                            <VsIcon name="business" className="text-xs" />
+                            {selectedBlock.sourcePartnerName}
+                          </span>
+                        )}
+
+                        {selectedBlock.bookingOwnerName && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs whitespace-nowrap">
+                            <VsIcon name="badge" className="text-xs" />
+                            Phụ trách: {selectedBlock.bookingOwnerName}
+                          </span>
+                        )}
 
                         {selectedBlock.startDate === todayYmd && selectedBlock.kind === "RESERVATION" && (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs whitespace-nowrap">
@@ -4804,17 +4871,40 @@ export function TapeChartView({
 
                       <div className="space-y-2 pt-1 text-xs">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-slate-600">Giá phòng mỗi đêm:</span>
-                          <span className="font-bold text-slate-800">{formatVnd(selectedBlock.nightlyRate)}</span>
+                          <span className="font-medium text-slate-600">Đơn giá phòng TB:</span>
+                          <span className="font-bold text-slate-800">
+                            {formatVnd(
+                              selectedBlock.roomSubtotal && selectedBlock.nights
+                                ? Math.round(selectedBlock.roomSubtotal / selectedBlock.nights)
+                                : selectedBlock.nightlyRate,
+                            )}
+                          </span>
                         </div>
                         <div className="flex items-center justify-between pt-1 border-t border-slate-100">
                           <span className="font-bold text-slate-800">Tổng tiền phòng ({selectedBlock.nights} đêm):</span>
                           <span className="font-black text-base text-[#123d2a]">
                             {formatVnd(
-                              selectedBlock.nightlyRate ? selectedBlock.nightlyRate * selectedBlock.nights : null,
+                              selectedBlock.roomSubtotal ??
+                                (selectedBlock.nightlyRate ? selectedBlock.nightlyRate * selectedBlock.nights : null),
                             )}
                           </span>
                         </div>
+                        {selectedBlock.serviceSubtotal && selectedBlock.serviceSubtotal > 0 ? (
+                          <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                            <span className="font-medium text-slate-600">Dịch vụ đặt trước:</span>
+                            <span className="font-bold text-slate-800">
+                              {formatVnd(selectedBlock.serviceSubtotal)}
+                            </span>
+                          </div>
+                        ) : null}
+                        {selectedBlock.totalAmount && selectedBlock.serviceSubtotal && selectedBlock.serviceSubtotal > 0 ? (
+                          <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                            <span className="font-black text-slate-900">Tổng cộng thanh toán:</span>
+                            <span className="font-black text-base text-blue-900">
+                              {formatVnd(selectedBlock.totalAmount)}
+                            </span>
+                          </div>
+                        ) : null}
                         <div className="flex items-center justify-between pt-1 border-t border-slate-100">
                           <span className="font-medium text-slate-600">Trạng thái:</span>
                           <span
@@ -4832,13 +4922,40 @@ export function TapeChartView({
               )}
 
               {drawerTab === "services" && (
-                <div className="py-12 text-center text-slate-400 space-y-2">
-                  <VsIcon name="room_service" className="text-4xl text-slate-300 mx-auto" />
-                  <p className="font-bold text-xs text-slate-700">Chưa có dịch vụ phát sinh</p>
-                  <p className="text-xs text-slate-400 max-w-xs mx-auto text-pretty">
-                    Các dịch vụ giặt là, ăn uống, minibar phát sinh của phòng sẽ hiển thị tại đây.
-                  </p>
-                </div>
+                selectedBlock.services && selectedBlock.services.length > 0 ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                        <VsIcon name="room_service" className="text-sm text-emerald-800" />
+                        <span>Dịch vụ đặt trước ({selectedBlock.services.length} mục)</span>
+                      </span>
+                      <span className="text-xs font-bold text-emerald-800">
+                        {formatVnd(selectedBlock.serviceSubtotal)}
+                      </span>
+                    </div>
+                    <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white overflow-hidden text-xs">
+                      {selectedBlock.services.map((s, idx) => (
+                        <div key={idx} className="p-3 flex items-center justify-between hover:bg-slate-50/70">
+                          <div>
+                            <p className="font-bold text-slate-800">{s.name}</p>
+                            <p className="text-xs text-slate-500">
+                              {s.quantity} × {formatVnd(s.unitPrice)}
+                            </p>
+                          </div>
+                          <span className="font-black text-slate-900">{formatVnd(s.total)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-12 text-center text-slate-400 space-y-2">
+                    <VsIcon name="room_service" className="text-4xl text-slate-300 mx-auto" />
+                    <p className="font-bold text-xs text-slate-700">Chưa có dịch vụ phát sinh</p>
+                    <p className="text-xs text-slate-400 max-w-xs mx-auto text-pretty">
+                      Các dịch vụ giặt là, ăn uống, minibar phát sinh của phòng sẽ hiển thị tại đây.
+                    </p>
+                  </div>
+                )
               )}
 
               {drawerTab === "history" && (

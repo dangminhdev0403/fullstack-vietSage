@@ -12,14 +12,17 @@ import {
   FolioStatus,
   GuestStayStatus,
   Prisma,
+  ReservationChargeLineType,
   ReservationStatus,
   RoomQRCodeStatus,
   RoomStatus,
 } from "@prisma/client";
 import {
+  addDaysYmd,
   diffCalendarDays,
   resolveTimeZone,
   toYmd,
+  VIETNAM_TIME_ZONE,
 } from "../../../../common/time/vietnam-temporal";
 import { PrismaService } from "../../../../prisma/prisma.service";
 import type {
@@ -145,7 +148,15 @@ export class ReservationsRepository {
 
       const rooms = await tx.room.findMany({
         where: { id: { in: sortedRoomIds }, hotelId: input.hotelId },
-        select: { id: true, status: true, price: true, roomNumber: true },
+        select: {
+          id: true,
+          status: true,
+          price: true,
+          roomNumber: true,
+          roomTypeId: true,
+          type: true,
+          roomType: { select: { id: true, name: true } },
+        },
       });
 
       if (rooms.length !== sortedRoomIds.length) {
@@ -319,6 +330,8 @@ export class ReservationsRepository {
         const reservationData: any = {
           hotelId: input.hotelId,
           roomId,
+          roomTypeId: room.roomTypeId ?? null,
+          roomTypeSnapshot: (room as any).roomType?.name ?? (room as any).type ?? null,
           reservationCode,
           groupCode: input.groupCode,
           guestDisplayName: input.leadGuestName,
@@ -333,7 +346,7 @@ export class ReservationsRepository {
           nightlyRateSnapshot,
           sourceCategory: (input.sourceCategory === "TA" ? "TRAVEL_AGENCY" : input.sourceCategory) ?? undefined,
           sourcePartnerId: input.sourcePartnerId ?? undefined,
-          bookingOwnerUserId: input.bookingOwnerUserId ?? undefined,
+          bookingOwnerUserId: input.bookingOwnerUserId?.trim() || input.createdByUserId || undefined,
         };
 
         const reservation = await (tx.reservation.create as any)({
@@ -342,9 +355,16 @@ export class ReservationsRepository {
         });
 
         const activeChargeLines: any[] = input.chargeLines ?? [];
-        if (activeChargeLines.length > 0 && tx.reservationChargeLine) {
+        // Only attach group-level extra services to the lead reservation so charges are not multiplied per room!
+        const isLeadReservation = reservations.length === 0;
+        const linesForThisRoom = activeChargeLines.filter((line: any) => {
+          if (line.lineType === "ROOM_NIGHT") return true;
+          return isLeadReservation;
+        });
+
+        if (linesForThisRoom.length > 0 && tx.reservationChargeLine) {
           await tx.reservationChargeLine.createMany({
-            data: activeChargeLines.map((line: any) => ({
+            data: linesForThisRoom.map((line: any) => ({
               hotelId: input.hotelId,
               reservationId: reservation.id,
               lineType: line.lineType,
@@ -375,7 +395,7 @@ export class ReservationsRepository {
             leadGuestPhone: input.leadGuestPhone || null,
             sourceCategory: (input.sourceCategory === "TA" ? "TRAVEL_AGENCY" : input.sourceCategory) ?? undefined,
             sourcePartnerId: input.sourcePartnerId ?? undefined,
-            bookingOwnerUserId: input.bookingOwnerUserId ?? undefined,
+            bookingOwnerUserId: input.bookingOwnerUserId?.trim() || input.createdByUserId || undefined,
           },
           create: {
             hotelId: input.hotelId,
@@ -384,7 +404,7 @@ export class ReservationsRepository {
             leadGuestPhone: input.leadGuestPhone || null,
             sourceCategory: (input.sourceCategory === "TA" ? "TRAVEL_AGENCY" : input.sourceCategory) ?? undefined,
             sourcePartnerId: input.sourcePartnerId ?? undefined,
-            bookingOwnerUserId: input.bookingOwnerUserId ?? undefined,
+            bookingOwnerUserId: input.bookingOwnerUserId?.trim() || input.createdByUserId || undefined,
           },
         });
       }
@@ -529,7 +549,7 @@ export class ReservationsRepository {
               input.nightlyRateSnapshot !== undefined ? input.nightlyRateSnapshot : room.price,
             sourceCategory: (input.sourceCategory === "TA" ? "TRAVEL_AGENCY" : input.sourceCategory) ?? undefined,
             sourcePartnerId: input.sourcePartnerId ?? undefined,
-            bookingOwnerUserId: input.bookingOwnerUserId ?? undefined,
+            bookingOwnerUserId: input.bookingOwnerUserId?.trim() || input.createdByUserId || undefined,
           },
           include: { room: true, roomType: true },
         });
@@ -588,7 +608,7 @@ export class ReservationsRepository {
             input.nightlyRateSnapshot !== undefined ? input.nightlyRateSnapshot : defaultBaseRate,
           sourceCategory: input.sourceCategory ?? undefined,
           sourcePartnerId: input.sourcePartnerId ?? undefined,
-          bookingOwnerUserId: input.bookingOwnerUserId ?? undefined,
+          bookingOwnerUserId: input.bookingOwnerUserId?.trim() || input.createdByUserId || undefined,
         },
         include: { roomType: true },
       });
@@ -632,8 +652,13 @@ export class ReservationsRepository {
     const reservation = await this.prisma.reservation.findUnique({
       where: { id: reservationId },
       include: {
-        room: true,
+        room: {
+          include: {
+            roomType: true,
+          },
+        },
         roomType: true,
+        sourcePartner: true,
         hotel: {
           include: {
             confirmationTemplate: true,
@@ -675,8 +700,13 @@ export class ReservationsRepository {
     const reservations = await this.prisma.reservation.findMany({
       where: { hotelId, groupCode },
       include: {
-        room: true,
+        room: {
+          include: {
+            roomType: true,
+          },
+        },
         roomType: true,
+        sourcePartner: true,
         hotel: {
           include: {
             confirmationTemplate: true,
@@ -1656,6 +1686,10 @@ export class ReservationsRepository {
               status: true,
             },
           },
+          chargeLines: {
+            orderBy: { serviceDate: "asc" },
+          },
+          sourcePartner: true,
         },
         orderBy: { plannedCheckInAt: "asc" },
       }),
@@ -1738,6 +1772,25 @@ export class ReservationsRepository {
       }
     }
 
+    const userIds = new Set<string>();
+    for (const r of reservations) {
+      if (r.bookingOwnerUserId) userIds.add(r.bookingOwnerUserId);
+      if (r.createdByUserId) userIds.add(r.createdByUserId);
+    }
+    for (const s of stays) {
+      if (s.createdByUserId) userIds.add(s.createdByUserId);
+    }
+    const users =
+      userIds.size > 0 && this.prisma.user?.findMany
+        ? await this.prisma.user.findMany({
+            where: { id: { in: Array.from(userIds) } },
+            select: { id: true, name: true, email: true },
+          })
+        : [];
+    const userMap = new Map<string, string>(
+      users.map((u: any) => [u.id, u.name || u.email]),
+    );
+
     const blocks: Array<{
       id: string;
       kind: "RESERVATION" | "STAY";
@@ -1755,9 +1808,14 @@ export class ReservationsRepository {
       guestPhone: string | null;
       guestCount: number | null;
       status: string;
-      source: "OTA" | "DIRECT" | "UNKNOWN";
+      source: string;
       channel: string;
       channelName: string | null;
+      sourceCategory: string | null;
+      sourcePartnerId: string | null;
+      sourcePartnerName: string | null;
+      bookingOwnerUserId: string | null;
+      bookingOwnerName: string | null;
       startDate: string;
       endDate: string;
       startAt: string;
@@ -1765,6 +1823,15 @@ export class ReservationsRepository {
       nights: number;
       nightlyRate: number | null;
       nightlyRateSnapshot: string | null;
+      roomSubtotal: number | null;
+      serviceSubtotal: number | null;
+      totalAmount: number | null;
+      services?: Array<{
+        name: string;
+        quantity: number;
+        unitPrice: number;
+        total: number;
+      }>;
       updatedAt: string;
       expectedUpdatedAt: string;
       movable: boolean;
@@ -1772,18 +1839,64 @@ export class ReservationsRepository {
 
     for (const r of reservations) {
       if (r.roomId && !staysByResId.has(r.id)) {
-        const isOta = Boolean(r.groupCode && r.groupCode.startsWith("OTA"));
-        const channelName = isOta
-          ? (r.groupCode?.replace(/^OTA-?/i, "").trim() || "OTA")
-          : "Trực tiếp";
         const checkIn = r.plannedCheckInAt;
         const checkOut = r.plannedCheckOutAt;
         const nights = Math.max(1, diffCalendarDays(checkIn, checkOut, timeZone));
-        const nightlyRate = r.nightlyRateSnapshot
-          ? Number(r.nightlyRateSnapshot)
-          : r.room?.price
-            ? Number(r.room.price)
-            : null;
+
+        const roomChargeLines = (r.chargeLines || []).filter((l: any) => l.lineType === "ROOM_NIGHT");
+        const extraLines = (r.chargeLines || []).filter((l: any) => l.lineType !== "ROOM_NIGHT");
+
+        let roomSubtotal = 0;
+        if (roomChargeLines.length > 0) {
+          roomSubtotal = roomChargeLines.reduce(
+            (sum: number, l: any) => sum + Number(l.totalSnapshot || l.unitPriceSnapshot || 0),
+            0,
+          );
+        } else {
+          const fallbackRate = Number(
+            r.nightlyRateSnapshot ?? r.room?.price ?? 0,
+          );
+          roomSubtotal = fallbackRate * nights;
+        }
+
+        const services = extraLines.map((l: any) => ({
+          name: l.nameSnapshot || "Dịch vụ",
+          quantity: Number(l.quantity || 1),
+          unitPrice: Number(l.unitPriceSnapshot || l.totalSnapshot || 0),
+          total: Number(l.totalSnapshot || 0),
+        }));
+        const serviceSubtotal = services.reduce((sum: number, s: any) => sum + s.total, 0);
+        const totalAmount = roomSubtotal + serviceSubtotal;
+        const effectiveNightlyRate =
+          nights > 0
+            ? Math.round(roomSubtotal / nights)
+            : Number(r.nightlyRateSnapshot ?? r.room?.price ?? 0);
+
+        const isOta = Boolean(
+          r.sourceCategory === "OTA" || (r.groupCode && r.groupCode.startsWith("OTA")),
+        );
+        const channelCategory = (r.sourceCategory as string) || (isOta ? "OTA" : "DIRECT");
+
+        let channelName = "Trực tiếp";
+        let channelCode = "DIRECT";
+        if (r.sourcePartner?.name) {
+          channelName = r.sourcePartner.name;
+          channelCode = channelCategory === "CORPORATE" ? "CO" : channelCategory === "TRAVEL_AGENCY" ? "TA" : channelCategory;
+        } else if (channelCategory === "CORPORATE") {
+          channelName = "Doanh nghiệp (CO)";
+          channelCode = "CO";
+        } else if (channelCategory === "TRAVEL_AGENCY" || channelCategory === "TA") {
+          channelName = "Đại lý (TA)";
+          channelCode = "TA";
+        } else if (channelCategory === "OTA") {
+          channelName = r.groupCode?.replace(/^OTA-?/i, "").trim() || "OTA";
+          channelCode = "OTA";
+        }
+
+        const bookingOwnerName =
+          (r.bookingOwnerUserId ? userMap.get(r.bookingOwnerUserId) : null) ||
+          (r.createdByUserId ? userMap.get(r.createdByUserId) : null) ||
+          null;
 
         blocks.push({
           id: `res-${r.id}`,
@@ -1802,16 +1915,25 @@ export class ReservationsRepository {
           guestPhone: r.guestPhone,
           guestCount: r.guestCount ?? null,
           status: r.status,
-          source: isOta ? "OTA" : "DIRECT",
+          source: channelCode,
           channel: channelName,
           channelName,
+          sourceCategory: channelCategory,
+          sourcePartnerId: r.sourcePartnerId ?? null,
+          sourcePartnerName: r.sourcePartner?.name ?? null,
+          bookingOwnerUserId: r.bookingOwnerUserId ?? null,
+          bookingOwnerName,
           startDate: toYmd(checkIn, timeZone),
           endDate: toYmd(checkOut, timeZone),
           startAt: checkIn.toISOString(),
           endAt: checkOut.toISOString(),
           nights,
-          nightlyRate,
+          nightlyRate: effectiveNightlyRate,
           nightlyRateSnapshot: r.nightlyRateSnapshot ? r.nightlyRateSnapshot.toString() : null,
+          roomSubtotal,
+          serviceSubtotal,
+          totalAmount,
+          services,
           updatedAt: r.updatedAt.toISOString(),
           expectedUpdatedAt: r.updatedAt.toISOString(),
           movable: ACTIVE_RESERVATION_STATUSES.includes(r.status),
@@ -2339,6 +2461,70 @@ export class ReservationsRepository {
         },
         include: { room: true },
       });
+
+      // Reconcile nightly ledger (ROOM_NIGHT charge lines) with the new billable dates
+      if (tx.reservationChargeLine) {
+        const hotel = await tx.hotel.findUnique({
+          where: { id: input.hotelId },
+          select: { timezone: true },
+        });
+        const tz = hotel?.timezone || VIETNAM_TIME_ZONE;
+        const newNights = Math.max(1, diffCalendarDays(newCheckIn, newCheckOut, tz));
+        const newNightYmds = new Set<string>();
+        for (let i = 0; i < newNights; i++) {
+          newNightYmds.add(addDaysYmd(toYmd(newCheckIn, tz), i));
+        }
+
+        const existingLines = await tx.reservationChargeLine.findMany({
+          where: { reservationId: res.id, hotelId: input.hotelId },
+        });
+        const roomNightLines = existingLines.filter((l) => l.lineType === "ROOM_NIGHT");
+
+        const linesToDelete: string[] = [];
+        const coveredYmds = new Set<string>();
+
+        for (const line of roomNightLines) {
+          const lineYmd = line.serviceDate ? toYmd(new Date(line.serviceDate), tz) : null;
+          if (lineYmd && newNightYmds.has(lineYmd)) {
+            coveredYmds.add(lineYmd);
+          } else {
+            linesToDelete.push(line.id);
+          }
+        }
+
+        if (linesToDelete.length > 0) {
+          await tx.reservationChargeLine.deleteMany({
+            where: { id: { in: linesToDelete } },
+          });
+        }
+
+        const missingYmds = Array.from(newNightYmds).filter((ymd) => !coveredYmds.has(ymd));
+        if (missingYmds.length > 0) {
+          const fallbackRate =
+            input.nightlyRateSnapshot !== undefined && input.nightlyRateSnapshot !== null
+              ? new Prisma.Decimal(input.nightlyRateSnapshot)
+              : res.nightlyRateSnapshot ??
+                res.baseNightlyRateSnapshot ??
+                (res.room as any)?.price ??
+                new Prisma.Decimal(0);
+
+          await tx.reservationChargeLine.createMany({
+            data: missingYmds.map((ymd) => ({
+              hotelId: input.hotelId,
+              reservationId: res.id,
+              lineType: ReservationChargeLineType.ROOM_NIGHT,
+              serviceDate: new Date(`${ymd}T14:00:00+07:00`),
+              nameSnapshot: `Tiền phòng đêm ${ymd}`,
+              quantity: 1,
+              unitPriceSnapshot: fallbackRate,
+              taxAmountSnapshot: new Prisma.Decimal(0),
+              discountAmountSnapshot: new Prisma.Decimal(0),
+              totalSnapshot: fallbackRate,
+              currency: "VND",
+            })),
+          });
+        }
+      }
 
       await tx.auditLog.create({
         data: {

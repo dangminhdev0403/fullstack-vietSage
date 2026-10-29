@@ -14,6 +14,14 @@ const arrivalsTableSource = readFileSync(
   new URL("../../app/(vietsage)/hotels/[hotelId]/front-desk/front-desk-arrivals-table.tsx", import.meta.url),
   "utf8",
 );
+const frontDeskPageSource = readFileSync(
+  new URL("../../app/(vietsage)/hotels/[hotelId]/front-desk/page.tsx", import.meta.url),
+  "utf8",
+);
+const groupsTableSource = readFileSync(
+  new URL("../../app/(vietsage)/hotels/[hotelId]/front-desk/front-desk-groups-table.tsx", import.meta.url),
+  "utf8",
+);
 
 test("GroupOperationsDrawer enforces dialog accessibility, focus management, and touch targets", () => {
   // Modal / dialog accessibility attributes
@@ -102,4 +110,19 @@ test("GroupOperationsDrawer satisfies UI Design Gate standards", () => {
   assert.doesNotMatch(drawerSource, /VD:\s*Test/i);
   assert.doesNotMatch(drawerSource, /01\s*\/\s*/);
   assert.doesNotMatch(drawerSource, /02\s*\/\s*/);
+});
+
+test("FrontDeskPage has horizontal tab 'Quản lý đoàn' and FrontDeskGroupsTable enables clicking a group for details", () => {
+  // Horizontal tab in FrontDeskPage
+  assert.match(frontDeskPageSource, /tab === "groups"/);
+  assert.match(frontDeskPageSource, /<span>Quản lý đoàn<\/span>/);
+  assert.match(frontDeskPageSource, /<FrontDeskGroupsTable/);
+
+  // FrontDeskGroupsTable displays table of groups and opens detail drawer on click
+  assert.match(groupsTableSource, /export function FrontDeskGroupsTable/);
+  assert.match(groupsTableSource, /buildFrontDeskGroupSummaries/);
+  assert.match(groupsTableSource, /<table/);
+  assert.match(groupsTableSource, /setActiveGroupCode\(group\.groupCode\)/);
+  assert.match(groupsTableSource, /<GroupOperationsDrawer/);
+  assert.match(groupsTableSource, /Xem chi tiết đoàn/);
 });

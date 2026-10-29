@@ -214,6 +214,7 @@ describe("ReservationsService front-desk lifecycle", () => {
         guestDisplayName: "Nguyen Van A",
         guestPhone: "0900000000",
         reservationCode: "VSH_RESERVATION_0001",
+        bookingOwnerUserId: "actor-1",
       }),
     );
   });
@@ -515,6 +516,7 @@ describe("ReservationsService front-desk lifecycle", () => {
           leadGuestPhone: "0912345678",
           roomIds: ["room-1", "room-2"],
           createdByUserId: "actor-1",
+          bookingOwnerUserId: "actor-1",
           nightlyRateSnapshot: "1200000.00",
         }),
       );
@@ -997,6 +999,167 @@ describe("ReservationsService front-desk lifecycle", () => {
         balanceAmount: 2000000,
         currency: "VND",
       });
+    });
+
+    it("reconciles group confirmation with nightly overrides, extra services, and room categories (QA Case B & C)", async () => {
+      const { service } = createService(
+        createRepository({
+          findGroupConfirmation: jest.fn().mockResolvedValue({
+            hotel: {
+              id: "hotel-1",
+              name: "Khách sạn minh 123",
+              code: "HT123",
+              timezone: "Asia/Ho_Chi_Minh",
+            },
+            groupRecord: {
+              groupCode: "VSH_GROUP_0015",
+              groupName: "QA GROUP AUTO 3010 B",
+              leadGuestName: "Nguyễn Minh Anh",
+              leadGuestPhone: "0901234567",
+              bookingPayments: [],
+            },
+            reservations: [
+              {
+                id: "res-b-1",
+                hotelId: "hotel-1",
+                groupCode: "VSH_GROUP_0015",
+                reservationCode: "VSH_RESERVATION_0104",
+                guestDisplayName: "Nguyễn Minh Anh",
+                status: "CONFIRMED",
+                plannedCheckInAt: new Date("2026-10-31T14:00:00.000Z"),
+                plannedCheckOutAt: new Date("2026-11-02T12:00:00.000Z"),
+                room: { id: "room-1003", roomNumber: "1003", floor: "10", price: "850000" },
+                roomType: { id: "rt-single", name: "Single Room", normalizedKey: "single" },
+                chargeLines: [
+                  {
+                    id: "cl-1",
+                    lineType: "ROOM_NIGHT",
+                    serviceDate: new Date("2026-10-31T00:00:00.000Z"),
+                    nameSnapshot: "Tiền phòng đêm 31/10",
+                    unitPriceSnapshot: "800000",
+                    totalSnapshot: "800000",
+                  },
+                  {
+                    id: "cl-2",
+                    lineType: "ROOM_NIGHT",
+                    serviceDate: new Date("2026-11-01T00:00:00.000Z"),
+                    nameSnapshot: "Tiền phòng đêm 01/11",
+                    unitPriceSnapshot: "1000000",
+                    totalSnapshot: "1000000",
+                  },
+                  {
+                    id: "cl-extra",
+                    lineType: "EXTRA",
+                    nameSnapshot: "Đưa đón sân bay",
+                    quantity: 1,
+                    unitPriceSnapshot: "250000",
+                    totalSnapshot: "250000",
+                  },
+                ],
+                bookingPayments: [],
+              },
+              {
+                id: "res-b-2",
+                hotelId: "hotel-1",
+                groupCode: "VSH_GROUP_0015",
+                reservationCode: "VSH_RESERVATION_0105",
+                guestDisplayName: "Nguyễn Minh Anh",
+                status: "CONFIRMED",
+                plannedCheckInAt: new Date("2026-10-31T14:00:00.000Z"),
+                plannedCheckOutAt: new Date("2026-11-02T12:00:00.000Z"),
+                room: { id: "room-1004", roomNumber: "1004", floor: "10", price: "850000" },
+                roomType: { id: "rt-single", name: "Single Room", normalizedKey: "single" },
+                chargeLines: [
+                  {
+                    id: "cl-3",
+                    lineType: "ROOM_NIGHT",
+                    serviceDate: new Date("2026-10-31T00:00:00.000Z"),
+                    nameSnapshot: "Tiền phòng đêm 31/10",
+                    unitPriceSnapshot: "800000",
+                    totalSnapshot: "800000",
+                  },
+                  {
+                    id: "cl-4",
+                    lineType: "ROOM_NIGHT",
+                    serviceDate: new Date("2026-11-01T00:00:00.000Z"),
+                    nameSnapshot: "Tiền phòng đêm 01/11",
+                    unitPriceSnapshot: "1000000",
+                    totalSnapshot: "1000000",
+                  },
+                ],
+                bookingPayments: [],
+              },
+            ],
+          }),
+        }),
+      );
+
+      const result = await service.getGroupConfirmation(
+        "actor-1",
+        "active-role",
+        "hotel-1",
+        "VSH_GROUP_0015",
+      );
+
+      // Verify room categories preserved
+      expect(result.rooms[0].roomTypeName).toBe("Single Room");
+      expect(result.rooms[1].roomTypeName).toBe("Single Room");
+
+      // Verify each room's subtotal from charge lines (800k + 1M = 1,800,000)
+      expect(result.rooms[0].roomSubtotal).toBe(1800000);
+      expect(result.rooms[1].roomSubtotal).toBe(1800000);
+
+      // Verify group pricing: 2 rooms x 1,800,000 = 3,600,000 + 250,000 service = 3,850,000
+      expect(result.pricing.roomSubtotal).toBe(3600000);
+      expect(result.pricing.serviceAmount).toBe(250000);
+      expect(result.pricing.serviceBreakdown).toHaveLength(1);
+      expect(result.pricing.serviceBreakdown?.[0]).toMatchObject({
+        name: "Đưa đón sân bay",
+        quantity: 1,
+        unitPrice: 250000,
+        total: 250000,
+      });
+      expect(result.pricing.totalAmount).toBe(3850000);
+      expect(result.pricing.balanceAmount).toBe(3850000);
+    });
+
+    it("sanitizes placeholder contact info in confirmation projection (UI-06)", async () => {
+      const { service } = createService(
+        createRepository({
+          findReservationConfirmation: jest.fn().mockResolvedValue({
+            id: "reservation-placeholder",
+            hotelId: "hotel-1",
+            reservationCode: "VSH_RES_PH",
+            guestDisplayName: "Test Guest",
+            plannedCheckInAt: new Date("2026-11-01T14:00:00.000Z"),
+            plannedCheckOutAt: new Date("2026-11-02T12:00:00.000Z"),
+            status: "CONFIRMED",
+            hotel: {
+              id: "hotel-1",
+              name: "Hotel With Placeholders",
+              code: "HWP01",
+              timezone: "Asia/Ho_Chi_Minh",
+              brandSettings: {
+                phone: "Số điện thoại liên hệ",
+                email: "Email liên hệ",
+                address: "Địa chỉ khách sạn",
+              },
+            },
+            chargeLines: [],
+            bookingPayments: [],
+          }),
+        }),
+      );
+
+      const result = await service.getReservationConfirmation(
+        "actor-1",
+        "active-role",
+        "hotel-1",
+        "reservation-placeholder",
+      );
+
+      expect(result.hotel.phone).toBeNull();
+      expect(result.hotel.email).toBeNull();
     });
 
     it("rejects cross-hotel access when group does not belong to hotelId", async () => {

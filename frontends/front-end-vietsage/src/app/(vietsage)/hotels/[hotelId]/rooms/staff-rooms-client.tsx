@@ -45,7 +45,6 @@ import type {
   HotelCheckInResult,
   HotelOpsPage,
   HotelRoomSummary,
-  HotelStaffAssignmentItem,
   HotelStaySummary,
   RoomPlanBlock,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
@@ -65,11 +64,12 @@ export type PrebookedServiceItem = {
 };
 
 const PREBOOKED_SERVICE_PRESETS = [
-  { name: "Nhận phòng sớm", defaultPrice: 100000 },
-  { name: "Trả phòng muộn", defaultPrice: 100000 },
   { name: "Ăn sáng buffet", defaultPrice: 70000 },
   { name: "Đưa đón sân bay", defaultPrice: 250000 },
   { name: "Kê giường phụ", defaultPrice: 150000 },
+  { name: "Thuê xe máy", defaultPrice: 120000 },
+  { name: "Giặt là lấy ngay", defaultPrice: 50000 },
+  { name: "Setup hoa & bánh", defaultPrice: 200000 },
 ];
 
 function generatePartnerCode(name: string): string {
@@ -968,9 +968,6 @@ export function StaffRoomsClient({
   const [reservationSourcePartnerId, setReservationSourcePartnerId] = useState<string>("");
   const [reservationCustomPartnerName, setReservationCustomPartnerName] = useState<string>("");
   const [reservationIsAddingNewPartner, setReservationIsAddingNewPartner] = useState(false);
-  const [reservationBookingOwnerUserId, setReservationBookingOwnerUserId] = useState<string>(
-    currentUser?.id || "",
-  );
   const [reservationIsCustomNightlyRates, setReservationIsCustomNightlyRates] = useState(false);
   const [reservationNightlyRates, setReservationNightlyRates] = useState<Record<string, number>>({});
   const [reservationPrebookedServices, setReservationPrebookedServices] = useState<PrebookedServiceItem[]>([]);
@@ -1006,20 +1003,13 @@ export function StaffRoomsClient({
   const [bulkSourcePartnerId, setBulkSourcePartnerId] = useState<string>("");
   const [bulkCustomPartnerName, setBulkCustomPartnerName] = useState<string>("");
   const [bulkIsAddingNewPartner, setBulkIsAddingNewPartner] = useState(false);
-  const [bulkBookingOwnerUserId, setBulkBookingOwnerUserId] = useState<string>(
-    currentUser?.id || "",
-  );
   const [bulkIsCustomNightlyRates, setBulkIsCustomNightlyRates] = useState(false);
   const [bulkNightlyRates, setBulkNightlyRates] = useState<Record<string, number>>({});
   const [bulkPrebookedServices, setBulkPrebookedServices] = useState<PrebookedServiceItem[]>([]);
 
-  // Booking Source Partners & Staff Directory Queries
+  // Booking Source Partners Query
   const bookingPartnersQuery = useQuery({
     ...staffRoomsResource.bind({ hotelId }).queries.bookingPartners.options(undefined),
-    enabled: Boolean(!isHousekeeping && (isReservationOpen || isBulkModalOpen)),
-  });
-  const staffAssignmentsQuery = useQuery({
-    ...staffRoomsResource.bind({ hotelId }).queries.staffAssignments.options(undefined),
     enabled: Boolean(!isHousekeeping && (isReservationOpen || isBulkModalOpen)),
   });
   const createBookingPartnerMutation = useMutation(
@@ -1029,11 +1019,6 @@ export function StaffRoomsClient({
   const bookingPartnersList = useMemo<BookingSourcePartnerItem[]>(
     () => (Array.isArray(bookingPartnersQuery.data) ? bookingPartnersQuery.data : []),
     [bookingPartnersQuery.data],
-  );
-
-  const staffList = useMemo<HotelStaffAssignmentItem[]>(
-    () => (Array.isArray(staffAssignmentsQuery.data) ? staffAssignmentsQuery.data : []),
-    [staffAssignmentsQuery.data],
   );
 
   const bulkReservationsMutation = useMutation(
@@ -1470,8 +1455,7 @@ export function StaffRoomsClient({
         plannedCheckOutAt: checkOutIso,
         sourceCategory: reservationSourceCategory,
         sourcePartnerId: effectivePartnerId,
-        bookingOwnerUserId:
-          reservationBookingOwnerUserId || currentUser?.id || null,
+        bookingOwnerUserId: currentUser?.id || null,
         ...(chargeLines.length > 0 ? { chargeLines } : {}),
       };
       if (reservationGuestPhone.trim()) {
@@ -2590,42 +2574,37 @@ export function StaffRoomsClient({
 
   function renderBulkPrebookedServicesSection() {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5 transition-all">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
-              <VsIcon name="add_shopping_cart" className="text-base" />
+      <div className="rounded-2xl border border-slate-200/90 bg-slate-50/80 p-4 sm:p-5 transition-all">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 shadow-2xs shrink-0">
+              <VsIcon name="add_shopping_cart" className="text-lg" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-900">
-                  Phụ thu & Dịch vụ khách đặt trước
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-slate-900">
+                Phụ thu & Dịch vụ đặt trước
+              </span>
+              {bulkPrebookedServices.length > 0 ? (
+                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800 whitespace-nowrap">
+                  {bulkPrebookedServices.length} mục · {formatMoney({ price: bulkEstimatedServicesTotal, currency: "VND" })}
                 </span>
-                {bulkPrebookedServices.length > 0 ? (
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800 whitespace-nowrap">
-                    {bulkPrebookedServices.length} mục · {formatMoney({ price: bulkEstimatedServicesTotal, currency: "VND" })}
-                  </span>
-                ) : null}
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5 text-pretty">
-                Thêm trước các dịch vụ, ăn sáng, phụ thu nhận sớm/trả muộn để tự động kết chuyển vào Folio khi khách nhận phòng.
-              </p>
+              ) : null}
             </div>
           </div>
 
           <button
             type="button"
-            onClick={() => addBulkPrebookedService("Phụ thu khác", 0)}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-700 hover:bg-slate-100 transition whitespace-nowrap cursor-pointer shadow-2xs"
+            onClick={() => addBulkPrebookedService("", 0)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-700 hover:bg-slate-100 transition whitespace-nowrap cursor-pointer shadow-2xs"
           >
             <VsIcon name="add" className="text-sm" />
-            <span>Thêm dịch vụ khác</span>
+            <span>Thêm dịch vụ</span>
           </button>
         </div>
 
         {/* Quick preset buttons */}
-        <div className="flex flex-wrap items-center gap-1.5 py-1">
-          <span className="text-xs font-semibold text-slate-500 mr-1">
+        <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
+          <span className="text-xs font-bold text-slate-500 mr-0.5">
             Gợi ý nhanh:
           </span>
           {PREBOOKED_SERVICE_PRESETS.map((preset) => (
@@ -2633,12 +2612,12 @@ export function StaffRoomsClient({
               key={preset.name}
               type="button"
               onClick={() => addBulkPrebookedService(preset.name, preset.defaultPrice)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-900 text-xs font-medium text-slate-700 transition cursor-pointer shadow-2xs whitespace-nowrap"
+              className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 text-xs font-semibold text-slate-700 hover:text-emerald-900 transition cursor-pointer shadow-2xs whitespace-nowrap"
             >
-              <VsIcon name="add" className="text-xs text-emerald-600" />
+              <VsIcon name="add" className="text-xs text-emerald-600 group-hover:scale-110 transition-transform" />
               <span>{preset.name}</span>
               <span className="text-slate-400 font-normal">
-                ({new Intl.NumberFormat("vi-VN").format(preset.defaultPrice)}đ)
+                ({new Intl.NumberFormat("vi-VN").format(preset.defaultPrice)}₫)
               </span>
             </button>
           ))}
@@ -2647,46 +2626,46 @@ export function StaffRoomsClient({
         {/* Prebooked Services List */}
         {bulkPrebookedServices.length > 0 ? (
           <div className="mt-3 divide-y divide-slate-200/80 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
-            <div className="grid grid-cols-12 gap-2 bg-slate-100/80 px-3 py-2 text-xs font-bold text-slate-600 uppercase tracking-wider">
-              <div className="col-span-5 sm:col-span-6">Tên dịch vụ / Phụ thu</div>
+            <div className="grid grid-cols-12 gap-3 bg-slate-100/90 px-4 py-2.5 text-xs font-bold text-slate-600 uppercase tracking-wider">
+              <div className="col-span-5">Tên dịch vụ / Phụ thu</div>
               <div className="col-span-2 text-center">Số lượng</div>
-              <div className="col-span-3 sm:col-span-2 text-right">Đơn giá (₫)</div>
-              <div className="col-span-2 sm:col-span-2 text-right">Thành tiền</div>
+              <div className="col-span-2 text-right">Đơn giá (₫)</div>
+              <div className="col-span-3 text-right pr-2">Thành tiền</div>
             </div>
             {bulkPrebookedServices.map((item) => (
               <div
                 key={item.id}
-                className="grid grid-cols-12 gap-2 px-3 py-2.5 items-center hover:bg-slate-50/60 transition text-xs"
+                className="grid grid-cols-12 gap-3 px-4 py-2.5 items-center hover:bg-slate-50/80 transition text-xs"
               >
-                <div className="col-span-5 sm:col-span-6">
+                <div className="col-span-5">
                   <input
                     type="text"
                     value={item.name}
                     onChange={(e) => updateBulkPrebookedService(item.id, { name: e.target.value })}
-                    placeholder="Tên dịch vụ..."
-                    className="w-full h-8 px-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                    placeholder="Nhập tên dịch vụ..."
+                    className="w-full h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition"
                   />
                 </div>
-                <div className="col-span-2 flex items-center justify-center gap-1">
+                <div className="col-span-2 flex items-center justify-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => updateBulkPrebookedService(item.id, { quantity: Math.max(1, item.quantity - 1) })}
-                    className="h-7 w-7 rounded border border-slate-300 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-100"
+                    className="h-8 w-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 transition cursor-pointer shadow-2xs"
                   >
                     -
                   </button>
-                  <span className="w-6 text-center font-bold text-slate-800">
+                  <span className="w-7 text-center font-bold text-slate-800 text-xs">
                     {item.quantity}
                   </span>
                   <button
                     type="button"
                     onClick={() => updateBulkPrebookedService(item.id, { quantity: item.quantity + 1 })}
-                    className="h-7 w-7 rounded border border-slate-300 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-100"
+                    className="h-8 w-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 transition cursor-pointer shadow-2xs"
                   >
                     +
                   </button>
                 </div>
-                <div className="col-span-3 sm:col-span-2 text-right">
+                <div className="col-span-2 text-right">
                   <input
                     type="text"
                     inputMode="numeric"
@@ -2696,20 +2675,20 @@ export function StaffRoomsClient({
                       updateBulkPrebookedService(item.id, { unitPrice: digits ? Number(digits) : 0 });
                     }}
                     placeholder="0"
-                    className="w-full h-8 px-2 text-right rounded-lg border border-slate-200 text-xs font-semibold text-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                    className="w-full h-9 px-3 text-right rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition"
                   />
                 </div>
-                <div className="col-span-2 sm:col-span-2 flex items-center justify-end gap-1.5">
-                  <span className="font-bold text-slate-900 whitespace-nowrap">
+                <div className="col-span-3 flex items-center justify-end gap-2">
+                  <span className="font-bold text-slate-900 text-xs sm:text-sm whitespace-nowrap">
                     {formatMoney({ price: item.total, currency: "VND" })}
                   </span>
                   <button
                     type="button"
                     onClick={() => removeBulkPrebookedService(item.id)}
-                    className="h-7 w-7 text-slate-400 hover:text-rose-600 rounded flex items-center justify-center hover:bg-rose-50 transition cursor-pointer"
+                    className="h-8 w-8 text-slate-400 hover:text-rose-600 rounded-lg flex items-center justify-center hover:bg-rose-50 transition cursor-pointer"
                     title="Xóa dịch vụ này"
                   >
-                    <VsIcon name="delete" className="text-sm" />
+                    <VsIcon name="delete" className="text-base" />
                   </button>
                 </div>
               </div>
@@ -2809,42 +2788,37 @@ export function StaffRoomsClient({
 
   function renderReservationPrebookedServicesSection() {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5 transition-all">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
-              <VsIcon name="add_shopping_cart" className="text-base" />
+      <div className="rounded-2xl border border-slate-200/90 bg-slate-50/80 p-4 sm:p-5 transition-all">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 shadow-2xs shrink-0">
+              <VsIcon name="add_shopping_cart" className="text-lg" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-900">
-                  Phụ thu & Dịch vụ khách đặt trước
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-slate-900">
+                Phụ thu & Dịch vụ đặt trước
+              </span>
+              {reservationPrebookedServices.length > 0 ? (
+                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800 whitespace-nowrap">
+                  {reservationPrebookedServices.length} mục · {formatMoney({ price: reservationEstimatedServicesTotal, currency: "VND" })}
                 </span>
-                {reservationPrebookedServices.length > 0 ? (
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800 whitespace-nowrap">
-                    {reservationPrebookedServices.length} mục · {formatMoney({ price: reservationEstimatedServicesTotal, currency: "VND" })}
-                  </span>
-                ) : null}
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5 text-pretty">
-                Dịch vụ đặt trước sẽ tự động tính vào hóa đơn Folio khi khách check-in.
-              </p>
+              ) : null}
             </div>
           </div>
 
           <button
             type="button"
-            onClick={() => addReservationPrebookedService("Phụ thu khác", 0)}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-700 hover:bg-slate-100 transition whitespace-nowrap cursor-pointer shadow-2xs"
+            onClick={() => addReservationPrebookedService("", 0)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-700 hover:bg-slate-100 transition whitespace-nowrap cursor-pointer shadow-2xs"
           >
             <VsIcon name="add" className="text-sm" />
-            <span>Thêm dịch vụ khác</span>
+            <span>Thêm dịch vụ</span>
           </button>
         </div>
 
         {/* Quick presets */}
-        <div className="flex flex-wrap items-center gap-1.5 py-1">
-          <span className="text-xs font-semibold text-slate-500 mr-1">
+        <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
+          <span className="text-xs font-bold text-slate-500 mr-0.5">
             Gợi ý nhanh:
           </span>
           {PREBOOKED_SERVICE_PRESETS.map((preset) => (
@@ -2852,12 +2826,12 @@ export function StaffRoomsClient({
               key={preset.name}
               type="button"
               onClick={() => addReservationPrebookedService(preset.name, preset.defaultPrice)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-900 text-xs font-medium text-slate-700 transition cursor-pointer shadow-2xs whitespace-nowrap"
+              className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 text-xs font-semibold text-slate-700 hover:text-emerald-900 transition cursor-pointer shadow-2xs whitespace-nowrap"
             >
-              <VsIcon name="add" className="text-xs text-emerald-600" />
+              <VsIcon name="add" className="text-xs text-emerald-600 group-hover:scale-110 transition-transform" />
               <span>{preset.name}</span>
               <span className="text-slate-400 font-normal">
-                ({new Intl.NumberFormat("vi-VN").format(preset.defaultPrice)}đ)
+                ({new Intl.NumberFormat("vi-VN").format(preset.defaultPrice)}₫)
               </span>
             </button>
           ))}
@@ -2866,46 +2840,46 @@ export function StaffRoomsClient({
         {/* List of services */}
         {reservationPrebookedServices.length > 0 ? (
           <div className="mt-3 divide-y divide-slate-200/80 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
-            <div className="grid grid-cols-12 gap-2 bg-slate-100/80 px-3 py-2 text-xs font-bold text-slate-600 uppercase tracking-wider">
-              <div className="col-span-5 sm:col-span-6">Tên dịch vụ / Phụ thu</div>
+            <div className="grid grid-cols-12 gap-3 bg-slate-100/90 px-4 py-2.5 text-xs font-bold text-slate-600 uppercase tracking-wider">
+              <div className="col-span-5">Tên dịch vụ / Phụ thu</div>
               <div className="col-span-2 text-center">Số lượng</div>
-              <div className="col-span-3 sm:col-span-2 text-right">Đơn giá (₫)</div>
-              <div className="col-span-2 sm:col-span-2 text-right">Thành tiền</div>
+              <div className="col-span-2 text-right">Đơn giá (₫)</div>
+              <div className="col-span-3 text-right pr-2">Thành tiền</div>
             </div>
             {reservationPrebookedServices.map((item) => (
               <div
                 key={item.id}
-                className="grid grid-cols-12 gap-2 px-3 py-2.5 items-center hover:bg-slate-50/60 transition text-xs"
+                className="grid grid-cols-12 gap-3 px-4 py-2.5 items-center hover:bg-slate-50/80 transition text-xs"
               >
-                <div className="col-span-5 sm:col-span-6">
+                <div className="col-span-5">
                   <input
                     type="text"
                     value={item.name}
                     onChange={(e) => updateReservationPrebookedService(item.id, { name: e.target.value })}
-                    placeholder="Tên dịch vụ..."
-                    className="w-full h-8 px-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                    placeholder="Nhập tên dịch vụ..."
+                    className="w-full h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition"
                   />
                 </div>
-                <div className="col-span-2 flex items-center justify-center gap-1">
+                <div className="col-span-2 flex items-center justify-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => updateReservationPrebookedService(item.id, { quantity: Math.max(1, item.quantity - 1) })}
-                    className="h-7 w-7 rounded border border-slate-300 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-100"
+                    className="h-8 w-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 transition cursor-pointer shadow-2xs"
                   >
                     -
                   </button>
-                  <span className="w-6 text-center font-bold text-slate-800">
+                  <span className="w-7 text-center font-bold text-slate-800 text-xs">
                     {item.quantity}
                   </span>
                   <button
                     type="button"
                     onClick={() => updateReservationPrebookedService(item.id, { quantity: item.quantity + 1 })}
-                    className="h-7 w-7 rounded border border-slate-300 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-100"
+                    className="h-8 w-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 transition cursor-pointer shadow-2xs"
                   >
                     +
                   </button>
                 </div>
-                <div className="col-span-3 sm:col-span-2 text-right">
+                <div className="col-span-2 text-right">
                   <input
                     type="text"
                     inputMode="numeric"
@@ -2915,20 +2889,20 @@ export function StaffRoomsClient({
                       updateReservationPrebookedService(item.id, { unitPrice: digits ? Number(digits) : 0 });
                     }}
                     placeholder="0"
-                    className="w-full h-8 px-2 text-right rounded-lg border border-slate-200 text-xs font-semibold text-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                    className="w-full h-9 px-3 text-right rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition"
                   />
                 </div>
-                <div className="col-span-2 sm:col-span-2 flex items-center justify-end gap-1.5">
-                  <span className="font-bold text-slate-900 whitespace-nowrap">
+                <div className="col-span-3 flex items-center justify-end gap-2">
+                  <span className="font-bold text-slate-900 text-xs sm:text-sm whitespace-nowrap">
                     {formatMoney({ price: item.total, currency: "VND" })}
                   </span>
                   <button
                     type="button"
                     onClick={() => removeReservationPrebookedService(item.id)}
-                    className="h-7 w-7 text-slate-400 hover:text-rose-600 rounded flex items-center justify-center hover:bg-rose-50 transition cursor-pointer"
+                    className="h-8 w-8 text-slate-400 hover:text-rose-600 rounded-lg flex items-center justify-center hover:bg-rose-50 transition cursor-pointer"
                     title="Xóa dịch vụ này"
                   >
-                    <VsIcon name="delete" className="text-sm" />
+                    <VsIcon name="delete" className="text-base" />
                   </button>
                 </div>
               </div>
@@ -3136,7 +3110,7 @@ export function StaffRoomsClient({
             ...(chargeLines.length > 0 ? { chargeLines } : {}),
             sourceCategory: bulkSourceCategory,
             sourcePartnerId: effectivePartnerId,
-            bookingOwnerUserId: bulkBookingOwnerUserId || currentUser?.id || null,
+            bookingOwnerUserId: currentUser?.id || null,
           }
         : {
             leadGuestName: trimmedLeadName,
@@ -3148,7 +3122,7 @@ export function StaffRoomsClient({
             ...(chargeLines.length > 0 ? { chargeLines } : {}),
             sourceCategory: bulkSourceCategory,
             sourcePartnerId: effectivePartnerId,
-            bookingOwnerUserId: bulkBookingOwnerUserId || currentUser?.id || null,
+            bookingOwnerUserId: currentUser?.id || null,
           };
 
       const result = await bulkReservationsMutation.mutateAsync(payload);
@@ -7003,7 +6977,7 @@ export function StaffRoomsClient({
                 }
               }}
             >
-              <div className="my-auto w-full max-w-3xl rounded-2xl bg-white p-5 sm:p-7 shadow-2xl text-left max-h-[92vh] flex flex-col">
+              <div className="my-auto w-full max-w-4xl lg:max-w-5xl rounded-3xl bg-white p-6 sm:p-7 shadow-2xl text-left max-h-[92vh] flex flex-col">
                 <div className="flex items-start justify-between gap-4 border-b border-[var(--outline-variant)] pb-4 shrink-0">
                   <div>
                     <p className="text-xs sm:text-sm font-bold uppercase tracking-[0.16em] text-emerald-700">
@@ -7333,8 +7307,8 @@ export function StaffRoomsClient({
                     </div>
                   </div>
 
-                  {/* Booking Source (TA/OTA/CO/DIRECT) & Partner & Booking Owner (Staff/Sale) */}
-                  <div className="py-2.5 px-3.5 bg-slate-50/90 border border-slate-200/90 rounded-2xl grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Booking Source (TA/OTA/CO/DIRECT) & Partner */}
+                  <div className="py-2.5 px-3.5 bg-slate-50/90 border border-slate-200/90 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
                         Nguồn đặt phòng (Kênh bán) <span className="text-red-500">*</span>
@@ -7446,31 +7420,6 @@ export function StaffRoomsClient({
                           <option value="NEW">+ Nhập tên công ty / đối tác mới...</option>
                         </select>
                       )}
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Người đặt / Sale phụ trách
-                      </label>
-                      <select
-                        value={reservationBookingOwnerUserId}
-                        onChange={(e) => setReservationBookingOwnerUserId(e.target.value)}
-                        className="w-full h-10 rounded-xl border border-slate-300 bg-white px-3 text-xs sm:text-sm font-semibold text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none cursor-pointer"
-                      >
-                        <option value="">-- Chọn nhân viên phụ trách doanh thu --</option>
-                        {currentUser?.id ? (
-                          <option value={currentUser.id}>
-                            {currentUser.name || currentUser.email || "Tôi (Tài khoản hiện tại)"} (Hiện tại)
-                          </option>
-                        ) : null}
-                        {staffList
-                          .filter((s) => s.user?.id && s.user.id !== currentUser?.id)
-                          .map((s) => (
-                            <option key={s.id} value={s.user?.id}>
-                              {s.user?.fullName || s.user?.email || s.id} ({s.role || "Nhân viên"})
-                            </option>
-                          ))}
-                      </select>
                     </div>
                   </div>
 
@@ -7697,8 +7646,8 @@ export function StaffRoomsClient({
                     </div>
                   </div>
 
-                  {/* Booking Source (TA/OTA/CO/DIRECT) & Partner & Booking Owner (Staff/Sale) */}
-                  <div className="my-2.5 py-2.5 px-3.5 bg-slate-50/90 border border-slate-200/90 rounded-2xl grid grid-cols-1 md:grid-cols-3 gap-3 shrink-0">
+                  {/* Booking Source (TA/OTA/CO/DIRECT) & Partner */}
+                  <div className="my-2.5 py-2.5 px-3.5 bg-slate-50/90 border border-slate-200/90 rounded-2xl grid grid-cols-1 md:grid-cols-2 gap-3 shrink-0">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
                         Nguồn đặt phòng (Kênh bán) <span className="text-red-500">*</span>
@@ -7810,31 +7759,6 @@ export function StaffRoomsClient({
                           <option value="NEW">+ Nhập tên công ty / đối tác mới...</option>
                         </select>
                       )}
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Người đặt / Sale phụ trách
-                      </label>
-                      <select
-                        value={bulkBookingOwnerUserId}
-                        onChange={(e) => setBulkBookingOwnerUserId(e.target.value)}
-                        className="w-full h-10 rounded-xl border border-slate-300 bg-white px-3 text-xs sm:text-sm font-semibold text-slate-900 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none cursor-pointer"
-                      >
-                        <option value="">-- Chọn nhân viên phụ trách doanh thu --</option>
-                        {currentUser?.id ? (
-                          <option value={currentUser.id}>
-                            {currentUser.name || currentUser.email || "Tôi (Tài khoản hiện tại)"} (Hiện tại)
-                          </option>
-                        ) : null}
-                        {staffList
-                          .filter((s) => s.user?.id && s.user.id !== currentUser?.id)
-                          .map((s) => (
-                            <option key={s.id} value={s.user?.id}>
-                              {s.user?.fullName || s.user?.email || s.id} ({s.role || "Nhân viên"})
-                            </option>
-                          ))}
-                      </select>
                     </div>
                   </div>
 

@@ -59,14 +59,6 @@ export function FrontDeskArrivalsTable({
         <div className="text-xs font-semibold text-slate-500">
           Hiển thị <span className="font-bold text-slate-800">{arrivals.length}</span> lượt đặt trước
         </div>
-        <button
-          type="button"
-          onClick={() => setActiveGroupCode(arrivals.find((a) => a.groupCode)?.groupCode || "")}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-purple-300 bg-purple-50 px-3.5 py-2 text-xs font-bold text-purple-700 hover:bg-purple-100 hover:text-purple-900 transition-all cursor-pointer whitespace-nowrap shadow-2xs min-h-[40px]"
-        >
-          <VsIcon name="groups" className="h-4 w-4 text-purple-600" />
-          <span>Mở quản lý đoàn</span>
-        </button>
       </div>
 
       <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 shadow-2xs">

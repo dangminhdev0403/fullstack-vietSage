@@ -26,6 +26,10 @@ import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { KbttDeclarationsPage } from "@/features/kbtt/components/kbtt-declarations-page";
 import { FrontDeskInHouseTable } from "./front-desk-in-house-table";
 import { FrontDeskArrivalsTable } from "./front-desk-arrivals-table";
+import {
+  FrontDeskGroupsTable,
+  buildFrontDeskGroupSummaries,
+} from "./front-desk-groups-table";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +39,7 @@ function isNextRouterError(error: unknown): boolean {
 
 const PAGE_SIZE = 20;
 
-type FrontDeskTab = "in-house" | "arrivals" | "kbtt";
+type FrontDeskTab = "in-house" | "arrivals" | "groups" | "kbtt";
 type PageProps = {
   params: Promise<{ hotelId: string }>;
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -57,9 +61,9 @@ function frontDeskHref(
   baseRoutePrefix = "/hotels",
 ): string {
   const query = new URLSearchParams({ tab: input.tab });
-  if (input.range && input.tab === "arrivals") query.set("range", input.range);
+  if (input.range && (input.tab === "arrivals" || input.tab === "groups")) query.set("range", input.range);
   if (input.q && input.tab !== "kbtt") query.set("q", input.q);
-  if (input.page && input.page > 1 && input.tab !== "kbtt") query.set("page", String(input.page));
+  if (input.page && input.page > 1 && input.tab !== "kbtt" && input.tab !== "groups") query.set("page", String(input.page));
   return `${baseRoutePrefix}/${encodeURIComponent(hotelId)}/front-desk?${query.toString()}`;
 }
 
@@ -148,21 +152,25 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
   const requestedTab: FrontDeskTab =
     rawTab === "kbtt"
       ? "kbtt"
-      : rawTab === "arrivals"
-        ? "arrivals"
-        : "in-house";
+      : rawTab === "groups"
+        ? "groups"
+        : rawTab === "arrivals"
+          ? "arrivals"
+          : "in-house";
   const tab: FrontDeskTab =
     requestedTab === "kbtt" && canViewKbtt
       ? "kbtt"
-      : requestedTab === "in-house" && canViewInHouse
-      ? "in-house"
-      : requestedTab === "arrivals" && canViewArrivals
-        ? "arrivals"
-        : canViewInHouse
+      : requestedTab === "groups" && canViewArrivals
+        ? "groups"
+        : requestedTab === "in-house" && canViewInHouse
           ? "in-house"
-          : canViewArrivals
+          : requestedTab === "arrivals" && canViewArrivals
             ? "arrivals"
-            : "kbtt";
+            : canViewInHouse
+              ? "in-house"
+              : canViewArrivals
+                ? "arrivals"
+                : "kbtt";
   const rawRange = first(query.range);
   const range: ArrivalRange =
     rawRange === "tomorrow" || rawRange === "week" ? rawRange : "today";
@@ -188,6 +196,13 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
       arrivalsPage = await authorizedApi("load front desk arrivals", (accessToken) =>
         hotelOpsService.listArrivals(hotelId, {
           query: { ...dateRange, ...(q ? { q } : {}), page, limit: PAGE_SIZE },
+          accessToken,
+        }),
+      );
+    } else if (tab === "groups") {
+      arrivalsPage = await authorizedApi("load front desk arrivals for groups", (accessToken) =>
+        hotelOpsService.listArrivals(hotelId, {
+          query: { ...dateRange, ...(q ? { q } : {}), page: 1, limit: 100 },
           accessToken,
         }),
       );
@@ -219,7 +234,27 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
     });
   }
 
-  const total = arrivalsPage?.total ?? inHousePage?.total ?? 0;
+  const groups =
+    tab === "groups" && arrivalsPage
+      ? buildFrontDeskGroupSummaries(arrivalsPage.items)
+      : [];
+  const filteredGroups =
+    tab === "groups" && q
+      ? groups.filter((g) => {
+          const lowerQ = q.toLowerCase();
+          return (
+            g.groupCode.toLowerCase().includes(lowerQ) ||
+            g.leadGuestName.toLowerCase().includes(lowerQ) ||
+            Boolean(g.leadGuestPhone?.includes(q)) ||
+            g.assignedRoomNumbers.some((num) => num.includes(q))
+          );
+        })
+      : groups;
+
+  const total =
+    tab === "groups"
+      ? filteredGroups.length
+      : (arrivalsPage?.total ?? inHousePage?.total ?? 0);
   const canOperateArrivals =
     canViewInHouse &&
     (context.permissions.includes("hotel.reservations.manage") ||
@@ -304,6 +339,25 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
               ) : null}
             </Link>
           ) : null}
+          {canViewArrivals ? (
+            <Link
+              aria-current={tab === "groups" ? "page" : undefined}
+              className={`inline-flex min-h-10 items-center gap-2 rounded-xl px-4 text-sm font-bold transition-all ${
+                tab === "groups"
+                  ? "border border-purple-200 bg-white text-purple-700 shadow-xs"
+                  : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
+              }`}
+              href={frontDeskHref(hotelId, { tab: "groups", range }, baseRoutePrefix)}
+            >
+              <VsIcon name="groups" className="h-4 w-4 text-purple-600" />
+              <span>Quản lý đoàn</span>
+              {tab === "groups" && !loadFailed ? (
+                <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-bold text-purple-800">
+                  {filteredGroups.length}
+                </span>
+              ) : null}
+            </Link>
+          ) : null}
           {canViewKbtt ? (
             <Link
               aria-current={tab === "kbtt" ? "page" : undefined}
@@ -320,8 +374,8 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
           ) : null}
         </nav>
 
-        {tab === "arrivals" ? (
-          <div className="flex flex-wrap items-center gap-1.5" aria-label="Khoảng ngày khách đặt trước">
+        {tab === "arrivals" || tab === "groups" ? (
+          <div className="flex flex-wrap items-center gap-1.5" aria-label="Khoảng ngày lọc">
             {([
               ["today", "Hôm nay"],
               ["tomorrow", "Ngày mai"],
@@ -337,7 +391,7 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
                       ? "border-2 border-blue-600 bg-blue-50 text-blue-800 shadow-2xs"
                       : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                   }`}
-                  href={frontDeskHref(hotelId, { tab, arrivals: undefined, range: value, q } as Parameters<typeof frontDeskHref>[1], baseRoutePrefix)}
+                  href={frontDeskHref(hotelId, { tab, range: value, q }, baseRoutePrefix)}
                 >
                   {isActive ? (
                     <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
@@ -361,9 +415,11 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
           {/* Search Bar */}
       <form className="flex flex-col gap-2.5 sm:flex-row" method="get">
         <input type="hidden" name="tab" value={tab} />
-        {tab === "arrivals" ? <input type="hidden" name="range" value={range} /> : null}
+        {tab === "arrivals" || tab === "groups" ? <input type="hidden" name="range" value={range} /> : null}
         <label className="sr-only" htmlFor="front-desk-search">
-          Tìm khách, số điện thoại, mã đặt phòng hoặc số phòng
+          {tab === "groups"
+            ? "Tìm theo mã đoàn, tên đoàn, người đại diện hoặc số điện thoại"
+            : "Tìm khách, số điện thoại, mã đặt phòng hoặc số phòng"}
         </label>
         <div className="relative flex-1">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
@@ -375,7 +431,11 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
             defaultValue={q}
             maxLength={120}
             name="q"
-            placeholder="Tìm theo tên khách, số điện thoại, mã đặt phòng hoặc số phòng..."
+            placeholder={
+              tab === "groups"
+                ? "Tìm theo mã đoàn, tên đoàn, người đại diện hoặc số điện thoại..."
+                : "Tìm theo tên khách, số điện thoại, mã đặt phòng hoặc số phòng..."
+            }
             type="search"
           />
         </div>
@@ -403,11 +463,15 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
           <div>
             <div className="flex items-center gap-2.5">
               <h2 className="text-xl font-bold text-slate-900">
-                {tab === "arrivals" ? "Danh sách khách đặt trước" : "Khách đang lưu trú"}
+                {tab === "groups"
+                  ? "Danh sách đặt phòng theo đoàn"
+                  : tab === "arrivals"
+                    ? "Danh sách khách đặt trước"
+                    : "Khách đang lưu trú"}
               </h2>
               {!loadFailed ? (
                 <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-800">
-                  {total} kết quả
+                  {total} {tab === "groups" ? "đoàn" : "kết quả"}
                 </span>
               ) : null}
             </div>
@@ -454,6 +518,67 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
               </Link>
             </div>
           </div>
+        ) : tab === "groups" ? (
+          filteredGroups.length ? (
+            <FrontDeskGroupsTable
+              hotelId={hotelId}
+              arrivals={arrivalsPage?.items ?? []}
+              groups={filteredGroups}
+              todayYmd={todayYmd}
+              canOperateArrivals={canOperateArrivals}
+              canCheckInStay={canCheckInStay}
+              canManageReservations={canManageReservations}
+            />
+          ) : (
+            /* Empty State for Groups */
+            <div className="mx-auto max-w-lg px-4 py-12 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-purple-200 bg-purple-50 text-purple-600 shadow-xs">
+                <VsIcon name="groups" className="h-8 w-8 text-purple-600" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 text-balance">
+                {q ? "Không tìm thấy đoàn khách phù hợp" : "Không có đoàn khách nào trong khoảng thời gian này"}
+              </h3>
+              <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-slate-600 text-pretty">
+                {q
+                  ? `Không có kết quả nào trùng khớp với từ khóa "${q}". Bạn hãy thử tìm với mã đoàn, số điện thoại hoặc tên khác.`
+                  : range === "today"
+                    ? "Hôm nay chưa có đoàn khách nào đến nhận phòng. Bạn có thể kiểm tra danh sách đoàn ngày mai hoặc 7 ngày tới."
+                    : "Chưa ghi nhận thông tin đặt phòng theo đoàn trong khoảng thời gian đã chọn."}
+              </p>
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
+                {q ? (
+                  <Link
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-xs transition-all hover:bg-blue-700"
+                    href={frontDeskHref(hotelId, { tab, range }, baseRoutePrefix)}
+                  >
+                    <VsIcon name="close" className="h-4 w-4" />
+                    <span>Xóa bộ lọc tìm kiếm</span>
+                  </Link>
+                ) : (
+                  <>
+                    {range === "today" ? (
+                      <Link
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border-2 border-purple-600 bg-white px-4 text-sm font-bold text-purple-700 transition-all hover:bg-purple-50"
+                        href={frontDeskHref(hotelId, { tab, range: "tomorrow" }, baseRoutePrefix)}
+                      >
+                        <span>Xem đoàn ngày mai</span>
+                        <VsIcon name="arrow_forward" className="h-4 w-4" />
+                      </Link>
+                    ) : null}
+                    {context.permissions.includes("hotel.reservations.manage") ? (
+                      <Link
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-purple-600 px-5 text-sm font-bold text-white shadow-xs transition-all hover:bg-purple-700"
+                        href={`${baseRoutePrefix}/${encodeURIComponent(hotelId)}/rooms?flow=reservation&businessDate=${encodeURIComponent(dateRange.from)}`}
+                      >
+                        <VsIcon name="groups" className="h-4 w-4" />
+                        <span>Tạo đặt phòng mới</span>
+                      </Link>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            </div>
+          )
         ) : tab === "arrivals" ? (
           arrivalsPage?.items.length ? (
             <FrontDeskArrivalsTable
@@ -555,7 +680,7 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
           </div>
         )}
 
-        {!loadFailed ? (
+        {!loadFailed && tab !== "groups" ? (
           <Pagination
             hotelId={hotelId}
             page={page}

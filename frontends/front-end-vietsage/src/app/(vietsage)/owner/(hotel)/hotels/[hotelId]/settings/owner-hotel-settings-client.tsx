@@ -248,9 +248,12 @@ export function OwnerHotelSettingsClient({
 
         {activeTab === "confirmation-template" && (
           <section className="space-y-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm max-w-2xl">
-              <HotelConfirmationTemplateForm hotelId={hotelId} canManage={canManageTemplate} />
-            </div>
+            <HotelConfirmationTemplateForm
+              hotelId={hotelId}
+              canManage={canManageTemplate}
+              hotel={hotel}
+              variant="full"
+            />
           </section>
         )}
       </div>

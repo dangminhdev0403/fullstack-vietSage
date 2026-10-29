@@ -720,6 +720,12 @@ export type RoomPlanBlock = {
   phone: string | null;
   source: string | null;
   channel: string | null;
+  channelName?: string | null;
+  sourceCategory?: string | null;
+  sourcePartnerId?: string | null;
+  sourcePartnerName?: string | null;
+  bookingOwnerUserId?: string | null;
+  bookingOwnerName?: string | null;
   status: string;
   roomId: string;
   roomNumber: string;
@@ -729,6 +735,15 @@ export type RoomPlanBlock = {
   endDate: string;
   nights: number;
   nightlyRate: number | null;
+  roomSubtotal?: number | null;
+  serviceSubtotal?: number | null;
+  totalAmount?: number | null;
+  services?: Array<{
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    total: number;
+  }>;
   movable: boolean;
   expectedUpdatedAt: string;
   notes?: string | null;
@@ -769,8 +784,16 @@ export type ConfirmationNightlyItem = {
   lineType: string;
 };
 
+export type ConfirmationServiceItem = {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+};
+
 export type ConfirmationPricing = {
   nightlyBreakdown: ConfirmationNightlyItem[];
+  serviceBreakdown?: ConfirmationServiceItem[];
   roomSubtotal: number;
   taxAmount: number;
   serviceAmount: number;
@@ -820,6 +843,11 @@ export type ReservationConfirmationData = {
     plannedCheckOutAt: string;
     nights: number;
     notes: string | null;
+    sourceCategory?: string | null;
+    sourcePartnerId?: string | null;
+    sourcePartnerName?: string | null;
+    bookingOwnerUserId?: string | null;
+    bookingOwnerName?: string | null;
     createdAt: string;
   };
   pricing: ConfirmationPricing;
@@ -864,6 +892,7 @@ export type GroupConfirmationData = {
     totalRooms: number;
     totalGuests: number;
     roomSubtotal: number;
+    serviceBreakdown?: ConfirmationServiceItem[];
     taxAmount: number;
     serviceAmount: number;
     discountAmount: number;
