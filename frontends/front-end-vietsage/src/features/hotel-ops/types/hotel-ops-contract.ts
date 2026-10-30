@@ -2,6 +2,17 @@ import type {
   GuestRequestStatus,
   GuestRequestType,
 } from "@/features/guest-os/types/guest-os-contract";
+import type {
+  FolioItem,
+  FolioListItem,
+  FolioSummary,
+} from "@/features/billing/types/billing-contract";
+
+export type StayFolioContext = {
+  folio: FolioListItem | null;
+  summary: FolioSummary | null;
+  items: FolioItem[];
+};
 
 export type HotelServiceStatus = "ACTIVE" | "DISABLED";
 

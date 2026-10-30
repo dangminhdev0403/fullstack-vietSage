@@ -19,6 +19,7 @@ import type {
   FolioSummary,
   Invoice,
   InvoiceDetail,
+  IssueInvoiceAdjustment,
   Payment,
 } from "@/features/billing/types/billing-contract";
 import { formatMoney } from "@/features/billing/utils/money";
@@ -1288,7 +1289,7 @@ export function StaffBillingWorkspaceClient({
     if (failCount === 0) {
       if (firstInvoiceId) {
         const confirmResult = await showConfirmDialog({
-          icon: "success",
+          icon: "question",
           title: "Thanh toán đoàn thành công!",
           text: `Đã phát hành hóa đơn và hoàn tất checkout cho ${successCount} phòng thuộc đoàn. Bạn có muốn xem & in hóa đơn ngay bây giờ không?`,
           confirmText: "Xem & In hóa đơn",
@@ -2161,9 +2162,9 @@ export function StaffBillingWorkspaceClient({
               <div className="flex items-center justify-between gap-1 p-1 rounded-xl bg-[#1c1204] border border-[#d4af37]/35 text-xs">
                 <button
                   type="button"
-                  onClick={() => setMasterInvoiceMode(true)}
+                  onClick={() => setMasterInvoiceMode("MASTER")}
                   className={`flex-1 py-1 px-2 rounded-lg text-xs font-bold transition cursor-pointer text-center ${
-                    masterInvoiceMode
+                    masterInvoiceMode === "MASTER"
                       ? "bg-[#d4af37] text-slate-950 font-black shadow-xs"
                       : "text-amber-200/80 hover:bg-white/5"
                   }`}
@@ -2172,9 +2173,9 @@ export function StaffBillingWorkspaceClient({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setMasterInvoiceMode(false)}
+                  onClick={() => setMasterInvoiceMode("SPLIT")}
                   className={`flex-1 py-1 px-2 rounded-lg text-xs font-bold transition cursor-pointer text-center ${
-                    !masterInvoiceMode
+                    masterInvoiceMode === "SPLIT"
                       ? "bg-[#d4af37] text-slate-950 font-black shadow-xs"
                       : "text-amber-200/80 hover:bg-white/5"
                   }`}
@@ -3096,7 +3097,7 @@ export function StaffBillingWorkspaceClient({
                           {previewFolioItems.map((item) => (
                             <tr key={item.id} className="hover:bg-slate-50/80">
                               <td className="py-2 px-3 font-semibold text-[var(--primary)]">
-                                {item.nameSnapshot || item.description || item.itemType}
+                                {item.nameSnapshot || (item as any).description || item.itemType}
                               </td>
                               <td className="py-2 px-2 text-center text-slate-600 font-bold">
                                 {item.quantity ?? 1}
@@ -3119,12 +3120,12 @@ export function StaffBillingWorkspaceClient({
 
             {/* Modal Footer */}
             <div className="flex items-center justify-end p-3.5 border-t border-[var(--outline-variant)] bg-[var(--surface-container-lowest,#fdfbf7)] shrink-0 gap-2">
-              {previewFolioSummary?.invoiceId || previewFolioItem?.invoiceId ? (
+              {previewFolioItem?.invoiceId || (previewFolioSummary as FolioListItem | null)?.invoiceId ? (
                 <button
                   type="button"
                   onClick={() => {
                     const invId =
-                      previewFolioSummary?.invoiceId || previewFolioItem?.invoiceId;
+                      previewFolioItem?.invoiceId || (previewFolioSummary as FolioListItem | null)?.invoiceId;
                     if (invId) {
                       setPreviewFolioId(null);
                       router.push(

@@ -9,6 +9,7 @@ import type { Hotel } from "@/features/admin/types/admin-contract";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import { showErrorAlert, showSuccessAlert } from "@/libs/swal";
 import type {
+  ConfirmationHotelInfo,
   GroupConfirmationData,
   HotelConfirmationTemplateConfig,
   ReservationConfirmationData,
@@ -142,7 +143,7 @@ export function HotelConfirmationTemplateForm({
       id: hotel?.id || hotelId,
       name: hotel?.name || "Khách sạn",
       code: hotel?.code || "HOTEL",
-      address: hotel?.address || (brand.address as string) || "",
+      address: (hotel as any)?.address || (brand.address as string) || "",
       phone: (hotel as any)?.phone || (brand.phone as string) || (brand.hotline as string) || "",
       email: (hotel as any)?.email || (brand.email as string) || "",
       logoUrl: (hotel as any)?.logoUrl || (brand.logoUrl as string) || (brand.logo as string) || "/brand/vietsage-mark-white.png",
@@ -221,7 +222,7 @@ export function HotelConfirmationTemplateForm({
       id: hotel?.id || hotelId,
       name: hotel?.name || "Khách sạn",
       code: hotel?.code || "HOTEL",
-      address: hotel?.address || (brand.address as string) || "",
+      address: (hotel as any)?.address || (brand.address as string) || "",
       phone: (hotel as any)?.phone || (brand.phone as string) || (brand.hotline as string) || "",
       email: (hotel as any)?.email || (brand.email as string) || "",
       logoUrl: (hotel as any)?.logoUrl || (brand.logoUrl as string) || (brand.logo as string) || "/brand/vietsage-mark-white.png",
@@ -246,6 +247,7 @@ export function HotelConfirmationTemplateForm({
       template: sampleTemplate,
       group: {
         groupCode: "GRP-2026-088",
+        groupName: "Đoàn Vietravel",
         leadGuestName: "Trần Minh Quân (Đoàn Vietravel)",
         leadGuestPhone: "0918 223 344",
         totalRooms: 3,
@@ -312,10 +314,15 @@ export function HotelConfirmationTemplateForm({
       ],
       pricing: {
         totalRooms: 3,
+        totalGuests: 5,
         totalAmount: 8000000,
         paidAmount: 4200000,
         balanceAmount: 3800000,
         roomSubtotal: 8000000,
+        taxAmount: 0,
+        serviceAmount: 0,
+        discountAmount: 0,
+        currency: "VND",
       },
       policies: {
         checkInTime: "14:00",

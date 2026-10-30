@@ -4685,7 +4685,7 @@ export function TapeChartView({
               </div>
 
               <div className="flex items-center gap-2">
-                {selectedBlock.kind === "RESERVATION" && !isReadOnly && (
+                {(selectedBlock.kind as string) === "RESERVATION" && !isReadOnly && (
                   <button
                     type="button"
                     onClick={() => setIsEditReservationOpen(true)}
@@ -4810,7 +4810,7 @@ export function TapeChartView({
                           </span>
                         )}
 
-                        {selectedBlock.startDate === todayYmd && selectedBlock.kind === "RESERVATION" && (
+                        {selectedBlock.startDate === todayYmd && (selectedBlock.kind as string) === "RESERVATION" && (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs whitespace-nowrap">
                             <span className="size-1.5 rounded-full bg-amber-600 animate-pulse" />
                             Nhận hôm nay
@@ -4835,7 +4835,7 @@ export function TapeChartView({
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-700 hover:bg-purple-800 text-white font-bold transition cursor-pointer shadow-2xs whitespace-nowrap"
                             >
                               <VsIcon name="groups" className="text-xs" />
-                              <span>{selectedBlock.kind === "RESERVATION" ? "Mở Check-in đoàn" : "Quản lý đoàn"}</span>
+                              <span>{(selectedBlock.kind as string) === "RESERVATION" ? "Mở Check-in đoàn" : "Quản lý đoàn"}</span>
                             </button>
                           )}
                         </div>
@@ -5070,7 +5070,7 @@ export function TapeChartView({
             {/* Bottom Actions */}
             <div className="border-t border-slate-100 p-4 sm:px-6 flex flex-wrap items-center justify-end gap-2.5 bg-slate-50/70 shrink-0">
               {/* Nút Nhận phòng cho phòng Đặt trước */}
-              {!isReadOnly && selectedBlock.kind === "RESERVATION" && (canCheckInStay ?? true) && (
+              {!isReadOnly && (selectedBlock.kind as string) === "RESERVATION" && (canCheckInStay ?? true) && (
                 selectedBlock.groupCode && onOpenGroupCheckIn ? (
                   <>
                     <button
@@ -5123,7 +5123,7 @@ export function TapeChartView({
                 </button>
               )}
 
-              {!isReadOnly && selectedBlock.kind === "RESERVATION" && (
+              {!isReadOnly && (selectedBlock.kind as string) === "RESERVATION" && (
                 <button
                   type="button"
                   onClick={() => setIsEditReservationOpen(true)}
@@ -5204,7 +5204,7 @@ export function TapeChartView({
             status: r.status,
             price: r.price,
           }))}
-          canCheckIn={!isReadOnly && Boolean(selectedBlock.canCheckIn || selectedBlock.status === "CONFIRMED" || selectedBlock.status === "PENDING")}
+          canCheckIn={!isReadOnly && Boolean((selectedBlock as any).canCheckIn || selectedBlock.status === "CONFIRMED" || selectedBlock.status === "PENDING")}
           onCheckIn={handleDrawerCheckIn}
           onOpenGroupOperations={onOpenGroupCheckIn}
           onSelectReservation={(nextRes) => {

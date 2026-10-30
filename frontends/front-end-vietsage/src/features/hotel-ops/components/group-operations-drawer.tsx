@@ -443,7 +443,7 @@ export function GroupOperationsDrawer({
   // Available vacant rooms for assignment
   const availableRooms = useMemo(() => {
     return (roomsPage?.items ?? []).filter(
-      (r) => !r.activeStay && !r.isBlocked && r.status !== "MAINTENANCE",
+      (r) => !r.activeStay && r.status !== "BLOCKED" && r.status !== "MAINTENANCE",
     );
   }, [roomsPage?.items]);
 

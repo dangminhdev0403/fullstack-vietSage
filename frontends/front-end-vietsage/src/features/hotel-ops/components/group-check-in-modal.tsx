@@ -224,9 +224,7 @@ export function GroupCheckInModal({
 
   const shouldFetchGroupArrivals = Boolean(isOpen && groupCode?.trim() && (!rooms || rooms.length === 0));
   const { data: fetchedArrivals = [], isLoading: isLoadingArrivals } = useQuery({
-    ...staffRoomsResource.bind({ hotelId }).queries.groupArrivals.options({
-      groupCode,
-    }),
+    ...staffRoomsResource.bind({ hotelId }).queries.groupArrivals.options(groupCode),
     enabled: shouldFetchGroupArrivals,
     staleTime: 5_000,
   });
@@ -652,6 +650,7 @@ export function GroupCheckInModal({
         }>;
       }>(
         `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/billing/folios?status=OPEN&limit=100`,
+        { method: "GET" },
       );
       const matchedFolio = res.data?.items?.find(
         (f) => f.roomId === targetRoom.id || f.room?.roomNumber === targetRoom.roomNumber,
@@ -1507,7 +1506,6 @@ export function GroupCheckInModal({
                 <MobileCccdScan
                   hotelId={hotelId}
                   onCapture={handleCapture}
-                  activeGuestLabel={`Phòng ${activeRoom.roomNumber} · ${activeGuestLabel}`}
                   targetContext={`room_${activeRoom.roomId}`}
                   targetLabel={`Phòng ${activeRoom.roomNumber}`}
                   showSetupLink={false}

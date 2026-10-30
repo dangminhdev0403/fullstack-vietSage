@@ -36,7 +36,7 @@ export type EditReservationModalProps = {
     roomSubtotal?: number | null;
     totalAmount?: number | null;
     expectedUpdatedAt?: string | null;
-    status?: string;
+    status?: string | null;
     channel?: string | null;
     source?: string | null;
     sourcePartnerName?: string | null;
@@ -44,9 +44,9 @@ export type EditReservationModalProps = {
   } | null;
   availableRooms?: Array<{
     id: string;
-    roomNumber: string;
+    roomNumber?: string | null;
     type?: string | null;
-    status?: string;
+    status?: string | null;
     price?: number | string | null;
     basePrice?: number | string | null;
   }>;

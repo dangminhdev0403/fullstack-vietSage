@@ -8,6 +8,7 @@ import type {
   HotelRoomSummary,
   HotelConfirmationTemplateConfig,
   ReservationConfirmationData,
+  StayFolioContext,
   UpdateReservationInput,
   BookingSourcePartnerItem,
   CreateBookingSourcePartnerInput,
@@ -32,11 +33,7 @@ export type StaffRoomsListInput = Readonly<{
   businessDate?: string;
 }>;
 
-export type StayFolioContext = {
-  folio: FolioListItem | null;
-  summary: FolioSummary | null;
-  items: FolioItem[];
-};
+export type { StayFolioContext } from "../types/hotel-ops-contract";
 
 export type HotelArrivalReservationItem = HotelArrival & {
   activeStayId?: string | null;
@@ -434,7 +431,10 @@ export const staffRoomsRepository = {
         roomTypeName: resolvedRoomType,
         guestCount: room.guestCount,
         ratePerNight: resolvedRate,
-        totalAmount: room.totalAmount ?? null,
+        totalAmount:
+          room.totalAmount !== null && room.totalAmount !== undefined
+            ? Number(room.totalAmount)
+            : null,
         depositAmount: room.depositAmount ?? null,
       };
     });

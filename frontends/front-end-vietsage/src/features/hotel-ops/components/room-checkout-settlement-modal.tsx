@@ -96,10 +96,10 @@ export function RoomCheckoutSettlementModal({
   // Query prior booking payments / deposits for this reservation or stay
   const { data: bookingPaymentsPage } = useQuery({
     ...staffRoomsResource.bind({ hotelId }).queries.bookingPayments.options({
-      reservationId: stay.reservationId || undefined,
+      reservationId: (stay as any).reservationId || undefined,
       stayId: stay.id,
     }),
-    enabled: Boolean(isOpen && (stay.reservationId || stay.id)),
+    enabled: Boolean(isOpen && ((stay as any).reservationId || stay.id)),
     staleTime: 5000,
   });
 
@@ -128,7 +128,7 @@ export function RoomCheckoutSettlementModal({
       return Number(effectiveFolioContext.summary.total);
     }
     if (effectiveFolioContext?.items && effectiveFolioContext.items.length > 0) {
-      return effectiveFolioContext.items.reduce((sum, item) => sum + Number(item.totalSnapshot || 0), 0);
+      return effectiveFolioContext.items.reduce((sum: number, item: any) => sum + Number(item.totalSnapshot || 0), 0);
     }
     return Number(stay.nightlyRateSnapshot || 0);
   }, [effectiveFolioContext, stay]);
@@ -460,10 +460,10 @@ export function RoomCheckoutSettlementModal({
                   Đang tải chi tiết bảng kê chi phí...
                 </div>
               ) : effectiveFolioContext?.items && effectiveFolioContext.items.length > 0 ? (
-                effectiveFolioContext.items.map((item, idx) => (
+                effectiveFolioContext.items.map((item: any, idx: number) => (
                   <div key={item.id || idx} className="flex items-center justify-between px-4 py-2 text-xs">
                     <div className="min-w-0 pr-3">
-                      <p className="font-semibold text-slate-800 truncate">{item.name}</p>
+                      <p className="font-semibold text-slate-800 truncate">{item.name || item.nameSnapshot || "Dịch vụ"}</p>
                       <p className="text-slate-400 text-xs">
                         Số lượng: {item.quantity} · Đơn giá: {formatVnd(item.unitPriceSnapshot)}
                       </p>
