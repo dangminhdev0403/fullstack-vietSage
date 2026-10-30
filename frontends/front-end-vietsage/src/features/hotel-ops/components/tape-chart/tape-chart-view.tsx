@@ -55,6 +55,7 @@ import { roomPlanResource } from "@/features/hotel-ops/resources/room-plan-resou
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import { useRoomOrderStore } from "@/features/hotel-ops/store/room-order-store";
+import { EditReservationModal } from "../edit-reservation-modal";
 
 export type TapeChartViewMode = "week" | "biweek";
 
@@ -1728,14 +1729,10 @@ export function TapeChartView({
 
   const handleSelectBlock = useCallback(
     (block: RoomPlanBlock | null) => {
-      if (block?.groupCode && block.kind === "RESERVATION" && onOpenGroupCheckIn) {
-        onOpenGroupCheckIn(block.groupCode);
-        return;
-      }
       setSelectedBlock(block);
       setDrawerTab("info");
     },
-    [onOpenGroupCheckIn],
+    [],
   );
 
   // Placement Modal state (accessible fallback for Move/Swap)
@@ -1743,6 +1740,7 @@ export function TapeChartView({
   const [placementSourceBlock, setPlacementSourceBlock] = useState<RoomPlanBlock | null>(null);
   const [placementTargetRoomId, setPlacementTargetRoomId] = useState<string>("");
   const [placementTargetSwapResId, setPlacementTargetSwapResId] = useState<string>("");
+  const [isEditReservationOpen, setIsEditReservationOpen] = useState(false);
 
   // Drag over drop target highlighting
   const [dragOverCellKey, setDragOverCellKey] = useState<string | null>(null);
@@ -1857,16 +1855,22 @@ export function TapeChartView({
               ? "Đại lý (TA)"
               : "Trực tiếp");
 
+      const matchedRoom = roomById.get(String(raw.roomId));
+      const roomPriceFallback =
+        matchedRoom?.price ??
+        (matchedRoom as any)?.basePrice ??
+        (matchedRoom as any)?.roomType?.basePrice ??
+        null;
+
       const nightlyRate =
         raw.nightlyRate ??
-        (raw.nightlyRateSnapshot ? Number(raw.nightlyRateSnapshot) : null);
+        (raw.nightlyRateSnapshot ? Number(raw.nightlyRateSnapshot) : null) ??
+        (roomPriceFallback ? Number(roomPriceFallback) : null);
 
       const roomSubtotal =
         typeof raw.roomSubtotal === "number"
           ? raw.roomSubtotal
           : (nightlyRate ? nightlyRate * diffNights : null);
-
-      const matchedRoom = roomById.get(String(raw.roomId));
 
       const roomNumber =
         raw.roomNumber ||
@@ -1877,6 +1881,12 @@ export function TapeChartView({
         raw.roomTypeName ||
         matchedRoom?.roomTypeName ||
         null;
+
+      const serviceSubtotal = typeof raw.serviceSubtotal === "number" ? raw.serviceSubtotal : null;
+      const totalAmount =
+        typeof raw.totalAmount === "number" && raw.totalAmount > 0
+          ? raw.totalAmount
+          : (roomSubtotal != null ? roomSubtotal + (serviceSubtotal ?? 0) : null);
 
       return {
         id: String(raw.id),
@@ -1902,11 +1912,13 @@ export function TapeChartView({
         roomTypeName,
         startDate,
         endDate,
+        startAt: raw.startAt || startIso,
+        endAt: raw.endAt || endIso,
         nights: diffNights,
         nightlyRate,
         roomSubtotal,
-        serviceSubtotal: typeof raw.serviceSubtotal === "number" ? raw.serviceSubtotal : null,
-        totalAmount: typeof raw.totalAmount === "number" ? raw.totalAmount : null,
+        serviceSubtotal,
+        totalAmount,
         services: Array.isArray(raw.services) ? raw.services : [],
         movable: Boolean(
           raw.movable !== undefined
@@ -4609,7 +4621,7 @@ export function TapeChartView({
       </div>
 
       {/* ── Detail View: Modal hiển thị chi tiết trung tâm ──────── */}
-      {selectedBlock && (
+      {selectedBlock && selectedBlock.kind !== "RESERVATION" && (
         <div
           role="dialog"
           aria-modal="true"
@@ -4672,15 +4684,28 @@ export function TapeChartView({
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setSelectedBlock(null)}
-                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-200/70 hover:text-slate-700 transition cursor-pointer"
-                title="Đóng chi tiết"
-                aria-label="Đóng"
-              >
-                <VsIcon name="close" className="text-xl" />
-              </button>
+              <div className="flex items-center gap-2">
+                {selectedBlock.kind === "RESERVATION" && !isReadOnly && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditReservationOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition cursor-pointer"
+                    title="Chỉnh sửa thông tin đặt phòng"
+                  >
+                    <VsIcon name="edit" className="text-sm text-amber-700" />
+                    <span>Chỉnh sửa</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSelectedBlock(null)}
+                  className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-200/70 hover:text-slate-700 transition cursor-pointer"
+                  title="Đóng chi tiết"
+                  aria-label="Đóng"
+                >
+                  <VsIcon name="close" className="text-xl" />
+                </button>
+              </div>
             </div>
 
             {/* Tabs */}
@@ -5098,6 +5123,17 @@ export function TapeChartView({
                 </button>
               )}
 
+              {!isReadOnly && selectedBlock.kind === "RESERVATION" && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditReservationOpen(true)}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold px-4 py-2.5 text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
+                >
+                  <VsIcon name="edit" className="text-base text-amber-700" />
+                  <span>Sửa thông tin</span>
+                </button>
+              )}
+
               {/* Accessible Move/Swap button */}
               {!isReadOnly && selectedBlock.movable && (
                 <button
@@ -5131,6 +5167,63 @@ export function TapeChartView({
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Edit Reservation Modal (Sửa ngay khi click, không qua box con) ── */}
+      {selectedBlock && selectedBlock.kind === "RESERVATION" && (
+        <EditReservationModal
+          isOpen={Boolean(selectedBlock && selectedBlock.kind === "RESERVATION")}
+          onClose={() => setSelectedBlock(null)}
+          hotelId={hotelId}
+          reservation={{
+            id: selectedBlock.reservationId || selectedBlock.id.replace(/^res-/, ""),
+            reservationCode: selectedBlock.reservationCode,
+            guestDisplayName: selectedBlock.guestName,
+            guestPhone: selectedBlock.phone,
+            guestCount: selectedBlock.guestCount,
+            notes: selectedBlock.notes,
+            roomId: selectedBlock.roomId,
+            roomNumber: selectedBlock.roomNumber,
+            roomTypeName: selectedBlock.roomTypeName,
+            plannedCheckInAt: selectedBlock.startAt || `${selectedBlock.startDate}T14:00:00+07:00`,
+            plannedCheckOutAt: selectedBlock.endAt || `${selectedBlock.endDate}T12:00:00+07:00`,
+            nightlyRateSnapshot: selectedBlock.nightlyRate,
+            roomSubtotal: selectedBlock.roomSubtotal,
+            totalAmount: selectedBlock.totalAmount,
+            expectedUpdatedAt: selectedBlock.expectedUpdatedAt,
+            status: selectedBlock.status,
+            channel: selectedBlock.channel,
+            source: selectedBlock.source,
+            sourcePartnerName: selectedBlock.sourcePartnerName,
+            groupCode: selectedBlock.groupCode,
+          }}
+          availableRooms={allRooms.map((r) => ({
+            id: r.id,
+            roomNumber: r.roomNumber,
+            type: r.roomTypeName,
+            status: r.status,
+            price: r.price,
+          }))}
+          canCheckIn={!isReadOnly && Boolean(selectedBlock.canCheckIn || selectedBlock.status === "CONFIRMED" || selectedBlock.status === "PENDING")}
+          onCheckIn={handleDrawerCheckIn}
+          onOpenGroupOperations={onOpenGroupCheckIn}
+          onSelectReservation={(nextRes) => {
+            const matchedBlock = allBlocks.find(
+              (b: RoomPlanBlock) =>
+                b.kind === "RESERVATION" &&
+                (b.reservationId === nextRes.id ||
+                  b.id.replace(/^res-/, "") === nextRes.id ||
+                  (nextRes.reservationCode && b.reservationCode === nextRes.reservationCode)),
+            );
+            if (matchedBlock) {
+              setSelectedBlock(matchedBlock);
+            }
+          }}
+          onSuccess={async () => {
+            setSelectedBlock(null);
+            await invalidateHotelRealtimeQueries(queryClient, hotelId);
+          }}
+        />
       )}
 
       {/* ── Accessible Placement Modal (Move / Swap Fallback) ─────── */}

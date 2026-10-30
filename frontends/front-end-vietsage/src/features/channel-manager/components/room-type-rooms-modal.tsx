@@ -5,6 +5,14 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { BrandedRoomQr } from "@/features/hotel-ops/components/branded-room-qr";
+import {
+  showConfirmDialog,
+  showErrorAlert,
+  showSuccessAlert,
+  SwalVietSage,
+} from "@/libs/swal";
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import { ownerRoomsResource } from "@/features/hotel-ops/resources/owner-rooms-resource";
 import type { HotelRoomSummary } from "@/features/hotel-ops/types/hotel-ops-contract";
@@ -126,6 +134,30 @@ function resolveRoomProjection(
   };
 }
 
+function getRoomNumber(room: HotelRoomSummary): string {
+  return room.roomNumber?.trim() || "--";
+}
+
+function getQrStatus(room: HotelRoomSummary): string {
+  return (room.qr?.status ?? room.qrStatus ?? "INACTIVE").trim().toUpperCase();
+}
+
+function getQrValue(room: HotelRoomSummary): string | null {
+  if (getQrStatus(room) !== "ACTIVE") {
+    return null;
+  }
+  return room.qr?.publicCode?.trim() || null;
+}
+
+function getGuestQrUrl(room: HotelRoomSummary, origin = ""): string | null {
+  const qrCode = getQrValue(room);
+  if (!qrCode) {
+    return null;
+  }
+  const path = `/g/${encodeURIComponent(qrCode)}`;
+  return origin ? `${origin.replace(/\/$/, "")}${path}` : path;
+}
+
 export function RoomTypeRoomsModal({
   isOpen,
   onClose,
@@ -149,6 +181,18 @@ export function RoomTypeRoomsModal({
   const currentDate = userDate ?? selectedDate;
   const isToday = currentDate === todayStr;
   const isFuture = currentDate > todayStr;
+
+  const canManageQr = canManage && roleScope === "owner";
+  const [clientOrigin, setClientOrigin] = useState("");
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setClientOrigin(window.location.origin);
+    }
+  }, []);
+
+  const [isBulkQrBusy, setIsBulkQrBusy] = useState(false);
+  const [selectedQrRoom, setSelectedQrRoom] = useState<HotelRoomSummary | null>(null);
+  const [qrActionBusyRoomId, setQrActionBusyRoomId] = useState<string | null>(null);
 
   // Add room form state
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
@@ -240,6 +284,89 @@ export function RoomTypeRoomsModal({
     }
   };
 
+  const handleBatchActivateQr = async () => {
+    if (!canManageQr || isBulkQrBusy) return;
+
+    const targetRooms = rooms.filter(
+      (room) =>
+        getQrStatus(room) !== "ACTIVE" && getQrStatus(room) !== "REVOKED",
+    );
+
+    if (targetRooms.length === 0) {
+      await SwalVietSage.fire({
+        icon: "info",
+        title: "Tất cả QR đã kích hoạt",
+        text: `Toàn bộ ${rooms.length} phòng của hạng ${roomType.roomTypeName} đều đang có mã QR GuestOS hoạt động.`,
+        confirmButtonText: "OK",
+      });
+      return;
+    }
+
+    const confirmed = await showConfirmDialog({
+      icon: "question",
+      title: `Kích hoạt QR cho ${targetRooms.length} phòng?`,
+      text: `Hệ thống sẽ tạo và bật mã QR GuestOS cho các phòng chưa kích hoạt thuộc hạng ${roomType.roomTypeName}.`,
+      confirmText: "Kích hoạt tất cả",
+      cancelText: "Hủy",
+    });
+    if (!confirmed.isConfirmed) return;
+
+    setIsBulkQrBusy(true);
+    try {
+      let successCount = 0;
+      for (const room of targetRooms) {
+        try {
+          await requestInternalApiEnvelope<HotelRoomSummary>(
+            `/api/owner/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}/qr/activate`,
+            { method: "POST" },
+          );
+          successCount++;
+        } catch (err) {
+          console.error(`Lỗi kích hoạt QR phòng ${room.id}:`, err);
+        }
+      }
+      await refetchRooms();
+      await showSuccessAlert(
+        "Kích hoạt QR thành công",
+        `Đã kích hoạt mã QR cho ${successCount}/${targetRooms.length} phòng của hạng ${roomType.roomTypeName}.`,
+      );
+    } catch (error) {
+      await showErrorAlert(
+        "Không thể kích hoạt QR hàng loạt",
+        error instanceof Error ? error.message : "Vui lòng thử lại.",
+      );
+    } finally {
+      setIsBulkQrBusy(false);
+    }
+  };
+
+  const handleSingleRoomQrAction = async (
+    room: HotelRoomSummary,
+    action: "activate" | "deactivate",
+  ) => {
+    if (!canManageQr || qrActionBusyRoomId) return;
+
+    setQrActionBusyRoomId(room.id);
+    try {
+      await requestInternalApiEnvelope<HotelRoomSummary>(
+        `/api/owner/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}/qr/${action}`,
+        { method: "POST" },
+      );
+      toast.success(
+        action === "activate"
+          ? `Đã kích hoạt QR phòng ${getRoomNumber(room)}`
+          : `Đã tắt QR phòng ${getRoomNumber(room)}`,
+      );
+      await refetchRooms();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Thao tác QR thất bại";
+      toast.error(message);
+    } finally {
+      setQrActionBusyRoomId(null);
+    }
+  };
+
   // Keyboard accessibility: Escape to close and focus trap
   useEffect(() => {
     if (!isOpen) return;
@@ -287,7 +414,7 @@ export function RoomTypeRoomsModal({
     >
       <div
         ref={modalRef}
-        className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl"
+        className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl"
       >
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-emerald-900 to-[#1a352d] px-5 py-4 text-white sm:px-6">
@@ -299,7 +426,7 @@ export function RoomTypeRoomsModal({
               <div className="flex flex-wrap items-center gap-2">
                 <h2
                   id="room-type-rooms-modal-title"
-                  className="text-lg font-bold tracking-tight text-white sm:text-xl"
+                  className="text-lg font-bold tracking-tight text-white sm:text-xl text-balance"
                 >
                   {roomType.roomTypeName}
                 </h2>
@@ -310,8 +437,8 @@ export function RoomTypeRoomsModal({
                   {roomType.totalRooms} phòng vật lý
                 </span>
               </div>
-              <p className="mt-0.5 text-xs text-emerald-100/90 sm:text-sm">
-                Danh sách phòng vật lý &amp; trạng thái chiếu ngày{" "}
+              <p className="mt-0.5 text-xs text-emerald-100/90 sm:text-sm text-pretty">
+                Danh sách phòng vật lý &amp; {canManageQr ? "kích hoạt QR GuestOS theo ngày " : "trạng thái chiếu ngày "}
                 <strong className="text-white">
                   {formatDateDisplay(currentDate)}
                 </strong>
@@ -329,7 +456,7 @@ export function RoomTypeRoomsModal({
           </button>
         </div>
 
-        {/* Toolbar: Date Selector & Add Room Action */}
+        {/* Toolbar: Date Selector & Actions */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 bg-slate-50/90 px-5 py-3 sm:px-6">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -358,12 +485,12 @@ export function RoomTypeRoomsModal({
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => void refetchRooms()}
               disabled={isFetching}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 disabled:opacity-50 cursor-pointer whitespace-nowrap"
             >
               <VsIcon
                 name="refresh"
@@ -372,6 +499,24 @@ export function RoomTypeRoomsModal({
               <span>Làm mới</span>
             </button>
 
+            {canManageQr && (
+              <button
+                type="button"
+                onClick={() => void handleBatchActivateQr()}
+                disabled={isBulkQrBusy || isFetching}
+                title="Kích hoạt mã QR cho toàn bộ phòng chưa bật thuộc hạng này"
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-xs font-bold text-emerald-800 shadow-2xs transition hover:bg-emerald-100 hover:border-emerald-400 active:scale-95 disabled:opacity-50 cursor-pointer whitespace-nowrap"
+              >
+                <VsIcon
+                  name={isBulkQrBusy ? "refresh" : "qr_code_scanner"}
+                  className={`text-sm ${isBulkQrBusy ? "animate-spin text-emerald-700" : "text-emerald-700"}`}
+                />
+                <span>
+                  {isBulkQrBusy ? "Đang kích hoạt..." : "Kích hoạt tất cả QR"}
+                </span>
+              </button>
+            )}
+
             {canAddRoom && (
               <button
                 type="button"
@@ -379,7 +524,7 @@ export function RoomTypeRoomsModal({
                   setIsAddFormOpen((prev) => !prev);
                   setCreateError(null);
                 }}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-800 px-3 text-xs font-bold text-white shadow-2xs transition hover:bg-emerald-900 cursor-pointer"
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-800 px-3 text-xs font-bold text-white shadow-2xs transition hover:bg-emerald-900 cursor-pointer whitespace-nowrap"
               >
                 <VsIcon
                   name={isAddFormOpen ? "remove" : "add"}
@@ -563,6 +708,11 @@ export function RoomTypeRoomsModal({
                     <th scope="col" className="p-3 text-center">
                       Mã đoàn
                     </th>
+                    {canManageQr && (
+                      <th scope="col" className="p-3 text-center">
+                        Mã QR GuestOS
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -637,6 +787,63 @@ export function RoomTypeRoomsModal({
                             <span className="text-xs text-slate-400">—</span>
                           )}
                         </td>
+
+                        {/* GuestOS QR Status & Actions (Tenant only) */}
+                        {canManageQr && (
+                          <td className="p-3 text-center">
+                            {(() => {
+                              const status = getQrStatus(room);
+                              const isActive = status === "ACTIVE";
+                              const isBusy = qrActionBusyRoomId === room.id;
+
+                              return (
+                                <div className="inline-flex items-center justify-center gap-1.5">
+                                  {isActive ? (
+                                    <>
+                                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-800 shadow-2xs whitespace-nowrap">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                                        <span>Đang bật</span>
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setSelectedQrRoom(room)}
+                                        title={`Xem & tải mã QR phòng ${getRoomNumber(room)}`}
+                                        aria-label={`Xem QR phòng ${getRoomNumber(room)}`}
+                                        className="inline-flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-xs font-bold text-slate-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 transition cursor-pointer shadow-2xs whitespace-nowrap"
+                                      >
+                                        <VsIcon name="qr_code_2" className="text-xs text-emerald-700" />
+                                        <span>Xem QR</span>
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 shadow-2xs whitespace-nowrap">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                                        <span>Chưa bật</span>
+                                      </span>
+                                      <button
+                                        type="button"
+                                        disabled={isBusy || isBulkQrBusy}
+                                        onClick={() =>
+                                          void handleSingleRoomQrAction(room, "activate")
+                                        }
+                                        title={`Kích hoạt mã QR cho phòng ${getRoomNumber(room)}`}
+                                        aria-label={`Kích hoạt QR phòng ${getRoomNumber(room)}`}
+                                        className="inline-flex h-7 items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400 transition cursor-pointer disabled:opacity-50 shadow-2xs whitespace-nowrap"
+                                      >
+                                        <VsIcon
+                                          name={isBusy ? "refresh" : "power_settings_new"}
+                                          className={`text-xs ${isBusy ? "animate-spin" : ""}`}
+                                        />
+                                        <span>{isBusy ? "Đang bật..." : "Kích hoạt"}</span>
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
@@ -646,10 +853,12 @@ export function RoomTypeRoomsModal({
           )}
         </div>
 
-        {/* Modal Footer (Read-Only Inspection Notice) */}
+        {/* Modal Footer */}
         <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-5 py-3 sm:px-6">
-          <p className="text-xs text-slate-500">
-            Chế độ kiểm tra phòng vật lý (chỉ đọc) • Chiếu theo ngày vận hành{" "}
+          <p className="text-xs text-slate-500 text-pretty">
+            {canManageQr
+              ? "Chế độ quản lý phòng & kích hoạt QR GuestOS • Chiếu theo ngày vận hành "
+              : "Chế độ kiểm tra phòng vật lý (chỉ đọc) • Chiếu theo ngày vận hành "}
             <strong className="font-semibold text-slate-700">
               {formatDateDisplay(currentDate)}
             </strong>
@@ -663,6 +872,128 @@ export function RoomTypeRoomsModal({
           </button>
         </div>
       </div>
+
+      {/* Room QR Preview Sub-Modal */}
+      {selectedQrRoom && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="qr-preview-title"
+          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in"
+        >
+          <div className="flex w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-emerald-900 to-[#1a352d] px-5 py-3.5 text-white">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-emerald-300">
+                  <VsIcon name="qr_code_2" className="text-lg" />
+                </div>
+                <div>
+                  <h3
+                    id="qr-preview-title"
+                    className="text-sm font-bold text-white text-balance"
+                  >
+                    Mã QR GuestOS — Phòng #{getRoomNumber(selectedQrRoom)}
+                  </h3>
+                  <p className="text-xs text-emerald-100/80">
+                    {roomType.roomTypeName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedQrRoom(null)}
+                aria-label="Đóng bảng mã QR"
+                className="rounded-lg p-1.5 text-white/80 hover:bg-white/10 hover:text-white transition cursor-pointer"
+              >
+                <VsIcon name="close" className="text-lg" />
+              </button>
+            </div>
+
+            {/* QR Code Body */}
+            <div className="flex flex-col items-center p-6 text-center">
+              {getGuestQrUrl(selectedQrRoom, clientOrigin) ? (
+                <div className="flex flex-col items-center">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <BrandedRoomQr
+                      value={getGuestQrUrl(selectedQrRoom, clientOrigin) ?? ""}
+                      size={200}
+                      title={`QR GuestOS Phòng ${getRoomNumber(selectedQrRoom)}`}
+                    />
+                  </div>
+
+                  <p className="mt-3 text-xs font-mono font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200 max-w-xs truncate">
+                    {getGuestQrUrl(selectedQrRoom, clientOrigin)}
+                  </p>
+
+                  <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const url = getGuestQrUrl(selectedQrRoom, clientOrigin);
+                        if (!url) return;
+                        try {
+                          await navigator.clipboard.writeText(url);
+                          toast.success("Đã sao chép liên kết GuestOS vào clipboard.");
+                        } catch {
+                          toast.error("Không thể sao chép liên kết.");
+                        }
+                      }}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer whitespace-nowrap"
+                    >
+                      <VsIcon name="content_copy" className="text-xs text-slate-500" />
+                      <span>Sao chép liên kết</span>
+                    </button>
+
+                    <a
+                      href={getGuestQrUrl(selectedQrRoom, clientOrigin) ?? "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-xs font-bold text-emerald-800 shadow-2xs hover:bg-emerald-100 transition cursor-pointer whitespace-nowrap"
+                    >
+                      <VsIcon name="open_in_new" className="text-xs text-emerald-700" />
+                      <span>Mở thử GuestOS</span>
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-6">
+                  <VsIcon name="qr_code_2" className="mx-auto text-4xl text-slate-300 mb-2" />
+                  <p className="text-xs font-bold text-slate-700">Phòng chưa có mã QR công khai</p>
+                  <p className="text-xs text-slate-500 mt-1">Vui lòng bấm Kích hoạt QR để tạo mã mới.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-5 py-3">
+              {getQrStatus(selectedQrRoom) === "ACTIVE" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const room = selectedQrRoom;
+                    setSelectedQrRoom(null);
+                    void handleSingleRoomQrAction(room, "deactivate");
+                  }}
+                  className="inline-flex h-7 items-center gap-1 rounded-md border border-rose-200 bg-white px-2.5 text-xs font-bold text-rose-700 hover:bg-rose-50 transition cursor-pointer"
+                >
+                  <VsIcon name="power_settings_new" className="text-xs" />
+                  <span>Tạm tắt QR</span>
+                </button>
+              ) : (
+                <div />
+              )}
+              <button
+                type="button"
+                onClick={() => setSelectedQrRoom(null)}
+                className="h-8 rounded-lg border border-slate-300 bg-white px-4 text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

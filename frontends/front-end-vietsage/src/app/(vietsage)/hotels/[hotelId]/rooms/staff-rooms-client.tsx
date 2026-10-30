@@ -1,7 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   SwalVietSage,
@@ -56,6 +56,8 @@ import {
   type GroupRoomItem,
 } from "@/features/hotel-ops/components/group-operations-drawer";
 import { GroupCheckInModal } from "@/features/hotel-ops/components/group-check-in-modal";
+import { GroupArrivalsListModal } from "@/features/hotel-ops/components/group-arrivals-list-modal";
+import { buildFrontDeskGroupSummaries } from "@/features/hotel-ops/utils/front-desk-groups";
 import { useRoomViewStore } from "@/features/hotel-ops/store/room-view-store";
 import { channelManagerResource } from "@/features/channel-manager/api/channel-manager.resource";
 import type { SimulatedBookingItem } from "@/features/channel-manager/types/channel-manager.types";
@@ -669,6 +671,22 @@ function renderPaginationButtons(
   return <div className="flex items-center gap-1.5">{buttons}</div>;
 }
 
+function extractRoomBasePrice(room: any): number | null {
+  if (!room) return null;
+  const raw =
+    room.price ??
+    room.basePrice ??
+    room.effectivePrice ??
+    room.priceOverride ??
+    room.roomType?.price ??
+    room.roomType?.basePrice;
+  if (raw == null) return null;
+  if (typeof raw === "number") return isNaN(raw) || raw <= 0 ? null : raw;
+  const cleaned = String(raw).replace(/[^\d.-]/g, "");
+  const num = Number(cleaned);
+  return !isNaN(num) && num > 0 ? num : null;
+}
+
 export function StaffRoomsClient({
   hotelId,
   initialRoomsPage,
@@ -977,8 +995,6 @@ export function StaffRoomsClient({
   const [reservationIsCustomNightlyRates, setReservationIsCustomNightlyRates] = useState(false);
   const [reservationNightlyRates, setReservationNightlyRates] = useState<Record<string, number>>({});
   const [reservationPrebookedServices, setReservationPrebookedServices] = useState<PrebookedServiceItem[]>([]);
-  const [reservationCodeInput, setReservationCodeInput] = useState<string>("");
-  const [reservationGroupCodeInput, setReservationGroupCodeInput] = useState<string>("");
 
   // Bulk Reservation (Lane D) State
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
@@ -1260,6 +1276,68 @@ export function StaffRoomsClient({
     }));
   }
 
+  function adjustRoomTypePrice(
+    roomTypeId: string,
+    action: "percent" | "amount" | "set",
+    value: number,
+    basePrice: number,
+  ) {
+    setBulkRoomTypeCustomPrices((prev) => {
+      const current =
+        prev[roomTypeId] !== undefined && prev[roomTypeId] !== null
+          ? prev[roomTypeId]
+          : basePrice;
+      let newPrice = current;
+      if (action === "percent") {
+        const delta = Math.round((basePrice * value) / 100);
+        newPrice = Math.max(0, current + delta);
+        newPrice = Math.round(newPrice / 1000) * 1000;
+      } else if (action === "amount") {
+        newPrice = Math.max(0, current + value);
+      } else if (action === "set") {
+        newPrice = Math.max(0, value);
+      }
+      return {
+        ...prev,
+        [roomTypeId]: newPrice,
+      };
+    });
+  }
+
+  function resetRoomTypePrice(roomTypeId: string) {
+    setBulkRoomTypeCustomPrices((prev) => {
+      const next = { ...prev };
+      delete next[roomTypeId];
+      return next;
+    });
+  }
+
+  function adjustAllRoomTypesPrice(
+    action: "percent" | "amount" | "reset",
+    value = 0,
+  ) {
+    setBulkRoomTypeCustomPrices((prev) => {
+      const next = { ...prev };
+      for (const rt of roomTypeSummaryList) {
+        const base = rt.price ?? 0;
+        if (action === "reset") {
+          delete next[rt.roomTypeId];
+        } else if (action === "percent") {
+          if (base > 0) {
+            const current = next[rt.roomTypeId] ?? base;
+            const delta = Math.round((base * value) / 100);
+            const newPrice = Math.max(0, Math.round((current + delta) / 1000) * 1000);
+            next[rt.roomTypeId] = newPrice;
+          }
+        } else if (action === "amount") {
+          const current = next[rt.roomTypeId] ?? base;
+          next[rt.roomTypeId] = Math.max(0, current + value);
+        }
+      }
+      return next;
+    });
+  }
+
   useEffect(() => {
     if (!isBulkModalOpen) return;
     function handleKeyDown(e: KeyboardEvent) {
@@ -1287,7 +1365,7 @@ export function StaffRoomsClient({
 
   // Daily Movements (Khách đến & Khách đi trong ngày) Modal State
   const [isDailyMovementsOpen, setIsDailyMovementsOpen] = useState(false);
-  const [dailyMovementsTab, setDailyMovementsTab] = useState<"arrivals" | "departures">("arrivals");
+  const [dailyMovementsTab, setDailyMovementsTab] = useState<"arrivals" | "departures" | "groups">("arrivals");
   const [selectedArrivalForDetail, setSelectedArrivalForDetail] = useState<HotelArrival | null>(null);
   const [returnToDailyMovements, setReturnToDailyMovements] = useState(false);
 
@@ -1295,6 +1373,9 @@ export function StaffRoomsClient({
   const [isGroupCheckInOpen, setIsGroupCheckInOpen] = useState(false);
   const [groupCheckInCode, setGroupCheckInCode] = useState<string | null>(null);
   const [groupCheckInRooms, setGroupCheckInRooms] = useState<GroupRoomItem[]>([]);
+
+  // Pre-booked Group Selection List Modal State (Hiển thị danh sách đoàn đặt trước + phân trang)
+  const [isGroupListModalOpen, setIsGroupListModalOpen] = useState(false);
 
   // Group Operations Modal State - routed directly to GroupCheckInModal to eliminate intermediate overview box
   const [isGroupOperationsOpen, setIsGroupOperationsOpen] = useState(false);
@@ -1368,8 +1449,6 @@ export function StaffRoomsClient({
           .slice(0, 16),
       );
     }
-    setReservationCodeInput("");
-    setReservationGroupCodeInput("");
     setIsReservationOpen(true);
   }
 
@@ -1487,12 +1566,6 @@ export function StaffRoomsClient({
       if (baseRateNum > 0) {
         payload.nightlyRateSnapshot = baseRateNum;
       }
-      if (reservationCodeInput.trim()) {
-        payload.reservationCode = reservationCodeInput.trim();
-      }
-      if (reservationGroupCodeInput.trim()) {
-        payload.groupCode = reservationGroupCodeInput.trim();
-      }
 
       const res = await requestInternalApiEnvelope<HotelArrival>(
         `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations`,
@@ -1503,8 +1576,6 @@ export function StaffRoomsClient({
       );
 
       setIsReservationOpen(false);
-      setReservationCodeInput("");
-      setReservationGroupCodeInput("");
       setReservationGuestName("");
       setReservationGuestPhone("");
       setReservationNightlyRate("");
@@ -1856,24 +1927,9 @@ export function StaffRoomsClient({
   const openGroupCheckIn = useCallback((code?: string | null, targetRooms?: GroupRoomItem[]) => {
     let resolvedCode = code?.trim() || null;
     if (!resolvedCode) {
-      // Find first group with pending check-in from arrivalsList or rooms
-      const firstArrivingGroup = arrivalsList.find(
-        (a) => a.groupCode && (a.status === "ARRIVAL_READY" || a.status === "CONFIRMED"),
-      );
-      resolvedCode =
-        firstArrivingGroup?.groupCode ||
-        arrivalsList.find((a) => a.groupCode)?.groupCode ||
-        rooms.find((r) => r.upcomingReservation?.groupCode || r.projectedReservation?.groupCode)
-          ?.upcomingReservation?.groupCode ||
-        rooms.find((r) => r.projectedReservation?.groupCode)?.projectedReservation?.groupCode ||
-        null;
-    }
-
-    if (!resolvedCode) {
-      void showWarningAlert(
-        "Chưa có đoàn khách",
-        "Không tìm thấy đoàn khách nào có lịch nhận phòng hôm nay trên sơ đồ.",
-      );
+      // User clicked "Check-in đoàn" on toolbar without specifying a group:
+      // Open the Group Arrivals List Modal with pagination so user can browse, filter and select!
+      setIsGroupListModalOpen(true);
       return;
     }
 
@@ -1902,6 +1958,11 @@ export function StaffRoomsClient({
       return arrYmd === activeMovementsTargetYmd;
     });
   }, [arrivalsList, activeMovementsTargetYmd]);
+
+  const groupSummaryCount = useMemo(
+    () => buildFrontDeskGroupSummaries(arrivalsList).length,
+    [arrivalsList],
+  );
 
   const todayDeparturesList = useMemo(() => {
     const list: Array<{
@@ -2274,7 +2335,7 @@ export function StaffRoomsClient({
       const name = room.type?.trim() || "Tiêu chuẩn";
       const roomTypeId = room.roomTypeId || name;
       const existing = map.get(name);
-      const roomPrice = typeof room.price === "number" ? room.price : null;
+      const roomPrice = extractRoomBasePrice(room);
 
       if (!existing) {
         map.set(name, {
@@ -3072,11 +3133,15 @@ export function StaffRoomsClient({
             .map(([roomTypeId, quantity]) => {
               const customRate = bulkRoomTypeCustomPrices[roomTypeId];
               const rt = roomTypeSummaryList.find((item) => item.roomTypeId === roomTypeId);
+              const effectiveRate =
+                customRate !== undefined && customRate !== null
+                  ? customRate
+                  : rt?.price ?? undefined;
               return {
                 roomTypeId: rt?.roomTypeId ?? roomTypeId,
                 quantity,
-                ...(customRate !== undefined && customRate !== null
-                  ? { rate: customRate }
+                ...(effectiveRate !== undefined && effectiveRate !== null
+                  ? { rate: effectiveRate }
                   : {}),
               };
             })
@@ -3090,9 +3155,7 @@ export function StaffRoomsClient({
           const effectivePrice =
             customPrice !== undefined && customPrice !== null
               ? customPrice
-              : typeof room?.price === "number"
-                ? room.price
-                : null;
+              : extractRoomBasePrice(room);
           if (effectivePrice !== null && effectivePrice !== undefined) {
             roomRates[roomId] = effectivePrice;
           }
@@ -5792,9 +5855,10 @@ export function StaffRoomsClient({
 
       <section className="sticky top-0 z-20 -mx-2 rounded-2xl border border-slate-200/90 bg-white/95 p-3.5 shadow-sm backdrop-blur-md md:top-2 space-y-3 transition-shadow hover:shadow-md">
         {!isHousekeeping ? (
-          <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
-            {/* Timeline & Business Date Selection */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+          <div className="grid gap-2.5 2xl:grid-cols-[auto_auto] 2xl:items-center 2xl:justify-between">
+            {/* Row 1: Business date + daily movements */}
+            <div className="flex flex-wrap items-center justify-between gap-2.5 2xl:justify-start">
+            <div className="flex flex-wrap items-center gap-2.5">
               <div className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white p-1 shadow-2xs transition-all hover:border-slate-300">
                 <div
                   className="flex items-center gap-1.5 px-2 text-slate-600 select-none"
@@ -5844,7 +5908,7 @@ export function StaffRoomsClient({
                   <button
                     type="button"
                     onClick={() => handleBusinessDateChange(todayYmd)}
-                    className={`h-full rounded-md px-3 text-xs font-bold transition cursor-pointer ${
+                    className={`h-full whitespace-nowrap rounded-md px-3 text-xs font-bold transition cursor-pointer ${
                       businessDate === todayYmd
                         ? "bg-sky-600 text-white shadow-xs font-black"
                         : "text-slate-600 hover:text-slate-950 hover:bg-white/80"
@@ -5855,7 +5919,7 @@ export function StaffRoomsClient({
                   <button
                     type="button"
                     onClick={() => handleBusinessDateChange(tomorrowYmd)}
-                    className={`h-full rounded-md px-3 text-xs font-bold transition cursor-pointer ${
+                    className={`h-full whitespace-nowrap rounded-md px-3 text-xs font-bold transition cursor-pointer ${
                       businessDate === tomorrowYmd
                         ? "bg-sky-600 text-white shadow-xs font-black"
                         : "text-slate-600 hover:text-slate-950 hover:bg-white/80"
@@ -5877,8 +5941,70 @@ export function StaffRoomsClient({
               ) : null}
             </div>
 
-            {/* Reception Operational Actions */}
-            <div className="flex flex-wrap items-center gap-2">
+              {/* Daily Movements: Khách đến | Khách đi | Đoàn khách */}
+              <div className="inline-flex h-10 items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-2xs">
+                {(
+                  [
+                    {
+                      tab: "arrivals" as const,
+                      icon: "login",
+                      label: "Khách đến",
+                      count: todayArrivalsList.length,
+                      title: "Danh sách khách đến trong ngày",
+                      tone: "text-emerald-800 hover:bg-emerald-50",
+                      iconTone: "text-emerald-600",
+                      badgeTone: "bg-emerald-100 text-emerald-800",
+                    },
+                    {
+                      tab: "departures" as const,
+                      icon: "logout",
+                      label: "Khách đi",
+                      count: todayDeparturesList.length,
+                      title: "Danh sách khách đi trong ngày",
+                      tone: "text-amber-800 hover:bg-amber-50",
+                      iconTone: "text-amber-600",
+                      badgeTone: "bg-amber-100 text-amber-800",
+                    },
+                    {
+                      tab: "groups" as const,
+                      icon: "groups",
+                      label: "Đoàn khách",
+                      count: groupSummaryCount,
+                      title: "Danh sách đoàn khách đặt trước",
+                      tone: "text-purple-800 hover:bg-purple-50",
+                      iconTone: "text-purple-600",
+                      badgeTone: "bg-purple-100 text-purple-800",
+                    },
+                  ]
+                ).map((item, index) => (
+                  <Fragment key={item.tab}>
+                    {index > 0 ? (
+                      <span aria-hidden className="h-4 w-px bg-slate-200" />
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDailyMovementsTab(item.tab);
+                        setIsDailyMovementsOpen(true);
+                      }}
+                      className={`inline-flex h-full items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold whitespace-nowrap transition cursor-pointer ${item.tone}`}
+                      title={item.title}
+                    >
+                      <VsIcon name={item.icon} className={`text-sm ${item.iconTone}`} />
+                      <span>{item.label}</span>
+                      <span
+                        className={`inline-flex min-w-5 justify-center rounded-full px-1.5 py-0.5 text-xs font-black leading-none ${item.badgeTone}`}
+                      >
+                        {item.count}
+                      </span>
+                    </button>
+                  </Fragment>
+                ))}
+              </div>
+            </div>
+
+            {/* Row 2: View mode + creation actions */}
+            <div className="flex flex-wrap items-center justify-between gap-2.5 2xl:justify-end">
               {/* Layout Switcher: Sơ đồ phòng vs Kế hoạch phòng (Tape Chart) */}
               <div className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-slate-100 p-1 shadow-2xs">
                 <button
@@ -5909,6 +6035,7 @@ export function StaffRoomsClient({
                 </button>
               </div>
 
+              <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={openBulkReservationModal}
@@ -5928,39 +6055,6 @@ export function StaffRoomsClient({
                 <VsIcon name="groups" className="text-base text-purple-700" />
                 <span>Check-in đoàn</span>
               </button>
-              {/* Daily Arrivals & Departures Movements Button Group */}
-              <div className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white p-1 shadow-2xs gap-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDailyMovementsTab("arrivals");
-                    setIsDailyMovementsOpen(true);
-                  }}
-                  className="inline-flex h-full items-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs font-bold transition hover:bg-emerald-50 text-emerald-800 cursor-pointer min-h-[32px]"
-                  title="Danh sách khách đến trong ngày (Nhận phòng IN, Gán/Tráo phòng, Sửa booking)"
-                >
-                  <VsIcon name="login" className="text-sm text-emerald-600" />
-                  <span className="whitespace-nowrap">Khách đến</span>
-                  <span className="rounded-full bg-emerald-100 text-emerald-800 px-1.5 py-0.2 text-xs font-black">
-                    {todayArrivalsList.length}
-                  </span>
-                </button>
-                <div className="h-4 w-px bg-slate-200" />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDailyMovementsTab("departures");
-                    setIsDailyMovementsOpen(true);
-                  }}
-                  className="inline-flex h-full items-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs font-bold transition hover:bg-amber-50 text-amber-800 cursor-pointer min-h-[32px]"
-                  title="Danh sách khách đi trong ngày (Trả phòng OUT, Gia hạn, Đổi phòng)"
-                >
-                  <VsIcon name="logout" className="text-sm text-amber-600" />
-                  <span className="whitespace-nowrap">Khách đi</span>
-                  <span className="rounded-full bg-amber-100 text-amber-800 px-1.5 py-0.2 text-xs font-black">
-                    {todayDeparturesList.length}
-                  </span>
-                </button>
               </div>
             </div>
           </div>
@@ -7426,40 +7520,6 @@ export function StaffRoomsClient({
                     </div>
                   </div>
 
-                  {/* Mã đặt phòng & Mã đoàn (Tùy chọn - cho phép giống nhau khi đặt theo đoàn) */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                        Mã đặt phòng{" "}
-                        <span className="text-xs text-slate-500 font-normal">
-                          (Tùy chọn · Cho phép trùng nếu thuộc đoàn)
-                        </span>
-                      </label>
-                      <input
-                        type="text"
-                        value={reservationCodeInput}
-                        onChange={(e) => setReservationCodeInput(e.target.value)}
-                        placeholder="VD: RES-2026-001 (để trống để tự sinh)"
-                        className="w-full h-12 rounded-xl border border-slate-300 bg-white px-4 font-mono text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px] uppercase"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                        Mã đoàn{" "}
-                        <span className="text-xs text-slate-500 font-normal">
-                          (Tùy chọn · Nếu phòng này thuộc đoàn)
-                        </span>
-                      </label>
-                      <input
-                        type="text"
-                        value={reservationGroupCodeInput}
-                        onChange={(e) => setReservationGroupCodeInput(e.target.value)}
-                        placeholder="VD: GRP-2026-001"
-                        className="w-full h-12 rounded-xl border border-slate-300 bg-white px-4 font-mono text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px] uppercase"
-                      />
-                    </div>
-                  </div>
-
                   {/* Booking Source (TA/OTA/CO/DIRECT) & Partner */}
                   <div className="py-2.5 px-3.5 bg-slate-50/90 border border-slate-200/90 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
@@ -7965,93 +8025,358 @@ export function StaffRoomsClient({
                           Không có thông tin loại phòng nào.
                         </div>
                       ) : (
-                        <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden bg-white">
-                          {roomTypeSummaryList.map((rt) => {
-                            const count = bulkRoomTypeCounts[rt.roomTypeId] || 0;
-                            const customPrice = bulkRoomTypeCustomPrices[rt.roomTypeId] ?? rt.price ?? 0;
-                            return (
-                              <div
-                                key={rt.roomTypeId}
-                                className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/80 transition"
-                              >
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-bold text-sm text-slate-900 truncate">
-                                      {rt.name}
-                                    </span>
-                                    {rt.price ? (
-                                      <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md whitespace-nowrap">
-                                        Giá gốc: {formatMoney({ price: rt.price, currency: "VND" })} / đêm
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                  <span className="text-xs text-slate-500 block mt-0.5">
-                                    Hiện còn{" "}
-                                    <strong
-                                      className={`font-bold ${
-                                        rt.availableCount > 0
-                                          ? "text-emerald-700"
-                                          : "text-rose-600"
-                                      }`}
-                                    >
-                                      {rt.availableCount}
-                                    </strong>{" "}
-                                    phòng trống
-                                  </span>
+                        <div className="space-y-3">
+                          {/* Thanh điều chỉnh giá nhanh toàn đoàn */}
+                          {bulkTotalAutoCount > 0 && (
+                            <div className="py-2 px-3 bg-purple-50/80 border border-purple-200/90 rounded-xl flex flex-wrap items-center justify-between gap-2.5">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-xs font-bold text-purple-950 flex items-center gap-1 whitespace-nowrap">
+                                  <VsIcon name="tune" className="text-xs text-purple-700" />
+                                  <span>Chỉnh giá nhanh toàn đoàn:</span>
+                                </span>
+                                {/* Nhóm % */}
+                                <div className="inline-flex items-center gap-0.5 bg-white p-0.5 rounded-lg border border-purple-200">
+                                  <button
+                                    type="button"
+                                    onClick={() => adjustAllRoomTypesPrice("percent", -10)}
+                                    className="px-2 py-0.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded transition cursor-pointer"
+                                    title="Giảm 10% giá gốc cho tất cả loại phòng"
+                                  >
+                                    -10%
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => adjustAllRoomTypesPrice("percent", -5)}
+                                    className="px-2 py-0.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded transition cursor-pointer"
+                                    title="Giảm 5% giá gốc cho tất cả loại phòng"
+                                  >
+                                    -5%
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => adjustAllRoomTypesPrice("percent", 5)}
+                                    className="px-2 py-0.5 text-xs font-bold text-amber-700 hover:bg-amber-50 rounded transition cursor-pointer"
+                                    title="Tăng 5% giá gốc cho tất cả loại phòng"
+                                  >
+                                    +5%
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => adjustAllRoomTypesPrice("percent", 10)}
+                                    className="px-2 py-0.5 text-xs font-bold text-amber-700 hover:bg-amber-50 rounded transition cursor-pointer"
+                                    title="Tăng 10% giá gốc cho tất cả loại phòng"
+                                  >
+                                    +10%
+                                  </button>
                                 </div>
 
-                                <div className="flex items-center gap-4 shrink-0">
-                                  {count > 0 && (
-                                    <div className="flex items-center gap-2">
-                                      <label className="text-xs font-semibold text-purple-900 whitespace-nowrap">
-                                        Giá đặt / đêm:
-                                      </label>
-                                      <div className="relative flex items-center w-36">
-                                        <input
-                                          type="text"
-                                          inputMode="numeric"
-                                          value={formatPriceInput(customPrice)}
-                                          onChange={(e) =>
-                                            handleBulkRoomTypePriceChange(
-                                              rt.roomTypeId,
-                                              e.target.value,
-                                            )
-                                          }
-                                          placeholder="0"
-                                          className="w-full text-xs font-bold text-purple-950 bg-white border border-purple-300 rounded-lg pl-2 pr-11 py-1.5 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none"
-                                        />
-                                        <span className="absolute right-2 text-xs font-semibold text-slate-500 pointer-events-none">
-                                          đ/đêm
+                                {/* Nhóm tiền */}
+                                <div className="inline-flex items-center gap-0.5 bg-white p-0.5 rounded-lg border border-purple-200">
+                                  <button
+                                    type="button"
+                                    onClick={() => adjustAllRoomTypesPrice("amount", -50000)}
+                                    className="px-2 py-0.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded transition cursor-pointer"
+                                    title="Giảm 50.000 ₫ mỗi phòng/đêm cho tất cả loại phòng"
+                                  >
+                                    -50k
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => adjustAllRoomTypesPrice("amount", -100000)}
+                                    className="px-2 py-0.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded transition cursor-pointer"
+                                    title="Giảm 100.000 ₫ mỗi phòng/đêm cho tất cả loại phòng"
+                                  >
+                                    -100k
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => adjustAllRoomTypesPrice("amount", 50000)}
+                                    className="px-2 py-0.5 text-xs font-bold text-amber-700 hover:bg-amber-50 rounded transition cursor-pointer"
+                                    title="Tăng 50.000 ₫ mỗi phòng/đêm cho tất cả loại phòng"
+                                  >
+                                    +50k
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => adjustAllRoomTypesPrice("amount", 100000)}
+                                    className="px-2 py-0.5 text-xs font-bold text-amber-700 hover:bg-amber-50 rounded transition cursor-pointer"
+                                    title="Tăng 100.000 ₫ mỗi phòng/đêm cho tất cả loại phòng"
+                                  >
+                                    +100k
+                                  </button>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => adjustAllRoomTypesPrice("reset")}
+                                className="text-xs font-semibold text-purple-700 hover:text-purple-900 hover:underline cursor-pointer flex items-center gap-1 whitespace-nowrap"
+                                title="Khôi phục giá niêm yết ban đầu cho tất cả loại phòng"
+                              >
+                                <VsIcon name="undo" className="text-xs" />
+                                <span>Về giá gốc tất cả</span>
+                              </button>
+                            </div>
+                          )}
+
+                          <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden bg-white">
+                            {roomTypeSummaryList.map((rt) => {
+                              const count = bulkRoomTypeCounts[rt.roomTypeId] || 0;
+                              const basePrice = rt.price ?? 0;
+                              const customPrice = bulkRoomTypeCustomPrices[rt.roomTypeId];
+                              const effectivePrice =
+                                customPrice !== undefined && customPrice !== null
+                                  ? customPrice
+                                  : basePrice;
+                              const hasChanged = basePrice > 0 && effectivePrice !== basePrice;
+                              const diffAmount = effectivePrice - basePrice;
+                              const diffPercent =
+                                basePrice > 0 ? ((diffAmount / basePrice) * 100).toFixed(1) : "0";
+                              const isDiscount = diffAmount < 0;
+
+                              return (
+                                <div
+                                  key={rt.roomTypeId}
+                                  className={`p-3.5 transition space-y-2.5 ${
+                                    count > 0 ? "bg-purple-50/20" : "hover:bg-slate-50/80"
+                                  }`}
+                                >
+                                  {/* Hàng 1: Tên loại phòng, Giá gốc, Phòng trống & Nút số lượng */}
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span className="font-bold text-sm text-slate-900 truncate">
+                                          {rt.name}
                                         </span>
+                                        <span className="text-xs font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md whitespace-nowrap">
+                                          Giá gốc:{" "}
+                                          <strong className="text-slate-800 font-bold">
+                                            {basePrice > 0
+                                              ? `${formatMoney({ price: basePrice, currency: "VND" })} / đêm`
+                                              : "Chưa cài đặt"}
+                                          </strong>
+                                        </span>
+                                        {hasChanged && (
+                                          <span
+                                            className={`text-xs font-bold px-2 py-0.5 rounded-md border whitespace-nowrap inline-flex items-center gap-1 ${
+                                              isDiscount
+                                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                                : "bg-amber-50 text-amber-700 border-amber-200"
+                                            }`}
+                                          >
+                                            <span>{isDiscount ? "↓" : "↑"}</span>
+                                            <span>
+                                              {isDiscount ? "Giảm" : "Tăng"}{" "}
+                                              {formatMoney({ price: Math.abs(diffAmount), currency: "VND" })}{" "}
+                                              ({diffAmount > 0 ? `+${diffPercent}%` : `${diffPercent}%`})
+                                            </span>
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span className="text-xs text-slate-500 block mt-0.5">
+                                        Hiện còn{" "}
+                                        <strong
+                                          className={`font-bold ${
+                                            rt.availableCount > 0
+                                              ? "text-emerald-700"
+                                              : "text-rose-600"
+                                          }`}
+                                        >
+                                          {rt.availableCount}
+                                        </strong>{" "}
+                                        phòng trống
+                                      </span>
+                                    </div>
+
+                                    {/* Nút chọn số lượng phòng */}
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <button
+                                        type="button"
+                                        onClick={() => decrementRoomTypeCount(rt.roomTypeId)}
+                                        disabled={count <= 0}
+                                        className="w-8 h-8 rounded-lg border border-slate-300 hover:bg-slate-100 flex items-center justify-center text-slate-700 font-black disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                                        aria-label={`Giảm số lượng phòng ${rt.name}`}
+                                      >
+                                        -
+                                      </button>
+                                      <span className="w-8 text-center text-sm font-black text-slate-900">
+                                        {count}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          incrementRoomTypeCount(rt.roomTypeId, rt.availableCount)
+                                        }
+                                        disabled={
+                                          count >= rt.availableCount || bulkTotalAutoCount >= 50
+                                        }
+                                        className="w-8 h-8 rounded-lg bg-purple-700 hover:bg-purple-800 text-white flex items-center justify-center font-black disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                                        aria-label={`Tăng số lượng phòng ${rt.name}`}
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Hàng 2: Thanh chỉnh giá, tăng giảm tiền / % và hiển thị giá đã đổi (khi count > 0) */}
+                                  {count > 0 && (
+                                    <div className="pt-2.5 border-t border-purple-100 flex flex-wrap items-center justify-between gap-2.5 bg-purple-50/60 p-2.5 rounded-xl">
+                                      {/* Ô nhập tiền + hiển thị giá đổi */}
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <label className="text-xs font-bold text-purple-950 whitespace-nowrap">
+                                          Giá đặt / đêm:
+                                        </label>
+                                        <div className="relative flex items-center w-36 sm:w-40">
+                                          <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            value={formatPriceInput(effectivePrice)}
+                                            onChange={(e) =>
+                                              handleBulkRoomTypePriceChange(
+                                                rt.roomTypeId,
+                                                e.target.value,
+                                              )
+                                            }
+                                            placeholder="0"
+                                            className="w-full text-xs font-bold text-purple-950 bg-white border border-purple-300 rounded-lg pl-2.5 pr-11 py-1.5 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none"
+                                          />
+                                          <span className="absolute right-2 text-xs font-semibold text-slate-500 pointer-events-none">
+                                            đ/đêm
+                                          </span>
+                                        </div>
+
+                                        {hasChanged ? (
+                                          <span
+                                            className={`text-xs font-bold px-2 py-1 rounded-lg border whitespace-nowrap inline-flex items-center gap-1 ${
+                                              isDiscount
+                                                ? "bg-emerald-100/80 text-emerald-800 border-emerald-300"
+                                                : "bg-amber-100/80 text-amber-800 border-amber-300"
+                                            }`}
+                                          >
+                                            <span>
+                                              Đã đổi: {formatMoney({ price: effectivePrice, currency: "VND" })}
+                                            </span>
+                                            <span className="font-normal">
+                                              ({isDiscount ? "tiết kiệm" : "phụ thu"}{" "}
+                                              {formatMoney({ price: Math.abs(diffAmount), currency: "VND" })})
+                                            </span>
+                                          </span>
+                                        ) : (
+                                          <span className="text-xs text-slate-500 whitespace-nowrap">
+                                            (Đang dùng giá gốc)
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {/* Thao tác tăng giảm tiền, % và nút về giá gốc */}
+                                      <div className="flex flex-wrap items-center gap-1.5">
+                                        {/* Nhóm phần trăm % */}
+                                        <div className="inline-flex items-center gap-0.5 bg-white p-0.5 rounded-lg border border-purple-200">
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              adjustRoomTypePrice(rt.roomTypeId, "percent", -10, basePrice)
+                                            }
+                                            className="px-2 py-0.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded transition cursor-pointer"
+                                            title={`Giảm 10% (${basePrice > 0 ? formatMoney({ price: Math.round(basePrice * 0.1), currency: "VND" }) : ""})`}
+                                          >
+                                            -10%
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              adjustRoomTypePrice(rt.roomTypeId, "percent", -5, basePrice)
+                                            }
+                                            className="px-2 py-0.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded transition cursor-pointer"
+                                            title={`Giảm 5% (${basePrice > 0 ? formatMoney({ price: Math.round(basePrice * 0.05), currency: "VND" }) : ""})`}
+                                          >
+                                            -5%
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              adjustRoomTypePrice(rt.roomTypeId, "percent", 5, basePrice)
+                                            }
+                                            className="px-2 py-0.5 text-xs font-bold text-amber-700 hover:bg-amber-50 rounded transition cursor-pointer"
+                                            title={`Tăng 5% (${basePrice > 0 ? formatMoney({ price: Math.round(basePrice * 0.05), currency: "VND" }) : ""})`}
+                                          >
+                                            +5%
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              adjustRoomTypePrice(rt.roomTypeId, "percent", 10, basePrice)
+                                            }
+                                            className="px-2 py-0.5 text-xs font-bold text-amber-700 hover:bg-amber-50 rounded transition cursor-pointer"
+                                            title={`Tăng 10% (${basePrice > 0 ? formatMoney({ price: Math.round(basePrice * 0.1), currency: "VND" }) : ""})`}
+                                          >
+                                            +10%
+                                          </button>
+                                        </div>
+
+                                        {/* Nhóm số tiền */}
+                                        <div className="inline-flex items-center gap-0.5 bg-white p-0.5 rounded-lg border border-purple-200">
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              adjustRoomTypePrice(rt.roomTypeId, "amount", -50000, basePrice)
+                                            }
+                                            className="px-2 py-0.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded transition cursor-pointer"
+                                            title="Giảm 50.000 ₫/đêm"
+                                          >
+                                            -50k
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              adjustRoomTypePrice(rt.roomTypeId, "amount", -100000, basePrice)
+                                            }
+                                            className="px-2 py-0.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded transition cursor-pointer"
+                                            title="Giảm 100.000 ₫/đêm"
+                                          >
+                                            -100k
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              adjustRoomTypePrice(rt.roomTypeId, "amount", 50000, basePrice)
+                                            }
+                                            className="px-2 py-0.5 text-xs font-bold text-amber-700 hover:bg-amber-50 rounded transition cursor-pointer"
+                                            title="Tăng 50.000 ₫/đêm"
+                                          >
+                                            +50k
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              adjustRoomTypePrice(rt.roomTypeId, "amount", 100000, basePrice)
+                                            }
+                                            className="px-2 py-0.5 text-xs font-bold text-amber-700 hover:bg-amber-50 rounded transition cursor-pointer"
+                                            title="Tăng 100.000 ₫/đêm"
+                                          >
+                                            +100k
+                                          </button>
+                                        </div>
+
+                                        {/* Nút về giá gốc */}
+                                        {hasChanged && (
+                                          <button
+                                            type="button"
+                                            onClick={() => resetRoomTypePrice(rt.roomTypeId)}
+                                            className="px-2 py-0.5 text-xs font-bold text-purple-700 hover:text-purple-900 bg-white hover:bg-purple-100/70 border border-purple-300 rounded-lg transition cursor-pointer whitespace-nowrap shadow-2xs flex items-center gap-1"
+                                            title="Khôi phục lại giá gốc niêm yết ban đầu"
+                                          >
+                                            <VsIcon name="undo" className="text-xs" />
+                                            <span>Về giá gốc</span>
+                                          </button>
+                                        )}
                                       </div>
                                     </div>
                                   )}
-
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => decrementRoomTypeCount(rt.roomTypeId)}
-                                      disabled={count <= 0}
-                                      className="w-8 h-8 rounded-lg border border-slate-300 hover:bg-slate-100 flex items-center justify-center text-slate-700 font-black disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
-                                    >
-                                      -
-                                    </button>
-                                    <span className="w-8 text-center text-sm font-black text-slate-900">
-                                      {count}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => incrementRoomTypeCount(rt.roomTypeId, rt.availableCount)}
-                                      disabled={count >= rt.availableCount || bulkTotalAutoCount >= 50}
-                                      className="w-8 h-8 rounded-lg bg-purple-700 hover:bg-purple-800 text-white flex items-center justify-center font-black disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
-                                    >
-                                      +
-                                    </button>
-                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
 
@@ -8246,12 +8571,12 @@ export function StaffRoomsClient({
                                       rt.roomTypeId === room.roomTypeId,
                                   )?.price ?? null;
 
+                                const roomBasePrice = extractRoomBasePrice(room);
                                 const defaultRoomPrice =
-                                  typeof room.price === "number" && room.price > 0
-                                    ? room.price
-                                    : typeof typeFallbackPrice === "number" && typeFallbackPrice > 0
-                                      ? typeFallbackPrice
-                                      : 0;
+                                  roomBasePrice ??
+                                  (typeof typeFallbackPrice === "number" && typeFallbackPrice > 0
+                                    ? typeFallbackPrice
+                                    : 0);
 
                                 const customPrice = bulkRoomCustomPrices[room.id];
                                 const currentPrice =
@@ -8869,7 +9194,13 @@ export function StaffRoomsClient({
 
       <BookingConfirmationModal
         isOpen={confirmationModalState.isOpen}
-        onClose={() => setConfirmationModalState((prev) => ({ ...prev, isOpen: false }))}
+        onClose={() => {
+          setConfirmationModalState((prev) => ({ ...prev, isOpen: false }));
+          if (returnToDailyMovements) {
+            setReturnToDailyMovements(false);
+            setIsDailyMovementsOpen(true);
+          }
+        }}
         hotelId={hotelId}
         mode={confirmationModalState.mode}
         reservationId={confirmationModalState.reservationId}
@@ -8892,6 +9223,22 @@ export function StaffRoomsClient({
         onCheckInArrival={(arr) => {
           setIsDailyMovementsOpen(false);
           handleCheckInArrival(arr);
+        }}
+        onCheckInGroup={(code) => {
+          setReturnToDailyMovements(true);
+          setIsDailyMovementsOpen(false);
+          openGroupCheckIn(code);
+        }}
+        onOpenGroupDetail={(code) => {
+          setReturnToDailyMovements(true);
+          setIsDailyMovementsOpen(false);
+          setGroupOperationsCode(code);
+          setIsGroupOperationsOpen(true);
+        }}
+        onPrintGroupConfirmation={(code) => {
+          setReturnToDailyMovements(true);
+          setIsDailyMovementsOpen(false);
+          setConfirmationModalState({ isOpen: true, mode: "group", groupCode: code });
         }}
         onExtendStay={(r) => {
           setIsDailyMovementsOpen(false);
@@ -8937,6 +9284,10 @@ export function StaffRoomsClient({
         onClose={() => {
           setIsGroupOperationsOpen(false);
           setGroupOperationsCode(null);
+          if (returnToDailyMovements) {
+            setReturnToDailyMovements(false);
+            setIsDailyMovementsOpen(true);
+          }
         }}
         hotelId={hotelId}
         groupCode={groupOperationsCode}
@@ -8951,6 +9302,19 @@ export function StaffRoomsClient({
         }}
       />
 
+      {/* Group Arrivals List (Danh sách đoàn đặt trước + phân trang) Modal */}
+      <GroupArrivalsListModal
+        isOpen={isGroupListModalOpen}
+        onClose={() => setIsGroupListModalOpen(false)}
+        hotelId={hotelId}
+        arrivals={arrivalsList}
+        todayYmd={todayYmd}
+        onSelectGroup={(code) => {
+          setIsGroupListModalOpen(false);
+          openGroupCheckIn(code);
+        }}
+      />
+
       {/* Dedicated Group Check-in with CCCD/Passport Verification Modal */}
       {isGroupCheckInOpen && groupCheckInCode && (
         <GroupCheckInModal
@@ -8959,6 +9323,10 @@ export function StaffRoomsClient({
             setIsGroupCheckInOpen(false);
             setGroupCheckInCode(null);
             setGroupCheckInRooms([]);
+            if (returnToDailyMovements) {
+              setReturnToDailyMovements(false);
+              setIsDailyMovementsOpen(true);
+            }
           }}
           hotelId={hotelId}
           groupCode={groupCheckInCode}

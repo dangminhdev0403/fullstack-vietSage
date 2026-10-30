@@ -411,7 +411,7 @@ export type HotelArrival = {
   hotelId: string;
   roomId: string | null;
   roomTypeId?: string | null;
-  room?: Pick<HotelRoomSummary, "id" | "roomNumber" | "type" | "maxOccupancy"> | null;
+  room?: (Pick<HotelRoomSummary, "id" | "roomNumber" | "type" | "maxOccupancy"> & { price?: number | string | null; basePrice?: number | string | null }) | null;
   reservationCode: string;
   groupCode?: string | null;
   guestCount?: number | null;
@@ -421,9 +421,43 @@ export type HotelArrival = {
   status: "CONFIRMED" | "ARRIVAL_READY" | "CHECKED_IN" | "CANCELLED" | "NO_SHOW";
   plannedCheckInAt: string;
   plannedCheckOutAt: string;
+  baseNightlyRateSnapshot?: number | string | null;
   nightlyRateSnapshot?: number | string | null;
   rate?: string | null;
+  roomSubtotal?: number | null;
+  serviceSubtotal?: number | null;
+  totalAmount?: number | null;
+  chargeLines?: Array<{
+    id?: string;
+    lineType: "ROOM_NIGHT" | "EXTRA";
+    serviceDate?: string | null;
+    nameSnapshot: string;
+    quantity: number;
+    unitPriceSnapshot: number | string;
+    totalSnapshot: number | string;
+    currency: string;
+  }>;
   updatedAt?: string | null;
+};
+
+export type UpdateReservationInput = {
+  guestDisplayName?: string;
+  guestPhone?: string | null;
+  guestCount?: number | null;
+  notes?: string | null;
+  roomId?: string | null;
+  roomTypeId?: string | null;
+  startDate?: string;
+  endDate?: string;
+  plannedCheckInAt?: string;
+  plannedCheckOutAt?: string;
+  rate?: number | string | null;
+  nightlyRateSnapshot?: number | string | null;
+  chargeLines?: any[];
+  sourceCategory?: string;
+  sourcePartnerId?: string | null;
+  bookingOwnerUserId?: string | null;
+  expectedUpdatedAt?: string;
 };
 
 export type ListHotelArrivalsQuery = {
@@ -738,6 +772,8 @@ export type RoomPlanBlock = {
   roomTypeName: string | null;
   startDate: string;
   endDate: string;
+  startAt?: string;
+  endAt?: string;
   nights: number;
   nightlyRate: number | null;
   roomSubtotal?: number | null;

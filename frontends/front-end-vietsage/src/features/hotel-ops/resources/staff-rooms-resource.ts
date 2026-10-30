@@ -27,6 +27,7 @@ import type {
   HotelRoomSummary,
   HotelConfirmationTemplateConfig,
   ReservationConfirmationData,
+  UpdateReservationInput,
   BookingSourcePartnerItem,
   CreateBookingSourcePartnerInput,
   HotelStaffAssignmentItem,
@@ -298,6 +299,25 @@ const baseStaffRoomsResource = createResource<{ hotelId: string }>()({
       invalidates: [
         { type: "query", operation: "list" },
         { type: "query", operation: "groupArrivals" },
+      ],
+    }),
+    updateReservation: defineMutation({
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<
+        { hotelId: string },
+        { reservationId: string; payload: UpdateReservationInput }
+      >) =>
+        staffRoomsRepository.updateReservation(
+          scope.hotelId,
+          variables.reservationId,
+          variables.payload,
+        ),
+      invalidates: [
+        { type: "query", operation: "list" },
+        { type: "query", operation: "groupArrivals" },
+        { type: "query", operation: "reservationConfirmation" },
       ],
     }),
     checkOutStay: defineMutation({

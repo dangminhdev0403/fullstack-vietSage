@@ -26,6 +26,7 @@ import {
   roomPlanQuerySchema,
   updateReservationPlacementBodySchema,
   updateReservationDatesBodySchema,
+  updateReservationBodySchema,
   groupCodeParamSchema,
   updateGroupReservationBodySchema,
   createBookingSourcePartnerBodySchema,
@@ -697,6 +698,51 @@ export class ReservationsController {
       hotelId,
       reservationId,
       dto,
+    );
+  }
+
+  @RequirePermission("hotel.reservations.manage")
+  @SuccessMessage("Cập nhật thông tin đặt phòng thành công")
+  @ApiDescript("Chỉnh sửa thông tin khách, ngày lưu trú, phòng phân bổ, đơn giá và ghi chú của đơn đặt")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "reservationId", type: String })
+  @Patch(":hotelId/reservations/:reservationId")
+  async updateReservation(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("reservationId") reservationIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const reservationId = parseWithZod(reservationIdParamSchema, reservationIdParam);
+    const dto = parseWithZod(updateReservationBodySchema, body);
+    return this.reservationsService.updateReservation(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      reservationId,
+      dto,
+    );
+  }
+
+  @RequirePermission(["hotel.reservations.view", "hotel.reservations.manage"])
+  @SuccessMessage("Lấy chi tiết đơn đặt phòng thành công")
+  @ApiDescript("Lấy chi tiết đơn đặt phòng cùng phòng và biểu phí chi tiết")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "reservationId", type: String })
+  @Get(":hotelId/reservations/:reservationId")
+  async getReservation(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("reservationId") reservationIdParam: string,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const reservationId = parseWithZod(reservationIdParamSchema, reservationIdParam);
+    return this.reservationsService.getReservation(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      reservationId,
     );
   }
 

@@ -759,9 +759,6 @@ export function InventoryGrid({
                             />
                             <span>{rt.roomTypeName}</span>
                           </button>
-                          <span className="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs font-bold text-slate-800 shadow-2xs">
-                            {rt.totalRooms} phòng
-                          </span>
                           <button
                             type="button"
                             onClick={() =>
@@ -774,11 +771,15 @@ export function InventoryGrid({
                                 selectedDate: startDate,
                               })
                             }
-                            aria-label={`Xem phòng vật lý ${rt.roomTypeName}`}
-                            className="inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs font-bold text-slate-700 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 transition cursor-pointer"
+                            title={`Xem ${rt.totalRooms} phòng vật lý & quản lý QR ${rt.roomTypeName}`}
+                            aria-label={`Xem ${rt.totalRooms} phòng vật lý và quản lý QR ${rt.roomTypeName}`}
+                            className="group inline-flex min-h-7 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-0.5 text-xs font-bold text-slate-800 shadow-2xs transition hover:border-emerald-400 hover:bg-emerald-50/70 hover:text-emerald-900 cursor-pointer"
                           >
-                            <VsIcon name="meeting_room" className="text-xs" />
-                            <span>Chi tiết phòng</span>
+                            <VsIcon
+                              name="meeting_room"
+                              className="text-xs text-slate-400 group-hover:text-emerald-700 transition-colors"
+                            />
+                            <span>{rt.totalRooms} phòng</span>
                           </button>
                           <span className="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs font-semibold text-slate-700 shadow-2xs">
                             Giá gốc:{" "}

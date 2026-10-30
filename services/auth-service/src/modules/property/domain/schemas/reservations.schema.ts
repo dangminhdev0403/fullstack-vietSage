@@ -348,6 +348,40 @@ export type UpdateReservationDatesBodyInput = z.infer<
   typeof updateReservationDatesBodySchema
 >;
 
+export const updateReservationBodySchema = z
+  .object({
+    guestDisplayName: z.string().trim().min(1, "Tên khách không được để trống").max(120).optional(),
+    guestPhone: z.string().trim().max(40).nullable().optional(),
+    guestCount: z.coerce.number().int().min(1).max(50).nullable().optional(),
+    notes: z.string().trim().max(500).nullable().optional(),
+    roomId: z.string().trim().min(1).nullable().optional(),
+    roomTypeId: z.string().trim().min(1).nullable().optional(),
+    startDate: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "startDate phải có định dạng YYYY-MM-DD")
+      .optional(),
+    endDate: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "endDate phải có định dạng YYYY-MM-DD")
+      .optional(),
+    plannedCheckInAt: z.coerce.date().optional(),
+    plannedCheckOutAt: z.coerce.date().optional(),
+    rate: nightlyRateSnapshotSchema.optional(),
+    nightlyRateSnapshot: nightlyRateSnapshotSchema.optional(),
+    chargeLines: z.array(reservationChargeLineInputSchema).optional(),
+    sourceCategory: bookingSourceCategorySchema.optional(),
+    sourcePartnerId: z.string().trim().min(1).nullable().optional(),
+    bookingOwnerUserId: z.string().trim().min(1).nullable().optional(),
+    expectedUpdatedAt: z.string().trim().optional(),
+  })
+  .strict();
+
+export type UpdateReservationBodyInput = z.infer<
+  typeof updateReservationBodySchema
+>;
+
 export const groupCodeParamSchema = z
   .string()
   .trim()

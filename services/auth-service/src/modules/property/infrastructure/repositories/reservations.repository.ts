@@ -24,6 +24,7 @@ import {
   toYmd,
   VIETNAM_TIME_ZONE,
 } from "../../../../common/time/vietnam-temporal";
+import { generateOpaqueToken } from "../../../../common/security/token-hash.util";
 import { PrismaService } from "../../../../prisma/prisma.service";
 import type {
   CheckInReservationBodyInput,
@@ -531,6 +532,14 @@ export class ReservationsRepository {
           throw new ConflictException("ROOM_RESERVATION_OVERLAP");
         }
 
+        const effectiveBaseRate = room.price ?? (room as any)?.roomType?.basePrice ?? null;
+        const effectiveNightlyRate =
+          input.nightlyRateSnapshot !== undefined && input.nightlyRateSnapshot !== null
+            ? (input.nightlyRateSnapshot instanceof Prisma.Decimal
+                ? input.nightlyRateSnapshot
+                : new Prisma.Decimal(input.nightlyRateSnapshot))
+            : effectiveBaseRate;
+
         const reservation = await tx.reservation.create({
           data: {
             hotelId: input.hotelId,
@@ -548,9 +557,8 @@ export class ReservationsRepository {
             status: ReservationStatus.ARRIVAL_READY,
             assignedAt: new Date(),
             assignedByUserId: input.createdByUserId,
-            baseNightlyRateSnapshot: room.price,
-            nightlyRateSnapshot:
-              input.nightlyRateSnapshot !== undefined ? input.nightlyRateSnapshot : room.price,
+            baseNightlyRateSnapshot: effectiveBaseRate,
+            nightlyRateSnapshot: effectiveNightlyRate,
             sourceCategory: (input.sourceCategory === "TA" ? "TRAVEL_AGENCY" : input.sourceCategory) ?? undefined,
             sourcePartnerId: input.sourcePartnerId ?? undefined,
             bookingOwnerUserId: input.bookingOwnerUserId?.trim() || input.createdByUserId || undefined,
@@ -577,6 +585,32 @@ export class ReservationsRepository {
               currency: line.currency || "VND",
             })),
           });
+        } else if (tx.reservationChargeLine && effectiveNightlyRate !== null && effectiveNightlyRate !== undefined) {
+          const hotel = await tx.hotel.findUnique({
+            where: { id: input.hotelId },
+            select: { timezone: true },
+          });
+          const tz = hotel?.timezone || VIETNAM_TIME_ZONE;
+          const nights = Math.max(1, diffCalendarDays(input.plannedCheckInAt, input.plannedCheckOutAt, tz));
+          const linesData: any[] = [];
+          const rateDec = new Prisma.Decimal(effectiveNightlyRate);
+          for (let i = 0; i < nights; i++) {
+            const ymd = addDaysYmd(toYmd(input.plannedCheckInAt, tz), i);
+            linesData.push({
+              hotelId: input.hotelId,
+              reservationId: reservation.id,
+              lineType: ReservationChargeLineType.ROOM_NIGHT,
+              serviceDate: new Date(`${ymd}T14:00:00+07:00`),
+              nameSnapshot: `Tiền phòng đêm ${ymd}`,
+              quantity: 1,
+              unitPriceSnapshot: rateDec,
+              taxAmountSnapshot: new Prisma.Decimal(0),
+              discountAmountSnapshot: new Prisma.Decimal(0),
+              totalSnapshot: rateDec,
+              currency: "VND",
+            });
+          }
+          await tx.reservationChargeLine.createMany({ data: linesData });
         }
 
         return reservation;
@@ -592,6 +626,13 @@ export class ReservationsRepository {
         });
         defaultBaseRate = rt?.basePrice ?? null;
       }
+
+      const effectiveNightlyRate =
+        input.nightlyRateSnapshot !== undefined && input.nightlyRateSnapshot !== null
+          ? (input.nightlyRateSnapshot instanceof Prisma.Decimal
+              ? input.nightlyRateSnapshot
+              : new Prisma.Decimal(input.nightlyRateSnapshot))
+          : defaultBaseRate;
 
       const reservation = await tx.reservation.create({
         data: {
@@ -609,8 +650,7 @@ export class ReservationsRepository {
           createdByUserId: input.createdByUserId,
           status: ReservationStatus.CONFIRMED,
           baseNightlyRateSnapshot: defaultBaseRate,
-          nightlyRateSnapshot:
-            input.nightlyRateSnapshot !== undefined ? input.nightlyRateSnapshot : defaultBaseRate,
+          nightlyRateSnapshot: effectiveNightlyRate,
           sourceCategory: input.sourceCategory ?? undefined,
           sourcePartnerId: input.sourcePartnerId ?? undefined,
           bookingOwnerUserId: input.bookingOwnerUserId?.trim() || input.createdByUserId || undefined,
@@ -637,6 +677,32 @@ export class ReservationsRepository {
             currency: line.currency || "VND",
           })),
         });
+      } else if (tx.reservationChargeLine && effectiveNightlyRate !== null && effectiveNightlyRate !== undefined) {
+        const hotel = await tx.hotel.findUnique({
+          where: { id: input.hotelId },
+          select: { timezone: true },
+        });
+        const tz = hotel?.timezone || VIETNAM_TIME_ZONE;
+        const nights = Math.max(1, diffCalendarDays(input.plannedCheckInAt, input.plannedCheckOutAt, tz));
+        const linesData: any[] = [];
+        const rateDec = new Prisma.Decimal(effectiveNightlyRate);
+        for (let i = 0; i < nights; i++) {
+          const ymd = addDaysYmd(toYmd(input.plannedCheckInAt, tz), i);
+          linesData.push({
+            hotelId: input.hotelId,
+            reservationId: reservation.id,
+            lineType: ReservationChargeLineType.ROOM_NIGHT,
+            serviceDate: new Date(`${ymd}T14:00:00+07:00`),
+            nameSnapshot: `Tiền phòng đêm ${ymd}`,
+            quantity: 1,
+            unitPriceSnapshot: rateDec,
+            taxAmountSnapshot: new Prisma.Decimal(0),
+            discountAmountSnapshot: new Prisma.Decimal(0),
+            totalSnapshot: rateDec,
+            currency: "VND",
+          });
+        }
+        await tx.reservationChargeLine.createMany({ data: linesData });
       }
 
       return reservation;
@@ -647,8 +713,17 @@ export class ReservationsRepository {
     return this.prisma.reservation.findFirst({
       where: { id: reservationId, hotelId },
       include: {
-        room: true,
+        room: {
+          include: {
+            roomType: true,
+          },
+        },
         roomType: true,
+        chargeLines: {
+          orderBy: { serviceDate: "asc" },
+        },
+        sourcePartner: true,
+        stay: true,
       },
     });
   }
@@ -853,7 +928,16 @@ export class ReservationsRepository {
       this.prisma.reservation.count({ where }),
       this.prisma.reservation.findMany({
         where,
-        include: { room: true, stay: true },
+        include: {
+          room: {
+            include: {
+              roomType: true,
+            },
+          },
+          roomType: true,
+          stay: true,
+          chargeLines: true,
+        },
         orderBy: [{ plannedCheckInAt: "asc" }, { reservationCode: "asc" }],
         skip: input.skip,
         take: input.take,
@@ -1152,15 +1236,14 @@ export class ReservationsRepository {
           roomType: { select: { id: true, name: true, maxOccupancy: true } },
         },
       });
-      if (
-        !room ||
-        (room.status !== RoomStatus.AVAILABLE && room.status !== RoomStatus.RESERVED)
-      ) {
+      if (!room) {
         throw new ConflictException("ROOM_NOT_READY_FOR_CHECK_IN");
       }
+      let hasActiveStayConflict = false;
+      const trueCollidingStays: Array<{ id: string; plannedCheckOutAt: Date | null }> = [];
 
-      const [activeStayCount, blockingFolioCount] = await Promise.all([
-        tx.guestStay.count({
+      if (typeof tx.guestStay.findMany === "function") {
+        const activeStays = await tx.guestStay.findMany({
           where: {
             hotelId: input.hotelId,
             roomId: room.id,
@@ -1172,20 +1255,120 @@ export class ReservationsRepository {
               ],
             },
           },
-        }),
-        tx.folio.count({
+          select: {
+            id: true,
+            reservationId: true,
+            plannedCheckOutAt: true,
+            status: true,
+          },
+        });
+
+        for (const existingStay of activeStays) {
+          if (existingStay.reservationId === reservation.id) continue;
+          const isPastOverdue =
+            existingStay.plannedCheckOutAt &&
+            new Date(existingStay.plannedCheckOutAt).getTime() <= now.getTime();
+
+          if (isPastOverdue) {
+            // Auto-complete overdue past stay and close associated open folios
+            if (typeof tx.guestStay.update === "function") {
+              await tx.guestStay.update({
+                where: { id: existingStay.id },
+                data: {
+                  status: GuestStayStatus.CHECKED_OUT,
+                  checkedOutAt: now,
+                  closedByUserId: input.actorUserId,
+                },
+              });
+            }
+            if (typeof tx.folio.updateMany === "function") {
+              await tx.folio.updateMany({
+                where: {
+                  stayId: existingStay.id,
+                  status: { in: [FolioStatus.OPEN, FolioStatus.CHECKOUT_PENDING] },
+                },
+                data: {
+                  status: FolioStatus.CLOSED,
+                  closedAt: now,
+                },
+              });
+            }
+          } else {
+            trueCollidingStays.push(existingStay);
+          }
+        }
+        if (trueCollidingStays.length > 0) {
+          hasActiveStayConflict = true;
+        }
+      } else if (typeof tx.guestStay.count === "function") {
+        const activeStayCount = await tx.guestStay.count({
+          where: {
+            hotelId: input.hotelId,
+            roomId: room.id,
+            status: {
+              in: [
+                GuestStayStatus.ACTIVE,
+                GuestStayStatus.CHECKED_IN,
+                GuestStayStatus.CHECKOUT_PENDING,
+              ],
+            },
+          },
+        });
+        if (activeStayCount > 0) {
+          hasActiveStayConflict = true;
+        }
+      }
+
+      // Auto-close any lingering dangling folios whose stays were already checked out or cancelled
+      if (typeof tx.folio?.findMany === "function") {
+        const danglingFolios = await tx.folio.findMany({
+          where: {
+            hotelId: input.hotelId,
+            roomId: room.id,
+            status: { in: [FolioStatus.OPEN, FolioStatus.CHECKOUT_PENDING] },
+            stay: { status: { in: [GuestStayStatus.CHECKED_OUT, GuestStayStatus.CANCELLED] } },
+          },
+          select: { id: true },
+        });
+
+        if (danglingFolios.length > 0 && typeof tx.folio.updateMany === "function") {
+          await tx.folio.updateMany({
+            where: {
+              id: { in: danglingFolios.map((f) => f.id) },
+            },
+            data: {
+              status: FolioStatus.CLOSED,
+              closedAt: now,
+            },
+          });
+        }
+      }
+
+      let blockingFolioCount = 0;
+      if (typeof tx.folio?.count === "function") {
+        blockingFolioCount = await tx.folio.count({
           where: {
             hotelId: input.hotelId,
             roomId: room.id,
             status: { in: [FolioStatus.OPEN, FolioStatus.CHECKOUT_PENDING] },
           },
-        }),
-      ]);
-      if (activeStayCount > 0 || blockingFolioCount > 0) {
+        });
+      }
+
+      if (hasActiveStayConflict || blockingFolioCount > 0) {
         throw new ConflictException("ROOM_ALREADY_HAS_ACTIVE_STAY_OR_FOLIO");
       }
 
-      const qr = await tx.roomQRCode.findFirst({
+      if (
+        !room ||
+        (room.status !== RoomStatus.AVAILABLE &&
+          room.status !== RoomStatus.RESERVED &&
+          !(room.status === RoomStatus.OCCUPIED && trueCollidingStays.length === 0))
+      ) {
+        throw new ConflictException("ROOM_NOT_READY_FOR_CHECK_IN");
+      }
+
+      let qr = await tx.roomQRCode.findFirst({
         where: {
           hotelId: input.hotelId,
           roomId: room.id,
@@ -1194,14 +1377,33 @@ export class ReservationsRepository {
         orderBy: { version: "desc" },
       });
       if (!qr) {
-        throw new BadRequestException("Phòng chưa có QR khả dụng để check-in.");
+        if (typeof tx.roomQRCode.create === "function") {
+          qr = await tx.roomQRCode.create({
+            data: {
+              hotelId: input.hotelId,
+              roomId: room.id,
+              publicCode: generateOpaqueToken(24),
+              status: RoomQRCodeStatus.INACTIVE,
+              version: 1,
+            },
+          });
+        } else {
+          throw new BadRequestException("Phòng chưa có QR khả dụng để check-in.");
+        }
       }
+
+      const targetRoomStatus =
+        room.status === RoomStatus.RESERVED
+          ? RoomStatus.RESERVED
+          : room.status === RoomStatus.OCCUPIED
+            ? RoomStatus.OCCUPIED
+            : RoomStatus.AVAILABLE;
 
       const occupiedRoom = await tx.room.updateMany({
         where: {
           id: room.id,
           hotelId: input.hotelId,
-          status: room.status === RoomStatus.RESERVED ? RoomStatus.RESERVED : RoomStatus.AVAILABLE,
+          status: targetRoomStatus,
         },
         data: { status: RoomStatus.OCCUPIED },
       });
@@ -1841,6 +2043,7 @@ export class ReservationsRepository {
         unitPrice: number;
         total: number;
       }>;
+      notes?: string | null;
       updatedAt: string;
       expectedUpdatedAt: string;
       movable: boolean;
@@ -1856,15 +2059,21 @@ export class ReservationsRepository {
         const extraLines = (r.chargeLines || []).filter((l: any) => l.lineType !== "ROOM_NIGHT");
 
         let roomSubtotal = 0;
+        const fallbackRate = Number(
+          r.nightlyRateSnapshot ??
+          r.baseNightlyRateSnapshot ??
+          r.room?.price ??
+          r.room?.roomType?.basePrice ??
+          (r as any).roomType?.basePrice ??
+          0,
+        );
+
         if (roomChargeLines.length > 0) {
           roomSubtotal = roomChargeLines.reduce(
             (sum: number, l: any) => sum + Number(l.totalSnapshot || l.unitPriceSnapshot || 0),
             0,
           );
         } else {
-          const fallbackRate = Number(
-            r.nightlyRateSnapshot ?? r.room?.price ?? 0,
-          );
           roomSubtotal = fallbackRate * nights;
         }
 
@@ -1879,7 +2088,7 @@ export class ReservationsRepository {
         const effectiveNightlyRate =
           nights > 0
             ? Math.round(roomSubtotal / nights)
-            : Number(r.nightlyRateSnapshot ?? r.room?.price ?? 0);
+            : fallbackRate;
 
         const isOta = Boolean(
           r.sourceCategory === "OTA" || (r.groupCode && r.groupCode.startsWith("OTA")),
@@ -1944,6 +2153,7 @@ export class ReservationsRepository {
           serviceSubtotal,
           totalAmount,
           services,
+          notes: r.notes ?? null,
           updatedAt: r.updatedAt.toISOString(),
           expectedUpdatedAt: r.updatedAt.toISOString(),
           movable: ACTIVE_RESERVATION_STATUSES.includes(r.status),
@@ -1970,9 +2180,13 @@ export class ReservationsRepository {
         : "Trực tiếp";
       const nightlyRate = s.nightlyRateSnapshot
         ? Number(s.nightlyRateSnapshot)
-        : s.room?.price
-          ? Number(s.room.price)
-          : null;
+        : s.baseNightlyRateSnapshot
+          ? Number(s.baseNightlyRateSnapshot)
+          : s.room?.price
+            ? Number(s.room.price)
+            : (s.room as any)?.roomType?.basePrice
+              ? Number((s.room as any).roomType.basePrice)
+              : null;
       const guestCount = 1 + (s.occupants?.length ?? 0);
 
       blocks.push({
@@ -2565,6 +2779,295 @@ export class ReservationsRepository {
 
       return updated;
     }, "RESERVATION_DATES_CONCURRENCY_CONFLICT");
+  }
+
+  async updateReservation(input: {
+    hotelId: string;
+    tenantId: string;
+    reservationId: string;
+    guestDisplayName?: string;
+    guestPhone?: string | null;
+    guestCount?: number | null;
+    notes?: string | null;
+    roomId?: string | null;
+    roomTypeId?: string | null;
+    startDate?: string;
+    endDate?: string;
+    plannedCheckInAt?: Date;
+    plannedCheckOutAt?: Date;
+    nightlyRateSnapshot?: number | string | Prisma.Decimal | null;
+    chargeLines?: any[];
+    sourceCategory?: any;
+    sourcePartnerId?: string | null;
+    bookingOwnerUserId?: string | null;
+    expectedUpdatedAt?: string;
+    actorUserId: string;
+    assertRoomAccess?: (roomId: string) => void | Promise<void> | unknown | Promise<unknown>;
+  }) {
+    return this.runSerializable(async (tx) => {
+      const res = await tx.reservation.findFirst({
+        where: { id: input.reservationId, hotelId: input.hotelId },
+        include: { room: { include: { roomType: true } }, roomType: true },
+      });
+      if (!res) {
+        throw new NotFoundException("Không tìm thấy đặt phòng");
+      }
+      if (!ACTIVE_RESERVATION_STATUSES.includes(res.status)) {
+        throw new BadRequestException("Chỉ có thể điều chỉnh đặt phòng đang hoạt động");
+      }
+
+      if (input.expectedUpdatedAt) {
+        const currentExpected = new Date(input.expectedUpdatedAt).getTime();
+        const actualUpdated = res.updatedAt.getTime();
+        if (!isNaN(currentExpected) && Math.abs(actualUpdated - currentExpected) > 2000) {
+          throw new ConflictException("Dữ liệu đặt phòng đã thay đổi bởi người khác, vui lòng tải lại");
+        }
+      }
+
+      let newCheckIn = input.plannedCheckInAt;
+      if (!newCheckIn && input.startDate) {
+        newCheckIn = input.startDate.includes("T")
+          ? new Date(input.startDate)
+          : new Date(`${input.startDate}T14:00:00+07:00`);
+      }
+      if (!newCheckIn) {
+        newCheckIn = res.plannedCheckInAt;
+      }
+
+      let newCheckOut = input.plannedCheckOutAt;
+      if (!newCheckOut && input.endDate) {
+        newCheckOut = input.endDate.includes("T")
+          ? new Date(input.endDate)
+          : new Date(`${input.endDate}T12:00:00+07:00`);
+      }
+      if (!newCheckOut) {
+        newCheckOut = res.plannedCheckOutAt;
+      }
+
+      if (newCheckIn >= newCheckOut) {
+        throw new BadRequestException("Ngày trả phòng phải sau ngày nhận phòng");
+      }
+
+      const datesChanged =
+        newCheckIn.getTime() !== res.plannedCheckInAt.getTime() ||
+        newCheckOut.getTime() !== res.plannedCheckOutAt.getTime();
+
+      let newRoomId = res.roomId;
+      if (input.roomId !== undefined) {
+        newRoomId = input.roomId?.trim() || null;
+      }
+
+      if (newRoomId) {
+        if (input.assertRoomAccess) {
+          await input.assertRoomAccess(newRoomId);
+        }
+        await tx.$queryRawUnsafe(
+          'SELECT id FROM "Room" WHERE id = $1 AND "hotelId" = $2 FOR UPDATE',
+          newRoomId,
+          input.hotelId,
+        );
+        const targetRoom = await tx.room.findFirst({
+          where: { id: newRoomId, hotelId: input.hotelId },
+          select: {
+            id: true,
+            status: true,
+            price: true,
+            roomTypeId: true,
+            type: true,
+            roomNumber: true,
+            roomType: { select: { id: true, name: true, maxOccupancy: true } },
+          },
+        });
+        if (!targetRoom) {
+          throw new NotFoundException("Không tìm thấy phòng được chỉ định");
+        }
+        if (NON_SELLABLE_ROOM_STATUSES.includes(targetRoom.status)) {
+          throw new ConflictException("Phòng hiện không khả dụng để đặt");
+        }
+
+        const effectiveGuestCount = input.guestCount ?? res.guestCount;
+        const capacity = targetRoom.roomType?.maxOccupancy;
+        if (capacity != null && effectiveGuestCount != null && effectiveGuestCount > capacity) {
+          throw new ConflictException("ROOM_CAPACITY_OVERFLOW");
+        }
+
+        const stayOverlap = await tx.guestStay.findFirst({
+          where: {
+            hotelId: input.hotelId,
+            roomId: newRoomId,
+            status: { in: ACTIVE_STAY_STATUSES },
+            plannedCheckInAt: { lt: newCheckOut },
+            plannedCheckOutAt: { gt: newCheckIn },
+          },
+          select: { id: true },
+        });
+        if (stayOverlap) {
+          throw new ConflictException("Phòng đã có khách lưu trú trùng khoảng thời gian này");
+        }
+
+        const resOverlap = await tx.reservation.findFirst({
+          where: {
+            hotelId: input.hotelId,
+            roomId: newRoomId,
+            id: { not: res.id },
+            status: { in: ACTIVE_RESERVATION_STATUSES },
+            plannedCheckInAt: { lt: newCheckOut },
+            plannedCheckOutAt: { gt: newCheckIn },
+          },
+          select: { id: true },
+        });
+        if (resOverlap) {
+          throw new ConflictException("Phòng đã có đơn đặt phòng khác trùng khoảng thời gian này");
+        }
+      }
+
+      let newNightlyRate = res.nightlyRateSnapshot;
+      let rateChanged = false;
+      if (input.nightlyRateSnapshot !== undefined) {
+        newNightlyRate =
+          input.nightlyRateSnapshot !== null
+            ? (input.nightlyRateSnapshot instanceof Prisma.Decimal
+                ? input.nightlyRateSnapshot
+                : new Prisma.Decimal(input.nightlyRateSnapshot))
+            : null;
+        rateChanged = true;
+      }
+
+      let newStatus = res.status;
+      if (res.status === ReservationStatus.CONFIRMED && newRoomId) {
+        newStatus = ReservationStatus.ARRIVAL_READY;
+      } else if (res.status === ReservationStatus.ARRIVAL_READY && !newRoomId) {
+        newStatus = ReservationStatus.CONFIRMED;
+      }
+
+      const updated = await tx.reservation.update({
+        where: { id: res.id },
+        data: {
+          guestDisplayName: input.guestDisplayName?.trim() || res.guestDisplayName,
+          guestPhone: input.guestPhone !== undefined ? (input.guestPhone?.trim() || null) : res.guestPhone,
+          guestCount: input.guestCount !== undefined ? input.guestCount : res.guestCount,
+          notes: input.notes !== undefined ? (input.notes?.trim() || null) : res.notes,
+          roomId: newRoomId,
+          roomTypeId: input.roomTypeId !== undefined ? (input.roomTypeId || null) : res.roomTypeId,
+          plannedCheckInAt: newCheckIn,
+          plannedCheckOutAt: newCheckOut,
+          status: newStatus,
+          assignedAt: newRoomId && !res.roomId ? new Date() : res.assignedAt,
+          assignedByUserId: newRoomId && !res.roomId ? input.actorUserId : res.assignedByUserId,
+          nightlyRateSnapshot: newNightlyRate,
+          sourceCategory: (input.sourceCategory === "TA" ? "TRAVEL_AGENCY" : input.sourceCategory) ?? res.sourceCategory,
+          sourcePartnerId: input.sourcePartnerId !== undefined ? (input.sourcePartnerId || null) : res.sourcePartnerId,
+          bookingOwnerUserId: input.bookingOwnerUserId !== undefined ? (input.bookingOwnerUserId?.trim() || null) : res.bookingOwnerUserId,
+        },
+        include: { room: { include: { roomType: true } }, roomType: true, chargeLines: true },
+      });
+
+      if (input.chargeLines !== undefined && tx.reservationChargeLine) {
+        await tx.reservationChargeLine.deleteMany({
+          where: { reservationId: res.id, hotelId: input.hotelId },
+        });
+        if (input.chargeLines.length > 0) {
+          await tx.reservationChargeLine.createMany({
+            data: input.chargeLines.map((line: any) => ({
+              hotelId: input.hotelId,
+              reservationId: res.id,
+              lineType: line.lineType,
+              serviceDate: line.serviceDate ? new Date(line.serviceDate) : null,
+              serviceItemId: line.serviceItemId || null,
+              nameSnapshot: line.nameSnapshot,
+              codeSnapshot: line.codeSnapshot || null,
+              quantity: line.quantity || 1,
+              unitPriceSnapshot: new Prisma.Decimal(line.unitPriceSnapshot || 0),
+              taxAmountSnapshot: new Prisma.Decimal(line.taxAmountSnapshot || 0),
+              discountAmountSnapshot: new Prisma.Decimal(line.discountAmountSnapshot || 0),
+              totalSnapshot: new Prisma.Decimal(line.totalSnapshot || 0),
+              currency: line.currency || "VND",
+            })),
+          });
+        }
+      } else if ((datesChanged || rateChanged) && tx.reservationChargeLine) {
+        const hotel = await tx.hotel.findUnique({
+          where: { id: input.hotelId },
+          select: { timezone: true },
+        });
+        const tz = hotel?.timezone || VIETNAM_TIME_ZONE;
+        const newNights = Math.max(1, diffCalendarDays(newCheckIn, newCheckOut, tz));
+        const newNightYmds = new Set<string>();
+        for (let i = 0; i < newNights; i++) {
+          newNightYmds.add(addDaysYmd(toYmd(newCheckIn, tz), i));
+        }
+
+        const existingLines = await tx.reservationChargeLine.findMany({
+          where: { reservationId: res.id, hotelId: input.hotelId },
+        });
+        const roomNightLines = existingLines.filter((l) => l.lineType === "ROOM_NIGHT");
+
+        const linesToDelete: string[] = [];
+        const coveredYmds = new Set<string>();
+
+        for (const line of roomNightLines) {
+          const lineYmd = line.serviceDate ? toYmd(new Date(line.serviceDate), tz) : null;
+          if (lineYmd && newNightYmds.has(lineYmd) && !rateChanged) {
+            coveredYmds.add(lineYmd);
+          } else {
+            linesToDelete.push(line.id);
+          }
+        }
+
+        if (linesToDelete.length > 0) {
+          await tx.reservationChargeLine.deleteMany({
+            where: { id: { in: linesToDelete } },
+          });
+        }
+
+        const missingYmds = Array.from(newNightYmds).filter((ymd) => !coveredYmds.has(ymd));
+        if (missingYmds.length > 0) {
+          const effectiveFallback =
+            newNightlyRate !== null && newNightlyRate !== undefined
+              ? (newNightlyRate instanceof Prisma.Decimal ? newNightlyRate : new Prisma.Decimal(newNightlyRate))
+              : res.baseNightlyRateSnapshot ??
+                (res.room as any)?.price ??
+                new Prisma.Decimal(0);
+
+          await tx.reservationChargeLine.createMany({
+            data: missingYmds.map((ymd) => ({
+              hotelId: input.hotelId,
+              reservationId: res.id,
+              lineType: ReservationChargeLineType.ROOM_NIGHT,
+              serviceDate: new Date(`${ymd}T14:00:00+07:00`),
+              nameSnapshot: `Tiền phòng đêm ${ymd}`,
+              quantity: 1,
+              unitPriceSnapshot: effectiveFallback,
+              taxAmountSnapshot: new Prisma.Decimal(0),
+              discountAmountSnapshot: new Prisma.Decimal(0),
+              totalSnapshot: effectiveFallback,
+              currency: "VND",
+            })),
+          });
+        }
+      }
+
+      await tx.auditLog.create({
+        data: {
+          actorId: input.actorUserId,
+          tenantId: input.tenantId,
+          action: "RESERVATION_UPDATED",
+          entityType: "Reservation",
+          entityId: res.id,
+          metadata: {
+            reservationId: res.id,
+            previousGuestName: res.guestDisplayName,
+            newGuestName: updated.guestDisplayName,
+            previousRoomId: res.roomId,
+            newRoomId: updated.roomId,
+            datesChanged,
+            rateChanged,
+          },
+        },
+      });
+
+      return updated;
+    }, "RESERVATION_CONCURRENCY_CONFLICT");
   }
 
   private async runSerializable<T>(

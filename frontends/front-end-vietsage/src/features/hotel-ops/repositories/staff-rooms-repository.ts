@@ -8,6 +8,7 @@ import type {
   HotelRoomSummary,
   HotelConfirmationTemplateConfig,
   ReservationConfirmationData,
+  UpdateReservationInput,
   BookingSourcePartnerItem,
   CreateBookingSourcePartnerInput,
   HotelStaffAssignmentItem,
@@ -127,12 +128,15 @@ export type ListBookingPaymentsQuery = {
 
 export type CreateBookingPaymentInput = {
   reservationId?: string;
+  groupId?: string;
   groupCode?: string;
   stayId?: string;
   paymentType?: "DEPOSIT" | "PREPAYMENT" | "ADJUSTMENT" | "REFUND" | string;
-  inputMode?: "AMOUNT" | "PERCENT";
+  intent?: "DEPOSIT" | "ADVANCE" | "FULL" | string;
+  inputMode?: "AMOUNT" | "PERCENT" | "FULL";
   percentValue?: number;
   amount?: number;
+  receivedAmount?: number;
   paymentMethod: "CASH" | "BANK_TRANSFER" | "CARD" | "QR" | "EWALLET" | string;
   referenceCode?: string;
   notes?: string;
@@ -142,17 +146,24 @@ export type ReceivableItem = {
   id: string;
   hotelId: string;
   stayId?: string | null;
+  folioId?: string | null;
+  invoiceId?: string | null;
   reservationId?: string | null;
   groupCode?: string | null;
   debtorName: string;
-  debtorType?: "INDIVIDUAL" | "COMPANY" | "AGENT" | "GROUP" | string;
+  debtorType?: "GUEST" | "PARTNER" | "COMPANY" | "INDIVIDUAL" | "AGENT" | "GROUP" | string;
+  debtorPartnerId?: string | null;
+  assigneeUserId?: string | null;
   contactPhone?: string | null;
   amount: number | string;
+  originalAmount?: number | string;
   paidAmount?: number | string;
+  outstandingAmount?: number | string;
   balanceAmount?: number | string;
-  status: "OPEN" | "PARTIALLY_PAID" | "SETTLED" | "WRITTEN_OFF" | string;
+  status: "OPEN" | "PARTIALLY_COLLECTED" | "PARTIALLY_PAID" | "SETTLED" | "WRITTEN_OFF" | string;
   dueDate?: string | null;
   notes?: string | null;
+  transferredAt?: string | null;
   createdAt?: string;
 };
 
@@ -168,8 +179,10 @@ export type ListReceivablesQuery = {
 };
 
 export type TransferStayToReceivableInput = {
-  debtorName: string;
-  debtorType?: "INDIVIDUAL" | "COMPANY" | "AGENT" | "GROUP" | string;
+  debtorName?: string;
+  debtorType?: "GUEST" | "PARTNER" | "COMPANY" | "INDIVIDUAL" | "AGENT" | "GROUP" | string;
+  debtorPartnerId?: string;
+  assigneeUserId?: string;
   contactPhone?: string;
   taxCode?: string;
   companyName?: string;
@@ -179,9 +192,11 @@ export type TransferStayToReceivableInput = {
 };
 
 export type CollectReceivableInput = {
-  amount: number;
+  amount?: number;
+  collectedAmount?: number;
   paymentMethod: "CASH" | "BANK_TRANSFER" | "CARD" | "QR" | "EWALLET" | string;
   referenceCode?: string;
+  reference?: string;
   notes?: string;
 };
 
@@ -476,6 +491,38 @@ export const staffRoomsRepository = {
     return response.data;
   },
 
+  async updateReservation(
+    hotelId: string,
+    reservationId: string,
+    payload: UpdateReservationInput,
+    signal?: AbortSignal,
+  ): Promise<HotelArrival> {
+    const response = await requestInternalApiEnvelope<HotelArrival>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(reservationId)}`,
+      {
+        method: "PATCH",
+        body: payload,
+        signal,
+      },
+    );
+    return response.data;
+  },
+
+  async getReservation(
+    hotelId: string,
+    reservationId: string,
+    signal?: AbortSignal,
+  ): Promise<HotelArrival> {
+    const response = await requestInternalApiEnvelope<HotelArrival>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(reservationId)}`,
+      {
+        method: "GET",
+        signal,
+      },
+    );
+    return response.data;
+  },
+
   async cancelReservation(
     hotelId: string,
     reservationId: string,
@@ -546,11 +593,29 @@ export const staffRoomsRepository = {
     payload: CreateBookingPaymentInput,
     signal?: AbortSignal,
   ): Promise<BookingPaymentItem> {
+    const mappedMethod =
+      payload.paymentMethod === "QR" ? "BANK_TRANSFER" :
+      payload.paymentMethod || "CASH";
+    const mappedMode = payload.inputMode || "AMOUNT";
+    const body = {
+      reservationId: payload.reservationId,
+      groupId: payload.groupId,
+      groupCode: payload.groupCode,
+      stayId: payload.stayId,
+      paymentType: payload.paymentType,
+      intent: payload.intent || "DEPOSIT",
+      inputMode: mappedMode,
+      percentValue: payload.percentValue,
+      amount: payload.amount,
+      receivedAmount: payload.receivedAmount ?? payload.amount,
+      paymentMethod: mappedMethod,
+      notes: [payload.referenceCode ? `Tham chiếu: ${payload.referenceCode}` : "", payload.notes].filter(Boolean).join(" - ") || undefined,
+    };
     const response = await requestInternalApiEnvelope<BookingPaymentItem>(
       `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/billing/booking-payments`,
       {
         method: "POST",
-        body: payload,
+        body,
         signal,
       },
     );
@@ -596,11 +661,28 @@ export const staffRoomsRepository = {
     payload: TransferStayToReceivableInput,
     signal?: AbortSignal,
   ): Promise<ReceivableItem> {
+    const mappedDebtorType =
+      payload.debtorType === "INDIVIDUAL" ? "GUEST" :
+      payload.debtorType === "AGENT" ? "PARTNER" :
+      payload.debtorType || "GUEST";
+    const body = {
+      debtorName: payload.debtorName,
+      debtorType: mappedDebtorType,
+      debtorPartnerId: payload.debtorPartnerId,
+      assigneeUserId: payload.assigneeUserId,
+      amount: payload.amount,
+      dueDate: payload.dueDate,
+      notes: [
+        payload.contactPhone ? `SĐT: ${payload.contactPhone}` : "",
+        payload.companyName ? `Đơn vị: ${payload.companyName}` : "",
+        payload.notes,
+      ].filter(Boolean).join(" - ") || undefined,
+    };
     const response = await requestInternalApiEnvelope<ReceivableItem>(
       `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/billing/stays/${encodeURIComponent(stayId)}/transfer-to-receivable`,
       {
         method: "POST",
-        body: payload,
+        body,
         signal,
       },
     );
@@ -613,11 +695,20 @@ export const staffRoomsRepository = {
     payload: CollectReceivableInput,
     signal?: AbortSignal,
   ): Promise<ReceivableItem> {
+    const mappedMethod =
+      payload.paymentMethod === "QR" ? "BANK_TRANSFER" :
+      payload.paymentMethod || "CASH";
+    const body = {
+      collectedAmount: payload.collectedAmount ?? payload.amount,
+      paymentMethod: mappedMethod,
+      reference: payload.reference ?? payload.referenceCode,
+      notes: payload.notes,
+    };
     const response = await requestInternalApiEnvelope<ReceivableItem>(
       `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/billing/receivables/${encodeURIComponent(receivableId)}/collect`,
       {
         method: "POST",
-        body: payload,
+        body,
         signal,
       },
     );

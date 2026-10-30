@@ -24,6 +24,7 @@ import type {
   RoomPlanQueryInput,
   UpdateReservationPlacementBodyInput,
   UpdateReservationDatesBodyInput,
+  UpdateReservationBodyInput,
   UpdateGroupReservationBodyInput,
   CreateBookingSourcePartnerBodyInput,
   UpdateBookingSourcePartnerBodyInput,
@@ -212,7 +213,7 @@ export class ReservationsService {
     const tz = resolveTimeZone(scope.hotel.timezone);
     const from = getBusinessDateRange(toYmd(query.from, tz), tz).start;
     const to = getBusinessDateRange(toYmd(query.to, tz), tz).start;
-    const [total, items] = await this.reservationsRepository.listArrivals({
+    const [total, rawItems] = await this.reservationsRepository.listArrivals({
       hotelId,
       from,
       to,
@@ -220,6 +221,50 @@ export class ReservationsService {
       take: limit,
       roomId: scope.allowedRoomId ?? undefined,
       q: query.q,
+    });
+    const items = rawItems.map((r: any) => {
+      const roomChargeLines = (r.chargeLines || []).filter((l: any) => l.lineType === "ROOM_NIGHT");
+      const extraLines = (r.chargeLines || []).filter((l: any) => l.lineType !== "ROOM_NIGHT");
+      const nights =
+        r.plannedCheckInAt && r.plannedCheckOutAt
+          ? Math.max(1, diffCalendarDays(r.plannedCheckInAt, r.plannedCheckOutAt, tz))
+          : 1;
+      let roomSubtotal = 0;
+      if (roomChargeLines.length > 0) {
+        roomSubtotal = roomChargeLines.reduce(
+          (sum: number, l: any) => sum + Number(l.totalSnapshot || l.unitPriceSnapshot || 0),
+          0,
+        );
+      } else {
+        const fallbackRate = Number(
+          r.nightlyRateSnapshot ??
+          r.baseNightlyRateSnapshot ??
+          r.room?.price ??
+          (r.room as any)?.roomType?.basePrice ??
+          (r.roomType as any)?.basePrice ??
+          0,
+        );
+        roomSubtotal = fallbackRate * nights;
+      }
+      const serviceSubtotal = extraLines.reduce(
+        (sum: number, l: any) => sum + Number(l.totalSnapshot || (Number(l.unitPriceSnapshot || 0) * Number(l.quantity || 1))),
+        0,
+      );
+      const totalAmount = roomSubtotal + serviceSubtotal;
+      const effectiveRate =
+        r.nightlyRateSnapshot ??
+        (nights > 0 && roomSubtotal > 0
+          ? Math.round(roomSubtotal / nights)
+          : r.baseNightlyRateSnapshot ?? r.room?.price ?? (r.room as any)?.roomType?.basePrice ?? (r.roomType as any)?.basePrice ?? null);
+
+      return {
+        ...r,
+        nightlyRateSnapshot: effectiveRate ? String(effectiveRate) : null,
+        rate: effectiveRate ? String(effectiveRate) : null,
+        roomSubtotal,
+        serviceSubtotal,
+        totalAmount,
+      };
     });
     return { page, limit, total, items };
   }
@@ -561,6 +606,87 @@ export class ReservationsService {
       // Non-blocking realtime emission
     }
     return updated;
+  }
+
+  async updateReservation(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    reservationId: string,
+    dto: UpdateReservationBodyInput,
+  ) {
+    const hotel = await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
+    if (dto.roomId) {
+      await this.hotelAccessService.assertRoomAccess(
+        actorUserId,
+        activeRoleId,
+        hotelId,
+        dto.roomId,
+      );
+    }
+    const appliedNightlyRate = dto.nightlyRateSnapshot ?? dto.rate;
+    const updated = await this.reservationsRepository.updateReservation({
+      hotelId,
+      tenantId: hotel.tenantId,
+      reservationId,
+      guestDisplayName: dto.guestDisplayName,
+      guestPhone: dto.guestPhone,
+      guestCount: dto.guestCount,
+      notes: dto.notes,
+      roomId: dto.roomId,
+      roomTypeId: dto.roomTypeId,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      plannedCheckInAt: dto.plannedCheckInAt,
+      plannedCheckOutAt: dto.plannedCheckOutAt,
+      nightlyRateSnapshot: appliedNightlyRate,
+      chargeLines: dto.chargeLines,
+      sourceCategory: dto.sourceCategory,
+      sourcePartnerId: dto.sourcePartnerId,
+      bookingOwnerUserId: dto.bookingOwnerUserId,
+      expectedUpdatedAt: dto.expectedUpdatedAt,
+      actorUserId,
+      assertRoomAccess: async (roomId: string): Promise<void> => {
+        await this.hotelAccessService.assertRoomAccess(actorUserId, activeRoleId, hotelId, roomId);
+      },
+    });
+    try {
+      RequestRealtimeEmitter.emitRoomStatusUpdated({
+        hotelId,
+        roomId: updated.roomId || "",
+        status: RoomStatus.RESERVED,
+        previousStatus: RoomStatus.RESERVED,
+        updatedAt: new Date(),
+      });
+    } catch {
+      // Non-blocking realtime emission
+    }
+    return updated;
+  }
+
+  async getReservation(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    reservationId: string,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
+    const reservation = await this.reservationsRepository.findReservationById(
+      hotelId,
+      reservationId,
+    );
+    if (!reservation) {
+      throw new NotFoundException("Không tìm thấy đặt phòng");
+    }
+    return reservation;
   }
 
   async getGroupReservation(

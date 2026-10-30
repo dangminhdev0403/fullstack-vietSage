@@ -40,6 +40,7 @@ import type {
   HotelConfirmationTemplateConfig,
   RoomPlanResponse,
   UpdateReservationPlacementInput,
+  UpdateReservationInput,
   BookingSourcePartnerItem,
   CreateBookingSourcePartnerInput,
   HotelStaffAssignmentItem,
@@ -997,6 +998,36 @@ export class HotelOpsService {
       accessTokenExpiresAt: options.accessTokenExpiresAt,
     });
     return unwrapApiEnvelope<unknown>(payload).data;
+  }
+
+  async updateReservation(
+    hotelId: string,
+    reservationId: string,
+    body: UpdateReservationInput,
+    options: AuthRequestOptions = {},
+  ): Promise<HotelArrival> {
+    const payload = await this.httpClient.request<HotelArrival>({
+      method: "PATCH",
+      path: hotelPath(hotelId, `/reservations/${encodeURIComponent(reservationId)}`),
+      body,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<HotelArrival>(payload).data;
+  }
+
+  async getReservation(
+    hotelId: string,
+    reservationId: string,
+    options: AuthRequestOptions = {},
+  ): Promise<HotelArrival> {
+    const payload = await this.httpClient.request<HotelArrival>({
+      method: "GET",
+      path: hotelPath(hotelId, `/reservations/${encodeURIComponent(reservationId)}`),
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<HotelArrival>(payload).data;
   }
 
   async getReservationConfirmation(

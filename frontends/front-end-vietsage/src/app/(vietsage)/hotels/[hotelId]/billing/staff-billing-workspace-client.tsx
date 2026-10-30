@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { showConfirmDialog, showErrorAlert, showSuccessAlert, SwalVietSage } from "@/libs/swal";
+import {
+  escapeHtml,
+  showConfirmDialog,
+  showErrorAlert,
+  showSuccessAlert,
+  showWarningAlert,
+  SwalVietSage,
+} from "@/libs/swal";
 
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import type {
@@ -32,6 +39,22 @@ type StatusFilter = "ALL" | "CHECKOUT_PENDING" | "OPEN" | "CLOSED";
 type ReconciliationChoice = {
   action: "provided" | "cancelled" | "";
   cancelReason: string;
+};
+
+export type BillingGroup = {
+  id: string;
+  leadGuestName: string;
+  groupCode: string;
+  folioIds: string[];
+  folios: FolioListItem[];
+  totalAmount: number;
+  roomChargeTotal: number;
+  serviceTotal: number;
+  roomCount: number;
+  pendingCount: number;
+  openCount: number;
+  closedCount: number;
+  currency: string;
 };
 
 function isFolioItemVoided(item: FolioItem): boolean {
@@ -233,6 +256,25 @@ export function StaffBillingWorkspaceClient({
   const queryStayId =
     searchParams?.get("stayId") ?? searchParams?.get("stay") ?? "";
   const queryRoomId = searchParams?.get("roomId") ?? "";
+  const queryGroupCode = searchParams?.get("groupCode") ?? "";
+
+  // Chế độ thanh toán: Phòng lẻ (SINGLE) hoặc Theo đoàn / Đa phòng (GROUP)
+  const [checkoutMode, setCheckoutMode] = useState<"SINGLE" | "GROUP">("GROUP");
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [selectedGroupFolioIds, setSelectedGroupFolioIds] = useState<Set<string>>(new Set());
+  const [groupDiscountInput, setGroupDiscountInput] = useState<string>("");
+  const [groupSurchargeInput, setGroupSurchargeInput] = useState<string>("");
+  const [groupDiscountNote, setGroupDiscountNote] = useState<string>("");
+  const [groupSurchargeNote, setGroupSurchargeNote] = useState<string>("");
+  const [groupCashGivenInput, setGroupCashGivenInput] = useState<string>("");
+  const [groupTableSearch, setGroupTableSearch] = useState<string>("");
+  const [groupTableStatusFilter, setGroupTableStatusFilter] = useState<"ALL" | "PENDING" | "OPEN">("ALL");
+  const [masterInvoiceMode, setMasterInvoiceMode] = useState<"MASTER" | "SPLIT">("MASTER");
+  const [bankCopied, setBankCopied] = useState<boolean>(false);
+  const [previewFolioId, setPreviewFolioId] = useState<string | null>(null);
+  const [previewFolioLoading, setPreviewFolioLoading] = useState<boolean>(false);
+  const [previewFolioSummary, setPreviewFolioSummary] = useState<FolioSummary | null>(null);
+  const [previewFolioItems, setPreviewFolioItems] = useState<FolioItem[]>([]);
 
   const initialFolio = useMemo(() => {
     if (queryFolioId) {
@@ -287,6 +329,7 @@ export function StaffBillingWorkspaceClient({
   const [discountNote, setDiscountNote] = useState<string>("");
   const [surchargeNote, setSurchargeNote] = useState<string>("");
   const [cashGivenInput, setCashGivenInput] = useState<string>("");
+  const [checkoutPaymentMethod, setCheckoutPaymentMethod] = useState<"CASH" | "BANK_TRANSFER" | "CARD">("CASH");
   const checkoutAttemptIdsRef = useRef<Record<string, string>>({});
   const checkoutPaymentAttemptRef = useRef<{
     invoiceId: string;
@@ -503,6 +546,273 @@ export function StaffBillingWorkspaceClient({
     );
   })();
 
+  // Helper tính tiền cho từng folio bất kỳ trong danh sách
+  const getFolioRoomCharge = useCallback((f: FolioListItem): number => {
+    if (f.estimatedRoomCharge?.subtotal) {
+      return toNumber(f.estimatedRoomCharge.subtotal);
+    }
+    const val = toNumber(f.total ?? f.totalAmount);
+    if (val > 0) return val;
+    const rPrice = toNumber(f.room?.price ?? 0);
+    return rPrice > 0 ? rPrice : 0;
+  }, []);
+
+  const getFolioTotalAmount = useCallback((f: FolioListItem): number => {
+    const val = toNumber(f.total ?? f.totalAmount);
+    if (val > 0) return val;
+    return getFolioRoomCharge(f);
+  }, [getFolioRoomCharge]);
+
+  const selectedGroupFolios = useMemo(
+    () => folios.filter((f) => selectedGroupFolioIds.has(f.id)),
+    [folios, selectedGroupFolioIds],
+  );
+
+  const toggleGroupFolio = useCallback((id: string) => {
+    setSelectedGroupFolioIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAllFilteredFolios = useCallback(() => {
+    setSelectedGroupFolioIds(new Set(filteredFolios.map((f) => f.id)));
+  }, [filteredFolios]);
+
+  const clearGroupSelection = useCallback(() => {
+    setSelectedGroupFolioIds(new Set());
+  }, []);
+
+  // Tự động phân loại và gom các phòng thành các Đoàn (BillingGroup)
+  const { billingGroups, soloFolios } = useMemo(() => {
+    const groupClusters = new Map<
+      string,
+      { leadName: string; groupCode: string; folios: FolioListItem[] }
+    >();
+
+    // Pass 1: Kiểm tra reservationCode dùng chung
+    const resCodeCounts = new Map<string, number>();
+    for (const f of folios) {
+      const code = f.stay?.reservationCode?.trim();
+      if (code) {
+        resCodeCounts.set(code, (resCodeCounts.get(code) || 0) + 1);
+      }
+    }
+
+    const processedFolioIds = new Set<string>();
+
+    // Nhóm 1: Các phòng có chung reservationCode
+    for (const f of folios) {
+      const code = f.stay?.reservationCode?.trim();
+      if (code && (resCodeCounts.get(code) || 0) > 1) {
+        const key = `res:${code}`;
+        const leadName =
+          f.stay?.guestDisplayName?.trim() ||
+          f.stay?.guestNameSnapshot?.trim() ||
+          "Khách đoàn";
+        if (!groupClusters.has(key)) {
+          groupClusters.set(key, { leadName, groupCode: code, folios: [] });
+        }
+        groupClusters.get(key)!.folios.push(f);
+        processedFolioIds.add(f.id);
+      }
+    }
+
+    // Nhóm 2: Các phòng có chung tên khách hoặc chứa từ khóa đoàn
+    const guestCounts = new Map<string, FolioListItem[]>();
+    for (const f of folios) {
+      if (processedFolioIds.has(f.id)) continue;
+      const rawName =
+        f.stay?.guestDisplayName?.trim() ||
+        f.stay?.guestNameSnapshot?.trim() ||
+        "Khách đoàn";
+      if (!guestCounts.has(rawName)) {
+        guestCounts.set(rawName, []);
+      }
+      guestCounts.get(rawName)!.push(f);
+    }
+
+    for (const [rawName, list] of guestCounts.entries()) {
+      const isGroupKeyword =
+        rawName.toLowerCase().includes("đoàn") ||
+        rawName.toLowerCase().includes("tour") ||
+        rawName.toLowerCase().includes("công ty") ||
+        rawName.toLowerCase().includes("group") ||
+        rawName.toLowerCase().includes("lưu trú");
+
+      if ((list.length >= 2 || isGroupKeyword) && list.length >= 2) {
+        const firstRoom = list[0]?.room?.roomNumber || "01";
+        const groupCode = list[0]?.stay?.reservationCode || `GRP-${firstRoom}`;
+        const key = `guest:${rawName.toLowerCase()}`;
+        groupClusters.set(key, { leadName: rawName, groupCode, folios: list });
+        list.forEach((f) => processedFolioIds.add(f.id));
+      }
+    }
+
+    const groups: BillingGroup[] = [];
+    for (const [id, cluster] of groupClusters.entries()) {
+      let roomCharge = 0;
+      let total = 0;
+      let pending = 0;
+      let open = 0;
+      let closed = 0;
+
+      for (const f of cluster.folios) {
+        const rCharge = getFolioRoomCharge(f);
+        const tot = getFolioTotalAmount(f);
+        roomCharge += rCharge;
+        total += tot;
+        if (f.status === "CHECKOUT_PENDING") pending++;
+        else if (f.status === "OPEN") open++;
+        else if (f.status === "CLOSED") closed++;
+      }
+
+      groups.push({
+        id,
+        leadGuestName: cluster.leadName,
+        groupCode: cluster.groupCode,
+        folioIds: cluster.folios.map((f) => f.id),
+        folios: cluster.folios,
+        totalAmount: total,
+        roomChargeTotal: roomCharge,
+        serviceTotal: Math.max(0, total - roomCharge),
+        roomCount: cluster.folios.length,
+        pendingCount: pending,
+        openCount: open,
+        closedCount: closed,
+        currency: cluster.folios[0]?.currency ?? "VND",
+      });
+    }
+
+    const solo = folios.filter((f) => !processedFolioIds.has(f.id));
+
+    return { billingGroups: groups, soloFolios: solo };
+  }, [folios, getFolioRoomCharge, getFolioTotalAmount]);
+
+  // Đoàn đang được chọn trong workspace
+  const activeGroup = useMemo(() => {
+    if (selectedGroupId) {
+      const found = billingGroups.find((g) => g.id === selectedGroupId);
+      if (found) return found;
+    }
+    return billingGroups[0] ?? null;
+  }, [billingGroups, selectedGroupId]);
+
+  // Tự động khởi tạo selectedGroupId và selectedGroupFolioIds khi có billingGroups
+  useEffect(() => {
+    if (!selectedGroupId && billingGroups.length > 0) {
+      const firstGroup = billingGroups[0];
+      setSelectedGroupId(firstGroup.id);
+      setSelectedGroupFolioIds(new Set(firstGroup.folioIds));
+    }
+  }, [billingGroups, selectedGroupId]);
+
+  const selectGroup = useCallback((group: BillingGroup) => {
+    setSelectedGroupId(group.id);
+    setCheckoutMode("GROUP");
+    setSelectedGroupFolioIds(new Set(group.folioIds));
+    setGroupTableSearch("");
+  }, []);
+
+  const selectSoloFolio = useCallback((folioId: string) => {
+    setSelectedFolioId(folioId);
+    setCheckoutMode("SINGLE");
+    setSelectedGroupId(null);
+  }, []);
+
+  const selectAllActiveGroupFolios = useCallback(() => {
+    if (activeGroup) {
+      setSelectedGroupFolioIds(new Set(activeGroup.folioIds));
+    } else {
+      setSelectedGroupFolioIds(new Set(filteredFolios.map((f) => f.id)));
+    }
+  }, [activeGroup, filteredFolios]);
+
+  // Danh sách các phòng thuộc đoàn đang được lọc tìm kiếm trong bảng đoàn (Cột 2)
+  const filteredGroupRooms = useMemo(() => {
+    if (!activeGroup) return [];
+    return activeGroup.folios.filter((folio) => {
+      const rNum = (folio.room?.roomNumber ?? "").toLowerCase();
+      const gName = (folio.stay?.guestDisplayName ?? folio.stay?.guestNameSnapshot ?? "").toLowerCase();
+      const fCode = (folio.folioNumber ?? folio.id).toLowerCase();
+      const q = groupTableSearch.trim().toLowerCase();
+      const matchesSearch = !q || rNum.includes(q) || gName.includes(q) || fCode.includes(q);
+
+      const matchesStatus =
+        groupTableStatusFilter === "ALL" ||
+        (groupTableStatusFilter === "PENDING" && folio.status === "CHECKOUT_PENDING") ||
+        (groupTableStatusFilter === "OPEN" && folio.status === "OPEN");
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [activeGroup, groupTableSearch, groupTableStatusFilter]);
+
+  // Modal preview folio items
+  useEffect(() => {
+    if (!previewFolioId) {
+      setPreviewFolioSummary(null);
+      setPreviewFolioItems([]);
+      return;
+    }
+    let cancelled = false;
+    setPreviewFolioLoading(true);
+    Promise.all([
+      requestInternalApiEnvelope<FolioSummary>(
+        `${apiBase}/folios/${encodeURIComponent(previewFolioId)}/summary`,
+        { method: "GET" },
+      ),
+      requestInternalApiEnvelope<FolioItemsPage>(
+        `${apiBase}/folios/${encodeURIComponent(previewFolioId)}/items?page=1&limit=100`,
+        { method: "GET" },
+      ),
+    ])
+      .then(([sRes, iRes]) => {
+        if (cancelled) return;
+        setPreviewFolioSummary(sRes.data);
+        setPreviewFolioItems(iRes.data.items);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setPreviewFolioLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [previewFolioId, apiBase]);
+
+  const previewFolioItem = useMemo(() => {
+    if (!previewFolioId) return null;
+    return folios.find((f) => f.id === previewFolioId) ?? null;
+  }, [previewFolioId, folios]);
+
+  const groupRoomChargeTotal = useMemo(() => {
+    return selectedGroupFolios.reduce((sum, f) => sum + getFolioRoomCharge(f), 0);
+  }, [selectedGroupFolios, getFolioRoomCharge]);
+
+  const groupServiceTotal = useMemo(() => {
+    return selectedGroupFolios.reduce((sum, f) => {
+      const roomTotal = getFolioTotalAmount(f);
+      const roomCharge = getFolioRoomCharge(f);
+      return sum + Math.max(0, roomTotal - roomCharge);
+    }, 0);
+  }, [selectedGroupFolios, getFolioTotalAmount, getFolioRoomCharge]);
+
+  const groupSubtotal = useMemo(() => {
+    return groupRoomChargeTotal + groupServiceTotal;
+  }, [groupRoomChargeTotal, groupServiceTotal]);
+
+  const groupDiscountParsed = parseAmountOrPercentage(groupDiscountInput, groupSubtotal);
+  const groupSurchargeParsed = parseAmountOrPercentage(groupSurchargeInput, groupSubtotal);
+  const groupDiscountVal = Math.max(0, groupDiscountParsed.amount);
+  const groupSurchargeVal = Math.max(0, groupSurchargeParsed.amount);
+
+  const computedGroupTotal = useMemo(() => {
+    return Math.max(0, groupSubtotal + groupSurchargeVal - groupDiscountVal);
+  }, [groupSubtotal, groupSurchargeVal, groupDiscountVal]);
+
   const refreshActiveFolio = useCallback(async () => {
     if (!selectedFolioId) return;
     try {
@@ -711,8 +1021,13 @@ export function StaffBillingWorkspaceClient({
           {
             method: "POST",
             body: {
-              method: "CASH",
-              note: "Thu tại quầy lễ tân",
+              method: checkoutPaymentMethod,
+              note:
+                checkoutPaymentMethod === "CASH"
+                  ? "Thu tiền mặt tại quầy lễ tân"
+                  : checkoutPaymentMethod === "BANK_TRANSFER"
+                  ? "Thu chuyển khoản ngân hàng"
+                  : "Thu quẹt thẻ POS tại quầy",
               amount: appliedAmount,
               cashReceived,
               clientRequestId: paymentAttempt.clientRequestId,
@@ -771,19 +1086,275 @@ export function StaffBillingWorkspaceClient({
     }
   }
 
-  return (
-    <div className="grid gap-5 xl:grid-cols-[290px_1fr] 2xl:grid-cols-[300px_1fr_320px] items-stretch">
-      {/* CỘT TÁI CHÍNH 1: HÀNG ĐỢI FOLIO / PHÒNG CHỜ THANH TOÁN */}
-      <aside className="flex h-full flex-col min-h-0 overflow-hidden rounded-2xl border border-[var(--outline-variant)] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
-        <div className="space-y-3.5 border-b border-[var(--outline-variant)] bg-[var(--surface-container-lowest,#fdfbf7)] p-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--secondary)]">
-              HÀNG ĐỢI THANH TOÁN
-            </p>
-            <h2 className="vs-display mt-0.5 text-xl font-black text-[var(--primary)]">
-              Danh sách phòng
-            </h2>
+  async function issueGroupInvoicesAndCollect() {
+    if (selectedGroupFolios.length === 0 || !canManage) return;
+
+    if (groupDiscountVal > groupSubtotal + groupSurchargeVal) {
+      await showWarningAlert(
+        "Giảm giá vượt quá tổng tiền",
+        "Số tiền giảm giá không được vượt quá tổng tạm tính của đoàn.",
+      );
+      return;
+    }
+
+    if (
+      checkoutPaymentMethod === "CASH" &&
+      computedGroupTotal > 0 &&
+      !isCashSettlementAllowed(groupCashGivenInput, computedGroupTotal)
+    ) {
+      await showWarningAlert(
+        "Chưa nhập tiền mặt hợp lệ",
+        "Vui lòng nhập số tiền mặt khách đưa lớn hơn hoặc bằng tổng tiền.",
+      );
+      return;
+    }
+
+    const roomNames = selectedGroupFolios.map((f) => displayRoom(f)).join(", ");
+    const confirm = await showConfirmDialog({
+      icon: "question",
+      title: `Thanh toán đoàn ${selectedGroupFolios.length} phòng?`,
+      html: `
+        <div style="text-align: left; font-size: 14px; line-height: 1.6; color: #334155;">
+          <p>Xác nhận phát hành hóa đơn &amp; đóng checkout đồng thời cho <strong>${selectedGroupFolios.length} phòng</strong>:</p>
+          <div style="margin: 8px 0; padding: 10px; background-color: #f1f5f9; border-radius: 8px; font-weight: 700; color: #0f172a; max-height: 100px; overflow-y: auto;">
+            ${escapeHtml(roomNames)}
           </div>
+          <div style="margin-top: 8px; font-size: 15px; font-weight: 800; color: #047857;">
+            Tổng tiền: ${formatMoney(computedGroupTotal, currency)}
+          </div>
+          <p style="margin-top: 6px; font-size: 13px; color: #64748b;">
+            Phương thức thanh toán: <strong>${
+              checkoutPaymentMethod === "CASH"
+                ? "Tiền mặt (TM)"
+                : checkoutPaymentMethod === "BANK_TRANSFER"
+                ? "Chuyển khoản (CK)"
+                : "Quẹt thẻ POS"
+            }</strong>
+          </p>
+        </div>
+      `,
+      confirmText: `Thanh toán ${selectedGroupFolios.length} phòng`,
+      cancelText: "Hủy bỏ",
+      reverseButtons: false,
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    setSaving(true);
+    let successCount = 0;
+    let failCount = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < selectedGroupFolios.length; i++) {
+      const folio = selectedGroupFolios[i];
+      try {
+        const adjustments: IssueInvoiceAdjustment[] = [];
+        // Áp dụng phụ thu / giảm giá của cả đoàn vào folio đầu tiên
+        if (i === 0) {
+          if (groupSurchargeParsed.amount > 0) {
+            adjustments.push({
+              clientRequestId: generateFallbackAttemptId("grp-sur"),
+              itemType: "MANUAL_CHARGE",
+              name: groupSurchargeNote || "Phụ thu đoàn",
+              description: groupSurchargeParsed.isPercentage
+                ? `Phụ thu đoàn ${groupSurchargeParsed.percentage}%`
+                : groupSurchargeNote || "Phụ thu cả đoàn",
+              amount: groupSurchargeParsed.amount,
+              quantity: 1,
+            });
+          }
+          if (groupDiscountParsed.amount > 0) {
+            adjustments.push({
+              clientRequestId: generateFallbackAttemptId("grp-disc"),
+              itemType: "DISCOUNT",
+              name: groupDiscountNote || "Giảm giá đoàn",
+              description: groupDiscountParsed.isPercentage
+                ? `Giảm giá đoàn ${groupDiscountParsed.percentage}%`
+                : groupDiscountNote || "Ưu đãi đoàn",
+              amount: groupDiscountParsed.amount,
+              quantity: 1,
+            });
+          }
+        }
+
+        const invRes = await requestInternalApiEnvelope<Invoice>(
+          `${apiBase}/folios/${encodeURIComponent(folio.id)}/invoice`,
+          {
+            method: "POST",
+            body: {
+              adjustments: adjustments.length > 0 ? adjustments : undefined,
+            },
+          },
+        );
+        const invoice = invRes.data;
+        const invoiceBalance = toNumber(invoice.balanceAmount ?? invoice.totalAmount);
+
+        if (invoiceBalance > 0) {
+          await requestInternalApiEnvelope(
+            `${apiBase}/invoices/${encodeURIComponent(invoice.id)}/manual-payment`,
+            {
+              method: "POST",
+              body: {
+                method: checkoutPaymentMethod,
+                note: `Thanh toán gộp đoàn (${selectedGroupFolios.length} phòng: ${roomNames})`,
+                amount: invoiceBalance,
+                cashReceived: invoiceBalance,
+                clientRequestId: generateFallbackAttemptId("grp-pay"),
+              },
+            },
+          );
+        } else {
+          await requestInternalApiEnvelope(
+            `${apiBase}/invoices/${encodeURIComponent(invoice.id)}/manual-payment`,
+            {
+              method: "POST",
+              body: {
+                method: "MANUAL",
+                note: "Đóng checkout đoàn không còn số dư",
+                clientRequestId: generateFallbackAttemptId("grp-zero"),
+              },
+            },
+          );
+        }
+        successCount++;
+      } catch (err: unknown) {
+        failCount++;
+        const msg = err instanceof Error ? err.message : String(err);
+        errors.push(`${displayRoom(folio)}: ${msg}`);
+      }
+    }
+
+    setSaving(false);
+    await invalidateHotelRealtimeQueries(queryClient, hotelId);
+
+    if (failCount === 0) {
+      await showSuccessAlert(
+        "Thanh toán đoàn thành công!",
+        `Đã phát hành hóa đơn và hoàn tất checkout cho ${successCount} phòng thuộc đoàn.`,
+      );
+      setSelectedGroupFolioIds(new Set());
+      setCheckoutMode("SINGLE");
+    } else {
+      await showWarningAlert(
+        "Hoàn tất một phần",
+        `Thành công ${successCount} phòng. ${failCount} phòng gặp sự cố:\n${errors.join("\n")}`,
+      );
+    }
+  }
+
+  return (
+    <div className="grid gap-5 xl:grid-cols-[300px_1fr] 2xl:grid-cols-[320px_1fr_340px] items-start">
+      {/* CỘT 1: HÀNG ĐỢI FOLIO & CHỌN PHÒNG / ĐOÀN */}
+      <aside className="xl:sticky xl:top-20 flex max-h-[calc(100vh-6.5rem)] flex-col min-h-0 overflow-hidden rounded-2xl border border-[var(--outline-variant)] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
+        <div className="space-y-3 border-b border-[var(--outline-variant)] bg-[var(--surface-container-lowest,#fdfbf7)] p-4 shrink-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--secondary)]">
+                HÀNG ĐỢI THANH TOÁN
+              </p>
+              <h2 className="vs-display mt-0.5 text-lg font-black text-[var(--primary)] text-balance">
+                Danh sách phòng
+              </h2>
+            </div>
+            {checkoutMode === "GROUP" ? (
+              <span className="rounded-full bg-amber-100 border border-amber-300 px-2.5 py-0.5 text-xs font-black text-amber-900 whitespace-nowrap">
+                {selectedGroupFolioIds.size} phòng
+              </span>
+            ) : null}
+          </div>
+
+          {/* Mode Switcher Toggle: Phòng lẻ vs Theo đoàn */}
+          <div className="grid grid-cols-2 p-1 rounded-xl bg-[var(--surface-container-low,#f4efe6)] border border-[var(--outline-variant)]/60 text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setCheckoutMode("SINGLE")}
+              className={`py-1.5 rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                checkoutMode === "SINGLE"
+                  ? "bg-white text-[var(--primary)] shadow-xs font-black"
+                  : "text-[var(--on-surface-variant)] hover:text-[var(--primary)]"
+              }`}
+            >
+              <VsIcon name="hotel" className="text-sm" />
+              <span>Phòng lẻ</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCheckoutMode("GROUP")}
+              className={`py-1.5 rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                checkoutMode === "GROUP"
+                  ? "bg-[var(--primary)] text-white shadow-xs font-black"
+                  : "text-[var(--on-surface-variant)] hover:text-[var(--primary)]"
+              }`}
+            >
+              <VsIcon name="groups" className="text-sm" />
+              <span>Theo đoàn</span>
+            </button>
+          </div>
+
+          {/* Group Fast Selection Actions (When GROUP mode is active) */}
+          {checkoutMode === "GROUP" ? (
+            <div className="space-y-2 pt-0.5">
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={selectAllFilteredFolios}
+                  className="font-bold text-[var(--primary)] hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <VsIcon name="done_all" className="text-sm" />
+                  <span>Chọn tất cả ({filteredFolios.length})</span>
+                </button>
+                {selectedGroupFolioIds.size > 0 ? (
+                  <button
+                    type="button"
+                    onClick={clearGroupSelection}
+                    className="font-semibold text-rose-700 hover:underline cursor-pointer"
+                  >
+                    Bỏ chọn hết
+                  </button>
+                ) : null}
+              </div>
+
+              {/* Fast Select Guest Clusters (e.g. tour groups with >1 rooms) */}
+              {commonGuestClusters.length > 0 ? (
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-[var(--on-surface-variant)]">
+                    Gợi ý cùng đoàn:
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {commonGuestClusters.slice(0, 3).map((c) => {
+                      const allSelected = c.folioIds.every((id) =>
+                        selectedGroupFolioIds.has(id),
+                      );
+                      return (
+                        <button
+                          key={c.name}
+                          type="button"
+                          onClick={() => {
+                            setSelectedGroupFolioIds((prev) => {
+                              const next = new Set(prev);
+                              if (allSelected) {
+                                c.folioIds.forEach((id) => next.delete(id));
+                              } else {
+                                c.folioIds.forEach((id) => next.add(id));
+                              }
+                              return next;
+                            });
+                          }}
+                          className={`rounded-lg px-2 py-1 text-xs font-bold border transition cursor-pointer whitespace-nowrap ${
+                            allSelected
+                              ? "bg-amber-100 text-amber-900 border-amber-300"
+                              : "bg-white text-[var(--on-surface-variant)] border-[var(--outline-variant)] hover:bg-[var(--surface-container-low)]"
+                          }`}
+                        >
+                          👥 {c.name} ({c.count}p)
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           {/* Search bar */}
           <div className="relative">
@@ -795,66 +1366,137 @@ export function StaffBillingWorkspaceClient({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm số phòng (ví dụ: 101, 202...)"
-              className="h-10.5 w-full rounded-xl border-0 bg-[var(--surface-container-low,#f4efe6)] pl-10 pr-3.5 text-xs font-semibold outline-none ring-1 ring-transparent focus:ring-[var(--primary)]"
+              placeholder="Tìm số phòng, tên khách..."
+              className="h-9 w-full rounded-xl border-0 bg-[var(--surface-container-low,#f4efe6)] pl-9 pr-3 text-xs font-semibold outline-none ring-1 ring-transparent focus:ring-[var(--primary)]"
             />
           </div>
 
           {/* Filter Pills */}
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1">
             <button
               type="button"
               onClick={() => setStatusFilter("ALL")}
-              className={`rounded-xl px-3 py-1.5 text-xs font-extrabold transition ${statusFilter === "ALL" ? "bg-[#17201b] text-white shadow-xs" : "bg-[var(--surface-container-low)] text-[var(--on-surface-variant)] hover:bg-gray-200"}`}
+              className={`rounded-lg px-2.5 py-1 text-xs font-extrabold transition cursor-pointer whitespace-nowrap ${
+                statusFilter === "ALL"
+                  ? "bg-[#17201b] text-white shadow-xs"
+                  : "bg-[var(--surface-container-low)] text-[var(--on-surface-variant)] hover:bg-gray-200"
+              }`}
             >
               Tất cả ({folios.length})
             </button>
             <button
               type="button"
               onClick={() => setStatusFilter("CHECKOUT_PENDING")}
-              className={`rounded-xl px-3 py-1.5 text-xs font-extrabold transition ${statusFilter === "CHECKOUT_PENDING" ? "bg-amber-700 text-white shadow-xs" : "bg-amber-50 text-amber-900 border border-amber-200/80 hover:bg-amber-100"}`}
+              className={`rounded-lg px-2.5 py-1 text-xs font-extrabold transition cursor-pointer whitespace-nowrap ${
+                statusFilter === "CHECKOUT_PENDING"
+                  ? "bg-amber-700 text-white shadow-xs"
+                  : "bg-amber-50 text-amber-900 border border-amber-200/80 hover:bg-amber-100"
+              }`}
             >
               Chờ checkout
             </button>
             <button
               type="button"
               onClick={() => setStatusFilter("OPEN")}
-              className={`rounded-xl px-3 py-1.5 text-xs font-extrabold transition ${statusFilter === "OPEN" ? "bg-emerald-700 text-white shadow-xs" : "bg-emerald-50 text-emerald-900 border border-emerald-200/80 hover:bg-emerald-100"}`}
+              className={`rounded-lg px-2.5 py-1 text-xs font-extrabold transition cursor-pointer whitespace-nowrap ${
+                statusFilter === "OPEN"
+                  ? "bg-emerald-700 text-white shadow-xs"
+                  : "bg-emerald-50 text-emerald-900 border border-emerald-200/80 hover:bg-emerald-100"
+              }`}
             >
               Đang mở
             </button>
           </div>
         </div>
 
-        {/* List items */}
-        <div className="max-h-[calc(100vh-21rem)] min-h-[460px] flex-1 overflow-y-auto divide-y divide-[var(--outline-variant)]/40">
+        {/* List items - Viewport Scrollable */}
+        <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[var(--outline-variant)]/40">
           {filteredFolios.map((folio) => {
-            const isSelected = selectedFolioId === folio.id;
+            const isSingleSelected = selectedFolioId === folio.id;
+            const isGroupChecked = selectedGroupFolioIds.has(folio.id);
             const badge = getStatusBadge(folio.status);
+            const isClosed = folio.status === "CLOSED";
+
+            if (checkoutMode === "GROUP") {
+              return (
+                <div
+                  key={folio.id}
+                  onClick={() => {
+                    if (!isClosed) toggleGroupFolio(folio.id);
+                  }}
+                  className={`w-full p-3.5 text-left transition-all flex items-start gap-3 cursor-pointer ${
+                    isClosed
+                      ? "opacity-60 bg-gray-50 cursor-not-allowed"
+                      : isGroupChecked
+                      ? "bg-amber-50/80 border-l-4 border-l-amber-600"
+                      : "hover:bg-[var(--surface-container-low)]"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isGroupChecked}
+                    disabled={isClosed}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      if (!isClosed) toggleGroupFolio(folio.id);
+                    }}
+                    className="mt-1 h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="rounded-lg bg-[var(--primary)] px-2 py-0.5 text-xs font-black text-white shadow-xs">
+                        {displayRoom(folio)}
+                      </span>
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-xs font-extrabold whitespace-nowrap ${badge.colorClass}`}
+                      >
+                        {badge.label}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-extrabold text-sm text-[var(--primary)] truncate">
+                          {displayGuest(folio)}
+                        </p>
+                        <p className="text-xs text-[var(--on-surface-variant)] truncate font-mono font-bold">
+                          {folio.folioNumber ?? folio.id}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-black text-[var(--primary)]">
+                          {formatMoney(getFolioTotalAmount(folio), folio.currency ?? "VND")}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <button
                 key={folio.id}
                 type="button"
                 onClick={() => setSelectedFolioId(folio.id)}
-                className={`w-full p-4 text-left transition-all ${
-                  isSelected
+                className={`w-full p-3.5 text-left transition-all cursor-pointer ${
+                  isSingleSelected
                     ? "bg-[#17201b]/10 border-l-4 border-l-[var(--primary)]"
                     : "hover:bg-[var(--surface-container-low)]"
                 }`}
               >
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className="rounded-lg bg-[var(--primary)] px-2.5 py-1 text-xs font-black text-white shadow-xs">
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <span className="rounded-lg bg-[var(--primary)] px-2 py-0.5 text-xs font-black text-white shadow-xs">
                     {displayRoom(folio)}
                   </span>
                   <span
-                    className={`rounded-full border px-2.5 py-0.5 text-xs font-extrabold ${badge.colorClass}`}
+                    className={`rounded-full border px-2 py-0.5 text-xs font-extrabold whitespace-nowrap ${badge.colorClass}`}
                   >
                     {badge.label}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="font-extrabold text-base text-[var(--primary)] truncate">
+                    <p className="font-extrabold text-sm text-[var(--primary)] truncate">
                       {displayGuest(folio)}
                     </p>
                     <p className="text-xs text-[var(--on-surface-variant)] truncate font-mono font-bold">
@@ -862,19 +1504,8 @@ export function StaffBillingWorkspaceClient({
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-base font-black text-[var(--primary)]">
-                      {formatMoney(
-                        (() => {
-                          const val = toNumber(folio.total ?? folio.totalAmount);
-                          if (val > 0) return val;
-                          if (folio.status === "OPEN") {
-                            const rPrice = toNumber(folio.room?.price ?? 0);
-                            return rPrice > 0 ? rPrice : 0;
-                          }
-                          return 0;
-                        })(),
-                        folio.currency ?? "VND",
-                      )}
+                    <p className="text-sm font-black text-[var(--primary)]">
+                      {formatMoney(getFolioTotalAmount(folio), folio.currency ?? "VND")}
                     </p>
                   </div>
                 </div>
@@ -890,931 +1521,1488 @@ export function StaffBillingWorkspaceClient({
         </div>
       </aside>
 
-      {/* CỘT CENTRAL 2: CHI TIẾT FOLIO & DANH SÁCH CHI PHÍ */}
-      <main className="flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--outline-variant)] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
-        {/* Header Chi Tiết */}
-        <div className="flex flex-col gap-3 border-b border-[var(--outline-variant)] bg-[var(--surface-container-lowest,#fdfbf7)] p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3.5 min-w-0">
-            {/* Custom Luxury VietSage "V" Crest Emblem Badge */}
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2a1b08] via-[#38240b] to-[#140b02] shadow-lg shrink-0 border border-[#d4af37]/60 relative overflow-hidden group">
-              <svg
-                viewBox="0 0 40 40"
-                className="h-7 w-7 relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <defs>
-                  <linearGradient
-                    id="vGoldGrad"
-                    x1="0%"
-                    y1="0%"
-                    x2="100%"
-                    y2="100%"
-                  >
-                    <stop offset="0%" stopColor="#fffbeb" />
-                    <stop offset="35%" stopColor="#fef08a" />
-                    <stop offset="70%" stopColor="#f59e0b" />
-                    <stop offset="100%" stopColor="#b45309" />
-                  </linearGradient>
-                  <linearGradient
-                    id="vAccentGrad"
-                    x1="0%"
-                    y1="100%"
-                    x2="100%"
-                    y2="0%"
-                  >
-                    <stop offset="0%" stopColor="#d4af37" />
-                    <stop offset="100%" stopColor="#ffe270" />
-                  </linearGradient>
-                </defs>
-
-                {/* Sharp Architectural Luxury "V" Path */}
-                <path
-                  d="M7 9 L17.5 32 C18.2 33.5 19.8 33.5 20.5 32 L31 9 C31.5 7.8 30.6 6.5 29.3 6.5 L24.5 6.5 C23.8 6.5 23.2 6.9 22.9 7.5 L19 18.5 L15.1 7.5 C14.8 6.9 14.2 6.5 13.5 6.5 L8.7 6.5 C7.4 6.5 6.5 7.8 7 9 Z"
-                  fill="url(#vGoldGrad)"
-                />
-
-                {/* Inner Facet Highlight for 3D Polished Gold Effect */}
-                <path
-                  d="M19 18.5 L24.5 6.5 L29.3 6.5 L20.5 32 C19.8 33.5 18.2 33.5 17.5 32 L19 18.5 Z"
-                  fill="url(#vAccentGrad)"
-                  opacity="0.75"
-                />
-
-                {/* Diamond Star Accent on Top */}
-                <path
-                  d="M19 2.5 L20 4.5 L22 5.5 L20 6.5 L19 8.5 L18 6.5 L16 5.5 L18 4.5 Z"
-                  fill="#fef08a"
-                />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h2 className="vs-display text-2xl font-extrabold text-[var(--primary)] tracking-tight">
-                  {displayRoom(selectedFolio)}
-                </h2>
-                <span className="rounded-full bg-emerald-100/90 text-emerald-900 border border-emerald-300/80 px-3 py-1 text-xs font-black shadow-xs">
-                  {displayGuest(selectedFolio)}
-                </span>
-              </div>
-              <p className="mt-1 text-xs text-[var(--on-surface-variant)] flex items-center gap-2">
-                <span>
-                  Mã Folio:{" "}
-                  <span className="font-mono text-sm font-bold text-[var(--primary)]">
-                    {selectedFolio?.folioNumber ?? selectedFolio?.id ?? "-"}
-                  </span>
-                </span>
-              </p>
-            </div>
-          </div>
-          <div className="text-left sm:text-right text-xs font-medium text-[var(--on-surface-variant)] shrink-0">
-            <p>
-              Mở lúc:{" "}
-              <span className="font-bold text-sm text-[var(--primary)]">
-                {formatDate(
-                  selectedFolio?.openedAt ?? selectedFolio?.createdAt,
-                )}
-              </span>
-            </p>
-          </div>
-        </div>
-
-        {/* Bảng Dịch Vụ & Chi Phí (Fluent Fluid Layout - Proportional Column Widths) */}
-        <div className="flex-1 flex flex-col overflow-x-auto min-h-[380px]">
-          <table className="w-full text-left text-sm border-collapse table-fixed">
-            <thead className="border-b border-[var(--outline-variant)] bg-[var(--surface-container-low,#f4efe6)] text-xs font-black uppercase tracking-wider text-[var(--on-surface-variant)]">
-              <tr>
-                <th className="py-3.5 px-4 w-[35%] whitespace-nowrap">
-                  Tên chi phí / Dịch vụ
-                </th>
-                <th className="py-3.5 px-4 text-center w-[15%] whitespace-nowrap">
-                  Số lượng
-                </th>
-                <th className="py-3.5 px-4 text-right w-[18%] whitespace-nowrap">
-                  Đơn giá
-                </th>
-                <th className="py-3.5 px-4 text-right w-[18%] whitespace-nowrap">
-                  Thành tiền
-                </th>
-                <th className="py-3.5 px-4 text-center w-[14%] whitespace-nowrap">
-                  Thao tác
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--outline-variant)]/50 text-sm">
-              {/* Hàng Tiền phòng (Ước tính theo thời gian lưu trú) khi folio đang mở và chưa phát hành hóa đơn */}
-              {!hasPostedRoomCharge && selectedFolio?.status === "OPEN" && roomChargeTotal > 0 ? (
-                <tr className="border-b border-amber-200/80 bg-amber-50/50 hover:bg-amber-100/40 transition">
-                  <td className="py-4 px-4">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100/80 border border-amber-300 text-amber-900 shrink-0 shadow-2xs">
-                        <VsIcon name="hotel" className="text-xl" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="font-extrabold text-base text-[var(--primary)] truncate">
-                          Tiền phòng
-                        </p>
-                        <div className="mt-0.5">
-                          <span
-                            className="inline-flex items-center whitespace-nowrap rounded-md bg-amber-100 text-amber-900 border border-amber-300/80 px-2 py-0.5 text-xs font-bold"
-                            title={`${estimatedRoomChargeData?.nights ?? 1} đêm × ${formatMoney(estimatedRoomChargeData?.nightlyRate ?? roomChargeTotal, currency)}`}
-                          >
-                            Tạm tính
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-4 text-center font-bold text-base text-[var(--primary)]">
-                    {estimatedRoomChargeData?.nights ?? 1}
-                  </td>
-                  <td className="py-4 px-4 text-right font-semibold text-base text-[var(--on-surface-variant)]">
-                    {formatMoney(estimatedRoomChargeData?.nightlyRate ?? roomChargeTotal, currency)}
-                  </td>
-                  <td className="py-4 px-4 text-right font-black text-base text-[var(--primary)]">
-                    {formatMoney(roomChargeTotal, currency)}
-                  </td>
-                  <td className="py-4 px-4 text-center">
-                    <span className="text-xs text-[var(--on-surface-variant)]">—</span>
-                  </td>
-                </tr>
-              ) : null}
-              {activeItems.map((item) => {
-                const isVoided = item.status === "VOID";
-                return (
-                  <tr
-                    key={item.id}
-                    className={`transition ${isVoided ? "bg-red-50/50 opacity-60 line-through" : "hover:bg-slate-50/80"}`}
-                  >
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 border border-amber-200/80 text-[var(--primary)] shrink-0 shadow-2xs">
-                          <VsIcon
-                            name={getItemIcon(item.itemType)}
-                            className="text-xl"
-                          />
-                        </span>
-                        <div className="min-w-0">
-                          <p className="font-extrabold text-base text-[var(--primary)] truncate">
-                            {item.nameSnapshot}
-                          </p>
-                          {(() => {
-                            const isExternal =
-                              item.serviceSource === "EXTERNAL" ||
-                              (typeof item.billingSourceSnapshot === "object" &&
-                                item.billingSourceSnapshot !== null &&
-                                ("marketplaceOrderId" in
-                                  (item.billingSourceSnapshot as object) ||
-                                  (
-                                    item.billingSourceSnapshot as Record<
-                                      string,
-                                      unknown
-                                    >
-                                  ).serviceSource === "EXTERNAL"));
-
-                            const partnerName =
-                              item.partnerName ??
-                              (typeof item.billingSourceSnapshot === "object" &&
-                              item.billingSourceSnapshot !== null
-                                ? (
-                                    item.billingSourceSnapshot as Record<
-                                      string,
-                                      unknown
-                                    >
-                                  ).partnerName
-                                : null);
-
-                            if (isExternal) {
-                              return (
-                                <div className="space-y-0.5 mt-0.5">
-                                  <span className="inline-block whitespace-nowrap text-xs font-extrabold text-purple-900 bg-purple-100 border border-purple-300 rounded-md px-2.5 py-0.5 shadow-2xs">
-                                    Dịch vụ bên ngoài
-                                  </span>
-                                  {partnerName ? (
-                                    <span className="block text-xs font-semibold text-purple-800">
-                                      🤝 {String(partnerName)}
-                                    </span>
-                                  ) : null}
-                                </div>
-                              );
-                            }
-
-                            return (
-                              <span className="inline-block whitespace-nowrap text-xs font-extrabold text-[var(--secondary)] bg-amber-50 border border-amber-200/80 rounded-md px-2.5 py-0.5 mt-0.5">
-                                {item.itemType === "ROOM_CHARGE"
-                                  ? "Tiền phòng"
-                                  : item.itemType === "SERVICE"
-                                    ? "Dịch vụ khách sạn"
-                                    : item.itemType === "DISCOUNT"
-                                      ? "Giảm giá"
-                                      : item.itemType === "MANUAL_CHARGE"
-                                        ? "Phụ thu"
-                                        : item.itemType}
-                              </span>
-                            );
-                          })()}
-                          {isVoided ? (
-                            <span className="ml-1 inline-block text-xs font-bold text-red-700 bg-red-100 rounded px-1.5 py-0.5">
-                              Đã hủy
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-center font-black text-base">
-                      {item.quantity}
-                    </td>
-                    <td className="py-4 px-4 text-right font-medium text-slate-600">
-                      {item.itemType === "DISCOUNT" ? (
-                        <span className="text-emerald-700 font-semibold">
-                          -{formatMoney(Math.abs(toNumber(item.unitPriceSnapshot)), item.currency)}
-                        </span>
-                      ) : (
-                        formatMoney(
-                          toNumber(item.unitPriceSnapshot),
-                          item.currency,
-                        )
-                      )}
-                    </td>
-                    <td className="py-4 px-4 text-right font-black text-base text-[var(--primary)]">
-                      {item.itemType === "DISCOUNT" ? (
-                        <span className="text-emerald-700 font-bold">
-                          -{formatMoney(Math.abs(toNumber(item.totalSnapshot || item.discountAmountSnapshot)), item.currency)}
-                        </span>
-                      ) : (
-                        formatMoney(toNumber(item.totalSnapshot), item.currency)
-                      )}
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      {canManage &&
-                      selectedFolio?.status === "OPEN" &&
-                      !isVoided &&
-                      item.itemType !== "ROOM_CHARGE" ? (
-                        <button
-                          type="button"
-                          title="Hủy khoản mục này"
-                          onClick={async () => {
-                            const res = await SwalVietSage.fire({
-                              icon: "warning",
-                              title: "Hủy khoản thu này?",
-                              text: `Xác nhận hủy mục "${item.nameSnapshot}" trên folio.`,
-                              input: "text",
-                              inputPlaceholder: "Lý do hủy (không bắt buộc)",
-                              showCancelButton: true,
-                              confirmButtonText: "Hủy khoản thu",
-                              cancelButtonText: "Quay lại",
-                            });
-                            if (!res.isConfirmed) return;
-                            try {
-                              await requestInternalApiEnvelope(
-                                `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/items/${encodeURIComponent(item.id)}/void`,
-                                {
-                                  method: "POST",
-                                  body: {
-                                    reason:
-                                      res.value || "Hủy theo yêu cầu thu ngân",
-                                  },
-                                },
-                              );
-                              const [summaryRes, itemsRes] = await Promise.all([
-                                requestInternalApiEnvelope<FolioSummary>(
-                                  `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/summary`,
-                                  { method: "GET" },
-                                ),
-                                requestInternalApiEnvelope<FolioItemsPage>(
-                                  `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/items?page=1&limit=100`,
-                                  { method: "GET" },
-                                ),
-                              ]);
-                              setSummary(summaryRes.data);
-                              setItems(itemsRes.data.items);
-                              await invalidateHotelRealtimeQueries(
-                                queryClient,
-                                hotelId,
-                              );
-                              await showSuccessAlert(
-                                "Thành công",
-                                "Đã hủy khoản mục thành công.",
-                              );
-                            } catch (err) {
-                              void showErrorAlert("Không thể hủy khoản mục", err);
-                            }
-                          }}
-                          className="inline-flex items-center justify-center h-7 px-2 text-xs font-bold rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition"
-                        >
-                          <VsIcon name="delete" className="text-xs mr-0.5" />
-                          Hủy
-                        </button>
-                      ) : (
-                        <span className="text-xs text-[var(--on-surface-variant)]">
-                          —
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-
-          {!loading && activeItems.length === 0 && (!roomChargeTotal || selectedFolio?.status !== "OPEN") ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-[var(--on-surface-variant)]">
-              <VsIcon
-                name="receipt_long"
-                className="text-4xl text-[var(--outline)] mb-2"
-              />
-              <p className="text-sm font-bold text-[var(--primary)]">
-                Chưa có khoản phí nào trong folio
-              </p>
-              <p className="text-xs mt-1 text-[var(--on-surface-variant)] max-w-sm">
-                Vui lòng kiểm tra lại thông tin lưu trú hoặc thêm phụ thu/dịch vụ nếu cần.
-              </p>
-            </div>
-          ) : null}
-
-          {loading ? (
-            <div className="flex-1 flex items-center justify-center gap-2 p-12 text-xs font-semibold text-[var(--on-surface-variant)]">
-              <VsIcon
-                name="progress_activity"
-                className="animate-spin text-lg text-[var(--primary)]"
-              />
-              Đang tải chi tiết phí phòng...
-            </div>
-          ) : null}
-        </div>
-      </main>
-
-      {/* CỘT RIGHT 3: TỔNG TIỀN & XÁC NHẬN THU THỦ TỤC */}
-      <aside className="flex h-full flex-col justify-start space-y-3 xl:col-span-2 2xl:col-span-1">
-        {/* Hướng dẫn nghiệp vụ điều chỉnh chi phí Folio (Chữ to, rõ ràng, layout chuẩn) */}
-        <details className="group rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 via-amber-100/60 to-orange-50 p-3 text-amber-950 shadow-sm">
-          <summary className="flex cursor-pointer items-center justify-between gap-2 font-black text-xs sm:text-sm text-amber-950 select-none">
-            <span className="flex items-center gap-1.5 min-w-0">
-              <VsIcon name="info" className="text-lg text-amber-700 shrink-0" />
-              <span className="truncate">Hướng dẫn & Quy tắc %</span>
-            </span>
-            <span className="text-xs font-bold text-amber-800 shrink-0 rounded-md bg-amber-200/70 px-2 py-0.5 hover:bg-amber-300/80 transition">
-              <span className="group-open:hidden">Mở rộng ▾</span>
-              <span className="hidden group-open:inline">Thu gọn ▴</span>
-            </span>
-          </summary>
-          <ul className="mt-2.5 space-y-2 border-t border-amber-200/80 pt-2.5 text-xs sm:text-sm font-medium text-amber-950 pl-1">
-            <li className="flex items-start gap-2">
-              <span className="text-amber-700 font-extrabold">•</span>
-              <span>
-                <strong className="font-black text-amber-950">
-                  Phụ thu (Tăng giá)
-                </strong>
-                : Nhận phòng sớm, trả trễ, ở quá số người, đền bù... (Nhập %
-                hoặc số tiền).
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-amber-700 font-extrabold">•</span>
-              <span>
-                <strong className="font-black text-amber-950">Giảm giá</strong>:
-                Ưu đãi khách VIP, mã voucher, đền bù dịch vụ... (Nhập % hoặc số
-                tiền).
-              </span>
-            </li>
-            <li className="flex items-start gap-2 text-amber-950 font-bold pt-0.5">
-              <span className="text-[#d97706] text-base">📊</span>
-              <span>
-                Tính theo <strong>%</strong>: Quy đổi dựa trên{" "}
-                <strong>Tạm tính dịch vụ</strong> của phòng.
-              </span>
-            </li>
-            <li className="flex items-start gap-2 text-amber-950 font-bold">
-              <span className="text-[#d97706] text-base">💡</span>
-              <span>
-                Luôn nhập <strong>diễn giải / lý do</strong> để lưu vết minh
-                bạch trên hóa đơn thanh toán.
-              </span>
-            </li>
-          </ul>
-        </details>
-
-        {(activeSummary?.activeServiceRequests?.length ?? 0) > 0 ? (
-          <section
-            aria-label="Đối soát dịch vụ chưa hoàn thành"
-            className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-xs"
-          >
-            <h3 className="font-bold text-amber-950">
-              Dịch vụ chưa hoàn thành
-            </h3>
-            <p className="mt-0.5 text-xs text-amber-900">
-              Xác nhận thực tế cung cấp trước khi xuất hóa đơn.
-            </p>
-            <div className="mt-2 space-y-2">
-              {activeSummary?.activeServiceRequests?.map((request) => {
-                const choice = reconciliations[request.id] ?? {
-                  action: "",
-                  cancelReason: "",
-                };
-                return (
-                  <div
-                    key={request.id}
-                    className="rounded-xl border border-amber-200 bg-white p-2.5"
-                  >
-                    <p className="text-xs font-bold">
-                      {request.name} · SL {request.quantity}
-                    </p>
-                    <select
-                      aria-label={`Xử lý ${request.name}`}
-                      value={choice.action}
-                      onChange={(event) =>
-                        setReconciliations((current) => ({
-                          ...current,
-                          [request.id]: {
-                            ...choice,
-                            action: event.target
-                              .value as ReconciliationChoice["action"],
-                          },
-                        }))
-                      }
-                      className="mt-1.5 h-9 w-full rounded-lg border px-2.5 text-xs"
-                    >
-                      <option value="">Chọn xử lý</option>
-                      <option value="provided">
-                        Đã cung cấp — tính vào hóa đơn
-                      </option>
-                      <option value="cancelled">Hủy — không tính tiền</option>
-                    </select>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        ) : null}
-        {checkoutError ? (
-          <p
-            role="alert"
-            className="rounded-xl border border-red-200 bg-red-50 p-2.5 text-xs text-red-800"
-          >
-            {checkoutError}
-          </p>
-        ) : null}
-
-        {/* Luxurious Orange-Yellow Golden Checkout Card */}
-        <div className="rounded-2xl border border-[#d4af37]/50 bg-gradient-to-br from-[#2a1b08] via-[#38240b] to-[#1a1004] p-5 text-white shadow-2xl space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs sm:text-sm font-black uppercase tracking-wider text-[#fce8b3]">
-              Tổng tiền
-            </p>
-            <span className="rounded-full bg-[#f59e0b]/30 px-3 py-1 text-xs font-black text-[#ffe270] border border-[#f59e0b]/60 shadow-xs">
-              {currency}
-            </span>
-          </div>
-          <p className="vs-display text-3xl sm:text-4xl font-black text-[#ffe270] tracking-tight drop-shadow-md break-words">
-            {formatMoney(computedTotal, currency)}
-          </p>
-
-          <dl className="space-y-3 border-t border-[#d4af37]/30 pt-3 text-xs sm:text-sm text-[#fff3d1]">
-            {/* Tiền phòng */}
-            <div className="flex justify-between items-center">
-              <dt className="text-amber-100 font-bold text-sm flex items-center gap-1">
-                <span>🏨 Tiền phòng</span>
-              </dt>
-              <dd className="font-black text-base text-white">
-                {formatMoney(roomChargeTotal, currency)}
-              </dd>
-            </div>
-
-            {roomRateComparison ? (
-              <div className="space-y-2 rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/70 p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-sm font-bold text-[#fce8b3]">Giá gốc tiền phòng</dt>
-                  <dd className="text-base font-black text-white">
-                    {formatMoney(toNumber(roomRateComparison.baseSubtotal), currency)}
-                  </dd>
+      {/* CỘT 2: CHI TIẾT FOLIO HOẶC BẢNG THANH TOÁN ĐOÀN */}
+      <main className="xl:sticky xl:top-20 flex max-h-[calc(100vh-6.5rem)] flex-col min-h-0 overflow-hidden rounded-2xl border border-[var(--outline-variant)] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
+        {checkoutMode === "GROUP" ? (
+          <>
+            {/* Header Đoàn */}
+            <div className="flex flex-col gap-3 border-b border-[var(--outline-variant)] bg-[var(--surface-container-lowest,#fdfbf7)] p-4 sm:flex-row sm:items-center sm:justify-between shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2a1b08] via-[#38240b] to-[#140b02] shadow-lg shrink-0 border border-[#d4af37]/60">
+                  <VsIcon name="groups" className="text-2xl text-[#ffe270]" />
                 </div>
-                <div className="flex items-center justify-between gap-3 border-t border-[#d4af37]/25 pt-2">
-                  <dt
-                    className={`text-sm font-extrabold ${
-                      roomRateDifference > 0
-                        ? "text-amber-300"
-                        : roomRateDifference < 0
-                          ? "text-emerald-300"
-                          : "text-[#fce8b3]"
-                    }`}
-                  >
-                    {roomRateDifference > 0
-                      ? "Tăng so với giá gốc"
-                      : roomRateDifference < 0
-                        ? "Giảm so với giá gốc"
-                        : "Không đổi so với giá gốc"}
-                  </dt>
-                  <dd
-                    className={`text-base font-black ${
-                      roomRateDifference > 0
-                        ? "text-amber-300"
-                        : roomRateDifference < 0
-                          ? "text-emerald-300"
-                          : "text-white"
-                    }`}
-                  >
-                    {roomRateDifference > 0 ? "+" : roomRateDifference < 0 ? "−" : ""}
-                    {formatMoney(Math.abs(roomRateDifference), currency)}
-                  </dd>
-                </div>
-                <p className="text-sm text-[#fce8b3]">
-                  {roomRateComparison.direction === "UNCHANGED"
-                    ? `${estimatedRoomChargeData?.nights ?? 1} đêm cùng giá gốc.`
-                    : `${estimatedRoomChargeData?.nights ?? 1} đêm × ${formatMoney(
-                        Math.abs(toNumber(roomRateComparison.nightlyDifference)),
-                        currency,
-                      )} mỗi đêm.`}
-                </p>
-              </div>
-            ) : null}
-
-            {/* Dịch vụ khách sạn (Internal) */}
-            <div className="flex justify-between items-center">
-              <dt className="text-amber-100 font-bold text-sm flex items-center gap-1">
-                <span>🔔 Dịch vụ khách sạn</span>
-              </dt>
-              <dd className="font-black text-base text-white">
-                {formatMoney(hotelServiceChargeTotal, currency)}
-              </dd>
-            </div>
-
-            {/* Thu hộ dịch vụ bên ngoài (External Partner Collections) */}
-            {externalServiceCollectionTotal > 0 ? (
-              <div className="space-y-1 rounded-xl bg-purple-950/40 p-2.5 border border-purple-400/40">
-                <div className="flex justify-between items-center">
-                  <dt className="text-purple-200 font-extrabold text-sm flex items-center gap-1.5">
-                    <span className="rounded-md bg-purple-500/30 px-1.5 py-0.5 text-xs text-purple-200">
-                      🤝 Thu hộ đối tác
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="vs-display text-xl font-extrabold text-[var(--primary)] tracking-tight">
+                      Thanh toán đoàn
+                    </h2>
+                    <span className="rounded-full bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 text-xs font-black shadow-xs whitespace-nowrap">
+                      {selectedGroupFolios.length} phòng được chọn
                     </span>
-                    <span>Dịch vụ bên ngoài</span>
-                  </dt>
-                  <dd className="font-black text-base text-purple-200">
-                    {formatMoney(externalServiceCollectionTotal, currency)}
-                  </dd>
+                  </div>
+                  <p className="mt-0.5 text-xs text-[var(--on-surface-variant)] truncate">
+                    {commonGroupName ? `Đoàn khách: ${commonGroupName} · ` : ""}
+                    Tổng kết các phòng và thanh toán tập trung trong 1 thao tác
+                  </p>
                 </div>
-                <p className="text-xs text-purple-300 font-semibold">
-                  (Thu hộ đối tác — Không ghi nhận vào doanh thu hoạt động khách
-                  sạn)
+              </div>
+              {selectedGroupFolios.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={clearGroupSelection}
+                  className="text-xs font-bold text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-1.5 transition self-start sm:self-auto cursor-pointer"
+                >
+                  Bỏ chọn toàn bộ đoàn
+                </button>
+              ) : null}
+            </div>
+
+            {/* Bảng Dịch Vụ Đoàn */}
+            {selectedGroupFolios.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-[var(--on-surface-variant)]">
+                <VsIcon
+                  name="checklist"
+                  className="text-5xl text-[var(--outline)] mb-3"
+                />
+                <p className="text-base font-bold text-[var(--primary)]">
+                  Chưa chọn phòng nào cho đoàn
                 </p>
-              </div>
-            ) : null}
-
-            {/* Phụ thu đã ghi nhận trong folio */}
-            {manualChargeTotal > 0 ? (
-              <div className="flex justify-between items-center">
-                <dt className="text-amber-100 font-bold text-sm flex items-center gap-1">
-                  <span>⚡ Phụ thu đã thêm</span>
-                </dt>
-                <dd className="font-black text-base text-amber-300">
-                  +{formatMoney(manualChargeTotal, currency)}
-                </dd>
-              </div>
-            ) : null}
-
-            {/* Tạm tính (Tiền phòng + Dịch vụ + Phụ thu) */}
-            <div className="flex justify-between items-center border-t border-[#d4af37]/20 pt-2">
-              <dt className="text-amber-200 font-extrabold text-sm">
-                Tổng tạm tính
-              </dt>
-              <dd className="font-black text-base text-[#ffe270]">
-                {formatMoney(subtotal, currency)}
-              </dd>
-            </div>
-
-            <div className="flex justify-between items-center">
-              <dt className="text-amber-100 font-bold text-sm">
-                Thuế GTGT
-              </dt>
-              <dd className="font-black text-base text-white">
-                {formatMoney(tax, currency)}
-              </dd>
-            </div>
-
-            {/* Giảm giá đã áp dụng trong folio */}
-            {existingDiscountTotal > 0 ? (
-              <div className="flex justify-between items-center border-t border-[#d4af37]/20 pt-2">
-                <dt className="text-emerald-300 font-extrabold text-sm flex items-center gap-1">
-                  <span>🏷️ Giảm giá đã áp dụng</span>
-                </dt>
-                <dd className="font-black text-base text-emerald-400">
-                  -{formatMoney(existingDiscountTotal, currency)}
-                </dd>
-              </div>
-            ) : null}
-
-            {/* Khi folio đã đóng: Hiện thông báo hoàn tất thanh toán thay vì các ô nhập chỉnh sửa */}
-            {selectedFolio?.status === "CLOSED" ? (
-              <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/60 p-3 text-center space-y-1">
-                <div className="flex items-center justify-center gap-1.5 text-xs font-black text-emerald-400">
-                  <VsIcon name="check_circle" className="text-base" />
-                  <span>Folio đã hoàn tất thanh toán &amp; đóng</span>
-                </div>
-                <p className="text-xs text-emerald-300/80">
-                  Hóa đơn đã được phát hành. Bấm nút bên dưới để xem hoặc in lại hóa đơn.
+                <p className="text-xs mt-1 text-[var(--on-surface-variant)] max-w-sm text-pretty">
+                  Vui lòng tick chọn các phòng cần thanh toán chung ở cột danh sách bên trái hoặc bấm Chọn tất cả.
                 </p>
               </div>
             ) : (
-              <>
-                {/* Phụ thu (Tăng giá) */}
-                <div className="space-y-2 border-t border-[#d4af37]/25 pt-3">
+              <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto">
+                <table className="w-full text-left text-sm border-collapse table-fixed min-w-[550px]">
+                  <thead className="sticky top-0 z-10 border-b border-[var(--outline-variant)] bg-[var(--surface-container-low,#f4efe6)] text-xs font-black uppercase tracking-wider text-[var(--on-surface-variant)] shadow-xs">
+                    <tr>
+                      <th className="py-3 px-3.5 w-[32%] whitespace-nowrap">
+                        Phòng &amp; Khách
+                      </th>
+                      <th className="py-3 px-3 text-right w-[22%] whitespace-nowrap">
+                        Tiền phòng
+                      </th>
+                      <th className="py-3 px-3 text-right w-[22%] whitespace-nowrap">
+                        Dịch vụ &amp; Phụ thu
+                      </th>
+                      <th className="py-3 px-3 text-right w-[18%] whitespace-nowrap">
+                        Thành tiền
+                      </th>
+                      <th className="py-3 px-2 text-center w-[6%] whitespace-nowrap"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--outline-variant)]/50 text-sm">
+                    {selectedGroupFolios.map((folio) => {
+                      const rCharge = getFolioRoomCharge(folio);
+                      const totalAmt = getFolioTotalAmount(folio);
+                      const svcCharge = Math.max(0, totalAmt - rCharge);
+                      return (
+                        <tr
+                          key={folio.id}
+                          className="hover:bg-slate-50/80 transition"
+                        >
+                          <td className="py-3 px-3.5">
+                            <div className="flex items-center gap-2">
+                              <span className="rounded-lg bg-[var(--primary)] px-2 py-0.5 text-xs font-black text-white shrink-0">
+                                {displayRoom(folio)}
+                              </span>
+                              <div className="min-w-0">
+                                <p className="font-extrabold text-sm text-[var(--primary)] truncate">
+                                  {displayGuest(folio)}
+                                </p>
+                                <p className="text-xs text-[var(--on-surface-variant)] font-mono truncate">
+                                  {folio.folioNumber ?? folio.id}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-3 text-right font-medium text-slate-700">
+                            {formatMoney(rCharge, folio.currency ?? "VND")}
+                          </td>
+                          <td className="py-3 px-3 text-right font-medium text-slate-700">
+                            {svcCharge > 0
+                              ? formatMoney(svcCharge, folio.currency ?? "VND")
+                              : "—"}
+                          </td>
+                          <td className="py-3 px-3 text-right font-black text-[var(--primary)]">
+                            {formatMoney(totalAmt, folio.currency ?? "VND")}
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            <button
+                              type="button"
+                              title="Bỏ phòng này khỏi đoàn"
+                              onClick={() => toggleGroupFolio(folio.id)}
+                              className="p-1 text-[var(--on-surface-variant)] hover:text-rose-700 transition cursor-pointer"
+                            >
+                              <VsIcon name="close" className="text-base" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot className="sticky bottom-0 bg-[var(--surface-container-low,#f4efe6)] border-t-2 border-[var(--outline-variant)] font-bold shadow-xs">
+                    <tr>
+                      <td className="py-3 px-3.5 text-xs font-black text-[var(--primary)] uppercase">
+                        Tổng cộng ({selectedGroupFolios.length} phòng)
+                      </td>
+                      <td className="py-3 px-3 text-right font-black text-sm text-[var(--primary)]">
+                        {formatMoney(groupRoomChargeTotal, currency)}
+                      </td>
+                      <td className="py-3 px-3 text-right font-black text-sm text-[var(--primary)]">
+                        {formatMoney(groupServiceTotal, currency)}
+                      </td>
+                      <td className="py-3 px-3 text-right font-black text-base text-[var(--primary)]">
+                        {formatMoney(groupSubtotal, currency)}
+                      </td>
+                      <td className="py-3 px-2"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Header Chi Tiết Đơn Phòng */}
+            <div className="flex flex-col gap-3 border-b border-[var(--outline-variant)] bg-[var(--surface-container-lowest,#fdfbf7)] p-4 sm:flex-row sm:items-center sm:justify-between shrink-0">
+              <div className="flex items-center gap-3.5 min-w-0">
+                {/* Custom Luxury VietSage "V" Crest Emblem Badge */}
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2a1b08] via-[#38240b] to-[#140b02] shadow-lg shrink-0 border border-[#d4af37]/60 relative overflow-hidden group">
+                  <svg
+                    viewBox="0 0 40 40"
+                    className="h-7 w-7 relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <defs>
+                      <linearGradient
+                        id="vGoldGrad"
+                        x1="0%"
+                        y1="0%"
+                        x2="100%"
+                        y2="100%"
+                      >
+                        <stop offset="0%" stopColor="#fffbeb" />
+                        <stop offset="35%" stopColor="#fef08a" />
+                        <stop offset="70%" stopColor="#f59e0b" />
+                        <stop offset="100%" stopColor="#b45309" />
+                      </linearGradient>
+                      <linearGradient
+                        id="vAccentGrad"
+                        x1="0%"
+                        y1="100%"
+                        x2="100%"
+                        y2="0%"
+                      >
+                        <stop offset="0%" stopColor="#d4af37" />
+                        <stop offset="100%" stopColor="#ffe270" />
+                      </linearGradient>
+                    </defs>
+
+                    {/* Sharp Architectural Luxury "V" Path */}
+                    <path
+                      d="M7 9 L17.5 32 C18.2 33.5 19.8 33.5 20.5 32 L31 9 C31.5 7.8 30.6 6.5 29.3 6.5 L24.5 6.5 C23.8 6.5 23.2 6.9 22.9 7.5 L19 18.5 L15.1 7.5 C14.8 6.9 14.2 6.5 13.5 6.5 L8.7 6.5 C7.4 6.5 6.5 7.8 7 9 Z"
+                      fill="url(#vGoldGrad)"
+                    />
+
+                    {/* Inner Facet Highlight for 3D Polished Gold Effect */}
+                    <path
+                      d="M19 18.5 L24.5 6.5 L29.3 6.5 L20.5 32 C19.8 33.5 18.2 33.5 17.5 32 L19 18.5 Z"
+                      fill="url(#vAccentGrad)"
+                      opacity="0.75"
+                    />
+
+                    {/* Diamond Star Accent on Top */}
+                    <path
+                      d="M19 2.5 L20 4.5 L22 5.5 L20 6.5 L19 8.5 L18 6.5 L16 5.5 L18 4.5 Z"
+                      fill="#fef08a"
+                    />
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="vs-display text-xl font-extrabold text-[var(--primary)] tracking-tight">
+                      {displayRoom(selectedFolio)}
+                    </h2>
+                    <span className="rounded-full bg-emerald-100/90 text-emerald-900 border border-emerald-300/80 px-2.5 py-0.5 text-xs font-black shadow-xs whitespace-nowrap">
+                      {displayGuest(selectedFolio)}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-[var(--on-surface-variant)] flex items-center gap-2">
+                    <span>
+                      Mã Folio:{" "}
+                      <span className="font-mono text-xs font-bold text-[var(--primary)]">
+                        {selectedFolio?.folioNumber ?? selectedFolio?.id ?? "-"}
+                      </span>
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <div className="text-left sm:text-right text-xs font-medium text-[var(--on-surface-variant)] shrink-0">
+                <p>
+                  Mở lúc:{" "}
+                  <span className="font-bold text-xs text-[var(--primary)]">
+                    {formatDate(
+                      selectedFolio?.openedAt ?? selectedFolio?.createdAt,
+                    )}
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            {/* Bảng Dịch Vụ & Chi Phí Phòng Lẻ */}
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto">
+              <table className="w-full text-left text-sm border-collapse table-fixed min-w-[550px]">
+                <thead className="sticky top-0 z-10 border-b border-[var(--outline-variant)] bg-[var(--surface-container-low,#f4efe6)] text-xs font-black uppercase tracking-wider text-[var(--on-surface-variant)] shadow-xs">
+                  <tr>
+                    <th className="py-3 px-3.5 w-[35%] whitespace-nowrap">
+                      Tên chi phí / Dịch vụ
+                    </th>
+                    <th className="py-3 px-3 text-center w-[15%] whitespace-nowrap">
+                      Số lượng
+                    </th>
+                    <th className="py-3 px-3 text-right w-[18%] whitespace-nowrap">
+                      Đơn giá
+                    </th>
+                    <th className="py-3 px-3 text-right w-[18%] whitespace-nowrap">
+                      Thành tiền
+                    </th>
+                    <th className="py-3 px-2 text-center w-[14%] whitespace-nowrap">
+                      Thao tác
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--outline-variant)]/50 text-sm">
+                  {/* Hàng Tiền phòng khi folio đang mở và chưa phát hành hóa đơn */}
+                  {!hasPostedRoomCharge &&
+                  selectedFolio?.status === "OPEN" &&
+                  roomChargeTotal > 0 ? (
+                    <tr className="border-b border-amber-200/80 bg-amber-50/50 hover:bg-amber-100/40 transition">
+                      <td className="py-3.5 px-3.5">
+                        <div className="flex items-center gap-2.5">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100/80 border border-amber-300 text-amber-900 shrink-0 shadow-2xs">
+                            <VsIcon name="hotel" className="text-lg" />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="font-extrabold text-sm text-[var(--primary)] truncate">
+                              Tiền phòng
+                            </p>
+                            <div className="mt-0.5">
+                              <span
+                                className="inline-flex items-center whitespace-nowrap rounded-md bg-amber-100 text-amber-900 border border-amber-300/80 px-2 py-0.5 text-xs font-bold"
+                                title={`${estimatedRoomChargeData?.nights ?? 1} đêm × ${formatMoney(estimatedRoomChargeData?.nightlyRate ?? roomChargeTotal, currency)}`}
+                              >
+                                Tạm tính
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-3 text-center font-bold text-sm text-[var(--primary)]">
+                        {estimatedRoomChargeData?.nights ?? 1}
+                      </td>
+                      <td className="py-3.5 px-3 text-right font-semibold text-sm text-[var(--on-surface-variant)]">
+                        {formatMoney(
+                          estimatedRoomChargeData?.nightlyRate ?? roomChargeTotal,
+                          currency,
+                        )}
+                      </td>
+                      <td className="py-3.5 px-3 text-right font-black text-sm text-[var(--primary)]">
+                        {formatMoney(roomChargeTotal, currency)}
+                      </td>
+                      <td className="py-3.5 px-2 text-center">
+                        <span className="text-xs text-[var(--on-surface-variant)]">—</span>
+                      </td>
+                    </tr>
+                  ) : null}
+                  {activeItems.map((item) => {
+                    const isVoided = item.status === "VOID";
+                    return (
+                      <tr
+                        key={item.id}
+                        className={`transition ${isVoided ? "bg-red-50/50 opacity-60 line-through" : "hover:bg-slate-50/80"}`}
+                      >
+                        <td className="py-3.5 px-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 border border-amber-200/80 text-[var(--primary)] shrink-0 shadow-2xs">
+                              <VsIcon
+                                name={getItemIcon(item.itemType)}
+                                className="text-lg"
+                              />
+                            </span>
+                            <div className="min-w-0">
+                              <p className="font-extrabold text-sm text-[var(--primary)] truncate">
+                                {item.nameSnapshot}
+                              </p>
+                              {(() => {
+                                const isExternal =
+                                  item.serviceSource === "EXTERNAL" ||
+                                  (typeof item.billingSourceSnapshot === "object" &&
+                                    item.billingSourceSnapshot !== null &&
+                                    ("marketplaceOrderId" in
+                                      (item.billingSourceSnapshot as object) ||
+                                      (
+                                        item.billingSourceSnapshot as Record<
+                                          string,
+                                          unknown
+                                        >
+                                      ).serviceSource === "EXTERNAL"));
+
+                                const partnerName =
+                                  item.partnerName ??
+                                  (typeof item.billingSourceSnapshot === "object" &&
+                                  item.billingSourceSnapshot !== null
+                                    ? (
+                                        item.billingSourceSnapshot as Record<
+                                          string,
+                                          unknown
+                                        >
+                                      ).partnerName
+                                    : null);
+
+                                if (isExternal) {
+                                  return (
+                                    <div className="space-y-0.5 mt-0.5">
+                                      <span className="inline-block whitespace-nowrap text-xs font-extrabold text-purple-900 bg-purple-100 border border-purple-300 rounded-md px-2 py-0.5 shadow-2xs">
+                                        Dịch vụ bên ngoài
+                                      </span>
+                                      {partnerName ? (
+                                        <span className="block text-xs font-semibold text-purple-800">
+                                          🤝 {String(partnerName)}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                  );
+                                }
+
+                                return (
+                                  <span className="inline-block whitespace-nowrap text-xs font-extrabold text-[var(--secondary)] bg-amber-50 border border-amber-200/80 rounded-md px-2 py-0.5 mt-0.5">
+                                    {item.itemType === "ROOM_CHARGE"
+                                      ? "Tiền phòng"
+                                      : item.itemType === "SERVICE"
+                                        ? "Dịch vụ khách sạn"
+                                        : item.itemType === "DISCOUNT"
+                                          ? "Giảm giá"
+                                          : item.itemType === "MANUAL_CHARGE"
+                                            ? "Phụ thu"
+                                            : item.itemType}
+                                  </span>
+                                );
+                              })()}
+                              {isVoided ? (
+                                <span className="ml-1 inline-block text-xs font-bold text-red-700 bg-red-100 rounded px-1.5 py-0.5 whitespace-nowrap">
+                                  Đã hủy
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-3 text-center font-black text-sm">
+                          {item.quantity}
+                        </td>
+                        <td className="py-3.5 px-3 text-right font-medium text-slate-600 text-sm">
+                          {item.itemType === "DISCOUNT" ? (
+                            <span className="text-emerald-700 font-semibold">
+                              -{formatMoney(Math.abs(toNumber(item.unitPriceSnapshot)), item.currency)}
+                            </span>
+                          ) : (
+                            formatMoney(
+                              toNumber(item.unitPriceSnapshot),
+                              item.currency,
+                            )
+                          )}
+                        </td>
+                        <td className="py-3.5 px-3 text-right font-black text-sm text-[var(--primary)]">
+                          {item.itemType === "DISCOUNT" ? (
+                            <span className="text-emerald-700 font-bold">
+                              -{formatMoney(Math.abs(toNumber(item.totalSnapshot || item.discountAmountSnapshot)), item.currency)}
+                            </span>
+                          ) : (
+                            formatMoney(toNumber(item.totalSnapshot), item.currency)
+                          )}
+                        </td>
+                        <td className="py-3.5 px-2 text-center">
+                          {canManage &&
+                          selectedFolio?.status === "OPEN" &&
+                          !isVoided &&
+                          item.itemType !== "ROOM_CHARGE" ? (
+                            <button
+                              type="button"
+                              title="Hủy khoản mục này"
+                              onClick={async () => {
+                                const res = await SwalVietSage.fire({
+                                  icon: "warning",
+                                  title: "Hủy khoản thu này?",
+                                  text: `Xác nhận hủy mục "${item.nameSnapshot}" trên folio.`,
+                                  input: "text",
+                                  inputPlaceholder: "Lý do hủy (không bắt buộc)",
+                                  showCancelButton: true,
+                                  confirmButtonText: "Hủy khoản thu",
+                                  cancelButtonText: "Quay lại",
+                                });
+                                if (!res.isConfirmed) return;
+                                try {
+                                  await requestInternalApiEnvelope(
+                                    `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/items/${encodeURIComponent(item.id)}/void`,
+                                    {
+                                      method: "POST",
+                                      body: {
+                                        reason:
+                                          res.value || "Hủy theo yêu cầu thu ngân",
+                                      },
+                                    },
+                                  );
+                                  const [summaryRes, itemsRes] = await Promise.all([
+                                    requestInternalApiEnvelope<FolioSummary>(
+                                      `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/summary`,
+                                      { method: "GET" },
+                                    ),
+                                    requestInternalApiEnvelope<FolioItemsPage>(
+                                      `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/items?page=1&limit=100`,
+                                      { method: "GET" },
+                                    ),
+                                  ]);
+                                  setSummary(summaryRes.data);
+                                  setItems(itemsRes.data.items);
+                                  await invalidateHotelRealtimeQueries(
+                                    queryClient,
+                                    hotelId,
+                                  );
+                                  await showSuccessAlert(
+                                    "Thành công",
+                                    "Đã hủy khoản mục thành công.",
+                                  );
+                                } catch (err) {
+                                  void showErrorAlert("Không thể hủy khoản mục", err);
+                                }
+                              }}
+                              className="inline-flex items-center justify-center h-7 px-2 text-xs font-bold rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition cursor-pointer"
+                            >
+                              <VsIcon name="delete" className="text-xs mr-0.5" />
+                              Hủy
+                            </button>
+                          ) : (
+                            <span className="text-xs text-[var(--on-surface-variant)]">
+                              —
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {!loading && activeItems.length === 0 && (!roomChargeTotal || selectedFolio?.status !== "OPEN") ? (
+                <div className="flex flex-col items-center justify-center p-12 text-center text-[var(--on-surface-variant)]">
+                  <VsIcon
+                    name="receipt_long"
+                    className="text-4xl text-[var(--outline)] mb-2"
+                  />
+                  <p className="text-sm font-bold text-[var(--primary)]">
+                    Chưa có khoản phí nào trong folio
+                  </p>
+                  <p className="text-xs mt-1 text-[var(--on-surface-variant)] max-w-sm text-pretty">
+                    Vui lòng kiểm tra lại thông tin lưu trú hoặc thêm phụ thu/dịch vụ nếu cần.
+                  </p>
+                </div>
+              ) : null}
+
+              {loading ? (
+                <div className="flex items-center justify-center gap-2 p-12 text-xs font-semibold text-[var(--on-surface-variant)]">
+                  <VsIcon
+                    name="progress_activity"
+                    className="animate-spin text-lg text-[var(--primary)]"
+                  />
+                  Đang tải chi tiết phí phòng...
+                </div>
+              ) : null}
+            </div>
+          </>
+        )}
+      </main>
+
+      {/* CỘT 3: TỔNG TIỀN & XÁC NHẬN THU TIỀN */}
+      <aside className="xl:sticky xl:top-20 flex max-h-[calc(100vh-6.5rem)] flex-col min-h-0 xl:col-span-2 2xl:col-span-1">
+        {checkoutMode === "GROUP" ? (
+          <>
+            {/* Hướng dẫn nghiệp vụ đoàn */}
+            <details className="group shrink-0 mb-2 rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 via-amber-100/60 to-orange-50 p-3 text-amber-950 shadow-xs">
+              <summary className="flex cursor-pointer items-center justify-between gap-2 font-black text-xs text-amber-950 select-none">
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <VsIcon name="info" className="text-base text-amber-700 shrink-0" />
+                  <span className="truncate">Thanh toán đoàn tập trung</span>
+                </span>
+                <span className="text-xs font-bold text-amber-800 shrink-0 rounded-md bg-amber-200/70 px-2 py-0.5 hover:bg-amber-300/80 transition">
+                  <span className="group-open:hidden">Mở rộng ▾</span>
+                  <span className="hidden group-open:inline">Thu gọn ▴</span>
+                </span>
+              </summary>
+              <ul className="mt-2 space-y-1.5 border-t border-amber-200/80 pt-2 text-xs font-medium text-amber-950 pl-1">
+                <li className="flex items-start gap-1.5">
+                  <span className="text-amber-700 font-extrabold">•</span>
+                  <span>Hệ thống tự động phát hành hóa đơn và đóng checkout lần lượt cho tất cả các phòng trong đoàn.</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="text-amber-700 font-extrabold">•</span>
+                  <span>Phụ thu / Giảm giá đoàn sẽ được phân bổ đồng đều lên các phòng được chọn.</span>
+                </li>
+              </ul>
+            </details>
+
+            {/* Thẻ Thanh Toán Đoàn Màu Vàng Đậm Sang Trọng Với Chân Ghim Cố Định */}
+            <div className="flex-1 min-h-0 flex flex-col rounded-2xl border border-[#d4af37]/50 bg-gradient-to-br from-[#2a1b08] via-[#38240b] to-[#1a1004] text-white shadow-2xl overflow-hidden">
+              {/* Header cố định ở đầu thẻ */}
+              <div className="shrink-0 border-b border-[#d4af37]/30 bg-[#1c1204]/80 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-wider text-[#fce8b3]">
+                      Tổng tiền đoàn
+                    </p>
+                    <p className="text-xs text-amber-200/80 font-semibold">
+                      {selectedGroupFolios.length} phòng được chọn
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-[#f59e0b]/30 px-3 py-1 text-xs font-black text-[#ffe270] border border-[#f59e0b]/60 shadow-xs whitespace-nowrap">
+                    {currency}
+                  </span>
+                </div>
+                <p className="vs-display text-3xl font-black text-[#ffe270] tracking-tight drop-shadow-md break-words mt-1">
+                  {formatMoney(computedGroupTotal, currency)}
+                </p>
+              </div>
+
+              {/* Thân thẻ cuộn mượt bên trong */}
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3.5">
+                <dl className="space-y-2.5 text-xs sm:text-sm text-[#fff3d1]">
+                {/* Tổng tiền phòng */}
+                <div className="flex justify-between items-center">
+                  <dt className="text-amber-100 font-bold text-xs sm:text-sm flex items-center gap-1">
+                    <span>🏨 Tiền phòng cả đoàn</span>
+                  </dt>
+                  <dd className="font-black text-sm sm:text-base text-white">
+                    {formatMoney(groupRoomChargeTotal, currency)}
+                  </dd>
+                </div>
+
+                {/* Dịch vụ */}
+                <div className="flex justify-between items-center">
+                  <dt className="text-amber-100 font-bold text-xs sm:text-sm flex items-center gap-1">
+                    <span>🔔 Dịch vụ khách sạn</span>
+                  </dt>
+                  <dd className="font-black text-sm sm:text-base text-white">
+                    {formatMoney(groupServiceTotal, currency)}
+                  </dd>
+                </div>
+
+                {/* Tạm tính */}
+                <div className="flex justify-between items-center border-t border-[#d4af37]/20 pt-2">
+                  <dt className="text-amber-200 font-extrabold text-xs sm:text-sm">
+                    Tổng tạm tính
+                  </dt>
+                  <dd className="font-black text-sm sm:text-base text-[#ffe270]">
+                    {formatMoney(groupSubtotal, currency)}
+                  </dd>
+                </div>
+
+                {/* Phụ thu cả đoàn */}
+                <div className="space-y-1.5 border-t border-[#d4af37]/25 pt-2.5">
                   <div className="flex items-center justify-between gap-2">
-                    <dt className="text-amber-100 font-extrabold text-sm min-w-0 truncate">
-                      Phụ thu (Tăng giá)
+                    <dt className="text-amber-100 font-extrabold text-xs sm:text-sm min-w-0 truncate">
+                      Phụ thu đoàn
                     </dt>
-                    <dd className="flex-1 min-w-0 max-w-[165px] shrink-0">
+                    <dd className="flex-1 min-w-0 max-w-[150px] shrink-0">
                       <input
                         type="text"
                         inputMode="numeric"
-                        value={surchargeInput}
+                        value={groupSurchargeInput}
                         onChange={(e) =>
-                          setSurchargeInput(
+                          setGroupSurchargeInput(
                             formatNumberOrPercentInput(e.target.value),
                           )
                         }
                         placeholder="0 hoặc 10%"
-                        className="h-10 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-3 py-1 text-right text-base font-black text-[#ffe270] placeholder-[#ffe270]/60 outline-none focus:border-[#fbbf24] focus:ring-2 focus:ring-[#fbbf24]/60 shadow-inner"
+                        className="h-9 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-2.5 py-1 text-right text-sm font-black text-[#ffe270] placeholder-[#ffe270]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] shadow-inner"
                       />
                     </dd>
                   </div>
 
-                  {/* Input Diễn giải / Lý do phụ thu */}
                   {canManage ? (
                     <input
                       type="text"
-                      value={surchargeNote}
-                      onChange={(e) => setSurchargeNote(e.target.value)}
-                      placeholder="Lý do phụ thu (nhận phòng sớm, phụ thu người ở...)"
-                      className="h-9 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-3 py-1 text-xs sm:text-sm font-medium text-[#ffe270] placeholder-[#ffe270]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
+                      value={groupSurchargeNote}
+                      onChange={(e) => setGroupSurchargeNote(e.target.value)}
+                      placeholder="Lý do phụ thu đoàn (nhận phòng sớm, tổ chức gala...)"
+                      className="h-8 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-2.5 py-1 text-xs font-medium text-[#ffe270] placeholder-[#ffe270]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
                     />
                   ) : null}
 
-                  {/* Hiển thị quy đổi % phụ thu */}
-                  {surchargeParsed.isPercentage && surchargeParsed.amount > 0 ? (
+                  {groupSurchargeParsed.isPercentage && groupSurchargeParsed.amount > 0 ? (
                     <p className="text-xs font-bold text-right text-[#ffe270]">
-                      ⚡ Quy đổi {surchargeParsed.percentage}% Tạm tính: +
-                      {formatMoney(surchargeParsed.amount, currency)}
+                      ⚡ Quy đổi {groupSurchargeParsed.percentage}% Tạm tính: +
+                      {formatMoney(groupSurchargeParsed.amount, currency)}
                     </p>
                   ) : null}
 
-                  {/* Preset chips phụ thu (CHỈ 1 DÒNG DUY NHẤT) */}
+                  {/* Preset chips phụ thu */}
                   {canManage ? (
                     <div className="flex flex-nowrap gap-1 justify-end overflow-x-auto no-scrollbar pt-0.5">
                       <button
                         type="button"
                         onClick={() => {
-                          setSurchargeInput("5%");
-                          if (!surchargeNote) setSurchargeNote("Phụ thu 5%");
+                          setGroupSurchargeInput("5%");
+                          if (!groupSurchargeNote) setGroupSurchargeNote("Phụ thu đoàn 5%");
                         }}
-                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
                       >
                         +5%
                       </button>
                       <button
                         type="button"
                         onClick={() => {
-                          setSurchargeInput("10%");
-                          if (!surchargeNote) setSurchargeNote("Phụ thu 10%");
+                          setGroupSurchargeInput("10%");
+                          if (!groupSurchargeNote) setGroupSurchargeNote("Phụ thu đoàn 10%");
                         }}
-                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
                       >
                         +10%
                       </button>
                       <button
                         type="button"
                         onClick={() => {
-                          setSurchargeInput(formatNumberInput("50000"));
-                          setSurchargeNote("Phụ thu nhận phòng sớm");
+                          setGroupSurchargeInput(formatNumberInput("200000"));
+                          if (!groupSurchargeNote) setGroupSurchargeNote("Phụ thu phục vụ đoàn");
                         }}
-                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
                       >
-                        +50k Sớm
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSurchargeInput(formatNumberInput("100000"));
-                          setSurchargeNote("Phụ thu trả phòng muộn");
-                        }}
-                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
-                      >
-                        +100k Muộn
+                        +200k
                       </button>
                     </div>
                   ) : null}
                 </div>
 
-                {/* Giảm giá */}
-                <div className="space-y-2 border-t border-[#d4af37]/25 pt-3">
+                {/* Giảm giá cả đoàn */}
+                <div className="space-y-1.5 border-t border-[#d4af37]/25 pt-2.5">
                   <div className="flex items-center justify-between gap-2">
-                    <dt className="text-amber-100 font-extrabold text-sm min-w-0 truncate">
-                      Giảm giá
+                    <dt className="text-amber-100 font-extrabold text-xs sm:text-sm min-w-0 truncate">
+                      Giảm giá đoàn
                     </dt>
-                    <dd className="flex-1 min-w-0 max-w-[165px] shrink-0">
+                    <dd className="flex-1 min-w-0 max-w-[150px] shrink-0">
                       <input
                         type="text"
                         inputMode="numeric"
-                        value={discountInput}
+                        value={groupDiscountInput}
                         onChange={(e) =>
-                          setDiscountInput(
+                          setGroupDiscountInput(
                             formatNumberOrPercentInput(e.target.value),
                           )
                         }
                         placeholder="0 hoặc 10%"
-                        className="h-10 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-3 py-1 text-right text-base font-black text-[#fef08a] placeholder-[#fef08a]/60 outline-none focus:border-[#fbbf24] focus:ring-2 focus:ring-[#fbbf24]/60 shadow-inner"
+                        className="h-9 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-2.5 py-1 text-right text-sm font-black text-[#fef08a] placeholder-[#fef08a]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] shadow-inner"
                       />
                     </dd>
                   </div>
 
-                  {/* Input Diễn giải / Lý do giảm giá */}
                   {canManage ? (
                     <input
                       type="text"
-                      value={discountNote}
-                      onChange={(e) => setDiscountNote(e.target.value)}
-                      placeholder="Lý do giảm giá (khách thân thiết, ưu đãi đặc biệt...)"
-                      className="h-9 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-3 py-1 text-xs sm:text-sm font-medium text-[#fef08a] placeholder-[#fef08a]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
+                      value={groupDiscountNote}
+                      onChange={(e) => setGroupDiscountNote(e.target.value)}
+                      placeholder="Lý do giảm giá đoàn (ưu đãi công ty lữ hành...)"
+                      className="h-8 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-2.5 py-1 text-xs font-medium text-[#fef08a] placeholder-[#fef08a]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
                     />
                   ) : null}
 
-                  {/* Hiển thị quy đổi % giảm giá */}
-                  {discountParsed.isPercentage && discountParsed.amount > 0 ? (
+                  {groupDiscountParsed.isPercentage && groupDiscountParsed.amount > 0 ? (
                     <p className="text-xs font-bold text-right text-[#fef08a]">
-                      ⚡ Quy đổi {discountParsed.percentage}% Tạm tính: -
-                      {formatMoney(discountParsed.amount, currency)}
+                      ⚡ Quy đổi {groupDiscountParsed.percentage}% Tạm tính: -
+                      {formatMoney(groupDiscountParsed.amount, currency)}
                     </p>
                   ) : null}
 
-                  {/* Preset chips giảm giá (CHỈ 1 DÒNG DUY NHẤT) */}
+                  {/* Preset chips giảm giá đoàn */}
                   {canManage ? (
                     <div className="flex flex-nowrap gap-1 justify-end overflow-x-auto no-scrollbar pt-0.5">
                       <button
                         type="button"
                         onClick={() => {
-                          setDiscountInput("5%");
-                          setDiscountNote("Giảm giá 5% Khách VIP");
+                          setGroupDiscountInput("5%");
+                          setGroupDiscountNote("Chiết khấu đoàn 5%");
                         }}
-                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs sm:text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
                       >
-                        -5% VIP
+                        -5% Đoàn
                       </button>
                       <button
                         type="button"
                         onClick={() => {
-                          setDiscountInput("10%");
-                          setDiscountNote("Giảm giá 10% Khách VIP");
+                          setGroupDiscountInput("10%");
+                          setGroupDiscountNote("Chiết khấu đối tác lữ hành 10%");
                         }}
-                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs sm:text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
                       >
-                        -10% VIP
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDiscountInput("15%");
-                          setDiscountNote("Ưu đãi voucher -15%");
-                        }}
-                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs sm:text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
-                      >
-                        -15% Voucher
+                        -10% Đoàn
                       </button>
                     </div>
                   ) : null}
                 </div>
-              </>
-            )}
 
-            {/* Hỗ trợ tính tiền thừa cho Lễ tân */}
-            {selectedFolio?.status !== "CLOSED" ? (
-              <div className="space-y-2 border-t border-[#d4af37]/25 pt-3">
-                <div className="flex items-center justify-between gap-2">
-                  <dt className="text-amber-100 font-extrabold text-sm min-w-0 truncate">
-                    Nhận tiền mặt
-                  </dt>
-                  <dd className="flex-1 min-w-0 max-w-[165px] shrink-0">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={cashGivenInput}
-                      onChange={(e) =>
-                        setCashGivenInput(formatNumberInput(e.target.value))
+                {/* Hỗ trợ phương thức thanh toán */}
+                <div className="space-y-2 border-t border-[#d4af37]/25 pt-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <dt className="text-amber-100 font-extrabold text-xs uppercase tracking-wider min-w-0">
+                      Nguồn tiền đối soát
+                    </dt>
+                    <dd className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setCheckoutPaymentMethod("CASH")}
+                        className={`rounded-lg px-2 py-1 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                          checkoutPaymentMethod === "CASH"
+                            ? "bg-[#d4af37] text-slate-950 font-black shadow-xs"
+                            : "bg-[#1c1204] text-[#ffe270] border border-[#d4af37]/40 hover:bg-[#d4af37]/20"
+                        }`}
+                      >
+                        💵 TM
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCheckoutPaymentMethod("BANK_TRANSFER")}
+                        className={`rounded-lg px-2 py-1 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                          checkoutPaymentMethod === "BANK_TRANSFER"
+                            ? "bg-[#d4af37] text-slate-950 font-black shadow-xs"
+                            : "bg-[#1c1204] text-[#ffe270] border border-[#d4af37]/40 hover:bg-[#d4af37]/20"
+                        }`}
+                      >
+                        🏦 CK
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCheckoutPaymentMethod("CARD")}
+                        className={`rounded-lg px-2 py-1 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                          checkoutPaymentMethod === "CARD"
+                            ? "bg-[#d4af37] text-slate-950 font-black shadow-xs"
+                            : "bg-[#1c1204] text-[#ffe270] border border-[#d4af37]/40 hover:bg-[#d4af37]/20"
+                        }`}
+                      >
+                        💳 Thẻ
+                      </button>
+                    </dd>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2">
+                    <dt className="text-amber-100 font-extrabold text-xs sm:text-sm min-w-0 truncate">
+                      {checkoutPaymentMethod === "CASH"
+                        ? "Nhận tiền mặt"
+                        : checkoutPaymentMethod === "BANK_TRANSFER"
+                        ? "Tiền chuyển khoản"
+                        : "Tiền quẹt thẻ"}
+                    </dt>
+                    <dd className="flex-1 min-w-0 max-w-[150px] shrink-0">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={groupCashGivenInput}
+                        onChange={(e) =>
+                          setGroupCashGivenInput(formatNumberInput(e.target.value))
+                        }
+                        placeholder="0"
+                        className="h-9 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-2.5 py-1 text-right text-sm font-black text-[#ffe270] placeholder-[#ffe270]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] shadow-inner"
+                      />
+                    </dd>
+                  </div>
+
+                  {/* Preset chips tiền đoàn */}
+                  <div className="flex flex-nowrap gap-1 justify-end overflow-x-auto no-scrollbar pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setGroupCashGivenInput(formatNumberInput(computedGroupTotal))
                       }
-                      placeholder="0"
-                      className="h-10 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-3 py-1 text-right text-base font-black text-[#ffe270] placeholder-[#ffe270]/60 outline-none focus:border-[#fbbf24] focus:ring-2 focus:ring-[#fbbf24]/60 shadow-inner"
-                    />
+                      className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                    >
+                      Đủ tiền
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGroupCashGivenInput(formatNumberInput(2000000))}
+                      className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                    >
+                      2 Triệu
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setGroupCashGivenInput(formatNumberInput(5000000))
+                      }
+                      className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                    >
+                      5 Triệu
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setGroupCashGivenInput(formatNumberInput(10000000))
+                      }
+                      className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                    >
+                      10 Triệu
+                    </button>
+                  </div>
+
+                  {/* Kết quả tiền thừa / thiếu */}
+                  {parseFormattedNumber(groupCashGivenInput) > 0 ? (
+                    <div className="flex justify-between items-center rounded-xl bg-[#1c1204] p-2.5 border border-[#d4af37]/40 shadow-inner mt-1">
+                      <span className="text-xs font-bold text-[#fce8b3]">
+                        {parseFormattedNumber(groupCashGivenInput) >= computedGroupTotal
+                          ? "Tiền thừa trả khách:"
+                          : "Khách còn thiếu:"}
+                      </span>
+                      <span
+                        className={`text-sm font-black ${
+                          parseFormattedNumber(groupCashGivenInput) >= computedGroupTotal
+                            ? "text-emerald-400"
+                            : "text-amber-400"
+                        }`}
+                      >
+                        {formatMoney(
+                          Math.abs(
+                            parseFormattedNumber(groupCashGivenInput) - computedGroupTotal,
+                          ),
+                          currency,
+                        )}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+              </dl>
+            </div>
+
+            {/* Chân ghim cố định cho nút thanh toán đoàn (Sticky Action Footer) */}
+            <div className="shrink-0 border-t border-[#d4af37]/40 bg-[#140c03] p-3 shadow-[0_-4px_16px_rgba(0,0,0,0.5)]">
+              <button
+                type="button"
+                onClick={() => void issueGroupInvoicesAndCollect()}
+                disabled={
+                  selectedGroupFolios.length === 0 ||
+                  !canManage ||
+                  saving ||
+                  !isCashSettlementAllowed(groupCashGivenInput, computedGroupTotal)
+                }
+                className="w-full inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#fbbf24] via-[#f59e0b] to-[#d97706] px-4 text-sm sm:text-base font-black text-[#1c1204] shadow-xl shadow-amber-950/60 transition hover:from-[#f59e0b] hover:to-[#b45309] active:scale-[0.99] disabled:opacity-50 cursor-pointer text-balance"
+              >
+                <VsIcon
+                  name={saving ? "sync" : "payments"}
+                  className={`text-xl ${saving ? "animate-spin" : ""}`}
+                />
+                {saving
+                  ? "Đang xử lý checkout đoàn..."
+                  : `Thanh toán đoàn (${selectedGroupFolios.length} phòng)`}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Hướng dẫn nghiệp vụ điều chỉnh chi phí Folio Phòng Lẻ */}
+            <details className="group shrink-0 mb-2 rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 via-amber-100/60 to-orange-50 p-2.5 text-amber-950 shadow-xs">
+              <summary className="flex cursor-pointer items-center justify-between gap-2 font-black text-xs text-amber-950 select-none">
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <VsIcon name="info" className="text-base text-amber-700 shrink-0" />
+                  <span className="truncate">Hướng dẫn &amp; Quy tắc %</span>
+                </span>
+                <span className="text-xs font-bold text-amber-800 shrink-0 rounded-md bg-amber-200/70 px-2 py-0.5 hover:bg-amber-300/80 transition">
+                  <span className="group-open:hidden">Mở rộng ▾</span>
+                  <span className="hidden group-open:inline">Thu gọn ▴</span>
+                </span>
+              </summary>
+              <ul className="mt-2 space-y-1.5 border-t border-amber-200/80 pt-2 text-xs font-medium text-amber-950 pl-1">
+                <li className="flex items-start gap-1.5">
+                  <span className="text-amber-700 font-extrabold">•</span>
+                  <span>
+                    <strong className="font-black text-amber-950">Phụ thu (Tăng giá)</strong>: Nhận phòng sớm, trả trễ, phụ thu người ở...
+                  </span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="text-amber-700 font-extrabold">•</span>
+                  <span>
+                    <strong className="font-black text-amber-950">Giảm giá</strong>: Ưu đãi khách VIP, voucher...
+                  </span>
+                </li>
+              </ul>
+            </details>
+
+            {(activeSummary?.activeServiceRequests?.length ?? 0) > 0 ? (
+              <section
+                aria-label="Đối soát dịch vụ chưa hoàn thành"
+                className="shrink-0 mb-2 max-h-36 overflow-y-auto rounded-2xl border border-amber-300 bg-amber-50 p-2.5 text-xs"
+              >
+                <h3 className="font-bold text-amber-950">
+                  Dịch vụ chưa hoàn thành
+                </h3>
+                <p className="mt-0.5 text-xs text-amber-900">
+                  Xác nhận thực tế cung cấp trước khi xuất hóa đơn.
+                </p>
+                <div className="mt-2 space-y-2">
+                  {activeSummary?.activeServiceRequests?.map((request) => {
+                    const choice = reconciliations[request.id] ?? {
+                      action: "",
+                      cancelReason: "",
+                    };
+                    return (
+                      <div
+                        key={request.id}
+                        className="rounded-xl border border-amber-200 bg-white p-2.5"
+                      >
+                        <p className="text-xs font-bold">
+                          {request.name} · SL {request.quantity}
+                        </p>
+                        <select
+                          aria-label={`Xử lý ${request.name}`}
+                          value={choice.action}
+                          onChange={(event) =>
+                            setReconciliations((current) => ({
+                              ...current,
+                              [request.id]: {
+                                ...choice,
+                                action: event.target
+                                  .value as ReconciliationChoice["action"],
+                              },
+                            }))
+                          }
+                          className="mt-1.5 h-8.5 w-full rounded-lg border px-2 text-xs"
+                        >
+                          <option value="">Chọn xử lý</option>
+                          <option value="provided">
+                            Đã cung cấp — tính vào hóa đơn
+                          </option>
+                          <option value="cancelled">Hủy — không tính tiền</option>
+                        </select>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
+
+            {checkoutError ? (
+              <p
+                role="alert"
+                className="shrink-0 mb-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-xs text-red-800"
+              >
+                {checkoutError}
+              </p>
+            ) : null}
+
+            {/* Luxurious Orange-Yellow Golden Checkout Card Cho Phòng Lẻ Với Chân Ghim Cố Định */}
+            <div className="flex-1 min-h-0 flex flex-col rounded-2xl border border-[#d4af37]/50 bg-gradient-to-br from-[#2a1b08] via-[#38240b] to-[#1a1004] text-white shadow-2xl overflow-hidden">
+              {/* Header cố định ở đầu thẻ */}
+              <div className="shrink-0 border-b border-[#d4af37]/30 bg-[#1c1204]/80 p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-black uppercase tracking-wider text-[#fce8b3]">
+                    Tổng tiền
+                  </p>
+                  <span className="rounded-full bg-[#f59e0b]/30 px-3 py-1 text-xs font-black text-[#ffe270] border border-[#f59e0b]/60 shadow-xs whitespace-nowrap">
+                    {currency}
+                  </span>
+                </div>
+                <p className="vs-display text-3xl font-black text-[#ffe270] tracking-tight drop-shadow-md break-words mt-1">
+                  {formatMoney(computedTotal, currency)}
+                </p>
+              </div>
+
+              {/* Thân thẻ cuộn mượt bên trong */}
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3.5">
+                <dl className="space-y-2.5 text-xs sm:text-sm text-[#fff3d1]">
+                {/* Tiền phòng */}
+                <div className="flex justify-between items-center">
+                  <dt className="text-amber-100 font-bold text-xs sm:text-sm flex items-center gap-1">
+                    <span>🏨 Tiền phòng</span>
+                  </dt>
+                  <dd className="font-black text-sm sm:text-base text-white">
+                    {formatMoney(roomChargeTotal, currency)}
                   </dd>
                 </div>
-                {/* Preset chips tiền đưa (CHỈ 1 DÒNG DUY NHẤT) */}
-                <div className="flex flex-nowrap gap-1 justify-end overflow-x-auto no-scrollbar pt-0.5">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setCashGivenInput(formatNumberInput(computedTotal))
-                    }
-                    className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
-                  >
-                    Đủ tiền
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCashGivenInput(formatNumberInput(500000))}
-                    className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
-                  >
-                    500k
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setCashGivenInput(formatNumberInput(1000000))
-                    }
-                    className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap"
-                  >
-                    1 Triệu
-                  </button>
-                </div>
 
-                {/* Kết quả tiền thừa / thiếu */}
-                {parseFormattedNumber(cashGivenInput) > 0 ? (
-                  <div className="flex justify-between items-center rounded-xl bg-[#1c1204] p-2.5 border border-[#d4af37]/40 shadow-inner mt-1">
-                    <span className="text-xs sm:text-sm font-bold text-[#fce8b3]">
-                      {parseFormattedNumber(cashGivenInput) >= computedTotal
-                        ? "Tiền thừa trả khách:"
-                        : "Khách còn thiếu:"}
-                    </span>
-                    <span
-                      className={`text-sm sm:text-base font-black ${
-                        parseFormattedNumber(cashGivenInput) >= computedTotal
-                          ? "text-emerald-400"
-                          : "text-amber-400"
-                      }`}
-                    >
-                      {formatMoney(
-                        Math.abs(
-                          parseFormattedNumber(cashGivenInput) - computedTotal,
-                        ),
-                        currency,
-                      )}
-                    </span>
+                {roomRateComparison ? (
+                  <div className="space-y-1.5 rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/70 p-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <dt className="text-xs font-bold text-[#fce8b3]">Giá gốc tiền phòng</dt>
+                      <dd className="text-sm font-black text-white">
+                        {formatMoney(toNumber(roomRateComparison.baseSubtotal), currency)}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 border-t border-[#d4af37]/25 pt-1.5">
+                      <dt
+                        className={`text-xs font-extrabold ${
+                          roomRateDifference > 0
+                            ? "text-amber-300"
+                            : roomRateDifference < 0
+                              ? "text-emerald-300"
+                              : "text-[#fce8b3]"
+                        }`}
+                      >
+                        {roomRateDifference > 0
+                          ? "Tăng so với giá gốc"
+                          : roomRateDifference < 0
+                            ? "Giảm so với giá gốc"
+                            : "Không đổi so với giá gốc"}
+                      </dt>
+                      <dd
+                        className={`text-sm font-black ${
+                          roomRateDifference > 0
+                            ? "text-amber-300"
+                            : roomRateDifference < 0
+                              ? "text-emerald-300"
+                              : "text-white"
+                        }`}
+                      >
+                        {roomRateDifference > 0 ? "+" : roomRateDifference < 0 ? "−" : ""}
+                        {formatMoney(Math.abs(roomRateDifference), currency)}
+                      </dd>
+                    </div>
+                    <p className="text-xs text-[#fce8b3]">
+                      {roomRateComparison.direction === "UNCHANGED"
+                        ? `${estimatedRoomChargeData?.nights ?? 1} đêm cùng giá gốc.`
+                        : `${estimatedRoomChargeData?.nights ?? 1} đêm × ${formatMoney(
+                            Math.abs(toNumber(roomRateComparison.nightlyDifference)),
+                            currency,
+                          )} mỗi đêm.`}
+                    </p>
                   </div>
                 ) : null}
-              </div>
-            ) : null}
-          </dl>
 
-          {/* NÚT THAO TÁC CHÍNH Ở CUỐI CÙNG THẺ */}
-          {selectedFolio?.status === "CLOSED" ? (
-            <button
-              type="button"
-              onClick={async () => {
-                const invoiceId = getFolioInvoiceId(selectedFolio);
-                if (!invoiceId) {
-                  void SwalVietSage.fire({
-                    icon: "warning",
-                    title: "Chưa có mã hóa đơn",
-                    text: `Folio ${selectedFolio?.folioNumber ?? selectedFolio?.id} đã đóng nhưng chưa có thông tin hóa đơn.`,
-                    confirmButtonText: "Đã hiểu",
-                  });
-                  return;
-                }
-                const result = await showConfirmDialog({
-                  icon: "question",
-                  title: "Xuất hóa đơn?",
-                  text: "Hệ thống sẽ chuyển sang trang chi tiết để in và xuất hóa đơn.",
-                  confirmText: "Đồng ý",
-                  cancelText: "Hủy",
-                });
-                if (result.isConfirmed) {
-                  router.push(
-                    `/hotels/${encodeURIComponent(hotelId)}/billing/invoices/${encodeURIComponent(invoiceId)}`,
-                  );
-                }
-              }}
-              disabled={!selectedFolioId}
-              className="mt-4 w-full inline-flex h-13 items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-[#fbbf24] via-[#f59e0b] to-[#d97706] px-4 text-base sm:text-lg font-semibold text-[#1c1204] shadow-xl shadow-amber-950/60 transition hover:from-[#f59e0b] hover:to-[#b45309] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
-            >
-              <VsIcon name="description" className="text-xl" />
-              Xem & Xuất hóa đơn
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => void issueInvoiceAndCollect()}
-              disabled={
-                !selectedFolioId ||
-                !canManage ||
-                saving ||
-                !isCashSettlementAllowed(cashGivenInput, computedTotal)
-              }
-              className="mt-4 w-full inline-flex h-13 items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-[#fbbf24] via-[#f59e0b] to-[#d97706] px-4 text-base sm:text-lg font-semibold text-[#1c1204] shadow-xl shadow-amber-950/60 transition hover:from-[#f59e0b] hover:to-[#b45309] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
-            >
-              <VsIcon
-                name={saving ? "sync" : "payments"}
-                className={`text-xl ${saving ? "animate-spin" : ""}`}
-              />
-              {saving ? "Đang xử lý checkout..." : "Phát hành & Thu tiền"}
-            </button>
-          )}
-        </div>
-      </aside>
-    </div>
-  );
+                {/* Dịch vụ khách sạn (Internal) */}
+                <div className="flex justify-between items-center">
+                  <dt className="text-amber-100 font-bold text-xs sm:text-sm flex items-center gap-1">
+                    <span>🔔 Dịch vụ khách sạn</span>
+                  </dt>
+                  <dd className="font-black text-sm sm:text-base text-white">
+                    {formatMoney(hotelServiceChargeTotal, currency)}
+                  </dd>
+                </div>
+
+                {/* Thu hộ dịch vụ bên ngoài */}
+                {externalServiceCollectionTotal > 0 ? (
+                  <div className="space-y-1 rounded-xl bg-purple-950/40 p-2 border border-purple-400/40">
+                    <div className="flex justify-between items-center">
+                      <dt className="text-purple-200 font-extrabold text-xs flex items-center gap-1.5">
+                        <span className="rounded-md bg-purple-500/30 px-1.5 py-0.5 text-xs text-purple-200 whitespace-nowrap">
+                          🤝 Thu hộ đối tác
+                        </span>
+                        <span className="truncate">Dịch vụ bên ngoài</span>
+                      </dt>
+                      <dd className="font-black text-sm text-purple-200 whitespace-nowrap">
+                        {formatMoney(externalServiceCollectionTotal, currency)}
+                      </dd>
+                    </div>
+                    <p className="text-xs text-purple-300 font-semibold">
+                      (Thu hộ đối tác — Không ghi nhận vào doanh thu khách sạn)
+                    </p>
+                  </div>
+                ) : null}
+
+                {/* Phụ thu đã ghi nhận trong folio */}
+                {manualChargeTotal > 0 ? (
+                  <div className="flex justify-between items-center">
+                    <dt className="text-amber-100 font-bold text-xs sm:text-sm flex items-center gap-1">
+                      <span>⚡ Phụ thu đã thêm</span>
+                    </dt>
+                    <dd className="font-black text-sm sm:text-base text-amber-300">
+                      +{formatMoney(manualChargeTotal, currency)}
+                    </dd>
+                  </div>
+                ) : null}
+
+                {/* Tạm tính */}
+                <div className="flex justify-between items-center border-t border-[#d4af37]/20 pt-2">
+                  <dt className="text-amber-200 font-extrabold text-xs sm:text-sm">
+                    Tổng tạm tính
+                  </dt>
+                  <dd className="font-black text-sm sm:text-base text-[#ffe270]">
+                    {formatMoney(subtotal, currency)}
+                  </dd>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <dt className="text-amber-100 font-bold text-xs sm:text-sm">
+                    Thuế GTGT
+                  </dt>
+                  <dd className="font-black text-sm sm:text-base text-white">
+                    {formatMoney(tax, currency)}
+                  </dd>
+                </div>
+
+                {/* Giảm giá đã áp dụng trong folio */}
+                {existingDiscountTotal > 0 ? (
+                  <div className="flex justify-between items-center border-t border-[#d4af37]/20 pt-2">
+                    <dt className="text-emerald-300 font-extrabold text-xs sm:text-sm flex items-center gap-1">
+                      <span>🏷️ Giảm giá đã áp dụng</span>
+                    </dt>
+                    <dd className="font-black text-sm sm:text-base text-emerald-400">
+                      -{formatMoney(existingDiscountTotal, currency)}
+                    </dd>
+                  </div>
+                ) : null}
+
+                {/* Khi folio đã đóng */}
+                {selectedFolio?.status === "CLOSED" ? (
+                  <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/60 p-3 text-center space-y-1">
+                    <div className="flex items-center justify-center gap-1.5 text-xs font-black text-emerald-400">
+                      <VsIcon name="check_circle" className="text-base" />
+                      <span>Folio đã hoàn tất thanh toán &amp; đóng</span>
+                    </div>
+                    <p className="text-xs text-emerald-300/80">
+                      Hóa đơn đã được phát hành. Bấm nút bên dưới để xem hoặc in lại hóa đơn.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Phụ thu (Tăng giá) */}
+                    <div className="space-y-1.5 border-t border-[#d4af37]/25 pt-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <dt className="text-amber-100 font-extrabold text-xs sm:text-sm min-w-0 truncate">
+                          Phụ thu (Tăng giá)
+                        </dt>
+                        <dd className="flex-1 min-w-0 max-w-[150px] shrink-0">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={surchargeInput}
+                            onChange={(e) =>
+                              setSurchargeInput(
+                                formatNumberOrPercentInput(e.target.value),
+                              )
+                            }
+                            placeholder="0 hoặc 10%"
+                            className="h-9 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-2.5 py-1 text-right text-sm font-black text-[#ffe270] placeholder-[#ffe270]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] shadow-inner"
+                          />
+                        </dd>
+                      </div>
+
+                      {canManage ? (
+                        <input
+                          type="text"
+                          value={surchargeNote}
+                          onChange={(e) => setSurchargeNote(e.target.value)}
+                          placeholder="Lý do phụ thu (nhận phòng sớm, phụ thu người ở...)"
+                          className="h-8 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-2.5 py-1 text-xs font-medium text-[#ffe270] placeholder-[#ffe270]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
+                        />
+                      ) : null}
+
+                      {surchargeParsed.isPercentage && surchargeParsed.amount > 0 ? (
+                        <p className="text-xs font-bold text-right text-[#ffe270]">
+                          ⚡ Quy đổi {surchargeParsed.percentage}% Tạm tính: +
+                          {formatMoney(surchargeParsed.amount, currency)}
+                        </p>
+                      ) : null}
+
+                      {canManage ? (
+                        <div className="flex flex-nowrap gap-1 justify-end overflow-x-auto no-scrollbar pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSurchargeInput("5%");
+                              if (!surchargeNote) setSurchargeNote("Phụ thu 5%");
+                            }}
+                            className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                          >
+                            +5%
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSurchargeInput("10%");
+                              if (!surchargeNote) setSurchargeNote("Phụ thu 10%");
+                            }}
+                            className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                          >
+                            +10%
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSurchargeInput(formatNumberInput("50000"));
+                              setSurchargeNote("Phụ thu nhận phòng sớm");
+                            }}
+                            className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                          >
+                            +50k Sớm
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSurchargeInput(formatNumberInput("100000"));
+                              setSurchargeNote("Phụ thu trả phòng muộn");
+                            }}
+                            className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                          >
+                            +100k Muộn
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {/* Giảm giá */}
+                    <div className="space-y-1.5 border-t border-[#d4af37]/25 pt-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <dt className="text-amber-100 font-extrabold text-xs sm:text-sm min-w-0 truncate">
+                          Giảm giá
+                        </dt>
+                        <dd className="flex-1 min-w-0 max-w-[150px] shrink-0">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={discountInput}
+                            onChange={(e) =>
+                              setDiscountInput(
+                                formatNumberOrPercentInput(e.target.value),
+                              )
+                            }
+                            placeholder="0 hoặc 10%"
+                            className="h-9 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-2.5 py-1 text-right text-sm font-black text-[#fef08a] placeholder-[#fef08a]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] shadow-inner"
+                          />
+                        </dd>
+                      </div>
+
+                      {canManage ? (
+                        <input
+                          type="text"
+                          value={discountNote}
+                          onChange={(e) => setDiscountNote(e.target.value)}
+                          placeholder="Lý do giảm giá (khách thân thiết, ưu đãi đặc biệt...)"
+                          className="h-8 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-2.5 py-1 text-xs font-medium text-[#fef08a] placeholder-[#fef08a]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
+                        />
+                      ) : null}
+
+                      {discountParsed.isPercentage && discountParsed.amount > 0 ? (
+                        <p className="text-xs font-bold text-right text-[#fef08a]">
+                          ⚡ Quy đổi {discountParsed.percentage}% Tạm tính: -
+                          {formatMoney(discountParsed.amount, currency)}
+                        </p>
+                      ) : null}
+
+                      {canManage ? (
+                        <div className="flex flex-nowrap gap-1 justify-end overflow-x-auto no-scrollbar pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDiscountInput("5%");
+                              setDiscountNote("Giảm giá 5% Khách VIP");
+                            }}
+                            className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                          >
+                            -5% VIP
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDiscountInput("10%");
+                              setDiscountNote("Giảm giá 10% Khách VIP");
+                            }}
+                            className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                          >
+                            -10% VIP
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDiscountInput("15%");
+                              setDiscountNote("Ưu đãi voucher -15%");
+                            }}
+                            className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                          >
+                            -15% Voucher
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </>
+                )}
+
+                {/* Hỗ trợ phương thức thanh toán */}
+                {selectedFolio?.status !== "CLOSED" ? (
+                  <div className="space-y-2 border-t border-[#d4af37]/25 pt-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <dt className="text-amber-100 font-extrabold text-xs uppercase tracking-wider min-w-0">
+                        Nguồn tiền đối soát
+                      </dt>
+                      <dd className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setCheckoutPaymentMethod("CASH")}
+                          className={`rounded-lg px-2 py-1 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                            checkoutPaymentMethod === "CASH"
+                              ? "bg-[#d4af37] text-slate-950 font-black shadow-xs"
+                              : "bg-[#1c1204] text-[#ffe270] border border-[#d4af37]/40 hover:bg-[#d4af37]/20"
+                          }`}
+                        >
+                          💵 TM
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCheckoutPaymentMethod("BANK_TRANSFER")}
+                          className={`rounded-lg px-2 py-1 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                            checkoutPaymentMethod === "BANK_TRANSFER"
+                              ? "bg-[#d4af37] text-slate-950 font-black shadow-xs"
+                              : "bg-[#1c1204] text-[#ffe270] border border-[#d4af37]/40 hover:bg-[#d4af37]/20"
+                          }`}
+                        >
+                          🏦 CK
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCheckoutPaymentMethod("CARD")}
+                          className={`rounded-lg px-2 py-1 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                            checkoutPaymentMethod === "CARD"
+                              ? "bg-[#d4af37] text-slate-950 font-black shadow-xs"
+                              : "bg-[#1c1204] text-[#ffe270] border border-[#d4af37]/40 hover:bg-[#d4af37]/20"
+                          }`}
+                        >
+                          💳 Thẻ
+                        </button>
+                      </dd>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2">
+                      <dt className="text-amber-100 font-extrabold text-xs sm:text-sm min-w-0 truncate">
+                        {checkoutPaymentMethod === "CASH"
+                          ? "Nhận tiền mặt"
+                          : checkoutPaymentMethod === "BANK_TRANSFER"
+                          ? "Tiền chuyển khoản"
+                          : "Tiền quẹt thẻ"}
+                      </dt>
+                      <dd className="flex-1 min-w-0 max-w-[150px] shrink-0">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={cashGivenInput}
+                          onChange={(e) =>
+                            setCashGivenInput(formatNumberInput(e.target.value))
+                          }
+                          placeholder="0"
+                          className="h-9 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-2.5 py-1 text-right text-sm font-black text-[#ffe270] placeholder-[#ffe270]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] shadow-inner"
+                        />
+                      </dd>
+                    </div>
+
+                    {/* Preset chips tiền đưa */}
+                    <div className="flex flex-nowrap gap-1 justify-end overflow-x-auto no-scrollbar pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCashGivenInput(formatNumberInput(computedTotal))
+                        }
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                      >
+                        Đủ tiền
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCashGivenInput(formatNumberInput(500000))}
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                      >
+                        500k
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCashGivenInput(formatNumberInput(1000000))
+                        }
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                      >
+                        1 Triệu
+                      </button>
+                    </div>
+
+                    {/* Kết quả tiền thừa / thiếu */}
+                    {parseFormattedNumber(cashGivenInput) > 0 ? (
+                      <div className="flex justify-between items-center rounded-xl bg-[#1c1204] p-2.5 border border-[#d4af37]/40 shadow-inner mt-1">
+                        <span className="text-xs font-bold text-[#fce8b3]">
+                          {parseFormattedNumber(cashGivenInput) >= computedTotal
+                            ? "Tiền thừa trả khách:"
+                            : "Khách còn thiếu:"}
+                        </span>
+                        <span
+                          className={`text-sm font-black ${
+                            parseFormattedNumber(cashGivenInput) >= computedTotal
+                              ? "text-emerald-400"
+                              : "text-amber-400"
+                          }`}
+                        >
+                          {formatMoney(
+                            Math.abs(
+                              parseFormattedNumber(cashGivenInput) - computedTotal,
+                            ),
+                            currency,
+                          )}
+                        </span>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </dl>
+            </div>
+
+            {/* Chân ghim cố định cho nút thao tác chính (Sticky Action Footer) */}
+            <div className="shrink-0 border-t border-[#d4af37]/40 bg-[#140c03] p-3 shadow-[0_-4px_16px_rgba(0,0,0,0.5)]">
+              {selectedFolio?.status === "CLOSED" ? (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const invoiceId = getFolioInvoiceId(selectedFolio);
+                    if (!invoiceId) {
+                      void SwalVietSage.fire({
+                        icon: "warning",
+                        title: "Chưa có mã hóa đơn",
+                        text: `Folio ${selectedFolio?.folioNumber ?? selectedFolio?.id} đã đóng nhưng chưa có thông tin hóa đơn.`,
+                        confirmButtonText: "Đã hiểu",
+                      });
+                      return;
+                    }
+                    const result = await showConfirmDialog({
+                      icon: "question",
+                      title: "Xuất hóa đơn?",
+                      text: "Hệ thống sẽ chuyển sang trang chi tiết để in và xuất hóa đơn.",
+                      confirmText: "Đồng ý",
+                      cancelText: "Hủy",
+                    });
+                    if (result.isConfirmed) {
+                      router.push(
+                        `/hotels/${encodeURIComponent(hotelId)}/billing/invoices/${encodeURIComponent(invoiceId)}`,
+                      );
+                    }
+                  }}
+                  disabled={!selectedFolioId}
+                  className="w-full inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#fbbf24] via-[#f59e0b] to-[#d97706] px-4 text-sm sm:text-base font-black text-[#1c1204] shadow-xl shadow-amber-950/60 transition hover:from-[#f59e0b] hover:to-[#b45309] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+                >
+                  <VsIcon name="description" className="text-xl" />
+                  Xem &amp; Xuất hóa đơn
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void issueInvoiceAndCollect()}
+                  disabled={
+                    !selectedFolioId ||
+                    !canManage ||
+                    saving ||
+                    !isCashSettlementAllowed(cashGivenInput, computedTotal)
+                  }
+                  className="w-full inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#fbbf24] via-[#f59e0b] to-[#d97706] px-4 text-sm sm:text-base font-black text-[#1c1204] shadow-xl shadow-amber-950/60 transition hover:from-[#f59e0b] hover:to-[#b45309] active:scale-[0.99] disabled:opacity-50 cursor-pointer text-balance"
+                >
+                  <VsIcon
+                    name={saving ? "sync" : "payments"}
+                    className={`text-xl ${saving ? "animate-spin" : ""}`}
+                  />
+                  {saving ? "Đang xử lý checkout..." : "Thanh toán & Trả phòng"}
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </aside>
+  </div>
+);
 }

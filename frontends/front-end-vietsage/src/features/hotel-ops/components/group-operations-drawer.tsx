@@ -42,6 +42,9 @@ export type GroupRoomItem = {
   stayId: string | null;
   activeStayId?: string | null;
   updatedAt?: string | null;
+  roomStatus?: string | null;
+  hasQr?: boolean;
+  qrStatus?: string | null;
 };
 
 export type GroupRoomEntry = GroupRoomItem;
@@ -67,6 +70,15 @@ export function buildGroupRoomItems(params: {
   for (const arr of initialArrivals) {
     if (arr.groupCode?.trim().toUpperCase() === activeGroupCode.trim().toUpperCase()) {
       const initialActiveStayId = arr.activeStayId ?? undefined;
+      const arrRoom = arr.room as any;
+      const roomStatus = arrRoom?.status || arrRoom?.physicalStatus || null;
+      const qrStatus = arrRoom?.qr?.status || arrRoom?.qrStatus || null;
+      const hasQr = arrRoom?.qr
+        ? arrRoom.qr.status !== "REVOKED"
+        : arrRoom?.qrStatus
+          ? arrRoom.qrStatus !== "REVOKED"
+          : true;
+
       map.set(arr.id, {
         reservationId: arr.id,
         reservationCode: arr.reservationCode,
@@ -84,6 +96,9 @@ export function buildGroupRoomItems(params: {
         stayId: initialActiveStayId ?? null,
         activeStayId: initialActiveStayId,
         updatedAt: arr.updatedAt || null,
+        roomStatus,
+        hasQr,
+        qrStatus,
       });
     }
   }
@@ -92,6 +107,15 @@ export function buildGroupRoomItems(params: {
   for (const item of fetchedArrivals) {
     const existing = map.get(item.id);
     const resolvedActiveStayId = item.activeStayId ?? existing?.activeStayId ?? undefined;
+    const itemRoom = item.room as any;
+    const roomStatus = itemRoom?.status || itemRoom?.physicalStatus || existing?.roomStatus || null;
+    const qrStatus = itemRoom?.qr?.status || itemRoom?.qrStatus || existing?.qrStatus || null;
+    const hasQr = itemRoom?.qr
+      ? itemRoom.qr.status !== "REVOKED"
+      : itemRoom?.qrStatus
+        ? itemRoom.qrStatus !== "REVOKED"
+        : existing?.hasQr ?? true;
+
     map.set(item.id, {
       reservationId: item.id,
       reservationCode: item.reservationCode,
@@ -110,11 +134,35 @@ export function buildGroupRoomItems(params: {
       stayId: resolvedActiveStayId ?? existing?.stayId ?? null,
       activeStayId: item.activeStayId ?? existing?.activeStayId ?? undefined,
       updatedAt: item.updatedAt || existing?.updatedAt || null,
+      roomStatus,
+      hasQr,
+      qrStatus,
     });
   }
 
   // Fallback enrichment from rooms list in case activeStayId was not yet populated
   for (const room of rooms) {
+    const qrStatus = room.qr?.status || room.qrStatus || null;
+    const hasQr = room.qr
+      ? room.qr.status !== "REVOKED"
+      : room.qrStatus
+        ? room.qrStatus !== "REVOKED"
+        : true;
+
+    for (const item of map.values()) {
+      if (item.roomId === room.id || (room.roomNumber && item.roomNumber === room.roomNumber)) {
+        item.roomId = room.id;
+        item.roomNumber = room.roomNumber || item.roomNumber;
+        item.floor = room.floor || item.floor;
+        item.roomType = room.type || room.roomTypeName || item.roomType;
+        item.roomStatus = room.status || room.physicalStatus || item.roomStatus;
+        item.qrStatus = qrStatus ?? item.qrStatus;
+        if (room.qr || room.qrStatus) {
+          item.hasQr = hasQr;
+        }
+      }
+    }
+
     if (room.activeStay?.reservationCode) {
       for (const item of map.values()) {
         if (item.reservationCode === room.activeStay.reservationCode) {
@@ -125,6 +173,11 @@ export function buildGroupRoomItems(params: {
           item.roomNumber = room.roomNumber || item.roomNumber;
           item.floor = room.floor || item.floor;
           item.roomType = room.type || room.roomTypeName || item.roomType;
+          item.roomStatus = room.status || room.physicalStatus || item.roomStatus;
+          item.qrStatus = qrStatus ?? item.qrStatus;
+          if (room.qr || room.qrStatus) {
+            item.hasQr = hasQr;
+          }
         }
       }
     }
@@ -140,6 +193,11 @@ export function buildGroupRoomItems(params: {
         existing.roomNumber = room.roomNumber || existing.roomNumber;
         existing.floor = room.floor || existing.floor;
         existing.roomType = room.type || room.roomTypeName || existing.roomType;
+        existing.roomStatus = room.status || room.physicalStatus || existing.roomStatus;
+        existing.qrStatus = qrStatus ?? existing.qrStatus;
+        if (room.qr || room.qrStatus) {
+          existing.hasQr = hasQr;
+        }
       } else {
         map.set(resId, {
           reservationId: resId,
@@ -160,6 +218,9 @@ export function buildGroupRoomItems(params: {
           stayId: null,
           activeStayId: undefined,
           updatedAt: room.projectedReservation.updatedAt || null,
+          roomStatus: room.status || room.physicalStatus || null,
+          qrStatus: qrStatus ?? null,
+          hasQr,
         });
       }
     }

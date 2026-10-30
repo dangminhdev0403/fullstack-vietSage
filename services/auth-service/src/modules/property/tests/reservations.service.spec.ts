@@ -162,6 +162,7 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
         },
       ],
     }),
+    updateReservation: jest.fn().mockResolvedValue(null),
     ...overrides,
   };
 }
@@ -1174,6 +1175,87 @@ describe("ReservationsService front-desk lifecycle", () => {
       await expect(
         service.getGroupConfirmation("actor-1", "active-role", "hotel-cross", "GRP_TOUR_01"),
       ).rejects.toThrow("Đoàn đặt phòng không thuộc khách sạn này");
+    });
+  });
+
+  describe("updateReservation and getReservation lifecycle", () => {
+    it("updates reservation guest info, room, dates, and rate", async () => {
+      const mockUpdated = {
+        id: "reservation-1",
+        hotelId: "hotel-1",
+        guestDisplayName: "Tran Thi B",
+        guestPhone: "0908888888",
+        guestCount: 2,
+        notes: "Yeu cau phong yen tinh",
+        roomId: "room-2",
+        status: "ARRIVAL_READY",
+      };
+      const repo = createRepository({
+        updateReservation: jest.fn().mockResolvedValue(mockUpdated),
+      });
+      const { service } = createService(repo);
+
+      const result = await service.updateReservation(
+        "actor-1",
+        "active-role",
+        "hotel-1",
+        "reservation-1",
+        {
+          guestDisplayName: "Tran Thi B",
+          guestPhone: "0908888888",
+          guestCount: 2,
+          notes: "Yeu cau phong yen tinh",
+          roomId: "room-2",
+        },
+      );
+
+      expect(result).toEqual(mockUpdated);
+      expect(repo.updateReservation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          hotelId: "hotel-1",
+          reservationId: "reservation-1",
+          guestDisplayName: "Tran Thi B",
+          guestPhone: "0908888888",
+          guestCount: 2,
+          notes: "Yeu cau phong yen tinh",
+          roomId: "room-2",
+        }),
+      );
+    });
+
+    it("retrieves full reservation details by id", async () => {
+      const mockRes = {
+        id: "reservation-1",
+        hotelId: "hotel-1",
+        guestDisplayName: "Nguyen Van A",
+        room: { roomNumber: "101" },
+        chargeLines: [],
+      };
+      const repo = createRepository({
+        findReservationById: jest.fn().mockResolvedValue(mockRes),
+      });
+      const { service } = createService(repo);
+
+      const result = await service.getReservation(
+        "actor-1",
+        "active-role",
+        "hotel-1",
+        "reservation-1",
+      );
+
+      expect(result).toEqual(mockRes);
+      expect(repo.findReservationById).toHaveBeenCalledWith("hotel-1", "reservation-1");
+    });
+
+    it("throws NotFoundException when reservation is not found", async () => {
+      const repo = createRepository({
+        findReservationById: jest.fn().mockResolvedValue(null),
+      });
+      const { service } = createService(repo);
+
+      await expect(
+        service.getReservation("actor-1", "active-role", "hotel-1", "res-nonexistent"),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

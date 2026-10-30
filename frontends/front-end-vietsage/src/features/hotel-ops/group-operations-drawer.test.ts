@@ -22,6 +22,14 @@ const groupsTableSource = readFileSync(
   new URL("../../app/(vietsage)/hotels/[hotelId]/front-desk/front-desk-groups-table.tsx", import.meta.url),
   "utf8",
 );
+const groupListModalSource = readFileSync(
+  new URL("./components/group-arrivals-list-modal.tsx", import.meta.url),
+  "utf8",
+);
+const staffRoomsClientSource = readFileSync(
+  new URL("../../app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx", import.meta.url),
+  "utf8",
+);
 
 test("GroupOperationsDrawer enforces dialog accessibility, focus management, and touch targets", () => {
   // Modal / dialog accessibility attributes
@@ -125,4 +133,18 @@ test("FrontDeskPage has horizontal tab 'Quản lý đoàn' and FrontDeskGroupsTa
   assert.match(groupsTableSource, /setActiveGroupCode\(group\.groupCode\)/);
   assert.match(groupsTableSource, /<GroupOperationsDrawer/);
   assert.match(groupsTableSource, /Xem chi tiết đoàn/);
+});
+
+test("GroupArrivalsListModal renders pre-booked groups with pagination and triggers group check-in", () => {
+  // Modal layout, accessibility, and pagination
+  assert.match(groupListModalSource, /export function GroupArrivalsListModal/);
+  assert.match(groupListModalSource, /buildFrontDeskGroupSummaries/);
+  assert.match(groupListModalSource, /ITEMS_PER_PAGE/);
+  assert.match(groupListModalSource, /Danh sách đoàn đặt trước/);
+  assert.match(groupListModalSource, /onSelectGroup/);
+  assert.match(groupListModalSource, /Check-in đoàn/);
+
+  // Wired into StaffRoomsClient
+  assert.match(staffRoomsClientSource, /<GroupArrivalsListModal/);
+  assert.match(staffRoomsClientSource, /isGroupListModalOpen/);
 });

@@ -26,6 +26,73 @@ const cellInputClass =
 const cellSelectClass =
   "h-10 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm sm:text-base font-semibold text-slate-900 shadow-2xs outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100";
 
+export function formatVnDateInput(raw: string, prev: string = ""): string {
+  if (!raw) return "";
+
+  // 1. Single character backspace over trailing slash (e.g. prev was "22/" and raw is "22")
+  // Automatically remove preceding digit so user never gets trapped in slash re-addition
+  if (prev.length - raw.length === 1 && prev.endsWith("/") && raw === prev.slice(0, -1)) {
+    return raw.slice(0, -1);
+  }
+
+  // 2. If user pasted or typed ISO date (YYYY-MM-DD)
+  const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(raw.trim());
+  if (isoMatch) {
+    const [, y, m, d] = isoMatch;
+    return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`;
+  }
+
+  // 3. Normalize separators (. or - to /)
+  const normalized = raw.replace(/[.\-]/g, "/");
+
+  // 4. If user manually typed slash after 1-digit day or 1-digit month: e.g. "5/" -> "05/", "22/3/" -> "22/03/"
+  const slashParts = normalized.split("/");
+  if (slashParts.length === 2 && slashParts[0].length === 1 && normalized.endsWith("/")) {
+    return `0${slashParts[0]}/`;
+  }
+  if (slashParts.length === 3 && slashParts[1].length === 1 && normalized.endsWith("/")) {
+    return `${slashParts[0]}/0${slashParts[1]}/`;
+  }
+
+  // 5. Extract all numeric digits (max 8 digits for DDMMYYYY)
+  const digits = normalized.replace(/\D/g, "").slice(0, 8);
+  if (!digits) return "";
+
+  // Single digit: if >= 4 (cannot be first digit of a 31-day month day), auto-prefix 0
+  if (digits.length === 1) {
+    const d1 = Number(digits);
+    if (d1 >= 4) return `0${digits}/`;
+    return digits;
+  }
+
+  // Exactly 2 digits: auto-append slash for day
+  if (digits.length === 2) {
+    return `${digits}/`;
+  }
+
+  // 3 digits: check if 3rd digit is month first digit
+  if (digits.length === 3) {
+    const day = digits.slice(0, 2);
+    const m1 = Number(digits[2]);
+    // Month cannot start with 2..9 (max 12), so auto-prefix 0 for month
+    if (m1 >= 2) return `${day}/0${m1}/`;
+    return `${day}/${digits[2]}`;
+  }
+
+  // 4 digits: day + month -> auto-append slash
+  if (digits.length === 4) {
+    const day = digits.slice(0, 2);
+    const month = digits.slice(2, 4);
+    return `${day}/${month}/`;
+  }
+
+  // 5 to 8 digits (day + month + year)
+  const day = digits.slice(0, 2);
+  const month = digits.slice(2, 4);
+  const year = digits.slice(4, 8);
+  return `${day}/${month}/${year}`;
+}
+
 export function toDisplayVnDate(str?: string): string {
   if (!str) return "";
   const t = str.trim();
@@ -123,30 +190,28 @@ function VnDateInput({
   }, [value]);
 
   const handleTextChange = (raw: string) => {
-    // Clean unwanted characters, permit digits, slashes, hyphens
-    let cleaned = raw.replace(/[^\d/-]/g, "").replace(/[-]/g, "/").replace(/\/+/g, "/");
+    const formatted = formatVnDateInput(raw, textVal);
+    setTextVal(formatted);
 
-    // Natural formatting if user types digits only without slash
-    if (!raw.includes("/") && !raw.includes("-")) {
-      const digits = raw.replace(/\D/g, "");
-      if (digits.length >= 4) {
-        cleaned = `${digits.slice(0, 2)}/${digits.slice(2, 4)}${digits.length > 4 ? `/${digits.slice(4, 8)}` : ""}`;
-      } else if (digits.length >= 2) {
-        cleaned = `${digits.slice(0, 2)}/${digits.slice(2)}`;
-      }
-    }
-
-    setTextVal(cleaned);
-
-    const iso = toIsoDate(cleaned);
+    const iso = toIsoDate(formatted);
     if (iso) {
       onChange(iso);
-    } else if (!cleaned.trim()) {
+    } else if (!formatted.trim()) {
       onChange("");
+    } else {
+      onChange(formatted);
     }
   };
 
   const handleBlur = () => {
+    const digitsOnly = textVal.replace(/\D/g, "");
+    if (digitsOnly.length === 4 && Number(digitsOnly) >= 1900 && Number(digitsOnly) <= new Date().getFullYear()) {
+      const year = Number(digitsOnly);
+      const iso = `${year}-01-01`;
+      setTextVal(`01/01/${year}`);
+      onChange(iso);
+      return;
+    }
     const iso = toIsoDate(textVal);
     if (iso) {
       setTextVal(toDisplayVnDate(iso));

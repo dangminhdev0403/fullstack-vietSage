@@ -8,6 +8,7 @@ import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { staffRoomsRepository } from "@/features/hotel-ops/repositories/staff-rooms-repository";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
+import { buildFrontDeskGroupSummaries } from "@/features/hotel-ops/utils/front-desk-groups";
 import type {
   HotelArrival,
   HotelRoomSummary,
@@ -26,11 +27,14 @@ export type DailyMovementsModalProps = {
   hotelId: string;
   businessDate?: string | null;
   todayYmd: string;
-  initialTab?: "arrivals" | "departures";
+  initialTab?: "arrivals" | "departures" | "groups";
   rooms: HotelRoomSummary[];
   arrivalsList: HotelArrival[];
   onRefreshData: () => Promise<void>;
   onCheckInArrival: (arrival: HotelArrival) => void | Promise<void>;
+  onCheckInGroup?: (groupCode: string) => void;
+  onOpenGroupDetail?: (groupCode: string) => void;
+  onPrintGroupConfirmation?: (groupCode: string) => void;
   onCheckOutStay?: (room: HotelRoomSummary, stay: HotelStaySummary) => void | Promise<void>;
   onExtendStay?: (room: HotelRoomSummary) => void | Promise<void>;
   onOpenRoomDetail?: (room: HotelRoomSummary) => void;
@@ -43,9 +47,12 @@ export type DailyMovementsModalProps = {
   canCheckoutBilling?: boolean;
 };
 
-type MovementTab = "arrivals" | "departures";
+type MovementTab = "arrivals" | "departures" | "groups";
 type ArrivalFilter = "all" | "unassigned" | "assigned" | "checked_in";
 type DepartureFilter = "all" | "due_today" | "overdue" | "checked_out";
+type GroupFilter = "all" | "ready" | "partial" | "completed";
+
+const GROUPS_PER_PAGE = 10;
 
 export type DepartureItem = {
   room: HotelRoomSummary;
@@ -120,6 +127,9 @@ export function DailyMovementsModal({
   arrivalsList,
   onRefreshData,
   onCheckInArrival,
+  onCheckInGroup,
+  onOpenGroupDetail,
+  onPrintGroupConfirmation,
   onCheckOutStay,
   onExtendStay,
   onOpenRoomDetail,
@@ -138,6 +148,8 @@ export function DailyMovementsModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [arrivalFilter, setArrivalFilter] = useState<ArrivalFilter>("all");
   const [departureFilter, setDepartureFilter] = useState<DepartureFilter>("all");
+  const [groupFilter, setGroupFilter] = useState<GroupFilter>("all");
+  const [groupPage, setGroupPage] = useState(1);
   const [isAutoCheckInAfterAssign, setIsAutoCheckInAfterAssign] = useState(false);
 
   // Sub-dialog states
@@ -152,6 +164,8 @@ export function DailyMovementsModal({
       setSearchQuery("");
       setArrivalFilter("all");
       setDepartureFilter("all");
+      setGroupFilter("all");
+      setGroupPage(1);
       setIsAutoCheckInAfterAssign(false);
     }
   }, [isOpen, initialTab]);
@@ -240,6 +254,38 @@ export function DailyMovementsModal({
       return guestName.includes(q) || phone.includes(q) || roomNum.includes(q);
     });
   }, [targetDepartures, departureFilter, searchQuery]);
+
+  // Group summaries from pre-booked arrivals
+  const groupSummaries = useMemo(() => buildFrontDeskGroupSummaries(arrivalsList), [arrivalsList]);
+
+  const filteredGroups = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return groupSummaries.filter((g) => {
+      const isCompleted = g.checkedInRooms === g.totalRooms;
+      const isPartial = g.checkedInRooms > 0 && !isCompleted;
+      const isReady = !isCompleted && g.checkedInRooms === 0 && g.arrivingRooms > 0;
+      if (groupFilter === "ready" && !isReady) return false;
+      if (groupFilter === "partial" && !isPartial) return false;
+      if (groupFilter === "completed" && !isCompleted) return false;
+
+      if (!q) return true;
+      return (
+        g.groupCode.toLowerCase().includes(q) ||
+        g.leadGuestName.toLowerCase().includes(q) ||
+        Boolean(g.leadGuestPhone?.toLowerCase().includes(q)) ||
+        g.assignedRoomNumbers.some((num) => num.toLowerCase().includes(q))
+      );
+    });
+  }, [groupSummaries, groupFilter, searchQuery]);
+
+  useEffect(() => {
+    setGroupPage(1);
+  }, [groupFilter, searchQuery]);
+
+  const groupTotalPages = Math.max(1, Math.ceil(filteredGroups.length / GROUPS_PER_PAGE));
+  const safeGroupPage = Math.min(groupPage, groupTotalPages);
+  const groupStartIndex = (safeGroupPage - 1) * GROUPS_PER_PAGE;
+  const pagedGroups = filteredGroups.slice(groupStartIndex, groupStartIndex + GROUPS_PER_PAGE);
 
   // Handle Quick Check-In
   const handleQuickCheckIn = useCallback(
@@ -396,6 +442,21 @@ export function DailyMovementsModal({
                     {targetDepartures.length}
                   </span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("groups")}
+                  className={`inline-flex h-full items-center gap-2 rounded-lg px-3.5 text-xs sm:text-sm font-bold transition cursor-pointer whitespace-nowrap ${
+                    activeTab === "groups"
+                      ? "bg-white text-purple-900 shadow-xs font-black border border-slate-200"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                  }`}
+                >
+                  <VsIcon name="groups" className="text-base text-purple-600" />
+                  <span>Đoàn khách</span>
+                  <span className="rounded-full bg-purple-100 text-purple-800 px-2 py-0.5 text-xs font-black">
+                    {groupSummaries.length}
+                  </span>
+                </button>
               </div>
 
               {/* Search & Status Filters */}
@@ -412,7 +473,9 @@ export function DailyMovementsModal({
                     placeholder={
                       activeTab === "arrivals"
                         ? "Tìm tên khách, SĐT, số phòng, mã đặt..."
-                        : "Tìm tên khách, số phòng, SĐT..."
+                        : activeTab === "groups"
+                          ? "Tìm mã đoàn, trưởng đoàn, SĐT, số phòng..."
+                          : "Tìm tên khách, số phòng, SĐT..."
                     }
                     className="h-10 w-full rounded-xl border border-slate-300 pl-9 pr-3 text-xs sm:text-sm font-semibold text-slate-800 focus:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                   />
@@ -437,6 +500,17 @@ export function DailyMovementsModal({
                     <option value="unassigned">Chưa gán phòng</option>
                     <option value="assigned">Đã gán phòng</option>
                     <option value="checked_in">Đã nhận phòng (IN)</option>
+                  </select>
+                ) : activeTab === "groups" ? (
+                  <select
+                    value={groupFilter}
+                    onChange={(e) => setGroupFilter(e.target.value as GroupFilter)}
+                    className="h-10 rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs focus:border-sky-600 focus:outline-none"
+                  >
+                    <option value="all">Tất cả đoàn</option>
+                    <option value="ready">Chờ nhận phòng</option>
+                    <option value="partial">Đang nhận dở</option>
+                    <option value="completed">Đã nhận đủ phòng</option>
                   </select>
                 ) : (
                   <select
@@ -580,6 +654,167 @@ export function DailyMovementsModal({
                         })}
                       </tbody>
                     </table>
+                  </div>
+                )
+              ) : activeTab === "groups" ? (
+                /* TAB 3: GROUPS TABLE */
+                filteredGroups.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center text-slate-500 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200">
+                    <VsIcon name="groups" className="text-4xl text-slate-300 mb-2" />
+                    <p className="text-sm font-bold text-slate-700">Không có đoàn khách phù hợp</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="overflow-hidden rounded-2xl border border-slate-200 shadow-2xs bg-white">
+                      <table className="w-full border-collapse text-left">
+                        <thead>
+                          <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500">
+                            <th scope="col" className="px-5 py-3.5">Đoàn khách</th>
+                            <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Số phòng</th>
+                            <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Lịch trình</th>
+                            <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Tình trạng</th>
+                            <th scope="col" className="px-5 py-3.5 text-right whitespace-nowrap">Thao tác</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {pagedGroups.map((group) => {
+                            const isCompleted = group.checkedInRooms === group.totalRooms;
+                            const isPartial = group.checkedInRooms > 0 && !isCompleted;
+                            const canCheckInGroup = canCheckInStay && !isCompleted && group.arrivingRooms > 0;
+
+                            return (
+                              <tr
+                                key={group.groupCode}
+                                onClick={() => onOpenGroupDetail?.(group.groupCode)}
+                                className="group transition-colors hover:bg-purple-50/50 cursor-pointer"
+                                title="Nhấn vào hàng để xem chi tiết đoàn"
+                              >
+                                {/* Đoàn khách */}
+                                <td className="px-5 py-3.5 align-middle">
+                                  <div className="font-bold text-slate-900 text-sm group-hover:text-purple-900 transition-colors">
+                                    {group.leadGuestName}
+                                  </div>
+                                  <span className="mt-0.5 inline-flex items-center rounded-md border border-purple-200 bg-purple-50 px-1.5 py-0.5 font-mono text-xs font-bold text-purple-700 whitespace-nowrap">
+                                    #{group.groupCode}
+                                  </span>
+                                </td>
+
+                                {/* Số phòng */}
+                                <td className="px-4 py-3.5 align-middle whitespace-nowrap">
+                                  <span className="text-sm font-bold text-slate-800">{group.totalRooms} phòng</span>
+                                  {group.unassignedRoomCount > 0 ? (
+                                    <span className="ml-2 inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-800 whitespace-nowrap">
+                                      {group.unassignedRoomCount} chưa gán
+                                    </span>
+                                  ) : null}
+                                </td>
+
+                                {/* Lịch trình */}
+                                <td className="px-4 py-3.5 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">
+                                  {formatDateVi(group.earliestCheckInAt)} → {formatDateVi(group.latestCheckOutAt)}
+                                </td>
+
+                                {/* Tình trạng */}
+                                <td className="px-4 py-3.5 align-middle whitespace-nowrap">
+                                  {isCompleted ? (
+                                    <span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-0.5 text-xs font-bold whitespace-nowrap">
+                                      Đã nhận đủ phòng
+                                    </span>
+                                  ) : isPartial ? (
+                                    <span className="inline-flex items-center rounded-full bg-purple-100 text-purple-800 border border-purple-200 px-3 py-0.5 text-xs font-bold whitespace-nowrap">
+                                      Đang nhận {group.checkedInRooms}/{group.totalRooms}
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center rounded-full bg-sky-100 text-sky-800 border border-sky-200 px-3 py-0.5 text-xs font-bold whitespace-nowrap">
+                                      Chờ nhận phòng
+                                    </span>
+                                  )}
+                                </td>
+
+                                {/* Thao tác */}
+                                <td className="px-5 py-3.5 align-middle text-right whitespace-nowrap">
+                                  <div className="inline-flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                                    {canCheckInGroup && onCheckInGroup ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => onCheckInGroup(group.groupCode)}
+                                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-purple-700 hover:bg-purple-800 text-white px-3 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap min-h-[32px]"
+                                      >
+                                        <VsIcon name="badge" className="text-sm" />
+                                        <span>Check-in đoàn</span>
+                                      </button>
+                                    ) : null}
+                                    {onPrintGroupConfirmation ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => onPrintGroupConfirmation(group.groupCode)}
+                                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 px-2.5 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap min-h-[32px]"
+                                        title="In xác nhận đoàn"
+                                      >
+                                        <VsIcon name="print" className="text-sm text-slate-500" />
+                                        <span>In</span>
+                                      </button>
+                                    ) : null}
+                                    {onOpenGroupDetail ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => onOpenGroupDetail(group.groupCode)}
+                                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white hover:bg-purple-50 hover:border-purple-300 text-slate-700 hover:text-purple-900 px-2.5 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap min-h-[32px]"
+                                      >
+                                        <span>Chi tiết</span>
+                                        <VsIcon name="chevron_right" className="text-sm text-slate-400" />
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {groupTotalPages > 1 ? (
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-xs font-medium text-slate-600">
+                          {groupStartIndex + 1}–{Math.min(groupStartIndex + GROUPS_PER_PAGE, filteredGroups.length)} / {filteredGroups.length} đoàn
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            disabled={safeGroupPage <= 1}
+                            onClick={() => setGroupPage((p) => Math.max(1, p - 1))}
+                            aria-label="Trang trước"
+                            className="inline-flex h-8 min-w-[32px] items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                          >
+                            <VsIcon name="chevron_left" className="text-sm" />
+                          </button>
+                          {Array.from({ length: groupTotalPages }, (_, idx) => idx + 1).map((pageNum) => (
+                            <button
+                              key={pageNum}
+                              type="button"
+                              onClick={() => setGroupPage(pageNum)}
+                              className={`h-8 min-w-[32px] rounded-lg px-2 text-xs font-bold transition cursor-pointer ${
+                                pageNum === safeGroupPage
+                                  ? "bg-purple-700 text-white shadow-2xs"
+                                  : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            disabled={safeGroupPage >= groupTotalPages}
+                            onClick={() => setGroupPage((p) => Math.min(groupTotalPages, p + 1))}
+                            aria-label="Trang sau"
+                            className="inline-flex h-8 min-w-[32px] items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                          >
+                            <VsIcon name="chevron_right" className="text-sm" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 )
               ) : (

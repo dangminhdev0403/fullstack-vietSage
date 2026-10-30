@@ -14,6 +14,7 @@ import { getArrivalStatusDisplay } from "@/features/hotel-ops/utils/hotel-ops-di
 import { CheckInWorkspace } from "@/features/local-biometric/components/check-in-workspace";
 import type { CheckInStayFields } from "@/features/local-biometric/types/check-in-workspace";
 import { BookingConfirmationModal } from "@/features/hotel-ops/components/booking-confirmation-modal";
+import { EditReservationModal } from "@/features/hotel-ops/components/edit-reservation-modal";
 import { GroupOperationsDrawer } from "@/features/hotel-ops/components/group-operations-drawer";
 import {
   formatFriendlyCheckInError,
@@ -108,28 +109,34 @@ export function FrontDeskArrivalDetailPanel({
   const [isConfirmationOpen, setIsConfirmationOpen] = useState<boolean>(false);
   const [isGroupDrawerOpen, setIsGroupDrawerOpen] = useState<boolean>(false);
   const [depositMode, setDepositMode] = useState<"AMOUNT" | "PERCENT">("AMOUNT");
-  const [depositPercent, setDepositPercent] = useState<string>("30");
+  const [depositPercent, setDepositPercent] = useState<string>("50");
   const [depositAmount, setDepositAmount] = useState<string>("");
   const [depositMethod, setDepositMethod] = useState<"CASH" | "BANK_TRANSFER" | "CARD" | "QR">("BANK_TRANSFER");
   const [depositReference, setDepositReference] = useState<string>("");
+  const [depositNotes, setDepositNotes] = useState<string>("");
   const [isSubmittingDeposit, setIsSubmittingDeposit] = useState<boolean>(false);
   const [isSubmittingReceivable, setIsSubmittingReceivable] = useState<boolean>(false);
+  const [localArrival, setLocalArrival] = useState<HotelArrival | null>(arrival);
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
 
   // Synchronize state when arrival changes without cascading render effect
   if (arrival && arrival.id !== prevArrivalId) {
     setPrevArrivalId(arrival.id);
+    setLocalArrival(arrival);
     setSelectedRoomId(arrival.roomId || "");
     setIsAssigningMode(!arrival.roomId);
     setIsCheckInWorkspaceOpen(false);
+    setIsEditModalOpen(false);
     setCheckInError(undefined);
     setIsCancelling(false);
     setIsMarkingNoShow(false);
     setIsConfirmationOpen(false);
     setIsGroupDrawerOpen(false);
     setDepositMode("AMOUNT");
-    setDepositPercent("30");
+    setDepositPercent("50");
     setDepositAmount("");
     setDepositReference("");
+    setDepositNotes("");
   }
 
   // Keyboard navigation and focus trap
@@ -217,12 +224,41 @@ export function FrontDeskArrivalDetailPanel({
     return null;
   }
 
-  const checkInYmd = arrival.plannedCheckInAt.slice(0, 10);
+  const activeArrival = localArrival ?? arrival;
+
+  const checkInYmd = activeArrival.plannedCheckInAt.slice(0, 10);
   const isToday = checkInYmd === todayYmd;
   const isFuture = checkInYmd > todayYmd;
-  const nights = calculateNights(arrival.plannedCheckInAt, arrival.plannedCheckOutAt);
-  const rateNumber = Number(arrival.rate ?? arrival.nightlyRateSnapshot ?? 0);
-  const totalEstimated = rateNumber * nights;
+  const nights = calculateNights(activeArrival.plannedCheckInAt, activeArrival.plannedCheckOutAt);
+  const roomPriceFallback =
+    (activeArrival.room as any)?.price ?? (activeArrival.room as any)?.basePrice;
+  const rateNumber = Number(
+    activeArrival.nightlyRateSnapshot ?? activeArrival.rate ?? roomPriceFallback ?? 0,
+  );
+  const totalEstimated =
+    activeArrival.totalAmount != null && Number(activeArrival.totalAmount) > 0
+      ? Number(activeArrival.totalAmount)
+      : activeArrival.roomSubtotal != null && Number(activeArrival.roomSubtotal) > 0
+        ? Number(activeArrival.roomSubtotal)
+        : rateNumber * nights;
+
+  const paidDepositsSummary = useMemo(() => {
+    return bookingPayments.reduce(
+      (acc, p) => {
+        const val = Number((p as any).receivedAmount ?? (p as any).amount ?? 0);
+        acc.total += val;
+        const method = ((p as any).paymentMethod || "CASH").toUpperCase();
+        if (method === "CASH") acc.cash += val;
+        else if (method === "BANK_TRANSFER" || method === "QR") acc.bankTransfer += val;
+        else if (method === "CARD") acc.card += val;
+        else acc.other += val;
+        return acc;
+      },
+      { total: 0, cash: 0, bankTransfer: 0, card: 0, other: 0 },
+    );
+  }, [bookingPayments]);
+
+  const remainingBalance = Math.max(0, totalEstimated - paidDepositsSummary.total);
 
   async function handleConfirmAssignRoom() {
     if (!arrival) return;
@@ -524,6 +560,11 @@ export function FrontDeskArrivalDetailPanel({
 
   async function handleCreateDeposit() {
     if (!arrival) return;
+    const numericAmount = depositMode === "AMOUNT" ? Number(depositAmount) : undefined;
+    if (depositMode === "AMOUNT" && (!numericAmount || numericAmount <= 0)) {
+      await showWarningAlert("Thiếu số tiền", "Vui lòng nhập số tiền cọc hoặc chọn tỷ lệ % hợp lệ.");
+      return;
+    }
     setIsSubmittingDeposit(true);
     try {
       await staffRoomsRepository.createBookingPayment(hotelId, {
@@ -532,17 +573,19 @@ export function FrontDeskArrivalDetailPanel({
         paymentType: "DEPOSIT",
         inputMode: depositMode,
         percentValue: depositMode === "PERCENT" ? Number(depositPercent) : undefined,
-        amount: depositMode === "AMOUNT" ? Number(depositAmount) : undefined,
+        amount: numericAmount,
         paymentMethod: depositMethod,
         referenceCode: depositReference.trim() || undefined,
+        notes: depositNotes.trim() || undefined,
       });
 
       void refetchBookingPayments();
       setDepositAmount("");
       setDepositReference("");
+      setDepositNotes("");
       await showSuccessAlert(
-        "Đã ghi nhận đặt cọc",
-        `Đã lưu khoản đặt cọc cho đơn #${arrival.reservationCode}.`,
+        "Đã ghi nhận thanh toán cọc",
+        `Đã lưu khoản trả trước cho đơn #${arrival.reservationCode || arrival.id}.`,
       );
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
     } catch (err) {
@@ -685,26 +728,38 @@ export function FrontDeskArrivalDetailPanel({
                 )}
               </div>
               <p id={descId} className="text-sm font-bold text-slate-600 mt-1">
-                Khách đặt trước · Dự kiến nhận: {formatDateTime(arrival.plannedCheckInAt)}
+                Khách đặt trước · Dự kiến nhận: {formatDateTime(activeArrival.plannedCheckInAt)}
               </p>
             </div>
-            <button
-              ref={closeButtonRef}
-              type="button"
-              onClick={onClose}
-              aria-label="Quay lại"
-              title="Quay lại"
-              className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 px-3.5 text-xs sm:text-sm font-bold shadow-2xs transition active:scale-[0.98] cursor-pointer min-h-[40px] shrink-0"
-            >
-              <VsIcon name="arrow_back" className="text-lg text-slate-600" />
-              <span>Quay lại</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {canManageReservations && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-900 px-3.5 text-xs sm:text-sm font-bold shadow-2xs transition active:scale-[0.98] cursor-pointer min-h-[40px] shrink-0"
+                >
+                  <VsIcon name="edit" className="text-base text-blue-700" />
+                  <span>Chỉnh sửa</span>
+                </button>
+              )}
+              <button
+                ref={closeButtonRef}
+                type="button"
+                onClick={onClose}
+                aria-label="Quay lại"
+                title="Quay lại"
+                className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 px-3.5 text-xs sm:text-sm font-bold shadow-2xs transition active:scale-[0.98] cursor-pointer min-h-[40px] shrink-0"
+              >
+                <VsIcon name="arrow_back" className="text-lg text-slate-600" />
+                <span>Quay lại</span>
+              </button>
+            </div>
           </header>
 
           {/* Body */}
           <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
             {/* Warning banner if room is not yet allocated */}
-            {!arrival.roomId && (
+            {!activeArrival.roomId && (
               <div className="flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs sm:text-sm text-amber-900 font-medium shadow-2xs">
                 <VsIcon name="warning" className="text-base text-amber-600 shrink-0" />
                 <span>
@@ -717,28 +772,40 @@ export function FrontDeskArrivalDetailPanel({
               {/* Card 1: Guest Information */}
               <section className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5 space-y-4">
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 border-b border-slate-200/80 pb-2.5">
-                    <VsIcon name="person" className="text-slate-600 text-lg" />
-                    <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">
-                      Thông tin khách đặt phòng
-                    </h3>
+                  <div className="flex items-center justify-between border-b border-slate-200/80 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <VsIcon name="person" className="text-slate-600 text-lg" />
+                      <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">
+                        Thông tin khách đặt phòng
+                      </h3>
+                    </div>
+                    {canManageReservations && (
+                      <button
+                        type="button"
+                        onClick={() => setIsEditModalOpen(true)}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-blue-700 hover:text-blue-900 transition cursor-pointer"
+                      >
+                        <VsIcon name="edit" className="text-sm" />
+                        <span>Sửa thông tin</span>
+                      </button>
+                    )}
                   </div>
                   <div className="space-y-3 text-base">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-slate-600">Khách đại diện:</span>
                       <span className="font-black text-slate-900 text-lg">
-                        {arrival.guestDisplayName || "Chưa rõ"}
+                        {activeArrival.guestDisplayName || "Chưa rõ"}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-slate-600">Số điện thoại:</span>
-                      {arrival.guestPhone ? (
+                      {activeArrival.guestPhone ? (
                         <a
-                          href={`tel:${arrival.guestPhone}`}
+                          href={`tel:${activeArrival.guestPhone}`}
                           className="font-bold text-blue-700 hover:underline inline-flex items-center gap-1"
                         >
                           <VsIcon name="phone" className="text-xs" />
-                          <span>{arrival.guestPhone}</span>
+                          <span>{activeArrival.guestPhone}</span>
                         </a>
                       ) : (
                         <span className="text-slate-400 font-medium">Chưa cung cấp</span>
@@ -747,15 +814,15 @@ export function FrontDeskArrivalDetailPanel({
                     <div className="flex items-center justify-between pt-2 border-t border-slate-200/70">
                       <span className="text-sm font-semibold text-slate-600">Mã đặt phòng:</span>
                       <span className="font-mono font-bold text-slate-800 bg-slate-200 px-2.5 py-0.5 rounded text-sm">
-                        #{arrival.reservationCode}
+                        #{activeArrival.reservationCode}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-slate-600">Đoàn / Ghi chú:</span>
-                      {arrival.groupCode ? (
+                      {activeArrival.groupCode ? (
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-purple-700 text-sm font-mono bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
-                            #{arrival.groupCode}
+                            #{activeArrival.groupCode}
                           </span>
                           <button
                             type="button"
@@ -766,6 +833,10 @@ export function FrontDeskArrivalDetailPanel({
                             <span>Mở quản lý đoàn</span>
                           </button>
                         </div>
+                      ) : activeArrival.notes ? (
+                        <span className="font-semibold text-slate-800 text-sm">
+                          {activeArrival.notes}
+                        </span>
                       ) : (
                         <span className="font-semibold text-slate-800 text-sm">
                           Khách lẻ (không ghi chú)
@@ -775,7 +846,7 @@ export function FrontDeskArrivalDetailPanel({
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-slate-600">Trạng thái:</span>
                       {(() => {
-                        const statusDisplay = getArrivalStatusDisplay(arrival, todayYmd);
+                        const statusDisplay = getArrivalStatusDisplay(activeArrival, todayYmd);
                         return (
                           <span
                             className={`inline-flex items-center gap-1.5 font-bold px-2.5 py-1 rounded text-xs border ${statusDisplay.badgeClass}`}
@@ -793,23 +864,35 @@ export function FrontDeskArrivalDetailPanel({
               {/* Card 2: Schedule & Pricing */}
               <section className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
-                    <VsIcon name="calendar_month" className="text-slate-500 text-lg" />
-                    <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">
-                      Lịch lưu trú & Chi phí dự kiến
-                    </h3>
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <VsIcon name="calendar_month" className="text-slate-500 text-lg" />
+                      <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">
+                        Lịch lưu trú & Chi phí dự kiến
+                      </h3>
+                    </div>
+                    {canManageReservations && (
+                      <button
+                        type="button"
+                        onClick={() => setIsEditModalOpen(true)}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-blue-700 hover:text-blue-900 transition cursor-pointer"
+                      >
+                        <VsIcon name="edit" className="text-sm" />
+                        <span>Sửa ngày / giá</span>
+                      </button>
+                    )}
                   </div>
                   <div className="space-y-3 text-sm">
                     <div className="flex items-center justify-between">
                       <span className="text-slate-600 font-semibold">Nhận phòng dự kiến:</span>
                       <span className="font-bold text-slate-900">
-                        {formatDateTime(arrival.plannedCheckInAt)}
+                        {formatDateTime(activeArrival.plannedCheckInAt)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-slate-600 font-semibold">Trả phòng dự kiến:</span>
                       <span className="font-bold text-slate-900">
-                        {formatDateTime(arrival.plannedCheckOutAt)}
+                        {formatDateTime(activeArrival.plannedCheckOutAt)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -821,6 +904,14 @@ export function FrontDeskArrivalDetailPanel({
                         <span className="text-slate-600 font-semibold">Giá phòng niêm yết:</span>
                         <span className="font-bold text-slate-900">
                           {formatVnd(rateNumber)} / đêm
+                        </span>
+                      </div>
+                    ) : null}
+                    {activeArrival.serviceSubtotal && activeArrival.serviceSubtotal > 0 ? (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-600 font-semibold">Dịch vụ đặt trước:</span>
+                        <span className="font-bold text-slate-900">
+                          {formatVnd(activeArrival.serviceSubtotal)}
                         </span>
                       </div>
                     ) : null}
@@ -942,13 +1033,13 @@ export function FrontDeskArrivalDetailPanel({
               )}
             </section>
 
-            {/* Section 4: Deposit & Receivables */}
+            {/* Section 4: Deposit & Prepayments & Receivables */}
             <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
                   <VsIcon name="payments" className="text-emerald-600 text-xl" />
                   <h3 className="text-sm font-black uppercase tracking-wider text-slate-800 text-balance">
-                    Đặt cọc & Thanh toán trước
+                    Đặt cọc &amp; Thanh toán trước
                   </h3>
                 </div>
                 <span className="text-xs font-bold text-slate-600 whitespace-nowrap">
@@ -956,7 +1047,90 @@ export function FrontDeskArrivalDetailPanel({
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+              {/* Financial Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-1">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Tổng tiền booking</span>
+                  <div className="text-lg font-black text-slate-900 tabular-nums">
+                    {formatVnd(totalEstimated)}
+                  </div>
+                  <span className="text-xs text-slate-500 font-medium block">
+                    {nights} đêm {arrival.room?.roomNumber ? `· P.${arrival.room.roomNumber}` : ""}
+                  </span>
+                </div>
+
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 space-y-1">
+                  <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider block">Đã thanh toán / Cọc</span>
+                  <div className="text-lg font-black text-emerald-700 tabular-nums">
+                    {formatVnd(paidDepositsSummary.total)}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-xs font-semibold text-emerald-900">
+                    <span className="bg-emerald-100/80 px-1.5 py-0.5 rounded text-emerald-800 whitespace-nowrap">
+                      TM: {formatVnd(paidDepositsSummary.cash)}
+                    </span>
+                    <span className="bg-emerald-100/80 px-1.5 py-0.5 rounded text-emerald-800 whitespace-nowrap">
+                      CK: {formatVnd(paidDepositsSummary.bankTransfer)}
+                    </span>
+                    {paidDepositsSummary.card > 0 ? (
+                      <span className="bg-emerald-100/80 px-1.5 py-0.5 rounded text-emerald-800 whitespace-nowrap">
+                        Thẻ: {formatVnd(paidDepositsSummary.card)}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className={`rounded-xl border p-3.5 space-y-1 ${
+                  remainingBalance === 0
+                    ? "border-emerald-200 bg-emerald-50/30 text-emerald-900"
+                    : "border-amber-200 bg-amber-50/70 text-amber-950"
+                }`}>
+                  <span className="text-xs font-bold uppercase tracking-wider block opacity-75">Còn lại phải thu</span>
+                  <div className={`text-lg font-black tabular-nums ${remainingBalance === 0 ? "text-emerald-700" : "text-amber-800"}`}>
+                    {formatVnd(remainingBalance)}
+                  </div>
+                  <span className="text-xs font-semibold block">
+                    {remainingBalance === 0 ? "Đã thu đủ 100%" : "Cần thu khi check-in / check-out"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Preset Buttons */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="text-xs font-bold text-slate-600">Chọn nhanh:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDepositMode("AMOUNT");
+                    setDepositAmount(String(Math.round(totalEstimated * 0.5)));
+                  }}
+                  className="rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700 transition cursor-pointer whitespace-nowrap"
+                >
+                  Cọc 50% ({formatVnd(Math.round(totalEstimated * 0.5))})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDepositMode("AMOUNT");
+                    setDepositAmount(String(remainingBalance > 0 ? remainingBalance : totalEstimated));
+                  }}
+                  className="rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700 transition cursor-pointer whitespace-nowrap"
+                >
+                  Toàn bộ 100% ({formatVnd(remainingBalance > 0 ? remainingBalance : totalEstimated)})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDepositMode("AMOUNT");
+                    setDepositAmount("");
+                  }}
+                  className="rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 transition cursor-pointer whitespace-nowrap"
+                >
+                  Tùy chỉnh số tiền
+                </button>
+              </div>
+
+              {/* Deposit Entry Form */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end bg-slate-50/60 p-3.5 rounded-xl border border-slate-100">
                 <div>
                   <label htmlFor="arrival-deposit-mode" className="block text-xs font-bold text-slate-700 mb-1">
                     Hình thức tính cọc
@@ -993,7 +1167,7 @@ export function FrontDeskArrivalDetailPanel({
                       min={0}
                       value={depositAmount}
                       onChange={(e) => setDepositAmount(e.target.value)}
-                      placeholder="Nhập số tiền đặt cọc"
+                      placeholder="VD: 500000"
                       className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
                     />
                   )}
@@ -1001,7 +1175,7 @@ export function FrontDeskArrivalDetailPanel({
 
                 <div>
                   <label htmlFor="arrival-deposit-method" className="block text-xs font-bold text-slate-700 mb-1">
-                    Phương thức
+                    Nguồn tiền đối soát
                   </label>
                   <select
                     id="arrival-deposit-method"
@@ -1009,10 +1183,9 @@ export function FrontDeskArrivalDetailPanel({
                     onChange={(e) => setDepositMethod(e.target.value as "CASH" | "BANK_TRANSFER" | "CARD" | "QR")}
                     className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
                   >
-                    <option value="BANK_TRANSFER">Chuyển khoản</option>
-                    <option value="CASH">Tiền mặt</option>
-                    <option value="CARD">Thẻ ngân hàng</option>
-                    <option value="QR">Quét mã QR</option>
+                    <option value="BANK_TRANSFER">🏦 Chuyển khoản (CK)</option>
+                    <option value="CASH">💵 Tiền mặt (TM)</option>
+                    <option value="CARD">💳 Quẹt thẻ (POS)</option>
                   </select>
                 </div>
 
@@ -1021,14 +1194,119 @@ export function FrontDeskArrivalDetailPanel({
                     type="button"
                     disabled={isSubmittingDeposit || isSubmittingReceivable}
                     onClick={() => void handleCreateDeposit()}
-                    className="inline-flex min-h-[38px] w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-bold text-white transition cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                    className="inline-flex min-h-[38px] w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-bold text-white transition cursor-pointer disabled:opacity-50 whitespace-nowrap shadow-xs"
                   >
                     <VsIcon name="add_card" className="text-sm" />
                     <span>{isSubmittingDeposit ? "Đang lưu..." : "Ghi nhận đặt cọc"}</span>
                   </button>
                 </div>
+
+                <div className="sm:col-span-2">
+                  <label htmlFor="arrival-deposit-ref" className="block text-xs font-bold text-slate-700 mb-1">
+                    Mã tham chiếu / Số chuẩn chi ngân hàng
+                  </label>
+                  <input
+                    id="arrival-deposit-ref"
+                    type="text"
+                    value={depositReference}
+                    onChange={(e) => setDepositReference(e.target.value)}
+                    placeholder="Mã GD ngân hàng / số bill POS"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label htmlFor="arrival-deposit-notes" className="block text-xs font-bold text-slate-700 mb-1">
+                    Ghi chú người nộp / nội dung
+                  </label>
+                  <input
+                    id="arrival-deposit-notes"
+                    type="text"
+                    value={depositNotes}
+                    onChange={(e) => setDepositNotes(e.target.value)}
+                    placeholder="VD: Anh Nam CK cọc phòng 50%"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
+                  />
+                </div>
               </div>
 
+              {/* Transactions History Table */}
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                  <span>Lịch sử các khoản cọc &amp; trả trước đã ghi nhận ({bookingPayments.length})</span>
+                  {bookingPayments.length > 0 ? (
+                    <span className="text-emerald-700 font-extrabold tabular-nums">
+                      Tổng đã thu: {formatVnd(paidDepositsSummary.total)}
+                    </span>
+                  ) : null}
+                </div>
+
+                {bookingPayments.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-4 text-center text-xs text-slate-500">
+                    Chưa có giao dịch đặt cọc hoặc trả trước nào được ghi nhận cho đơn đặt phòng này.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-slate-200">
+                    <table className="w-full text-left text-xs text-slate-700">
+                      <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase font-bold text-xs tracking-wider">
+                        <tr>
+                          <th className="px-3.5 py-2 whitespace-nowrap">Thời gian</th>
+                          <th className="px-3.5 py-2 whitespace-nowrap">Số tiền</th>
+                          <th className="px-3.5 py-2 whitespace-nowrap">Nguồn tiền</th>
+                          <th className="px-3.5 py-2">Mã GD / Ghi chú</th>
+                          <th className="px-3.5 py-2 whitespace-nowrap text-right">Trạng thái</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {bookingPayments.map((p) => {
+                          const method = ((p as any).paymentMethod || "CASH").toUpperCase();
+                          const amount = Number((p as any).receivedAmount ?? (p as any).amount ?? 0);
+                          return (
+                            <tr key={p.id} className="hover:bg-slate-50/70 transition-colors">
+                              <td className="px-3.5 py-2.5 whitespace-nowrap text-slate-600 font-medium">
+                                {formatDateTime((p as any).receivedAt || (p as any).createdAt)}
+                              </td>
+                              <td className="px-3.5 py-2.5 whitespace-nowrap font-bold text-slate-900 tabular-nums">
+                                {formatVnd(amount)}
+                              </td>
+                              <td className="px-3.5 py-2.5 whitespace-nowrap">
+                                {method === "BANK_TRANSFER" || method === "QR" ? (
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-800 border border-blue-200">
+                                    🏦 Chuyển khoản (CK)
+                                  </span>
+                                ) : method === "CARD" ? (
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-2 py-0.5 text-xs font-bold text-purple-800 border border-purple-200">
+                                    💳 Quẹt thẻ (POS)
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-200">
+                                    💵 Tiền mặt (TM)
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-3.5 py-2.5 text-slate-600">
+                                {(p as any).transactionReference || (p as any).referenceCode ? (
+                                  <span className="font-mono font-bold text-slate-800 mr-1.5">
+                                    [{(p as any).transactionReference || (p as any).referenceCode}]
+                                  </span>
+                                ) : null}
+                                <span>{(p as any).notes || "—"}</span>
+                              </td>
+                              <td className="px-3.5 py-2.5 whitespace-nowrap text-right">
+                                <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700">
+                                  Thành công
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Receivables Section */}
               {receivables.length > 0 ? (
                 <div className="pt-3 border-t border-slate-100 space-y-2">
                   <div className="text-xs font-bold text-slate-700">
@@ -1036,9 +1314,9 @@ export function FrontDeskArrivalDetailPanel({
                   </div>
                   <div className="space-y-1.5">
                     {receivables.map((rec) => (
-                      <div key={rec.id} className="flex items-center justify-between text-xs text-slate-700">
+                      <div key={rec.id} className="flex items-center justify-between text-xs text-slate-700 p-2 rounded-lg bg-slate-50 border border-slate-200">
                         <span>
-                          {rec.debtorName} · Còn lại: <strong>{formatVnd(rec.balanceAmount ?? rec.amount)}</strong>
+                          <strong>{rec.debtorName}</strong> · Còn lại: <strong className="text-rose-700">{formatVnd(rec.balanceAmount ?? rec.amount)}</strong>
                         </span>
                         {rec.status !== "SETTLED" ? (
                           <button
@@ -1049,7 +1327,9 @@ export function FrontDeskArrivalDetailPanel({
                           >
                             <span>Thu công nợ</span>
                           </button>
-                        ) : null}
+                        ) : (
+                          <span className="text-xs font-bold text-emerald-700">Đã tất toán</span>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1230,6 +1510,38 @@ export function FrontDeskArrivalDetailPanel({
           canCheckOutStay={Boolean(canManageReservations || canOperateArrivals)}
         />
       ) : null}
+
+      <EditReservationModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        hotelId={hotelId}
+        reservation={{
+          id: activeArrival.id,
+          reservationCode: activeArrival.reservationCode,
+          guestDisplayName: activeArrival.guestDisplayName,
+          guestPhone: activeArrival.guestPhone,
+          guestCount: activeArrival.guestCount,
+          notes: activeArrival.notes,
+          roomId: activeArrival.roomId,
+          roomNumber: activeArrival.room?.roomNumber,
+          roomTypeName: activeArrival.room?.type,
+          plannedCheckInAt: activeArrival.plannedCheckInAt,
+          plannedCheckOutAt: activeArrival.plannedCheckOutAt,
+          nightlyRateSnapshot: activeArrival.nightlyRateSnapshot ?? activeArrival.rate,
+          roomSubtotal: activeArrival.roomSubtotal,
+          totalAmount: activeArrival.totalAmount,
+          expectedUpdatedAt: activeArrival.updatedAt,
+          status: activeArrival.status,
+        }}
+        availableRooms={availableRooms}
+        onSuccess={async (updated) => {
+          setLocalArrival((prev) => ({
+            ...(prev || activeArrival),
+            ...updated,
+          }));
+          await invalidateHotelRealtimeQueries(queryClient, hotelId);
+        }}
+      />
     </>
   );
 }

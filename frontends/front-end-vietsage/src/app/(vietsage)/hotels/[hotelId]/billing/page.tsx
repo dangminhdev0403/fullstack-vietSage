@@ -55,44 +55,44 @@ export default async function StaffBillingPage({ params }: PageProps) {
         </div>
       </header>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <article className="flex items-center gap-3.5 rounded-2xl border border-[var(--outline-variant)] bg-white p-4 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-            <VsIcon name="payments" className="text-xl" />
+      <section className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+        <article className="flex items-center gap-2.5 rounded-xl border border-[var(--outline-variant)] bg-white p-3 shadow-xs">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+            <VsIcon name="payments" className="text-lg" />
           </div>
-          <div>
-            <p className="text-xs font-semibold text-[var(--on-surface-variant)]">Doanh thu hôm nay</p>
-            <p className="mt-0.5 text-lg font-black text-[var(--primary)]">{formatMoney(dashboard.revenue.today, dashboard.revenue.currency)}</p>
-          </div>
-        </article>
-
-        <article className="flex items-center gap-3.5 rounded-2xl border border-[var(--outline-variant)] bg-white p-4 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
-            <VsIcon name="calendar_today" className="text-xl" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-[var(--on-surface-variant)]">Doanh thu 7 ngày</p>
-            <p className="mt-0.5 text-lg font-black text-[var(--primary)]">{formatMoney(dashboard.revenue.last7Days, dashboard.revenue.currency)}</p>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-[var(--on-surface-variant)] truncate">Doanh thu hôm nay</p>
+            <p className="text-base font-black text-[var(--primary)]">{formatMoney(dashboard.revenue.today, dashboard.revenue.currency)}</p>
           </div>
         </article>
 
-        <article className="flex items-center gap-3.5 rounded-2xl border border-[var(--outline-variant)] bg-white p-4 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-purple-700">
-            <VsIcon name="meeting_room" className="text-xl" />
+        <article className="flex items-center gap-2.5 rounded-xl border border-[var(--outline-variant)] bg-white p-3 shadow-xs">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+            <VsIcon name="calendar_today" className="text-lg" />
           </div>
-          <div>
-            <p className="text-xs font-semibold text-[var(--on-surface-variant)]">Check-out hôm nay</p>
-            <p className="mt-0.5 text-lg font-black text-[var(--primary)]">{dashboard.stays.todayCheckOuts} lượt</p>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-[var(--on-surface-variant)] truncate">Doanh thu 7 ngày</p>
+            <p className="text-base font-black text-[var(--primary)]">{formatMoney(dashboard.revenue.last7Days, dashboard.revenue.currency)}</p>
           </div>
         </article>
 
-        <article className="flex items-center gap-3.5 rounded-2xl border border-[var(--outline-variant)] bg-white p-4 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
-            <VsIcon name="pending_actions" className="text-xl" />
+        <article className="flex items-center gap-2.5 rounded-xl border border-[var(--outline-variant)] bg-white p-3 shadow-xs">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-700">
+            <VsIcon name="meeting_room" className="text-lg" />
           </div>
-          <div>
-            <p className="text-xs font-semibold text-[var(--on-surface-variant)]">Đang chờ checkout</p>
-            <p className="mt-0.5 text-lg font-black text-amber-700">{dashboard.stays.pendingCheckOuts} phòng</p>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-[var(--on-surface-variant)] truncate">Check-out hôm nay</p>
+            <p className="text-base font-black text-[var(--primary)]">{dashboard.stays.todayCheckOuts} lượt</p>
+          </div>
+        </article>
+
+        <article className="flex items-center gap-2.5 rounded-xl border border-[var(--outline-variant)] bg-white p-3 shadow-xs">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-700">
+            <VsIcon name="pending_actions" className="text-lg" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-[var(--on-surface-variant)] truncate">Đang chờ checkout</p>
+            <p className="text-base font-black text-amber-700">{dashboard.stays.pendingCheckOuts} phòng</p>
           </div>
         </article>
       </section>

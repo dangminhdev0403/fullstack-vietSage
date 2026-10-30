@@ -1908,6 +1908,20 @@ export class HotelRoomsRepository {
         },
       });
 
+      if (typeof tx.folio?.updateMany === "function") {
+        await tx.folio.updateMany({
+          where: {
+            stayId: input.stayId,
+            hotelId: input.hotelId,
+            status: { in: [FolioStatus.OPEN, FolioStatus.CHECKOUT_PENDING] },
+          },
+          data: {
+            status: FolioStatus.CLOSED,
+            closedAt: now,
+          },
+        });
+      }
+
       await this.createDomainEvent(tx, {
         eventType: "GUEST_CHECKED_OUT",
         aggregateType: "GuestStay",

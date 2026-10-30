@@ -3,11 +3,14 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { showSuccessAlert } from "@/libs/swal";
 import { filterExtraOccupants } from "@/features/hotel-ops/utils/hotel-ops-display";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
+import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
+import { EditReservationModal } from "./edit-reservation-modal";
+import { RoomCheckoutSettlementModal } from "./room-checkout-settlement-modal";
 import type {
   HotelArrival,
   HotelReservationSummary,
@@ -372,6 +375,23 @@ export function FrontDeskRoomDetailPanel({
   const [showActiveRequests, setShowActiveRequests] = useState(false);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [nowTimestamp] = useState(() => Date.now());
+  const queryClient = useQueryClient();
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isCheckoutSettlementOpen, setIsCheckoutSettlementOpen] = useState(false);
+  const [localReservation, setLocalReservation] = useState<any>(null);
+
+  const { data: roomsPage } = useQuery({
+    ...staffRoomsResource.bind({ hotelId }).queries.list.options({
+      limit: 100,
+    }),
+    enabled: Boolean(isOpen && isEditModalOpen),
+    staleTime: 30_000,
+  });
+
+  const availableRooms = useMemo(() => {
+    const items = roomsPage?.items || [];
+    return items.filter((r) => r.status === "AVAILABLE" || r.id === room?.id);
+  }, [roomsPage?.items, room?.id]);
 
   const todayYmd = useMemo(() => {
     return new Intl.DateTimeFormat("en-CA", {
@@ -419,7 +439,7 @@ export function FrontDeskRoomDetailPanel({
   }, [stay, nowTimestamp]);
 
   // Determine reservation context
-  const reservation: HotelReservationSummary | null =
+  const baseReservation: HotelReservationSummary | null =
     room?.projectedReservation ||
     (arrival
       ? {
@@ -436,6 +456,16 @@ export function FrontDeskRoomDetailPanel({
           nightlyRateSnapshot: arrival.nightlyRateSnapshot ?? arrival.rate,
         }
       : room?.upcomingReservation || null);
+
+  const reservation: any = localReservation ?? baseReservation;
+
+  const roomPriceFallback =
+    (room as any)?.price ?? (room as any)?.basePrice ?? (room as any)?.roomType?.basePrice;
+  const effectiveNightlyRate =
+    reservation?.nightlyRateSnapshot ??
+    (reservation as any)?.rate ??
+    roomPriceFallback ??
+    null;
 
   // Determine mode
   const effectiveStatus = (
@@ -1027,11 +1057,11 @@ export function FrontDeskRoomDetailPanel({
                       {canCheckoutBilling && (
                         <button
                           type="button"
-                          onClick={handleGoToCheckout}
+                          onClick={() => setIsCheckoutSettlementOpen(true)}
                           className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition cursor-pointer min-h-[44px]"
                         >
                           <VsIcon name="point_of_sale" className="text-sm" />
-                          <span>Mở hóa đơn tại Quầy thu ngân</span>
+                          <span>Quyết toán trả phòng tại đây</span>
                         </button>
                       )}
                     </div>
@@ -1269,11 +1299,22 @@ export function FrontDeskRoomDetailPanel({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
               <section className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5 space-y-3">
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 border-b border-slate-200/80 pb-2.5">
-                    <VsIcon name="event" className="text-purple-600 text-lg" />
-                    <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">
-                      Thông tin Đặt trước
-                    </h3>
+                  <div className="flex items-center justify-between border-b border-slate-200/80 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <VsIcon name="event" className="text-purple-600 text-lg" />
+                      <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">
+                        Thông tin Đặt trước
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditModalOpen(true)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition cursor-pointer"
+                      title="Chỉnh sửa thông tin đặt phòng"
+                    >
+                      <VsIcon name="edit" className="text-xs text-amber-700" />
+                      <span>Sửa</span>
+                    </button>
                   </div>
                   <div className="space-y-2.5 text-sm">
                     <div className="flex items-center justify-between">
@@ -1351,24 +1392,28 @@ export function FrontDeskRoomDetailPanel({
                         đêm
                       </span>
                     </div>
-                    {reservation.nightlyRateSnapshot && (
+                    {effectiveNightlyRate != null && (
                       <div className="flex items-center justify-between">
                         <span className="text-slate-600">Giá phòng mỗi đêm:</span>
                         <span className="font-bold text-slate-900">
-                          {formatVnd(reservation.nightlyRateSnapshot)} / đêm
+                          {formatVnd(effectiveNightlyRate)} / đêm
                         </span>
                       </div>
                     )}
-                    {reservation.nightlyRateSnapshot && (
+                    {effectiveNightlyRate != null && (
                       <div className="flex items-center justify-between pt-2.5 border-t border-slate-200/70 text-base font-black text-slate-900">
                         <span>Dự kiến tiền phòng:</span>
                         <span className="text-emerald-700 text-lg font-black">
                           {formatVnd(
-                            Number(reservation.nightlyRateSnapshot) *
-                              calculateNights(
-                                reservation.plannedCheckInAt,
-                                reservation.plannedCheckOutAt,
-                              ),
+                            reservation.totalAmount != null && Number(reservation.totalAmount) > 0
+                              ? Number(reservation.totalAmount)
+                              : reservation.roomSubtotal != null && Number(reservation.roomSubtotal) > 0
+                                ? Number(reservation.roomSubtotal)
+                                : Number(effectiveNightlyRate) *
+                                  calculateNights(
+                                    reservation.plannedCheckInAt,
+                                    reservation.plannedCheckOutAt,
+                                  ),
                           )}
                         </span>
                       </div>
@@ -1418,7 +1463,7 @@ export function FrontDeskRoomDetailPanel({
                 {canViewBilling && (canCheckoutBilling || canCheckOutStay) && (
                   <button
                     type="button"
-                    onClick={handleGoToCheckout}
+                    onClick={() => setIsCheckoutSettlementOpen(true)}
                     className="inline-flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-[#00003c] via-[#091540] to-[#172554] hover:from-[#0a0f30] hover:to-[#1e3a8a] px-6 py-2.5 text-white font-black text-sm sm:text-base shadow-md shadow-blue-950/20 border border-blue-900/50 transition active:scale-[0.98] cursor-pointer min-h-[46px]"
                   >
                     <VsIcon name="receipt_long" className="text-xl text-amber-300 shrink-0" />
@@ -1439,6 +1484,14 @@ export function FrontDeskRoomDetailPanel({
               </div>
 
               <div className="flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 px-4 py-2.5 text-amber-900 font-bold text-sm transition cursor-pointer min-h-[46px]"
+                >
+                  <VsIcon name="edit" className="text-base text-amber-700" />
+                  <span>Sửa thông tin</span>
+                </button>
                 <button
                   type="button"
                   onClick={onClose}
@@ -1465,6 +1518,54 @@ export function FrontDeskRoomDetailPanel({
             </>
           )}
         </footer>
+
+        {isReservedMode && reservation && (
+          <EditReservationModal
+            isOpen={isEditModalOpen}
+            onClose={() => setIsEditModalOpen(false)}
+            hotelId={hotelId}
+            reservation={{
+              id: reservation.id,
+              reservationCode: reservation.reservationCode,
+              guestDisplayName: reservation.guestDisplayName,
+              guestPhone: reservation.guestPhone,
+              guestCount: reservation.guestCount,
+              notes: reservation.notes,
+              roomId: reservation.roomId ?? room?.id,
+              roomNumber: room?.roomNumber,
+              roomTypeName: room?.type,
+              plannedCheckInAt: reservation.plannedCheckInAt,
+              plannedCheckOutAt: reservation.plannedCheckOutAt,
+              nightlyRateSnapshot: effectiveNightlyRate,
+              roomSubtotal: reservation.roomSubtotal,
+              totalAmount: reservation.totalAmount,
+              expectedUpdatedAt: reservation.updatedAt ?? reservation.expectedUpdatedAt,
+              status: reservation.status,
+            }}
+            availableRooms={availableRooms}
+            onSuccess={async (updated) => {
+              setLocalReservation(updated);
+              setIsEditModalOpen(false);
+              await invalidateHotelRealtimeQueries(queryClient, hotelId);
+            }}
+          />
+        )}
+
+        {isOccupiedMode && stay && (
+          <RoomCheckoutSettlementModal
+            isOpen={isCheckoutSettlementOpen}
+            onClose={() => setIsCheckoutSettlementOpen(false)}
+            hotelId={hotelId}
+            room={room}
+            stay={stay}
+            folioContext={folioContext}
+            onCheckoutSuccess={async () => {
+              setIsCheckoutSettlementOpen(false);
+              onClose();
+              await invalidateHotelRealtimeQueries(queryClient, hotelId);
+            }}
+          />
+        )}
       </div>
     </div>
   );

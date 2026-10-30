@@ -196,8 +196,8 @@ export function ChannexChannelWizard({
     });
     if (!ratePlans.length) {
       await showErrorAlert(
-        "Chưa ánh xạ",
-        "Hãy ánh xạ ít nhất một gói giá VietSage với rate OTA.",
+        "Chưa ánh xạ gói giá",
+        "Hãy ánh xạ ít nhất một gói giá VietSage với gói giá trên kênh OTA.",
       );
       return;
     }
@@ -280,16 +280,16 @@ export function ChannexChannelWizard({
               <div className="flex flex-wrap items-center gap-2">
                 <h2
                   id="channex-wizard-title"
-                  className="text-xl font-bold text-[var(--on-surface)]"
+                  className="text-xl font-bold text-[var(--on-surface)] text-balance"
                 >
                   Thiết lập {provider.title}
                 </h2>
-                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200">
-                  Native
+                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200 whitespace-nowrap">
+                  Kết nối trực tiếp
                 </span>
               </div>
-              <p className="mt-0.5 text-sm text-[var(--on-surface-variant)]">
-                Kiểm tra thông tin, ánh xạ rate, tạo inactive, rồi mới kích hoạt.
+              <p className="mt-0.5 text-sm text-[var(--on-surface-variant)] text-pretty">
+                Kiểm tra thông tin, ánh xạ gói giá, lưu ở trạng thái chờ trước khi kích hoạt.
               </p>
             </div>
           </div>
@@ -388,7 +388,7 @@ export function ChannexChannelWizard({
               disabled={isPreparing}
               className="min-h-11 rounded-xl bg-[var(--primary)] px-6 text-base font-bold text-white disabled:opacity-50"
             >
-              {isPreparing ? "Đang kiểm tra..." : "Kiểm tra và tải mapping"}
+              {isPreparing ? "Đang kiểm tra..." : "Kiểm tra và tải gói giá"}
             </button>
           </div>
         </form>
@@ -415,7 +415,7 @@ export function ChannexChannelWizard({
 
           {remoteRates.length ? (
             <div className="space-y-3">
-              <h3 className="text-xl font-bold">Ánh xạ gói giá</h3>
+              <h3 className="text-xl font-bold text-balance">Ánh xạ gói giá</h3>
               {prepared.localRatePlans?.map((localRatePlan) => {
                 const selected = remoteRates.find(
                   (item) => item.key === selectedRates[localRatePlan.id],
@@ -440,14 +440,14 @@ export function ChannexChannelWizard({
                   >
                     <div>
                       <p className="text-sm font-semibold text-[var(--on-surface-variant)]">
-                        VietSage / Channex
+                        Gói giá VietSage
                       </p>
                       <p className="text-base font-bold">
                         {localRatePlan.title}
                       </p>
                     </div>
                     <label className="text-base font-semibold">
-                      Rate OTA
+                      Gói giá trên kênh OTA
                       <select
                         value={selectedRates[localRatePlan.id] ?? ""}
                         onChange={(event) => {
@@ -463,7 +463,7 @@ export function ChannexChannelWizard({
                         }}
                         className="mt-1 min-h-11 w-full rounded-xl border border-[var(--outline-variant)] bg-white px-3 text-base"
                       >
-                        <option value="">Không map</option>
+                        <option value="">Không liên kết</option>
                         {remoteRates
                           .filter(
                             (remoteRate) =>
@@ -505,8 +505,8 @@ export function ChannexChannelWizard({
             </div>
           ) : (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-base text-amber-950">
-              Channex không trả về cấu trúc room/rate chuẩn. Dùng màn hình
-              Channex cho adapter này.
+              Kênh không trả về cấu trúc phòng và gói giá chuẩn. Vui lòng mở cổng
+              Channex để cấu hình kênh này.
               <button
                 type="button"
                 onClick={async () => {
@@ -522,12 +522,12 @@ export function ChannexChannelWizard({
 
           {created ? (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-              <p className="text-lg font-bold text-emerald-950">
+              <p className="text-lg font-bold text-emerald-950 text-balance">
                 Kênh đã tạo — chưa kích hoạt
               </p>
-              <p className="mt-1 text-base text-emerald-900">
+              <p className="mt-1 text-base text-emerald-900 text-pretty">
                 {created.ready
-                  ? "Readiness check đạt. Có thể kích hoạt."
+                  ? "Kiểm tra tính sẵn sàng đạt. Có thể kích hoạt."
                   : `Còn ${created.issues.length} vấn đề cần xử lý.`}
               </p>
               {created.ready && (
@@ -556,7 +556,7 @@ export function ChannexChannelWizard({
                 disabled={isCreating || !remoteRates.length}
                 className="min-h-11 rounded-xl bg-[var(--primary)] px-6 text-base font-bold text-white disabled:opacity-50 cursor-pointer"
               >
-                {isCreating ? "Đang tạo..." : "Tạo kênh inactive"}
+                {isCreating ? "Đang tạo..." : "Tạo kênh (chưa kích hoạt)"}
               </button>
             </div>
           )}

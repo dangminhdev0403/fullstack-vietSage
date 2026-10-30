@@ -10,7 +10,7 @@ process.env.JWT_ACCESS_TTL = process.env.JWT_ACCESS_TTL || "15m";
 process.env.JWT_REFRESH_TTL = process.env.JWT_REFRESH_TTL || "30d";
 
 import { ConflictException } from "@nestjs/common";
-import { GuestStayStatus, Prisma, ReservationStatus, RoomStatus } from "@prisma/client";
+import { FolioStatus, GuestStayStatus, Prisma, ReservationStatus, RoomStatus } from "@prisma/client";
 import { ReservationsRepository } from "../infrastructure/repositories/reservations.repository";
 
 function createRepository(tx: Record<string, unknown>) {
@@ -403,6 +403,144 @@ describe("ReservationsRepository transactional lifecycle", () => {
       }),
     ).rejects.toThrow(new ConflictException("ROOM_ALREADY_HAS_ACTIVE_STAY_OR_FOLIO"));
     expect(tx.room.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("auto-completes overdue dangling past stays and permits incoming check-in", async () => {
+    const reservation = {
+      id: "reservation-new",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      status: ReservationStatus.ARRIVAL_READY,
+      reservationCode: "RES-NEW",
+      guestDisplayName: "Khách Mới",
+      plannedCheckInAt: new Date(),
+      plannedCheckOutAt: new Date(Date.now() + 86400000),
+    };
+    const pastOverdueStay = {
+      id: "stay-past-overdue",
+      reservationId: "reservation-old",
+      plannedCheckOutAt: new Date(Date.now() - 3600000), // 1 hour ago
+      status: GuestStayStatus.ACTIVE,
+    };
+    const newStay = { id: "stay-new", status: GuestStayStatus.ACTIVE };
+    const newFolio = { id: "folio-new", folioNumber: "VSH_FOLIO_0002" };
+    const checkedInRes = { ...reservation, status: ReservationStatus.CHECKED_IN };
+
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: {
+        findFirst: jest.fn().mockResolvedValue(reservation),
+        update: jest.fn().mockResolvedValue(checkedInRes),
+      },
+      room: {
+        findFirst: jest.fn().mockResolvedValue({ id: "room-1", status: RoomStatus.OCCUPIED }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      guestStay: {
+        findMany: jest.fn().mockResolvedValue([pastOverdueStay]),
+        update: jest.fn().mockResolvedValue({ ...pastOverdueStay, status: GuestStayStatus.CHECKED_OUT }),
+        create: jest.fn().mockResolvedValue(newStay),
+      },
+      folio: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        create: jest.fn().mockResolvedValue(newFolio),
+      },
+      roomQRCode: {
+        findFirst: jest.fn().mockResolvedValue({ id: "qr-1", version: 1 }),
+        updateMany: jest.fn(),
+        update: jest.fn().mockResolvedValue({ id: "qr-1", status: "ACTIVE" }),
+      },
+      domainEvent: { create: jest.fn() },
+    };
+    const { repository } = createRepository(tx);
+
+    const result = await repository.checkInReservation({
+      hotelId: "hotel-1",
+      tenantId: "tenant-1",
+      reservationId: "reservation-new",
+      actorUserId: "actor-1",
+      accessCodeHash: "access-hash",
+      accessCodeExpiresAt: new Date(Date.now() + 86400000),
+      generateFolioNumber: jest.fn().mockResolvedValue("VSH_FOLIO_0002"),
+    });
+
+    expect(result.stay).toEqual(newStay);
+    expect(tx.guestStay.update).toHaveBeenCalledWith({
+      where: { id: "stay-past-overdue" },
+      data: expect.objectContaining({
+        status: GuestStayStatus.CHECKED_OUT,
+      }),
+    });
+    expect(tx.folio.updateMany).toHaveBeenCalledWith({
+      where: {
+        stayId: "stay-past-overdue",
+        status: { in: [FolioStatus.OPEN, FolioStatus.CHECKOUT_PENDING] },
+      },
+      data: expect.objectContaining({
+        status: FolioStatus.CLOSED,
+      }),
+    });
+  });
+
+  it("auto-closes lingering folios from completed CHECKED_OUT stays and permits check-in", async () => {
+    const reservation = {
+      id: "res-dangling-folio",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      status: ReservationStatus.ARRIVAL_READY,
+      reservationCode: "RES-DANGLING",
+      guestDisplayName: "Khách Mới",
+      plannedCheckInAt: new Date(),
+      plannedCheckOutAt: new Date(Date.now() + 86400000),
+    };
+    const newStay = { id: "stay-new", status: GuestStayStatus.ACTIVE };
+    const newFolio = { id: "folio-new", folioNumber: "VSH_FOLIO_0003" };
+    const checkedInRes = { ...reservation, status: ReservationStatus.CHECKED_IN };
+
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: {
+        findFirst: jest.fn().mockResolvedValue(reservation),
+        update: jest.fn().mockResolvedValue(checkedInRes),
+      },
+      room: {
+        findFirst: jest.fn().mockResolvedValue({ id: "room-1", status: RoomStatus.AVAILABLE }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      guestStay: {
+        findMany: jest.fn().mockResolvedValue([]),
+        create: jest.fn().mockResolvedValue(newStay),
+      },
+      folio: {
+        findMany: jest.fn().mockResolvedValue([{ id: "folio-dangling-1" }]),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue(newFolio),
+      },
+      roomQRCode: {
+        findFirst: jest.fn().mockResolvedValue({ id: "qr-1", version: 1 }),
+        updateMany: jest.fn(),
+        update: jest.fn().mockResolvedValue({ id: "qr-1", status: "ACTIVE" }),
+      },
+      domainEvent: { create: jest.fn() },
+    };
+    const { repository } = createRepository(tx);
+
+    const result = await repository.checkInReservation({
+      hotelId: "hotel-1",
+      tenantId: "tenant-1",
+      reservationId: "res-dangling-folio",
+      actorUserId: "actor-1",
+      accessCodeHash: "access-hash",
+      accessCodeExpiresAt: new Date(Date.now() + 86400000),
+      generateFolioNumber: jest.fn().mockResolvedValue("VSH_FOLIO_0003"),
+    });
+
+    expect(result.stay).toEqual(newStay);
+    expect(tx.folio.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["folio-dangling-1"] } },
+      data: expect.objectContaining({ status: FolioStatus.CLOSED }),
+    });
   });
 
   it("rejects a room without an inactive or active QR before creating a stay", async () => {
