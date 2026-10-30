@@ -253,6 +253,18 @@ function formatVnd(val?: number | null): string {
   return new Intl.NumberFormat("vi-VN").format(val) + " ₫";
 }
 
+function cleanBlockGuestName(name: string): string {
+  if (!name) return "Khách lưu trú";
+  const cleaned = name
+    .replace(/^OTA[-_ ]?[A-Za-z0-9]+[-_ ]?:?[-_ ]?/i, "")
+    .replace(/#?(VSH_|RSV_|GRP_|GROUP_)[A-Za-z0-9_-]+/gi, "")
+    .replace(/\(\s*\)/g, "")
+    .replace(/^[👥👤#\s\-–—:]+/, "")
+    .replace(/[\s\-–—:]+$/, "")
+    .trim();
+  return cleaned || name;
+}
+
 type DraggedReservationPayload = {
   blockId: string;
   reservationId: string;
@@ -307,6 +319,8 @@ interface DraggableRoomRowProps {
     e: React.MouseEvent,
   ) => void;
   onFocusOverdueRoom?: (room: RoomPlanRoom) => void;
+  isSearchActive?: boolean;
+  searchQuery?: string;
 }
 
 const EMPTY_BLOCKS: RoomPlanBlock[] = [];
@@ -317,6 +331,8 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
   todayYmd = getTodayInVietnam(),
   readOnly = false,
   roomBlocks,
+  isSearchActive = false,
+  searchQuery = "",
   occupiedRoomDaySet,
   dragOverCellKey,
   dragOverDayYmd,
@@ -1234,6 +1250,26 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
 
           const isBeingResized = Boolean(activeBlockResize && activeBlockResize.block.id === b.id);
 
+          const isMatchedBySearch = Boolean(
+            searchQuery &&
+            searchQuery.trim().length > 0 &&
+            (() => {
+              const q = searchQuery.trim().replace(/^#/, "").toLowerCase();
+              const resCode = (b.reservationCode || "").toLowerCase();
+              const grpCode = (b.groupCode || "").toLowerCase();
+              const gName = (b.guestName || "").toLowerCase();
+              const gDisp = (b.guestDisplayName || "").toLowerCase();
+              const phone = (b.phone || "").toLowerCase();
+              return (
+                (resCode && (resCode === q || resCode.includes(q))) ||
+                (grpCode && (grpCode === q || grpCode.includes(q))) ||
+                (gName && gName.includes(q)) ||
+                (gDisp && gDisp.includes(q)) ||
+                (phone && phone.includes(q))
+              );
+            })()
+          );
+
           return (
             <div
               key={b.id}
@@ -1271,6 +1307,12 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                 bottom: "5px",
               }}
               className={`absolute z-10 flex items-center gap-1.5 px-2 rounded-md border shadow-xs transition-all text-xs font-bold overflow-hidden select-none ${barBg} ${
+                isMatchedBySearch
+                  ? "ring-2 ring-amber-300 ring-offset-2 ring-offset-slate-900 shadow-lg animate-pulse"
+                  : isSearchActive
+                    ? "ring-2 ring-emerald-400 ring-offset-1 shadow-md"
+                    : ""
+              } ${
                 isBeingResized
                   ? "invisible pointer-events-none"
                   : isDraggingRange
@@ -1279,7 +1321,7 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                       ? "cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-purple-300"
                       : "cursor-pointer hover:ring-2 hover:ring-slate-300"
               }`}
-              title={`${b.guestName}${b.guestCount && b.guestCount > 1 ? ` (${b.guestCount} khách)` : ""}${b.groupCode ? ` • Khách đoàn #${b.groupCode}` : ""}${!isDirect ? ` • ${channelBadge.label}` : ""}${
+              title={`${b.guestName}${b.reservationCode ? ` • Mã: #${b.reservationCode}` : ""}${b.guestCount && b.guestCount > 1 ? ` (${b.guestCount} khách)` : ""}${b.groupCode ? ` • Khách đoàn #${b.groupCode}` : ""}${!isDirect ? ` • ${channelBadge.label}` : ""}${
                 isSpilloverToNext ? " • Kéo dài sang tuần sau (bấm '>' để xem tiếp)" : ""
               }${
                 isSpilloverFromPast ? " • Bắt đầu từ tuần trước (bấm '<' để xem)" : ""
@@ -1330,7 +1372,7 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                 </span>
               )}
               <span className="truncate font-black whitespace-nowrap text-left flex-1 min-w-0">
-                {b.guestName.replace(/^OTA[-_ ]?[A-Za-z0-9]+[-_ ]?:?[-_ ]?/i, "").trim() || b.guestName}
+                {cleanBlockGuestName(b.guestName)}
               </span>
 
               {/* Spillover to next week indicator */}
@@ -1426,6 +1468,8 @@ interface CategoryRoomTableProps {
     e: React.MouseEvent,
   ) => void;
   onFocusOverdueRoom?: (room: RoomPlanRoom) => void;
+  isSearchActive?: boolean;
+  searchQuery?: string;
 }
 
 const CategoryRoomTable = memo(function CategoryRoomTable({
@@ -1435,6 +1479,8 @@ const CategoryRoomTable = memo(function CategoryRoomTable({
   todayYmd = getTodayInVietnam(),
   readOnly = false,
   blocksByRoomId,
+  isSearchActive = false,
+  searchQuery = "",
   occupiedRoomDaySet,
   dragOverCellKey,
   dragOverDayYmd,
@@ -1582,6 +1628,8 @@ const CategoryRoomTable = memo(function CategoryRoomTable({
               todayYmd={todayYmd}
               readOnly={readOnly}
               roomBlocks={blocksByRoomId.get(row.original.id) || EMPTY_BLOCKS}
+              isSearchActive={isSearchActive}
+              searchQuery={searchQuery}
               occupiedRoomDaySet={occupiedRoomDaySet}
               dragOverCellKey={dragOverCellKey}
               dragOverDayYmd={dragOverDayYmd}
@@ -1715,6 +1763,7 @@ export function TapeChartView({
     "all" | "available_today" | "occupied_today" | "cleaning" | "overdue"
   >("all");
   const [internalSearchQuery, setInternalSearchQuery] = useState<string>("");
+  const [showOnlyMatchedBlocks, setShowOnlyMatchedBlocks] = useState<boolean>(true);
   const searchQuery =
     propSearchQuery !== undefined ? propSearchQuery : internalSearchQuery;
   const setSearchQuery = useCallback(
@@ -1725,6 +1774,9 @@ export function TapeChartView({
         setInternalSearchQuery(next);
       }
       onSearchQueryChange?.(next);
+      if (!next.trim()) {
+        setShowOnlyMatchedBlocks(true);
+      }
     },
     [onSearchQueryChange, propSearchQuery, searchQuery],
   );
@@ -1740,7 +1792,20 @@ export function TapeChartView({
     setSelectedFloor("all");
     setSelectedStatusFilter("all");
     setSearchQuery("");
-  }, []);
+    setShowOnlyMatchedBlocks(true);
+  }, [setSearchQuery]);
+
+  // Pressing Escape clears active search query when no modal is open
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && searchQuery.trim().length > 0 && !selectedBlock) {
+        setSearchQuery("");
+        setShowOnlyMatchedBlocks(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [searchQuery, selectedBlock, setSearchQuery]);
 
   // Slide-over Drawer Selected Block & Active Tab
   const [selectedBlock, setSelectedBlock] = useState<RoomPlanBlock | null>(null);
@@ -2225,6 +2290,65 @@ export function TapeChartView({
     return map;
   }, [allBlocks]);
 
+  // Search-scoped displayed blocks:
+  // When user filters by code/guest, ONLY matching blocks are displayed per room.
+  // Unrelated blocks on the same room are hidden so the user can immediately identify the exact searched booking!
+  const displayedBlocksByRoomId = useMemo(() => {
+    const rawQ = searchQuery.trim();
+    if (!rawQ || !showOnlyMatchedBlocks) return blocksByRoomId;
+
+    const cleanQ = rawQ.replace(/^#/, "").trim().toLowerCase();
+    const map = new Map<string, RoomPlanBlock[]>();
+
+    allBlocks.forEach((b) => {
+      if (!map.has(b.roomId)) {
+        map.set(b.roomId, []);
+      }
+
+      // 1. If user specifically searched a room number (e.g. 1001 or P.1001), show all blocks for that room
+      const matchedRoom = roomById.get(b.roomId);
+      const roomNum = (b.roomNumber || matchedRoom?.roomNumber || "").toLowerCase();
+      const cleanQueryRoom = cleanQ.replace(/^(p\.|p|phòng\s*)/i, "").trim();
+      const isRoomNumberQuery =
+        cleanQueryRoom.length > 0 &&
+        (roomNum === cleanQueryRoom || (cleanQueryRoom.length >= 2 && roomNum.includes(cleanQueryRoom))) &&
+        !/^(vsh|rsv|grp|group|book)/i.test(cleanQ);
+
+      if (isRoomNumberQuery) {
+        map.get(b.roomId)!.push(b);
+        return;
+      }
+
+      // 2. If user searched a room type name (e.g. "Deluxe", "Standard"), show all blocks for matching room type
+      const roomTypeName = (b.roomTypeName || matchedRoom?.roomTypeName || "").toLowerCase();
+      const isRoomTypeQuery = cleanQ.length >= 2 && roomTypeName.includes(cleanQ);
+      if (isRoomTypeQuery) {
+        map.get(b.roomId)!.push(b);
+        return;
+      }
+
+      // 3. Otherwise, only display blocks matching the search code, name or phone
+      const resCode = (b.reservationCode || "").toLowerCase();
+      const grpCode = (b.groupCode || "").toLowerCase();
+      const gName = (b.guestName || "").toLowerCase();
+      const gDisp = (b.guestDisplayName || "").toLowerCase();
+      const phone = (b.phone || "").toLowerCase();
+
+      const matchesBlock =
+        (resCode && (resCode === cleanQ || resCode.includes(cleanQ) || cleanQ.includes(resCode))) ||
+        (grpCode && (grpCode === cleanQ || grpCode.includes(cleanQ) || cleanQ.includes(grpCode))) ||
+        (gName && gName.includes(cleanQ)) ||
+        (gDisp && gDisp.includes(cleanQ)) ||
+        (phone && phone.includes(cleanQ));
+
+      if (matchesBlock) {
+        map.get(b.roomId)!.push(b);
+      }
+    });
+
+    return map;
+  }, [allBlocks, blocksByRoomId, searchQuery, showOnlyMatchedBlocks, roomById]);
+
   const occupiedRoomDaySet = useMemo(() => {
     const set = new Set<string>();
     for (const b of allBlocks) {
@@ -2424,6 +2548,23 @@ export function TapeChartView({
     });
     return Array.from(map.entries());
   }, [orderedFilteredRooms]);
+
+  // Auto-scroll to first matching room when searching by booking code or guest
+  useEffect(() => {
+    const rawQ = searchQuery.trim();
+    if (!rawQ || rawQ.length < 3) return;
+    const targetRoom = orderedFilteredRooms[0];
+    if (!targetRoom) return;
+
+    const timer = setTimeout(() => {
+      const el = document.querySelector(`[data-room-id="${targetRoom.id}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, orderedFilteredRooms]);
 
   // Collapsed state for category room lists (expand / collapse)
   const [collapsedCategories, setCollapsedCategories] = useState<
@@ -4125,6 +4266,22 @@ export function TapeChartView({
     [isReadOnly],
   );
 
+  // Adjacent room reservations context (prior & next bookings) for fast extension / move decisions
+  const roomContextInfo = useMemo(() => {
+    if (!selectedBlock) return null;
+    const roomBlocks = (blocksByRoomId.get(selectedBlock.roomId) || [])
+      .filter((b) => b.id !== selectedBlock.id && b.status !== "CANCELLED")
+      .sort((a, b) => a.startDate.localeCompare(b.startDate));
+
+    const prior = [...roomBlocks]
+      .reverse()
+      .find((b) => b.endDate <= selectedBlock.startDate);
+
+    const next = roomBlocks.find((b) => b.startDate >= selectedBlock.endDate);
+
+    return { prior, next };
+  }, [selectedBlock, blocksByRoomId]);
+
   return (
     <div className="space-y-3" data-tape-chart-container="true">
       {/* ── Top Control & Smart Filter Bar ──────────────────────────── */}
@@ -4560,10 +4717,36 @@ export function TapeChartView({
 
             {/* Active Filter Reset & Filtered Result Summary */}
             {hasActiveFilters && (
-              <div className="inline-flex items-center gap-1.5">
+              <div className="inline-flex items-center gap-1.5 flex-wrap">
                 <span className="text-xs font-bold text-emerald-900 bg-emerald-100/80 px-2 py-1 rounded-md whitespace-nowrap">
                   Hiển thị {filteredRooms.length}/{allRooms.length} phòng
                 </span>
+                {searchQuery.trim().length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowOnlyMatchedBlocks((prev) => !prev)}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold transition cursor-pointer border whitespace-nowrap ${
+                      showOnlyMatchedBlocks
+                        ? "bg-indigo-50 border-indigo-200 text-indigo-900 hover:bg-indigo-100"
+                        : "bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200"
+                    }`}
+                    title={
+                      showOnlyMatchedBlocks
+                        ? "Bấm để hiển thị cả các đơn khác trên cùng phòng"
+                        : "Bấm để chỉ hiển thị đơn khớp tìm kiếm"
+                    }
+                  >
+                    <VsIcon
+                      name={showOnlyMatchedBlocks ? "filter_list" : "visibility"}
+                      className="text-xs text-indigo-600"
+                    />
+                    <span>
+                      {showOnlyMatchedBlocks
+                        ? "Chỉ hiện đơn khớp (Bấm để hiện cả phòng)"
+                        : "Đang hiện cả phòng (Bấm để ẩn đơn thừa)"}
+                    </span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handleResetAllFilters}
@@ -4826,7 +5009,9 @@ export function TapeChartView({
                   daysList={daysList}
                   todayYmd={todayYmd}
                   readOnly={isReadOnly}
-                  blocksByRoomId={blocksByRoomId}
+                  blocksByRoomId={displayedBlocksByRoomId}
+                  isSearchActive={Boolean(searchQuery.trim())}
+                  searchQuery={searchQuery}
                   occupiedRoomDaySet={occupiedRoomDaySet}
                   dragOverCellKey={dragOverCellKey}
                   dragOverDayYmd={dragOverDayYmd}
@@ -5098,6 +5283,41 @@ export function TapeChartView({
                         </div>
                       )}
                     </div>
+
+                    {/* Ngữ cảnh liền kề của phòng: xem nhanh trước/sau để gia hạn hoặc dời phòng */}
+                    {roomContextInfo && (
+                      <div className="flex flex-wrap items-center justify-between gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
+                        <div className="flex flex-wrap items-center gap-3 text-slate-700 min-w-0">
+                          <span className="font-bold text-slate-800 flex items-center gap-1 shrink-0">
+                            <VsIcon name="info" className="text-xs text-slate-500" />
+                            <span>Lịch phòng {selectedBlock.roomNumber}:</span>
+                          </span>
+                          <span className="font-medium text-slate-600">
+                            {roomContextInfo.prior
+                              ? `Trước đó: Trả phòng ${formatDateNum(roomContextInfo.prior.endDate)} (${cleanBlockGuestName(roomContextInfo.prior.guestName)})`
+                              : "Trước đó: Trống lịch"}
+                          </span>
+                          <span className="text-slate-300">•</span>
+                          <span className="font-medium text-slate-600">
+                            {roomContextInfo.next
+                              ? `Tiếp theo: Nhận phòng ${formatDateNum(roomContextInfo.next.startDate)} (${cleanBlockGuestName(roomContextInfo.next.guestName)})`
+                              : "Tiếp theo: Trống lịch"}
+                          </span>
+                        </div>
+                        {searchQuery.trim().length > 0 && showOnlyMatchedBlocks && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowOnlyMatchedBlocks(false);
+                              setSelectedBlock(null);
+                            }}
+                            className="text-xs font-bold text-emerald-800 hover:text-emerald-950 underline cursor-pointer shrink-0"
+                          >
+                            Xem toàn bộ lịch phòng
+                          </button>
+                        )}
+                      </div>
+                    )}
 
                     {/* Dòng 2: Hồ sơ Khách hàng & Phòng gán trong cùng 1 khối */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
