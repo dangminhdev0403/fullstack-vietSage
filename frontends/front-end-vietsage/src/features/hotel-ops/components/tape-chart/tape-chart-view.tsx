@@ -1795,18 +1795,6 @@ export function TapeChartView({
     setShowOnlyMatchedBlocks(true);
   }, [setSearchQuery]);
 
-  // Pressing Escape clears active search query when no modal is open
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && searchQuery.trim().length > 0 && !selectedBlock) {
-        setSearchQuery("");
-        setShowOnlyMatchedBlocks(true);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [searchQuery, selectedBlock, setSearchQuery]);
-
   // Slide-over Drawer Selected Block & Active Tab
   const [selectedBlock, setSelectedBlock] = useState<RoomPlanBlock | null>(null);
   const [drawerTab, setDrawerTab] = useState<"info" | "services" | "history">("info");
@@ -1819,6 +1807,18 @@ export function TapeChartView({
     },
     [],
   );
+
+  // Pressing Escape clears active search query when no modal is open
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && searchQuery.trim().length > 0 && !selectedBlock) {
+        setSearchQuery("");
+        setShowOnlyMatchedBlocks(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [searchQuery, selectedBlock, setSearchQuery]);
 
   // Placement Modal state (accessible fallback for Move/Swap)
   const [placementModalOpen, setPlacementModalOpen] = useState(false);
