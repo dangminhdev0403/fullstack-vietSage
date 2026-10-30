@@ -7,7 +7,6 @@ import {
   ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
-import type { SchemaObject } from "@nestjs/swagger";
 import type { Request } from "express";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
@@ -264,7 +263,7 @@ const bulkReservationSwaggerProperties = {
   bookingOwnerUserId: { type: "string", minLength: 1, nullable: true },
 };
 
-const createBulkReservationsBodySwaggerSchema: SchemaObject = {
+const createBulkReservationsBodySwaggerSchema: Record<string, any> = {
   type: "object",
   additionalProperties: false,
   properties: bulkReservationSwaggerProperties,
@@ -572,7 +571,7 @@ export class ReservationsController {
   )
   @ApiParam({ name: "hotelId", type: String })
   @ApiBody({
-    schema: createBulkReservationsBodySwaggerSchema,
+    schema: createBulkReservationsBodySwaggerSchema as any,
   })
   @ApiCreatedResponse({
     description: "Đã tạo nhóm đặt phòng với groupCode và danh sách reservation",
@@ -753,7 +752,7 @@ export class ReservationsController {
   )
   @ApiParam({ name: "hotelId", type: String })
   @ApiBody({
-    schema: createBulkReservationsBodySwaggerSchema,
+    schema: createBulkReservationsBodySwaggerSchema as any,
   })
   @ApiCreatedResponse({
     description: "Đã tạo nhóm đặt phòng với groupCode và danh sách reservation",
