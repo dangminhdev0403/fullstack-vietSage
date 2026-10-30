@@ -19,7 +19,7 @@ export const folioListSelect = {
   closedAt: true,
   createdAt: true,
   updatedAt: true,
-  room: { select: { id: true, roomNumber: true, price: true } },
+  room: { select: { id: true, roomNumber: true, price: true, roomType: { select: { id: true, name: true, basePrice: true } } } },
   stay: {
     select: {
       id: true,
@@ -35,6 +35,9 @@ export const folioListSelect = {
       reservationId: true,
       reservation: {
         select: {
+          id: true,
+          nightlyRateSnapshot: true,
+          baseNightlyRateSnapshot: true,
           chargeLines: {
             where: { lineType: "ROOM_NIGHT" },
             select: {
@@ -58,7 +61,16 @@ export const folioListSelect = {
 } satisfies Prisma.FolioSelect;
 
 export const folioDetailInclude = {
-  room: { select: { id: true, roomNumber: true, floor: true, status: true, price: true } },
+  room: {
+    select: {
+      id: true,
+      roomNumber: true,
+      floor: true,
+      status: true,
+      price: true,
+      roomType: { select: { id: true, name: true, basePrice: true } },
+    },
+  },
   stay: {
     select: {
       id: true,
@@ -75,6 +87,9 @@ export const folioDetailInclude = {
       reservationId: true,
       reservation: {
         select: {
+          id: true,
+          nightlyRateSnapshot: true,
+          baseNightlyRateSnapshot: true,
           chargeLines: {
             where: { lineType: "ROOM_NIGHT" },
             select: {
@@ -211,7 +226,7 @@ export class BillingRepository {
         openedAt: true,
         createdAt: true,
         updatedAt: true,
-        room: { select: { id: true, roomNumber: true, price: true } },
+        room: { select: { id: true, roomNumber: true, price: true, roomType: { select: { id: true, name: true, basePrice: true } } } },
         invoices: { select: { id: true, invoiceNumber: true, status: true, totalAmount: true, paidAmount: true, balanceAmount: true }, orderBy: [{ issuedAt: "desc" }, { id: "desc" }], take: 1 },
         stay: {
           select: {
@@ -225,6 +240,9 @@ export class BillingRepository {
             reservationId: true,
             reservation: {
               select: {
+                id: true,
+                nightlyRateSnapshot: true,
+                baseNightlyRateSnapshot: true,
                 chargeLines: {
                   where: { lineType: "ROOM_NIGHT" },
                   select: {

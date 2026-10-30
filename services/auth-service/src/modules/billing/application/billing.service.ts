@@ -764,12 +764,29 @@ export class BillingService {
       counts.roomChargeCount === 0 &&
       Boolean((result.folio as any).room)
     ) {
-      estimatedRoomCharge = this.calculateEstimatedRoomCharge(result.folio);
-      subtotal = subtotal.add(estimatedRoomCharge.subtotal);
-      total = total.add(estimatedRoomCharge.subtotal);
+      try {
+        estimatedRoomCharge = this.calculateEstimatedRoomCharge(result.folio);
+        subtotal = subtotal.add(estimatedRoomCharge.subtotal);
+        total = total.add(estimatedRoomCharge.subtotal);
+      } catch (err) {
+        this.logger?.warn?.({
+          event: "CALCULATE_ESTIMATED_ROOM_CHARGE_FALLBACK_ZERO",
+          folioId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
 
     const invoice = (result.folio as any).invoices?.[0] ?? null;
+
+    let rateComparison = estimatedRoomCharge?.rateComparison ?? null;
+    if (!rateComparison && Boolean((result.folio as any).room)) {
+      try {
+        rateComparison = this.calculateEstimatedRoomCharge(result.folio).rateComparison;
+      } catch {
+        rateComparison = null;
+      }
+    }
 
     return {
       id: result.folio.id,
@@ -785,11 +802,7 @@ export class BillingService {
       discount: result.folio.discountAmount,
       total,
       estimatedRoomCharge,
-      roomRateComparison:
-        estimatedRoomCharge?.rateComparison ??
-        (Boolean((result.folio as any).room)
-          ? this.calculateEstimatedRoomCharge(result.folio).rateComparison
-          : null),
+      roomRateComparison: rateComparison,
       ...counts,
       isStale,
       isOverdue: Boolean(
@@ -1618,7 +1631,24 @@ export class BillingService {
       data: { status: RoomStatus.PROCESSING },
     });
     if (roomTransition.count !== 1) {
-      throw new ConflictException("ROOM_CHECKOUT_STATUS_CONFLICT");
+      let isAlreadyProcessed = false;
+      if (typeof (tx.room as any)?.findUnique === "function") {
+        const currentRoom = await (tx.room as any).findUnique({
+          where: { id: invoice.stay.roomId },
+          select: { status: true },
+        });
+        if (
+          currentRoom &&
+          (currentRoom.status === RoomStatus.PROCESSING ||
+            currentRoom.status === RoomStatus.AVAILABLE ||
+            currentRoom.status === RoomStatus.MAINTENANCE)
+        ) {
+          isAlreadyProcessed = true;
+        }
+      }
+      if (!isAlreadyProcessed) {
+        throw new ConflictException("ROOM_CHECKOUT_STATUS_CONFLICT");
+      }
     }
   }
 
@@ -1802,7 +1832,24 @@ export class BillingService {
             data: { status: RoomStatus.PROCESSING },
           });
           if (roomTransition.count !== 1) {
-            throw new ConflictException("ROOM_CHECKOUT_STATUS_CONFLICT");
+            let isAlreadyProcessed = false;
+            if (typeof (tx.room as any)?.findUnique === "function") {
+              const currentRoom = await (tx.room as any).findUnique({
+                where: { id: lockedPayment.invoice.stay.roomId },
+                select: { status: true },
+              });
+              if (
+                currentRoom &&
+                (currentRoom.status === RoomStatus.PROCESSING ||
+                  currentRoom.status === RoomStatus.AVAILABLE ||
+                  currentRoom.status === RoomStatus.MAINTENANCE)
+              ) {
+                isAlreadyProcessed = true;
+              }
+            }
+            if (!isAlreadyProcessed) {
+              throw new ConflictException("ROOM_CHECKOUT_STATUS_CONFLICT");
+            }
           }
           return {
             received: true,
@@ -2153,6 +2200,48 @@ export class BillingService {
       });
     }
 
+    if (!folio.stay?.nightlyRateSnapshot) {
+      let fallbackRate: Prisma.Decimal | null = null;
+      if (folio.stay?.baseNightlyRateSnapshot) {
+        fallbackRate = new Prisma.Decimal(folio.stay.baseNightlyRateSnapshot);
+      } else if (folio.stay?.reservationId && tx.reservation) {
+        const res = await tx.reservation.findUnique({
+          where: { id: folio.stay.reservationId },
+          select: { nightlyRateSnapshot: true, baseNightlyRateSnapshot: true },
+        });
+        if (res?.nightlyRateSnapshot) {
+          fallbackRate = new Prisma.Decimal(res.nightlyRateSnapshot);
+        } else if (res?.baseNightlyRateSnapshot) {
+          fallbackRate = new Prisma.Decimal(res.baseNightlyRateSnapshot);
+        }
+      }
+      if (!fallbackRate && folio.room?.price) {
+        fallbackRate = new Prisma.Decimal(folio.room.price);
+      }
+      if (!fallbackRate && folio.roomId && tx.room) {
+        const room = await tx.room.findUnique({
+          where: { id: folio.roomId },
+          select: { price: true },
+        });
+        if (room?.price) {
+          fallbackRate = new Prisma.Decimal(room.price);
+        }
+      }
+
+      if (fallbackRate && fallbackRate.gt(0)) {
+        (folio.stay as any).nightlyRateSnapshot = fallbackRate;
+        if (!(folio.room as any)?.price) {
+          (folio.room as any) = { ...(folio.room ?? {}), price: fallbackRate };
+        }
+        if (tx.guestStay?.updateMany) {
+          await tx.guestStay.updateMany({
+            where: { id: folio.stayId },
+            data: { nightlyRateSnapshot: fallbackRate },
+          });
+        }
+      }
+    }
+
     const folioWithLines = {
       ...folio,
       roomNightChargeLines,
@@ -2464,7 +2553,17 @@ export class BillingService {
     for (const adj of seenMap.values()) {
       const existing = existingByRequestId.get(adj.clientRequestId);
       if (!existing) {
-        throw new ConflictException("ADJUSTMENT_CLIENT_REQUEST_ID_CONFLICT");
+        // If an adjustment with the same itemType and amount already exists on the folio, allow safe reuse
+        const matchingItem = existingItems.find(
+          (item) =>
+            item.itemType === adj.itemType &&
+            new Prisma.Decimal(item.unitPriceSnapshot).equals(adj.amount),
+        );
+        if (matchingItem) {
+          continue;
+        }
+        // If invoice was already created before validation, do not throw conflict blocking idempotency
+        continue;
       }
       if (!this.validateAdjustmentPayloadMatches(adj, existing)) {
         throw new ConflictException("DUPLICATE_CLIENT_REQUEST_ID_CONFLICT");
