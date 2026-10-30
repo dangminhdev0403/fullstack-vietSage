@@ -17,16 +17,11 @@ export function resolveTimeZone(timeZone?: string | null): string {
 }
 
 function asPlainDate(value: PlainDateInput): Temporal.PlainDate {
-  return typeof value === "string"
-    ? Temporal.PlainDate.from(value.slice(0, 10))
-    : value;
+  return typeof value === "string" ? Temporal.PlainDate.from(value.slice(0, 10)) : value;
 }
 
 /** Calendar date of an instant as seen in `timeZone`. */
-export function toPlainDate(
-  date: Date,
-  timeZone?: string | null,
-): Temporal.PlainDate {
+export function toPlainDate(date: Date, timeZone?: string | null): Temporal.PlainDate {
   return Temporal.Instant.fromEpochMilliseconds(date.getTime())
     .toZonedDateTimeISO(resolveTimeZone(timeZone))
     .toPlainDate();
@@ -59,10 +54,7 @@ export function plainDateAtTime(
 }
 
 /** UTC instant of local midnight (start of day) in `timeZone`. */
-export function startOfPlainDate(
-  plainDate: PlainDateInput,
-  timeZone?: string | null,
-): Date {
+export function startOfPlainDate(plainDate: PlainDateInput, timeZone?: string | null): Date {
   const zoned = asPlainDate(plainDate).toZonedDateTime({
     timeZone: resolveTimeZone(timeZone),
   });
@@ -109,15 +101,10 @@ export function listYmdRange(startYmd: string, endYmd: string): string[] {
 }
 
 /** `YYYY-MM-DD HH:mm:ss` of an instant as seen in `timeZone`. */
-export function formatLocalDateTime(
-  date: Date,
-  timeZone?: string | null,
-): string {
-  const zoned = Temporal.Instant.fromEpochMilliseconds(
-    date.getTime(),
-  ).toZonedDateTimeISO(resolveTimeZone(timeZone));
-  const time = zoned
-    .toPlainTime()
-    .toString({ smallestUnit: "second" });
+export function formatLocalDateTime(date: Date, timeZone?: string | null): string {
+  const zoned = Temporal.Instant.fromEpochMilliseconds(date.getTime()).toZonedDateTimeISO(
+    resolveTimeZone(timeZone),
+  );
+  const time = zoned.toPlainTime().toString({ smallestUnit: "second" });
   return `${zoned.toPlainDate().toString()} ${time}`;
 }

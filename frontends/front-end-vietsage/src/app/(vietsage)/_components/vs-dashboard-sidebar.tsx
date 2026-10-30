@@ -116,13 +116,13 @@ export function VsDashboardSidebar({
                 className="h-11 w-11 shrink-0 rounded-2xl p-1.5 shadow-[0_12px_28px_rgba(0,0,0,0.22)]"
                 markClassName="h-full w-full"
               />
-              <span className="font-serif text-[1.75rem] font-bold leading-none tracking-[-0.03em] text-[#fff8e8]">
+              <span className="font-serif text-2xl font-bold leading-none tracking-[-0.03em] text-[#fff8e8]">
                 VietSage
               </span>
             </div>
             {eyebrow ? (
               <div>
-                <span className="inline-block rounded-full border border-[#e8b363]/30 bg-[#e8b363]/10 px-2.5 py-0.5 text-sm font-bold uppercase tracking-[0.18em] text-[#e8b363]">
+                <span className="inline-block rounded-full border border-[#e8b363]/30 bg-[#e8b363]/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#e8b363] whitespace-nowrap">
                   {eyebrow}
                 </span>
               </div>
@@ -142,7 +142,7 @@ export function VsDashboardSidebar({
             {/* Section Header */}
             {!isCollapsed ? (
               <div className="px-3 pb-1 pt-2">
-                <span className="text-sm font-semibold uppercase tracking-[0.18em] text-[#e8b363]/85">
+                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[#e8b363]/80 whitespace-nowrap">
                   {group.label}
                 </span>
               </div>
@@ -162,7 +162,7 @@ export function VsDashboardSidebar({
                       <Link
                         href={item.href}
                         prefetch={true}
-                        className={`flex h-[50px] w-[50px] items-center justify-center rounded-xl transition-all duration-200 ${
+                        className={`flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-200 ${
                           isActive
                             ? "bg-[#f8f1e6] text-[#17201b] shadow-[0_4px_16px_rgba(0,0,0,0.18)]"
                             : "text-[#d7cbb8] hover:bg-white/10 hover:text-[#fff8e8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
@@ -175,11 +175,11 @@ export function VsDashboardSidebar({
                               : "bg-transparent text-[#e8b363] group-hover:bg-white/10"
                           }`}
                         >
-                          <VsIcon name={item.icon} className="text-[19px]" />
+                          <VsIcon name={item.icon} className="text-[18px]" />
                         </span>
                         {badge > 0 ? (
                           <span
-                            className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e8b363] px-1 text-sm font-semibold text-[#17201b] shadow"
+                            className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e8b363] px-1 text-xs font-semibold text-[#17201b] shadow whitespace-nowrap"
                             aria-label={`${item.label}, ${badge} tin chưa đọc`}
                           >
                             {badge > 99 ? "99+" : badge}
@@ -188,10 +188,10 @@ export function VsDashboardSidebar({
                       </Link>
 
                       {/* Tooltip on hover when collapsed */}
-                      <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50 hidden group-hover:flex items-center gap-2 rounded-xl border border-[#e8b363]/25 bg-[#17201b] px-3.5 py-2 text-sm font-semibold text-[#f8f1e6] shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md whitespace-nowrap">
+                      <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50 hidden group-hover:flex items-center gap-2 rounded-xl border border-[#e8b363]/25 bg-[#17201b] px-3.5 py-2 text-xs font-medium text-[#f8f1e6] shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md whitespace-nowrap">
                         <span>{item.label}</span>
                         {badge > 0 ? (
-                          <span className="rounded-full bg-[#e8b363] px-1.5 py-0.5 text-sm font-semibold text-[#17201b]">
+                          <span className="rounded-full bg-[#e8b363] px-1.5 py-0.5 text-xs font-semibold text-[#17201b]">
                             {badge > 99 ? "99+" : badge}
                           </span>
                         ) : null}
@@ -205,7 +205,7 @@ export function VsDashboardSidebar({
                     key={item.key}
                     href={item.href}
                     prefetch={true}
-                    className={`group flex h-[52px] items-center gap-3 rounded-xl px-3 text-base font-semibold transition-all duration-200 ${
+                    className={`group flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-all duration-200 ${
                       isActive
                         ? "bg-[#f8f1e6] text-[#17201b] shadow-[0_4px_16px_rgba(0,0,0,0.18)]"
                         : "text-[#d7cbb8] hover:bg-white/10 hover:text-[#fff8e8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
@@ -218,12 +218,12 @@ export function VsDashboardSidebar({
                           : "bg-white/8 text-[#e8b363] group-hover:bg-white/14"
                       }`}
                     >
-                      <VsIcon name={item.icon} className="text-[19px]" />
+                      <VsIcon name={item.icon} className="text-[18px]" />
                     </span>
-                    <span className="min-w-0 flex-1 truncate font-medium text-base whitespace-nowrap">{item.label}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium whitespace-nowrap">{item.label}</span>
                     {badge > 0 ? (
                       <span
-                        className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#e8b363] px-1.5 text-sm font-semibold text-[#17201b] shadow-sm transition-all"
+                        className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#e8b363] px-1.5 text-xs font-semibold text-[#17201b] shadow-sm transition-all whitespace-nowrap"
                         aria-label={`${item.label}, ${badge} tin chưa đọc`}
                       >
                         {badge > 99 ? "99+" : badge}
@@ -237,7 +237,7 @@ export function VsDashboardSidebar({
         ))}
 
         {groupedItems.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm text-[#d7cbb8]">
+          <div className="rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-xs text-[#d7cbb8]">
             Chưa có mục điều hướng.
           </div>
         ) : null}

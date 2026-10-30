@@ -6,7 +6,13 @@ import {
   NotFoundException,
   Optional,
 } from "@nestjs/common";
-import { GuestStayStatus, Prisma, ReservationStatus, RoomQRCodeStatus, RoomStatus } from "@prisma/client";
+import {
+  GuestStayStatus,
+  Prisma,
+  ReservationStatus,
+  RoomQRCodeStatus,
+  RoomStatus,
+} from "@prisma/client";
 import {
   addHours,
   generateOpaqueToken,
@@ -212,7 +218,13 @@ export class HotelRoomsService {
           status: RoomStatus.AVAILABLE,
           guestStays: {
             none: {
-              status: { in: [GuestStayStatus.ACTIVE, GuestStayStatus.CHECKED_IN, GuestStayStatus.CHECKOUT_PENDING] },
+              status: {
+                in: [
+                  GuestStayStatus.ACTIVE,
+                  GuestStayStatus.CHECKED_IN,
+                  GuestStayStatus.CHECKOUT_PENDING,
+                ],
+              },
               checkedOutAt: null,
             },
           },
@@ -224,7 +236,13 @@ export class HotelRoomsService {
             {
               guestStays: {
                 some: {
-                  status: { in: [GuestStayStatus.ACTIVE, GuestStayStatus.CHECKED_IN, GuestStayStatus.CHECKOUT_PENDING] },
+                  status: {
+                    in: [
+                      GuestStayStatus.ACTIVE,
+                      GuestStayStatus.CHECKED_IN,
+                      GuestStayStatus.CHECKOUT_PENDING,
+                    ],
+                  },
                   checkedOutAt: null,
                 },
               },
@@ -256,7 +274,13 @@ export class HotelRoomsService {
         conditions.push({
           guestStays: {
             some: {
-              status: { in: [GuestStayStatus.ACTIVE, GuestStayStatus.CHECKED_IN, GuestStayStatus.CHECKOUT_PENDING] },
+              status: {
+                in: [
+                  GuestStayStatus.ACTIVE,
+                  GuestStayStatus.CHECKED_IN,
+                  GuestStayStatus.CHECKOUT_PENDING,
+                ],
+              },
               checkedOutAt: null,
               plannedCheckOutAt: { lt: new Date() },
             },
@@ -290,10 +314,18 @@ export class HotelRoomsService {
 
     const q = query.q?.trim();
     if (q) {
+      const cleanRoomQ = q.replace(/^(p\.|p|phòng\s*)/i, "").trim();
+      const roomNumberConditions: Prisma.RoomWhereInput[] = [
+        { roomNumber: { contains: q, mode: "insensitive" } },
+      ];
+      if (cleanRoomQ && cleanRoomQ !== q) {
+        roomNumberConditions.push({ roomNumber: { contains: cleanRoomQ, mode: "insensitive" } });
+      }
+
       if (query.status === "IN_HOUSE") {
         conditions.push({
           OR: [
-            { roomNumber: { contains: q, mode: "insensitive" } },
+            ...roomNumberConditions,
             {
               guestStays: {
                 some: {
@@ -309,6 +341,23 @@ export class HotelRoomsService {
                     { guestDisplayName: { contains: q, mode: "insensitive" } },
                     { guestPhone: { contains: q } },
                     { reservationCode: { contains: q, mode: "insensitive" } },
+                    {
+                      reservation: {
+                        OR: [
+                          { reservationCode: { contains: q, mode: "insensitive" } },
+                          { groupCode: { contains: q, mode: "insensitive" } },
+                          {
+                            group: {
+                              OR: [
+                                { groupCode: { contains: q, mode: "insensitive" } },
+                                { groupName: { contains: q, mode: "insensitive" } },
+                                { leadGuestName: { contains: q, mode: "insensitive" } },
+                              ],
+                            },
+                          },
+                        ],
+                      },
+                    },
                   ],
                 },
               },
@@ -321,12 +370,16 @@ export class HotelRoomsService {
         query.status === "MAINTENANCE" ||
         query.status === "BLOCKED"
       ) {
-        where.roomNumber = { contains: q, mode: "insensitive" };
+        if (roomNumberConditions.length === 1) {
+          where.roomNumber = roomNumberConditions[0].roomNumber;
+        } else {
+          conditions.push({ OR: roomNumberConditions });
+        }
       } else {
         // Universal search: roomNumber, active/checked-in guest stays (with occupants), or confirmed reservations
         conditions.push({
           OR: [
-            { roomNumber: { contains: q, mode: "insensitive" } },
+            ...roomNumberConditions,
             {
               guestStays: {
                 some: {
@@ -342,6 +395,23 @@ export class HotelRoomsService {
                     { guestDisplayName: { contains: q, mode: "insensitive" } },
                     { guestPhone: { contains: q } },
                     { reservationCode: { contains: q, mode: "insensitive" } },
+                    {
+                      reservation: {
+                        OR: [
+                          { reservationCode: { contains: q, mode: "insensitive" } },
+                          { groupCode: { contains: q, mode: "insensitive" } },
+                          {
+                            group: {
+                              OR: [
+                                { groupCode: { contains: q, mode: "insensitive" } },
+                                { groupName: { contains: q, mode: "insensitive" } },
+                                { leadGuestName: { contains: q, mode: "insensitive" } },
+                              ],
+                            },
+                          },
+                        ],
+                      },
+                    },
                     {
                       occupants: {
                         some: {
@@ -359,11 +429,28 @@ export class HotelRoomsService {
             {
               reservations: {
                 some: {
-                  status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY] },
+                  status: {
+                    in: [
+                      ReservationStatus.CONFIRMED,
+                      ReservationStatus.ARRIVAL_READY,
+                      ReservationStatus.CHECKED_IN,
+                    ],
+                  },
                   OR: [
                     { guestDisplayName: { contains: q, mode: "insensitive" } },
                     { guestPhone: { contains: q } },
                     { reservationCode: { contains: q, mode: "insensitive" } },
+                    { groupCode: { contains: q, mode: "insensitive" } },
+                    {
+                      group: {
+                        OR: [
+                          { groupCode: { contains: q, mode: "insensitive" } },
+                          { groupName: { contains: q, mode: "insensitive" } },
+                          { leadGuestName: { contains: q, mode: "insensitive" } },
+                          { leadGuestPhone: { contains: q } },
+                        ],
+                      },
+                    },
                   ],
                 },
               },
@@ -1016,19 +1103,22 @@ export class HotelRoomsService {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       qr: latestQr ? this.toQrData(latestQr) : null,
-      activeStay: visibility.canViewStayContext && activeStay
-        ? this.toStayData(activeStay)
-        : visibility.canViewStayContext && projectedStay
-          ? this.toStayData(projectedStay)
-          : null,
+      activeStay:
+        visibility.canViewStayContext && activeStay
+          ? this.toStayData(activeStay)
+          : visibility.canViewStayContext && projectedStay
+            ? this.toStayData(projectedStay)
+            : null,
       projectedStay:
         visibility.canViewStayContext && projectedStay ? this.toStayData(projectedStay) : null,
-      projectedReservation: visibility.canViewReservationContext && projectedReservation
-        ? this.toReservationData(projectedReservation)
-        : null,
-      upcomingReservation: visibility.canViewReservationContext && upcomingReservation
-        ? this.toReservationData(upcomingReservation)
-        : null,
+      projectedReservation:
+        visibility.canViewReservationContext && projectedReservation
+          ? this.toReservationData(projectedReservation)
+          : null,
+      upcomingReservation:
+        visibility.canViewReservationContext && upcomingReservation
+          ? this.toReservationData(upcomingReservation)
+          : null,
     };
   }
 
@@ -1055,8 +1145,7 @@ export class HotelRoomsService {
     updatedAt?: Date;
   }) {
     const rawRate = row.nightlyRateSnapshot;
-    const nightlyRateSnapshot =
-      rawRate !== undefined && rawRate !== null ? Number(rawRate) : null;
+    const nightlyRateSnapshot = rawRate !== undefined && rawRate !== null ? Number(rawRate) : null;
 
     return {
       id: row.id,

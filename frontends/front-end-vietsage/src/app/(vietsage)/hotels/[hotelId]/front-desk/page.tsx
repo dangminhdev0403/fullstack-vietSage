@@ -27,6 +27,7 @@ import { KbttDeclarationsPage } from "@/features/kbtt/components/kbtt-declaratio
 import { FrontDeskInHouseTable } from "./front-desk-in-house-table";
 import { FrontDeskArrivalsTable } from "./front-desk-arrivals-table";
 import { FrontDeskGroupsTable } from "./front-desk-groups-table";
+import { FrontDeskSearchBar } from "./front-desk-search-bar";
 import { buildFrontDeskGroupSummaries } from "@/features/hotel-ops/utils/front-desk-groups";
 
 export const dynamic = "force-dynamic";
@@ -193,14 +194,24 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
     if (tab === "arrivals") {
       arrivalsPage = await authorizedApi("load front desk arrivals", (accessToken) =>
         hotelOpsService.listArrivals(hotelId, {
-          query: { ...dateRange, ...(q ? { q } : {}), page, limit: PAGE_SIZE },
+          query: {
+            ...(q ? {} : dateRange),
+            ...(q ? { q } : {}),
+            page,
+            limit: PAGE_SIZE,
+          },
           accessToken,
         }),
       );
     } else if (tab === "groups") {
       arrivalsPage = await authorizedApi("load front desk arrivals for groups", (accessToken) =>
         hotelOpsService.listArrivals(hotelId, {
-          query: { ...dateRange, ...(q ? { q } : {}), page: 1, limit: 100 },
+          query: {
+            ...(q ? {} : dateRange),
+            ...(q ? { q } : {}),
+            page: 1,
+            limit: 100,
+          },
           accessToken,
         }),
       );
@@ -373,31 +384,39 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
         </nav>
 
         {tab === "arrivals" || tab === "groups" ? (
-          <div className="flex flex-wrap items-center gap-1.5" aria-label="Khoảng ngày lọc">
-            {([
-              ["today", "Hôm nay"],
-              ["tomorrow", "Ngày mai"],
-              ["week", "7 ngày tới"],
-            ] as const).map(([value, label]) => {
-              const isActive = range === value;
-              return (
-                <Link
-                  key={value}
-                  aria-current={isActive ? "page" : undefined}
-                  className={`inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3.5 text-sm font-bold transition-all ${
-                    isActive
-                      ? "border-2 border-blue-600 bg-blue-50 text-blue-800 shadow-2xs"
-                      : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-                  }`}
-                  href={frontDeskHref(hotelId, { tab, range: value, q }, baseRoutePrefix)}
-                >
-                  {isActive ? (
-                    <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
-                  ) : null}
-                  <span>{label}</span>
-                </Link>
-              );
-            })}
+          <div className="flex flex-wrap items-center gap-2">
+            {q ? (
+              <span className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/70 px-3.5 text-xs font-semibold text-blue-700 whitespace-nowrap">
+                <VsIcon name="search" className="h-3.5 w-3.5" />
+                <span>Tìm kiếm trên tất cả ngày</span>
+              </span>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-1.5" aria-label="Khoảng ngày lọc">
+              {([
+                ["today", "Hôm nay"],
+                ["tomorrow", "Ngày mai"],
+                ["week", "7 ngày tới"],
+              ] as const).map(([value, label]) => {
+                const isActive = !q && range === value;
+                return (
+                  <Link
+                    key={value}
+                    aria-current={isActive ? "page" : undefined}
+                    className={`inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3.5 text-sm font-bold transition-all ${
+                      isActive
+                        ? "border-2 border-blue-600 bg-blue-50 text-blue-800 shadow-2xs"
+                        : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                    }`}
+                    href={frontDeskHref(hotelId, { tab, range: value }, baseRoutePrefix)}
+                  >
+                    {isActive ? (
+                      <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
+                    ) : null}
+                    <span>{label}</span>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         ) : null}
       </div>
@@ -410,50 +429,12 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
         />
       ) : (
         <>
-          {/* Search Bar */}
-      <form className="flex flex-col gap-2.5 sm:flex-row" method="get">
-        <input type="hidden" name="tab" value={tab} />
-        {tab === "arrivals" || tab === "groups" ? <input type="hidden" name="range" value={range} /> : null}
-        <label className="sr-only" htmlFor="front-desk-search">
-          {tab === "groups"
-            ? "Tìm theo mã đoàn, tên đoàn, người đại diện hoặc số điện thoại"
-            : "Tìm khách, số điện thoại, mã đặt phòng hoặc số phòng"}
-        </label>
-        <div className="relative flex-1">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
-            <VsIcon name="search" className="h-4.5 w-4.5" />
-          </div>
-          <input
-            id="front-desk-search"
-            className="min-h-11 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-4 text-base text-slate-900 shadow-2xs transition-all placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
-            defaultValue={q}
-            maxLength={120}
-            name="q"
-            placeholder={
-              tab === "groups"
-                ? "Tìm theo mã đoàn, tên đoàn, người đại diện hoặc số điện thoại..."
-                : "Tìm theo tên khách, số điện thoại, mã đặt phòng hoặc số phòng..."
-            }
-            type="search"
+          {/* Realtime Search Bar */}
+          <FrontDeskSearchBar
+            initialQuery={q}
+            tab={tab}
+            range={range}
           />
-        </div>
-        <button
-          className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-xs transition-all hover:bg-blue-700"
-          type="submit"
-        >
-          <VsIcon name="search" className="h-4 w-4" />
-          <span>Tìm kiếm</span>
-        </button>
-        {q ? (
-          <Link
-            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 hover:text-slate-900"
-            href={frontDeskHref(hotelId, { tab, range }, baseRoutePrefix)}
-          >
-            <VsIcon name="close" className="h-4 w-4" />
-            <span>Xóa tìm kiếm</span>
-          </Link>
-        ) : null}
-      </form>
 
       {/* Main Content Section */}
       <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs sm:p-6">
@@ -470,6 +451,7 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
               {!loadFailed ? (
                 <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-800">
                   {total} {tab === "groups" ? "đoàn" : "kết quả"}
+                  {q && (tab === "arrivals" || tab === "groups") ? " (tất cả ngày)" : ""}
                 </span>
               ) : null}
             </div>

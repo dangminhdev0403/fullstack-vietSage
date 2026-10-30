@@ -779,7 +779,11 @@ describe("HotelRoomStaffScope (Phase 1)", () => {
         }),
       };
 
-      const roomsService = new HotelRoomsService(mockRoomsRepo as any, {} as any, mockAccess as any);
+      const roomsService = new HotelRoomsService(
+        mockRoomsRepo as any,
+        {} as any,
+        mockAccess as any,
+      );
 
       const result = await roomsService.listRooms("hk-1", "role-hk", "hotel-1", {
         businessDate: "2026-10-15",
@@ -891,7 +895,11 @@ describe("HotelRoomStaffScope (Phase 1)", () => {
         }),
       };
 
-      const roomsService = new HotelRoomsService(mockRoomsRepo as any, {} as any, mockAccess as any);
+      const roomsService = new HotelRoomsService(
+        mockRoomsRepo as any,
+        {} as any,
+        mockAccess as any,
+      );
 
       const result = await roomsService.listRooms("staff-1", "role-frontdesk", "hotel-1", {
         businessDate: "2026-10-20",
@@ -961,7 +969,11 @@ describe("HotelRoomStaffScope (Phase 1)", () => {
         }),
       };
 
-      const roomsService = new HotelRoomsService(mockRoomsRepo as any, {} as any, mockAccess as any);
+      const roomsService = new HotelRoomsService(
+        mockRoomsRepo as any,
+        {} as any,
+        mockAccess as any,
+      );
 
       const result = await roomsService.listRooms("staff-1", "role-frontdesk", "hotel-1", {
         businessDate: "2026-10-20",
@@ -1003,34 +1015,36 @@ describe("HotelRoomStaffScope (Phase 1)", () => {
           floors: ["1"],
           types: ["Standard"],
           totalAvailable: 0,
-          items: [{
-            id: "room-private",
-            hotelId: "hotel-1",
-            roomNumber: "101",
-            floor: "1",
-            type: "Standard",
-            status: "OCCUPIED",
-            projectedStatus: "RESERVED",
-            qrCodes: [],
-            guestStays: [privateStay],
-            projectedStay: privateStay,
-            projectedReservation: {
-              id: "reservation-private",
-              sourceType: "RESERVATION",
+          items: [
+            {
+              id: "room-private",
               hotelId: "hotel-1",
-              roomId: "room-private",
-              reservationCode: "RES-FUTURE",
-              guestDisplayName: "Future Private Guest",
-              guestPhone: "0911111111",
-              status: "CONFIRMED",
-              plannedCheckInAt: new Date("2026-10-20T07:00:00Z"),
-              plannedCheckOutAt: new Date("2026-10-21T05:00:00Z"),
-              nightlyRateSnapshot: 1000000,
-              createdAt: new Date(),
-              updatedAt: new Date(),
+              roomNumber: "101",
+              floor: "1",
+              type: "Standard",
+              status: "OCCUPIED",
+              projectedStatus: "RESERVED",
+              qrCodes: [],
+              guestStays: [privateStay],
+              projectedStay: privateStay,
+              projectedReservation: {
+                id: "reservation-private",
+                sourceType: "RESERVATION",
+                hotelId: "hotel-1",
+                roomId: "room-private",
+                reservationCode: "RES-FUTURE",
+                guestDisplayName: "Future Private Guest",
+                guestPhone: "0911111111",
+                status: "CONFIRMED",
+                plannedCheckInAt: new Date("2026-10-20T07:00:00Z"),
+                plannedCheckOutAt: new Date("2026-10-21T05:00:00Z"),
+                nightlyRateSnapshot: 1000000,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              },
+              activeGuestDeviceCount: 0,
             },
-            activeGuestDeviceCount: 0,
-          }],
+          ],
         }),
       };
       const mockAccess = {
@@ -1043,9 +1057,18 @@ describe("HotelRoomStaffScope (Phase 1)", () => {
           permissions: new Set(["hotel.rooms.view"]),
         }),
       };
-      const roomsService = new HotelRoomsService(mockRoomsRepo as any, {} as any, mockAccess as any);
+      const roomsService = new HotelRoomsService(
+        mockRoomsRepo as any,
+        {} as any,
+        mockAccess as any,
+      );
 
-      const result = await roomsService.listRooms("housekeeping-1", "role-housekeeping", "hotel-1", {});
+      const result = await roomsService.listRooms(
+        "housekeeping-1",
+        "role-housekeeping",
+        "hotel-1",
+        {},
+      );
 
       expect(result.items[0].activeStay).toBeNull();
       expect(result.items[0].projectedStay).toBeNull();

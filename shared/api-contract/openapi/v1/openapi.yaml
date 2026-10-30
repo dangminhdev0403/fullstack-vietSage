@@ -5019,12 +5019,12 @@ paths:
           schema:
             type: number
         - name: to
-          required: true
+          required: false
           in: query
           schema:
             type: string
         - name: from
-          required: true
+          required: false
           in: query
           schema:
             type: string
@@ -5747,12 +5747,12 @@ paths:
           schema:
             type: string
         - name: to
-          required: true
+          required: false
           in: query
           schema:
             type: string
         - name: from
-          required: true
+          required: false
           in: query
           schema:
             type: string

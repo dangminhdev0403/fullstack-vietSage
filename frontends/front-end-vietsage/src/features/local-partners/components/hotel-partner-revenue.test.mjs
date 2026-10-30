@@ -48,5 +48,7 @@ test("operational filtering maintains global metric totals separate from table v
 });
 
 test("confirm dialogs adhere to SweetAlert2 standard", () => {
-  assert.match(source, /reverseButtons:\s*false/);
+  assert.match(source, /showConfirmDialog\(/);
+  const feedback = readFileSync(new URL("../../../libs/swal.ts", import.meta.url), "utf8");
+  assert.match(feedback, /reverseButtons:\s*false/);
 });

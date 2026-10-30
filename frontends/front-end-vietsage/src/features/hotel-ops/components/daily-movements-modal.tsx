@@ -158,7 +158,9 @@ export function DailyMovementsModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Sync initial tab when modal opens
-  useEffect(() => {
+  const [previousOpening, setPreviousOpening] = useState({ isOpen, initialTab });
+  if (previousOpening.isOpen !== isOpen || previousOpening.initialTab !== initialTab) {
+    setPreviousOpening({ isOpen, initialTab });
     if (isOpen) {
       setActiveTab(initialTab);
       setSearchQuery("");
@@ -168,7 +170,7 @@ export function DailyMovementsModal({
       setGroupPage(1);
       setIsAutoCheckInAfterAssign(false);
     }
-  }, [isOpen, initialTab]);
+  }
 
   // Keyboard escape: closes modal if on list
   useEffect(() => {
@@ -278,9 +280,6 @@ export function DailyMovementsModal({
     });
   }, [groupSummaries, groupFilter, searchQuery]);
 
-  useEffect(() => {
-    setGroupPage(1);
-  }, [groupFilter, searchQuery]);
 
   const groupTotalPages = Math.max(1, Math.ceil(filteredGroups.length / GROUPS_PER_PAGE));
   const safeGroupPage = Math.min(groupPage, groupTotalPages);
@@ -469,7 +468,7 @@ export function DailyMovementsModal({
                   <input
                     type="text"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => { setSearchQuery(e.target.value); setGroupPage(1); }}
                     placeholder={
                       activeTab === "arrivals"
                         ? "Tìm tên khách, SĐT, số phòng, mã đặt..."
@@ -504,7 +503,7 @@ export function DailyMovementsModal({
                 ) : activeTab === "groups" ? (
                   <select
                     value={groupFilter}
-                    onChange={(e) => setGroupFilter(e.target.value as GroupFilter)}
+                    onChange={(e) => { setGroupFilter(e.target.value as GroupFilter); setGroupPage(1); }}
                     className="h-10 rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs focus:border-sky-600 focus:outline-none"
                   >
                     <option value="all">Tất cả đoàn</option>

@@ -13,8 +13,10 @@ import { PrismaService } from "../../../../prisma/prisma.service";
 export class EmergencyRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findLocation(locationId: string) {
-    return this.prisma.emergencyLocation.findUnique({ where: { id: locationId } });
+  findLocation(locationId: string, tenantId: string, hotelId: string) {
+    return this.prisma.emergencyLocation.findFirst({
+      where: { id: locationId, tenantId, hotelId, usableForEmergencyRouting: true },
+    });
   }
 
   findFallbackLocation(tenantId: string, hotelId?: string | null) {
@@ -96,6 +98,26 @@ export class EmergencyRepository {
       locationUncertain,
     });
 
+    if (
+      severity === EmergencyIncidentSeverity.HIGH ||
+      severity === EmergencyIncidentSeverity.CRITICAL
+    ) {
+      await this.prisma.emergencyIncident.updateMany({
+        where: {
+          id: incidentId,
+          status: {
+            in: [
+              EmergencyIncidentStatus.OPEN,
+              EmergencyIncidentStatus.REOPENED,
+              EmergencyIncidentStatus.ACKNOWLEDGED,
+              EmergencyIncidentStatus.MONITORING,
+            ],
+          },
+        },
+        data: { status: EmergencyIncidentStatus.ESCALATING },
+      });
+    }
+
     return this.prisma.emergencyIncident.update({
       where: { id: incidentId },
       data: {
@@ -108,11 +130,6 @@ export class EmergencyRepository {
         connectedCallCount: connected,
         locationUncertain,
         severity,
-        status:
-          severity === EmergencyIncidentSeverity.HIGH ||
-          severity === EmergencyIncidentSeverity.CRITICAL
-            ? EmergencyIncidentStatus.ESCALATING
-            : EmergencyIncidentStatus.OPEN,
         lastActivityAt: new Date(),
       },
     });

@@ -552,42 +552,38 @@ describe("Channex Channel Manager Integration Suite", () => {
       mockApiClient.createProperty.mockResolvedValue({ data: { id: "prop_1" } });
       mockApiClient.createRoomType.mockResolvedValue({ data: { id: "rt_1" } });
       mockApiClient.createRatePlan.mockResolvedValue({ data: { id: "rp_1" } });
-      mockApiClient.getRoomTypes
-        .mockResolvedValueOnce({ data: [] })
-        .mockResolvedValue({
-          data: [
-            {
-              id: "rt_1",
-              attributes: {
-                property_id: "prop_1",
-                title: "STANDARD",
-                count_of_rooms: 1,
-                occ_adults: 2,
-                occ_children: 1,
-                occ_infants: 1,
-                default_occupancy: 2,
-              },
+      mockApiClient.getRoomTypes.mockResolvedValueOnce({ data: [] }).mockResolvedValue({
+        data: [
+          {
+            id: "rt_1",
+            attributes: {
+              property_id: "prop_1",
+              title: "STANDARD",
+              count_of_rooms: 1,
+              occ_adults: 2,
+              occ_children: 1,
+              occ_infants: 1,
+              default_occupancy: 2,
             },
-          ],
-        });
-      mockApiClient.getRatePlans
-        .mockResolvedValueOnce({ data: [] })
-        .mockResolvedValue({
-          data: [
-            {
-              id: "rp_1",
-              attributes: {
-                property_id: "prop_1",
-                room_type_id: "rt_1",
-                title: "STANDARD - Standard Rate",
-                currency: "VND",
-                sell_mode: "per_room",
-                rate_mode: "manual",
-                options: [{ occupancy: 2, is_primary: true, rate: 500000 }],
-              },
+          },
+        ],
+      });
+      mockApiClient.getRatePlans.mockResolvedValueOnce({ data: [] }).mockResolvedValue({
+        data: [
+          {
+            id: "rp_1",
+            attributes: {
+              property_id: "prop_1",
+              room_type_id: "rt_1",
+              title: "STANDARD - Standard Rate",
+              currency: "VND",
+              sell_mode: "per_room",
+              rate_mode: "manual",
+              options: [{ occupancy: 2, is_primary: true, rate: 500000 }],
             },
-          ],
-        });
+          },
+        ],
+      });
 
       const service = new ChannexSyncService(mockPrisma, mockApiClient);
       const result = await service.syncContent(hotelId);

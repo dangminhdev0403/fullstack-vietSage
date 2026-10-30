@@ -34,16 +34,23 @@ describe("Group Reservations Service & Repository (Lane A)", () => {
             timezone: "Asia/Ho_Chi_Minh",
           });
         }),
-        resolveRoomScope: jest.fn().mockImplementation(async (actorUserId, activeRoleId, hotelId) => {
-          const hotel = await accessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-          return {
-            hotel,
-            allowedRoomId: null,
-            mode: "HOTEL_WIDE" as const,
-          };
-        }),
+        resolveRoomScope: jest
+          .fn()
+          .mockImplementation(async (actorUserId, activeRoleId, hotelId) => {
+            const hotel = await accessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+            return {
+              hotel,
+              allowedRoomId: null,
+              mode: "HOTEL_WIDE" as const,
+            };
+          }),
         assertRoomAccess: jest.fn().mockImplementation((scope, roomId) => {
-          if (typeof scope === "object" && scope !== null && scope.allowedRoomId !== null && scope.allowedRoomId !== roomId) {
+          if (
+            typeof scope === "object" &&
+            scope !== null &&
+            scope.allowedRoomId !== null &&
+            scope.allowedRoomId !== roomId
+          ) {
             throw new NotFoundException("Không tìm thấy phòng");
           }
         }),
@@ -180,9 +187,11 @@ describe("Group Reservations Service & Repository (Lane A)", () => {
 
     it("trả về 404 khi không tìm thấy đoàn", async () => {
       const { service, repository } = createService({
-        findGroupByCode: jest.fn().mockRejectedValue(
-          new NotFoundException("Không tìm thấy thông tin đoàn với mã NON_EXISTENT"),
-        ),
+        findGroupByCode: jest
+          .fn()
+          .mockRejectedValue(
+            new NotFoundException("Không tìm thấy thông tin đoàn với mã NON_EXISTENT"),
+          ),
       });
 
       await expect(
@@ -285,9 +294,7 @@ describe("Group Reservations Service & Repository (Lane A)", () => {
     it("allows restricted actor reading own-only group containing only room A (F1)", async () => {
       const ownGroupMock = {
         groupCode: "GRP-OWN",
-        reservations: [
-          { id: "res-1", roomId: "room-A", assignedRoomId: "room-A" },
-        ],
+        reservations: [{ id: "res-1", roomId: "room-A", assignedRoomId: "room-A" }],
       };
       const { service, accessService } = createService({
         findGroupByCode: jest.fn().mockResolvedValue(ownGroupMock),
@@ -298,7 +305,12 @@ describe("Group Reservations Service & Repository (Lane A)", () => {
         mode: "ROOM_EXCLUSIVE",
       });
 
-      const result = await service.getGroupReservation("actor-restricted", "role-staff", "hotel-1", "GRP-OWN");
+      const result = await service.getGroupReservation(
+        "actor-restricted",
+        "role-staff",
+        "hotel-1",
+        "GRP-OWN",
+      );
       expect(result).toEqual(ownGroupMock);
     });
 
@@ -350,7 +362,12 @@ describe("Group Reservations Service & Repository (Lane A)", () => {
         mode: "ROOM_EXCLUSIVE",
       });
 
-      const result = await service.getGroupConfirmation("actor-restricted", "role-staff", "hotel-1", "GRP-OWN");
+      const result = await service.getGroupConfirmation(
+        "actor-restricted",
+        "role-staff",
+        "hotel-1",
+        "GRP-OWN",
+      );
       expect(result).toBeDefined();
     });
   });
@@ -544,8 +561,20 @@ describe("Group Reservations Service & Repository (Lane A)", () => {
         $queryRawUnsafe: jest.fn().mockResolvedValue([]),
         room: {
           findMany: jest.fn().mockResolvedValue([
-            { id: "room-1", status: "AVAILABLE", price: "500000.00", roomTypeId: "rt-std", roomType: { name: "Standard" } },
-            { id: "room-2", status: "AVAILABLE", price: "500000.00", roomTypeId: "rt-std", roomType: { name: "Standard" } },
+            {
+              id: "room-1",
+              status: "AVAILABLE",
+              price: "500000.00",
+              roomTypeId: "rt-std",
+              roomType: { name: "Standard" },
+            },
+            {
+              id: "room-2",
+              status: "AVAILABLE",
+              price: "500000.00",
+              roomTypeId: "rt-std",
+              roomType: { name: "Standard" },
+            },
           ]),
         },
         reservation: {

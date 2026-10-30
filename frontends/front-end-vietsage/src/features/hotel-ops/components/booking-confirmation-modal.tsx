@@ -112,7 +112,7 @@ export function HotelConfirmationTemplateForm({
   const queryClient = useQueryClient();
   const templateQueryOptions = staffRoomsResource.queries.confirmationTemplate.options({ hotelId });
   const { data: templateData, isLoading } = useQuery<HotelConfirmationTemplateConfig | null>({
-    ...(templateQueryOptions as any),
+    ...templateQueryOptions,
   });
 
   const upsertMutation = useMutation(
@@ -121,32 +121,33 @@ export function HotelConfirmationTemplateForm({
 
   const [footerNotes, setFooterNotes] = useState(DEFAULT_FOOTER_NOTE);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [previewTimestamp] = useState(() => Date.now());
   const [previewMode, setPreviewMode] = useState<"single" | "group">("single");
 
-  useEffect(() => {
-    if (templateData && !isInitialized) {
+  if (!isInitialized && !isLoading) {
+    if (templateData) {
       setFooterNotes(templateData.footerNotes || DEFAULT_FOOTER_NOTE);
       setIsInitialized(true);
-    } else if (!templateData && !isLoading && !isInitialized) {
+    } else {
       setFooterNotes(DEFAULT_FOOTER_NOTE);
       setIsInitialized(true);
     }
-  }, [templateData, isLoading, isInitialized]);
+  }
 
   const handleResetDefaults = () => {
     setFooterNotes(DEFAULT_FOOTER_NOTE);
   };
 
   const sampleSingleData: ReservationConfirmationData = useMemo(() => {
-    const brand = (hotel?.brandSettings as Record<string, any>) || {};
+    const brand = hotel?.brandSettings || {};
     const hotelInfo: ConfirmationHotelInfo = {
       id: hotel?.id || hotelId,
       name: hotel?.name || "Khách sạn",
       code: hotel?.code || "HOTEL",
-      address: (hotel as any)?.address || (brand.address as string) || "",
-      phone: (hotel as any)?.phone || (brand.phone as string) || (brand.hotline as string) || "",
-      email: (hotel as any)?.email || (brand.email as string) || "",
-      logoUrl: (hotel as any)?.logoUrl || (brand.logoUrl as string) || (brand.logo as string) || "/brand/vietsage-mark-white.png",
+      address: (hotel && "address" in hotel && typeof hotel.address === "string" ? hotel.address : undefined) || (typeof brand.address === "string" ? brand.address : undefined) || "",
+      phone: (hotel && "phone" in hotel && typeof hotel.phone === "string" ? hotel.phone : undefined) || (typeof brand.phone === "string" ? brand.phone : undefined) || (typeof brand.hotline === "string" ? brand.hotline : undefined) || "",
+      email: (hotel && "email" in hotel && typeof hotel.email === "string" ? hotel.email : undefined) || (typeof brand.email === "string" ? brand.email : undefined) || "",
+      logoUrl: (hotel && "logoUrl" in hotel && typeof hotel.logoUrl === "string" ? hotel.logoUrl : undefined) || (typeof brand.logoUrl === "string" ? brand.logoUrl : undefined) || (typeof brand.logo === "string" ? brand.logo : undefined) || "/brand/vietsage-mark-white.png",
       checkInTimePolicy: "14:00",
       checkOutTimePolicy: "12:00",
     };
@@ -176,22 +177,22 @@ export function HotelConfirmationTemplateForm({
         guestCount: 2,
         roomType: { id: "rt-1", name: "Deluxe Ocean View", code: "DLX-OV" },
         room: { id: "r-302", roomNumber: "302", floor: "3" },
-        plannedCheckInAt: new Date(Date.now() + 86400000).toISOString(),
-        plannedCheckOutAt: new Date(Date.now() + 86400000 * 3).toISOString(),
+        plannedCheckInAt: new Date(previewTimestamp + 86400000).toISOString(),
+        plannedCheckOutAt: new Date(previewTimestamp + 86400000 * 3).toISOString(),
         nights: 2,
         notes: "Khách kỷ niệm ngày cưới, yêu cầu phòng tầng cao và không hút thuốc.",
-        createdAt: new Date().toISOString(),
+        createdAt: new Date(previewTimestamp).toISOString(),
       },
       pricing: {
         nightlyBreakdown: [
           {
-            date: new Date(Date.now() + 86400000).toISOString(),
+            date: new Date(previewTimestamp + 86400000).toISOString(),
             description: "Đêm 1 - Giá niêm yết tiêu chuẩn phòng",
             rate: 1500000,
             lineType: "NIGHTLY_RATE",
           },
           {
-            date: new Date(Date.now() + 86400000 * 2).toISOString(),
+            date: new Date(previewTimestamp + 86400000 * 2).toISOString(),
             description: "Đêm 2 - Giá niêm yết tiêu chuẩn phòng",
             rate: 1500000,
             lineType: "NIGHTLY_RATE",
@@ -214,18 +215,18 @@ export function HotelConfirmationTemplateForm({
         footerNoteText: footerNotes.trim() || DEFAULT_FOOTER_NOTE,
       },
     };
-  }, [hotel, hotelId, footerNotes]);
+  }, [hotel, hotelId, footerNotes, previewTimestamp]);
 
   const sampleGroupData: GroupConfirmationData = useMemo(() => {
-    const brand = (hotel?.brandSettings as Record<string, any>) || {};
+    const brand = hotel?.brandSettings || {};
     const hotelInfo: ConfirmationHotelInfo = {
       id: hotel?.id || hotelId,
       name: hotel?.name || "Khách sạn",
       code: hotel?.code || "HOTEL",
-      address: (hotel as any)?.address || (brand.address as string) || "",
-      phone: (hotel as any)?.phone || (brand.phone as string) || (brand.hotline as string) || "",
-      email: (hotel as any)?.email || (brand.email as string) || "",
-      logoUrl: (hotel as any)?.logoUrl || (brand.logoUrl as string) || (brand.logo as string) || "/brand/vietsage-mark-white.png",
+      address: (hotel && "address" in hotel && typeof hotel.address === "string" ? hotel.address : undefined) || (typeof brand.address === "string" ? brand.address : undefined) || "",
+      phone: (hotel && "phone" in hotel && typeof hotel.phone === "string" ? hotel.phone : undefined) || (typeof brand.phone === "string" ? brand.phone : undefined) || (typeof brand.hotline === "string" ? brand.hotline : undefined) || "",
+      email: (hotel && "email" in hotel && typeof hotel.email === "string" ? hotel.email : undefined) || (typeof brand.email === "string" ? brand.email : undefined) || "",
+      logoUrl: (hotel && "logoUrl" in hotel && typeof hotel.logoUrl === "string" ? hotel.logoUrl : undefined) || (typeof brand.logoUrl === "string" ? brand.logoUrl : undefined) || (typeof brand.logo === "string" ? brand.logo : undefined) || "/brand/vietsage-mark-white.png",
       checkInTimePolicy: "14:00",
       checkOutTimePolicy: "12:00",
     };
@@ -252,8 +253,8 @@ export function HotelConfirmationTemplateForm({
         leadGuestPhone: "0918 223 344",
         totalRooms: 3,
         nights: 2,
-        checkInDate: new Date(Date.now() + 86400000).toISOString(),
-        checkOutDate: new Date(Date.now() + 86400000 * 3).toISOString(),
+        checkInDate: new Date(previewTimestamp + 86400000).toISOString(),
+        checkOutDate: new Date(previewTimestamp + 86400000 * 3).toISOString(),
         notes: "Đoàn yêu cầu các phòng cạnh nhau và ăn sáng cùng giờ.",
       },
       rooms: [
@@ -266,8 +267,8 @@ export function HotelConfirmationTemplateForm({
           roomNumber: "201",
           floor: "2",
           roomTypeName: "Deluxe King",
-          plannedCheckInAt: new Date(Date.now() + 86400000).toISOString(),
-          plannedCheckOutAt: new Date(Date.now() + 86400000 * 3).toISOString(),
+          plannedCheckInAt: new Date(previewTimestamp + 86400000).toISOString(),
+          plannedCheckOutAt: new Date(previewTimestamp + 86400000 * 3).toISOString(),
           nights: 2,
           nightlyRate: 1400000,
           roomSubtotal: 2800000,
@@ -284,8 +285,8 @@ export function HotelConfirmationTemplateForm({
           roomNumber: "202",
           floor: "2",
           roomTypeName: "Deluxe Twin",
-          plannedCheckInAt: new Date(Date.now() + 86400000).toISOString(),
-          plannedCheckOutAt: new Date(Date.now() + 86400000 * 3).toISOString(),
+          plannedCheckInAt: new Date(previewTimestamp + 86400000).toISOString(),
+          plannedCheckOutAt: new Date(previewTimestamp + 86400000 * 3).toISOString(),
           nights: 2,
           nightlyRate: 1400000,
           roomSubtotal: 2800000,
@@ -302,8 +303,8 @@ export function HotelConfirmationTemplateForm({
           roomNumber: "203",
           floor: "2",
           roomTypeName: "Superior King",
-          plannedCheckInAt: new Date(Date.now() + 86400000).toISOString(),
-          plannedCheckOutAt: new Date(Date.now() + 86400000 * 3).toISOString(),
+          plannedCheckInAt: new Date(previewTimestamp + 86400000).toISOString(),
+          plannedCheckOutAt: new Date(previewTimestamp + 86400000 * 3).toISOString(),
           nights: 2,
           nightlyRate: 1200000,
           roomSubtotal: 2400000,
@@ -332,7 +333,7 @@ export function HotelConfirmationTemplateForm({
         footerNoteText: footerNotes.trim() || DEFAULT_FOOTER_NOTE,
       },
     };
-  }, [hotel, hotelId, footerNotes]);
+  }, [hotel, hotelId, footerNotes, previewTimestamp]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1126,28 +1127,17 @@ export function BookingConfirmationModal({
 
   const shouldQuery = isOpen && !initialData && Boolean(reservationId || groupCode);
 
-  const baseConfirmationOptions =
-    mode === "group"
-      ? staffRoomsResource.queries.groupConfirmation.options({
-          hotelId,
-          groupCode: groupCode ?? "",
-        })
-      : staffRoomsResource.queries.reservationConfirmation.options({
-          hotelId,
-          reservationId: reservationId ?? "",
-        });
-
-  const {
-    data: queriedData,
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useQuery<ReservationConfirmationData | GroupConfirmationData>({
-    ...(baseConfirmationOptions as any),
-    enabled: shouldQuery,
+  const singleQuery = useQuery({
+    ...staffRoomsResource.queries.reservationConfirmation.options({ hotelId, reservationId: reservationId ?? "" }),
+    enabled: shouldQuery && mode !== "group",
     staleTime: 30_000,
   });
+  const groupQuery = useQuery({
+    ...staffRoomsResource.queries.groupConfirmation.options({ hotelId, groupCode: groupCode ?? "" }),
+    enabled: shouldQuery && mode === "group",
+    staleTime: 30_000,
+  });
+  const { data: queriedData, isLoading, isError, error, refetch } = mode === "group" ? groupQuery : singleQuery;
 
   const effectiveData = initialData ?? queriedData;
 

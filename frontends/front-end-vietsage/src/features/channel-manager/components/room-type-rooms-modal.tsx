@@ -184,11 +184,7 @@ export function RoomTypeRoomsModal({
 
   const canManageQr = canManage && roleScope === "owner";
   const [clientOrigin, setClientOrigin] = useState("");
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setClientOrigin(window.location.origin);
-    }
-  }, []);
+
 
   const [isBulkQrBusy, setIsBulkQrBusy] = useState(false);
   const [selectedQrRoom, setSelectedQrRoom] = useState<HotelRoomSummary | null>(null);
@@ -806,7 +802,7 @@ export function RoomTypeRoomsModal({
                                       </span>
                                       <button
                                         type="button"
-                                        onClick={() => setSelectedQrRoom(room)}
+                                        onClick={() => { setClientOrigin(window.location.origin); setSelectedQrRoom(room); }}
                                         title={`Xem & tải mã QR phòng ${getRoomNumber(room)}`}
                                         aria-label={`Xem QR phòng ${getRoomNumber(room)}`}
                                         className="inline-flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-xs font-bold text-slate-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 transition cursor-pointer shadow-2xs whitespace-nowrap"

@@ -32,6 +32,7 @@ const debtorTypeLabels: Record<string, string> = {
 
 export function BillingReceivablesTableClient({ hotelId }: BillingReceivablesTableClientProps) {
   const queryClient = useQueryClient();
+  const [nowTimestamp] = useState(() => Date.now());
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [debtorTypeFilter, setDebtorTypeFilter] = useState("ALL");
   const [query, setQuery] = useState("");
@@ -221,7 +222,7 @@ export function BillingReceivablesTableClient({ hotelId }: BillingReceivablesTab
                 const paid = Number(rec.paidAmount ?? 0);
                 const out = Number(rec.outstandingAmount ?? rec.balanceAmount ?? (orig - paid));
                 const statusInfo = statusLabels[rec.status] || { label: rec.status, tone: "bg-slate-100 text-slate-700 border-slate-200" };
-                const isOverdue = rec.dueDate && new Date(rec.dueDate).getTime() < Date.now() && out > 0;
+                const isOverdue = rec.dueDate && new Date(rec.dueDate).getTime() < nowTimestamp && out > 0;
 
                 return (
                   <tr key={rec.id} className="hover:bg-slate-50/70 transition-colors">

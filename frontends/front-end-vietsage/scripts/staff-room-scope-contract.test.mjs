@@ -90,17 +90,20 @@ test("staff management client renders room assignment, validation, and SweetAler
   assert.match(staffClientSource, /header:\s*"Phòng phụ trách"/);
 
   // Warning for unassigned frontdesk staff
-  assert.match(staffClientSource, /Chưa gán phòng — tài khoản chưa thể thao tác vận hành/);
+  assert.match(staffClientSource, /Chưa phân công/);
 
   // SweetAlert2 confirm dialog with reverseButtons: false
   assert.match(staffClientSource, /SwalVietSage\.fire\(\{/);
-  assert.match(staffClientSource, /reverseButtons:\s*false/);
-  assert.match(staffClientSource, /Bỏ gán phòng\?/);
+  assert.match(staffClientSource, /showConfirmDialog\(/);
+  const feedback = readFileSync(new URL("../src/libs/swal.ts", import.meta.url), "utf8");
+  assert.match(feedback, /reverseButtons:\s*false/);
+  assert.match(staffClientSource, /mutations\.unassignRoom\.mutateAsync/);
 
-  // Creation form uses RoomSearchSelect combobox and enforces mandatory room assignment
+  // Accounts may be created before assignment; operating access remains fail-closed below.
   assert.match(staffClientSource, /RoomSearchSelect/);
-  assert.match(staffClientSource, /isFrontDeskRole\(form\.roleId\)/);
-  assert.match(staffClientSource, /Phòng phụ trách \(Bắt buộc\)/);
+  assert.match(staffClientSource, /selectedRoleIsFrontDesk/);
+  assert.match(staffClientSource, /required=\{false\}/);
+  assert.match(staffClientSource, /Phòng phụ trách \(Tùy chọn\)/);
   assert.match(staffClientSource, /roomUserAssignmentMap/);
 
   // RoomSearchSelect combobox component features
@@ -115,8 +118,8 @@ test("staff management client renders room assignment, validation, and SweetAler
   assert.match(backendRoomsService, /listAssignedRoomIds/);
   assert.match(staffBffSource, /unassignedOnly:\s*true/);
 
-  // BFF route requires roomId
-  assert.match(staffBffSource, /roomId:\s*z\.string\(\)\.trim\(\)\.min\(1/);
+  // Creation permits deferred assignment rather than inventing a room ID.
+  assert.match(staffBffSource, /roomId:\s*z\.string\(\)\.trim\(\)\.optional\(\)\.nullable\(\)/);
 });
 
 test("frontdesk operational rooms client displays fail-closed notice when unassigned", () => {

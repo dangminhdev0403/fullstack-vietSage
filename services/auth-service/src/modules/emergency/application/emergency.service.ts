@@ -107,7 +107,14 @@ export class EmergencyService {
     longitude?: number;
   }) {
     if (input.requestedLocationId) {
-      const location = await this.emergencyRepository.findLocation(input.requestedLocationId);
+      const location = await this.emergencyRepository.findLocation(
+        input.requestedLocationId,
+        input.tenantId,
+        input.hotelId,
+      );
+      if (!location) {
+        throw new NotFoundException("Emergency location is not available for this hotel");
+      }
       if (location) {
         return {
           emergencyLocationId: location.id,

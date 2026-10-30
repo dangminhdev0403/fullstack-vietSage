@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const ownerRoomsSource = readFileSync(new URL("../../app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/owner-rooms-client.tsx", import.meta.url), "utf8");
+const ownerRoomsSource = readFileSync(new URL("../../app/(vietsage)/owner/(hotel)/hotels/[hotelId]/room-management/owner-rooms-client.tsx", import.meta.url), "utf8");
 const dataTableSource = readFileSync(new URL("../../components/ui/data-table/data-table.tsx", import.meta.url), "utf8");
 const drawerSource = readFileSync(new URL("./components/room-detail-drawer.tsx", import.meta.url), "utf8");
 

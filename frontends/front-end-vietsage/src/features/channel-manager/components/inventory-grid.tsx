@@ -260,6 +260,7 @@ export function InventoryGrid({
           { id: `rate-${rtId}-${date}`, duration: 2000 },
         );
       }
+      await refetch();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Lỗi lưu dữ liệu";
       toast.error(msg, { id: `err-${rtId}-${date}` });
@@ -311,6 +312,7 @@ export function InventoryGrid({
           minStay: day.minStay,
         },
       ]);
+      await refetch();
       toast.success(
         newStopSell
           ? `Đã đóng bán ${roomType.roomTypeCode} (${day.date})`
@@ -386,6 +388,7 @@ export function InventoryGrid({
 
     try {
       await updateRestrictions(items);
+      await refetch();
       toast.success(
         shouldStopSell
           ? `Đã đóng bán ${items.length} ngày cho "${roomType.roomTypeName}"`
@@ -1701,10 +1704,8 @@ export function InventoryGrid({
       {canManage && isBulkModalOpen && (
         <BulkUpdateModal
           isOpen={isBulkModalOpen}
-          onClose={() => {
-            setIsBulkModalOpen(false);
-            void refetch();
-          }}
+          onClose={() => setIsBulkModalOpen(false)}
+          onUpdated={refetch}
           hotelId={hotelId}
           roomTypes={roomTypes}
           defaultDateFrom={startDate}

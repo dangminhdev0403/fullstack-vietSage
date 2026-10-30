@@ -10,7 +10,13 @@ process.env.JWT_ACCESS_TTL = process.env.JWT_ACCESS_TTL || "15m";
 process.env.JWT_REFRESH_TTL = process.env.JWT_REFRESH_TTL || "30d";
 
 import { ConflictException } from "@nestjs/common";
-import { FolioStatus, GuestStayStatus, Prisma, ReservationStatus, RoomStatus } from "@prisma/client";
+import {
+  FolioStatus,
+  GuestStayStatus,
+  Prisma,
+  ReservationStatus,
+  RoomStatus,
+} from "@prisma/client";
 import { ReservationsRepository } from "../infrastructure/repositories/reservations.repository";
 
 function createRepository(tx: Record<string, unknown>) {
@@ -73,6 +79,37 @@ describe("ReservationsRepository arrival reads", () => {
           { room: { roomNumber: { contains: "Minh", mode: "insensitive" } } },
         ],
       }),
+    });
+  });
+
+  it("searches arrivals across all dates without date filtering when from and to are omitted", async () => {
+    const prisma = {
+      reservation: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    };
+    const repository = new ReservationsRepository(prisma as never);
+
+    await repository.listArrivals({
+      hotelId: "hotel-1",
+      q: " VSH_GROUP_0017 ",
+      skip: 0,
+      take: 20,
+    });
+
+    expect(prisma.reservation.count).toHaveBeenCalledWith({
+      where: {
+        hotelId: "hotel-1",
+        status: { in: expect.any(Array) },
+        OR: [
+          { guestDisplayName: { contains: "VSH_GROUP_0017", mode: "insensitive" } },
+          { guestPhone: { contains: "VSH_GROUP_0017" } },
+          { reservationCode: { contains: "VSH_GROUP_0017", mode: "insensitive" } },
+          { groupCode: { contains: "VSH_GROUP_0017", mode: "insensitive" } },
+          { room: { roomNumber: { contains: "VSH_GROUP_0017", mode: "insensitive" } } },
+        ],
+      },
     });
   });
 
@@ -142,9 +179,9 @@ describe("ReservationsRepository arrival reads", () => {
       };
       const repository = new ReservationsRepository(prisma as never);
 
-      await expect(
-        repository.findReservationConfirmation("hotel-1", "missing-id"),
-      ).rejects.toThrow("Không tìm thấy thông tin đặt phòng");
+      await expect(repository.findReservationConfirmation("hotel-1", "missing-id")).rejects.toThrow(
+        "Không tìm thấy thông tin đặt phòng",
+      );
     });
 
     it("throws NotFoundException when reservation belongs to another hotelId (cross-hotel rejection)", async () => {
@@ -158,16 +195,14 @@ describe("ReservationsRepository arrival reads", () => {
       };
       const repository = new ReservationsRepository(prisma as never);
 
-      await expect(
-        repository.findReservationConfirmation("hotel-1", "res-1"),
-      ).rejects.toThrow("Đặt phòng không thuộc khách sạn này");
+      await expect(repository.findReservationConfirmation("hotel-1", "res-1")).rejects.toThrow(
+        "Đặt phòng không thuộc khách sạn này",
+      );
     });
 
     it("returns group confirmation when reservations belong to hotelId", async () => {
       const mockHotel = { id: "hotel-1", name: "Hotel 1" };
-      const mockReservations = [
-        { id: "res-1", hotelId: "hotel-1", groupCode: "GRP1" },
-      ];
+      const mockReservations = [{ id: "res-1", hotelId: "hotel-1", groupCode: "GRP1" }];
       const prisma = {
         hotel: { findUnique: jest.fn().mockResolvedValue(mockHotel) },
         reservation: { findMany: jest.fn().mockResolvedValue(mockReservations) },
@@ -190,9 +225,9 @@ describe("ReservationsRepository arrival reads", () => {
       };
       const repository = new ReservationsRepository(prisma as never);
 
-      await expect(
-        repository.findGroupConfirmation("hotel-1", "GRP1"),
-      ).rejects.toThrow("Đoàn đặt phòng không thuộc khách sạn này");
+      await expect(repository.findGroupConfirmation("hotel-1", "GRP1")).rejects.toThrow(
+        "Đoàn đặt phòng không thuộc khách sạn này",
+      );
     });
   });
 });
@@ -438,7 +473,9 @@ describe("ReservationsRepository transactional lifecycle", () => {
       },
       guestStay: {
         findMany: jest.fn().mockResolvedValue([pastOverdueStay]),
-        update: jest.fn().mockResolvedValue({ ...pastOverdueStay, status: GuestStayStatus.CHECKED_OUT }),
+        update: jest
+          .fn()
+          .mockResolvedValue({ ...pastOverdueStay, status: GuestStayStatus.CHECKED_OUT }),
         create: jest.fn().mockResolvedValue(newStay),
       },
       folio: {
@@ -947,10 +984,7 @@ describe("ReservationsRepository transactional lifecycle", () => {
     const tx = {
       $queryRawUnsafe: jest.fn(),
       reservation: {
-        findFirst: jest
-          .fn()
-          .mockResolvedValueOnce(cancelledRes)
-          .mockResolvedValueOnce(noShowRes),
+        findFirst: jest.fn().mockResolvedValueOnce(cancelledRes).mockResolvedValueOnce(noShowRes),
       },
     };
     const { repository } = createRepository(tx);
@@ -1073,10 +1107,7 @@ describe("ReservationsRepository transactional lifecycle", () => {
     const tx = {
       $queryRawUnsafe: jest.fn(),
       reservation: {
-        findFirst: jest
-          .fn()
-          .mockResolvedValueOnce(cancelledRes)
-          .mockResolvedValueOnce(noShowRes),
+        findFirst: jest.fn().mockResolvedValueOnce(cancelledRes).mockResolvedValueOnce(noShowRes),
       },
     };
     const { repository } = createRepository(tx);
@@ -1930,8 +1961,19 @@ describe("ReservationsRepository transactional lifecycle", () => {
 
   describe("createReservation atomic charge line persistence (F2)", () => {
     it("persists assigned reservation and charge lines atomically and returns reservation", async () => {
-      const room = { id: "room-1", hotelId: "hotel-1", roomTypeId: "rt-1", price: new Prisma.Decimal(500000), status: RoomStatus.AVAILABLE };
-      const createdRes = { id: "res-1", hotelId: "hotel-1", roomId: "room-1", status: ReservationStatus.ARRIVAL_READY };
+      const room = {
+        id: "room-1",
+        hotelId: "hotel-1",
+        roomTypeId: "rt-1",
+        price: new Prisma.Decimal(500000),
+        status: RoomStatus.AVAILABLE,
+      };
+      const createdRes = {
+        id: "res-1",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        status: ReservationStatus.ARRIVAL_READY,
+      };
       const tx = {
         $queryRawUnsafe: jest.fn().mockResolvedValue([]),
         room: {
@@ -1962,8 +2004,21 @@ describe("ReservationsRepository transactional lifecycle", () => {
         createdByUserId: "user-1",
         roomId: "room-1",
         chargeLines: [
-          { lineType: "ROOM_NIGHT", serviceDate: "2026-10-21", nameSnapshot: "Night 1", quantity: 1, unitPriceSnapshot: 500000, totalSnapshot: 500000 },
-          { lineType: "EXTRA", nameSnapshot: "Breakfast", quantity: 1, unitPriceSnapshot: 100000, totalSnapshot: 100000 },
+          {
+            lineType: "ROOM_NIGHT",
+            serviceDate: "2026-10-21",
+            nameSnapshot: "Night 1",
+            quantity: 1,
+            unitPriceSnapshot: 500000,
+            totalSnapshot: 500000,
+          },
+          {
+            lineType: "EXTRA",
+            nameSnapshot: "Breakfast",
+            quantity: 1,
+            unitPriceSnapshot: 100000,
+            totalSnapshot: 100000,
+          },
         ],
       });
 
@@ -1979,7 +2034,12 @@ describe("ReservationsRepository transactional lifecycle", () => {
     });
 
     it("rolls back unassigned reservation when charge line persistence fails", async () => {
-      const createdRes = { id: "res-unassigned", hotelId: "hotel-1", roomId: null, status: ReservationStatus.CONFIRMED };
+      const createdRes = {
+        id: "res-unassigned",
+        hotelId: "hotel-1",
+        roomId: null,
+        status: ReservationStatus.CONFIRMED,
+      };
       const tx = {
         roomType: {
           findFirst: jest.fn().mockResolvedValue({ basePrice: new Prisma.Decimal(600000) }),
@@ -2006,7 +2066,13 @@ describe("ReservationsRepository transactional lifecycle", () => {
           createdByUserId: "user-1",
           roomTypeId: "rt-1",
           chargeLines: [
-            { lineType: "EXTRA", nameSnapshot: "Airport Pickup", quantity: 1, unitPriceSnapshot: 200000, totalSnapshot: 200000 },
+            {
+              lineType: "EXTRA",
+              nameSnapshot: "Airport Pickup",
+              quantity: 1,
+              unitPriceSnapshot: 200000,
+              totalSnapshot: 200000,
+            },
           ],
         }),
       ).rejects.toThrow("CHARGE_LINE_WRITE_FAILED");
@@ -2020,16 +2086,37 @@ describe("ReservationsRepository transactional lifecycle", () => {
   describe("createBulkReservations & createReservation restricted actor scope (F1)", () => {
     it("allocates assigned room A when room B sorts first in candidates (positive candidate restriction)", async () => {
       // Room B sorts first alphabetically ("101" vs "102"), but actor is restricted to room A ("room-A")
-      const roomA = { id: "room-A", hotelId: "hotel-1", roomNumber: "102", price: new Prisma.Decimal(500000), status: RoomStatus.AVAILABLE };
-      const createdRes = { id: "res-A", hotelId: "hotel-1", roomId: "room-A", status: ReservationStatus.CONFIRMED };
+      const roomA = {
+        id: "room-A",
+        hotelId: "hotel-1",
+        roomNumber: "102",
+        price: new Prisma.Decimal(500000),
+        status: RoomStatus.AVAILABLE,
+      };
+      const createdRes = {
+        id: "res-A",
+        hotelId: "hotel-1",
+        roomId: "room-A",
+        status: ReservationStatus.CONFIRMED,
+      };
       const roomAllocationService = {
         allocateRoom: jest.fn().mockImplementation(async (_tx, input) => {
           // Verify candidate restriction: requestedRoomId should be room-A and mode manual
           if (input.requestedRoomId === "room-A") {
-            return { roomId: "room-A", roomNumber: "102", price: 500000, status: RoomStatus.AVAILABLE };
+            return {
+              roomId: "room-A",
+              roomNumber: "102",
+              price: 500000,
+              status: RoomStatus.AVAILABLE,
+            };
           }
           // Otherwise would have returned room B sorting first
-          return { roomId: "room-B", roomNumber: "101", price: 500000, status: RoomStatus.AVAILABLE };
+          return {
+            roomId: "room-B",
+            roomNumber: "101",
+            price: 500000,
+            status: RoomStatus.AVAILABLE,
+          };
         }),
       };
       const tx = {

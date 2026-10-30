@@ -61,7 +61,7 @@ export interface DirectBookingConfirmResult {
   hold_id: string;
   booking_id: string;
   status: "CONFIRMED";
-  room_status: RoomStatus | string;
+  room_status: string;
   assigned_room: {
     room_id?: string;
     room_number: string;
@@ -236,11 +236,10 @@ export class DirectBookingService {
     const checkOutAt = parseVietnamDate(checkOutDate, "12:00:00");
 
     // 1. Lấy danh sách phòng khả dụng theo hạng phòng từ DB với fallback mapping
-    const {
-      hotelId,
-      roomTypeId,
-      candidateRoomIds,
-    } = await this.resolveEffectiveHotelAndRoomType(rawHotelId, rawRoomTypeId);
+    const { hotelId, roomTypeId, candidateRoomIds } = await this.resolveEffectiveHotelAndRoomType(
+      rawHotelId,
+      rawRoomTypeId,
+    );
 
     if (candidateRoomIds.length === 0) {
       throw new ConflictException("ROOM_NOT_AVAILABLE");
@@ -306,8 +305,7 @@ export class DirectBookingService {
       }
     }
 
-    const availableInventory =
-      candidateRoomIds.length - reservedRoomIdSet.size - currentHeldCount;
+    const availableInventory = candidateRoomIds.length - reservedRoomIdSet.size - currentHeldCount;
 
     if (availableInventory < requestedRoomsCount) {
       throw new ConflictException("ROOM_NOT_AVAILABLE");
@@ -399,14 +397,18 @@ export class DirectBookingService {
     // On-the-fly hold reconstruction: when hold is not in memory (server restart,
     // or booking-manager created booking without calling createHold first),
     // reconstruct from fallback metadata and proceed with confirmation
-    if (!hold && fallbackMeta?.hotel_id && fallbackMeta?.room_type_id && fallbackMeta?.check_in_date && fallbackMeta?.check_out_date) {
-      const {
-        hotelId: effectiveHotelId,
-        roomTypeId: effectiveRoomTypeId,
-      } = await this.resolveEffectiveHotelAndRoomType(
-        fallbackMeta.hotel_id,
-        fallbackMeta.room_type_id,
-      );
+    if (
+      !hold &&
+      fallbackMeta?.hotel_id &&
+      fallbackMeta?.room_type_id &&
+      fallbackMeta?.check_in_date &&
+      fallbackMeta?.check_out_date
+    ) {
+      const { hotelId: effectiveHotelId, roomTypeId: effectiveRoomTypeId } =
+        await this.resolveEffectiveHotelAndRoomType(
+          fallbackMeta.hotel_id,
+          fallbackMeta.room_type_id,
+        );
 
       const rawFallbackPartySize =
         (fallbackMeta as any).guest_count ??
@@ -428,7 +430,7 @@ export class DirectBookingService {
         guestCount: fallbackGuestCount,
         ttlMinutes: 30,
         expiresAt: new Date(Date.now() + 30 * 60 * 1000), // extend TTL for reconstruction
-        status: 'HELD',
+        status: "HELD",
         createdAt: new Date(),
       };
       this.holds.set(holdId, reconstructedHold);
@@ -440,10 +442,8 @@ export class DirectBookingService {
     }
 
     // Ensure effective hotelId and roomTypeId in case hold was created with external raw IDs
-    const {
-      hotelId: effectiveHotelId,
-      roomTypeId: effectiveRoomTypeId,
-    } = await this.resolveEffectiveHotelAndRoomType(hold.hotelId, hold.roomTypeId);
+    const { hotelId: effectiveHotelId, roomTypeId: effectiveRoomTypeId } =
+      await this.resolveEffectiveHotelAndRoomType(hold.hotelId, hold.roomTypeId);
     hold.hotelId = effectiveHotelId;
     hold.roomTypeId = effectiveRoomTypeId;
 
@@ -480,8 +480,7 @@ export class DirectBookingService {
         : null;
 
     const effectivePartySize =
-      hold.guestCount ??
-      ((fallbackMeta as any)?.guest_count ?? (fallbackMeta as any)?.guestCount);
+      hold.guestCount ?? (fallbackMeta as any)?.guest_count ?? (fallbackMeta as any)?.guestCount;
 
     // Thực thi transaction xác nhận đặt phòng và tự gán phòng
     const confirmResult = await this.prisma.$transaction(async (tx) => {
@@ -607,7 +606,9 @@ export class DirectBookingService {
         currency: effectiveCurrency,
       });
     } catch (emitErr) {
-      this.logger.warn(`[DirectBooking] Lỗi khi phát realtime event cho booking ${bookingId}: ${emitErr}`);
+      this.logger.warn(
+        `[DirectBooking] Lỗi khi phát realtime event cho booking ${bookingId}: ${emitErr}`,
+      );
     }
 
     return confirmResult;
@@ -822,11 +823,12 @@ export class DirectBookingService {
       const avgPrice = rt.basePrice
         ? Number(rt.basePrice)
         : rt.rooms[0]?.price
-        ? Number(rt.rooms[0].price)
-        : 1500000;
+          ? Number(rt.rooms[0].price)
+          : 1500000;
 
       const isSuite = rt.name.toLowerCase().includes("suite") || rt.normalizedKey.includes("suite");
-      const isSingle = rt.name.toLowerCase().includes("single") || rt.normalizedKey.includes("single");
+      const isSingle =
+        rt.name.toLowerCase().includes("single") || rt.normalizedKey.includes("single");
 
       catalogMap.set(rt.normalizedKey, {
         name: rt.name,
@@ -834,7 +836,11 @@ export class DirectBookingService {
         base_price: avgPrice,
         total_rooms: rt.rooms.length,
         max_guests: isSuite ? 4 : isSingle ? 1 : 2,
-        bed_type: isSuite ? "1 Giường King-size" : isSingle ? "1 Giường Đơn Twin" : "1 Giường King hoặc 2 Twin",
+        bed_type: isSuite
+          ? "1 Giường King-size"
+          : isSingle
+            ? "1 Giường Đơn Twin"
+            : "1 Giường King hoặc 2 Twin",
         area_sqm: isSuite ? 65 : isSingle ? 28 : 42,
         has_sea_view: false,
         sample_room_numbers: rt.rooms.slice(0, 5).map((r) => r.roomNumber),
@@ -861,11 +867,7 @@ export class DirectBookingService {
           area_sqm: 35,
           has_sea_view: false,
           sample_room_numbers: [r.roomNumber],
-          amenities: [
-            "Wifi tốc độ cao miễn phí",
-            "Điều hòa không khí",
-            "Smart TV màn hình phẳng",
-          ],
+          amenities: ["Wifi tốc độ cao miễn phí", "Điều hòa không khí", "Smart TV màn hình phẳng"],
         });
       } else {
         const item = catalogMap.get(typeKey);

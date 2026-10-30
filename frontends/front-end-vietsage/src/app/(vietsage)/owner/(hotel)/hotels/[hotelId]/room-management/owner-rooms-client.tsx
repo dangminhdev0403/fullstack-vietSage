@@ -358,6 +358,20 @@ function showLoading(title: string) {
   });
 }
 
+function groupRoomsByFloor(sortedRooms: HotelRoomSummary[]) {
+    const map = new Map<string, HotelRoomSummary[]>();
+    for (const room of sortedRooms) {
+      const floorKey = room.floor?.trim()
+        ? `Tầng ${room.floor.trim()}`
+        : "Khác / Chưa phân tầng";
+      map.set(floorKey, [...(map.get(floorKey) ?? []), room]);
+    }
+    return Array.from(map.entries()).toSorted(([a], [b]) =>
+      a.localeCompare(b, undefined, { numeric: true }),
+    );
+
+}
+
 export function OwnerRoomsClient({
   hotelId,
   initialRooms,
@@ -412,9 +426,7 @@ export function OwnerRoomsClient({
     setExpandedFloors(new Set());
   };
 
-  const expandAllFloors = (allFloorTitles?: string[]) => {
-    setExpandedFloors(new Set(allFloorTitles ?? roomsByFloor.map(([f]) => f)));
-  };
+
   const [roomForm, setRoomForm] = useState<RoomFormState | null>(null);
   const [sortKey, setSortKey] = useState<RoomSortKey>("roomNumber");
   const [sortDirection, setSortDirection] =
@@ -433,6 +445,26 @@ export function OwnerRoomsClient({
   const [isBulkQrBusy, setIsBulkQrBusy] = useState(false);
   const [isRoomTypesModalOpen, setIsRoomTypesModalOpen] = useState(false);
   const clientOrigin = useClientOrigin();
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!roomForm) return;
+    previousActiveElementRef.current = document.activeElement as HTMLElement | null;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        closeRoomForm();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      previousActiveElementRef.current?.focus?.();
+    };
+  }, [roomForm]);
 
   const [debouncedQuery, setDebouncedQuery] = useState(() => query.trim());
 
@@ -509,7 +541,7 @@ export function OwnerRoomsClient({
         map.set(trimmed.toLowerCase(), trimmed);
       }
     });
-    return Array.from(map.values()).sort((a, b) =>
+    return Array.from(map.values()).toSorted((a, b) =>
       a.localeCompare(b, "vi", { numeric: true, sensitivity: "base" }),
     );
   }, [roomsPage, initialFloors, rooms]);
@@ -537,7 +569,7 @@ export function OwnerRoomsClient({
         }
       }
     });
-    return Array.from(map.values()).sort((a, b) => a.localeCompare(b));
+    return Array.from(map.values()).toSorted((a, b) => a.localeCompare(b));
   }, [roomsPage, initialTypes, rooms]);
 
   const filteredRooms = useMemo(() => {
@@ -572,27 +604,16 @@ export function OwnerRoomsClient({
 
   const sortedRooms = useMemo(
     () =>
-      [...filteredRooms].sort((left, right) =>
+      [...filteredRooms].toSorted((left, right) =>
         compareRooms(left, right, sortKey, sortDirection),
       ),
     [filteredRooms, sortDirection, sortKey],
   );
 
-  const roomsByFloor = useMemo(() => {
-    const map = new Map<string, HotelRoomSummary[]>();
-    for (const room of sortedRooms) {
-      const floorKey = room.floor?.trim()
-        ? `Tầng ${room.floor.trim()}`
-        : "Khác / Chưa phân tầng";
-      if (!map.has(floorKey)) {
-        map.set(floorKey, []);
-      }
-      map.get(floorKey)!.push(room);
-    }
-    return Array.from(map.entries()).sort(([a], [b]) =>
-      a.localeCompare(b, undefined, { numeric: true }),
-    );
-  }, [sortedRooms]);
+  const roomsByFloor = useMemo(() => groupRoomsByFloor(sortedRooms), [sortedRooms]);
+  const expandAllFloors = (allFloorTitles?: string[]) => {
+    setExpandedFloors(new Set(allFloorTitles ?? roomsByFloor.map(([f]) => f)));
+  };
 
   const stats = useMemo(() => {
     const activeQr = rooms.filter(isQrActive).length;
@@ -2040,7 +2061,14 @@ export function OwnerRoomsClient({
       />
 
       {roomForm && !roomForm.id ? (
-        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/45 p-4 backdrop-blur-sm">
+        <div
+          className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/45 p-4 backdrop-blur-sm"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) {
+              closeRoomForm();
+            }
+          }}
+        >
           <form
             noValidate
             onSubmit={saveRoom}
@@ -2079,10 +2107,18 @@ export function OwnerRoomsClient({
                   Số phòng
                 </span>
                 <input
+                  autoFocus
                   value={roomForm.roomNumber}
                   onChange={(event) =>
                     updateRoomFormField("roomNumber", event.target.value)
                   }
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      closeRoomForm();
+                    }
+                  }}
                   aria-invalid={Boolean(roomFormErrors.roomNumber)}
                   className={roomInputClass(Boolean(roomFormErrors.roomNumber))}
                 />

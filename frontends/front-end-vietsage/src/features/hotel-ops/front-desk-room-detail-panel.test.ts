@@ -114,7 +114,8 @@ test("Reserved room projection hides folio services and renders business-date re
   // Reserved card renders matching reservation details
   assert.match(panelSource, /reservation\.reservationCode/);
   assert.match(panelSource, /reservation\.guestDisplayName/);
-  assert.match(panelSource, /reservation\.nightlyRateSnapshot/);
+  assert.match(panelSource, /effectiveNightlyRate/);
+  assert.match(panelSource, /reservation\.totalAmount/);
 
   // Folio and stay sections are only rendered when occupied/stay mode is active
   assert.match(panelSource, /isOccupiedMode\s*&&\s*stay\s*&&/);
@@ -134,7 +135,7 @@ test("StaffRoomsClient strictly derives effectiveStatus from backend room projec
 
   // Check that the room card displays "ĐÃ ĐẶT TRƯỚC" in purple when reserved
   assert.match(clientSource, /effectiveStatus === "reserved"/);
-  assert.match(clientSource, /<span>Đã đặt trước<\/span>/);
+  assert.match(clientSource, /"Đã đặt trước"/);
 
   // Check collision guard in openWalkIn
   assert.match(clientSource, /const conflictRes = getRoomReservationDetails\(room\);/);

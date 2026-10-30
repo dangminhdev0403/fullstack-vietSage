@@ -6,6 +6,14 @@ Use this checklist before cutover or after changes to route protection, API tran
 
 ## Automated Commands
 
+Run all frontend unit/source-contract tests from the workspace root with Node 22.15+:
+
+```powershell
+node frontends/front-end-vietsage/scripts/run-unit-tests.mjs
+```
+
+The runner resolves the app's `@/` alias and extensionless TypeScript imports and sets the frontend package as the working directory. It does not require package installation or launch application servers. These tests do not establish rendered-browser quality.
+
 Run from `frontends/front-end-vietsage`:
 
 ```powershell

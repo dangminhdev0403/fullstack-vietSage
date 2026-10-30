@@ -74,13 +74,13 @@ test("FrontDeskArrivalDetailPanel check-in and room assignment API isolation", (
   // Check-in API call
   assert.match(
     panelSource,
-    /\/api\/hotel-ops\/hotels\/\$\{encodeURIComponent\(hotelId\)\}\/reservations\/\$\{encodeURIComponent\(arrival\.id\)\}\/check-in/,
+    /staffRoomsRepository\.checkInReservation\(\s*hotelId,\s*arrival\.id,/,
   );
 
   // Room assignment API call
   assert.match(
     panelSource,
-    /\/api\/hotel-ops\/hotels\/\$\{encodeURIComponent\(hotelId\)\}\/reservations\/\$\{encodeURIComponent\(arrival\.id\)\}\/room/,
+    /staffRoomsRepository\.assignReservationRoom\(hotelId, arrival\.id,/,
   );
 
   // Realtime query cache invalidation
@@ -192,7 +192,7 @@ test("getArrivalStatusDisplay accurately determines hospitality statuses", async
 });
 
 test("FrontDeskArrivalDetailPanel check-in uses stale guards and explicit confirmation flags", () => {
-  assert.match(panelSource, /body:\s*basePayload/);
+  assert.match(panelSource, /staffRoomsRepository\.checkInReservation\(\s*hotelId,\s*arrival\.id,\s*basePayload/);
   const basePayloadMatch = panelSource.match(/const basePayload = \{([\s\S]*?)\};/);
   assert.ok(basePayloadMatch, "basePayload must be defined");
   assert.doesNotMatch(basePayloadMatch[1], /confirmEarlyCheckIn|confirmLateCheckIn/);

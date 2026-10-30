@@ -134,7 +134,7 @@ export function VietSageBookingTab({
               <span className="text-xs font-bold text-[#17201b]">Nhập nhanh danh mục</span>
             </div>
             <p className="text-xs text-[#69726b]">
-              Vào mục <strong className="text-[#17201b]">Quản lý phòng</strong> trên Kênh Booking, bấm nút <strong className="text-[#24473d]">"Nhập phòng từ VietSage PMS"</strong> để xem trước danh sách phòng.
+              Vào mục <strong className="text-[#17201b]">Quản lý phòng</strong> trên Kênh Booking, bấm nút <strong className="text-[#24473d]">&quot;Nhập phòng từ VietSage PMS&quot;</strong> để xem trước danh sách phòng.
             </p>
           </div>
 

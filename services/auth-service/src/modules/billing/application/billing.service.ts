@@ -39,7 +39,12 @@ import { CodesService } from "../../codes/codes-public";
 import { HotelAccessService } from "../../property/property-public";
 import { activeGuestRequestStatuses } from "../../guest-operations/guest-operations-public";
 import { BillingRepository } from "../infrastructure/repositories/billing.repository";
-import { addDaysYmd, diffCalendarDays, toYmd, VIETNAM_TIME_ZONE } from "../../../common/time/vietnam-temporal";
+import {
+  addDaysYmd,
+  diffCalendarDays,
+  toYmd,
+  VIETNAM_TIME_ZONE,
+} from "../../../common/time/vietnam-temporal";
 import {
   CollectReceivableInput,
   CreateBookingPaymentInput,
@@ -204,10 +209,15 @@ export class BillingService {
         const invoice = folio.invoices[0] ?? null;
         const roomChargeItems = Array.isArray((folio as any).items) ? (folio as any).items : [];
         const hasRoomChargeItem = roomChargeItems.length > 0;
+        const postedRoomCharge = roomChargeItems.reduce(
+          (sum: Prisma.Decimal, it: any) => sum.add(it.totalSnapshot ?? 0),
+          new Prisma.Decimal(0),
+        );
 
         let subtotal = folio.subtotalAmount;
         let total = folio.totalAmount;
-        let estimatedRoomCharge: ReturnType<BillingService["calculateEstimatedRoomCharge"]> | null = null;
+        let estimatedRoomCharge: ReturnType<BillingService["calculateEstimatedRoomCharge"]> | null =
+          null;
 
         if (folio.status === FolioStatus.OPEN && !invoice) {
           try {
@@ -231,6 +241,7 @@ export class BillingService {
           tax: folio.taxAmount,
           discount: folio.discountAmount,
           total,
+          postedRoomCharge: hasRoomChargeItem ? postedRoomCharge : null,
           estimatedRoomCharge,
           roomRateComparison: estimatedRoomCharge?.rateComparison ?? null,
         };
@@ -430,9 +441,7 @@ export class BillingService {
       const totals = this.computeTotalsFromFolioItems(folioItems);
 
       let effectiveTotal = totals.totalAmount;
-      const hasRoomChargeItem = folioItems.some(
-        (it) => it.itemType === FolioItemType.ROOM_CHARGE,
-      );
+      const hasRoomChargeItem = folioItems.some((it) => it.itemType === FolioItemType.ROOM_CHARGE);
       if (!hasRoomChargeItem) {
         const fullFolio = await tx.folio.findFirst({
           where: { id: folioId },
@@ -516,9 +525,7 @@ export class BillingService {
       const totals = this.computeTotalsFromFolioItems(folioItems);
 
       let effectiveTotal = totals.totalAmount;
-      const hasRoomChargeItem = folioItems.some(
-        (it) => it.itemType === FolioItemType.ROOM_CHARGE,
-      );
+      const hasRoomChargeItem = folioItems.some((it) => it.itemType === FolioItemType.ROOM_CHARGE);
       if (!hasRoomChargeItem) {
         const fullFolio = await tx.folio.findFirst({
           where: { id: folioId },
@@ -731,11 +738,11 @@ export class BillingService {
             status: { in: [...activeGuestRequestStatuses] },
           },
           include: {
-        serviceItem: {
-          include: { category: true },
-        },
-        room: true,
-      },
+            serviceItem: {
+              include: { category: true },
+            },
+            room: true,
+          },
           orderBy: { createdAt: "asc" },
         })
       : [];
@@ -757,7 +764,8 @@ export class BillingService {
 
     let subtotal = result.folio.subtotalAmount;
     let total = result.folio.totalAmount;
-    let estimatedRoomCharge: ReturnType<BillingService["calculateEstimatedRoomCharge"]> | null = null;
+    let estimatedRoomCharge: ReturnType<BillingService["calculateEstimatedRoomCharge"]> | null =
+      null;
 
     if (
       result.folio.status === FolioStatus.OPEN &&
@@ -807,8 +815,8 @@ export class BillingService {
       isStale,
       isOverdue: Boolean(
         result.folio.status === FolioStatus.OPEN &&
-          (result.folio as any)?.stay?.plannedCheckOutAt &&
-          new Date((result.folio as any).stay.plannedCheckOutAt).getTime() < Date.now(),
+        (result.folio as any)?.stay?.plannedCheckOutAt &&
+        new Date((result.folio as any).stay.plannedCheckOutAt).getTime() < Date.now(),
       ),
       requiresRecalculation,
       hasDuplicateOpenFolios: false,
@@ -1010,27 +1018,27 @@ export class BillingService {
 
         const totals = this.computeTotalsFromFolioItems(folioItems);
 
-      let effectiveTotal = totals.totalAmount;
-      const hasRoomChargeItem = folioItems.some(
-        (it) => it.itemType === FolioItemType.ROOM_CHARGE,
-      );
-      if (!hasRoomChargeItem) {
-        const fullFolio = await tx.folio.findFirst({
-          where: { id: folioId },
-          include: { room: true, stay: true },
-        });
-        if (fullFolio?.stay?.nightlyRateSnapshot != null) {
-          try {
-            const est = this.calculateEstimatedRoomCharge(fullFolio);
-            effectiveTotal = effectiveTotal.add(est.subtotal);
-          } catch {
-            // Ignore if calculation not available
+        let effectiveTotal = totals.totalAmount;
+        const hasRoomChargeItem = folioItems.some(
+          (it) => it.itemType === FolioItemType.ROOM_CHARGE,
+        );
+        if (!hasRoomChargeItem) {
+          const fullFolio = await tx.folio.findFirst({
+            where: { id: folioId },
+            include: { room: true, stay: true },
+          });
+          if (fullFolio?.stay?.nightlyRateSnapshot != null) {
+            try {
+              const est = this.calculateEstimatedRoomCharge(fullFolio);
+              effectiveTotal = effectiveTotal.add(est.subtotal);
+            } catch {
+              // Ignore if calculation not available
+            }
           }
         }
-      }
-      if (effectiveTotal.lt(0)) {
-        throw new BadRequestException("DISCOUNT_MAKES_TOTAL_NEGATIVE");
-      }
+        if (effectiveTotal.lt(0)) {
+          throw new BadRequestException("DISCOUNT_MAKES_TOTAL_NEGATIVE");
+        }
         const snapshot = {
           issuedAt: new Date().toISOString(),
           hotel: folio.hotel,
@@ -1522,7 +1530,11 @@ export class BillingService {
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
     } catch (error) {
-      if (clientRequestId && this.isDuplicateCounterEventError(error) && this.prisma.paymentTransaction?.findFirst) {
+      if (
+        clientRequestId &&
+        this.isDuplicateCounterEventError(error) &&
+        this.prisma.paymentTransaction?.findFirst
+      ) {
         const providerEventId = `counter:${clientRequestId}`;
         const existingTx = await this.prisma.paymentTransaction.findFirst({
           where: { hotelId, provider, providerEventId },
@@ -1987,14 +1999,23 @@ export class BillingService {
     options?: { isEarlyDeparture?: boolean },
   ) {
     const isVnd = ((folio as any).currency ?? "VND").toUpperCase() === "VND";
+    const agreedRateFallback =
+      folio.stay?.nightlyRateSnapshot ??
+      folio.stay?.baseNightlyRateSnapshot ??
+      (folio.stay as any)?.reservation?.nightlyRateSnapshot ??
+      (folio.stay as any)?.reservation?.baseNightlyRateSnapshot ??
+      folio.room?.price ??
+      (folio.room as any)?.roomType?.basePrice ??
+      null;
     const hasNightlyRateSnapshot =
-      folio.stay?.nightlyRateSnapshot !== null &&
-      folio.stay?.nightlyRateSnapshot !== undefined;
+      agreedRateFallback !== null && agreedRateFallback !== undefined;
     const rawUnitPrice = hasNightlyRateSnapshot
-      ? new Prisma.Decimal(folio.stay!.nightlyRateSnapshot!)
+      ? new Prisma.Decimal(agreedRateFallback)
       : null;
     const unitPrice = rawUnitPrice
-      ? (isVnd ? rawUnitPrice.toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP) : rawUnitPrice)
+      ? isVnd
+        ? rawUnitPrice.toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
+        : rawUnitPrice
       : null;
 
     const rawStart =
@@ -2006,19 +2027,23 @@ export class BillingService {
     const chargeStart = rawStart instanceof Date ? rawStart : new Date(rawStart);
 
     const plannedStart = folio.stay?.plannedCheckInAt
-      ? (folio.stay.plannedCheckInAt instanceof Date
-          ? folio.stay.plannedCheckInAt
-          : new Date(folio.stay.plannedCheckInAt))
+      ? folio.stay.plannedCheckInAt instanceof Date
+        ? folio.stay.plannedCheckInAt
+        : new Date(folio.stay.plannedCheckInAt)
       : chargeStart;
     const rawPlannedEnd = folio.stay?.plannedCheckOutAt;
     const committedEnd = rawPlannedEnd
-      ? (rawPlannedEnd instanceof Date ? rawPlannedEnd : new Date(rawPlannedEnd))
+      ? rawPlannedEnd instanceof Date
+        ? rawPlannedEnd
+        : new Date(rawPlannedEnd)
       : chargeStart;
     const plannedNights = this.calculateVietnamNights(plannedStart, committedEnd);
 
     const actualEndRaw = folio.stay?.checkedOutAt;
     const actualEnd = actualEndRaw
-      ? (actualEndRaw instanceof Date ? actualEndRaw : new Date(actualEndRaw))
+      ? actualEndRaw instanceof Date
+        ? actualEndRaw
+        : new Date(actualEndRaw)
       : new Date();
     const elapsedNights = this.calculateVietnamNights(chargeStart, actualEnd);
 
@@ -2038,7 +2063,9 @@ export class BillingService {
     const rawLines: any[] =
       (folio as any).roomNightChargeLines ??
       (folio.stay as any)?.roomNightChargeLines ??
-      (folio.stay as any)?.reservation?.chargeLines?.filter((l: any) => l.lineType === "ROOM_NIGHT") ??
+      (folio.stay as any)?.reservation?.chargeLines?.filter(
+        (l: any) => l.lineType === "ROOM_NIGHT",
+      ) ??
       [];
 
     const scheduleByDate = new Map<string, Prisma.Decimal>();
@@ -2051,7 +2078,8 @@ export class BillingService {
         : linePrice;
       orderedSchedule.push(roundedLinePrice);
       if (line.serviceDate) {
-        const lineDate = line.serviceDate instanceof Date ? line.serviceDate : new Date(line.serviceDate);
+        const lineDate =
+          line.serviceDate instanceof Date ? line.serviceDate : new Date(line.serviceDate);
         const ymd = toYmd(lineDate, VIETNAM_TIME_ZONE);
         scheduleByDate.set(ymd, roundedLinePrice);
       }
@@ -2132,12 +2160,17 @@ export class BillingService {
         ? isVnd
           ? subtotal.div(nights).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
           : subtotal.div(nights)
-        : (unitPrice ?? (orderedSchedule[0] ?? new Prisma.Decimal(0)));
+        : (unitPrice ?? orderedSchedule[0] ?? new Prisma.Decimal(0));
 
+    const rawBaseRate =
+      folio.stay?.baseNightlyRateSnapshot ??
+      (folio.stay as any)?.reservation?.baseNightlyRateSnapshot ??
+      folio.room?.price ??
+      (folio.room as any)?.roomType?.basePrice ??
+      null;
     const baseNightlyRate =
-      folio.stay?.baseNightlyRateSnapshot !== null &&
-      folio.stay?.baseNightlyRateSnapshot !== undefined
-        ? new Prisma.Decimal(folio.stay.baseNightlyRateSnapshot)
+      rawBaseRate !== null && rawBaseRate !== undefined
+        ? new Prisma.Decimal(rawBaseRate)
         : null;
     const baseSubtotal = baseNightlyRate ? baseNightlyRate.mul(nights) : null;
     const totalDifference = baseSubtotal ? subtotal.sub(baseSubtotal) : null;
@@ -2145,11 +2178,11 @@ export class BillingService {
     const rateComparison =
       baseNightlyRate && nightlyDifference
         ? {
-            direction: (totalDifference!.gt(0)
+            direction: totalDifference!.gt(0)
               ? "INCREASE"
               : totalDifference!.lt(0)
                 ? "DECREASE"
-                : "UNCHANGED") as "INCREASE" | "DECREASE" | "UNCHANGED",
+                : "UNCHANGED",
             baseNightlyRate,
             appliedNightlyRate: effectiveNightlyRate,
             nightlyDifference,
@@ -2186,10 +2219,16 @@ export class BillingService {
     let roomNightChargeLines: any[] =
       (folio as any).roomNightChargeLines ??
       (folio.stay as any)?.roomNightChargeLines ??
-      (folio.stay as any)?.reservation?.chargeLines?.filter((l: any) => l.lineType === "ROOM_NIGHT") ??
+      (folio.stay as any)?.reservation?.chargeLines?.filter(
+        (l: any) => l.lineType === "ROOM_NIGHT",
+      ) ??
       [];
 
-    if (roomNightChargeLines.length === 0 && folio.stay?.reservationId && tx.reservationChargeLine) {
+    if (
+      roomNightChargeLines.length === 0 &&
+      folio.stay?.reservationId &&
+      tx.reservationChargeLine
+    ) {
       roomNightChargeLines = await tx.reservationChargeLine.findMany({
         where: {
           reservationId: folio.stay.reservationId,
@@ -2218,13 +2257,18 @@ export class BillingService {
       if (!fallbackRate && folio.room?.price) {
         fallbackRate = new Prisma.Decimal(folio.room.price);
       }
+      if (!fallbackRate && (folio.room as any)?.roomType?.basePrice) {
+        fallbackRate = new Prisma.Decimal((folio.room as any).roomType.basePrice);
+      }
       if (!fallbackRate && folio.roomId && tx.room) {
         const room = await tx.room.findUnique({
           where: { id: folio.roomId },
-          select: { price: true },
+          select: { price: true, roomType: { select: { basePrice: true } } },
         });
         if (room?.price) {
           fallbackRate = new Prisma.Decimal(room.price);
+        } else if ((room as any)?.roomType?.basePrice) {
+          fallbackRate = new Prisma.Decimal((room as any).roomType.basePrice);
         }
       }
 
@@ -2345,7 +2389,7 @@ export class BillingService {
 
   private computeTotalsFromFolioItems(
     items: Array<{
-      itemType?: FolioItemType | string;
+      itemType?: string;
       subtotalSnapshot: Prisma.Decimal;
       taxAmountSnapshot?: Prisma.Decimal;
       discountAmountSnapshot: Prisma.Decimal;
@@ -2890,27 +2934,31 @@ export class BillingService {
         if (!group) {
           const resByGroup = await tx.reservation.findMany({
             where: { hotelId, groupCode: targetGroupId },
-            select: { nightlyRateSnapshot: true, baseNightlyRateSnapshot: true, plannedCheckInAt: true, plannedCheckOutAt: true },
+            select: {
+              nightlyRateSnapshot: true,
+              baseNightlyRateSnapshot: true,
+              plannedCheckInAt: true,
+              plannedCheckOutAt: true,
+            },
           });
           if (resByGroup.length > 0) {
-            baseTotal = resByGroup.reduce(
-              (sum: Prisma.Decimal, r: any) => {
-                const rate = new Prisma.Decimal(r.nightlyRateSnapshot ?? r.baseNightlyRateSnapshot ?? 0);
-                const nights =
-                  r.plannedCheckInAt && r.plannedCheckOutAt
-                    ? Math.max(
-                        1,
-                        Math.round(
-                          (new Date(r.plannedCheckOutAt).getTime() -
-                            new Date(r.plannedCheckInAt).getTime()) /
-                            (1000 * 60 * 60 * 24),
-                        ),
-                      )
-                    : 1;
-                return sum.add(rate.mul(nights));
-              },
-              new Prisma.Decimal(0),
-            );
+            baseTotal = resByGroup.reduce((sum: Prisma.Decimal, r: any) => {
+              const rate = new Prisma.Decimal(
+                r.nightlyRateSnapshot ?? r.baseNightlyRateSnapshot ?? 0,
+              );
+              const nights =
+                r.plannedCheckInAt && r.plannedCheckOutAt
+                  ? Math.max(
+                      1,
+                      Math.round(
+                        (new Date(r.plannedCheckOutAt).getTime() -
+                          new Date(r.plannedCheckInAt).getTime()) /
+                          (1000 * 60 * 60 * 24),
+                      ),
+                    )
+                  : 1;
+              return sum.add(rate.mul(nights));
+            }, new Prisma.Decimal(0));
           } else {
             throw new NotFoundException("Không tìm thấy nhóm đặt phòng");
           }
@@ -3221,17 +3269,107 @@ export class BillingService {
           orderBy: { createdAt: "desc" },
         });
 
-        let outstandingDecimal: Prisma.Decimal;
-        if (input.amount !== undefined) {
-          outstandingDecimal = new Prisma.Decimal(input.amount);
-        } else if (invoice) {
-          outstandingDecimal = invoice.balanceAmount;
-        } else {
-          outstandingDecimal = folio.totalAmount;
+        // Lock the financial snapshots as well as the stay; a concurrent payment or
+        // charge must either precede this transfer or abort the serializable tx.
+        await tx.$queryRaw`SELECT id FROM "Folio" WHERE id = ${folio.id} AND "hotelId" = ${hotelId} FOR UPDATE`;
+        if (folio.status === FolioStatus.CLOSED || folio.status === FolioStatus.VOID) {
+          throw new ConflictException("FOLIO_NOT_TRANSFERABLE");
+        }
+        if (invoice) {
+          await tx.$queryRaw`SELECT id FROM "Invoice" WHERE id = ${invoice.id} AND "hotelId" = ${hotelId} FOR UPDATE`;
+          if (invoice.voidedAt || !invoice.totalAmount.equals(folio.totalAmount)) {
+            throw new ConflictException("INVOICE_FOLIO_TOTAL_MISMATCH");
+          }
         }
 
+        let outstandingDecimal = new Prisma.Decimal(invoice?.balanceAmount ?? folio.totalAmount);
         if (outstandingDecimal.lte(0)) {
-          throw new BadRequestException("Số dư nợ không hợp lệ hoặc đã tất toán");
+          throw new BadRequestException("NO_OUTSTANDING_DEBT");
+        }
+
+        const deposits = await tx.bookingPayment.findMany({
+          where: {
+            hotelId,
+            status: BookingPaymentStatus.COMPLETED,
+            OR: [
+              { allocations: { some: { hotelId, folioId: folio.id } } },
+              ...(stay.reservationId
+                ? [
+                    { reservationId: stay.reservationId },
+                    {
+                      allocations: {
+                        some: { hotelId, reservationId: stay.reservationId, folioId: null },
+                      },
+                    },
+                  ]
+                : []),
+            ],
+          },
+          include: { allocations: true },
+        });
+        let depositCredit = new Prisma.Decimal(0);
+        let invoiceDepositCredit = new Prisma.Decimal(0);
+        for (const deposit of deposits) {
+          let allocated = new Prisma.Decimal(0);
+          for (const allocation of deposit.allocations) {
+            allocated = allocated.add(allocation.allocatedAmount);
+            const targetsFolio =
+              allocation.hotelId === hotelId &&
+              (allocation.folioId === folio.id ||
+                (!allocation.folioId &&
+                  stay.reservationId &&
+                  allocation.reservationId === stay.reservationId));
+            if (targetsFolio) {
+              depositCredit = depositCredit.add(allocation.allocatedAmount);
+              if (invoice && allocation.invoiceId === invoice.id) {
+                invoiceDepositCredit = invoiceDepositCredit.add(allocation.allocatedAmount);
+              }
+            }
+          }
+          if (deposit.reservationId === stay.reservationId && stay.reservationId) {
+            depositCredit = depositCredit.add(
+              Prisma.Decimal.max(0, deposit.receivedAmount.sub(allocated)),
+            );
+          }
+        }
+        // An invoice-linked allocation is already reflected in invoice.paidAmount.
+        outstandingDecimal = outstandingDecimal.sub(depositCredit.sub(invoiceDepositCredit));
+        if (!invoice) {
+          const payments = await tx.payment.findMany({
+            where: {
+              hotelId,
+              folioId: folio.id,
+              status: {
+                in: [PaymentStatus.SUCCEEDED, PaymentStatus.REFUNDED],
+              },
+            },
+            select: { paidAmount: true, refundedAmount: true },
+          });
+          for (const payment of payments) {
+            outstandingDecimal = outstandingDecimal.sub(
+              payment.paidAmount.sub(payment.refundedAmount),
+            );
+          }
+        }
+        if (!outstandingDecimal.isFinite() || outstandingDecimal.lte(0)) {
+          throw new BadRequestException("NO_OUTSTANDING_DEBT");
+        }
+        if (input.amount !== undefined && !outstandingDecimal.equals(input.amount)) {
+          throw new ConflictException("RECEIVABLE_AMOUNT_MISMATCH");
+        }
+        if (input.assigneeUserId !== undefined) {
+          const assignee = await tx.user.findFirst({
+            where: {
+              id: input.assigneeUserId,
+              status: "ACTIVE",
+              hotelAssignments: { some: { hotelId, status: "ACTIVE" } },
+              tenantUsers: { some: { status: "ACTIVE", tenant: { hotel: { id: hotelId } } } },
+            },
+            select: { id: true },
+          });
+          if (!assignee) {
+            throw new BadRequestException("INVALID_RECEIVABLE_ASSIGNEE");
+          }
         }
 
         const debtorName = input.debtorName?.trim() || stay.guestDisplayName || "Khách lưu trú";
@@ -3386,8 +3524,7 @@ export class BillingService {
           throw new NotFoundException("Không tìm thấy công nợ");
         }
 
-        const lockedRow =
-          Array.isArray(lockedRows) && lockedRows.length > 0 ? lockedRows[0] : null;
+        const lockedRow = Array.isArray(lockedRows) && lockedRows.length > 0 ? lockedRows[0] : null;
         const receivable =
           (await tx.hotelReceivable?.findFirst?.({
             where: { id: receivableId, hotelId },
@@ -3410,7 +3547,7 @@ export class BillingService {
         );
         const currentPaid = new Prisma.Decimal(
           lockedRow?.paidAmount ??
-            (receivable as any).paidAmount ??
+            receivable.paidAmount ??
             (receivable.originalAmount
               ? new Prisma.Decimal(receivable.originalAmount).sub(currentOutstanding)
               : 0),
@@ -3462,7 +3599,7 @@ export class BillingService {
           await (tx as any).auditLog.create({
             data: {
               actorId: actorUserId,
-              tenantId: (hotel as any)?.tenantId ?? (receivable as any).hotel?.tenantId ?? hotelId,
+              tenantId: (hotel as any)?.tenantId ?? receivable.hotel?.tenantId ?? hotelId,
               action: "HOTEL_RECEIVABLE_COLLECTED",
               entityType: "HotelReceivable",
               entityId: receivable.id,

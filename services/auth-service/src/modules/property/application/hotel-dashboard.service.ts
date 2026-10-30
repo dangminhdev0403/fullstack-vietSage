@@ -32,8 +32,9 @@ function toNumber(value: Prisma.Decimal | number | null | undefined): number {
 
 function mapRoomStatus(
   status: RoomStatus,
-): "available" | "occupied" | "processing" | "maintenance" {
-  if (status === RoomStatus.OCCUPIED || status === RoomStatus.RESERVED) return "occupied";
+): "available" | "occupied" | "processing" | "maintenance" | "reserved" {
+  if (status === RoomStatus.OCCUPIED) return "occupied";
+  if (status === RoomStatus.RESERVED) return "reserved";
   if (status === RoomStatus.PROCESSING) return "processing";
   if (status === RoomStatus.MAINTENANCE || status === RoomStatus.OUT_OF_SERVICE)
     return "maintenance";
@@ -556,10 +557,7 @@ export class HotelDashboardService {
     let arrivalsTomorrow = 0;
     let advanceReservations = 0;
 
-    const countBooking = (item: {
-      plannedCheckInAt: Date;
-      occupantsCount: number;
-    }) => {
+    const countBooking = (item: { plannedCheckInAt: Date; occupantsCount: number }) => {
       const count = item.occupantsCount > 0 ? item.occupantsCount : 1;
       const checkIn = item.plannedCheckInAt;
       if (checkIn >= bizTodayStart && checkIn < bizTomorrowStart) {
@@ -585,11 +583,27 @@ export class HotelDashboardService {
       });
     }
 
-    const roomsByStatus = { available: 0, occupied: 0, processing: 0, maintenance: 0 };
+    const roomsByStatus: RoomStatusSummary & Record<string, number> = {
+      available: 0,
+      occupied: 0,
+      processing: 0,
+      maintenance: 0,
+      reserved: 0,
+      AVAILABLE: 0,
+      OCCUPIED: 0,
+      CLEANING: 0,
+      MAINTENANCE: 0,
+      RESERVED: 0,
+    };
     const statusMapping: Record<string, string> = {};
     roomStatusRows.forEach((row) => {
       const mapped = mapRoomStatus(row.status);
-      roomsByStatus[mapped] += row._count._all;
+      roomsByStatus[mapped] = (roomsByStatus[mapped] || 0) + row._count._all;
+      if (mapped === "available") roomsByStatus.AVAILABLE = (roomsByStatus.AVAILABLE || 0) + row._count._all;
+      if (mapped === "occupied") roomsByStatus.OCCUPIED = (roomsByStatus.OCCUPIED || 0) + row._count._all;
+      if (mapped === "processing") roomsByStatus.CLEANING = (roomsByStatus.CLEANING || 0) + row._count._all;
+      if (mapped === "maintenance") roomsByStatus.MAINTENANCE = (roomsByStatus.MAINTENANCE || 0) + row._count._all;
+      if (mapped === "reserved") roomsByStatus.RESERVED = (roomsByStatus.RESERVED || 0) + row._count._all;
       statusMapping[row.status] = mapped;
     });
 

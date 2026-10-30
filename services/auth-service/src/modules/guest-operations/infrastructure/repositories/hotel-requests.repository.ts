@@ -100,7 +100,6 @@ export class HotelRequestsRepository {
     const today = getDayBounds(toYmd(new Date(), VIETNAM_TIME_ZONE), VIETNAM_TIME_ZONE).start;
     const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
 
-
     const activeStatuses = [GuestRequestStatus.PENDING, GuestRequestStatus.ACKNOWLEDGED];
 
     const [pending, urgent, unassigned, completedToday] = await Promise.all([
@@ -367,23 +366,23 @@ export class HotelRequestsRepository {
       input.request?.stay && input.request?.serviceItem !== undefined
         ? input.request
         : await tx.guestRequest.findFirstOrThrow({
-      where: { id: input.requestId, hotelId: input.hotelId },
-      include: {
-        stay: { select: { id: true, status: true } },
-        serviceItem: {
-          include: {
-            category: {
-              select: {
-                id: true,
-                name: true,
-                defaultPrice: true,
-                currency: true,
+            where: { id: input.requestId, hotelId: input.hotelId },
+            include: {
+              stay: { select: { id: true, status: true } },
+              serviceItem: {
+                include: {
+                  category: {
+                    select: {
+                      id: true,
+                      name: true,
+                      defaultPrice: true,
+                      currency: true,
+                    },
+                  },
+                },
               },
             },
-          },
-        },
-      },
-    });
+          });
 
     if (request.stay.status !== GuestStayStatus.ACTIVE) {
       throw new ConflictException("Không thể ghi nhận phí dịch vụ cho lượt lưu trú chưa hoạt động");

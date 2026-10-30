@@ -46,10 +46,13 @@ import {
 } from "@/libs/vietnam-temporal";
 import type {
   HotelArrival,
+  HotelOpsPage,
   HotelRoomSummary,
   RoomPlanBlock,
   RoomPlanRoom,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { staffRoomsRepository } from "@/features/hotel-ops/repositories/staff-rooms-repository";
 import { roomPlanRepository } from "@/features/hotel-ops/repositories/room-plan-repository";
 import { roomPlanResource } from "@/features/hotel-ops/resources/room-plan-resource";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
@@ -127,6 +130,9 @@ export interface TapeChartViewProps {
   onToggleRoomBlocked?: (room: HotelRoomSummary | RoomPlanRoom) => Promise<void> | void;
   onProcessingRoomClick?: (room: HotelRoomSummary | RoomPlanRoom) => Promise<void> | void;
   onRefresh?: () => void;
+  searchQuery?: string;
+  onSearchQueryChange?: (query: string) => void;
+  onBusinessDateChange?: (date: string) => void;
 }
 
 // Channel badge colors (kept inline for tape-chart styling)
@@ -1323,15 +1329,6 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                   {channelBadge.label}
                 </span>
               )}
-              {b.groupCode && (
-                <span
-                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-black uppercase tracking-wider shrink-0 whitespace-nowrap bg-purple-950/60 text-purple-200 border border-purple-400/40 shadow-2xs"
-                  title={`Khách đoàn #${b.groupCode}`}
-                >
-                  <VsIcon name="groups" className="text-xs" />
-                  <span>#{b.groupCode}</span>
-                </span>
-              )}
               <span className="truncate font-black whitespace-nowrap text-left flex-1 min-w-0">
                 {b.guestName.replace(/^OTA[-_ ]?[A-Za-z0-9]+[-_ ]?:?[-_ ]?/i, "").trim() || b.guestName}
               </span>
@@ -1624,6 +1621,7 @@ export function TapeChartView({
   rooms: propRooms = [],
   arrivalsList = [],
   businessDate,
+  onBusinessDateChange,
   initialStartDate,
   initialViewMode,
   readOnly,
@@ -1640,6 +1638,8 @@ export function TapeChartView({
   onToggleRoomBlocked,
   onProcessingRoomClick,
   onRefresh,
+  searchQuery: propSearchQuery,
+  onSearchQueryChange,
 }: TapeChartViewProps) {
   const isReadOnly = Boolean(
     readOnly ?? (roleScope === "tenant" || roleScope === "owner"),
@@ -1702,12 +1702,32 @@ export function TapeChartView({
     syncUrlParams(startDate, viewMode);
   }, [startDate, viewMode, syncUrlParams]);
 
+  // Synchronize timeline startDate when parent operational businessDate changes
+  useEffect(() => {
+    if (businessDate && /^\d{4}-\d{2}-\d{2}$/.test(businessDate)) {
+      setStartDate((prev) => (prev !== businessDate ? businessDate : prev));
+    }
+  }, [businessDate]);
+
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedFloor, setSelectedFloor] = useState<string>("all");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<
     "all" | "available_today" | "occupied_today" | "cleaning" | "overdue"
   >("all");
-  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [internalSearchQuery, setInternalSearchQuery] = useState<string>("");
+  const searchQuery =
+    propSearchQuery !== undefined ? propSearchQuery : internalSearchQuery;
+  const setSearchQuery = useCallback(
+    (updater: string | ((prev: string) => string)) => {
+      const next =
+        typeof updater === "function" ? updater(searchQuery) : updater;
+      if (propSearchQuery === undefined) {
+        setInternalSearchQuery(next);
+      }
+      onSearchQueryChange?.(next);
+    },
+    [onSearchQueryChange, propSearchQuery, searchQuery],
+  );
 
   const hasActiveFilters =
     selectedCategory !== "all" ||
@@ -1803,6 +1823,8 @@ export function TapeChartView({
     },
   });
 
+  const [activeDraftAdjust, setActiveDraftAdjust] = useState<ActiveDraftAdjust | null>(null);
+  const [activeBlockResize, setActiveBlockResize] = useState<ActiveBlockResize | null>(null);
   // Rooms source: authoritative from planData.rooms, fallback to propRooms
   const allRooms: RoomPlanRoom[] = useMemo(() => {
     if (planData?.rooms && planData.rooms.length > 0) {
@@ -1817,7 +1839,7 @@ export function TapeChartView({
       status: r.status || "AVAILABLE",
       price: typeof r.price === "number" ? r.price : null,
     }));
-  }, [planData?.rooms, propRooms]);
+  }, [planData, propRooms]);
 
   const roomById = useMemo(
     () => new Map(allRooms.map((r) => [r.id, r])),
@@ -1827,7 +1849,7 @@ export function TapeChartView({
   // Authoritative blocks from planData with resilient normalization
   const allBlocks: RoomPlanBlock[] = useMemo(() => {
     if (!planData?.blocks) return [];
-    return (planData.blocks as any[]).map((raw) => {
+    return planData.blocks.map((raw) => {
       const startIso = raw.startDate || raw.startAt || "";
       const endIso = raw.endDate || raw.endAt || "";
       const startDate = startIso ? startIso.slice(0, 10) : "";
@@ -1857,9 +1879,7 @@ export function TapeChartView({
 
       const matchedRoom = roomById.get(String(raw.roomId));
       const roomPriceFallback =
-        matchedRoom?.price ??
-        (matchedRoom as any)?.basePrice ??
-        (matchedRoom as any)?.roomType?.basePrice ??
+        matchedRoom?.price ?? matchedRoom?.basePrice ?? matchedRoom?.roomType?.basePrice ??
         null;
 
       const nightlyRate =
@@ -1894,7 +1914,9 @@ export function TapeChartView({
         reservationId: raw.reservationId ?? null,
         guestStayId: raw.guestStayId ?? raw.stayId ?? null,
         reservationCode: raw.reservationCode ?? null,
+        groupCode: raw.groupCode ?? null,
         guestName,
+        guestDisplayName: raw.guestDisplayName || guestName,
         guestCount: raw.guestCount ?? null,
         phone: raw.phone ?? raw.guestPhone ?? null,
         source: raw.source ?? null,
@@ -1930,7 +1952,210 @@ export function TapeChartView({
         notes: raw.notes || null,
       };
     });
-  }, [planData?.blocks, roomById]);
+  }, [planData, roomById]);
+
+  // Auto-adjust timeline startDate and parent businessDate when filtering by booking/reservation/group code
+  const lastAutoAdjustedCodeRef = useRef<string>("");
+
+  useEffect(() => {
+    const rawQ = searchQuery.trim();
+    if (!rawQ || rawQ.length < 3) {
+      lastAutoAdjustedCodeRef.current = "";
+      return;
+    }
+
+    const cleanQ = rawQ.replace(/^#/, "").trim().toLowerCase();
+    if (lastAutoAdjustedCodeRef.current === cleanQ) return;
+
+    // Fast check: is this query likely a booking or group code?
+    const isCode =
+      /^(vsh|rsv|grp|group|book)/i.test(cleanQ) ||
+      /^[a-z0-9]+[_-][a-z0-9_-]+$/i.test(cleanQ) ||
+      allBlocks.some(
+        (b) =>
+          (b.reservationCode && b.reservationCode.toLowerCase() === cleanQ) ||
+          (b.groupCode && b.groupCode.toLowerCase() === cleanQ),
+      ) ||
+      propRooms.some((r) => {
+        const proj = r.projectedReservation;
+        const upc = r.upcomingReservation;
+        const stayRes = (r.activeStay as any)?.reservation;
+        return (
+          (proj?.reservationCode && proj.reservationCode.toLowerCase() === cleanQ) ||
+          ((proj as any)?.groupCode && String((proj as any).groupCode).toLowerCase() === cleanQ) ||
+          (upc?.reservationCode && upc.reservationCode.toLowerCase() === cleanQ) ||
+          ((upc as any)?.groupCode && String((upc as any).groupCode).toLowerCase() === cleanQ) ||
+          (stayRes?.reservationCode && String(stayRes.reservationCode).toLowerCase() === cleanQ) ||
+          (stayRes?.groupCode && String(stayRes.groupCode).toLowerCase() === cleanQ)
+        );
+      }) ||
+      arrivalsList.some(
+        (a) =>
+          (a.reservationCode && a.reservationCode.toLowerCase() === cleanQ) ||
+          (a.groupCode && a.groupCode.toLowerCase() === cleanQ),
+      );
+
+    if (!isCode) return;
+
+    // 1. Check in allBlocks
+    const blockMatch = allBlocks.find((b) => {
+      const resCode = (b.reservationCode || "").toLowerCase();
+      const grpCode = (b.groupCode || "").toLowerCase();
+      return (
+        resCode === cleanQ ||
+        grpCode === cleanQ ||
+        (cleanQ.length >= 4 && (resCode.includes(cleanQ) || grpCode.includes(cleanQ)))
+      );
+    });
+
+    if (blockMatch?.startDate && /^\d{4}-\d{2}-\d{2}$/.test(blockMatch.startDate)) {
+      lastAutoAdjustedCodeRef.current = cleanQ;
+      const targetDate = blockMatch.startDate;
+      if (targetDate !== startDate) {
+        setStartDate(targetDate);
+      }
+      onBusinessDateChange?.(targetDate);
+      return;
+    }
+
+    // 2. Check in propRooms (from room search)
+    for (const r of propRooms) {
+      const proj = r.projectedReservation;
+      if (proj) {
+        const resCode = (proj.reservationCode || "").toLowerCase();
+        const grpCode = ((proj as any)?.groupCode ? String((proj as any).groupCode) : "").toLowerCase();
+        if (
+          resCode === cleanQ ||
+          grpCode === cleanQ ||
+          (cleanQ.length >= 4 && (resCode.includes(cleanQ) || grpCode.includes(cleanQ)))
+        ) {
+          const rawDate = proj.plannedCheckInAt ? String(proj.plannedCheckInAt).slice(0, 10) : "";
+          if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+            lastAutoAdjustedCodeRef.current = cleanQ;
+            if (rawDate !== startDate) setStartDate(rawDate);
+            onBusinessDateChange?.(rawDate);
+            return;
+          }
+        }
+      }
+      const upc = r.upcomingReservation;
+      if (upc) {
+        const resCode = (upc.reservationCode || "").toLowerCase();
+        const grpCode = ((upc as any)?.groupCode ? String((upc as any).groupCode) : "").toLowerCase();
+        if (
+          resCode === cleanQ ||
+          grpCode === cleanQ ||
+          (cleanQ.length >= 4 && (resCode.includes(cleanQ) || grpCode.includes(cleanQ)))
+        ) {
+          const rawDate = upc.plannedCheckInAt ? String(upc.plannedCheckInAt).slice(0, 10) : "";
+          if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+            lastAutoAdjustedCodeRef.current = cleanQ;
+            if (rawDate !== startDate) setStartDate(rawDate);
+            onBusinessDateChange?.(rawDate);
+            return;
+          }
+        }
+      }
+      const stayRes = (r.activeStay as any)?.reservation;
+      if (stayRes) {
+        const resCode = (stayRes.reservationCode ? String(stayRes.reservationCode) : "").toLowerCase();
+        const grpCode = (stayRes.groupCode ? String(stayRes.groupCode) : "").toLowerCase();
+        if (
+          resCode === cleanQ ||
+          grpCode === cleanQ ||
+          (cleanQ.length >= 4 && (resCode.includes(cleanQ) || grpCode.includes(cleanQ)))
+        ) {
+          const rawDate = stayRes.plannedCheckInAt ? String(stayRes.plannedCheckInAt).slice(0, 10) : "";
+          if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+            lastAutoAdjustedCodeRef.current = cleanQ;
+            if (rawDate !== startDate) setStartDate(rawDate);
+            onBusinessDateChange?.(rawDate);
+            return;
+          }
+        }
+      }
+    }
+
+    // 3. Check in arrivalsList
+    const arrMatch = arrivalsList.find((a) => {
+      const resCode = (a.reservationCode || "").toLowerCase();
+      const grpCode = (a.groupCode || "").toLowerCase();
+      return (
+        resCode === cleanQ ||
+        grpCode === cleanQ ||
+        (cleanQ.length >= 4 && (resCode.includes(cleanQ) || grpCode.includes(cleanQ)))
+      );
+    });
+    if (arrMatch?.plannedCheckInAt) {
+      const rawDate = String(arrMatch.plannedCheckInAt).slice(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+        lastAutoAdjustedCodeRef.current = cleanQ;
+        if (rawDate !== startDate) setStartDate(rawDate);
+        onBusinessDateChange?.(rawDate);
+        return;
+      }
+    }
+
+    // 4. Async lookup fallback for future codes outside loaded lists
+    if (cleanQ.length >= 4 && hotelId) {
+      let cancelled = false;
+      const timer = setTimeout(async () => {
+        try {
+          if (/group/i.test(cleanQ) || cleanQ.startsWith("grp")) {
+            const groupData = await staffRoomsRepository.getGroupDetails(hotelId, cleanQ);
+            if (cancelled) return;
+            const target =
+              groupData?.checkInDate ||
+              groupData?.plannedCheckInAt ||
+              groupData?.rooms?.[0]?.plannedCheckInAt;
+            if (target) {
+              const ymd = String(target).slice(0, 10);
+              if (/^\d{4}-\d{2}-\d{2}$/.test(ymd)) {
+                lastAutoAdjustedCodeRef.current = cleanQ;
+                setStartDate((prev) => (prev !== ymd ? ymd : prev));
+                onBusinessDateChange?.(ymd);
+                return;
+              }
+            }
+          }
+        } catch {
+          // not found as group, proceed to arrivals
+        }
+
+        try {
+          const res = await requestInternalApiEnvelope<HotelOpsPage<HotelArrival>>(
+            `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/arrivals?q=${encodeURIComponent(cleanQ)}&limit=1`,
+            { method: "GET" },
+          );
+          if (cancelled) return;
+          const item = res.data?.items?.[0];
+          if (item?.plannedCheckInAt) {
+            const ymd = String(item.plannedCheckInAt).slice(0, 10);
+            if (/^\d{4}-\d{2}-\d{2}$/.test(ymd)) {
+              lastAutoAdjustedCodeRef.current = cleanQ;
+              setStartDate((prev) => (prev !== ymd ? ymd : prev));
+              onBusinessDateChange?.(ymd);
+            }
+          }
+        } catch {
+          // silent fallback
+        }
+      }, 400);
+
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
+    }
+  }, [
+    searchQuery,
+    allBlocks,
+    propRooms,
+    arrivalsList,
+    hotelId,
+    startDate,
+    onBusinessDateChange,
+  ]);
 
   // Generate days timeline list
   const daysList = useMemo(() => {
@@ -2123,16 +2348,36 @@ export function TapeChartView({
 
       if (searchQuery.trim()) {
         const query = searchQuery.trim().toLowerCase();
-        const matchesRoom = r.roomNumber.toLowerCase().includes(query);
+        const cleanQueryRoom = query.replace(/^(p\.|p|phòng\s*)/i, "").trim();
+        const matchesRoom =
+          r.roomNumber.toLowerCase().includes(query) ||
+          (cleanQueryRoom.length > 0 && r.roomNumber.toLowerCase().includes(cleanQueryRoom));
         const matchesType = (r.roomTypeName || "").toLowerCase().includes(query);
         const roomBlocks = blocksByRoomId.get(r.id) || [];
         const matchesGuest = roomBlocks.some(
           (b) =>
-            b.guestName.toLowerCase().includes(query) ||
+            (b.guestName || "").toLowerCase().includes(query) ||
+            (b.guestDisplayName || "").toLowerCase().includes(query) ||
             (b.reservationCode || "").toLowerCase().includes(query) ||
-            (b.phone || "").toLowerCase().includes(query),
+            (b.groupCode || "").toLowerCase().includes(query) ||
+            (b.channel || "").toLowerCase().includes(query) ||
+            (b.channelName || "").toLowerCase().includes(query) ||
+            (b.source || "").toLowerCase().includes(query) ||
+            (b.phone || "").toLowerCase().includes(query) ||
+            (b.notes || "").toLowerCase().includes(query),
         );
-        if (!matchesRoom && !matchesType && !matchesGuest) return false;
+        const propRoom = propRooms.find((pr) => pr.id === r.id);
+        const matchesProp = Boolean(
+          propRoom && (
+            (propRoom.projectedReservation?.reservationCode && propRoom.projectedReservation.reservationCode.toLowerCase().includes(query)) ||
+            ((propRoom.projectedReservation as any)?.groupCode && String((propRoom.projectedReservation as any).groupCode).toLowerCase().includes(query)) ||
+            (propRoom.upcomingReservation?.reservationCode && propRoom.upcomingReservation.reservationCode.toLowerCase().includes(query)) ||
+            ((propRoom.upcomingReservation as any)?.groupCode && String((propRoom.upcomingReservation as any).groupCode).toLowerCase().includes(query)) ||
+            ((propRoom.activeStay as any)?.reservation?.reservationCode && String((propRoom.activeStay as any).reservation.reservationCode).toLowerCase().includes(query)) ||
+            ((propRoom.activeStay as any)?.reservation?.groupCode && String((propRoom.activeStay as any).reservation.groupCode).toLowerCase().includes(query))
+          )
+        );
+        if (!matchesRoom && !matchesType && !matchesGuest && !matchesProp) return false;
       }
       return true;
     });
@@ -2143,6 +2388,7 @@ export function TapeChartView({
     selectedStatusFilter,
     searchQuery,
     blocksByRoomId,
+    propRooms,
     todayYmd,
     overdueRoomIdSet,
   ]);
@@ -2281,10 +2527,10 @@ export function TapeChartView({
       if (overdueBlock) {
         targetDate = overdueBlock.endDate <= todayYmd ? overdueBlock.endDate : todayYmd;
         blockStartDate = overdueBlock.startDate;
-      } else if ((targetRoom as any).activeStay?.plannedCheckOutAt) {
-        targetDate = String((targetRoom as any).activeStay.plannedCheckOutAt).slice(0, 10);
-        if ((targetRoom as any).activeStay.plannedCheckInAt) {
-          blockStartDate = String((targetRoom as any).activeStay.plannedCheckInAt).slice(0, 10);
+      } else if (targetRoom.activeStay?.plannedCheckOutAt) {
+        targetDate = String(targetRoom.activeStay.plannedCheckOutAt).slice(0, 10);
+        if (targetRoom.activeStay.plannedCheckInAt) {
+          blockStartDate = String(targetRoom.activeStay.plannedCheckInAt).slice(0, 10);
         }
       }
 
@@ -2345,12 +2591,13 @@ export function TapeChartView({
     if (!pendingOverdueTarget) return;
     const { roomId, blockId, dayYmd, timestamp } = pendingOverdueTarget;
 
-    if (Date.now() - timestamp > 4000) {
-      setPendingOverdueTarget(null);
-      return;
-    }
+
 
     const timer = setTimeout(() => {
+      if (Date.now() - timestamp > 4000) {
+        setPendingOverdueTarget(null);
+        return;
+      }
       let blockEl: HTMLElement | null = null;
       if (blockId) {
         blockEl = document.querySelector(`[data-block-id="${blockId}"]`);
@@ -2866,10 +3113,14 @@ export function TapeChartView({
   }, [draftSelection, activeDragRange, draggedBlock, dragOverCellKey]);
 
   const onOpenQuickReservationRef = useRef(onOpenQuickReservation);
-  onOpenQuickReservationRef.current = onOpenQuickReservation;
+  useEffect(() => {
+    onOpenQuickReservationRef.current = onOpenQuickReservation;
+  }, [onOpenQuickReservation]);
 
   const onOpenCheckInRef = useRef(onOpenCheckIn);
-  onOpenCheckInRef.current = onOpenCheckIn;
+  useEffect(() => {
+    onOpenCheckInRef.current = onOpenCheckIn;
+  }, [onOpenCheckIn]);
 
   // Global mouseup to finalize range drag or trigger quick reservation on click
   useEffect(() => {
@@ -3343,9 +3594,10 @@ export function TapeChartView({
   }, []);
 
   // ── Active Draft Booking Adjust Engine (Kéo dài/thu ngắn ngày, thêm/bớt phòng, hoặc di chuyển sau khi thả) ──
-  const [activeDraftAdjust, setActiveDraftAdjust] = useState<ActiveDraftAdjust | null>(null);
   const activeDraftAdjustRef = useRef<ActiveDraftAdjust | null>(null);
-  activeDraftAdjustRef.current = activeDraftAdjust;
+  useEffect(() => {
+    activeDraftAdjustRef.current = activeDraftAdjust;
+  }, [activeDraftAdjust]);
 
   const handleStartDraftAdjust = useCallback(
     (mode: "days" | "rooms" | "both" | "move", e: React.MouseEvent) => {
@@ -3550,9 +3802,10 @@ export function TapeChartView({
   ]);
 
   // ── Active Booking Resize Engine (Kéo dài gia hạn lưu trú & đổi ngày đặt phòng) ──
-  const [activeBlockResize, setActiveBlockResize] = useState<ActiveBlockResize | null>(null);
   const activeBlockResizeRef = useRef<ActiveBlockResize | null>(null);
-  activeBlockResizeRef.current = activeBlockResize;
+  useEffect(() => {
+    activeBlockResizeRef.current = activeBlockResize;
+  }, [activeBlockResize]);
   const isBlockResizingMovedRef = useRef<boolean>(false);
 
   // Extend stay mutation
@@ -3810,10 +4063,14 @@ export function TapeChartView({
   }, [extendStayMutation, updateReservationDatesMutation]);
 
   const onPointerMoveBlockResizeRef = useRef(handlePointerMoveBlockResize);
-  onPointerMoveBlockResizeRef.current = handlePointerMoveBlockResize;
+  useEffect(() => {
+    onPointerMoveBlockResizeRef.current = handlePointerMoveBlockResize;
+  }, [handlePointerMoveBlockResize]);
 
   const onGlobalBlockResizeMouseUpRef = useRef(handleGlobalBlockResizeMouseUp);
-  onGlobalBlockResizeMouseUpRef.current = handleGlobalBlockResizeMouseUp;
+  useEffect(() => {
+    onGlobalBlockResizeMouseUpRef.current = handleGlobalBlockResizeMouseUp;
+  }, [handleGlobalBlockResizeMouseUp]);
 
   // Active Block Resize event listener management (Stable single-point attachment)
   useEffect(() => {
@@ -4088,7 +4345,7 @@ export function TapeChartView({
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm số phòng, tên khách..."
+                placeholder="Tìm số phòng, tên khách, mã đặt / đoàn..."
                 className={`h-8 w-full rounded-lg border pl-8 pr-7 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-700/20 transition ${
                   searchQuery.trim()
                     ? "border-emerald-600 bg-emerald-50/40 font-semibold"
@@ -5204,7 +5461,7 @@ export function TapeChartView({
             status: r.status,
             price: r.price,
           }))}
-          canCheckIn={!isReadOnly && Boolean((selectedBlock as any).canCheckIn || selectedBlock.status === "CONFIRMED" || selectedBlock.status === "PENDING")}
+          canCheckIn={!isReadOnly && Boolean(selectedBlock.canCheckIn || selectedBlock.status === "CONFIRMED" || selectedBlock.status === "PENDING")}
           onCheckIn={handleDrawerCheckIn}
           onOpenGroupOperations={onOpenGroupCheckIn}
           onSelectReservation={(nextRes) => {

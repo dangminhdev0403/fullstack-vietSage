@@ -266,4 +266,3 @@ export type CollectReceivableInput = {
   reference?: string;
   notes?: string;
 };
-

@@ -54,9 +54,12 @@ jest.mock("@prisma/client", () => {
   return new Proxy(enums, {
     get: (target, prop: string) => {
       if (prop in target) return target[prop];
-      target[prop] = new Proxy({}, {
-        get: (_, val: string) => val,
-      });
+      target[prop] = new Proxy(
+        {},
+        {
+          get: (_, val: string) => val,
+        },
+      );
       return target[prop];
     },
   });
@@ -280,9 +283,7 @@ describe("KBTT Daily Movements (T08A)", () => {
           checkedInAt: null,
         },
       ]);
-      mockPrisma.room.findMany.mockResolvedValueOnce([
-        { id: "room-101", roomNumber: "101" },
-      ]);
+      mockPrisma.room.findMany.mockResolvedValueOnce([{ id: "room-101", roomNumber: "101" }]);
 
       const req = mockUserRequest();
       const res = await controller.getDailyMovements(req, "hotel-1", {

@@ -334,7 +334,10 @@ export class ChannexBookingIngestionService {
                   if (total > 0) {
                     partySize = total;
                   }
-                } else if (Array.isArray((segment as any)?.guests) && (segment as any).guests.length > 0) {
+                } else if (
+                  Array.isArray((segment as any)?.guests) &&
+                  (segment as any).guests.length > 0
+                ) {
                   partySize = (segment as any).guests.length;
                 }
 
@@ -396,9 +399,7 @@ export class ChannexBookingIngestionService {
                 }
                 const nights = Math.max(
                   1,
-                  Math.round(
-                    (plannedCheckOutAt.getTime() - plannedCheckInAt.getTime()) / 86400000,
-                  ),
+                  Math.round((plannedCheckOutAt.getTime() - plannedCheckInAt.getTime()) / 86400000),
                 );
                 const nightlyRateSnapshot = segmentTotal
                   .div(nights)

@@ -132,21 +132,26 @@ export class HotelCoreRepository {
       if (brandSettings !== undefined) {
         const current = hotel.brandSettings;
         const settings: Prisma.InputJsonObject =
-          brandSettings && typeof brandSettings === "object" &&
-          brandSettings !== Prisma.JsonNull && brandSettings !== Prisma.DbNull &&
+          brandSettings &&
+          typeof brandSettings === "object" &&
+          brandSettings !== Prisma.JsonNull &&
+          brandSettings !== Prisma.DbNull &&
           !Array.isArray(brandSettings)
-            ? Object.fromEntries(Object.entries(brandSettings)) : {};
-        const metadata = current && typeof current === "object" && !Array.isArray(current)
-          ? current : {};
+            ? Object.fromEntries(Object.entries(brandSettings))
+            : {};
+        const metadata =
+          current && typeof current === "object" && !Array.isArray(current) ? current : {};
         const sanitized = { ...settings };
         delete sanitized.operationalResetCount;
         delete sanitized.lastOperationalResetAt;
         for (const key of ["operationalResetCount", "lastOperationalResetAt"]) {
           if (Object.prototype.hasOwnProperty.call(metadata, key)) sanitized[key] = metadata[key];
         }
-        brandSettings = Object.keys(sanitized).length ||
+        brandSettings =
+          Object.keys(sanitized).length ||
           (data.brandSettings !== Prisma.JsonNull && data.brandSettings !== Prisma.DbNull)
-          ? sanitized : Prisma.JsonNull;
+            ? sanitized
+            : Prisma.JsonNull;
       }
       return tx.hotel.update({
         where: { id: hotel.id },
@@ -185,10 +190,15 @@ export class HotelCoreRepository {
       });
       if (!currentHotel) throw new NotFoundException("Khách sạn không tồn tại");
       const currentSettings =
-        currentHotel.brandSettings && typeof currentHotel.brandSettings === "object" &&
-        !Array.isArray(currentHotel.brandSettings) ? currentHotel.brandSettings : {};
-      const currentCount = typeof currentSettings.operationalResetCount === "number"
-        ? currentSettings.operationalResetCount : 0;
+        currentHotel.brandSettings &&
+        typeof currentHotel.brandSettings === "object" &&
+        !Array.isArray(currentHotel.brandSettings)
+          ? currentHotel.brandSettings
+          : {};
+      const currentCount =
+        typeof currentSettings.operationalResetCount === "number"
+          ? currentSettings.operationalResetCount
+          : 0;
       if (!options.unlimited && currentCount >= 2) {
         throw new ForbiddenException(
           "Khách sạn đã sử dụng hết số lần thiết lập lại dữ liệu vận hành (tối đa 2 lần).",

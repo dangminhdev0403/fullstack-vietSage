@@ -177,7 +177,7 @@ export class PaymentController {
       request.user.userId,
       request.user.roleId,
       hotelId,
-      query as any,
+      query,
     );
   }
 

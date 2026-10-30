@@ -70,7 +70,7 @@ export function buildGroupRoomItems(params: {
   for (const arr of initialArrivals) {
     if (arr.groupCode?.trim().toUpperCase() === activeGroupCode.trim().toUpperCase()) {
       const initialActiveStayId = arr.activeStayId ?? undefined;
-      const arrRoom = arr.room as any;
+      const arrRoom = arr.room;
       const roomStatus = arrRoom?.status || arrRoom?.physicalStatus || null;
       const qrStatus = arrRoom?.qr?.status || arrRoom?.qrStatus || null;
       const hasQr = arrRoom?.qr
@@ -107,7 +107,7 @@ export function buildGroupRoomItems(params: {
   for (const item of fetchedArrivals) {
     const existing = map.get(item.id);
     const resolvedActiveStayId = item.activeStayId ?? existing?.activeStayId ?? undefined;
-    const itemRoom = item.room as any;
+    const itemRoom = item.room;
     const roomStatus = itemRoom?.status || itemRoom?.physicalStatus || existing?.roomStatus || null;
     const qrStatus = itemRoom?.qr?.status || itemRoom?.qrStatus || existing?.qrStatus || null;
     const hasQr = itemRoom?.qr
@@ -350,7 +350,9 @@ export function GroupOperationsDrawer({
   const [isSubmittingRoom, setIsSubmittingRoom] = useState<boolean>(false);
 
   // Synchronize when initialGroupCode changes
-  useEffect(() => {
+  const [previousGroupCode, setPreviousGroupCode] = useState(initialGroupCode);
+  if (previousGroupCode !== initialGroupCode) {
+    setPreviousGroupCode(initialGroupCode);
     if (initialGroupCode) {
       setActiveGroupCode(initialGroupCode);
       setSearchInput(initialGroupCode);
@@ -358,7 +360,7 @@ export function GroupOperationsDrawer({
     } else {
       setIsSearchingManually(true);
     }
-  }, [initialGroupCode]);
+  }
 
   // Keyboard accessibility and focus trap
   useEffect(() => {

@@ -39,11 +39,13 @@ export const confirmHoldSchema = z.object({
   room_type_id: z.string().optional(),
   check_in_date: z.string().optional(),
   check_out_date: z.string().optional(),
-  guest: z.object({
-    name: z.string().optional(),
-    email: z.string().optional(),
-    phone: z.string().optional(),
-  }).optional(),
+  guest: z
+    .object({
+      name: z.string().optional(),
+      email: z.string().optional(),
+      phone: z.string().optional(),
+    })
+    .optional(),
   amount: z.coerce.number().optional(),
   currency: z.string().optional(),
 });
@@ -72,4 +74,3 @@ export const catalogExportSchema = z.object({
 });
 
 export type CatalogExportDto = z.infer<typeof catalogExportSchema>;
-

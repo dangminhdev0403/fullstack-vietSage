@@ -526,11 +526,10 @@ export class MarketplaceAdminService {
                 data: {
                   email,
                   fullName,
-                  passwordHash: (
+                  passwordHash:
                     body.owner.password && body.owner.password.trim().length >= 8
                       ? passwordHash!
-                      : defaultPasswordHash!
-                  ),
+                      : defaultPasswordHash!,
                   status: UserStatus.ACTIVE,
                   userType: UserType.PARTNER,
                 },

@@ -217,7 +217,11 @@ describe("Checkout Service Reconciliation & Idempotent Billing TDD", () => {
                 status: "CREATED",
                 quantity: 2,
                 // Catalog price was bumped from 20000 to 99000 after creation:
-                serviceItem: { name: "Nước suối", priceOverride: 99000, category: { defaultPrice: 99000, currency: "VND" } },
+                serviceItem: {
+                  name: "Nước suối",
+                  priceOverride: 99000,
+                  category: { defaultPrice: 99000, currency: "VND" },
+                },
                 metadata: { billingPriceSnapshot: { unitPrice: 20000, currency: "VND" } },
                 room: { roomNumber: "101" },
               },
@@ -285,7 +289,11 @@ describe("Checkout Service Reconciliation & Idempotent Billing TDD", () => {
                 title: "Khăn tắm thêm",
                 status: "CREATED",
                 quantity: 3,
-                serviceItem: { name: "Khăn tắm thêm", priceOverride: 0, category: { defaultPrice: 0, currency: "VND" } },
+                serviceItem: {
+                  name: "Khăn tắm thêm",
+                  priceOverride: 0,
+                  category: { defaultPrice: 0, currency: "VND" },
+                },
                 metadata: { billingPriceSnapshot: { unitPrice: 0, currency: "VND" } },
                 room: { roomNumber: "101" },
               },
@@ -345,7 +353,11 @@ describe("Checkout Service Reconciliation & Idempotent Billing TDD", () => {
                 title: "Dịch vụ cũ",
                 status: "CREATED",
                 quantity: 1,
-                serviceItem: { name: "Dịch vụ cũ", priceOverride: 10000, category: { currency: "VND" } },
+                serviceItem: {
+                  name: "Dịch vụ cũ",
+                  priceOverride: 10000,
+                  category: { currency: "VND" },
+                },
                 metadata: null, // missing snapshot
                 room: { roomNumber: "101" },
               },

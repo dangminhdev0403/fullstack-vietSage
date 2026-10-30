@@ -73,16 +73,12 @@ function VnDateInput({
   placeholder?: string;
   required?: boolean;
 }) {
-  const [textVal, setTextVal] = useState(() => toDisplayVnDate(value));
+  const textVal = toDisplayVnDate(value);
   const dateInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    setTextVal(toDisplayVnDate(value));
-  }, [value]);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatVnDateInput(e.target.value, textVal);
-    setTextVal(formatted);
     const iso = toIsoDate(formatted);
     if (iso) {
       onChange(iso);
@@ -98,16 +94,13 @@ function VnDateInput({
     if (digitsOnly.length === 4 && Number(digitsOnly) >= 1900 && Number(digitsOnly) <= new Date().getFullYear()) {
       const year = Number(digitsOnly);
       const iso = `${year}-01-01`;
-      setTextVal(`01/01/${year}`);
       onChange(iso);
       return;
     }
     const iso = toIsoDate(textVal);
     if (iso) {
-      setTextVal(toDisplayVnDate(iso));
       onChange(iso);
     } else if (!textVal.trim()) {
-      setTextVal("");
       onChange("");
     }
   };
@@ -115,7 +108,6 @@ function VnDateInput({
   const handlePickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const iso = e.target.value;
     if (iso) {
-      setTextVal(toDisplayVnDate(iso));
       onChange(iso);
     }
   };
@@ -198,7 +190,11 @@ export type GroupCheckInModalProps = {
   onSuccess?: () => void | Promise<void>;
 };
 
-export function GroupCheckInModal({
+export function GroupCheckInModal(props: GroupCheckInModalProps) {
+  return props.isOpen ? <GroupCheckInForm key={`${props.hotelId}:${props.groupCode}`} {...props} /> : null;
+}
+
+function GroupCheckInForm({
   isOpen,
   onClose,
   hotelId,
@@ -320,10 +316,8 @@ export function GroupCheckInModal({
   const [isSwappingRoom, setIsSwappingRoom] = useState<boolean>(false);
 
   // Target room type info for the room currently being swapped (cùng loại, cùng hạng)
-  const currentAssignedSwapRoom = useMemo(() => {
-    if (!reassigningItem?.roomId) return null;
-    return allHotelRooms.find((r) => r.id === reassigningItem.roomId) ?? null;
-  }, [reassigningItem?.roomId, allHotelRooms]);
+  const currentAssignedSwapRoom = reassigningItem?.roomId
+    ? allHotelRooms.find((room) => room.id === reassigningItem.roomId) ?? null : null;
 
   const targetRoomTypeLabel = useMemo(() => {
     if (!reassigningItem) return "";
@@ -407,36 +401,23 @@ export function GroupCheckInModal({
     }));
   });
 
-  // Keep state synced when eligibleRooms changes
-  useEffect(() => {
-    if (!isOpen) return;
-    setRoomsState(
-      eligibleRooms.map((r) => ({
-        reservationId: r.reservationId,
-        reservationCode: r.reservationCode,
-        roomId: r.roomId || "",
-        roomNumber: r.roomNumber || r.reservationCode,
-        roomType: r.roomType || undefined,
-        plannedCheckOutAt: r.plannedCheckOutAt || "",
-        updatedAt: r.updatedAt || null,
-        guests: [
-          {
-            fullName: "",
-            phone: "",
-            identityNumber: "",
-            dateOfBirth: "",
-            gender: "Nam",
-            nationality: "Việt Nam",
-            residencePlace: "",
-            isPrimary: true,
-          },
-        ],
-        capturesByGuest: {},
-        activeGuestIndex: 0,
-      })),
-    );
+  const roomSourceKey = eligibleRooms.map((room) => [room.reservationId, room.roomId, room.updatedAt].join(":" )).join("|");
+  const [lastRoomSourceKey, setLastRoomSourceKey] = useState(roomSourceKey);
+  if (lastRoomSourceKey !== roomSourceKey) {
+    setLastRoomSourceKey(roomSourceKey);
+    setRoomsState((previous) => eligibleRooms.map((room) => {
+      const draft = previous.find((item) => item.reservationId === room.reservationId);
+      return {
+        reservationId: room.reservationId, reservationCode: room.reservationCode,
+        roomId: room.roomId || "", roomNumber: room.roomNumber || room.reservationCode,
+        roomType: room.roomType || undefined, plannedCheckOutAt: room.plannedCheckOutAt || "",
+        updatedAt: room.updatedAt || null,
+        guests: draft?.guests ?? [{ fullName: "", gender: "Nam", nationality: "Việt Nam", isPrimary: true }],
+        capturesByGuest: draft?.capturesByGuest ?? {}, activeGuestIndex: draft?.activeGuestIndex ?? 0,
+      };
+    }));
     setActiveRoomIndex(0);
-  }, [isOpen, eligibleRooms]);
+  }
 
   const handleConfirmRoomSwap = async () => {
     if (!reassigningItem || !targetSwapRoomId) {
@@ -632,43 +613,21 @@ export function GroupCheckInModal({
     // Search open folios for this room from billing
     setIsOpeningSettlement(true);
     try {
-      const res = await requestInternalApiEnvelope<{
-        items: Array<{
-          id: string;
-          stayId: string;
-          roomId: string;
-          totalAmount: string | number;
-          room?: { id: string; roomNumber: string };
-          stay?: {
-            id: string;
-            reservationId?: string;
-            reservationCode?: string;
-            guestDisplayName?: string;
-            plannedCheckOutAt?: string;
-            status?: string;
-          };
-        }>;
-      }>(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/billing/folios?status=OPEN&limit=100`,
-        { method: "GET" },
-      );
-      const matchedFolio = res.data?.items?.find(
-        (f) => f.roomId === targetRoom.id || f.room?.roomNumber === targetRoom.roomNumber,
-      );
+      const matchedFolio = await staffRoomsRepository.findOpenRoomFolio(hotelId, targetRoom.id);
 
       if (matchedFolio) {
+        if (!matchedFolio.stay?.id && !matchedFolio.stayId) throw new Error("Missing stay context");
         const stayObj = {
-          id: matchedFolio.stay?.id || matchedFolio.stayId,
-          reservationId: matchedFolio.stay?.reservationId || "",
+          id: matchedFolio.stay?.id || matchedFolio.stayId || "",
           reservationCode: matchedFolio.stay?.reservationCode || "",
           guestDisplayName: matchedFolio.stay?.guestDisplayName || "Khách lưu trú trước",
           plannedCheckOutAt: matchedFolio.stay?.plannedCheckOutAt || "",
-          nightlyRateSnapshot: matchedFolio.totalAmount ? Number(matchedFolio.totalAmount) : 0,
+          nightlyRateSnapshot: matchedFolio.stay?.nightlyRateSnapshot != null ? Number(matchedFolio.stay.nightlyRateSnapshot) : 0,
           status: matchedFolio.stay?.status || "CHECKED_OUT",
         };
         setSettlementTarget({
           room: targetRoom,
-          stay: stayObj as any,
+          stay: stayObj,
         });
       } else {
         // No open folio exists, meaning the room is clean/ready or error can be cleared
@@ -688,19 +647,7 @@ export function GroupCheckInModal({
         await availableRoomsQuery.refetch();
       }
     } catch {
-      const fallbackStay = {
-        id: `stay-room-${targetRoom.id}`,
-        reservationId: "",
-        reservationCode: "",
-        guestDisplayName: "Hồ sơ lưu trú / Hóa đơn phòng",
-        plannedCheckOutAt: "",
-        nightlyRateSnapshot: 0,
-        status: "CHECKED_OUT",
-      };
-      setSettlementTarget({
-        room: targetRoom,
-        stay: fallbackStay as any,
-      });
+      await showErrorAlert("Không thể tải thông tin thanh toán", "Vui lòng thử lại hoặc mở Thu ngân để kiểm tra hồ sơ của phòng.");
     } finally {
       setIsOpeningSettlement(false);
     }

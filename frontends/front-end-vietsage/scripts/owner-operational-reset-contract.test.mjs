@@ -2,8 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const rootDir = process.cwd();
+const rootDir = fileURLToPath(new URL("../../../", import.meta.url));
 
 test("owner operational reset contract: backend and frontend integration", () => {
   // 1. Check frontend AdminService method

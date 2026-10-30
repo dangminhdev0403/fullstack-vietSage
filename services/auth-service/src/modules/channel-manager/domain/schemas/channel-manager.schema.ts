@@ -82,8 +82,7 @@ export const rateAdjustmentKindEnum = z.enum(["FIXED", "PERCENT"]);
 export const rateAdjustmentSchema = z.object({
   direction: rateAdjustmentDirectionEnum,
   kind: rateAdjustmentKindEnum,
-  value: z
-    .coerce
+  value: z.coerce
     .number()
     .positive("Giá trị điều chỉnh phải là số dương")
     .finite("Giá trị điều chỉnh phải là số hữu hạn"),
@@ -111,13 +110,11 @@ export const bulkUpdateRestrictionsSchema = z
     closedToArrival: z.boolean().optional(),
     closedToDeparture: z.boolean().optional(),
   })
-  .refine(
-    (data) => !(data.rate !== undefined && data.adjustment !== undefined),
-    {
-      message: "Không được truyền đồng thời giá tuyệt đối (rate) và điều chỉnh giá tương đối (adjustment)",
-      path: ["adjustment"],
-    },
-  );
+  .refine((data) => !(data.rate !== undefined && data.adjustment !== undefined), {
+    message:
+      "Không được truyền đồng thời giá tuyệt đối (rate) và điều chỉnh giá tương đối (adjustment)",
+    path: ["adjustment"],
+  });
 
 export const inventoryQuerySchema = z
   .object({

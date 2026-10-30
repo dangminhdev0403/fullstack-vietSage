@@ -231,7 +231,7 @@ export function FrontDeskArrivalDetailPanel({
   const isFuture = checkInYmd > todayYmd;
   const nights = calculateNights(activeArrival.plannedCheckInAt, activeArrival.plannedCheckOutAt);
   const roomPriceFallback =
-    (activeArrival.room as any)?.price ?? (activeArrival.room as any)?.basePrice;
+    activeArrival.room?.price ?? activeArrival.room?.basePrice;
   const rateNumber = Number(
     activeArrival.nightlyRateSnapshot ?? activeArrival.rate ?? roomPriceFallback ?? 0,
   );
@@ -242,12 +242,12 @@ export function FrontDeskArrivalDetailPanel({
         ? Number(activeArrival.roomSubtotal)
         : rateNumber * nights;
 
-  const paidDepositsSummary = useMemo(() => {
+  const paidDepositsSummary = (() => {
     return bookingPayments.reduce(
       (acc, p) => {
-        const val = Number((p as any).receivedAmount ?? (p as any).amount ?? 0);
+        const val = Number(("receivedAmount" in p && (typeof p.receivedAmount === "number" || typeof p.receivedAmount === "string") ? p.receivedAmount : undefined) ?? p.amount ?? 0);
         acc.total += val;
-        const method = ((p as any).paymentMethod || "CASH").toUpperCase();
+        const method = (p.paymentMethod || "CASH").toUpperCase();
         if (method === "CASH") acc.cash += val;
         else if (method === "BANK_TRANSFER" || method === "QR") acc.bankTransfer += val;
         else if (method === "CARD") acc.card += val;
@@ -256,7 +256,7 @@ export function FrontDeskArrivalDetailPanel({
       },
       { total: 0, cash: 0, bankTransfer: 0, card: 0, other: 0 },
     );
-  }, [bookingPayments]);
+  })();
 
   const remainingBalance = Math.max(0, totalEstimated - paidDepositsSummary.total);
 
@@ -452,7 +452,7 @@ export function FrontDeskArrivalDetailPanel({
 
             await invalidateHotelRealtimeQueries(queryClient, hotelId);
             onClose();
-      
+
             return;
           } catch (retryErr) {
             await invalidateHotelRealtimeQueries(queryClient, hotelId);
@@ -1259,12 +1259,12 @@ export function FrontDeskArrivalDetailPanel({
                       </thead>
                       <tbody className="divide-y divide-slate-100 bg-white">
                         {bookingPayments.map((p) => {
-                          const method = ((p as any).paymentMethod || "CASH").toUpperCase();
-                          const amount = Number((p as any).receivedAmount ?? (p as any).amount ?? 0);
+                          const method = (p.paymentMethod || "CASH").toUpperCase();
+                          const amount = Number(("receivedAmount" in p && (typeof p.receivedAmount === "number" || typeof p.receivedAmount === "string") ? p.receivedAmount : undefined) ?? p.amount ?? 0);
                           return (
                             <tr key={p.id} className="hover:bg-slate-50/70 transition-colors">
                               <td className="px-3.5 py-2.5 whitespace-nowrap text-slate-600 font-medium">
-                                {formatDateTime((p as any).receivedAt || (p as any).createdAt)}
+                                {formatDateTime(("receivedAt" in p && typeof p.receivedAt === "string" ? p.receivedAt : undefined) || p.createdAt)}
                               </td>
                               <td className="px-3.5 py-2.5 whitespace-nowrap font-bold text-slate-900 tabular-nums">
                                 {formatVnd(amount)}
@@ -1285,12 +1285,12 @@ export function FrontDeskArrivalDetailPanel({
                                 )}
                               </td>
                               <td className="px-3.5 py-2.5 text-slate-600">
-                                {(p as any).transactionReference || (p as any).referenceCode ? (
+                                {("transactionReference" in p && typeof p.transactionReference === "string" ? p.transactionReference : undefined) || p.referenceCode ? (
                                   <span className="font-mono font-bold text-slate-800 mr-1.5">
-                                    [{(p as any).transactionReference || (p as any).referenceCode}]
+                                    [{("transactionReference" in p && typeof p.transactionReference === "string" ? p.transactionReference : undefined) || p.referenceCode}]
                                   </span>
                                 ) : null}
-                                <span>{(p as any).notes || "—"}</span>
+                                <span>{p.notes || "—"}</span>
                               </td>
                               <td className="px-3.5 py-2.5 whitespace-nowrap text-right">
                                 <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700">
@@ -1464,8 +1464,7 @@ export function FrontDeskArrivalDetailPanel({
             type: availableRooms.find((r) => r.id === arrival.roomId)?.type ?? undefined,
             status: "available",
             maxOccupancy: availableRooms.find((r) => r.id === arrival.roomId)?.maxOccupancy ?? arrival.room?.maxOccupancy ?? null,
-            notes: arrival.groupCode ? `Mã đoàn: ${arrival.groupCode}` : undefined,
-          } as any}
+          }}
           canManageStays={Boolean(canCheckInStay || canOperateArrivals)}
           initialStayFields={{
             guestDisplayName: arrival.guestDisplayName,
@@ -1474,7 +1473,7 @@ export function FrontDeskArrivalDetailPanel({
             reservationCode: arrival.reservationCode,
             plannedCheckInAt: arrival.plannedCheckInAt,
             notes: arrival.groupCode ? `Mã đoàn: ${arrival.groupCode}` : undefined,
-          } as any}
+          }}
           submitState={isCheckingIn ? "submitting" : "idle"}
           submitError={checkInError}
           onSubmit={handleCheckInWorkspaceSubmit}

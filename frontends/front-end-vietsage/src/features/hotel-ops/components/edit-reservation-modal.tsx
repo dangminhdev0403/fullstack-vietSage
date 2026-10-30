@@ -151,11 +151,13 @@ function VnDateTimeInput({
   const [timeText, setTimeText] = useState(() => initial.timeStr);
   const pickerRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  const [previousValue, setPreviousValue] = useState(value);
+  if (previousValue !== value) {
+    setPreviousValue(value);
     const { dateStr, timeStr } = parseValue(value);
     setDateText(toDisplayVnDate(dateStr));
     setTimeText(timeStr);
-  }, [value]);
+  }
 
   const emitCombined = (nextDateText: string, nextTime: string) => {
     const isoDate = toIsoDate(nextDateText);
@@ -307,8 +309,8 @@ export function EditReservationModal({
   const [plannedCheckOutAt, setPlannedCheckOutAt] = useState("");
   const [nightlyRate, setNightlyRate] = useState<string>("");
   const [notes, setNotes] = useState("");
-  const [depositAmount, setDepositAmount] = useState<string>("");
-  const [depositPercent, setDepositPercent] = useState<string>("");
+  const [depositAmountInput, setDepositAmount] = useState<string | null>(null);
+  const [depositPercentInput, setDepositPercent] = useState<string | null>(null);
   const [depositMethod, setDepositMethod] = useState<string>("CASH");
   const [showRoomOverride, setShowRoomOverride] = useState(false);
   const [editScope, setEditScope] = useState<"SINGLE" | "GROUP">("SINGLE");
@@ -347,9 +349,9 @@ export function EditReservationModal({
     const items = bookingPaymentsPage?.items || [];
     return items.reduce(
       (acc, item) => {
-        const val = Number((item as any).receivedAmount ?? (item as any).amount ?? 0);
+        const val = Number(("receivedAmount" in item && (typeof item.receivedAmount === "number" || typeof item.receivedAmount === "string") ? item.receivedAmount : undefined) ?? item.amount ?? 0);
         acc.total += val;
-        const method = ((item as any).paymentMethod || "CASH").toUpperCase();
+        const method = (item.paymentMethod || "CASH").toUpperCase();
         if (method === "CASH") acc.cash += val;
         else if (method === "BANK_TRANSFER" || method === "QR") acc.bankTransfer += val;
         else if (method === "CARD") acc.card += val;
@@ -367,8 +369,8 @@ export function EditReservationModal({
       roomNumber: r.roomNumber,
       type: r.type,
       status: r.status,
-      price: (r as any).price ?? (r as any).basePrice,
-      basePrice: (r as any).basePrice,
+      price: r.price ?? r.basePrice,
+      basePrice: r.basePrice,
     }));
   }, [propRooms, roomsPage?.items]);
 
@@ -388,8 +390,10 @@ export function EditReservationModal({
   }, [selectedRoom, reservation]);
 
   // Sync state whenever reservation opens
-  useEffect(() => {
-    if (!isOpen || !reservation) return;
+  const [previousInput, setPreviousInput] = useState<{ isOpen: boolean; reservation: EditReservationModalProps["reservation"] } | null>(null);
+  if (previousInput?.isOpen !== isOpen || previousInput?.reservation !== reservation) {
+    setPreviousInput({ isOpen, reservation });
+    if (isOpen && reservation) {
 
     setGuestDisplayName(reservation.guestDisplayName || "");
     setGuestPhone(reservation.guestPhone || "");
@@ -412,27 +416,28 @@ export function EditReservationModal({
     setShowRoomOverride(false);
     setEditScope("SINGLE");
     setIsSubmitting(false);
-  }, [isOpen, reservation]);
+    setDepositAmount(null);
+    setDepositPercent(null);
+    }
+  }
 
   const nights = calculateDiffNights(plannedCheckInAt, plannedCheckOutAt);
   const numericRate = nightlyRate ? Number(nightlyRate.replace(/\D/g, "")) : baseRate;
   const estimatedRoomTotal = numericRate * nights;
 
+  const depositAmount = depositAmountInput ?? (paidDeposits.total > 0 ? String(paidDeposits.total) : "");
+  const defaultDepositPercent = estimatedRoomTotal > 0 ? Math.round((paidDeposits.total / estimatedRoomTotal) * 100) : 0;
+  const depositPercent = depositPercentInput ?? (paidDeposits.total > 0 && defaultDepositPercent <= 100 ? String(defaultDepositPercent) : "");
+  const [previousTotal, setPreviousTotal] = useState(estimatedRoomTotal);
+  if (previousTotal !== estimatedRoomTotal) {
+    setPreviousTotal(estimatedRoomTotal);
+    const pct = Number(depositPercent);
+    if (estimatedRoomTotal > 0 && depositPercent !== "" && Number.isFinite(pct) && pct >= 0 && pct <= 100) {
+      setDepositAmount(String(Math.round(((estimatedRoomTotal * pct) / 100) / 1000) * 1000));
+    }
+  }
   const numericDeposit = depositAmount ? Number(depositAmount.replace(/\D/g, "")) : paidDeposits.total;
   const remainingDue = Math.max(0, estimatedRoomTotal - numericDeposit);
-
-  // Sync deposit input & percentage when paidDeposits query completes
-  useEffect(() => {
-    if (paidDeposits.total > 0 && !depositAmount) {
-      setDepositAmount(String(paidDeposits.total));
-      if (estimatedRoomTotal > 0) {
-        const pct = Math.round((paidDeposits.total / estimatedRoomTotal) * 100);
-        if (pct >= 0 && pct <= 100) {
-          setDepositPercent(String(pct));
-        }
-      }
-    }
-  }, [paidDeposits.total, depositAmount, estimatedRoomTotal]);
 
   // Focus trap and Escape key listener
   useEffect(() => {
@@ -542,25 +547,6 @@ export function EditReservationModal({
       setDepositPercent("");
     }
   };
-
-  // Auto-recalculate deposit amount when total changes and a percent is set
-  const prevEstimatedTotalRef = useRef<number>(estimatedRoomTotal);
-  useEffect(() => {
-    if (prevEstimatedTotalRef.current !== estimatedRoomTotal && estimatedRoomTotal > 0) {
-      prevEstimatedTotalRef.current = estimatedRoomTotal;
-      if (depositPercent !== "") {
-        const pct = Number(depositPercent);
-        if (!isNaN(pct) && pct >= 0 && pct <= 100) {
-          if (pct === 0) {
-            setDepositAmount("0");
-          } else {
-            const dep = Math.round(((estimatedRoomTotal * pct) / 100) / 1000) * 1000;
-            setDepositAmount(String(dep));
-          }
-        }
-      }
-    }
-  }, [estimatedRoomTotal, depositPercent]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

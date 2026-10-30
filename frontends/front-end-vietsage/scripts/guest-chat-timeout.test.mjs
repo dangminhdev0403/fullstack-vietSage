@@ -13,8 +13,8 @@ const routeSource = readFileSync(
   "utf8",
 );
 
-test("guest chat gives the grounded workflow a bounded 45-second window", () => {
-  assert.equal(CHAT_UPSTREAM_TIMEOUT_MS, 45_000);
+test("guest chat gives the grounded workflow a bounded 60-second window", () => {
+  assert.equal(CHAT_UPSTREAM_TIMEOUT_MS, 60_000);
 });
 
 test("guest chat recognizes cross-realm abort errors without masking other failures", () => {

@@ -76,17 +76,37 @@ export const createReservationBodySchema = z
 
 export const listArrivalsQuerySchema = z
   .object({
-    from: z.coerce.date(),
-    to: z.coerce.date(),
+    from: z.coerce.date().optional(),
+    to: z.coerce.date().optional(),
     page: z.coerce.number().int().min(1).optional(),
     limit: z.coerce.number().int().min(1).max(100).optional(),
     q: z.string().trim().max(120).optional(),
   })
   .strict()
-  .refine((value) => value.to > value.from, {
-    message: "to phải sau from",
-    path: ["to"],
-  });
+  .refine(
+    (value) => {
+      if (value.from && value.to) {
+        return value.to > value.from;
+      }
+      return true;
+    },
+    {
+      message: "to phải sau from",
+      path: ["to"],
+    },
+  )
+  .refine(
+    (value) => {
+      if (!value.q && (!value.from || !value.to)) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "from và to là bắt buộc khi không có từ khóa tìm kiếm q",
+      path: ["from"],
+    },
+  );
 
 export const assignReservationRoomBodySchema = z
   .object({
@@ -177,10 +197,7 @@ export const createBulkReservationsBodySchema = z
     guestDisplayName: z.string().trim().min(2).max(120).optional(),
     leadGuestPhone: z.string().trim().max(40).optional(),
     guestPhone: z.string().trim().max(40).optional(),
-    checkInDate: z.preprocess(
-      (val) => parseVietnamHotelDate(val, "checkIn"),
-      z.date().optional(),
-    ),
+    checkInDate: z.preprocess((val) => parseVietnamHotelDate(val, "checkIn"), z.date().optional()),
     checkOutDate: z.preprocess(
       (val) => parseVietnamHotelDate(val, "checkOut"),
       z.date().optional(),
@@ -287,8 +304,14 @@ export type MarkNoShowDto = MarkNoShowBodyInput;
 
 export const roomPlanQuerySchema = z
   .object({
-    from: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Định dạng ngày bắt đầu YYYY-MM-DD"),
-    to: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Định dạng ngày kết thúc YYYY-MM-DD"),
+    from: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Định dạng ngày bắt đầu YYYY-MM-DD"),
+    to: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Định dạng ngày kết thúc YYYY-MM-DD"),
   })
   .strict()
   .refine(
@@ -344,9 +367,7 @@ export const updateReservationDatesBodySchema = z
   })
   .strict();
 
-export type UpdateReservationDatesBodyInput = z.infer<
-  typeof updateReservationDatesBodySchema
->;
+export type UpdateReservationDatesBodyInput = z.infer<typeof updateReservationDatesBodySchema>;
 
 export const updateReservationBodySchema = z
   .object({
@@ -378,9 +399,7 @@ export const updateReservationBodySchema = z
   })
   .strict();
 
-export type UpdateReservationBodyInput = z.infer<
-  typeof updateReservationBodySchema
->;
+export type UpdateReservationBodyInput = z.infer<typeof updateReservationBodySchema>;
 
 export const groupCodeParamSchema = z
   .string()
@@ -391,7 +410,12 @@ export const groupCodeParamSchema = z
 export const updateGroupReservationBodySchema = z
   .object({
     groupName: z.string().trim().max(120).nullable().optional(),
-    leadGuestName: z.string().trim().min(2, "Tên trưởng đoàn tối thiểu 2 ký tự").max(120).optional(),
+    leadGuestName: z
+      .string()
+      .trim()
+      .min(2, "Tên trưởng đoàn tối thiểu 2 ký tự")
+      .max(120)
+      .optional(),
     leadGuestPhone: z.string().trim().max(40).nullable().optional(),
     notes: z.string().trim().max(500).nullable().optional(),
     sourceCategory: bookingSourceCategorySchema.optional(),
@@ -400,9 +424,7 @@ export const updateGroupReservationBodySchema = z
   })
   .strict();
 
-export type UpdateGroupReservationBodyInput = z.infer<
-  typeof updateGroupReservationBodySchema
->;
+export type UpdateGroupReservationBodyInput = z.infer<typeof updateGroupReservationBodySchema>;
 
 export const createBookingSourcePartnerBodySchema = z
   .object({

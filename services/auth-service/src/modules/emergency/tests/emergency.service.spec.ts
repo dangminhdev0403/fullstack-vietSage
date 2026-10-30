@@ -90,6 +90,7 @@ describe("EmergencyService", () => {
         }),
       }),
     );
+    expect(repository.findLocation).toHaveBeenCalledWith("location-1", "tenant-1", "hotel-1");
     expect(repository.linkCallToIncident).toHaveBeenCalledWith("call-1", "incident-1");
     expect(repository.createNotification).toHaveBeenCalledWith(
       "incident-1",
@@ -101,5 +102,24 @@ describe("EmergencyService", () => {
         roomNumber: "1201",
       }),
     );
+  });
+
+  it("rejects an unavailable explicit location before persisting a call", async () => {
+    const repository = createRepository();
+    repository.findLocation.mockResolvedValue(null);
+    const service = new EmergencyService(
+      repository as never,
+      {
+        findBySessionId: jest.fn().mockResolvedValue(guestContext),
+      } as never,
+    );
+    await expect(
+      service.createGuestEmergencyCall("session-1", {
+        dialedNumber: "112",
+        location: { emergencyLocationId: "foreign-location" },
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(repository.createCallEvent).not.toHaveBeenCalled();
+    expect(repository.findFallbackLocation).not.toHaveBeenCalled();
   });
 });

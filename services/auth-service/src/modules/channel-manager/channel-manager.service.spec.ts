@@ -507,9 +507,9 @@ describe("ChannelManager Module Core Services", () => {
         expect(parseResult.success).toBe(false);
 
         // Service level rejection
-        await expect(
-          service.bulkUpdateRestrictions("hotel_1", conflictingPayload),
-        ).rejects.toThrow(BadRequestException);
+        await expect(service.bulkUpdateRestrictions("hotel_1", conflictingPayload)).rejects.toThrow(
+          BadRequestException,
+        );
 
         expect(mockPrisma.channelDailyRestriction.upsert).not.toHaveBeenCalled();
       });

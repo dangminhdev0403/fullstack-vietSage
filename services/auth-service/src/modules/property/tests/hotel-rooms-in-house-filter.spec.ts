@@ -81,7 +81,9 @@ describe("Hotel rooms in-house filter", () => {
           allowedRoomId: null,
           mode: "HOTEL_WIDE",
         }),
-        loadActorContext: jest.fn().mockResolvedValue({ permissions: new Set(["hotel.stays.view"]) }),
+        loadActorContext: jest
+          .fn()
+          .mockResolvedValue({ permissions: new Set(["hotel.stays.view"]) }),
       } as never,
       {} as never,
     );
@@ -110,11 +112,11 @@ describe("Hotel rooms in-house filter", () => {
                       ],
                     },
                     checkedOutAt: null,
-                    OR: [
+                    OR: expect.arrayContaining([
                       { guestDisplayName: { contains: "Minh", mode: "insensitive" } },
                       { guestPhone: { contains: "Minh" } },
                       { reservationCode: { contains: "Minh", mode: "insensitive" } },
-                    ],
+                    ]),
                   },
                 },
               },
@@ -145,7 +147,9 @@ describe("Hotel rooms in-house filter", () => {
           allowedRoomId: null,
           mode: "HOTEL_WIDE",
         }),
-        loadActorContext: jest.fn().mockResolvedValue({ permissions: new Set(["hotel.stays.view"]) }),
+        loadActorContext: jest
+          .fn()
+          .mockResolvedValue({ permissions: new Set(["hotel.stays.view"]) }),
       } as never,
       {} as never,
     );
@@ -154,7 +158,7 @@ describe("Hotel rooms in-house filter", () => {
       q: "Lan",
       page: 1,
       limit: 20,
-    } as never);
+    });
 
     expect(listRooms).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -176,5 +180,58 @@ describe("Hotel rooms in-house filter", () => {
       20,
     );
   });
-});
 
+  it("searches by groupCode and group details when q is a group booking code", async () => {
+    const listRooms = jest.fn().mockResolvedValue({
+      total: 0,
+      floors: [],
+      types: [],
+      totalAvailable: 0,
+      byStatus: {},
+      items: [],
+    });
+    const service = new HotelRoomsService(
+      { listRooms } as never,
+      {} as never,
+      {
+        resolveRoomScope: jest.fn().mockResolvedValue({
+          hotel: { timezone: "Asia/Ho_Chi_Minh" },
+          allowedRoomId: null,
+          mode: "HOTEL_WIDE",
+        }),
+        loadActorContext: jest
+          .fn()
+          .mockResolvedValue({ permissions: new Set(["hotel.stays.view"]) }),
+      } as never,
+      {} as never,
+    );
+
+    await service.listRooms("user-1", "role-1", "hotel-1", {
+      q: "VSH_GROUP_0017",
+      page: 1,
+      limit: 20,
+    });
+
+    expect(listRooms).toHaveBeenCalledWith(
+      expect.objectContaining({
+        AND: expect.arrayContaining([
+          expect.objectContaining({
+            OR: expect.arrayContaining([
+              expect.objectContaining({
+                reservations: {
+                  some: expect.objectContaining({
+                    OR: expect.arrayContaining([
+                      { groupCode: { contains: "VSH_GROUP_0017", mode: "insensitive" } },
+                    ]),
+                  }),
+                },
+              }),
+            ]),
+          }),
+        ]),
+      }),
+      0,
+      20,
+    );
+  });
+});

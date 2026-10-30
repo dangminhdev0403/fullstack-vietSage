@@ -188,10 +188,9 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    let fadeTimer: number | undefined;
     let switchTimer: number | undefined;
 
-    fadeTimer = window.setTimeout(() => {
+    const fadeTimer = window.setTimeout(() => {
       setIsHeroFading(true);
 
       switchTimer = window.setTimeout(() => {

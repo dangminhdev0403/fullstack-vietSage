@@ -272,7 +272,11 @@ export class ReservationRoomAllocationService {
         include: { roomType: true },
       });
 
-      if (!lockedRoom || lockedRoom.hotelId !== hotelId || NON_SELLABLE_ROOM_STATUSES.includes(lockedRoom.status)) {
+      if (
+        !lockedRoom ||
+        lockedRoom.hotelId !== hotelId ||
+        NON_SELLABLE_ROOM_STATUSES.includes(lockedRoom.status)
+      ) {
         continue;
       }
 
@@ -376,22 +380,23 @@ export class ReservationRoomAllocationService {
   }
 
   private normalizeKey(value: string): string {
-    return value
-      .normalize("NFKC")
-      .trim()
-      .replace(/\s+/g, " ")
-      .toLowerCase();
+    return value.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
   }
 
   private getRoomCapacity(
     room: any,
-    resolvedRoomType?: { id: string; name: string; normalizedKey: string; maxOccupancy?: number | null } | null,
+    resolvedRoomType?: {
+      id: string;
+      name: string;
+      normalizedKey: string;
+      maxOccupancy?: number | null;
+    } | null,
   ): number | null {
-    if (typeof (room?.roomType as any)?.maxOccupancy === "number") {
-      return (room.roomType as any).maxOccupancy;
+    if (typeof room?.roomType?.maxOccupancy === "number") {
+      return room.roomType.maxOccupancy;
     }
-    if (typeof (room as any)?.maxOccupancy === "number") {
-      return (room as any).maxOccupancy;
+    if (typeof room?.maxOccupancy === "number") {
+      return room.maxOccupancy;
     }
     if (
       resolvedRoomType &&
@@ -442,8 +447,7 @@ export class ReservationRoomAllocationService {
     const targetId = resolvedRoomType?.id ?? criteria.targetId;
     const targetName = resolvedRoomType?.name ?? criteria.targetName;
     const targetNorm =
-      resolvedRoomType?.normalizedKey ??
-      (targetName ? this.normalizeKey(targetName) : undefined);
+      resolvedRoomType?.normalizedKey ?? (targetName ? this.normalizeKey(targetName) : undefined);
 
     // If no target room type was requested, any room is compatible
     if (!targetId && !targetName) {
@@ -470,7 +474,8 @@ export class ReservationRoomAllocationService {
       }
       if (
         criteria.targetId &&
-        (roomLegacyType === criteria.targetId || roomTypeNorm === this.normalizeKey(criteria.targetId))
+        (roomLegacyType === criteria.targetId ||
+          roomTypeNorm === this.normalizeKey(criteria.targetId))
       ) {
         return true;
       }
@@ -501,7 +506,8 @@ export class ReservationRoomAllocationService {
 
     if (
       criteria.targetId &&
-      (roomLegacyType === criteria.targetId || roomTypeNorm === this.normalizeKey(criteria.targetId))
+      (roomLegacyType === criteria.targetId ||
+        roomTypeNorm === this.normalizeKey(criteria.targetId))
     ) {
       return true;
     }

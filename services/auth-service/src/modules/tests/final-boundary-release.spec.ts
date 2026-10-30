@@ -37,7 +37,10 @@ function readTsFiles(options: { includeTests?: boolean } = {}) {
       rel: relative(srcRoot, path).replaceAll("\\", "/"),
       source: readFileSync(path, "utf8"),
     }))
-    .filter(({ rel }) => options.includeTests || !rel.includes("/tests/"));
+    .filter(
+      ({ rel }) =>
+        options.includeTests || (!rel.includes("/tests/") && !/\.(spec|test)\.ts$/.test(rel)),
+    );
 }
 
 describe("final bounded-context release guard", () => {

@@ -306,4 +306,3 @@ describe("business-permissions.registry capability contract", () => {
     });
   });
 });
-

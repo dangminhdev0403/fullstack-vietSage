@@ -231,8 +231,14 @@ const bulkReservationSwaggerProperties = {
   guestPhone: { type: "string", maxLength: 40 },
   checkInDate: { type: "string", description: "Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601." },
   checkOutDate: { type: "string", description: "Ngày trả phòng theo ISO hoặc thời điểm ISO 8601." },
-  plannedCheckInAt: { type: "string", description: "Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601." },
-  plannedCheckOutAt: { type: "string", description: "Ngày trả phòng theo ISO hoặc thời điểm ISO 8601." },
+  plannedCheckInAt: {
+    type: "string",
+    description: "Ngày nhận phòng theo ISO hoặc thời điểm ISO 8601.",
+  },
+  plannedCheckOutAt: {
+    type: "string",
+    description: "Ngày trả phòng theo ISO hoặc thời điểm ISO 8601.",
+  },
   roomIds: {
     type: "array",
     items: { type: "string", minLength: 1 },
@@ -702,7 +708,9 @@ export class ReservationsController {
 
   @RequirePermission("hotel.reservations.manage")
   @SuccessMessage("Cập nhật thông tin đặt phòng thành công")
-  @ApiDescript("Chỉnh sửa thông tin khách, ngày lưu trú, phòng phân bổ, đơn giá và ghi chú của đơn đặt")
+  @ApiDescript(
+    "Chỉnh sửa thông tin khách, ngày lưu trú, phòng phân bổ, đơn giá và ghi chú của đơn đặt",
+  )
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "reservationId", type: String })
   @Patch(":hotelId/reservations/:reservationId")
@@ -900,7 +908,9 @@ export class ReservationsController {
 
   @RequirePermission(["hotel.reservations.view", "hotel.reservations.manage"])
   @SuccessMessage("Lấy phiếu xác nhận đặt phòng thành công")
-  @ApiDescript("Lấy phiếu xác nhận đặt phòng chuẩn bao gồm thông tin khách sạn, chi tiết đêm phòng và thanh toán")
+  @ApiDescript(
+    "Lấy phiếu xác nhận đặt phòng chuẩn bao gồm thông tin khách sạn, chi tiết đêm phòng và thanh toán",
+  )
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "id", type: String })
   @ApiOkResponse({

@@ -393,6 +393,7 @@ for (const roleScope of ["admin", "owner"]) {
   const bulkImports = {
     react: {
       ...React,
+      useMemo: (factory) => factory(),
       useState: (initial) => {
         const index = modalStateIndex++;
         if (!(index in modalStates))
@@ -455,8 +456,8 @@ for (const roleScope of ["admin", "owner"]) {
       onClose: () => {},
       hotelId: "hotel-1",
       roomTypes: testRoomTypes,
-      defaultDateFrom: "2026-10-20",
-      defaultDateTo: "2026-10-22",
+      defaultDateFrom: "2099-10-20",
+      defaultDateTo: "2099-10-22",
       roleScope: "owner",
     });
   };

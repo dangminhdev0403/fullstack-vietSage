@@ -34,8 +34,22 @@ describe("Channel Manager Direct Booking & Auto Room Allocation Module", () => {
     mockPrisma = {
       room: {
         findMany: jest.fn().mockResolvedValue([
-          { id: "room_301", hotelId, roomTypeId, roomNumber: "301", floor: "3", status: RoomStatus.AVAILABLE },
-          { id: "room_302", hotelId, roomTypeId, roomNumber: "302", floor: "3", status: RoomStatus.AVAILABLE },
+          {
+            id: "room_301",
+            hotelId,
+            roomTypeId,
+            roomNumber: "301",
+            floor: "3",
+            status: RoomStatus.AVAILABLE,
+          },
+          {
+            id: "room_302",
+            hotelId,
+            roomTypeId,
+            roomNumber: "302",
+            floor: "3",
+            status: RoomStatus.AVAILABLE,
+          },
         ]),
         findFirst: jest.fn(),
         update: jest.fn().mockImplementation(async ({ where, data }) => ({
@@ -287,7 +301,9 @@ describe("Channel Manager Direct Booking & Auto Room Allocation Module", () => {
         check_out_date: "2026-11-03",
       };
 
-      await expect(directBookingController.createHold(payload)).rejects.toThrow(BadRequestException);
+      await expect(directBookingController.createHold(payload)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -401,8 +417,12 @@ describe("Channel Manager Direct Booking & Auto Room Allocation Module", () => {
     });
 
     it("phát sự kiện realtime channel_booking.created khi confirm hold thành công và không phát room_status.updated", async () => {
-      const emitBookingSpy = jest.spyOn(RequestRealtimeEmitter, "emitChannelBookingCreated").mockImplementation(() => {});
-      const emitRoomSpy = jest.spyOn(RequestRealtimeEmitter, "emitRoomStatusUpdated").mockImplementation(() => {});
+      const emitBookingSpy = jest
+        .spyOn(RequestRealtimeEmitter, "emitChannelBookingCreated")
+        .mockImplementation(() => {});
+      const emitRoomSpy = jest
+        .spyOn(RequestRealtimeEmitter, "emitRoomStatusUpdated")
+        .mockImplementation(() => {});
 
       const holdRes = await directBookingController.createHold({
         hotel_id: hotelId,

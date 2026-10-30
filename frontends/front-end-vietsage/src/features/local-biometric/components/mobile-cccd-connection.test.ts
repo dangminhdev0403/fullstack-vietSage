@@ -20,13 +20,14 @@ test("phone pairing is configured on the biometric page alongside workstation sc
 
 test("biometric setup includes a phone test scan without creating a check-in", () => {
   assert.match(tabs, /MobileCccdConnectionPanel[\s\S]*MobileCccdTestScanPanel/);
-  assert.match(testScan, /Test quét QR CCCD/);
+  assert.match(testScan, /Kiểm tra quét QR qua điện thoại/);
   assert.match(testScan, /Kết quả chỉ hiển thị tạm thời/);
   assert.match(testScan, /không tạo check-in/);
   assert.match(testScan, /MobileCccdScan/);
   assert.match(testScan, /showSetupLink=\{false\}/);
   assert.match(testScan, /CccdPreview/);
-  assert.match(testScan, /Xóa kết quả test/);
+  assert.match(testScan, /Xóa kết quả quét thử/);
+  assert.match(testScan, /onClick=\{\(\) => setPayload\(null\)\}/);
   assert.doesNotMatch(testScan, /CheckInWorkspace|onSubmit|localStorage/);
 });
 

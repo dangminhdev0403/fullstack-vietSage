@@ -228,17 +228,16 @@ export function MarketingHeader({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
 
-  const [currentAccountAction, setCurrentAccountAction] = useState(accountAction);
-  const [isAuthenticated, setIsAuthenticated] = useState(
+  const [resolvedAccountAction, setCurrentAccountAction] = useState(accountAction);
+  const [sessionAuthenticated, setIsAuthenticated] = useState(
     accountAction.href !== "/dangnhap",
   );
 
+  const currentAccountAction = accountAction.href !== "/dangnhap" ? accountAction : resolvedAccountAction;
+  const isAuthenticated = accountAction.href !== "/dangnhap" || sessionAuthenticated;
+
   useEffect(() => {
-    if (accountAction.href !== "/dangnhap") {
-      setIsAuthenticated(true);
-      setCurrentAccountAction(accountAction);
-      return;
-    }
+    if (accountAction.href !== "/dangnhap") return;
 
     let isMounted = true;
     fetch("/api/auth/session")

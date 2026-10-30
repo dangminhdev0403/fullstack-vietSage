@@ -783,13 +783,16 @@ describe("Marketplace orders", () => {
       },
       $transaction: jest.fn().mockImplementation((operations) => Promise.all(operations)),
     };
-    const emit = jest.spyOn(RequestRealtimeEmitter, "emitPartnerSettlementUpdated")
+    const emit = jest
+      .spyOn(RequestRealtimeEmitter, "emitPartnerSettlementUpdated")
       .mockImplementation(() => {});
     const service = new MarketplaceOrderService(prisma as never, {} as never);
     const ids = settlements.map((s) => s.id);
 
-    await expect(service.settlePartnerOrdersBatch("user-hotel", "hotel-1", ids))
-      .resolves.toEqual({ settledCount: 2, settlementIds: ids });
+    await expect(service.settlePartnerOrdersBatch("user-hotel", "hotel-1", ids)).resolves.toEqual({
+      settledCount: 2,
+      settlementIds: ids,
+    });
 
     expect(prisma.marketplaceSettlement.findMany).toHaveBeenCalledWith({
       where: { id: { in: ids }, hotelId: "hotel-1", status: { not: "SETTLED" } },
@@ -799,8 +802,10 @@ describe("Marketplace orders", () => {
       expect(update).toHaveBeenNthCalledWith(index + 1, {
         where: { id: settlement.id },
         data: {
-          status: "SETTLED", settledAt: expect.any(Date),
-          settledBy: "user-hotel", settledAmount: settlement.netAmount,
+          status: "SETTLED",
+          settledAt: expect.any(Date),
+          settledBy: "user-hotel",
+          settledAmount: settlement.netAmount,
         },
       });
     }
@@ -809,8 +814,9 @@ describe("Marketplace orders", () => {
 
     prisma.$transaction.mockRejectedValueOnce(new Error("transaction failed"));
     emit.mockClear();
-    await expect(service.settlePartnerOrdersBatch("user-hotel", "hotel-1", ids))
-      .rejects.toThrow("transaction failed");
+    await expect(service.settlePartnerOrdersBatch("user-hotel", "hotel-1", ids)).rejects.toThrow(
+      "transaction failed",
+    );
     expect(emit).not.toHaveBeenCalled();
   });
 

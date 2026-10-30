@@ -923,13 +923,16 @@ export class HotelRoomsRepository {
     const byStatus = {
       available: availableCount,
       occupied: 0,
+      reserved: 0,
       processing: 0,
       maintenance: 0,
       blocked: 0,
     };
     for (const row of statusRows) {
-      if (row.status === RoomStatus.OCCUPIED || row.status === RoomStatus.RESERVED) {
+      if (row.status === RoomStatus.OCCUPIED) {
         byStatus.occupied += row._count._all;
+      } else if (row.status === RoomStatus.RESERVED) {
+        byStatus.reserved += row._count._all;
       } else if (row.status === RoomStatus.PROCESSING) {
         byStatus.processing += row._count._all;
       } else if (
@@ -1445,7 +1448,9 @@ export class HotelRoomsRepository {
           checkedInAt: now,
           activatedAt: now,
           baseNightlyRateSnapshot:
-            stayForCheckIn.baseNightlyRateSnapshot ?? room.price ?? stayForCheckIn.nightlyRateSnapshot,
+            stayForCheckIn.baseNightlyRateSnapshot ??
+            room.price ??
+            stayForCheckIn.nightlyRateSnapshot,
           nightlyRateSnapshot: stayForCheckIn.nightlyRateSnapshot ?? room.price,
           accessCodeHash: input.accessCodeHash,
           accessCodeExpiresAt: input.accessCodeExpiresAt,
@@ -2315,6 +2320,15 @@ export class HotelRoomsRepository {
             { guestPhone: { contains: q, mode: "insensitive" } },
             { reservationCode: { contains: q, mode: "insensitive" } },
             { groupCode: { contains: q, mode: "insensitive" } },
+            {
+              group: {
+                OR: [
+                  { groupCode: { contains: q, mode: "insensitive" } },
+                  { groupName: { contains: q, mode: "insensitive" } },
+                  { leadGuestName: { contains: q, mode: "insensitive" } },
+                ],
+              },
+            },
             ...(matchingRoomIds && matchingRoomIds.length > 0
               ? [{ roomId: { in: matchingRoomIds } }]
               : []),
@@ -2368,11 +2382,7 @@ export class HotelRoomsRepository {
               },
             },
           },
-          orderBy: [
-            { plannedCheckInAt: "asc" },
-            { reservationCode: "asc" },
-            { id: "asc" },
-          ],
+          orderBy: [{ plannedCheckInAt: "asc" }, { reservationCode: "asc" }, { id: "asc" }],
           skip,
           take: limit,
         }),
@@ -2407,21 +2417,17 @@ export class HotelRoomsRepository {
           reservationCode: res.reservationCode ?? null,
           groupCode: res.groupCode ?? null,
           roomId: res.roomId ?? null,
-          roomNumber: res.roomId ? roomMap.get(res.roomId) ?? null : null,
+          roomNumber: res.roomId ? (roomMap.get(res.roomId) ?? null) : null,
           guestDisplayName: res.guestDisplayName,
           guestPhone: res.guestPhone ?? null,
           status: res.status,
           plannedCheckInAt: res.plannedCheckInAt ?? null,
           plannedCheckOutAt: res.plannedCheckOutAt ?? null,
           checkedInAt: stayCheckInDate ? new Date(stayCheckInDate) : null,
-          actualCheckInAt: stayCheckInDate
-            ? new Date(stayCheckInDate).toISOString()
-            : null,
+          actualCheckInAt: stayCheckInDate ? new Date(stayCheckInDate).toISOString() : null,
           checkedOutAt: null,
           occupantCount:
-            stayOccupantCount && stayOccupantCount > 0
-              ? stayOccupantCount
-              : (res.guestCount ?? 1),
+            stayOccupantCount && stayOccupantCount > 0 ? stayOccupantCount : (res.guestCount ?? 1),
           canCheckIn:
             res.status === ReservationStatus.CONFIRMED ||
             res.status === ReservationStatus.ARRIVAL_READY,
@@ -2455,6 +2461,23 @@ export class HotelRoomsRepository {
           { guestPhone: { contains: q, mode: "insensitive" } },
           { reservationCode: { contains: q, mode: "insensitive" } },
           { room: { roomNumber: { contains: q, mode: "insensitive" } } },
+          {
+            reservation: {
+              OR: [
+                { reservationCode: { contains: q, mode: "insensitive" } },
+                { groupCode: { contains: q, mode: "insensitive" } },
+                {
+                  group: {
+                    OR: [
+                      { groupCode: { contains: q, mode: "insensitive" } },
+                      { groupName: { contains: q, mode: "insensitive" } },
+                      { leadGuestName: { contains: q, mode: "insensitive" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
         ]
       : [];
 
@@ -2495,11 +2518,7 @@ export class HotelRoomsRepository {
             },
           },
         },
-        orderBy: [
-          { plannedCheckOutAt: "asc" },
-          { reservationCode: "asc" },
-          { id: "asc" },
-        ],
+        orderBy: [{ plannedCheckOutAt: "asc" }, { reservationCode: "asc" }, { id: "asc" }],
         skip,
         take: limit,
       }),

@@ -2,8 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const rootDir = process.cwd();
+const rootDir = fileURLToPath(new URL("../../../", import.meta.url));
 
 test("tenant owner excel export and unified status contract", () => {
   const clientPath = path.join(
@@ -20,7 +21,9 @@ test("tenant owner excel export and unified status contract", () => {
 
   // 3. Verify unified status in edit dialog
   assert.match(clientContent, /Trạng thái tổ chức/);
-  assert.match(clientContent, /Vô hiệu hóa \(Khóa tài khoản (&|&amp;) tổ chức\)/);
+  assert.match(clientContent, /<option value="DISABLED">Vô hiệu hóa<\/option>/);
+  assert.match(clientContent, /tenantUserStatus: "DISABLED"/);
+  assert.match(clientContent, /ownerStatus: "LOCKED"/);
 
   // 4. Verify backend cascading lock in tenant-owners.service.ts
   const servicePath = path.join(

@@ -378,7 +378,7 @@ export function FrontDeskRoomDetailPanel({
   const queryClient = useQueryClient();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCheckoutSettlementOpen, setIsCheckoutSettlementOpen] = useState(false);
-  const [localReservation, setLocalReservation] = useState<any>(null);
+  const [localReservation, setLocalReservation] = useState<HotelArrival | null>(null);
 
   const { data: roomsPage } = useQuery({
     ...staffRoomsResource.bind({ hotelId }).queries.list.options({
@@ -457,13 +457,13 @@ export function FrontDeskRoomDetailPanel({
         }
       : room?.upcomingReservation || null);
 
-  const reservation: any = localReservation ?? baseReservation;
+  const reservation = localReservation ?? baseReservation;
 
   const roomPriceFallback =
-    (room as any)?.price ?? (room as any)?.basePrice ?? (room as any)?.roomType?.basePrice;
+    room?.price ?? room?.basePrice ?? room?.roomType?.basePrice;
   const effectiveNightlyRate =
     reservation?.nightlyRateSnapshot ??
-    (reservation as any)?.rate ??
+    (reservation && "rate" in reservation ? reservation.rate : null) ??
     roomPriceFallback ??
     null;
 
@@ -635,7 +635,7 @@ export function FrontDeskRoomDetailPanel({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-900/60 backdrop-blur-xs p-4 sm:p-6"
+      className="fixed inset-0 z-[60] grid place-items-center overflow-y-auto bg-slate-900/60 backdrop-blur-xs p-3 sm:p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6 pointer-events-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
@@ -1426,7 +1426,7 @@ export function FrontDeskRoomDetailPanel({
         </div>
 
         {/* Bottom Actions Bar (Horizontal for Desktop, touch target >= 44px) */}
-        <footer className="border-t border-slate-200 px-6 py-4 bg-slate-50 shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <footer className="border-t border-slate-200 px-6 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:pb-4 bg-slate-50 shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {isOccupiedMode && (
             <>
               <div className="flex flex-wrap items-center gap-2.5">
@@ -1539,7 +1539,7 @@ export function FrontDeskRoomDetailPanel({
               nightlyRateSnapshot: effectiveNightlyRate,
               roomSubtotal: reservation.roomSubtotal,
               totalAmount: reservation.totalAmount,
-              expectedUpdatedAt: reservation.updatedAt ?? reservation.expectedUpdatedAt,
+              expectedUpdatedAt: reservation.updatedAt ?? ("expectedUpdatedAt" in reservation ? reservation.expectedUpdatedAt : undefined),
               status: reservation.status,
             }}
             availableRooms={availableRooms}

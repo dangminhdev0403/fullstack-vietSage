@@ -88,6 +88,10 @@ export type HotelServiceItem = {
 };
 
 export type HotelRoomSummary = {
+  basePrice?: number | string | null;
+  effectivePrice?: number | string | null;
+  priceOverride?: number | string | null;
+  roomType?: { price?: number | string | null; basePrice?: number | string | null } | null;
   id: string;
   roomTypeId?: string | null;
   hotelId?: string;
@@ -133,6 +137,12 @@ export type HotelRoomType = {
 };
 
 export type HotelReservationSummary = {
+  guestCount?: number | null;
+  notes?: string | null;
+  rate?: number | string | null;
+  roomSubtotal?: number | null;
+  totalAmount?: number | null;
+  expectedUpdatedAt?: string | null;
   id: string;
   sourceType: "RESERVATION" | "STAY";
   groupCode?: string | null;
@@ -422,7 +432,7 @@ export type HotelArrival = {
   hotelId: string;
   roomId: string | null;
   roomTypeId?: string | null;
-  room?: (Pick<HotelRoomSummary, "id" | "roomNumber" | "type" | "maxOccupancy"> & { price?: number | string | null; basePrice?: number | string | null }) | null;
+  room?: (Pick<HotelRoomSummary, "id" | "roomNumber" | "type" | "maxOccupancy" | "status" | "physicalStatus" | "qr" | "qrStatus"> & { price?: number | string | null; basePrice?: number | string | null }) | null;
   reservationCode: string;
   groupCode?: string | null;
   guestCount?: number | null;
@@ -464,7 +474,7 @@ export type UpdateReservationInput = {
   plannedCheckOutAt?: string;
   rate?: number | string | null;
   nightlyRateSnapshot?: number | string | null;
-  chargeLines?: any[];
+  chargeLines?: ReservationChargeLineInput[];
   sourceCategory?: string;
   sourcePartnerId?: string | null;
   bookingOwnerUserId?: string | null;
@@ -747,6 +757,9 @@ export const validNextRequestStatuses: Record<
 };
 
 export type RoomPlanRoom = {
+  activeStay?: HotelStaySummary | null;
+  basePrice?: number | null;
+  roomType?: { basePrice?: number | null } | null;
   id: string;
   roomNumber: string;
   floor: string | null;
@@ -759,6 +772,14 @@ export type RoomPlanRoom = {
 };
 
 export type RoomPlanBlock = {
+  stayId?: string | null;
+  canCheckIn?: boolean;
+  nightlyRateSnapshot?: number | string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  guestDisplayName?: string;
+  guestPhone?: string;
+  sourceType?: string;
   id: string;
   kind: "RESERVATION" | "STAY";
   reservationId: string | null;

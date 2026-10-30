@@ -113,11 +113,6 @@ export function GroupArrivalsListModal({
     });
   }, [allGroups, searchQuery, statusFilter]);
 
-  // Reset page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, statusFilter]);
-
   // Pagination calculation
   const totalItems = filteredGroups.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
@@ -179,14 +174,14 @@ export function GroupArrivalsListModal({
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                 placeholder="Tìm mã đoàn (#GRP), tên đoàn, SĐT..."
                 className="w-full h-10 rounded-xl border border-slate-300 bg-slate-50/50 pl-9 pr-4 text-xs sm:text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-purple-600 focus:ring-2 focus:ring-purple-100 outline-none transition shadow-2xs"
               />
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery("")}
+                  onClick={() => { setSearchQuery(""); setCurrentPage(1); }}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
                 >
                   <VsIcon name="close" className="text-sm" />
@@ -198,7 +193,7 @@ export function GroupArrivalsListModal({
             <div className="flex items-center gap-1.5 overflow-x-auto">
               <button
                 type="button"
-                onClick={() => setStatusFilter("ALL")}
+                onClick={() => { setStatusFilter("ALL"); setCurrentPage(1); }}
                 className={`rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer min-h-[36px] whitespace-nowrap ${
                   statusFilter === "ALL"
                     ? "bg-purple-700 text-white shadow-xs"
@@ -209,7 +204,7 @@ export function GroupArrivalsListModal({
               </button>
               <button
                 type="button"
-                onClick={() => setStatusFilter("READY")}
+                onClick={() => { setStatusFilter("READY"); setCurrentPage(1); }}
                 className={`rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer min-h-[36px] whitespace-nowrap ${
                   statusFilter === "READY"
                     ? "bg-blue-600 text-white shadow-xs"
@@ -220,7 +215,7 @@ export function GroupArrivalsListModal({
               </button>
               <button
                 type="button"
-                onClick={() => setStatusFilter("IN_HOUSE")}
+                onClick={() => { setStatusFilter("IN_HOUSE"); setCurrentPage(1); }}
                 className={`rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer min-h-[36px] whitespace-nowrap ${
                   statusFilter === "IN_HOUSE"
                     ? "bg-purple-600 text-white shadow-xs"
@@ -231,7 +226,7 @@ export function GroupArrivalsListModal({
               </button>
               <button
                 type="button"
-                onClick={() => setStatusFilter("COMPLETED")}
+                onClick={() => { setStatusFilter("COMPLETED"); setCurrentPage(1); }}
                 className={`rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer min-h-[36px] whitespace-nowrap ${
                   statusFilter === "COMPLETED"
                     ? "bg-emerald-600 text-white shadow-xs"

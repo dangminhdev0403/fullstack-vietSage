@@ -183,11 +183,7 @@ export const BUSINESS_PERMISSIONS: readonly BusinessPermissionDefinition[] = [
     "Ghi nhận và phân bổ tiền đặt cọc",
     "HIGH",
   ),
-  permission(
-    "hotel.receivables.view",
-    "hotel-billing",
-    "Xem danh sách công nợ phải thu",
-  ),
+  permission("hotel.receivables.view", "hotel-billing", "Xem danh sách công nợ phải thu"),
   permission(
     "hotel.receivables.manage",
     "hotel-billing",

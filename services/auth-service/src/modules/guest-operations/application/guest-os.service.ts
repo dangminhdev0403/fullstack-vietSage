@@ -456,7 +456,7 @@ export class GuestOsService {
     const rawPrice =
       serviceItem.priceOverride !== null && serviceItem.priceOverride !== undefined
         ? serviceItem.priceOverride
-        : (serviceItem.category as any)?.defaultPrice ?? 0;
+        : ((serviceItem.category as any)?.defaultPrice ?? 0);
     const rawCurrency =
       (serviceItem.category as any)?.currency ?? (serviceItem as any).currency ?? "VND";
     const unitPriceDecimal = new Prisma.Decimal(rawPrice);

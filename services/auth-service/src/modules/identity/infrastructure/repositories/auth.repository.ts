@@ -522,7 +522,7 @@ export class AuthRepository {
   ) {
     if (permissionKeys.length === 0) return 0;
     if (permissionKeys.length === 1) {
-      return this.countUserWithBusinessPermission(userId, roleId, permissionKeys[0]!);
+      return this.countUserWithBusinessPermission(userId, roleId, permissionKeys[0]);
     }
     return this.prisma.user.count({
       where: {

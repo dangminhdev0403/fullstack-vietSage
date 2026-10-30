@@ -139,20 +139,17 @@ export class AuthorizationGuard implements CanActivate {
 
     const activeRoleCode = await this.authorizationService.getActiveRoleCode(userId, roleId);
     if (!activeRoleCode) {
-      this.logger.warn(
-        "Authorization failed because the active role could not be resolved",
-        {
-          module: "authz",
-          service: "AuthorizationGuard",
-          operation: "canActivate",
-          event: "AUTHORIZATION_FAILURE",
-          reason: "active_role_not_found",
-          userId,
-          roleId,
-          method: request.method,
-          path: request.path,
-        },
-      );
+      this.logger.warn("Authorization failed because the active role could not be resolved", {
+        module: "authz",
+        service: "AuthorizationGuard",
+        operation: "canActivate",
+        event: "AUTHORIZATION_FAILURE",
+        reason: "active_role_not_found",
+        userId,
+        roleId,
+        method: request.method,
+        path: request.path,
+      });
       throw new ForbiddenException("You do not have permission to access this resource");
     }
 

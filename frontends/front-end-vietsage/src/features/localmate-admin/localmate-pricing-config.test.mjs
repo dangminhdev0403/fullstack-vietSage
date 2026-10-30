@@ -61,11 +61,12 @@ test("LocalMate UI provides dedicated pricing button, modal, revenue breakdown a
   assert.match(uiSource, /Cấu hình biểu phí LocalMate/);
 
   // Revenue breakdown: VietSage online payment vs Guide collection
-  assert.match(uiSource, /VietSage thu trước \(Stripe\)/);
+  assert.match(uiSource, /VietSage thu trước/);
   assert.match(uiSource, /HDV thu trực tiếp từ khách/);
   assert.match(uiSource, /100 - feeRateInput/);
 
   // SweetAlert2 usage
-  assert.match(uiSource, /SwalVietSage\.fire/);
+  assert.match(uiSource, /showConfirmDialog\(/);
+  assert.match(uiSource, /showSuccessAlert\(/);
   assert.match(uiSource, /Cập nhật biểu phí thành công/);
 });

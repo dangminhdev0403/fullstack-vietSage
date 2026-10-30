@@ -163,7 +163,7 @@ test("handleClose dirty detection checks changed nationality, residencePlace, an
 test("owner room QR modal does not display raw QR URL text below QR image", () => {
   const ownerRoomsClient = readFileSync(
     new URL(
-      "../../../app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/owner-rooms-client.tsx",
+      "../../../app/(vietsage)/owner/(hotel)/hotels/[hotelId]/room-management/owner-rooms-client.tsx",
       import.meta.url,
     ),
     "utf8",

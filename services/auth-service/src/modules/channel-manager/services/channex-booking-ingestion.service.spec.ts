@@ -885,9 +885,11 @@ describe("ChannexBookingIngestionService - Automatic Room Allocation & Ingestion
       expect(prisma.room.update).not.toHaveBeenCalled();
 
       // 2. Cancel booking revision where room is OCCUPIED
-      prisma.reservation.findMany = jest.fn().mockResolvedValueOnce([
-        { roomId: "room-101", room: { roomNumber: "101", status: RoomStatus.OCCUPIED } },
-      ]);
+      prisma.reservation.findMany = jest
+        .fn()
+        .mockResolvedValueOnce([
+          { roomId: "room-101", room: { roomNumber: "101", status: RoomStatus.OCCUPIED } },
+        ]);
       prisma.channexMapping.findFirst.mockImplementation(async ({ where }: { where: any }) => {
         if (where.kind === "property") return { hotelId };
         if (where.kind === "booking") {

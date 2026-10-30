@@ -6,7 +6,7 @@ const read = (path) =>
   readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 const ownerRoomsSource = read(
-  "src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/owner-rooms-client.tsx",
+  "src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/room-management/owner-rooms-client.tsx",
 );
 const iconSource = read("src/app/(vietsage)/_components/vs-icon.tsx");
 

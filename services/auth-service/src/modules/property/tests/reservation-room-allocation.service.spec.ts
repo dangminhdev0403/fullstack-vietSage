@@ -117,7 +117,8 @@ describe("ReservationRoomAllocationService", () => {
             guestStays.find((stay) => {
               if (where.hotelId && stay.hotelId !== where.hotelId) return false;
               if (where.roomId && stay.roomId !== where.roomId) return false;
-              if (where.reservationId?.not && stay.reservationId === where.reservationId.not) return false;
+              if (where.reservationId?.not && stay.reservationId === where.reservationId.not)
+                return false;
               if (where.status?.in && !where.status.in.includes(stay.status)) return false;
               if (where.checkedOutAt === null && stay.checkedOutAt !== null) return false;
               if (where.plannedCheckOutAt?.lt) {
@@ -977,5 +978,4 @@ describe("ReservationRoomAllocationService", () => {
       expect(result.id).toBe("room-101");
     });
   });
-
 });

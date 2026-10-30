@@ -116,7 +116,7 @@ test("staff local partners client disables management controls and propagates ca
   // HotelPartnerSettlementsTab receives canManage
   assert.match(
     staffLocalPartnersClientSource,
-    /<HotelPartnerSettlementsTab[\s\S]*?canManage=\{canManage\}/,
+    /<HotelPartnerSettlementsTab[\s\S]*?canManage=\{canSettle\}/,
   );
   // Modal details hides connect/disconnect when !canManage
   assert.match(

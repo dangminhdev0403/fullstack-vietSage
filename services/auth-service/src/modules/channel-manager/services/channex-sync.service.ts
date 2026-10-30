@@ -124,11 +124,11 @@ export class ChannexSyncService {
         Number(type.basePrice) > 0
           ? Number(type.basePrice)
           : room.price !== null &&
-            room.price !== undefined &&
-            Number.isFinite(Number(room.price)) &&
-            Number(room.price) > 0
-          ? Number(room.price)
-          : 0;
+              room.price !== undefined &&
+              Number.isFinite(Number(room.price)) &&
+              Number(room.price) > 0
+            ? Number(room.price)
+            : 0;
 
       const current = roomTypeMap.get(typeId);
       const isUnpriced = rawPrice <= 0;
@@ -137,7 +137,7 @@ export class ChannexSyncService {
         name: typeName,
         count: (current?.count ?? 0) + 1,
         defaultPrice: isUnpriced ? (current?.defaultPrice ?? 0) : rawPrice,
-        isFallbackPrice: isUnpriced && (current?.isFallbackPrice !== false),
+        isFallbackPrice: isUnpriced && current?.isFallbackPrice !== false,
       });
     }
     const legacyMappings = await this.prisma.channexMapping.findMany({
@@ -901,7 +901,8 @@ export class ChannexSyncService {
         (room.roomTypeId ? roomTypes.find((rt) => rt.id === room.roomTypeId) : undefined) ??
         roomTypes.find(
           (rt) =>
-            rt.normalizedKey === typeName.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase(),
+            rt.normalizedKey ===
+            typeName.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase(),
         );
       const hasBasePrice =
         matched &&
@@ -909,9 +910,7 @@ export class ChannexSyncService {
         Number.isFinite(Number(matched.basePrice)) &&
         Number(matched.basePrice) > 0;
       const hasRoomPrice =
-        room.price !== null &&
-        Number.isFinite(Number(room.price)) &&
-        Number(room.price) > 0;
+        room.price !== null && Number.isFinite(Number(room.price)) && Number(room.price) > 0;
       if (!hasBasePrice && !hasRoomPrice) {
         unpricedRoomTypes.push(matched?.name || typeName);
       }

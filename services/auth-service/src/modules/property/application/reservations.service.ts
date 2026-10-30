@@ -1,4 +1,11 @@
-import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
+import {
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from "@nestjs/common";
 import { Prisma, ReservationStatus, RoomStatus } from "@prisma/client";
 import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 import {
@@ -140,8 +147,7 @@ export class ReservationsService {
         this.codesService.generateEntityCode("RESERVATION", tx),
       roomAllocationService: this.roomAllocationService,
       allowedRoomId: scope.allowedRoomId,
-      assertRoomAccess: (roomId: string) =>
-        this.hotelAccessService.assertRoomAccess(scope, roomId),
+      assertRoomAccess: (roomId: string) => this.hotelAccessService.assertRoomAccess(scope, roomId),
       chargeLines: dto.chargeLines,
       sourceCategory: dto.sourceCategory,
       sourcePartnerId: dto.sourcePartnerId,
@@ -165,8 +171,7 @@ export class ReservationsService {
       await this.hotelAccessService.assertRoomAccess(actorUserId, activeRoleId, hotelId, roomId);
     }
     const reservationCode =
-      dto.reservationCode?.trim() ||
-      (await this.codesService.generateEntityCode("RESERVATION"));
+      dto.reservationCode?.trim() || (await this.codesService.generateEntityCode("RESERVATION"));
     const rawRate = dto.rate !== undefined ? dto.rate : dto.nightlyRateSnapshot;
     const nightlyRateSnapshot =
       rawRate !== undefined && rawRate !== null ? new Prisma.Decimal(rawRate).toFixed(2) : null;
@@ -187,8 +192,7 @@ export class ReservationsService {
       autoAssign: dto.autoAssign,
       roomAllocationService: this.roomAllocationService,
       allowedRoomId: scope.allowedRoomId,
-      assertRoomAccess: (rid: string) =>
-        this.hotelAccessService.assertRoomAccess(scope, rid),
+      assertRoomAccess: (rid: string) => this.hotelAccessService.assertRoomAccess(scope, rid),
       nightlyRateSnapshot,
       chargeLines: dto.chargeLines,
       sourceCategory: dto.sourceCategory,
@@ -211,8 +215,12 @@ export class ReservationsService {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const tz = resolveTimeZone(scope.hotel.timezone);
-    const from = getBusinessDateRange(toYmd(query.from, tz), tz).start;
-    const to = getBusinessDateRange(toYmd(query.to, tz), tz).start;
+    const from = query.from
+      ? getBusinessDateRange(toYmd(query.from, tz), tz).start
+      : undefined;
+    const to = query.to
+      ? getBusinessDateRange(toYmd(query.to, tz), tz).start
+      : undefined;
     const [total, rawItems] = await this.reservationsRepository.listArrivals({
       hotelId,
       from,
@@ -238,16 +246,18 @@ export class ReservationsService {
       } else {
         const fallbackRate = Number(
           r.nightlyRateSnapshot ??
-          r.baseNightlyRateSnapshot ??
-          r.room?.price ??
-          (r.room as any)?.roomType?.basePrice ??
-          (r.roomType as any)?.basePrice ??
-          0,
+            r.baseNightlyRateSnapshot ??
+            r.room?.price ??
+            r.room?.roomType?.basePrice ??
+            r.roomType?.basePrice ??
+            0,
         );
         roomSubtotal = fallbackRate * nights;
       }
       const serviceSubtotal = extraLines.reduce(
-        (sum: number, l: any) => sum + Number(l.totalSnapshot || (Number(l.unitPriceSnapshot || 0) * Number(l.quantity || 1))),
+        (sum: number, l: any) =>
+          sum +
+          Number(l.totalSnapshot || Number(l.unitPriceSnapshot || 0) * Number(l.quantity || 1)),
         0,
       );
       const totalAmount = roomSubtotal + serviceSubtotal;
@@ -255,7 +265,11 @@ export class ReservationsService {
         r.nightlyRateSnapshot ??
         (nights > 0 && roomSubtotal > 0
           ? Math.round(roomSubtotal / nights)
-          : r.baseNightlyRateSnapshot ?? r.room?.price ?? (r.room as any)?.roomType?.basePrice ?? (r.roomType as any)?.basePrice ?? null);
+          : (r.baseNightlyRateSnapshot ??
+            r.room?.price ??
+            r.room?.roomType?.basePrice ??
+            r.roomType?.basePrice ??
+            null));
 
       return {
         ...r,
@@ -674,11 +688,7 @@ export class ReservationsService {
     hotelId: string,
     reservationId: string,
   ) {
-    await this.hotelAccessService.assertHotelAccess(
-      actorUserId,
-      activeRoleId,
-      hotelId,
-    );
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     const reservation = await this.reservationsRepository.findReservationById(
       hotelId,
       reservationId,
@@ -695,14 +705,20 @@ export class ReservationsService {
     hotelId: string,
     groupCode: string,
   ) {
-    const scope = await this.hotelAccessService.resolveRoomScope(actorUserId, activeRoleId, hotelId);
+    const scope = await this.hotelAccessService.resolveRoomScope(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
     const group = await this.reservationsRepository.findGroupByCode(hotelId, groupCode);
     if (scope.allowedRoomId !== null) {
       const hasUnauthorizedRoom = group?.reservations?.some(
         (r: any) => (r.roomId ?? r.assignedRoomId) !== scope.allowedRoomId,
       );
       if (hasUnauthorizedRoom || !group?.reservations || group.reservations.length === 0) {
-        throw new ForbiddenException("Tài khoản không có quyền truy cập thông tin đoàn có phòng ngoài phạm vi phân công");
+        throw new ForbiddenException(
+          "Tài khoản không có quyền truy cập thông tin đoàn có phòng ngoài phạm vi phân công",
+        );
       }
     }
     return group;
@@ -724,7 +740,11 @@ export class ReservationsService {
     groupCode: string,
     dto: UpdateGroupReservationBodyInput,
   ) {
-    const scope = await this.hotelAccessService.resolveRoomScope(actorUserId, activeRoleId, hotelId);
+    const scope = await this.hotelAccessService.resolveRoomScope(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
     if (scope.allowedRoomId !== null) {
       const group = await this.reservationsRepository.findGroupByCode(hotelId, groupCode);
       const hasUnauthorizedRoom = group?.reservations?.some(
@@ -743,7 +763,11 @@ export class ReservationsService {
     hotelId: string,
     reservationId: string,
   ) {
-    const scope = await this.hotelAccessService.resolveRoomScope(actorUserId, activeRoleId, hotelId);
+    const scope = await this.hotelAccessService.resolveRoomScope(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
     const reservation = await this.reservationsRepository.findReservationConfirmation(
       hotelId,
       reservationId,
@@ -762,24 +786,26 @@ export class ReservationsService {
     hotelId: string,
     groupCode: string,
   ) {
-    const scope = await this.hotelAccessService.resolveRoomScope(actorUserId, activeRoleId, hotelId);
+    const scope = await this.hotelAccessService.resolveRoomScope(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
     const data = await this.reservationsRepository.findGroupConfirmation(hotelId, groupCode);
     if (scope.allowedRoomId !== null) {
       const hasUnauthorizedRoom = data?.reservations?.some(
         (r: any) => (r.roomId ?? r.assignedRoomId) !== scope.allowedRoomId,
       );
       if (hasUnauthorizedRoom || !data?.reservations || data.reservations.length === 0) {
-        throw new ForbiddenException("Tài khoản không có quyền truy cập thông tin đoàn có phòng ngoài phạm vi phân công");
+        throw new ForbiddenException(
+          "Tài khoản không có quyền truy cập thông tin đoàn có phòng ngoài phạm vi phân công",
+        );
       }
     }
     return this.projectGroupConfirmation(data);
   }
 
-  async getConfirmationTemplate(
-    actorUserId: string,
-    activeRoleId: string,
-    hotelId: string,
-  ) {
+  async getConfirmationTemplate(actorUserId: string, activeRoleId: string, hotelId: string) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     return this.reservationsRepository.findConfirmationTemplate(hotelId);
   }
@@ -801,10 +827,7 @@ export class ReservationsService {
       hotel?.brandSettings && typeof hotel.brandSettings === "object"
         ? (hotel.brandSettings as Record<string, any>)
         : {};
-    const template =
-      (hotel as any)?.confirmationTemplate ??
-      (hotel as any)?.confirmationTemplates?.[0] ??
-      null;
+    const template = hotel?.confirmationTemplate ?? hotel?.confirmationTemplates?.[0] ?? null;
     const nonEmpty = (val: unknown): string | undefined =>
       typeof val === "string" && val.trim().length > 0 ? val.trim() : undefined;
 
@@ -838,14 +861,9 @@ export class ReservationsService {
         sanitizeContact(brandSettings.phone) ||
         sanitizeContact(brandSettings.hotline) ||
         null,
-      email:
-        sanitizeContact(template?.hotelEmail) ||
-        sanitizeContact(brandSettings.email) ||
-        null,
+      email: sanitizeContact(template?.hotelEmail) || sanitizeContact(brandSettings.email) || null,
       logoUrl:
-        template?.showLogo === false
-          ? null
-          : brandSettings.logoUrl || brandSettings.logo || null,
+        template?.showLogo === false ? null : brandSettings.logoUrl || brandSettings.logo || null,
       checkInTimePolicy:
         nonEmpty(template?.checkInPolicy) ||
         nonEmpty(template?.checkInTimeText) ||
@@ -900,12 +918,9 @@ export class ReservationsService {
       name: l.nameSnapshot || "Dịch vụ",
       quantity: Number(l.quantity || 1),
       unitPrice: Number(l.unitPriceSnapshot ?? l.totalSnapshot ?? 0),
-      total: Number(l.totalSnapshot ?? (Number(l.unitPriceSnapshot || 0) * Number(l.quantity || 1))),
+      total: Number(l.totalSnapshot ?? Number(l.unitPriceSnapshot || 0) * Number(l.quantity || 1)),
     }));
-    const serviceAmount = serviceBreakdown.reduce(
-      (sum: number, l: any) => sum + l.total,
-      0,
-    );
+    const serviceAmount = serviceBreakdown.reduce((sum: number, l: any) => sum + l.total, 0);
     const taxAmount = (data.chargeLines || []).reduce(
       (sum: number, l: any) => sum + Number(l.taxAmountSnapshot || 0),
       0,
@@ -978,7 +993,9 @@ export class ReservationsService {
         sourcePartnerId: data.sourcePartnerId ?? null,
         sourcePartnerName: data.sourcePartner?.name ?? null,
         bookingOwnerUserId: data.bookingOwnerUserId ?? null,
-        createdAt: data.createdAt ? new Date(data.createdAt).toISOString() : new Date().toISOString(),
+        createdAt: data.createdAt
+          ? new Date(data.createdAt).toISOString()
+          : new Date().toISOString(),
       },
       pricing: {
         nightlyBreakdown,
@@ -1009,10 +1026,7 @@ export class ReservationsService {
       hotel?.brandSettings && typeof hotel.brandSettings === "object"
         ? (hotel.brandSettings as Record<string, any>)
         : {};
-    const template =
-      (hotel as any)?.confirmationTemplate ??
-      (hotel as any)?.confirmationTemplates?.[0] ??
-      null;
+    const template = hotel?.confirmationTemplate ?? hotel?.confirmationTemplates?.[0] ?? null;
     const nonEmpty = (val: unknown): string | undefined =>
       typeof val === "string" && val.trim().length > 0 ? val.trim() : undefined;
 
@@ -1046,14 +1060,9 @@ export class ReservationsService {
         sanitizeContact(brandSettings.phone) ||
         sanitizeContact(brandSettings.hotline) ||
         null,
-      email:
-        sanitizeContact(template?.hotelEmail) ||
-        sanitizeContact(brandSettings.email) ||
-        null,
+      email: sanitizeContact(template?.hotelEmail) || sanitizeContact(brandSettings.email) || null,
       logoUrl:
-        template?.showLogo === false
-          ? null
-          : brandSettings.logoUrl || brandSettings.logo || null,
+        template?.showLogo === false ? null : brandSettings.logoUrl || brandSettings.logo || null,
       checkInTimePolicy:
         nonEmpty(template?.checkInPolicy) ||
         nonEmpty(template?.checkInTimeText) ||
@@ -1070,8 +1079,7 @@ export class ReservationsService {
     const groupCode = data.groupRecord?.groupCode || firstRes?.groupCode || "GROUP";
     const leadGuestName =
       data.groupRecord?.leadGuestName || firstRes?.guestDisplayName || "Trưởng đoàn";
-    const leadGuestPhone =
-      data.groupRecord?.leadGuestPhone || firstRes?.guestPhone || null;
+    const leadGuestPhone = data.groupRecord?.leadGuestPhone || firstRes?.guestPhone || null;
     const groupName = data.groupRecord?.groupName || `Đoàn ${leadGuestName}`;
 
     let earliestCheckIn = new Date(firstRes?.plannedCheckInAt || new Date());
@@ -1084,9 +1092,7 @@ export class ReservationsService {
       if (cOut > latestCheckOut) latestCheckOut = cOut;
 
       const rNights = Math.max(1, diffCalendarDays(cIn, cOut, tz));
-      const roomChargeLines = (r.chargeLines || []).filter(
-        (l: any) => l.lineType === "ROOM_NIGHT",
-      );
+      const roomChargeLines = (r.chargeLines || []).filter((l: any) => l.lineType === "ROOM_NIGHT");
 
       let rRoomSubtotal = 0;
       if (roomChargeLines.length > 0) {
@@ -1176,7 +1182,7 @@ export class ReservationsService {
       name: l.nameSnapshot || "Dịch vụ",
       quantity: Number(l.quantity || 1),
       unitPrice: Number(l.unitPriceSnapshot ?? l.totalSnapshot ?? 0),
-      total: Number(l.totalSnapshot ?? (Number(l.unitPriceSnapshot || 0) * Number(l.quantity || 1))),
+      total: Number(l.totalSnapshot ?? Number(l.unitPriceSnapshot || 0) * Number(l.quantity || 1)),
     }));
     const totalServiceAmount = serviceBreakdown.reduce((sum: number, l: any) => sum + l.total, 0);
     const totalTaxAmount = data.reservations.reduce((acc: number, r: any) => {

@@ -59,6 +59,7 @@ describe("BillingService - Commercial Ledger, Deposit Modes, Idempotency & Recei
         update: jest.fn(),
       },
       payment: {
+        findMany: jest.fn().mockResolvedValue([]),
         create: jest.fn(),
       },
       hotelReceivable: {
@@ -301,7 +302,7 @@ describe("BillingService - Commercial Ledger, Deposit Modes, Idempotency & Recei
           isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
         }),
       );
-      expect(mockTx.$queryRaw).toHaveBeenCalledTimes(1);
+      expect(mockTx.$queryRaw).toHaveBeenCalledTimes(2);
       expect(mockTx.roomQRCode.updateMany).toHaveBeenCalledWith({
         where: {
           hotelId,

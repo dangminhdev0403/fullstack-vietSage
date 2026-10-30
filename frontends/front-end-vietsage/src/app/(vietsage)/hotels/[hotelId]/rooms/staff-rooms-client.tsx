@@ -30,6 +30,7 @@ import {
 } from "@/features/hotel-ops/components/front-desk-room-detail-panel";
 import { FrontDeskArrivalDetailPanel } from "@/features/hotel-ops/components/front-desk-arrival-detail-panel";
 import { DailyMovementsModal } from "@/features/hotel-ops/components/daily-movements-modal";
+import { staffRoomsRepository } from "@/features/hotel-ops/repositories/staff-rooms-repository";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import { roomPlanResource } from "@/features/hotel-ops/resources/room-plan-resource";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
@@ -995,6 +996,7 @@ export function StaffRoomsClient({
   const [reservationIsCustomNightlyRates, setReservationIsCustomNightlyRates] = useState(false);
   const [reservationNightlyRates, setReservationNightlyRates] = useState<Record<string, number>>({});
   const [reservationPrebookedServices, setReservationPrebookedServices] = useState<PrebookedServiceItem[]>([]);
+  const [reservationCustomPercent, setReservationCustomPercent] = useState<string>("10");
 
   // Bulk Reservation (Lane D) State
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
@@ -1924,6 +1926,169 @@ export function StaffRoomsClient({
 
   const rooms = roomsPage?.items ?? [];
 
+  // Auto-adjust operational businessDate when filtering by booking/reservation/group code
+  const lastAutoAdjustedQueryRef = useRef<string>("");
+
+  useEffect(() => {
+    const rawQ = query.trim();
+    if (!rawQ || rawQ.length < 3) {
+      lastAutoAdjustedQueryRef.current = "";
+      return;
+    }
+
+    const cleanQ = rawQ.replace(/^#/, "").trim().toLowerCase();
+    if (lastAutoAdjustedQueryRef.current === cleanQ) return;
+
+    // Fast check: is this query likely a booking or group code?
+    const isCode =
+      /^(vsh|rsv|grp|group|book)/i.test(cleanQ) ||
+      /^[a-z0-9]+[_-][a-z0-9_-]+$/i.test(cleanQ) ||
+      rooms.some((r) => {
+        const proj = r.projectedReservation;
+        const upc = r.upcomingReservation;
+        const stayRes = (r.activeStay as any)?.reservation;
+        return (
+          (proj?.reservationCode && proj.reservationCode.toLowerCase() === cleanQ) ||
+          ((proj as any)?.groupCode && String((proj as any).groupCode).toLowerCase() === cleanQ) ||
+          (upc?.reservationCode && upc.reservationCode.toLowerCase() === cleanQ) ||
+          ((upc as any)?.groupCode && String((upc as any).groupCode).toLowerCase() === cleanQ) ||
+          (stayRes?.reservationCode && String(stayRes.reservationCode).toLowerCase() === cleanQ) ||
+          (stayRes?.groupCode && String(stayRes.groupCode).toLowerCase() === cleanQ)
+        );
+      }) ||
+      arrivalsList.some(
+        (a) =>
+          (a.reservationCode && a.reservationCode.toLowerCase() === cleanQ) ||
+          (a.groupCode && a.groupCode.toLowerCase() === cleanQ),
+      );
+
+    if (!isCode) return;
+
+    // 1. Check in rooms
+    for (const r of rooms) {
+      const proj = r.projectedReservation;
+      if (proj) {
+        const resCode = (proj.reservationCode || "").toLowerCase();
+        const grpCode = ((proj as any)?.groupCode ? String((proj as any).groupCode) : "").toLowerCase();
+        if (
+          resCode === cleanQ ||
+          grpCode === cleanQ ||
+          (cleanQ.length >= 4 && (resCode.includes(cleanQ) || grpCode.includes(cleanQ)))
+        ) {
+          const rawDate = proj.plannedCheckInAt ? String(proj.plannedCheckInAt).slice(0, 10) : "";
+          if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+            lastAutoAdjustedQueryRef.current = cleanQ;
+            if (rawDate !== businessDate) handleBusinessDateChange(rawDate);
+            return;
+          }
+        }
+      }
+      const upc = r.upcomingReservation;
+      if (upc) {
+        const resCode = (upc.reservationCode || "").toLowerCase();
+        const grpCode = ((upc as any)?.groupCode ? String((upc as any).groupCode) : "").toLowerCase();
+        if (
+          resCode === cleanQ ||
+          grpCode === cleanQ ||
+          (cleanQ.length >= 4 && (resCode.includes(cleanQ) || grpCode.includes(cleanQ)))
+        ) {
+          const rawDate = upc.plannedCheckInAt ? String(upc.plannedCheckInAt).slice(0, 10) : "";
+          if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+            lastAutoAdjustedQueryRef.current = cleanQ;
+            if (rawDate !== businessDate) handleBusinessDateChange(rawDate);
+            return;
+          }
+        }
+      }
+      const stayRes = (r.activeStay as any)?.reservation;
+      if (stayRes) {
+        const resCode = (stayRes.reservationCode ? String(stayRes.reservationCode) : "").toLowerCase();
+        const grpCode = (stayRes.groupCode ? String(stayRes.groupCode) : "").toLowerCase();
+        if (
+          resCode === cleanQ ||
+          grpCode === cleanQ ||
+          (cleanQ.length >= 4 && (resCode.includes(cleanQ) || grpCode.includes(cleanQ)))
+        ) {
+          const rawDate = stayRes.plannedCheckInAt ? String(stayRes.plannedCheckInAt).slice(0, 10) : "";
+          if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+            lastAutoAdjustedQueryRef.current = cleanQ;
+            if (rawDate !== businessDate) handleBusinessDateChange(rawDate);
+            return;
+          }
+        }
+      }
+    }
+
+    // 2. Check in arrivalsList
+    const arrMatch = arrivalsList.find((a) => {
+      const resCode = (a.reservationCode || "").toLowerCase();
+      const grpCode = (a.groupCode || "").toLowerCase();
+      return (
+        resCode === cleanQ ||
+        grpCode === cleanQ ||
+        (cleanQ.length >= 4 && (resCode.includes(cleanQ) || grpCode.includes(cleanQ)))
+      );
+    });
+    if (arrMatch?.plannedCheckInAt) {
+      const rawDate = String(arrMatch.plannedCheckInAt).slice(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+        lastAutoAdjustedQueryRef.current = cleanQ;
+        if (rawDate !== businessDate) handleBusinessDateChange(rawDate);
+        return;
+      }
+    }
+
+    // 3. Async lookup fallback for future codes outside loaded lists
+    if (cleanQ.length >= 4 && hotelId) {
+      let cancelled = false;
+      const timer = setTimeout(async () => {
+        try {
+          if (/group/i.test(cleanQ) || cleanQ.startsWith("grp")) {
+            const groupData = await staffRoomsRepository.getGroupDetails(hotelId, cleanQ);
+            if (cancelled) return;
+            const target =
+              groupData?.checkInDate ||
+              groupData?.plannedCheckInAt ||
+              groupData?.rooms?.[0]?.plannedCheckInAt;
+            if (target) {
+              const ymd = String(target).slice(0, 10);
+              if (/^\d{4}-\d{2}-\d{2}$/.test(ymd)) {
+                lastAutoAdjustedQueryRef.current = cleanQ;
+                handleBusinessDateChange(ymd);
+                return;
+              }
+            }
+          }
+        } catch {
+          // not found as group, proceed
+        }
+
+        try {
+          const res = await requestInternalApiEnvelope<HotelOpsPage<HotelArrival>>(
+            `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/arrivals?q=${encodeURIComponent(cleanQ)}&limit=1`,
+            { method: "GET" },
+          );
+          if (cancelled) return;
+          const item = res.data?.items?.[0];
+          if (item?.plannedCheckInAt) {
+            const ymd = String(item.plannedCheckInAt).slice(0, 10);
+            if (/^\d{4}-\d{2}-\d{2}$/.test(ymd)) {
+              lastAutoAdjustedQueryRef.current = cleanQ;
+              handleBusinessDateChange(ymd);
+            }
+          }
+        } catch {
+          // silent fallback
+        }
+      }, 400);
+
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
+    }
+  }, [query, rooms, arrivalsList, hotelId, businessDate]);
+
   const openGroupCheckIn = useCallback((code?: string | null, targetRooms?: GroupRoomItem[]) => {
     let resolvedCode = code?.trim() || null;
     if (!resolvedCode) {
@@ -2625,6 +2790,90 @@ export function StaffRoomsClient({
     [reservationEstimatedRoomsTotal, reservationEstimatedServicesTotal],
   );
 
+  const reservationBaseRate = useMemo(() => {
+    if (selectedReservationRoom?.price && Number(selectedReservationRoom.price) > 0) {
+      return Number(selectedReservationRoom.price);
+    }
+    if (initialReservationRoom?.price && Number(initialReservationRoom.price) > 0) {
+      return Number(initialReservationRoom.price);
+    }
+    return 0;
+  }, [selectedReservationRoom, initialReservationRoom]);
+
+  const reservationCurrentNumericRate = useMemo(() => {
+    return reservationNightlyRate
+      ? Number(reservationNightlyRate.replace(/\D/g, "")) || 0
+      : reservationBaseRate;
+  }, [reservationNightlyRate, reservationBaseRate]);
+
+  const reservationRateDiffPercent = useMemo(() => {
+    if (reservationBaseRate <= 0 || reservationCurrentNumericRate <= 0) return 0;
+    const diff = reservationCurrentNumericRate - reservationBaseRate;
+    return Math.round((diff / reservationBaseRate) * 100);
+  }, [reservationBaseRate, reservationCurrentNumericRate]);
+
+  const reservationHasPriceDiff = useMemo(() => {
+    return reservationBaseRate > 0 && reservationCurrentNumericRate !== reservationBaseRate;
+  }, [reservationBaseRate, reservationCurrentNumericRate]);
+
+  const handleApplyReservationRatePercent = useCallback(
+    (percentDelta: number) => {
+      const anchor = reservationBaseRate > 0 ? reservationBaseRate : reservationCurrentNumericRate;
+      if (anchor <= 0) return;
+      const factor = 1 + percentDelta / 100;
+      const newRate = Math.max(0, Math.round((anchor * factor) / 1000) * 1000);
+      setReservationNightlyRate(String(newRate));
+    },
+    [reservationBaseRate, reservationCurrentNumericRate],
+  );
+
+  const handleResetReservationBaseRate = useCallback(() => {
+    if (reservationBaseRate > 0) {
+      setReservationNightlyRate(String(reservationBaseRate));
+    }
+  }, [reservationBaseRate]);
+
+  const reservationNightsCount = useMemo(() => {
+    if (!reservationCheckIn || !reservationCheckOut) return 1;
+    const start = new Date(reservationCheckIn);
+    const end = new Date(reservationCheckOut);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return 1;
+    const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    return Math.max(1, Math.round((endDay.getTime() - startDay.getTime()) / 86400000));
+  }, [reservationCheckIn, reservationCheckOut]);
+
+  const handleApplyReservationNights = useCallback(
+    (targetNights: number) => {
+      if (targetNights < 1 || !reservationCheckIn) return;
+      const inDate = new Date(reservationCheckIn);
+      if (isNaN(inDate.getTime())) return;
+      const outDate = new Date(
+        inDate.getFullYear(),
+        inDate.getMonth(),
+        inDate.getDate() + targetNights,
+      );
+      let outHours = 12;
+      let outMinutes = 0;
+      if (reservationCheckOut && reservationCheckOut.includes("T")) {
+        const timePart = reservationCheckOut.split("T")[1]?.slice(0, 5);
+        if (timePart) {
+          const parts = timePart.split(":");
+          outHours = Number(parts[0]) || 12;
+          outMinutes = Number(parts[1]) || 0;
+        }
+      }
+      outDate.setHours(outHours, outMinutes, 0, 0);
+      const y = outDate.getFullYear();
+      const m = String(outDate.getMonth() + 1).padStart(2, "0");
+      const d = String(outDate.getDate()).padStart(2, "0");
+      const hh = String(outHours).padStart(2, "0");
+      const mm = String(outMinutes).padStart(2, "0");
+      setReservationCheckOut(`${y}-${m}-${d}T${hh}:${mm}`);
+    },
+    [reservationCheckIn, reservationCheckOut],
+  );
+
   function renderBulkNightlyRatesSection() {
     if (bulkNightDates.length < 2) return null;
 
@@ -2829,6 +3078,160 @@ export function StaffRoomsClient({
             ))}
           </div>
         ) : null}
+      </div>
+    );
+  }
+
+  function renderReservationPriceAdjustmentControls() {
+    const hasBaseRate = reservationBaseRate > 0;
+    const diffPct = reservationRateDiffPercent;
+    const hasDiff = reservationHasPriceDiff;
+
+    return (
+      <div className="rounded-xl border border-slate-200/90 bg-slate-50/80 p-3 space-y-2.5">
+        {/* Hàng 1: Giá niêm yết + Badge chênh lệch + Nút Reset về giá gốc */}
+        {hasBaseRate ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200 text-xs">
+            <div className="flex flex-wrap items-center gap-1.5 text-slate-700">
+              <span className="font-medium text-slate-500">Giá niêm yết:</span>
+              <strong className="font-bold text-slate-900">
+                {new Intl.NumberFormat("vi-VN").format(reservationBaseRate)} ₫
+              </strong>
+              {hasDiff ? (
+                diffPct < 0 ? (
+                  <span className="font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md whitespace-nowrap">
+                    Giảm {Math.abs(diffPct)}% (−{new Intl.NumberFormat("vi-VN").format(reservationBaseRate - reservationCurrentNumericRate)} ₫)
+                  </span>
+                ) : (
+                  <span className="font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md whitespace-nowrap">
+                    Tăng {diffPct}% (+{new Intl.NumberFormat("vi-VN").format(reservationCurrentNumericRate - reservationBaseRate)} ₫)
+                  </span>
+                )
+              ) : null}
+            </div>
+
+            {/* Nút Reset về giá gốc */}
+            <button
+              type="button"
+              onClick={handleResetReservationBaseRate}
+              disabled={!hasDiff}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg border transition cursor-pointer whitespace-nowrap shadow-2xs ${
+                hasDiff
+                  ? "bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300 ring-1 ring-amber-200"
+                  : "bg-white text-slate-400 border-slate-200 cursor-not-allowed opacity-60"
+              }`}
+              title="Khôi phục lại giá niêm yết ban đầu"
+            >
+              <VsIcon name="restart_alt" className="text-xs" />
+              <span>Reset về giá gốc</span>
+            </button>
+          </div>
+        ) : null}
+
+        {/* Hàng 2: Tùy chỉnh theo % */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
+            <VsIcon name="payments" className="text-sm text-emerald-700" />
+            <span>Tùy chỉnh %:</span>
+          </span>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                const val = Number(reservationCustomPercent) || 0;
+                if (val > 0) handleApplyReservationRatePercent(-val);
+              }}
+              disabled={!reservationCustomPercent || Number(reservationCustomPercent) <= 0}
+              className="h-7 px-2.5 rounded-lg bg-white border border-rose-200 hover:bg-rose-50 text-rose-700 text-xs font-bold transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap shadow-2xs"
+              title={`Giảm ${reservationCustomPercent}% so với giá niêm yết`}
+            >
+              − Giảm %
+            </button>
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={reservationCustomPercent}
+                onChange={(e) =>
+                  setReservationCustomPercent(
+                    e.target.value.replace(/\D/g, "").slice(0, 3),
+                  )
+                }
+                placeholder="10"
+                className="w-11 h-7 rounded-lg border border-slate-300 bg-white px-1 text-center text-xs font-black text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none"
+              />
+              <span className="ml-1 text-xs font-bold text-slate-500">%</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const val = Number(reservationCustomPercent) || 0;
+                if (val > 0) handleApplyReservationRatePercent(val);
+              }}
+              disabled={!reservationCustomPercent || Number(reservationCustomPercent) <= 0}
+              className="h-7 px-2.5 rounded-lg bg-white border border-emerald-200 hover:bg-emerald-50 text-emerald-700 text-xs font-bold transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap shadow-2xs"
+              title={`Tăng ${reservationCustomPercent}% so với giá niêm yết`}
+            >
+              + Tăng %
+            </button>
+          </div>
+        </div>
+
+        {/* Hàng 3 & 4: Các điểm nhanh 4 cột cân đối tuyệt đối */}
+        <div className="space-y-1.5 pt-1.5 border-t border-slate-200/70">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-rose-700 w-20 shrink-0">
+              Giảm nhanh:
+            </span>
+            <div className="flex-1 grid grid-cols-4 gap-1.5">
+              {[-5, -10, -15, -20].map((pct) => {
+                const isActive = diffPct === pct;
+                return (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => handleApplyReservationRatePercent(pct)}
+                    className={`w-full py-1 text-xs font-bold rounded-lg border transition cursor-pointer whitespace-nowrap text-center shadow-2xs ${
+                      isActive
+                        ? "bg-rose-600 text-white border-rose-600 ring-2 ring-rose-200"
+                        : "bg-white hover:bg-rose-50 text-rose-700 border-rose-200"
+                    }`}
+                    title={`Giảm ${Math.abs(pct)}% so với giá niêm yết`}
+                  >
+                    {pct}%
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-emerald-700 w-20 shrink-0">
+              Tăng nhanh:
+            </span>
+            <div className="flex-1 grid grid-cols-4 gap-1.5">
+              {[5, 10, 15, 20].map((pct) => {
+                const isActive = diffPct === pct;
+                return (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => handleApplyReservationRatePercent(pct)}
+                    className={`w-full py-1 text-xs font-bold rounded-lg border transition cursor-pointer whitespace-nowrap text-center shadow-2xs ${
+                      isActive
+                        ? "bg-emerald-700 text-white border-emerald-700 ring-2 ring-emerald-200"
+                        : "bg-white hover:bg-emerald-50 text-emerald-700 border-emerald-200"
+                    }`}
+                    title={`Tăng ${pct}% so với giá niêm yết`}
+                  >
+                    +{pct}%
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -6060,177 +6463,179 @@ export function StaffRoomsClient({
           </div>
         ) : null}
 
-        {/* Search & Filter Toolbar */}
-        <div
-          className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5 sm:gap-3 ${
-            !isHousekeeping ? "border-t border-slate-200 pt-3" : ""
-          }`}
-        >
-          {/* Left: Search Input + Filter Selects + Reset Button */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 flex-1 min-w-0">
-            {/* Search Input */}
-            <div className="relative w-full sm:w-64 md:w-80 lg:w-96 min-w-0">
-              <VsIcon
-                name="search"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-lg text-slate-500"
-              />
-              <input
-                id="rooms-search-query"
-                name="searchQuery"
-                aria-label="Tìm số phòng, tên khách, SĐT"
-                value={inputQuery}
-                onChange={(event) => setInputQuery(event.target.value)}
-                className="h-10 w-full rounded-xl border border-slate-300 hover:border-slate-400 bg-white pl-9.5 pr-8 text-sm font-semibold text-slate-900 outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 shadow-2xs min-h-[40px] placeholder:text-slate-400 transition"
-                placeholder="Tìm số phòng, tên khách, SĐT..."
-              />
-              {inputQuery ? (
+        {/* Search & Filter Toolbar (Grid View only) */}
+        {operationalViewMode === "grid" ? (
+          <div
+            className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5 sm:gap-3 ${
+              !isHousekeeping ? "border-t border-slate-200 pt-3" : ""
+            }`}
+          >
+            {/* Left: Search Input + Filter Selects + Reset Button */}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 flex-1 min-w-0">
+              {/* Search Input */}
+              <div className="relative w-full sm:w-64 md:w-80 lg:w-96 min-w-0">
+                <VsIcon
+                  name="search"
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-lg text-slate-500"
+                />
+                <input
+                  id="rooms-search-query"
+                  name="searchQuery"
+                  aria-label="Tìm số phòng, tên khách, SĐT"
+                  value={inputQuery}
+                  onChange={(event) => setInputQuery(event.target.value)}
+                  className="h-10 w-full rounded-xl border border-slate-300 hover:border-slate-400 bg-white pl-9.5 pr-8 text-sm font-semibold text-slate-900 outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 shadow-2xs min-h-[40px] placeholder:text-slate-400 transition"
+                  placeholder="Tìm số phòng, tên khách, SĐT, mã đặt phòng / đoàn..."
+                />
+                {inputQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => setInputQuery("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded-full hover:bg-slate-100 cursor-pointer transition"
+                    title="Xóa tìm kiếm"
+                  >
+                    <VsIcon name="close" className="text-sm" />
+                  </button>
+                ) : null}
+              </div>
+
+              {/* Floor Select */}
+              <select
+                id="rooms-floor-filter"
+                name="floorFilter"
+                aria-label="Lọc theo tầng"
+                value={floor}
+                onChange={(event) => {
+                  setFloor(event.target.value);
+                  setPage(1);
+                }}
+                className="h-10 shrink-0 rounded-xl border border-slate-300 hover:border-slate-400 bg-white px-3 text-sm font-bold text-slate-800 focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 shadow-2xs min-w-[125px] cursor-pointer transition min-h-[40px]"
+              >
+                <option value="all">Tầng: Tất cả</option>
+                {floors.map((value) => (
+                  <option key={value} value={value}>
+                    Tầng {value}
+                  </option>
+                ))}
+              </select>
+
+              {/* Room Type Select */}
+              <select
+                id="rooms-type-filter"
+                name="typeFilter"
+                aria-label="Lọc theo loại phòng"
+                value={type}
+                onChange={(event) => {
+                  setType(event.target.value);
+                  setPage(1);
+                }}
+                className="h-10 shrink-0 rounded-xl border border-slate-300 hover:border-slate-400 bg-white px-3 text-sm font-bold text-slate-800 focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 shadow-2xs min-w-[155px] cursor-pointer transition min-h-[40px]"
+              >
+                <option value="all">Loại phòng: Tất cả</option>
+                {types.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+
+              {/* Zone Select */}
+              <select
+                id="rooms-zone-filter"
+                name="zoneFilter"
+                aria-label="Lọc theo phân khu"
+                value={zone}
+                onChange={(event) => {
+                  setZone(event.target.value);
+                  setPage(1);
+                }}
+                className="h-10 shrink-0 rounded-xl border border-slate-300 hover:border-slate-400 bg-white px-3 text-sm font-bold text-slate-800 focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 shadow-2xs min-w-[145px] cursor-pointer transition min-h-[40px]"
+              >
+                <option value="all">Phân khu: Tất cả</option>
+                {zones.map((value) => (
+                  <option key={value} value={value}>
+                    Khu {value}
+                  </option>
+                ))}
+              </select>
+
+              {/* Status Select */}
+              <select
+                id="rooms-status-filter"
+                name="statusFilter"
+                aria-label="Lọc theo trạng thái phòng"
+                value={status}
+                onChange={(event) => {
+                  setStatus(event.target.value as RoomStatusFilter);
+                  setPage(1);
+                }}
+                className="h-10 shrink-0 rounded-xl border border-slate-300 hover:border-slate-400 bg-white px-3 text-sm font-bold text-slate-800 focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 shadow-2xs min-w-[160px] cursor-pointer transition min-h-[40px]"
+              >
+                {statusFilters.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    Trạng thái: {item.label}
+                  </option>
+                ))}
+              </select>
+
+              {/* Reset Filters Button */}
+              {hasActiveFilters ? (
                 <button
                   type="button"
-                  onClick={() => setInputQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded-full hover:bg-slate-100 cursor-pointer transition"
-                  title="Xóa tìm kiếm"
+                  onClick={resetFilters}
+                  className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-rose-300 hover:border-rose-400 bg-rose-50 hover:bg-rose-100 px-3.5 text-xs font-bold text-rose-800 shadow-2xs transition cursor-pointer min-h-[40px]"
+                  title="Đặt lại toàn bộ bộ lọc"
                 >
-                  <VsIcon name="close" className="text-sm" />
+                  <VsIcon name="restart_alt" className="text-sm shrink-0" />
+                  <span>Xóa lọc</span>
                 </button>
               ) : null}
             </div>
 
-            {/* Floor Select */}
-            <select
-              id="rooms-floor-filter"
-              name="floorFilter"
-              aria-label="Lọc theo tầng"
-              value={floor}
-              onChange={(event) => {
-                setFloor(event.target.value);
-                setPage(1);
-              }}
-              className="h-10 shrink-0 rounded-xl border border-slate-300 hover:border-slate-400 bg-white px-3 text-sm font-bold text-slate-800 focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 shadow-2xs min-w-[125px] cursor-pointer transition min-h-[40px]"
-            >
-              <option value="all">Tầng: Tất cả</option>
-              {floors.map((value) => (
-                <option key={value} value={value}>
-                  Tầng {value}
-                </option>
-              ))}
-            </select>
+            {/* Right: Room counter badge & Quick Refresh button */}
+            <div className="flex items-center gap-2 shrink-0 self-end lg:self-auto">
+              <div className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-slate-700 shadow-2xs min-h-[40px]">
+                <VsIcon
+                  name={hasActiveFilters ? "filter_alt" : "meeting_room"}
+                  className={`text-sm ${hasActiveFilters ? "text-sky-600" : "text-slate-400"}`}
+                />
+                <span>
+                  {hasActiveFilters ? (
+                    <>
+                      Kết quả:{" "}
+                      <strong className="font-black text-sky-900">
+                        {filteredRooms.length}
+                      </strong>
+                      /{totalItems} phòng
+                    </>
+                  ) : (
+                    <>
+                      Tổng:{" "}
+                      <strong className="font-black text-slate-950">
+                        {totalItems}
+                      </strong>{" "}
+                      phòng
+                    </>
+                  )}
+                </span>
+              </div>
 
-            {/* Room Type Select */}
-            <select
-              id="rooms-type-filter"
-              name="typeFilter"
-              aria-label="Lọc theo loại phòng"
-              value={type}
-              onChange={(event) => {
-                setType(event.target.value);
-                setPage(1);
-              }}
-              className="h-10 shrink-0 rounded-xl border border-slate-300 hover:border-slate-400 bg-white px-3 text-sm font-bold text-slate-800 focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 shadow-2xs min-w-[155px] cursor-pointer transition min-h-[40px]"
-            >
-              <option value="all">Loại phòng: Tất cả</option>
-              {types.map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
-
-            {/* Zone Select */}
-            <select
-              id="rooms-zone-filter"
-              name="zoneFilter"
-              aria-label="Lọc theo phân khu"
-              value={zone}
-              onChange={(event) => {
-                setZone(event.target.value);
-                setPage(1);
-              }}
-              className="h-10 shrink-0 rounded-xl border border-slate-300 hover:border-slate-400 bg-white px-3 text-sm font-bold text-slate-800 focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 shadow-2xs min-w-[145px] cursor-pointer transition min-h-[40px]"
-            >
-              <option value="all">Phân khu: Tất cả</option>
-              {zones.map((value) => (
-                <option key={value} value={value}>
-                  Khu {value}
-                </option>
-              ))}
-            </select>
-
-            {/* Status Select */}
-            <select
-              id="rooms-status-filter"
-              name="statusFilter"
-              aria-label="Lọc theo trạng thái phòng"
-              value={status}
-              onChange={(event) => {
-                setStatus(event.target.value as RoomStatusFilter);
-                setPage(1);
-              }}
-              className="h-10 shrink-0 rounded-xl border border-slate-300 hover:border-slate-400 bg-white px-3 text-sm font-bold text-slate-800 focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 shadow-2xs min-w-[160px] cursor-pointer transition min-h-[40px]"
-            >
-              {statusFilters.map((item) => (
-                <option key={item.value} value={item.value}>
-                  Trạng thái: {item.label}
-                </option>
-              ))}
-            </select>
-
-            {/* Reset Filters Button */}
-            {hasActiveFilters ? (
               <button
                 type="button"
-                onClick={resetFilters}
-                className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-rose-300 hover:border-rose-400 bg-rose-50 hover:bg-rose-100 px-3.5 text-xs font-bold text-rose-800 shadow-2xs transition cursor-pointer min-h-[40px]"
-                title="Đặt lại toàn bộ bộ lọc"
+                onClick={() => void refetch()}
+                disabled={isFetching}
+                className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 px-3.5 text-xs font-bold text-slate-700 hover:text-slate-950 shadow-2xs transition cursor-pointer min-h-[40px] disabled:opacity-50"
+                title="Cập nhật trạng thái phòng tức thời"
               >
-                <VsIcon name="restart_alt" className="text-sm shrink-0" />
-                <span>Xóa lọc</span>
+                <VsIcon
+                  name="refresh"
+                  className={`text-base ${isFetching ? "animate-spin text-sky-600" : "text-slate-500"}`}
+                />
+                <span className="hidden sm:inline">Làm mới</span>
               </button>
-            ) : null}
-          </div>
-
-          {/* Right: Room counter badge & Quick Refresh button */}
-          <div className="flex items-center gap-2 shrink-0 self-end lg:self-auto">
-            <div className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-slate-700 shadow-2xs min-h-[40px]">
-              <VsIcon
-                name={hasActiveFilters ? "filter_alt" : "meeting_room"}
-                className={`text-sm ${hasActiveFilters ? "text-sky-600" : "text-slate-400"}`}
-              />
-              <span>
-                {hasActiveFilters ? (
-                  <>
-                    Kết quả:{" "}
-                    <strong className="font-black text-sky-900">
-                      {filteredRooms.length}
-                    </strong>
-                    /{totalItems} phòng
-                  </>
-                ) : (
-                  <>
-                    Tổng:{" "}
-                    <strong className="font-black text-slate-950">
-                      {totalItems}
-                    </strong>{" "}
-                    phòng
-                  </>
-                )}
-              </span>
             </div>
-
-            <button
-              type="button"
-              onClick={() => void refetch()}
-              disabled={isFetching}
-              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 px-3.5 text-xs font-bold text-slate-700 hover:text-slate-950 shadow-2xs transition cursor-pointer min-h-[40px] disabled:opacity-50"
-              title="Cập nhật trạng thái phòng tức thời"
-            >
-              <VsIcon
-                name="refresh"
-                className={`text-base ${isFetching ? "animate-spin text-sky-600" : "text-slate-500"}`}
-              />
-              <span className="hidden sm:inline">Làm mới</span>
-            </button>
           </div>
-        </div>
+        ) : null}
       </section>
 
       {/* Operational Body: Tape Chart View vs Room Grid/Tasklist View */}
@@ -6240,8 +6645,11 @@ export function StaffRoomsClient({
           rooms={rooms}
           arrivalsList={arrivalsList}
           businessDate={businessDate}
+          onBusinessDateChange={handleBusinessDateChange}
           initialStartDate={initialStartDate}
           initialViewMode={initialViewMode}
+          searchQuery={inputQuery}
+          onSearchQueryChange={setInputQuery}
           canCheckInStay={canCheckInStay}
           canManageRooms={canManageRooms}
           onOpenGroupCheckIn={(groupCode) => {
@@ -7239,124 +7647,255 @@ export function StaffRoomsClient({
                       <VsIcon name="arrow_forward" className="text-xs" />
                     </button>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                      Họ và tên khách lưu trú{" "}
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={reservationGuestName}
-                      onChange={(e) => setReservationGuestName(e.target.value)}
-                      placeholder="Ví dụ: Nguyễn Văn An"
-                      className="w-full h-12 rounded-xl border border-slate-300 bg-white px-4 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px]"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+                        Họ và tên khách lưu trú{" "}
+                        <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={reservationGuestName}
+                        onChange={(e) => setReservationGuestName(e.target.value)}
+                        placeholder="Ví dụ: Nguyễn Văn An"
+                        className="w-full h-12 rounded-xl border border-slate-300 bg-white px-4 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+                        Số điện thoại
+                      </label>
+                      <input
+                        type="tel"
+                        value={reservationGuestPhone}
+                        onChange={(e) =>
+                          setReservationGuestPhone(e.target.value)
+                        }
+                        placeholder="Ví dụ: 0912 345 678"
+                        className="w-full h-12 rounded-xl border border-slate-300 bg-white px-4 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px]"
+                      />
+                    </div>
                   </div>
 
                   {selectedReservationRoom ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                          Số điện thoại
+                    <div className="rounded-2xl border border-slate-200/90 bg-slate-50/70 p-3.5 sm:p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-sm font-bold text-slate-800">
+                          Giá phòng mỗi đêm (₫)
                         </label>
-                        <input
-                          type="tel"
-                          value={reservationGuestPhone}
-                          onChange={(e) =>
-                            setReservationGuestPhone(e.target.value)
-                          }
-                          placeholder="Ví dụ: 0912 345 678"
-                          className="w-full h-12 rounded-xl border border-slate-300 bg-white px-4 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px]"
-                        />
+                        <div className="flex items-center gap-3">
+                          {initialReservationRoom &&
+                          selectedReservationRoom.id !==
+                            initialReservationRoom.id ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReservationRoomId(
+                                  initialReservationRoom.id,
+                                );
+                                if (initialReservationRoom.price) {
+                                  setReservationNightlyRate(
+                                    String(initialReservationRoom.price),
+                                  );
+                                }
+                              }}
+                              className="text-xs font-semibold text-amber-700 hover:text-amber-800 hover:underline cursor-pointer flex items-center gap-1"
+                              title={`Khôi phục lại phòng ${getRoomNumber(initialReservationRoom)}`}
+                            >
+                              <VsIcon name="undo" className="text-sm" />
+                              <span>
+                                Về phòng{" "}
+                                {getRoomNumber(initialReservationRoom)}
+                              </span>
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => setReservationRoomId("")}
+                            className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
+                          >
+                            Đổi phòng
+                          </button>
+                        </div>
                       </div>
 
-                      <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <label className="block text-sm font-semibold text-slate-800">
-                            Giá phòng mỗi đêm (₫)
-                          </label>
-                          <div className="flex items-center gap-3">
-                            {initialReservationRoom &&
-                            selectedReservationRoom.id !==
-                              initialReservationRoom.id ? (
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-start">
+                        {/* Cột trái: Ô nhập giá + Giá niêm yết + Nút Reset về giá gốc */}
+                        <div className="md:col-span-5 space-y-2">
+                          <div className="relative">
+                            <input
+                              ref={reservationPriceInputRef}
+                              type="text"
+                              inputMode="numeric"
+                              value={formatPriceInput(reservationNightlyRate)}
+                              onChange={handleReservationNightlyRateChange}
+                              onKeyDown={handleReservationPriceKeyDown}
+                              placeholder="Ví dụ: 900.000"
+                              className="w-full h-11 rounded-xl border border-slate-300 bg-white pl-4 pr-16 text-base font-bold text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none transition"
+                            />
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3.5">
+                              <span className="text-xs font-bold text-slate-400">
+                                ₫ / đêm
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Giá niêm yết + Nút Reset về giá gốc */}
+                          <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs">
+                            <span className="text-slate-600">
+                              Giá niêm yết:{" "}
+                              <strong className="font-bold text-slate-900">
+                                {new Intl.NumberFormat("vi-VN").format(reservationBaseRate)} ₫
+                              </strong>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={handleResetReservationBaseRate}
+                              disabled={!reservationHasPriceDiff}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg border transition cursor-pointer whitespace-nowrap shadow-2xs ${
+                                reservationHasPriceDiff
+                                  ? "bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300 ring-1 ring-amber-200"
+                                  : "bg-white text-slate-400 border-slate-200 cursor-not-allowed opacity-60"
+                              }`}
+                              title="Khôi phục về giá niêm yết ban đầu"
+                            >
+                              <VsIcon name="restart_alt" className="text-xs" />
+                              <span>Reset về giá gốc</span>
+                            </button>
+                          </div>
+
+                          {reservationHasPriceDiff ? (
+                            <div className="pt-0.5">
+                              <span
+                                className={`inline-block px-2.5 py-0.5 rounded-lg text-xs font-bold ${
+                                  reservationRateDiffPercent < 0
+                                    ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                                    : "bg-amber-100 text-amber-900 border border-amber-300"
+                                }`}
+                              >
+                                {reservationRateDiffPercent < 0
+                                  ? `Giảm ${Math.abs(reservationRateDiffPercent)}%`
+                                  : `Tăng ${reservationRateDiffPercent}%`}
+                                {" "}({reservationRateDiffPercent < 0 ? "−" : "+"}
+                                {new Intl.NumberFormat("vi-VN").format(
+                                  Math.abs(reservationBaseRate - reservationCurrentNumericRate),
+                                )}{" "}
+                                ₫/đêm)
+                              </span>
+                            </div>
+                          ) : null}
+                        </div>
+
+                        {/* Cột phải: Thanh công cụ tăng/giảm theo % & Grid điểm nhanh 4 cột */}
+                        <div className="md:col-span-7 rounded-xl border border-slate-200/90 bg-white p-3 space-y-2.5">
+                          {/* Dòng 1: Nhập % tùy chỉnh */}
+                          <div className="flex flex-wrap items-center justify-between gap-1.5 pb-2 border-b border-slate-100">
+                            <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                              <VsIcon name="payments" className="text-sm text-emerald-700" />
+                              <span>Tùy chỉnh %:</span>
+                            </span>
+                            <div className="flex items-center gap-1">
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setReservationRoomId(
-                                    initialReservationRoom.id,
-                                  );
-                                  if (initialReservationRoom.price) {
-                                    setReservationNightlyRate(
-                                      String(initialReservationRoom.price),
-                                    );
-                                  }
+                                  const val = Number(reservationCustomPercent) || 0;
+                                  if (val > 0) handleApplyReservationRatePercent(-val);
                                 }}
-                                className="text-xs font-semibold text-amber-700 hover:text-amber-800 hover:underline cursor-pointer flex items-center gap-1"
-                                title={`Khôi phục lại phòng ${getRoomNumber(initialReservationRoom)}`}
+                                disabled={!reservationCustomPercent || Number(reservationCustomPercent) <= 0}
+                                className="h-7 px-2 rounded-lg bg-white border border-rose-200 hover:bg-rose-50 text-rose-700 text-xs font-bold transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap shadow-2xs"
+                                title={`Giảm ${reservationCustomPercent}% so với giá niêm yết`}
                               >
-                                <VsIcon name="undo" className="text-sm" />
-                                <span>
-                                  Về phòng{" "}
-                                  {getRoomNumber(initialReservationRoom)}
-                                </span>
+                                − Giảm %
                               </button>
-                            ) : null}
-                            <button
-                              type="button"
-                              onClick={() => setReservationRoomId("")}
-                              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
-                            >
-                              Đổi phòng
-                            </button>
-                          </div>
-                        </div>
-                        <div className="relative">
-                          <input
-                            ref={reservationPriceInputRef}
-                            type="text"
-                            inputMode="numeric"
-                            value={formatPriceInput(reservationNightlyRate)}
-                            onChange={handleReservationNightlyRateChange}
-                            onKeyDown={handleReservationPriceKeyDown}
-                            placeholder="Ví dụ: 900.000"
-                            className="w-full h-12 rounded-xl border border-slate-300 bg-white pl-4 pr-18 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px]"
-                          />
-                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
-                            <span className="text-sm font-medium text-slate-500">
-                              ₫ / đêm
-                            </span>
-                          </div>
-                        </div>
-                        {selectedReservationRoom.price &&
-                        Number(selectedReservationRoom.price) > 0 ? (
-                          <div className="mt-1.5 flex items-center justify-between text-xs sm:text-sm">
-                            <span className="text-slate-600">
-                              Giá niêm yết:{" "}
-                              <strong className="font-semibold text-slate-800">
-                                {new Intl.NumberFormat("vi-VN").format(
-                                  Number(selectedReservationRoom.price),
-                                )}{" "}
-                                ₫
-                              </strong>
-                            </span>
-                            {reservationNightlyRate &&
-                            String(selectedReservationRoom.price) !==
-                              reservationNightlyRate.replace(/\D/g, "") ? (
+                              <div className="relative flex items-center">
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={reservationCustomPercent}
+                                  onChange={(e) =>
+                                    setReservationCustomPercent(
+                                      e.target.value.replace(/\D/g, "").slice(0, 3),
+                                    )
+                                  }
+                                  placeholder="10"
+                                  className="w-11 h-7 rounded-lg border border-slate-300 bg-white px-1 text-center text-xs font-black text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none"
+                                />
+                                <span className="ml-1 text-xs font-bold text-slate-500">%</span>
+                              </div>
                               <button
                                 type="button"
-                                onClick={() =>
-                                  setReservationNightlyRate(
-                                    String(selectedReservationRoom.price),
-                                  )
-                                }
-                                className="font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
+                                onClick={() => {
+                                  const val = Number(reservationCustomPercent) || 0;
+                                  if (val > 0) handleApplyReservationRatePercent(val);
+                                }}
+                                disabled={!reservationCustomPercent || Number(reservationCustomPercent) <= 0}
+                                className="h-7 px-2 rounded-lg bg-white border border-emerald-200 hover:bg-emerald-50 text-emerald-700 text-xs font-bold transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap shadow-2xs"
+                                title={`Tăng ${reservationCustomPercent}% so với giá niêm yết`}
                               >
-                                Dùng giá niêm yết
+                                + Tăng %
                               </button>
-                            ) : null}
+                            </div>
                           </div>
-                        ) : null}
+
+                          {/* Dòng 2 & 3: Grid 4 cột đều tăm tắp */}
+                          <div className="space-y-1.5 pt-0.5">
+                            {/* Giảm nhanh */}
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-rose-700 w-20 shrink-0">
+                                Giảm nhanh:
+                              </span>
+                              <div className="flex-1 grid grid-cols-4 gap-1.5">
+                                {[-5, -10, -15, -20].map((pct) => {
+                                  const isActive = reservationRateDiffPercent === pct;
+                                  return (
+                                    <button
+                                      key={pct}
+                                      type="button"
+                                      onClick={() => handleApplyReservationRatePercent(pct)}
+                                      className={`w-full py-1 text-xs font-bold rounded-lg border transition cursor-pointer whitespace-nowrap text-center shadow-2xs ${
+                                        isActive
+                                          ? "bg-rose-600 text-white border-rose-600 ring-2 ring-rose-200"
+                                          : "bg-white hover:bg-rose-50 text-rose-700 border-rose-200"
+                                      }`}
+                                      title={`Giảm ${Math.abs(pct)}% so với giá niêm yết`}
+                                    >
+                                      {pct}%
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Tăng nhanh */}
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-emerald-700 w-20 shrink-0">
+                                Tăng nhanh:
+                              </span>
+                              <div className="flex-1 grid grid-cols-4 gap-1.5">
+                                {[5, 10, 15, 20].map((pct) => {
+                                  const isActive = reservationRateDiffPercent === pct;
+                                  return (
+                                    <button
+                                      key={pct}
+                                      type="button"
+                                      onClick={() => handleApplyReservationRatePercent(pct)}
+                                      className={`w-full py-1 text-xs font-bold rounded-lg border transition cursor-pointer whitespace-nowrap text-center shadow-2xs ${
+                                        isActive
+                                          ? "bg-emerald-700 text-white border-emerald-700 ring-2 ring-emerald-200"
+                                          : "bg-white hover:bg-emerald-50 text-emerald-700 border-emerald-200"
+                                      }`}
+                                      title={`Tăng ${pct}% so với giá niêm yết`}
+                                    >
+                                      +{pct}%
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ) : (
@@ -7485,6 +8024,7 @@ export function StaffRoomsClient({
                               </span>
                             </div>
                           </div>
+                          {renderReservationPriceAdjustmentControls()}
                         </div>
                       </div>
                     </>
@@ -7500,7 +8040,22 @@ export function StaffRoomsClient({
                         type="datetime-local"
                         required
                         value={reservationCheckIn}
-                        onChange={(e) => setReservationCheckIn(e.target.value)}
+                        onChange={(e) => {
+                          const newIn = e.target.value;
+                          setReservationCheckIn(newIn);
+                          if (newIn && reservationCheckOut) {
+                            const inD = new Date(newIn);
+                            const outD = new Date(reservationCheckOut);
+                            if (outD <= inD) {
+                              const outTime = reservationCheckOut.split("T")[1]?.slice(0, 5) || "12:00";
+                              const newOut = new Date(inD.getFullYear(), inD.getMonth(), inD.getDate() + Math.max(1, reservationNightsCount));
+                              const y = newOut.getFullYear();
+                              const m = String(newOut.getMonth() + 1).padStart(2, "0");
+                              const d = String(newOut.getDate()).padStart(2, "0");
+                              setReservationCheckOut(`${y}-${m}-${d}T${outTime}`);
+                            }
+                          }
+                        }}
                         className="w-full h-12 rounded-xl border border-slate-300 bg-white px-4 text-base font-medium text-slate-900 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px] cursor-pointer"
                       />
                     </div>
@@ -7517,6 +8072,64 @@ export function StaffRoomsClient({
                         onChange={(e) => setReservationCheckOut(e.target.value)}
                         className="w-full h-12 rounded-xl border border-slate-300 bg-white px-4 text-base font-medium text-slate-900 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px] cursor-pointer"
                       />
+                    </div>
+                  </div>
+
+                  {/* Thêm nhanh các đêm ( 2, 3,..đêm) */}
+                  <div className="rounded-xl border border-slate-200/90 bg-slate-50/80 p-2.5 sm:p-3 space-y-1.5">
+                    <div className="flex flex-wrap items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                        <VsIcon name="calendar_today" className="text-sm text-emerald-700" />
+                        <span>Chọn nhanh số đêm lưu trú:</span>
+                        <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-900 whitespace-nowrap">
+                          {reservationNightsCount} đêm
+                        </span>
+                      </div>
+                      <span className="text-xs text-slate-500 font-medium">
+                        (Mặc định trả phòng 12:00)
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                      {[1, 2, 3, 4, 5, 7, 10].map((n) => {
+                        const isActive = reservationNightsCount === n;
+                        return (
+                          <button
+                            key={n}
+                            type="button"
+                            onClick={() => handleApplyReservationNights(n)}
+                            className={`px-3 py-1 text-xs rounded-lg transition cursor-pointer whitespace-nowrap ${
+                              isActive
+                                ? "bg-emerald-700 text-white font-bold shadow-xs ring-2 ring-emerald-300"
+                                : "bg-white hover:bg-slate-100 text-slate-700 font-semibold border border-slate-300 shadow-2xs"
+                            }`}
+                            title={`Đặt ${n} đêm tính từ ngày nhận phòng`}
+                          >
+                            {n} đêm
+                          </button>
+                        );
+                      })}
+                      <span className="text-slate-300 mx-0.5">|</span>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyReservationNights(reservationNightsCount + 1)}
+                        className="px-2.5 py-1 text-xs rounded-lg bg-white hover:bg-emerald-50 text-emerald-800 font-bold border border-emerald-300 transition cursor-pointer flex items-center gap-1 whitespace-nowrap shadow-2xs"
+                        title="Tăng thêm 1 đêm"
+                      >
+                        <VsIcon name="add" className="text-xs" />
+                        <span>1 đêm</span>
+                      </button>
+                      {reservationNightsCount > 1 ? (
+                        <button
+                          type="button"
+                          onClick={() => handleApplyReservationNights(reservationNightsCount - 1)}
+                          className="px-2.5 py-1 text-xs rounded-lg bg-white hover:bg-rose-50 text-rose-700 font-bold border border-rose-300 transition cursor-pointer flex items-center gap-1 whitespace-nowrap shadow-2xs"
+                          title="Bớt 1 đêm"
+                        >
+                          <span className="font-bold text-sm leading-none">−</span>
+                          <span>1 đêm</span>
+                        </button>
+                      ) : null}
                     </div>
                   </div>
 

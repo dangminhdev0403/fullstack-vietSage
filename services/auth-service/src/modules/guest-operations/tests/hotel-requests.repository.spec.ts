@@ -84,7 +84,6 @@ describe("HotelRequestsRepository status transition concurrency", () => {
   });
 });
 
-
 describe("HotelRequestsRepository normal completion posting (H2)", () => {
   it("posts folio item using unit price from billingPriceSnapshot even if catalog price changed", async () => {
     const folioItemCreated: any[] = [];
@@ -188,7 +187,9 @@ describe("HotelRequestsRepository normal completion posting (H2)", () => {
             category: { id: "c-1", name: "Dịch vụ phòng", defaultPrice: 0, currency: "VND" },
           },
         }),
-        update: jest.fn().mockResolvedValue({ id: "req-free-1", status: GuestRequestStatus.COMPLETED }),
+        update: jest
+          .fn()
+          .mockResolvedValue({ id: "req-free-1", status: GuestRequestStatus.COMPLETED }),
       },
       folio: {
         findFirst: jest.fn().mockResolvedValue({ id: "folio-1", currency: "VND" }),

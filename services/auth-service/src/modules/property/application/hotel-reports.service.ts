@@ -297,7 +297,7 @@ type StayRecord = {
   guestDisplayName: string;
   guestNationality: string | null;
   guestGender: string | null;
-  status: GuestStayStatus | string;
+  status: string;
   plannedCheckInAt: Date;
   plannedCheckOutAt: Date;
   checkedInAt: Date | null;
@@ -365,8 +365,10 @@ export class HotelReportsService {
     const hotelName = scope.hotel?.name || "Khách sạn";
     const currency = "VND";
 
-    const { startPlain, endPlain, startDate, endDate, rangeKey } =
-      this.resolveDateRange(query, timeZone);
+    const { startPlain, endPlain, startDate, endDate, rangeKey } = this.resolveDateRange(
+      query,
+      timeZone,
+    );
 
     // Ensure our single DB query batch also covers the 12-month trend window
     const twelveMonthsStartPlain = endPlain
@@ -382,9 +384,7 @@ export class HotelReportsService {
     const roomWhere: Prisma.RoomWhereInput =
       scope.allowedRoomId !== null ? { hotelId, id: scope.allowedRoomId } : { hotelId };
     const stayWhere: Prisma.GuestStayWhereInput =
-      scope.allowedRoomId !== null
-        ? { hotelId, roomId: scope.allowedRoomId }
-        : { hotelId };
+      scope.allowedRoomId !== null ? { hotelId, roomId: scope.allowedRoomId } : { hotelId };
     const paymentWhere: Prisma.PaymentWhereInput =
       scope.allowedRoomId !== null
         ? { hotelId, folio: { roomId: scope.allowedRoomId } }
@@ -601,9 +601,7 @@ export class HotelReportsService {
     let folioOtherRevenue = 0;
     for (const item of folioItems) {
       if (item.itemType === FolioItemType.DISCOUNT) {
-        const discVal = Math.abs(
-          toNumber(item.discountAmountSnapshot ?? item.totalSnapshot),
-        );
+        const discVal = Math.abs(toNumber(item.discountAmountSnapshot ?? item.totalSnapshot));
         folioOtherRevenue -= discVal;
         continue;
       }
@@ -618,10 +616,7 @@ export class HotelReportsService {
     }
 
     // 2. Room Nights, Accrued Stay Room Revenue & Occupancy calculation in [startPlain, endPlain]
-    const daysInRange = Math.max(
-      1,
-      startPlain.until(endPlain, { largestUnit: "days" }).days + 1,
-    );
+    const daysInRange = Math.max(1, startPlain.until(endPlain, { largestUnit: "days" }).days + 1);
     const availableRoomNights = totalRooms * daysInRange;
 
     let totalRoomNights = 0;
@@ -629,11 +624,7 @@ export class HotelReportsService {
     for (const stay of stays) {
       const stayStart = stay.checkedInAt || stay.plannedCheckInAt;
       const stayEnd = stay.checkedOutAt || stay.plannedCheckOutAt;
-      const activeDatesInPeriod = getStayActivePlainDates(
-        stayStart,
-        stayEnd,
-        timeZone,
-      ).filter(
+      const activeDatesInPeriod = getStayActivePlainDates(stayStart, stayEnd, timeZone).filter(
         (d) =>
           Temporal.PlainDate.compare(d, startPlain) >= 0 &&
           Temporal.PlainDate.compare(d, endPlain) <= 0,
@@ -646,23 +637,17 @@ export class HotelReportsService {
     }
 
     // 3. Reconcile collected payments vs folio / stay charges without fabricated 85%/15% ratios
-    const totalCollected = succeededPayments.reduce(
-      (sum, p) => sum + toNumber(p.paidAmount),
-      0,
-    );
+    const totalCollected = succeededPayments.reduce((sum, p) => sum + toNumber(p.paidAmount), 0);
 
     const effectiveServiceRevenue = folioServiceRevenue;
     const effectiveOtherRevenue = folioOtherRevenue;
-    let effectiveRoomRevenue =
-      folioRoomRevenue > 0 ? folioRoomRevenue : accruedStayRoomRevenue;
+    let effectiveRoomRevenue = folioRoomRevenue > 0 ? folioRoomRevenue : accruedStayRoomRevenue;
 
     const totalBilledRevenue =
       effectiveRoomRevenue + effectiveServiceRevenue + effectiveOtherRevenue;
 
-    let effectiveTotalRevenue =
-      totalBilledRevenue > 0
-        ? Math.max(totalCollected, totalBilledRevenue)
-        : totalCollected;
+    const effectiveTotalRevenue =
+      totalBilledRevenue > 0 ? Math.max(totalCollected, totalBilledRevenue) : totalCollected;
 
     if (effectiveTotalRevenue > totalBilledRevenue && effectiveRoomRevenue === 0) {
       effectiveRoomRevenue = Math.max(
@@ -677,9 +662,7 @@ export class HotelReportsService {
         : 0;
 
     const currentOccupancyRate =
-      totalRooms > 0
-        ? Math.min(100, Math.round((occupiedRoomsNow / totalRooms) * 1000) / 10)
-        : 0;
+      totalRooms > 0 ? Math.min(100, Math.round((occupiedRoomsNow / totalRooms) * 1000) / 10) : 0;
 
     // ADR = Room Revenue / Total Room Nights
     const adr =
@@ -732,19 +715,10 @@ export class HotelReportsService {
     );
 
     // 7. Revenue by Staff Member
-    const revenueByStaff = this.buildStaffBreakdown(
-      succeededPayments,
-      stays,
-      staffAssignments,
-    );
+    const revenueByStaff = this.buildStaffBreakdown(succeededPayments, stays, staffAssignments);
 
     // 8. Guest Analytics (Nationalities & Demographics)
-    const guestAnalytics = this.buildGuestAnalytics(
-      stays,
-      startPlain,
-      endPlain,
-      timeZone,
-    );
+    const guestAnalytics = this.buildGuestAnalytics(stays, startPlain, endPlain, timeZone);
 
     // 9. Payment Methods Breakdown
     const paymentMethods = this.buildPaymentMethodsBreakdown(succeededPayments);
@@ -906,9 +880,7 @@ export class HotelReportsService {
     for (const item of folioItems) {
       const key = dateToPlainDate(item.postedAt, timeZone).toString();
       if (item.itemType === FolioItemType.DISCOUNT) {
-        const discVal = Math.abs(
-          toNumber(item.discountAmountSnapshot ?? item.totalSnapshot),
-        );
+        const discVal = Math.abs(toNumber(item.discountAmountSnapshot ?? item.totalSnapshot));
         otherChargeMap.set(key, (otherChargeMap.get(key) || 0) - discVal);
         continue;
       }
@@ -965,24 +937,14 @@ export class HotelReportsService {
       const dayServiceCharge = serviceChargeMap.get(dateKey) || 0;
       const dayOtherCharge = otherChargeMap.get(dateKey) || 0;
 
-      const roomRevenue =
-        dayRoomCharge > 0 ? dayRoomCharge : accruedRoomRevenue;
+      const roomRevenue = dayRoomCharge > 0 ? dayRoomCharge : accruedRoomRevenue;
       const serviceRevenue = dayServiceCharge;
-      const billedTotal = Math.max(
-        0,
-        roomRevenue + serviceRevenue + dayOtherCharge,
-      );
-      const totalRevenue =
-        billedTotal > 0 ? Math.max(billedTotal, dayTotalPaid) : dayTotalPaid;
+      const billedTotal = Math.max(0, roomRevenue + serviceRevenue + dayOtherCharge);
+      const totalRevenue = billedTotal > 0 ? Math.max(billedTotal, dayTotalPaid) : dayTotalPaid;
 
       const occ =
-        totalRooms > 0
-          ? Math.min(100, Math.round((roomsOccupied / totalRooms) * 1000) / 10)
-          : 0;
-      const adr =
-        roomsOccupied > 0
-          ? Math.round((roomRevenue || totalRevenue) / roomsOccupied)
-          : 0;
+        totalRooms > 0 ? Math.min(100, Math.round((roomsOccupied / totalRooms) * 1000) / 10) : 0;
+      const adr = roomsOccupied > 0 ? Math.round((roomRevenue || totalRevenue) / roomsOccupied) : 0;
 
       days.push({
         date: dateKey,
@@ -1048,9 +1010,7 @@ export class HotelReportsService {
           Temporal.PlainDate.compare(iPlain, monthEndPlain) <= 0
         ) {
           if (item.itemType === FolioItemType.DISCOUNT) {
-            const disc = Math.abs(
-              toNumber(item.discountAmountSnapshot ?? item.totalSnapshot),
-            );
+            const disc = Math.abs(toNumber(item.discountAmountSnapshot ?? item.totalSnapshot));
             monthFolioOther -= disc;
             continue;
           }
@@ -1079,30 +1039,21 @@ export class HotelReportsService {
         if (activeInMonth.length > 0) {
           bookingCount++;
           roomsSold += activeInMonth.length;
-          accruedMonthRoomRevenue +=
-            resolveStayNightlyRate(stay, 0) * activeInMonth.length;
+          accruedMonthRoomRevenue += resolveStayNightlyRate(stay, 0) * activeInMonth.length;
         }
       }
 
-      const monthRoomRevenue =
-        monthFolioRoom > 0 ? monthFolioRoom : accruedMonthRoomRevenue;
+      const monthRoomRevenue = monthFolioRoom > 0 ? monthFolioRoom : accruedMonthRoomRevenue;
       const monthServiceRevenue = monthFolioService;
-      const monthBilled = Math.max(
-        0,
-        monthRoomRevenue + monthServiceRevenue + monthFolioOther,
-      );
-      const monthRevenue =
-        monthBilled > 0 ? Math.max(monthBilled, monthPaid) : monthPaid;
+      const monthBilled = Math.max(0, monthRoomRevenue + monthServiceRevenue + monthFolioOther);
+      const monthRevenue = monthBilled > 0 ? Math.max(monthBilled, monthPaid) : monthPaid;
 
       const availableNights = totalRooms * daysInMonth;
       const averageOccupancy =
         availableNights > 0
           ? Math.min(100, Math.round((roomsSold / availableNights) * 1000) / 10)
           : 0;
-      const adr =
-        roomsSold > 0
-          ? Math.round((monthRoomRevenue || monthRevenue) / roomsSold)
-          : 0;
+      const adr = roomsSold > 0 ? Math.round((monthRoomRevenue || monthRevenue) / roomsSold) : 0;
 
       months.push({
         month: monthKey,
@@ -1166,11 +1117,7 @@ export class HotelReportsService {
       const code = (stay.reservationCode || "").toUpperCase();
       const group = (stay.reservation?.groupCode || "").toUpperCase();
       const rate = resolveStayNightlyRate(stay, baseAdr);
-      const guests = Math.max(
-        1,
-        stay.occupants.length,
-        stay.reservation?.guestCount || 1,
-      );
+      const guests = Math.max(1, stay.occupants.length, stay.reservation?.guestCount || 1);
 
       const sStart = stay.checkedInAt || stay.plannedCheckInAt;
       const sEnd = stay.checkedOutAt || stay.plannedCheckOutAt;
@@ -1201,7 +1148,9 @@ export class HotelReportsService {
           );
         } else if (cat === "CORPORATE") {
           target = getOrCreate(
-            partnerName ? `CORP_${partnerName.toUpperCase().replace(/\s+/g, "_")}` : "CORPORATE_OTHER",
+            partnerName
+              ? `CORP_${partnerName.toUpperCase().replace(/\s+/g, "_")}`
+              : "CORPORATE_OTHER",
             partnerName ? `Doanh nghiệp - ${partnerName}` : "Khách hàng doanh nghiệp",
             "CORPORATE",
           );
@@ -1219,11 +1168,7 @@ export class HotelReportsService {
       } else if (code.startsWith("OTA-") || group.startsWith("CHANNEX:")) {
         target = getOrCreate("OTA_OTHER", "Kênh OTA khác", "OTA");
       } else if (code.startsWith("VSH_") || stay.reservation) {
-        target = getOrCreate(
-          "DIRECT",
-          "Đặt phòng trực tiếp (Website / Hotline)",
-          "DIRECT",
-        );
+        target = getOrCreate("DIRECT", "Đặt phòng trực tiếp (Website / Hotline)", "DIRECT");
       } else {
         target = getOrCreate("WALK_IN", "Khách vãng lai tại quầy", "WALK_IN");
       }
@@ -1251,8 +1196,7 @@ export class HotelReportsService {
 
     return list
       .map((item) => {
-        const share =
-          rawSum > 0 ? Math.round((item.revenue / rawSum) * 1000) / 10 : 0;
+        const share = rawSum > 0 ? Math.round((item.revenue / rawSum) * 1000) / 10 : 0;
         const normalizedRevenue =
           totalRevenue > 0 && rawSum > 0
             ? Math.round((item.revenue / rawSum) * totalRevenue)
@@ -1299,9 +1243,7 @@ export class HotelReportsService {
 
     for (const stay of stays) {
       const ownerId = stay.reservation?.bookingOwnerUserId || "UNASSIGNED";
-      const assigned = staffAssignments.find(
-        (s) => s.userId === ownerId || s.user?.id === ownerId,
-      );
+      const assigned = staffAssignments.find((s) => s.userId === ownerId || s.user?.id === ownerId);
       const ownerName =
         ownerId === "UNASSIGNED"
           ? "Chưa phân công"
@@ -1354,11 +1296,7 @@ export class HotelReportsService {
       totalOriginal += orig;
       totalPaid += paid;
       totalOutstanding += out;
-      if (
-        r.status === "OPEN" ||
-        r.status === "PARTIAL" ||
-        r.status === "PARTIALLY_COLLECTED"
-      ) {
+      if (r.status === "OPEN" || r.status === "PARTIAL" || r.status === "PARTIALLY_COLLECTED") {
         openCount++;
         if (r.dueDate && new Date(r.dueDate) < now) {
           overdueCount++;
@@ -1456,8 +1394,7 @@ export class HotelReportsService {
       if (!entry) {
         entry = {
           staffId: uid,
-          staffName:
-            p.createdBy?.fullName || p.createdBy?.email || "Thu ngân lễ tân",
+          staffName: p.createdBy?.fullName || p.createdBy?.email || "Thu ngân lễ tân",
           role: "Thu ngân",
           collectedAmount: 0,
           transactionCount: 0,
@@ -1507,10 +1444,7 @@ export class HotelReportsService {
     endPlain: Temporal.PlainDate,
     timeZone: string,
   ) {
-    const nationStatMap = new Map<
-      string,
-      { guestCount: number; totalRoomNights: number }
-    >();
+    const nationStatMap = new Map<string, { guestCount: number; totalRoomNights: number }>();
     let maleCount = 0;
     let femaleCount = 0;
     let otherGender = 0;
@@ -1599,13 +1533,9 @@ export class HotelReportsService {
         domestic: domesticCount,
         international: internationalCount,
         domesticPercentage:
-          totalGuests > 0
-            ? Math.round((domesticCount / safeTotalGuests) * 1000) / 10
-            : 0,
+          totalGuests > 0 ? Math.round((domesticCount / safeTotalGuests) * 1000) / 10 : 0,
         internationalPercentage:
-          totalGuests > 0
-            ? Math.round((internationalCount / safeTotalGuests) * 1000) / 10
-            : 0,
+          totalGuests > 0 ? Math.round((internationalCount / safeTotalGuests) * 1000) / 10 : 0,
       },
     };
   }

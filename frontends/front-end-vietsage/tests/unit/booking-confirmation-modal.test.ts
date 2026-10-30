@@ -110,9 +110,9 @@ describe("BookingConfirmationModal & StaffRoomsResource query-resource integrati
     );
 
     assert.ok(!panelSource.includes("requestInternalApiEnvelope"));
-    assert.ok(panelSource.includes("staffRoomsRepository.listBookingPayments"));
+    assert.ok(panelSource.includes("queries.bookingPayments.options"));
     assert.ok(panelSource.includes("staffRoomsRepository.createBookingPayment"));
-    assert.ok(panelSource.includes("staffRoomsRepository.listReceivables"));
+    assert.ok(panelSource.includes("queries.receivables.options"));
     assert.ok(panelSource.includes("staffRoomsRepository.transferStayToReceivable"));
     assert.ok(panelSource.includes("staffRoomsRepository.collectReceivable"));
   });

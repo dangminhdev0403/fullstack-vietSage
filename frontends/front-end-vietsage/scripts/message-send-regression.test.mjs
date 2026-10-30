@@ -38,8 +38,9 @@ test("frontdesk realtime and reply success update exact resource thread keys", (
   assert.match(staffSource, /const threadListOptions = hotelMessages\.infiniteQueries\.threads\.options/);
   assert.match(staffSource, /const detailOptions = hotelMessages\.infiniteQueries\.detail\.options/);
   assert.match(staffSource, /const threadDetailKey = \(threadId: string\)[\s\S]{0,160}\.queryKey/);
-  assert.match(staffSource, /setQueryData<InfiniteData<ThreadPage>>\(\s*threadDetailKey\(threadId\)/);
-  assert.match(staffSource, /setQueryData<InfiniteData<ThreadList>>\(threadListOptions\.queryKey/);
+  assert.match(staffSource, /appendMessageToThreadCache\(queryClient, threadDetailKey\(thread\.id\), message\)/);
+  assert.match(staffSource, /setQueryData<\{ pages: ThreadPage\[\]; pageParams: unknown\[\] \}>\(\s*threadDetailKey\(variables\.threadId\)/);
+  assert.match(staffSource, /setQueryData<InfiniteData<ThreadList>>\(\s*threadListOptions\.queryKey/);
   assert.doesNotMatch(staffSource, /\["hotel-message-thread", hotelId/);
   assert.doesNotMatch(staffSource, /\["hotel-message-threads", hotelId/);
 });

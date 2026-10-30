@@ -19,7 +19,14 @@ export const folioListSelect = {
   closedAt: true,
   createdAt: true,
   updatedAt: true,
-  room: { select: { id: true, roomNumber: true, price: true, roomType: { select: { id: true, name: true, basePrice: true } } } },
+  room: {
+    select: {
+      id: true,
+      roomNumber: true,
+      price: true,
+      roomType: { select: { id: true, name: true, basePrice: true } },
+    },
+  },
   stay: {
     select: {
       id: true,
@@ -53,11 +60,21 @@ export const folioListSelect = {
     },
   },
   invoices: {
-    select: { id: true, invoiceNumber: true, status: true, totalAmount: true, paidAmount: true, balanceAmount: true },
+    select: {
+      id: true,
+      invoiceNumber: true,
+      status: true,
+      totalAmount: true,
+      paidAmount: true,
+      balanceAmount: true,
+    },
     orderBy: [{ issuedAt: "desc" }, { id: "desc" }],
     take: 1,
   },
-  items: { where: { itemType: "ROOM_CHARGE", voidedAt: null }, select: { id: true, totalSnapshot: true } },
+  items: {
+    where: { itemType: "ROOM_CHARGE", voidedAt: null },
+    select: { id: true, totalSnapshot: true },
+  },
 } satisfies Prisma.FolioSelect;
 
 export const folioDetailInclude = {
@@ -226,8 +243,26 @@ export class BillingRepository {
         openedAt: true,
         createdAt: true,
         updatedAt: true,
-        room: { select: { id: true, roomNumber: true, price: true, roomType: { select: { id: true, name: true, basePrice: true } } } },
-        invoices: { select: { id: true, invoiceNumber: true, status: true, totalAmount: true, paidAmount: true, balanceAmount: true }, orderBy: [{ issuedAt: "desc" }, { id: "desc" }], take: 1 },
+        room: {
+          select: {
+            id: true,
+            roomNumber: true,
+            price: true,
+            roomType: { select: { id: true, name: true, basePrice: true } },
+          },
+        },
+        invoices: {
+          select: {
+            id: true,
+            invoiceNumber: true,
+            status: true,
+            totalAmount: true,
+            paidAmount: true,
+            balanceAmount: true,
+          },
+          orderBy: [{ issuedAt: "desc" }, { id: "desc" }],
+          take: 1,
+        },
         stay: {
           select: {
             id: true,

@@ -201,10 +201,9 @@ export default function RegisterPage() {
   const [isHeroFading, setIsHeroFading] = useState(false);
 
   useEffect(() => {
-    let fadeTimer: number | undefined;
     let switchTimer: number | undefined;
 
-    fadeTimer = window.setTimeout(() => {
+    const fadeTimer = window.setTimeout(() => {
       setIsHeroFading(true);
 
       switchTimer = window.setTimeout(() => {

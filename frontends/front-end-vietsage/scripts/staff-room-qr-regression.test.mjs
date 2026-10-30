@@ -11,7 +11,7 @@ const staffRoomsSource = readFileSync(
 );
 const ownerQrUtilsSource = readFileSync(
   new URL(
-    "../src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/room-qr-utils.ts",
+    "../src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/room-management/room-qr-utils.ts",
     import.meta.url,
   ),
   "utf8",

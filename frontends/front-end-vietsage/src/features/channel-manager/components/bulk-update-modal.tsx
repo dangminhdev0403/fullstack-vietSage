@@ -17,6 +17,7 @@ import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 interface BulkUpdateModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onUpdated?: () => Promise<unknown>;
   hotelId: string;
   roomTypes: RoomTypeInventory[];
   defaultDateFrom?: string;
@@ -167,16 +168,19 @@ function calculateNewRate(
 export function BulkUpdateModal({
   isOpen,
   onClose,
+  onUpdated,
   hotelId,
   roomTypes,
   defaultDateFrom,
   defaultDateTo,
   roleScope = "owner",
 }: BulkUpdateModalProps) {
-  const { bulkUpdate, isBulkUpdating } = useBulkUpdateRestrictions({
+  const { bulkUpdate, isBulkUpdating: isMutationPending } = useBulkUpdateRestrictions({
     hotelId,
     roleScope,
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isBulkUpdating = isMutationPending || isSubmitting;
 
   const todayStr = getTodayInVietnam();
   const [dateFrom, setDateFrom] = useState(() =>
@@ -363,6 +367,7 @@ export function BulkUpdateModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isBulkUpdating) return;
 
     if (selectedRoomTypes.length === 0) {
       await showErrorAlert(
@@ -512,6 +517,7 @@ export function BulkUpdateModal({
     }
 
     try {
+      setIsSubmitting(true);
       const res = await bulkUpdate({
         roomTypeIds: validRoomTypeIds,
         dateFrom,
@@ -525,6 +531,7 @@ export function BulkUpdateModal({
         stopSell: stopSellVal,
       });
 
+      await onUpdated?.();
       await showSuccessAlert(
         "Cập nhật thành công",
         res.message || `Đã áp dụng cập nhật cho ${res.affectedCells} ô lịch.`,
@@ -532,6 +539,8 @@ export function BulkUpdateModal({
       onClose();
     } catch (err) {
       await showErrorAlert("Cập nhật thất bại", err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -560,6 +569,7 @@ export function BulkUpdateModal({
           <button
             type="button"
             onClick={onClose}
+            disabled={isBulkUpdating}
             aria-label="Đóng modal"
             className="p-2 rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors"
           >

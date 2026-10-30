@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   escapeHtml,
   showConfirmDialog,
@@ -22,6 +22,7 @@ import type {
   IssueInvoiceAdjustment,
   Payment,
 } from "@/features/billing/types/billing-contract";
+import { folioPreviewResource } from "@/features/billing/resources/folio-preview-resource";
 import { formatMoney } from "@/features/billing/utils/money";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
@@ -273,9 +274,14 @@ export function StaffBillingWorkspaceClient({
   const [masterInvoiceMode, setMasterInvoiceMode] = useState<"MASTER" | "SPLIT">("MASTER");
   const [bankCopied, setBankCopied] = useState<boolean>(false);
   const [previewFolioId, setPreviewFolioId] = useState<string | null>(null);
-  const [previewFolioLoading, setPreviewFolioLoading] = useState<boolean>(false);
-  const [previewFolioSummary, setPreviewFolioSummary] = useState<FolioSummary | null>(null);
-  const [previewFolioItems, setPreviewFolioItems] = useState<FolioItem[]>([]);
+  const previewQuery = useQuery({
+    ...folioPreviewResource.bind({ hotelId }).queries.detail.options(previewFolioId ?? ""),
+    enabled: Boolean(previewFolioId),
+    staleTime: 0,
+  });
+  const previewFolioLoading = previewQuery.isFetching;
+  const previewFolioSummary = previewFolioId ? previewQuery.data?.summary ?? null : null;
+  const previewFolioItems = previewFolioId ? previewQuery.data?.items ?? [] : [];
 
   const initialFolio = useMemo(() => {
     if (queryFolioId) {
@@ -308,19 +314,15 @@ export function StaffBillingWorkspaceClient({
   const [prevSelectedFolioId, setPrevSelectedFolioId] =
     useState(selectedFolioId);
 
-  useEffect(() => {
-    if (!selectedFolioId && initialFolio?.id) {
-      setSelectedFolioId(initialFolio.id);
-    }
-  }, [initialFolio?.id, selectedFolioId]);
+  if (!selectedFolioId && initialFolio?.id) {
+    setSelectedFolioId(initialFolio.id);
+  }
 
-  const lastQueryFolioIdRef = useRef(queryFolioId);
-  useEffect(() => {
-    if (queryFolioId && queryFolioId !== lastQueryFolioIdRef.current) {
-      lastQueryFolioIdRef.current = queryFolioId;
-      setSelectedFolioId(queryFolioId);
-    }
-  }, [queryFolioId]);
+  const [lastQueryFolioId, setLastQueryFolioId] = useState(queryFolioId);
+  if (queryFolioId !== lastQueryFolioId) {
+    setLastQueryFolioId(queryFolioId);
+    if (queryFolioId) setSelectedFolioId(queryFolioId);
+  }
   const [summary, setSummary] = useState<FolioSummary | null>(
     initialFolio ?? null,
   );
@@ -347,8 +349,7 @@ export function StaffBillingWorkspaceClient({
     clientRequestId: string;
   } | null>(null);
 
-  useEffect(() => {
-    if (selectedFolioId !== prevSelectedFolioId) {
+  if (selectedFolioId !== prevSelectedFolioId) {
       setPrevSelectedFolioId(selectedFolioId);
       setDiscountInput("");
       setSurchargeInput("");
@@ -357,10 +358,11 @@ export function StaffBillingWorkspaceClient({
       setCashGivenInput("");
       setReconciliations({});
       setCheckoutError("");
-      checkoutAttemptIdsRef.current = {};
-      checkoutPaymentAttemptRef.current = null;
-    }
-  }, [selectedFolioId, prevSelectedFolioId]);
+  }
+  useEffect(() => {
+    checkoutAttemptIdsRef.current = {};
+    checkoutPaymentAttemptRef.current = null;
+  }, [selectedFolioId]);
 
   const filteredFolios = useMemo(() => {
     return folios.filter((folio) => {
@@ -557,16 +559,19 @@ export function StaffBillingWorkspaceClient({
 
   // Helper tính tiền cho từng folio bất kỳ trong danh sách (tính chuẩn theo giá đã chốt, giá đặt trước hoặc giá cấu hình)
   const getFolioRoomCharge = useCallback((f: FolioListItem): number => {
+    if (f.postedRoomCharge !== undefined && f.postedRoomCharge !== null) {
+      return toNumber(f.postedRoomCharge);
+    }
     if (f.estimatedRoomCharge?.subtotal) {
       return toNumber(f.estimatedRoomCharge.subtotal);
     }
     const nightlyRate = toNumber(
       f.stay?.nightlyRateSnapshot ??
         f.stay?.baseNightlyRateSnapshot ??
-        (f.stay as any)?.reservation?.nightlyRateSnapshot ??
-        (f.stay as any)?.reservation?.baseNightlyRateSnapshot ??
+        f.stay?.reservation?.nightlyRateSnapshot ??
+        f.stay?.reservation?.baseNightlyRateSnapshot ??
         f.room?.price ??
-        (f.room as any)?.roomType?.basePrice ??
+        f.room?.roomType?.basePrice ??
         0,
     );
 
@@ -748,16 +753,14 @@ export function StaffBillingWorkspaceClient({
   }, [billingGroups, search]);
 
   // Tự động khởi tạo selectedGroupId và selectedGroupFolioIds khi có billingGroups
-  useEffect(() => {
-    if (!selectedGroupId && billingGroups.length > 0) {
+  if (!selectedGroupId && billingGroups.length > 0) {
       const firstGroup = billingGroups[0];
       setSelectedGroupId(firstGroup.id);
       const openIds = firstGroup.folios
         .filter((f) => f.status !== "CLOSED")
         .map((f) => f.id);
-      setSelectedGroupFolioIds(new Set(openIds.length > 0 ? openIds : firstGroup.folioIds));
-    }
-  }, [billingGroups, selectedGroupId]);
+      setSelectedGroupFolioIds(new Set(openIds));
+  }
 
   const selectGroup = useCallback((group: BillingGroup) => {
     setSelectedGroupId(group.id);
@@ -765,7 +768,7 @@ export function StaffBillingWorkspaceClient({
     const openIds = group.folios
       .filter((f) => f.status !== "CLOSED")
       .map((f) => f.id);
-    setSelectedGroupFolioIds(new Set(openIds.length > 0 ? openIds : group.folioIds));
+    setSelectedGroupFolioIds(new Set(openIds));
     setGroupTableSearch("");
   }, []);
 
@@ -780,7 +783,7 @@ export function StaffBillingWorkspaceClient({
       const openIds = activeGroup.folios
         .filter((f) => f.status !== "CLOSED")
         .map((f) => f.id);
-      setSelectedGroupFolioIds(new Set(openIds.length > 0 ? openIds : activeGroup.folioIds));
+      setSelectedGroupFolioIds(new Set(openIds));
     } else {
       setSelectedGroupFolioIds(
         new Set(
@@ -811,44 +814,47 @@ export function StaffBillingWorkspaceClient({
     });
   }, [activeGroup, groupTableSearch, groupTableStatusFilter]);
 
-  // Modal preview folio items
-  useEffect(() => {
-    if (!previewFolioId) {
-      setPreviewFolioSummary(null);
-      setPreviewFolioItems([]);
-      return;
-    }
-    let cancelled = false;
-    setPreviewFolioLoading(true);
-    Promise.all([
-      requestInternalApiEnvelope<FolioSummary>(
-        `${apiBase}/folios/${encodeURIComponent(previewFolioId)}/summary`,
-        { method: "GET" },
-      ),
-      requestInternalApiEnvelope<FolioItemsPage>(
-        `${apiBase}/folios/${encodeURIComponent(previewFolioId)}/items?page=1&limit=100`,
-        { method: "GET" },
-      ),
-    ])
-      .then(([sRes, iRes]) => {
-        if (cancelled) return;
-        setPreviewFolioSummary(sRes.data);
-        setPreviewFolioItems(iRes.data.items);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setPreviewFolioLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [previewFolioId, apiBase]);
-
   const previewFolioItem = useMemo(() => {
     if (!previewFolioId) return null;
     return folios.find((f) => f.id === previewFolioId) ?? null;
   }, [previewFolioId, folios]);
+
+  const previewFolioMetrics = useMemo(() => {
+    if (!previewFolioItem) return { roomCharge: 0, serviceCharge: 0, total: 0, nights: 1 };
+
+    const roomItems = previewFolioItems.filter(
+      (it) => it.itemType === "ROOM_CHARGE" && !isFolioItemVoided(it),
+    );
+    const serviceItems = previewFolioItems.filter(
+      (it) => (it.itemType === "SERVICE" || it.itemType === "MANUAL_CHARGE") && !isFolioItemVoided(it),
+    );
+
+    let roomCharge = 0;
+    let nights = 1;
+    if (roomItems.length > 0) {
+      roomCharge = roomItems.reduce((sum, it) => sum + toNumber(it.totalSnapshot), 0);
+      nights = roomItems.reduce((sum, it) => sum + Number(it.quantity || 1), 0);
+    } else if (previewFolioSummary?.estimatedRoomCharge?.subtotal) {
+      roomCharge = toNumber(previewFolioSummary.estimatedRoomCharge.subtotal);
+      nights = Number(previewFolioSummary.estimatedRoomCharge.nights || 1);
+    } else {
+      roomCharge = getFolioRoomCharge(previewFolioItem);
+      const estNights = Number(previewFolioItem.estimatedRoomCharge?.nights ?? 0);
+      nights = estNights > 0 ? estNights : 1;
+    }
+
+    const serviceCharge = serviceItems.reduce((sum, it) => sum + toNumber(it.totalSnapshot), 0);
+    const total = previewFolioItems.length > 0
+      ? previewFolioItems.filter((it) => !isFolioItemVoided(it)).reduce((sum, it) => sum + toNumber(it.totalSnapshot), 0)
+      : getFolioTotalAmount(previewFolioItem);
+
+    return {
+      roomCharge,
+      serviceCharge,
+      total: Math.max(total, roomCharge + serviceCharge),
+      nights: Math.max(1, nights),
+    };
+  }, [previewFolioItem, previewFolioItems, previewFolioSummary, getFolioRoomCharge, getFolioTotalAmount]);
 
   const groupRoomChargeTotal = useMemo(() => {
     return selectedGroupFolios.reduce((sum, f) => sum + getFolioRoomCharge(f), 0);
@@ -1667,23 +1673,30 @@ export function StaffBillingWorkspaceClient({
                       <th className="py-2 px-3 w-[8%] text-center whitespace-nowrap">
                         <input
                           type="checkbox"
-                          checked={filteredGroupRooms.length > 0 && filteredGroupRooms.every((f) => selectedGroupFolioIds.has(f.id))}
+                          disabled={filteredGroupRooms.length === 0 || filteredGroupRooms.every((f) => f.status === "CLOSED")}
+                          checked={
+                            filteredGroupRooms.filter((f) => f.status !== "CLOSED").length > 0 &&
+                            filteredGroupRooms
+                              .filter((f) => f.status !== "CLOSED")
+                              .every((f) => selectedGroupFolioIds.has(f.id))
+                          }
                           onChange={(e) => {
+                            const openFolios = filteredGroupRooms.filter((f) => f.status !== "CLOSED");
                             if (e.target.checked) {
                               setSelectedGroupFolioIds((prev) => {
                                 const next = new Set(prev);
-                                filteredGroupRooms.forEach((f) => next.add(f.id));
+                                openFolios.forEach((f) => next.add(f.id));
                                 return next;
                               });
                             } else {
                               setSelectedGroupFolioIds((prev) => {
                                 const next = new Set(prev);
-                                filteredGroupRooms.forEach((f) => next.delete(f.id));
+                                openFolios.forEach((f) => next.delete(f.id));
                                 return next;
                               });
                             }
                           }}
-                          className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                          className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 cursor-pointer disabled:opacity-40"
                         />
                       </th>
                       <th className="py-2 px-3 w-[22%] whitespace-nowrap">Phòng</th>
@@ -2335,12 +2348,17 @@ export function StaffBillingWorkspaceClient({
 
             {/* Chân ghim cố định cho nút thanh toán đoàn (Sticky Action Footer) */}
             <div className="shrink-0 border-t border-[#d4af37]/40 bg-[#140c03] p-3 shadow-[0_-4px_16px_rgba(0,0,0,0.5)]">
-              {selectedGroupFolios.length > 0 &&
-              selectedGroupFolios.every((f) => f.status === "CLOSED") ? (
+              {(selectedGroupFolios.length > 0 &&
+                selectedGroupFolios.every((f) => f.status === "CLOSED")) ||
+              (activeGroup &&
+                activeGroup.folios.length > 0 &&
+                activeGroup.folios.every((f) => f.status === "CLOSED")) ? (
                 <button
                   type="button"
                   onClick={async () => {
-                    const closedInvoiceId = selectedGroupFolios
+                    const closedInvoiceId = (
+                      selectedGroupFolios.length > 0 ? selectedGroupFolios : activeGroup.folios
+                    )
                       .map((f) => getFolioInvoiceId(f))
                       .find(Boolean);
                     if (!closedInvoiceId) {
@@ -2810,125 +2828,47 @@ export function StaffBillingWorkspaceClient({
                   </>
                 )}
 
-                {/* Hỗ trợ phương thức thanh toán */}
+                {/* Phương thức thanh toán khi checkout */}
                 {selectedFolio?.status !== "CLOSED" ? (
-                  <div className="space-y-2 border-t border-[#d4af37]/25 pt-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <dt className="text-amber-100 font-extrabold text-xs uppercase tracking-wider min-w-0">
-                        Nguồn tiền đối soát
-                      </dt>
-                      <dd className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setCheckoutPaymentMethod("CASH")}
-                          className={`rounded-lg px-2 py-1 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-                            checkoutPaymentMethod === "CASH"
-                              ? "bg-[#d4af37] text-slate-950 font-black shadow-xs"
-                              : "bg-[#1c1204] text-[#ffe270] border border-[#d4af37]/40 hover:bg-[#d4af37]/20"
-                          }`}
-                        >
-                          💵 TM
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setCheckoutPaymentMethod("BANK_TRANSFER")}
-                          className={`rounded-lg px-2 py-1 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-                            checkoutPaymentMethod === "BANK_TRANSFER"
-                              ? "bg-[#d4af37] text-slate-950 font-black shadow-xs"
-                              : "bg-[#1c1204] text-[#ffe270] border border-[#d4af37]/40 hover:bg-[#d4af37]/20"
-                          }`}
-                        >
-                          🏦 CK
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setCheckoutPaymentMethod("CARD")}
-                          className={`rounded-lg px-2 py-1 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-                            checkoutPaymentMethod === "CARD"
-                              ? "bg-[#d4af37] text-slate-950 font-black shadow-xs"
-                              : "bg-[#1c1204] text-[#ffe270] border border-[#d4af37]/40 hover:bg-[#d4af37]/20"
-                          }`}
-                        >
-                          💳 Thẻ
-                        </button>
-                      </dd>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-2">
-                      <dt className="text-amber-100 font-extrabold text-xs sm:text-sm min-w-0 truncate">
-                        {checkoutPaymentMethod === "CASH"
-                          ? "Nhận tiền mặt"
-                          : checkoutPaymentMethod === "BANK_TRANSFER"
-                          ? "Tiền chuyển khoản"
-                          : "Tiền quẹt thẻ"}
-                      </dt>
-                      <dd className="flex-1 min-w-0 max-w-[150px] shrink-0">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={cashGivenInput}
-                          onChange={(e) =>
-                            setCashGivenInput(formatNumberInput(e.target.value))
-                          }
-                          placeholder="0"
-                          className="h-9 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-2.5 py-1 text-right text-sm font-black text-[#ffe270] placeholder-[#ffe270]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] shadow-inner"
-                        />
-                      </dd>
-                    </div>
-
-                    {/* Preset chips tiền đưa */}
-                    <div className="flex flex-nowrap gap-1 justify-end overflow-x-auto no-scrollbar pt-0.5">
+                  <div className="flex items-center justify-between gap-2 border-t border-[#d4af37]/25 pt-2.5">
+                    <dt className="text-amber-100 font-extrabold text-xs uppercase tracking-wider min-w-0">
+                      Hình thức
+                    </dt>
+                    <dd className="flex items-center gap-1">
                       <button
                         type="button"
-                        onClick={() =>
-                          setCashGivenInput(formatNumberInput(computedTotal))
-                        }
-                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                        onClick={() => setCheckoutPaymentMethod("CASH")}
+                        className={`rounded-lg px-2.5 py-1 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                          checkoutPaymentMethod === "CASH"
+                            ? "bg-[#d4af37] text-slate-950 font-black shadow-xs"
+                            : "bg-[#1c1204] text-[#ffe270] border border-[#d4af37]/40 hover:bg-[#d4af37]/20"
+                        }`}
                       >
-                        Đủ tiền
+                        💵 TM
                       </button>
                       <button
                         type="button"
-                        onClick={() => setCashGivenInput(formatNumberInput(500000))}
-                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                        onClick={() => setCheckoutPaymentMethod("BANK_TRANSFER")}
+                        className={`rounded-lg px-2.5 py-1 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                          checkoutPaymentMethod === "BANK_TRANSFER"
+                            ? "bg-[#d4af37] text-slate-950 font-black shadow-xs"
+                            : "bg-[#1c1204] text-[#ffe270] border border-[#d4af37]/40 hover:bg-[#d4af37]/20"
+                        }`}
                       >
-                        500k
+                        🏦 CK
                       </button>
                       <button
                         type="button"
-                        onClick={() =>
-                          setCashGivenInput(formatNumberInput(1000000))
-                        }
-                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                        onClick={() => setCheckoutPaymentMethod("CARD")}
+                        className={`rounded-lg px-2.5 py-1 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                          checkoutPaymentMethod === "CARD"
+                            ? "bg-[#d4af37] text-slate-950 font-black shadow-xs"
+                            : "bg-[#1c1204] text-[#ffe270] border border-[#d4af37]/40 hover:bg-[#d4af37]/20"
+                        }`}
                       >
-                        1 Triệu
+                        💳 Thẻ
                       </button>
-                    </div>
-
-                    {/* Kết quả tiền thừa / thiếu */}
-                    {parseFormattedNumber(cashGivenInput) > 0 ? (
-                      <div className="flex justify-between items-center rounded-xl bg-[#1c1204] p-2.5 border border-[#d4af37]/40 shadow-inner mt-1">
-                        <span className="text-xs font-bold text-[#fce8b3]">
-                          {parseFormattedNumber(cashGivenInput) >= computedTotal
-                            ? "Tiền thừa trả khách:"
-                            : "Khách còn thiếu:"}
-                        </span>
-                        <span
-                          className={`text-sm font-black ${
-                            parseFormattedNumber(cashGivenInput) >= computedTotal
-                              ? "text-emerald-400"
-                              : "text-amber-400"
-                          }`}
-                        >
-                          {formatMoney(
-                            Math.abs(
-                              parseFormattedNumber(cashGivenInput) - computedTotal,
-                            ),
-                            currency,
-                          )}
-                        </span>
-                      </div>
-                    ) : null}
+                    </dd>
                   </div>
                 ) : null}
               </dl>
@@ -3042,10 +2982,10 @@ export function StaffBillingWorkspaceClient({
                   {/* Tóm tắt chỉ số nhanh của phòng */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] p-3 shadow-2xs">
-                      <p className="text-xs font-bold text-[var(--on-surface-variant)]">Tiền phòng ({previewFolioSummary?.estimatedRoomCharge?.nights ?? 1} đêm)</p>
+                      <p className="text-xs font-bold text-[var(--on-surface-variant)]">Tiền phòng ({previewFolioMetrics.nights} đêm)</p>
                       <p className="text-base font-black text-[var(--primary)] mt-1">
                         {formatMoney(
-                          getFolioRoomCharge(previewFolioItem),
+                          previewFolioMetrics.roomCharge,
                           previewFolioItem.currency ?? "VND",
                         )}
                       </p>
@@ -3054,11 +2994,7 @@ export function StaffBillingWorkspaceClient({
                       <p className="text-xs font-bold text-[var(--on-surface-variant)]">Dịch vụ &amp; Minibar</p>
                       <p className="text-base font-black text-amber-900 mt-1">
                         {formatMoney(
-                          Math.max(
-                            0,
-                            getFolioTotalAmount(previewFolioItem) -
-                              getFolioRoomCharge(previewFolioItem),
-                          ),
+                          previewFolioMetrics.serviceCharge,
                           previewFolioItem.currency ?? "VND",
                         )}
                       </p>
@@ -3067,7 +3003,7 @@ export function StaffBillingWorkspaceClient({
                       <p className="text-xs font-bold text-emerald-900">Tổng cộng phòng này</p>
                       <p className="text-base font-black text-emerald-700 mt-1">
                         {formatMoney(
-                          getFolioTotalAmount(previewFolioItem),
+                          previewFolioMetrics.total,
                           previewFolioItem.currency ?? "VND",
                         )}
                       </p>
@@ -3097,7 +3033,7 @@ export function StaffBillingWorkspaceClient({
                           {previewFolioItems.map((item) => (
                             <tr key={item.id} className="hover:bg-slate-50/80">
                               <td className="py-2 px-3 font-semibold text-[var(--primary)]">
-                                {item.nameSnapshot || (item as any).description || item.itemType}
+                                {item.nameSnapshot || item.description || item.itemType}
                               </td>
                               <td className="py-2 px-2 text-center text-slate-600 font-bold">
                                 {item.quantity ?? 1}

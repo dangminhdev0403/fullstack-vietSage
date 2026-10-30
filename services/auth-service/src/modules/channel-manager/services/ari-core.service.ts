@@ -60,10 +60,7 @@ export interface InventoryGridResult {
 /**
  * Tính toán giá sau điều chỉnh tương đối (FIXED hoặc PERCENT) và làm tròn 2 chữ số thập phân
  */
-export function calculateAdjustedRate(
-  currentRate: number,
-  adjustment: RateAdjustmentDto,
-): number {
+export function calculateAdjustedRate(currentRate: number, adjustment: RateAdjustmentDto): number {
   let raw: number;
   if (adjustment.kind === "FIXED") {
     raw =
@@ -73,9 +70,7 @@ export function calculateAdjustedRate(
   } else {
     const factor = adjustment.value / 100;
     raw =
-      adjustment.direction === "INCREASE"
-        ? currentRate * (1 + factor)
-        : currentRate * (1 - factor);
+      adjustment.direction === "INCREASE" ? currentRate * (1 + factor) : currentRate * (1 - factor);
   }
 
   return raw < 0 ? raw : Math.round((raw + Number.EPSILON) * 100) / 100;
@@ -458,14 +453,10 @@ export class AriCoreService {
         );
       }
       if (!["INCREASE", "DECREASE"].includes(adjustment.direction)) {
-        throw new BadRequestException(
-          `Hướng điều chỉnh không hợp lệ: ${adjustment.direction}`,
-        );
+        throw new BadRequestException(`Hướng điều chỉnh không hợp lệ: ${adjustment.direction}`);
       }
       if (!["FIXED", "PERCENT"].includes(adjustment.kind)) {
-        throw new BadRequestException(
-          `Loại điều chỉnh không hợp lệ: ${adjustment.kind}`,
-        );
+        throw new BadRequestException(`Loại điều chỉnh không hợp lệ: ${adjustment.kind}`);
       }
     }
 
@@ -567,11 +558,11 @@ export class AriCoreService {
           const currentRate =
             existing?.rate !== null && existing?.rate !== undefined
               ? Number(existing.rate)
-              : basePriceByRoomType.get(roomType) ??
+              : (basePriceByRoomType.get(roomType) ??
                 basePriceByRoomType.get(
                   roomType.normalize("NFKC").replace(/\s+/g, " ").toLowerCase(),
                 ) ??
-                null;
+                null);
 
           if (currentRate === null || currentRate === undefined) {
             throw new BadRequestException(
@@ -602,11 +593,11 @@ export class AriCoreService {
           const currentRate =
             existing?.rate !== null && existing?.rate !== undefined
               ? Number(existing.rate)
-              : basePriceByRoomType.get(roomType) ??
+              : (basePriceByRoomType.get(roomType) ??
                 basePriceByRoomType.get(
                   roomType.normalize("NFKC").replace(/\s+/g, " ").toLowerCase(),
                 ) ??
-                null;
+                null);
 
           if (currentRate === null || currentRate === undefined) {
             throw new BadRequestException(

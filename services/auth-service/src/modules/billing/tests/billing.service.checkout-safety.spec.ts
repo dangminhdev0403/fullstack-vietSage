@@ -497,11 +497,15 @@ describe("BillingService checkout safety", () => {
       $queryRawUnsafe: jest.fn().mockResolvedValue([]),
       invoice: {
         findFirst: jest.fn().mockResolvedValue(invoice),
-        update: jest.fn().mockImplementation(({ data }) => Promise.resolve({ ...invoice, ...data })),
+        update: jest
+          .fn()
+          .mockImplementation(({ data }) => Promise.resolve({ ...invoice, ...data })),
       },
       payment: {
         findFirst: jest.fn().mockResolvedValue(null),
-        create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ ...payment, ...data })),
+        create: jest
+          .fn()
+          .mockImplementation(({ data }) => Promise.resolve({ ...payment, ...data })),
       },
       paymentTransaction: {
         findFirst: jest.fn().mockResolvedValue(null),
@@ -531,10 +535,16 @@ describe("BillingService checkout safety", () => {
       .spyOn(service, "getInvoiceDetail")
       .mockResolvedValue({ invoice: { id: "invoice-1", status: InvoiceStatus.PAID } } as never);
 
-    const result = await service.confirmManualPayment("staff-1", "frontdesk-role", "hotel-1", "invoice-1", {
-      method: PaymentMethod.CASH,
-      note: "Thu đủ tại quầy",
-    });
+    const result = await service.confirmManualPayment(
+      "staff-1",
+      "frontdesk-role",
+      "hotel-1",
+      "invoice-1",
+      {
+        method: PaymentMethod.CASH,
+        note: "Thu đủ tại quầy",
+      },
+    );
 
     expect(tx.payment.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -584,22 +594,26 @@ describe("BillingService checkout safety", () => {
     });
     const eventPublisher = { publishConversationClosed: jest.fn() };
     const service = createService(prisma, {}, eventPublisher);
-    jest
-      .spyOn(service, "getInvoiceDetail")
-      .mockResolvedValue({
-        invoice: {
-          id: "invoice-1",
-          status: InvoiceStatus.ISSUED,
-          balanceAmount: new Prisma.Decimal(300000),
-        },
-      } as never);
+    jest.spyOn(service, "getInvoiceDetail").mockResolvedValue({
+      invoice: {
+        id: "invoice-1",
+        status: InvoiceStatus.ISSUED,
+        balanceAmount: new Prisma.Decimal(300000),
+      },
+    } as never);
 
-    const result = await service.confirmManualPayment("staff-1", "frontdesk-role", "hotel-1", "invoice-1", {
-      method: PaymentMethod.CASH,
-      amount: 200000,
-      cashReceived: 200000,
-      clientRequestId: "req-partial-1",
-    });
+    const result = await service.confirmManualPayment(
+      "staff-1",
+      "frontdesk-role",
+      "hotel-1",
+      "invoice-1",
+      {
+        method: PaymentMethod.CASH,
+        amount: 200000,
+        cashReceived: 200000,
+        clientRequestId: "req-partial-1",
+      },
+    );
 
     expect(tx.payment.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -636,18 +650,26 @@ describe("BillingService checkout safety", () => {
     });
     const eventPublisher = { publishConversationClosed: jest.fn() };
     const service = createService(prisma, {}, eventPublisher);
-    jest
-      .spyOn(service, "getInvoiceDetail")
-      .mockResolvedValue({
-        invoice: { id: "invoice-1", status: InvoiceStatus.PAID, balanceAmount: new Prisma.Decimal(0) },
-      } as never);
+    jest.spyOn(service, "getInvoiceDetail").mockResolvedValue({
+      invoice: {
+        id: "invoice-1",
+        status: InvoiceStatus.PAID,
+        balanceAmount: new Prisma.Decimal(0),
+      },
+    } as never);
 
-    const result = await service.confirmManualPayment("staff-1", "frontdesk-role", "hotel-1", "invoice-1", {
-      method: PaymentMethod.CASH,
-      amount: 300000,
-      cashReceived: 300000,
-      clientRequestId: "req-final-2",
-    });
+    const result = await service.confirmManualPayment(
+      "staff-1",
+      "frontdesk-role",
+      "hotel-1",
+      "invoice-1",
+      {
+        method: PaymentMethod.CASH,
+        amount: 300000,
+        cashReceived: 300000,
+        clientRequestId: "req-final-2",
+      },
+    );
 
     expect(tx.payment.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -689,18 +711,26 @@ describe("BillingService checkout safety", () => {
       paidAmount: new Prisma.Decimal(200000),
     });
     const service = createService(prisma);
-    jest
-      .spyOn(service, "getInvoiceDetail")
-      .mockResolvedValue({
-        invoice: { id: "invoice-1", status: InvoiceStatus.PAID, balanceAmount: new Prisma.Decimal(0) },
-      } as never);
+    jest.spyOn(service, "getInvoiceDetail").mockResolvedValue({
+      invoice: {
+        id: "invoice-1",
+        status: InvoiceStatus.PAID,
+        balanceAmount: new Prisma.Decimal(0),
+      },
+    } as never);
 
-    const result = await service.confirmManualPayment("staff-1", "frontdesk-role", "hotel-1", "invoice-1", {
-      method: PaymentMethod.CASH,
-      amount: 300000,
-      cashReceived: 500000,
-      clientRequestId: "req-over-1",
-    });
+    const result = await service.confirmManualPayment(
+      "staff-1",
+      "frontdesk-role",
+      "hotel-1",
+      "invoice-1",
+      {
+        method: PaymentMethod.CASH,
+        amount: 300000,
+        cashReceived: 500000,
+        clientRequestId: "req-over-1",
+      },
+    );
 
     expect(tx.payment.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -728,22 +758,26 @@ describe("BillingService checkout safety", () => {
       paidAmount: new Prisma.Decimal(0),
     });
     const service = createService(prisma);
-    jest
-      .spyOn(service, "getInvoiceDetail")
-      .mockResolvedValue({
-        invoice: {
-          id: "invoice-1",
-          status: InvoiceStatus.ISSUED,
-          balanceAmount: new Prisma.Decimal(400000),
-        },
-      } as never);
+    jest.spyOn(service, "getInvoiceDetail").mockResolvedValue({
+      invoice: {
+        id: "invoice-1",
+        status: InvoiceStatus.ISSUED,
+        balanceAmount: new Prisma.Decimal(400000),
+      },
+    } as never);
 
-    const result = await service.confirmManualPayment("staff-1", "frontdesk-role", "hotel-1", "invoice-1", {
-      method: PaymentMethod.CASH,
-      amount: 100000,
-      cashReceived: 100000,
-      clientRequestId: "req-under-1",
-    });
+    const result = await service.confirmManualPayment(
+      "staff-1",
+      "frontdesk-role",
+      "hotel-1",
+      "invoice-1",
+      {
+        method: PaymentMethod.CASH,
+        amount: 100000,
+        cashReceived: 100000,
+        clientRequestId: "req-under-1",
+      },
+    );
 
     expect(tx.payment.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -789,12 +823,18 @@ describe("BillingService checkout safety", () => {
       .spyOn(service, "getInvoiceDetail")
       .mockResolvedValue({ invoice: { id: "invoice-1" } } as never);
 
-    const result = await service.confirmManualPayment("staff-1", "frontdesk-role", "hotel-1", "invoice-1", {
-      method: PaymentMethod.CASH,
-      amount: 200000,
-      cashReceived: 200000,
-      clientRequestId: "req-dup-1",
-    });
+    const result = await service.confirmManualPayment(
+      "staff-1",
+      "frontdesk-role",
+      "hotel-1",
+      "invoice-1",
+      {
+        method: PaymentMethod.CASH,
+        amount: 200000,
+        cashReceived: 200000,
+        clientRequestId: "req-dup-1",
+      },
+    );
 
     expect(result.payment).toEqual(existingPayment);
     expect(tx.payment.create).not.toHaveBeenCalled();
@@ -1874,29 +1914,35 @@ describe("BillingService checkout safety", () => {
     ).toThrow(ConflictException);
   });
 
-  it.each([true, false])("F3: early departure after late check-in uses occupied dates (dated schedule: %s)", (dated) => {
-    const charge = createService({}).calculateEstimatedRoomCharge({
-      room: { roomNumber: "101" },
-      stay: {
-        plannedCheckInAt: new Date("2026-10-21T07:00:00.000Z"),
-        plannedCheckOutAt: new Date("2026-10-24T05:00:00.000Z"),
-        checkedInAt: new Date("2026-10-22T07:00:00.000Z"),
-        checkedOutAt: new Date("2026-10-23T05:00:00.000Z"),
-        nightlyRateSnapshot: new Prisma.Decimal(500000),
-        reservation: {
-          chargeLines: [500000, 700000, 900000].map((rate, index) => ({
-            lineType: "ROOM_NIGHT",
-            serviceDate: dated ? new Date(`2026-10-${21 + index}T07:00:00.000Z`) : null,
-            totalSnapshot: rate,
-          })),
+  it.each([true, false])(
+    "F3: early departure after late check-in uses occupied dates (dated schedule: %s)",
+    (dated) => {
+      const charge = createService({}).calculateEstimatedRoomCharge(
+        {
+          room: { roomNumber: "101" },
+          stay: {
+            plannedCheckInAt: new Date("2026-10-21T07:00:00.000Z"),
+            plannedCheckOutAt: new Date("2026-10-24T05:00:00.000Z"),
+            checkedInAt: new Date("2026-10-22T07:00:00.000Z"),
+            checkedOutAt: new Date("2026-10-23T05:00:00.000Z"),
+            nightlyRateSnapshot: new Prisma.Decimal(500000),
+            reservation: {
+              chargeLines: [500000, 700000, 900000].map((rate, index) => ({
+                lineType: "ROOM_NIGHT",
+                serviceDate: dated ? new Date(`2026-10-${21 + index}T07:00:00.000Z`) : null,
+                totalSnapshot: rate,
+              })),
+            },
+          },
         },
-      },
-    }, { isEarlyDeparture: true });
+        { isEarlyDeparture: true },
+      );
 
-    expect(charge.nights).toBe(1);
-    expect(charge.subtotal).toEqual(new Prisma.Decimal(700000));
-    expect(charge.plannedSubtotal).toEqual(new Prisma.Decimal(2100000));
-  });
+      expect(charge.nights).toBe(1);
+      expect(charge.subtotal).toEqual(new Prisma.Decimal(700000));
+      expect(charge.plannedSubtotal).toEqual(new Prisma.Decimal(2100000));
+    },
+  );
 
   it("F3 seam: issueInvoice uses repository-loaded dated chargeLines to compute correct folio and invoice total (1.2M)", async () => {
     const createdItems: any[] = [];
@@ -1950,7 +1996,9 @@ describe("BillingService checkout safety", () => {
       },
       invoice: {
         findFirst: jest.fn().mockResolvedValue(null),
-        create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: "invoice-1", ...data })),
+        create: jest
+          .fn()
+          .mockImplementation(({ data }) => Promise.resolve({ id: "invoice-1", ...data })),
       },
       folioItem: {
         findFirst: jest.fn().mockResolvedValue(null),
@@ -2118,9 +2166,9 @@ describe("BillingService checkout safety", () => {
     };
     const service = createService(prisma, repository);
 
-    await expect(
-      service.validateFolioForCheckout("hotel-1", "folio-1"),
-    ).rejects.toThrow(ConflictException);
+    await expect(service.validateFolioForCheckout("hotel-1", "folio-1")).rejects.toThrow(
+      ConflictException,
+    );
   });
 
   it("issueInvoice creates adjustments and invoice atomically in a single request", async () => {

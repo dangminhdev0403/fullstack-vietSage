@@ -30,7 +30,10 @@ import { BadRequestException, ConflictException, NotFoundException } from "@nest
 import { BillingService } from "../application/billing.service";
 import { PaymentController } from "../api/payment.controller";
 
-function createBillingService(prisma: Record<string, unknown>, repository: Record<string, unknown> = {}) {
+function createBillingService(
+  prisma: Record<string, unknown>,
+  repository: Record<string, unknown> = {},
+) {
   return new BillingService(
     repository as never,
     { assertHotelAccess: jest.fn().mockResolvedValue(undefined) } as never,
@@ -83,7 +86,6 @@ describe("Billing Receivables & Deposits Suite", () => {
 
       expect(txMock.reservation.findFirst).toHaveBeenCalledWith({
         where: { id: "res-1", hotelId },
-        select: { id: true },
       });
       expect(mockCreate).toHaveBeenCalledTimes(1);
       expect(mockCreate).toHaveBeenCalledWith(
@@ -248,14 +250,21 @@ describe("Billing Receivables & Deposits Suite", () => {
         }),
       );
 
-      const mockUpdateFolio = jest.fn().mockResolvedValue({ id: folioId, status: FolioStatus.CLOSED });
-      const mockUpdateStay = jest.fn().mockResolvedValue({ id: stayId, status: GuestStayStatus.CHECKED_OUT });
+      const mockUpdateFolio = jest
+        .fn()
+        .mockResolvedValue({ id: folioId, status: FolioStatus.CLOSED });
+      const mockUpdateStay = jest
+        .fn()
+        .mockResolvedValue({ id: stayId, status: GuestStayStatus.CHECKED_OUT });
       const mockUpdateSessions = jest.fn().mockResolvedValue({ count: 1 });
       const mockUpdateRoom = jest.fn().mockResolvedValue({ count: 1 });
       const mockPaymentCreate = jest.fn();
       const mockInvoiceUpdate = jest.fn();
 
       const txMock = {
+        $queryRaw: jest.fn().mockResolvedValue([{ id: stayId }]),
+        bookingPayment: { findMany: jest.fn().mockResolvedValue([]) },
+        user: { findFirst: jest.fn().mockResolvedValue({ id: "accountant-1" }) },
         guestStay: {
           findFirst: jest.fn().mockResolvedValue(stayRecord),
           update: mockUpdateStay,
@@ -289,13 +298,19 @@ describe("Billing Receivables & Deposits Suite", () => {
       const service = createBillingService(prismaMock);
 
       const dueDate = new Date("2026-11-15T00:00:00.000Z");
-      const result = await service.transferStayToReceivable(actorUserId, activeRoleId, hotelId, stayId, {
-        debtorName: "Cong ty ABC",
-        debtorType: ReceivableDebtorType.COMPANY,
-        dueDate,
-        assigneeUserId: "accountant-1",
-        notes: "Chờ kế toán công ty ABC thanh toán công nợ theo hợp đồng",
-      });
+      const result = await service.transferStayToReceivable(
+        actorUserId,
+        activeRoleId,
+        hotelId,
+        stayId,
+        {
+          debtorName: "Cong ty ABC",
+          debtorType: ReceivableDebtorType.COMPANY,
+          dueDate,
+          assigneeUserId: "accountant-1",
+          notes: "Chờ kế toán công ty ABC thanh toán công nợ theo hợp đồng",
+        },
+      );
 
       // 1. Tạo đúng bản ghi HotelReceivable với số tiền còn nợ 2.5tr
       expect(mockCreateReceivable).toHaveBeenCalledTimes(1);
@@ -376,6 +391,7 @@ describe("Billing Receivables & Deposits Suite", () => {
     it("từ chối chuyển công nợ nếu số dư nợ bằng 0 hoặc không có nợ", async () => {
       const stayId = "stay-zero-balance";
       const txMock = {
+        $queryRaw: jest.fn().mockResolvedValue([{ id: stayId }]),
         guestStay: {
           findFirst: jest.fn().mockResolvedValue({
             id: stayId,
@@ -459,12 +475,18 @@ describe("Billing Receivables & Deposits Suite", () => {
 
       const service = createBillingService(prismaMock);
 
-      const result = await service.collectReceivable(actorUserId, activeRoleId, hotelId, receivableId, {
-        collectedAmount: 1000000,
-        paymentMethod: PaymentMethod.BANK_TRANSFER,
-        reference: "UNC-2026-001",
-        notes: "Thu đợt 1 chuyển khoản 1 triệu",
-      });
+      const result = await service.collectReceivable(
+        actorUserId,
+        activeRoleId,
+        hotelId,
+        receivableId,
+        {
+          collectedAmount: 1000000,
+          paymentMethod: PaymentMethod.BANK_TRANSFER,
+          reference: "UNC-2026-001",
+          notes: "Thu đợt 1 chuyển khoản 1 triệu",
+        },
+      );
 
       // Tạo bản ghi ReceivableCollection
       expect(mockCreateCollection).toHaveBeenCalledWith(
@@ -538,11 +560,17 @@ describe("Billing Receivables & Deposits Suite", () => {
 
       const service = createBillingService(prismaMock);
 
-      const result = await service.collectReceivable(actorUserId, activeRoleId, hotelId, receivableId, {
-        collectedAmount: 1500000, // Thu nốt 1.5tr
-        paymentMethod: PaymentMethod.CASH,
-        notes: "Thu tiền mặt đợt cuối, thanh toán toàn bộ công nợ",
-      });
+      const result = await service.collectReceivable(
+        actorUserId,
+        activeRoleId,
+        hotelId,
+        receivableId,
+        {
+          collectedAmount: 1500000, // Thu nốt 1.5tr
+          paymentMethod: PaymentMethod.CASH,
+          notes: "Thu tiền mặt đợt cuối, thanh toán toàn bộ công nợ",
+        },
+      );
 
       // Tạo bản ghi ReceivableCollection
       expect(mockCreateCollection).toHaveBeenCalledWith(

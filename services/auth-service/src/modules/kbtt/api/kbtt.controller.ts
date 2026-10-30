@@ -23,7 +23,10 @@ import {
 } from "@nestjs/swagger";
 import { successEnvelopeSchema } from "../../../common/openapi/contract-schemas";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
-import { CANONICAL_OWNER_ROLE, RequireActiveRole } from "../../../shared/decorators/require-active-role.decorator";
+import {
+  CANONICAL_OWNER_ROLE,
+  RequireActiveRole,
+} from "../../../shared/decorators/require-active-role.decorator";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import type { RequestWithRequiredUser } from "../../../shared/security/request-with-authenticated-user";
 import { KbttService } from "../application/kbtt.service";

@@ -1,8 +1,4 @@
-import {
-  FolioItemType,
-  GuestStayStatus,
-  PaymentMethod,
-} from "@prisma/client";
+import { FolioItemType, GuestStayStatus, PaymentMethod } from "@prisma/client";
 import { Temporal } from "@js-temporal/polyfill";
 import { HotelReportsService } from "../application/hotel-reports.service";
 
@@ -33,10 +29,7 @@ describe("HotelReportsService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new HotelReportsService(
-      mockPrisma as never,
-      mockHotelAccessService as never,
-    );
+    service = new HotelReportsService(mockPrisma as never, mockHotelAccessService as never);
 
     mockHotelAccessService.resolveRoomScope.mockResolvedValue({
       allowedRoomId: null,
@@ -195,12 +188,9 @@ describe("HotelReportsService", () => {
       },
     ]);
 
-    const result = await service.getReports(
-      "user-staff-1",
-      "role-frontdesk",
-      "hotel-1",
-      { range: "30d" },
-    );
+    const result = await service.getReports("user-staff-1", "role-frontdesk", "hotel-1", {
+      range: "30d",
+    });
 
     expect(result.hotelId).toBe("hotel-1");
     expect(result.hotelName).toBe("Khách sạn Sài Gòn Star");
@@ -214,15 +204,11 @@ describe("HotelReportsService", () => {
     expect(result.summary.occupancyRate).toBeGreaterThan(0);
 
     // Kiểm tra phân bổ nguồn khách
-    const bookingDotCom = result.revenueBySource.find(
-      (s) => s.sourceKey === "OTA_BOOKING",
-    );
+    const bookingDotCom = result.revenueBySource.find((s) => s.sourceKey === "OTA_BOOKING");
     expect(bookingDotCom).toBeDefined();
     expect(bookingDotCom?.sourceName).toBe("Booking.com");
 
-    const direct = result.revenueBySource.find(
-      (s) => s.sourceKey === "DIRECT",
-    );
+    const direct = result.revenueBySource.find((s) => s.sourceKey === "DIRECT");
     expect(direct).toBeDefined();
 
     // Kiểm tra phân bổ nhân viên thu ngân
@@ -232,13 +218,9 @@ describe("HotelReportsService", () => {
     expect(result.revenueByStaff[0].staffName).toBe("Nguyễn Văn Lễ Tân");
 
     // Kiểm tra phân bổ quốc tịch
-    const korea = result.guestAnalytics.nationalities.find(
-      (n) => n.nationality === "Hàn Quốc",
-    );
+    const korea = result.guestAnalytics.nationalities.find((n) => n.nationality === "Hàn Quốc");
     expect(korea).toBeDefined();
-    const vn = result.guestAnalytics.nationalities.find(
-      (n) => n.nationality === "Việt Nam",
-    );
+    const vn = result.guestAnalytics.nationalities.find((n) => n.nationality === "Việt Nam");
     expect(vn).toBeDefined();
 
     // Kiểm tra phương thức thanh toán

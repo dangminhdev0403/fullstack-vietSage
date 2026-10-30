@@ -141,7 +141,12 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
           plannedCheckOutAt: new Date("2026-11-07T12:00:00.000Z"),
           nightlyRateSnapshot: "1000000",
           room: { id: "room-101", roomNumber: "101", floor: "1", price: "1000000" },
-          roomType: { id: "rt-1", name: "Standard", normalizedKey: "standard", basePrice: "1000000" },
+          roomType: {
+            id: "rt-1",
+            name: "Standard",
+            normalizedKey: "standard",
+            basePrice: "1000000",
+          },
           bookingPayments: [],
         },
         {
@@ -157,7 +162,12 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
           plannedCheckOutAt: new Date("2026-11-07T12:00:00.000Z"),
           nightlyRateSnapshot: "1000000",
           room: { id: "room-102", roomNumber: "102", floor: "1", price: "1000000" },
-          roomType: { id: "rt-1", name: "Standard", normalizedKey: "standard", basePrice: "1000000" },
+          roomType: {
+            id: "rt-1",
+            name: "Standard",
+            normalizedKey: "standard",
+            basePrice: "1000000",
+          },
           bookingPayments: [],
         },
       ],
@@ -243,6 +253,27 @@ describe("ReservationsService front-desk lifecycle", () => {
     );
   });
 
+  it("lists arrivals across all dates when search query q is provided without date range", async () => {
+    const { service, repository } = createService();
+
+    await service.listArrivals("actor-1", "active-role", "hotel-1", {
+      q: "VSH_GROUP_0017",
+      page: 1,
+      limit: 20,
+    });
+
+    expect(repository.listArrivals).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hotelId: "hotel-1",
+        from: undefined,
+        to: undefined,
+        q: "VSH_GROUP_0017",
+        skip: 0,
+        take: 20,
+      }),
+    );
+  });
+
   it("assigns only an available non-overlapping room", async () => {
     const { service, repository } = createService();
 
@@ -263,7 +294,9 @@ describe("ReservationsService front-desk lifecycle", () => {
     const repository = createRepository();
     const accessService = {
       assertHotelAccess: jest.fn().mockResolvedValue({ id: "hotel-1", tenantId: "tenant-1" }),
-      resolveRoomScope: jest.fn().mockResolvedValue({ hotel: { id: "hotel-1" }, allowedRoomId: null }),
+      resolveRoomScope: jest
+        .fn()
+        .mockResolvedValue({ hotel: { id: "hotel-1" }, allowedRoomId: null }),
       assertRoomAccess: jest.fn().mockResolvedValue({ id: "hotel-1" }),
     };
     const codesService = { generateEntityCode: jest.fn() };
@@ -272,7 +305,7 @@ describe("ReservationsService front-desk lifecycle", () => {
       codesService as never,
       accessService as never,
       undefined,
-      mockAllocation as never,
+      mockAllocation,
     );
 
     await service.assignRoom("actor-1", "active-role", "hotel-1", "reservation-1", {
@@ -582,9 +615,15 @@ describe("ReservationsService front-desk lifecycle", () => {
     it("cancels a confirmed reservation successfully and releases assigned room", async () => {
       const { service, repository } = createService();
 
-      const result = await service.cancelReservation("actor-1", "active-role", "hotel-1", "reservation-1", {
-        reason: "Khách đổi lịch",
-      });
+      const result = await service.cancelReservation(
+        "actor-1",
+        "active-role",
+        "hotel-1",
+        "reservation-1",
+        {
+          reason: "Khách đổi lịch",
+        },
+      );
 
       expect(repository.cancelReservation).toHaveBeenCalledWith({
         hotelId: "hotel-1",
@@ -611,7 +650,13 @@ describe("ReservationsService front-desk lifecycle", () => {
         }),
       );
 
-      const result = await service.cancelReservation("actor-1", "active-role", "hotel-1", "reservation-1", {});
+      const result = await service.cancelReservation(
+        "actor-1",
+        "active-role",
+        "hotel-1",
+        "reservation-1",
+        {},
+      );
 
       expect(repository.cancelReservation).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -692,9 +737,15 @@ describe("ReservationsService front-desk lifecycle", () => {
     it("marks a confirmed reservation as no-show successfully and releases assigned room", async () => {
       const { service, repository } = createService();
 
-      const result = await service.markNoShow("actor-1", "active-role", "hotel-1", "reservation-1", {
-        reason: "Khách không đến nhận phòng",
-      });
+      const result = await service.markNoShow(
+        "actor-1",
+        "active-role",
+        "hotel-1",
+        "reservation-1",
+        {
+          reason: "Khách không đến nhận phòng",
+        },
+      );
 
       expect(repository.markNoShow).toHaveBeenCalledWith({
         hotelId: "hotel-1",
@@ -721,7 +772,13 @@ describe("ReservationsService front-desk lifecycle", () => {
         }),
       );
 
-      const result = await service.markNoShow("actor-1", "active-role", "hotel-1", "reservation-1", {});
+      const result = await service.markNoShow(
+        "actor-1",
+        "active-role",
+        "hotel-1",
+        "reservation-1",
+        {},
+      );
 
       expect(repository.markNoShow).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -915,9 +972,7 @@ describe("ReservationsService front-desk lifecycle", () => {
                 taxAmountSnapshot: "35000",
               },
             ],
-            bookingPayments: [
-              { id: "p1", status: "COMPLETED", receivedAmount: "1500000" },
-            ],
+            bookingPayments: [{ id: "p1", status: "COMPLETED", receivedAmount: "1500000" }],
           }),
         }),
       );
@@ -947,7 +1002,12 @@ describe("ReservationsService front-desk lifecycle", () => {
       );
 
       await expect(
-        service.getReservationConfirmation("actor-1", "active-role", "hotel-cross", "reservation-1"),
+        service.getReservationConfirmation(
+          "actor-1",
+          "active-role",
+          "hotel-cross",
+          "reservation-1",
+        ),
       ).rejects.toThrow("Đặt phòng không thuộc khách sạn này");
     });
 

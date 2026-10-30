@@ -1,5 +1,15 @@
 # Contract Changes
 
+## 2026-10-31 — Front desk arrivals search across all dates
+
+- In `GET /hotels/{hotelId}/arrivals`, query parameters `from` and `to` are made optional when a search keyword `q` is provided. This allows real-time search across all arrival dates for reservations matching customer name, reservation code, group code, room number, or phone number. When `q` is omitted, both `from` and `to` remain required for bounded date queries.
+
+## 2026-10-30 — Emergency isolation and receivable balance safety
+
+- Emergency calls with an explicit location ID require a routable location owned by the authenticated guest session's tenant and hotel. An unavailable explicit location is rejected before call persistence; incident rollups preserve existing business state and never reopen resolved incidents.
+- Transferring a stay to receivables derives the complete outstanding balance inside the transaction. An optional caller amount must match that balance, including applicable deposits and payments. Assignees must be active staff of the same hotel and tenant. Public request and success-response shapes remain unchanged.
+- The additional operational indexes are prepared in `20261030210000_complete_hotel_ops_indexes`; database application is a separate release operation.
+
 ## 2026-10-28 — Hotel Reservations Schema Alignment & Group Endpoints
 
 - **Reservation creation Swagger schema alignment (`POST /hotels/{hotelId}/reservations`, `POST /hotels/{hotelId}/reservations/bulk`, `POST /hotels/{hotelId}/reservations/group`)**:

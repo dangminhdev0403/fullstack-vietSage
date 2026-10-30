@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState, useTransition } from "react";
+import { useId, useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Temporal } from "@js-temporal/polyfill";
 import {
@@ -205,7 +205,7 @@ export function HotelReportsWorkspaceClient({
       : "overview";
 
   const [activeTab, setActiveTab] = useState<ReportSubTab>(resolvedInitialTab);
-  const [reports, setReports] = useState<HotelReportsData>(initialReports);
+  const reports = initialReports;
 
   const fromInputId = useId();
   const toInputId = useId();
@@ -229,8 +229,9 @@ export function HotelReportsWorkspaceClient({
   const [customFrom, setCustomFrom] = useState<string>(initialFromPlain);
   const [customTo, setCustomTo] = useState<string>(initialToPlain);
 
-  useEffect(() => {
-    setReports(initialReports);
+  const [previousReports, setPreviousReports] = useState(initialReports);
+  if (previousReports !== initialReports) {
+    setPreviousReports(initialReports);
     const nextFrom =
       toPlainDateSafe(
         initialReports.startDate,
@@ -243,7 +244,7 @@ export function HotelReportsWorkspaceClient({
       )?.toString() || "";
     if (nextFrom) setCustomFrom(nextFrom);
     if (nextTo) setCustomTo(nextTo);
-  }, [initialReports]);
+  }
 
   function handleTabChange(tab: ReportSubTab) {
     setActiveTab(tab);

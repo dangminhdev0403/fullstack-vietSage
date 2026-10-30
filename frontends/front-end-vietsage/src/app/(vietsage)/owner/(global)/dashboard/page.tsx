@@ -215,10 +215,17 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
 
   const occupancyPercent = dashboard?.rooms.occupancyRate ?? 0;
   const availableRooms =
+    (dashboard?.rooms.byStatus as any)?.available ??
     dashboard?.rooms.byStatus?.AVAILABLE ??
     (dashboard ? Math.max(0, dashboard.rooms.total - dashboard.rooms.occupied) : 0);
-  const cleaningRooms = dashboard?.rooms.byStatus?.CLEANING ?? 0;
-  const maintenanceRooms = dashboard?.rooms.byStatus?.MAINTENANCE ?? 0;
+  const cleaningRooms =
+    (dashboard?.rooms.byStatus as any)?.processing ??
+    dashboard?.rooms.byStatus?.CLEANING ??
+    0;
+  const maintenanceRooms =
+    (dashboard?.rooms.byStatus as any)?.maintenance ??
+    dashboard?.rooms.byStatus?.MAINTENANCE ??
+    0;
 
   return (
     <div className="space-y-7">

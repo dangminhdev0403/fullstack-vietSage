@@ -484,13 +484,13 @@ export class MarketplaceOrderService {
             });
           }
         } else
-        await tx.marketplaceService.update({
-          where: { id: order.serviceId },
-          data: {
-            capacityAvailable: { increment: order.quantity },
-            version: { increment: 1 },
-          },
-        });
+          await tx.marketplaceService.update({
+            where: { id: order.serviceId },
+            data: {
+              capacityAvailable: { increment: order.quantity },
+              version: { increment: 1 },
+            },
+          });
         await tx.marketplaceOrder.update({
           where: { id: order.id },
           data: {
@@ -1398,9 +1398,7 @@ export class MarketplaceOrderService {
       let settlement: Awaited<ReturnType<typeof tx.marketplaceSettlement.upsert>> | null = null;
       if (!order.assignedLocalMateProfileId) {
         const partnerSubtotal =
-          order.partnerSubtotal != null
-            ? order.partnerSubtotal
-            : order.totalAmount;
+          order.partnerSubtotal != null ? order.partnerSubtotal : order.totalAmount;
         const hotelRevenue = order.hotelServiceFeeAmount ?? new Prisma.Decimal(0);
 
         await tx.marketplaceRevenueEntry.upsert({
@@ -1650,10 +1648,7 @@ export class MarketplaceOrderService {
         });
 
         if (!order.assignedLocalMateProfileId) {
-          const gross =
-            order.partnerSubtotal != null
-              ? order.partnerSubtotal
-              : order.totalAmount;
+          const gross = order.partnerSubtotal != null ? order.partnerSubtotal : order.totalAmount;
 
           await tx.marketplaceRevenueEntry.upsert({
             where: { orderId: order.id },
@@ -1887,9 +1882,7 @@ export class MarketplaceOrderService {
       if (body.toStatus === "COMPLETED" && !order.assignedLocalMateProfileId) {
         requireHotelOrderScope(order);
         const partnerSubtotal =
-          order.partnerSubtotal != null
-            ? order.partnerSubtotal
-            : order.totalAmount;
+          order.partnerSubtotal != null ? order.partnerSubtotal : order.totalAmount;
         const hotelRevenue = order.hotelServiceFeeAmount ?? new Prisma.Decimal(0);
 
         await tx.marketplaceRevenueEntry.upsert({
@@ -2190,10 +2183,7 @@ export class MarketplaceOrderService {
     );
 
     const grossSalesAmount = completedOrders.reduce(
-      (acc, o) =>
-        acc.add(
-          o.partnerSubtotal != null ? o.partnerSubtotal : o.totalAmount,
-        ),
+      (acc, o) => acc.add(o.partnerSubtotal != null ? o.partnerSubtotal : o.totalAmount),
       new Prisma.Decimal(0),
     );
 

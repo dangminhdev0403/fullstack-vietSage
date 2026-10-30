@@ -31,16 +31,13 @@ describe("HotelReportsController", () => {
     const res = await controller.getReports(req as never, "hotel-1", { range: "30d" });
 
     expect(res).toBe(mockReports);
-    expect(mockHotelReportsService.getReports).toHaveBeenCalledWith(
-      "user-1",
-      "role-1",
-      "hotel-1",
-      { range: "30d" },
-    );
+    expect(mockHotelReportsService.getReports).toHaveBeenCalledWith("user-1", "role-1", "hotel-1", {
+      range: "30d",
+    });
   });
 
   it("chấp nhận khoảng ngày tùy chỉnh hợp lệ khi from <= to", async () => {
-    mockHotelReportsService.getReports.mockResolvedValue({} as never);
+    mockHotelReportsService.getReports.mockResolvedValue({});
     const req = { user: { userId: "user-1", roleId: "role-1" } };
 
     await expect(

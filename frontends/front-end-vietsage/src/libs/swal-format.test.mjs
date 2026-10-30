@@ -20,7 +20,7 @@ test("formatTextContent highlights quoted text and ISO dates cleanly", () => {
   const text = "Số giấy tờ '034205005952' từ 2026-09-14 đến 2026-09-15";
   const formatted = formatTextContent(text);
   assert.match(formatted, /034205005952/);
-  assert.match(formatted, /font-bold text-slate-900 bg-white/);
+  assert.match(formatted, /<span\b[^>]*>034205005952<\/span>/);
   assert.match(formatted, /2026-09-14/);
   assert.match(formatted, /2026-09-15/);
 });
@@ -101,7 +101,7 @@ test("formatAlertErrorMessage handles semicolon-separated items", () => {
 test("formatAlertErrorMessage handles simple single messages without card clutter", () => {
   const simple = "Khách sạn chưa cấu hình kết nối KBTT.";
   const html = formatAlertErrorMessage(simple);
-  assert.match(html, /text-center text-base font-medium/);
+  assert.match(html, /<p\b[^>]*>Khách sạn chưa cấu hình kết nối KBTT\.<\/p>/);
   assert.match(html, /Khách sạn chưa cấu hình kết nối KBTT\./);
   // No declaration cards or guidance
   assert.equal(html.includes("Bản khai báo"), false);

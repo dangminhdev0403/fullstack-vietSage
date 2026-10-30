@@ -49,6 +49,7 @@ export type FolioListItem = FolioSummary & {
   id: string;
   invoiceId?: string | null;
   billId?: string | null;
+  postedRoomCharge?: MoneyValue | null;
   invoice?: { id?: string | null; invoiceNumber?: string | null } | null;
   subtotalAmount?: MoneyValue;
   taxAmount?: MoneyValue;
@@ -56,8 +57,9 @@ export type FolioListItem = FolioSummary & {
   totalAmount?: MoneyValue;
   openedAt?: string | null;
   createdAt?: string | null;
-  room?: { id?: string; roomNumber?: string | null; price?: MoneyValue | null } | null;
+  room?: { id?: string; roomNumber?: string | null; price?: MoneyValue | null; roomType?: { basePrice?: MoneyValue | null } | null } | null;
   stay?: {
+    reservation?: { nightlyRateSnapshot?: MoneyValue | null; baseNightlyRateSnapshot?: MoneyValue | null } | null;
     id?: string;
     guestNameSnapshot?: string | null;
     status?: string | null;
@@ -79,6 +81,7 @@ export type FolioListItem = FolioSummary & {
 };
 
 export type FolioItem = {
+  description?: string | null;
   id: string;
   itemType: string;
   nameSnapshot: string;

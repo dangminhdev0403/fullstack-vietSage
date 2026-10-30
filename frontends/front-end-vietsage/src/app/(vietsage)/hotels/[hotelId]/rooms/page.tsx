@@ -218,7 +218,7 @@ export default async function StaffRoomsPage({
           currentUser={
             session?.user
               ? {
-                  id: session.user.id || (session.user as any).userId || "",
+                  id: session.user.id || ("userId" in session.user && typeof session.user.userId === "string" ? session.user.userId : ""),
                   name: session.user.name,
                   email: session.user.email,
                 }

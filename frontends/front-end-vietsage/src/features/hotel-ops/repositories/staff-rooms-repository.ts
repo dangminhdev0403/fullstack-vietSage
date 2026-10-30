@@ -19,6 +19,7 @@ import type {
   FolioItem,
   FolioListItem,
   FolioSummary,
+  ConfirmManualPaymentResult,
 } from "@/features/billing/types/billing-contract";
 
 export type StaffRoomsListInput = Readonly<{
@@ -107,6 +108,7 @@ export type BookingPaymentItem = {
   inputMode?: "AMOUNT" | "PERCENT";
   percentValue?: number | null;
   amount: number | string;
+  receivedAmount?: number | string;
   currency?: string;
   paymentMethod: string;
   referenceCode?: string | null;
@@ -198,6 +200,48 @@ export type CollectReceivableInput = {
 };
 
 export const staffRoomsRepository = {
+  async issueCheckoutInvoice(hotelId: string, folioId: string) {
+    const response = await requestInternalApiEnvelope<{ id: string; balanceAmount: number | string }>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/billing/folios/${encodeURIComponent(folioId)}/invoice`,
+      { method: "POST", body: {} },
+    );
+    return response.data;
+  },
+
+  async confirmCheckoutPayment(hotelId: string, invoiceId: string, input: {
+    method: "CASH" | "BANK_TRANSFER" | "CARD";
+    amount?: number;
+    cashReceived?: number;
+    note: string;
+    clientRequestId: string;
+  }) {
+    const response = await requestInternalApiEnvelope<ConfirmManualPaymentResult>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/billing/invoices/${encodeURIComponent(invoiceId)}/manual-payment`,
+      { method: "POST", body: input },
+    );
+    const invoice = response.data.invoice.invoice;
+    if (invoice.balanceAmount === undefined || invoice.balanceAmount === null) {
+      throw new Error("CHECKOUT_NOT_SETTLED");
+    }
+    return { invoice: { status: invoice.status, balanceAmount: invoice.balanceAmount } };
+  },
+
+  async markRoomReady(hotelId: string, roomId: string, expectedUpdatedAt: string | undefined | null) {
+    const response = await requestInternalApiEnvelope<HotelRoomSummary>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(roomId)}/ready`,
+      { method: "PATCH", body: { expectedUpdatedAt } },
+    );
+    return response.data;
+  },
+
+  async findOpenRoomFolio(hotelId: string, roomId: string, signal?: AbortSignal): Promise<FolioListItem | null> {
+    const query = new URLSearchParams({ roomId });
+    const response = await requestInternalApiEnvelope<FolioListItem | null>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/billing/folios?${query}`,
+      { method: "GET", signal },
+    );
+    return response.data;
+  },
   async list(
     hotelId: string,
     input?: StaffRoomsListInput,
@@ -789,10 +833,21 @@ export const staffRoomsRepository = {
     hotelId: string,
     signal?: AbortSignal,
   ): Promise<HotelStaffAssignmentItem[]> {
-    const response = await requestInternalApiEnvelope<HotelOpsPage<HotelStaffAssignmentItem>>(
-      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/staff-assignments?limit=100`,
-      { method: "GET", signal },
-    );
-    return response.data?.items ?? [];
+    const items: HotelStaffAssignmentItem[] = [];
+    for (let page = 1; page <= 100; page += 1) {
+      const response = await requestInternalApiEnvelope<HotelOpsPage<HotelStaffAssignmentItem>>(
+        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/staff-assignments?status=ACTIVE&limit=100&page=${page}`,
+        { method: "GET", signal },
+      );
+      const data = response.data;
+      const pages = data.totalPages ?? Math.ceil(data.total / data.limit);
+      if (!Number.isFinite(pages) || data.page !== page || data.limit <= 0) {
+        throw new Error("Không thể tải đầy đủ danh sách nhân viên.");
+      }
+      items.push(...data.items);
+      if (page >= pages) return items;
+      if (!data.items.length) break;
+    }
+    throw new Error("Không thể tải đầy đủ danh sách nhân viên.");
   },
 };

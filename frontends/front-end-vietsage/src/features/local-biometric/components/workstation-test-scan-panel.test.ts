@@ -6,7 +6,7 @@ const source = readFileSync(new URL("./workstation-test-scan-panel.tsx", import.
 const page = readFileSync(new URL("../../../app/(vietsage)/hotels/[hotelId]/biometric/page.tsx", import.meta.url), "utf8");
 
 test("owner can test a CCCD scan without selecting a room or persisting a stay", () => {
-  assert.match(source, /Test quét CCCD/);
+  assert.match(source, /Kiểm tra thiết bị quét CCCD/);
   assert.match(source, /CccdCheckInPanel/);
   assert.match(source, /CccdPreview/);
   assert.match(source, /buildCccdPreviewModel/);

@@ -55,4 +55,3 @@ import { IcalService } from "./services/ical.service";
   ],
 })
 export class ChannelManagerModule {}
-
