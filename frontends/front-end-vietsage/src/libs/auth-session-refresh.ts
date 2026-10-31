@@ -20,6 +20,8 @@ function readCurrentSessionTokens(refreshToken: string): Promise<RefreshedSessio
       !tokens.accessToken ||
       !tokens.refreshToken ||
       typeof tokens.accessTokenExpiresAt !== "number" ||
+      !Number.isFinite(tokens.accessTokenExpiresAt) ||
+      tokens.accessTokenExpiresAt <= Date.now() ||
       tokens.refreshToken === refreshToken
     ) {
       return null;
@@ -36,21 +38,6 @@ function readCurrentSessionTokens(refreshToken: string): Promise<RefreshedSessio
 export async function refreshSessionTokens(
   refreshToken: string,
 ): Promise<RefreshedSessionTokens> {
-  const idempotencyKey = createRefreshIdempotencyKey(refreshToken);
-  const refreshedTokens = await authService.refresh(refreshToken, idempotencyKey);
-
-  runtimeConsole.info("[SESSION_REFRESH_SUCCESS]", {
-    saveLocation: "none",
-    accessTokenExpiresAt: refreshedTokens.accessTokenExpiresAt,
-    timestamp: Date.now(),
-  });
-
-  return refreshedTokens;
-}
-
-export async function refreshAndSaveSessionTokens(
-  refreshToken: string,
-): Promise<RefreshedSessionTokens> {
   const existingRefresh = refreshInFlightByToken.get(refreshToken);
   if (existingRefresh) {
     runtimeConsole.info("[SESSION_REFRESH_WAIT_IN_FLIGHT]", {
@@ -60,40 +47,59 @@ export async function refreshAndSaveSessionTokens(
   }
 
   const refreshPromise = (async () => {
-    try {
-      const refreshedTokens = await refreshSessionTokens(refreshToken);
+    const idempotencyKey = createRefreshIdempotencyKey(refreshToken);
+    const refreshedTokens = await authService.refresh(refreshToken, idempotencyKey);
 
-      await unstable_update({
-        accessToken: refreshedTokens.accessToken,
-        refreshToken: refreshedTokens.refreshToken,
-        accessTokenExpiresAt: refreshedTokens.accessTokenExpiresAt,
-        authError: null,
-      } as never);
-      const tokens = await readServerSessionTokens();
+    runtimeConsole.info("[SESSION_REFRESH_SUCCESS]", {
+      saveLocation: "none",
+      accessTokenExpiresAt: refreshedTokens.accessTokenExpiresAt,
+      timestamp: Date.now(),
+    });
 
-      runtimeConsole.info("[SESSION_REFRESH_SAVED]", {
-        saveLocation: "next-auth-jwt-session",
-        newAccessToken: tokens.accessToken ? "updated" : "set",
-        timestamp: Date.now(),
-      });
-
-      return refreshedTokens;
-    } catch (error) {
-      const currentSessionTokens = await readCurrentSessionTokens(refreshToken);
-      if (currentSessionTokens) {
-        runtimeConsole.info("[SESSION_REFRESH_REUSED_ROTATED_SESSION]", {
-          accessTokenExpiresAt: currentSessionTokens.accessTokenExpiresAt,
-          timestamp: Date.now(),
-        });
-        return currentSessionTokens;
-      }
-
-      throw error;
-    } finally {
-      refreshInFlightByToken.delete(refreshToken);
-    }
+    return refreshedTokens;
   })();
 
   refreshInFlightByToken.set(refreshToken, refreshPromise);
-  return refreshPromise;
+  try {
+    return await refreshPromise;
+  } finally {
+    if (refreshInFlightByToken.get(refreshToken) === refreshPromise) {
+      refreshInFlightByToken.delete(refreshToken);
+    }
+  }
+}
+
+export async function refreshAndSaveSessionTokens(
+  refreshToken: string,
+): Promise<RefreshedSessionTokens> {
+  try {
+    const refreshedTokens = await refreshSessionTokens(refreshToken);
+
+    await unstable_update({
+      accessToken: refreshedTokens.accessToken,
+      refreshToken: refreshedTokens.refreshToken,
+      accessTokenExpiresAt: refreshedTokens.accessTokenExpiresAt,
+      authError: null,
+    } as never);
+    const tokens = await readServerSessionTokens();
+
+    runtimeConsole.info("[SESSION_REFRESH_SAVED]", {
+      saveLocation: "next-auth-jwt-session",
+      newAccessToken: tokens.accessToken ? "updated" : "set",
+      timestamp: Date.now(),
+    });
+
+    return refreshedTokens;
+  } catch (error) {
+    const currentSessionTokens = await readCurrentSessionTokens(refreshToken);
+    if (currentSessionTokens) {
+      runtimeConsole.info("[SESSION_REFRESH_REUSED_ROTATED_SESSION]", {
+        accessTokenExpiresAt: currentSessionTokens.accessTokenExpiresAt,
+        timestamp: Date.now(),
+      });
+      return currentSessionTokens;
+    }
+
+    throw error;
+  }
 }

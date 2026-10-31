@@ -1,0 +1,588 @@
+{
+  "baselineRevision": "a1f1c933254b67280f51c9db603e1c42bfbd8111",
+  "currentRevision": "7d5344b73ea030869b92289457132e0eca3a4f73",
+  "current": {
+    "files": 9,
+    "errors": 47,
+    "warnings": 52
+  },
+  "baseline": {
+    "files": 8,
+    "errors": 55,
+    "warnings": 51
+  },
+  "files": [
+    {
+      "file": "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx",
+      "errors": 0,
+      "warnings": 7,
+      "baselineErrors": 0,
+      "baselineWarnings": 7,
+      "errorDetails": []
+    },
+    {
+      "file": "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx",
+      "errors": 35,
+      "warnings": 16,
+      "baselineErrors": 35,
+      "baselineWarnings": 15,
+      "errorDetails": [
+        {
+          "line": 676,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 675,
+          "baselineMatches": [
+            675
+          ],
+          "code": "function extractRoomBasePrice(room: any): number | null {"
+        },
+        {
+          "line": 1612,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 1594,
+          "baselineMatches": [
+            1594,
+            1594,
+            1594
+          ],
+          "code": "const reservationCode = (res.data as any)?.reservationCode || (res.data as any)?.code || (res.data as any)?.id || \"\";"
+        },
+        {
+          "line": 1612,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 1594,
+          "baselineMatches": [
+            1594,
+            1594,
+            1594
+          ],
+          "code": "const reservationCode = (res.data as any)?.reservationCode || (res.data as any)?.code || (res.data as any)?.id || \"\";"
+        },
+        {
+          "line": 1612,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 1594,
+          "baselineMatches": [
+            1594,
+            1594,
+            1594
+          ],
+          "code": "const reservationCode = (res.data as any)?.reservationCode || (res.data as any)?.code || (res.data as any)?.id || \"\";"
+        },
+        {
+          "line": 1967,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 1949,
+          "baselineMatches": [
+            1949,
+            2003
+          ],
+          "code": "const stayRes = (r.activeStay as any)?.reservation;"
+        },
+        {
+          "line": 1970,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 1952,
+          "baselineMatches": [
+            1952,
+            1952
+          ],
+          "code": "((proj as any)?.groupCode && String((proj as any).groupCode).toLowerCase() === cleanQ) ||"
+        },
+        {
+          "line": 1970,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 1952,
+          "baselineMatches": [
+            1952,
+            1952
+          ],
+          "code": "((proj as any)?.groupCode && String((proj as any).groupCode).toLowerCase() === cleanQ) ||"
+        },
+        {
+          "line": 1972,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 1954,
+          "baselineMatches": [
+            1954,
+            1954
+          ],
+          "code": "((upc as any)?.groupCode && String((upc as any).groupCode).toLowerCase() === cleanQ) ||"
+        },
+        {
+          "line": 1972,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 1954,
+          "baselineMatches": [
+            1954,
+            1954
+          ],
+          "code": "((upc as any)?.groupCode && String((upc as any).groupCode).toLowerCase() === cleanQ) ||"
+        },
+        {
+          "line": 1990,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 1972,
+          "baselineMatches": [
+            1972,
+            1972
+          ],
+          "code": "const grpCode = ((proj as any)?.groupCode ? String((proj as any).groupCode) : \"\").toLowerCase();"
+        },
+        {
+          "line": 1990,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 1972,
+          "baselineMatches": [
+            1972,
+            1972
+          ],
+          "code": "const grpCode = ((proj as any)?.groupCode ? String((proj as any).groupCode) : \"\").toLowerCase();"
+        },
+        {
+          "line": 1999,
+          "ruleId": "react-hooks/set-state-in-effect",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 1981,
+          "baselineMatches": [
+            1981
+          ],
+          "code": "if (rawDate !== businessDate) handleBusinessDateChange(rawDate);"
+        },
+        {
+          "line": 2007,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 1989,
+          "baselineMatches": [
+            1989,
+            1989
+          ],
+          "code": "const grpCode = ((upc as any)?.groupCode ? String((upc as any).groupCode) : \"\").toLowerCase();"
+        },
+        {
+          "line": 2007,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 1989,
+          "baselineMatches": [
+            1989,
+            1989
+          ],
+          "code": "const grpCode = ((upc as any)?.groupCode ? String((upc as any).groupCode) : \"\").toLowerCase();"
+        },
+        {
+          "line": 2021,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2003,
+          "baselineMatches": [
+            1949,
+            2003
+          ],
+          "code": "const stayRes = (r.activeStay as any)?.reservation;"
+        },
+        {
+          "line": 2110,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2092,
+          "baselineMatches": [
+            2092
+          ],
+          "code": "const openGroupCheckIn = useCallback((code?: string | null, targetRooms?: GroupRoomItem[]) => {"
+        },
+        {
+          "line": 2111,
+          "ruleId": "prefer-const",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2093,
+          "baselineMatches": [
+            2093
+          ],
+          "code": "let resolvedCode = code?.trim() || null;"
+        },
+        {
+          "line": 2130,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2112,
+          "baselineMatches": [
+            2112
+          ],
+          "code": "}, [arrivalsList, rooms]);"
+        },
+        {
+          "line": 2132,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2114,
+          "baselineMatches": [
+            2114
+          ],
+          "code": "const openGroupOperations = useCallback((code?: string | null) => {"
+        },
+        {
+          "line": 2134,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2116,
+          "baselineMatches": [
+            2116
+          ],
+          "code": "}, [openGroupCheckIn]);"
+        },
+        {
+          "line": 2174,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2156,
+          "baselineMatches": [
+            2156
+          ],
+          "code": "}, [rooms, activeMovementsTargetYmd]);"
+        },
+        {
+          "line": 2189,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2171,
+          "baselineMatches": [
+            2171
+          ],
+          "code": "const z = (r as any).zone;"
+        },
+        {
+          "line": 2436,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2418,
+          "baselineMatches": [
+            2418
+          ],
+          "code": "const roomPoolMap = useMemo(() => {"
+        },
+        {
+          "line": 2454,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2436,
+          "baselineMatches": [
+            2436
+          ],
+          "code": "status: pr.status as any,"
+        },
+        {
+          "line": 2464,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2446,
+          "baselineMatches": [
+            2446
+          ],
+          "code": "}, [initialRoomsPage.items, rooms, bulkPlanData?.rooms, hotelId]);"
+        },
+        {
+          "line": 2505,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2487,
+          "baselineMatches": [
+            2487
+          ],
+          "code": "const roomTypeSummaryList = useMemo(() => {"
+        },
+        {
+          "line": 2558,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2540,
+          "baselineMatches": [
+            2540
+          ],
+          "code": "[roomTypeSummaryList, bulkRoomTypeCounts],"
+        },
+        {
+          "line": 2563,
+          "ruleId": "react-hooks/set-state-in-effect",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2545,
+          "baselineMatches": [
+            2545
+          ],
+          "code": "setBulkRoomTypeCounts((prev) => {"
+        },
+        {
+          "line": 2624,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2606,
+          "baselineMatches": [
+            2606
+          ],
+          "code": "const reservationNightDates = useMemo(() => {"
+        },
+        {
+          "line": 2759,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2741,
+          "baselineMatches": [
+            2741
+          ],
+          "code": "roomTypeSummaryList,"
+        },
+        {
+          "line": 2784,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2766,
+          "baselineMatches": [
+            2766
+          ],
+          "code": "const reservationEstimatedRoomsTotal = useMemo(() => {"
+        },
+        {
+          "line": 2800,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2782,
+          "baselineMatches": [
+            2782
+          ],
+          "code": "selectedReservationRoom?.price,"
+        },
+        {
+          "line": 2802,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2784,
+          "baselineMatches": [
+            2784
+          ],
+          "code": "reservationNightDates,"
+        },
+        {
+          "line": 2819,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2801,
+          "baselineMatches": [
+            2801
+          ],
+          "code": "}, [selectedReservationRoom, initialReservationRoom]);"
+        },
+        {
+          "line": 4051,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 4033,
+          "baselineMatches": [
+            4033
+          ],
+          "code": "(r) => String((r as any).zone || \"\").trim() === zone,"
+        }
+      ]
+    },
+    {
+      "file": "frontends/front-end-vietsage/src/features/hotel-ops/components/edit-reservation-modal.tsx",
+      "errors": 0,
+      "warnings": 1,
+      "baselineErrors": 0,
+      "baselineWarnings": 1,
+      "errorDetails": []
+    },
+    {
+      "file": "frontends/front-end-vietsage/src/features/hotel-ops/components/front-desk-arrival-detail-panel.tsx",
+      "errors": 0,
+      "warnings": 2,
+      "baselineErrors": 0,
+      "baselineWarnings": 2,
+      "errorDetails": []
+    },
+    {
+      "file": "frontends/front-end-vietsage/src/features/hotel-ops/components/group-operations-drawer.tsx",
+      "errors": 0,
+      "warnings": 3,
+      "baselineErrors": 0,
+      "baselineWarnings": 3,
+      "errorDetails": []
+    },
+    {
+      "file": "frontends/front-end-vietsage/src/features/hotel-ops/components/tape-chart/tape-chart-view.tsx",
+      "errors": 12,
+      "warnings": 23,
+      "baselineErrors": 20,
+      "baselineWarnings": 23,
+      "errorDetails": [
+        {
+          "line": 1747,
+          "ruleId": "react-hooks/set-state-in-effect",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 1756,
+          "baselineMatches": [
+            1756
+          ],
+          "code": "setStartDate((prev) => (prev !== businessDate ? businessDate : prev));"
+        },
+        {
+          "line": 2038,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2047,
+          "baselineMatches": [
+            2047,
+            2124
+          ],
+          "code": "const stayRes = (r.activeStay as any)?.reservation;"
+        },
+        {
+          "line": 2041,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2050,
+          "baselineMatches": [
+            2050,
+            2050
+          ],
+          "code": "((proj as any)?.groupCode && String((proj as any).groupCode).toLowerCase() === cleanQ) ||"
+        },
+        {
+          "line": 2041,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2050,
+          "baselineMatches": [
+            2050,
+            2050
+          ],
+          "code": "((proj as any)?.groupCode && String((proj as any).groupCode).toLowerCase() === cleanQ) ||"
+        },
+        {
+          "line": 2043,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2052,
+          "baselineMatches": [
+            2052,
+            2052
+          ],
+          "code": "((upc as any)?.groupCode && String((upc as any).groupCode).toLowerCase() === cleanQ) ||"
+        },
+        {
+          "line": 2043,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2052,
+          "baselineMatches": [
+            2052,
+            2052
+          ],
+          "code": "((upc as any)?.groupCode && String((upc as any).groupCode).toLowerCase() === cleanQ) ||"
+        },
+        {
+          "line": 2071,
+          "ruleId": "react-hooks/set-state-in-effect",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2080,
+          "baselineMatches": [
+            2080
+          ],
+          "code": "setStartDate(targetDate);"
+        },
+        {
+          "line": 2082,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2091,
+          "baselineMatches": [
+            2091,
+            2091
+          ],
+          "code": "const grpCode = ((proj as any)?.groupCode ? String((proj as any).groupCode) : \"\").toLowerCase();"
+        },
+        {
+          "line": 2082,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2091,
+          "baselineMatches": [
+            2091,
+            2091
+          ],
+          "code": "const grpCode = ((proj as any)?.groupCode ? String((proj as any).groupCode) : \"\").toLowerCase();"
+        },
+        {
+          "line": 2100,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2109,
+          "baselineMatches": [
+            2109,
+            2109
+          ],
+          "code": "const grpCode = ((upc as any)?.groupCode ? String((upc as any).groupCode) : \"\").toLowerCase();"
+        },
+        {
+          "line": 2100,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2109,
+          "baselineMatches": [
+            2109,
+            2109
+          ],
+          "code": "const grpCode = ((upc as any)?.groupCode ? String((upc as any).groupCode) : \"\").toLowerCase();"
+        },
+        {
+          "line": 2115,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedBaselineLine": 2124,
+          "baselineMatches": [
+            2047,
+            2124
+          ],
+          "code": "const stayRes = (r.activeStay as any)?.reservation;"
+        }
+      ]
+    },
+    {
+      "file": "frontends/front-end-vietsage/src/features/hotel-ops/utils/front-desk-groups.ts",
+      "errors": 0,
+      "warnings": 0,
+      "baselineErrors": 0,
+      "baselineWarnings": 0,
+      "errorDetails": []
+    },
+    {
+      "file": "frontends/front-end-vietsage/src/libs/vietnam-temporal.ts",
+      "errors": 0,
+      "warnings": 0,
+      "baselineErrors": 0,
+      "baselineWarnings": 0,
+      "errorDetails": []
+    },
+    {
+      "file": "frontends/front-end-vietsage/src/features/hotel-ops/utils/tape-chart-filter-helpers.ts",
+      "errors": 0,
+      "warnings": 0,
+      "baselineErrors": 0,
+      "baselineWarnings": 0,
+      "errorDetails": []
+    }
+  ],
+  "unmatchedErrors": [],
+  "changedHunkErrors": []
+}

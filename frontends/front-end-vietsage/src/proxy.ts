@@ -60,10 +60,11 @@ function clearNextAuthCookies(
 ): NextResponse {
   const nextAuthCookieNames = request.cookies
     .getAll()
+    .concat(response.cookies.getAll())
     .map((cookie) => cookie.name)
     .filter((cookieName) => isNextAuthCookie(cookieName));
 
-  for (const cookieName of nextAuthCookieNames) {
+  for (const cookieName of new Set(nextAuthCookieNames)) {
     const requiresSecureFlag =
       cookieName.startsWith("__Secure-") || cookieName.startsWith("__Host-");
 
@@ -94,7 +95,7 @@ function buildLoginRedirect(request: NextRequest): NextResponse {
   loginUrl.searchParams.set("callbackUrl", callbackUrl);
   loginUrl.searchParams.set("reauth", "1");
 
-  return clearNextAuthCookies(request, NextResponse.redirect(loginUrl));
+  return NextResponse.redirect(loginUrl);
 }
 
 function getStringTokenField(token: unknown, field: string): string | null {
@@ -135,7 +136,7 @@ function buildRefreshSessionRedirect(request: NextRequest): NextResponse {
   return NextResponse.redirect(refreshUrl);
 }
 
-export const proxy = auth((request) => {
+const authenticatedProxy = auth((request) => {
   const rawPathname = request.nextUrl.pathname;
   let decodedPath = rawPathname;
   try {
@@ -184,7 +185,7 @@ export const proxy = auth((request) => {
   }
 
   if (isAuthRoute && isForcedReauth(request)) {
-    return clearNextAuthCookies(request, NextResponse.next());
+    return NextResponse.next();
   }
 
   const session = request.auth;
@@ -276,6 +277,22 @@ export const proxy = auth((request) => {
 
   return NextResponse.next();
 });
+
+export async function proxy(...args: Parameters<typeof authenticatedProxy>) {
+  const request = args[0];
+  const response = await authenticatedProxy(...args);
+  if (!response) return response;
+
+  const location = response.headers.get("location");
+  const destination = location ? new URL(location, request.url) : request.nextUrl;
+  const resetsSession = authRoutes.has(destination.pathname) &&
+    destination.searchParams.get("reauth") === "1";
+
+  // Auth.js appends rolling cookies after its callback; clear the final response.
+  return resetsSession
+    ? clearNextAuthCookies(request, new NextResponse(response.body, response))
+    : response;
+}
 
 export const config = {
   matcher: ["/((?!api|_next/static|_next/image|.*\\..*).*)"],

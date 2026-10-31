@@ -87,9 +87,9 @@
   - button "Khách đến 6":
     - generic: Khách đến
     - generic: "6"
-  - button "Khách đi 0":
+  - button "Khách đi 8":
     - generic: Khách đi
-    - generic: "0"
+    - generic: "8"
   - button "Đoàn khách 3":
     - generic: Đoàn khách
     - generic: "3"
@@ -114,12 +114,14 @@
   - group "Khung ngày hiển thị":
     - button "7 ngày"
     - button "14 ngày"
-  - generic: Đang đồng bộ...
-  - 'generic "Công suất trung bình cả kỳ (7 ngày): 0% • Hôm nay: 0% (0/2 phòng)"':
+  - 'generic "Công suất trung bình cả kỳ (7 ngày): 43% • Hôm nay: 100% (2/2 phòng)"':
     - text: "Công suất TB:"
-    - strong: 0%
+    - strong: 43%
     - generic: •
-    - generic: 0/2 hôm nay
+    - generic: 2/2 hôm nay
+  - button "8 phòng quá hạn 1/8":
+    - generic: 8 phòng quá hạn
+    - generic: 1/8
   - button "Check-in đoàn":
     - generic: Check-in đoàn
   - button "Đặt phòng nhanh":
@@ -145,12 +147,12 @@
     - button "Tất cả 71":
       - generic: Tất cả
       - generic: "71"
-    - button "Trống hôm nay 31":
+    - button "Trống hôm nay 23":
       - generic: Trống hôm nay
-      - generic: "31"
-    - button "Có khách hôm nay 10":
+      - generic: "23"
+    - button "Có khách hôm nay 20":
       - generic: Có khách hôm nay
-      - generic: "10"
+      - generic: "20"
     - button "Chờ dọn 11":
       - generic: Chờ dọn
       - generic: "11"
@@ -186,13 +188,13 @@
   - generic: T6
   - generic: 06/11
   - generic: Công suất phòng
-  - 'generic "Công suất trung bình cả kỳ: 0%"': TB 0%
-  - 'generic "Ngày 31/10: Công suất 0% (0/2 phòng có khách, 2 phòng trống)"':
-    - generic: 0%
-    - generic: (0/2)
-  - 'generic "Ngày 01/11: Công suất 0% (0/2 phòng có khách, 2 phòng trống)"':
-    - generic: 0%
-    - generic: (0/2)
+  - 'generic "Công suất trung bình cả kỳ: 43%"': TB 43%
+  - 'generic "Ngày 31/10: Công suất 100% (2/2 phòng có khách, 0 phòng trống)"':
+    - generic: 100%
+    - generic: (2/2)
+  - 'generic "Ngày 01/11: Công suất 100% (2/2 phòng có khách, 0 phòng trống)"':
+    - generic: 100%
+    - generic: (2/2)
   - 'generic "Ngày 02/11: Công suất 0% (0/2 phòng có khách, 2 phòng trống)"':
     - generic: 0%
     - generic: (0/2)
@@ -202,42 +204,59 @@
   - 'generic "Ngày 04/11: Công suất 0% (0/2 phòng có khách, 2 phòng trống)"':
     - generic: 0%
     - generic: (0/2)
-  - 'generic "Ngày 05/11: Công suất 0% (0/2 phòng có khách, 2 phòng trống)"':
-    - generic: 0%
-    - generic: (0/2)
-  - 'generic "Ngày 06/11: Công suất 0% (0/2 phòng có khách, 2 phòng trống)"':
-    - generic: 0%
-    - generic: (0/2)
+  - 'generic "Ngày 05/11: Công suất 50% (1/2 phòng có khách, 1 phòng trống)"':
+    - generic: 50%
+    - generic: (1/2)
+  - 'generic "Ngày 06/11: Công suất 50% (1/2 phòng có khách, 1 phòng trống)"':
+    - generic: 50%
+    - generic: (1/2)
   - button "Single Room":
     - generic: Single Room
   - generic: "2"
-  - 'generic "Hạng Single Room ngày 31/10: 0/2 có khách (0%), còn 2 phòng trống"':
-    - generic: 2 trống
-    - generic: (0%)
-  - 'generic "Hạng Single Room ngày 01/11: 0/2 có khách (0%), còn 2 phòng trống"':
-    - generic: 2 trống
-    - generic: (0%)
+  - 'generic "Hạng Single Room ngày 31/10: 2/2 có khách (100%), còn 0 phòng trống"':
+    - generic: 0 trống
+    - generic: (100%)
+    - generic: 900.000 ₫
+  - 'generic "Hạng Single Room ngày 01/11: 2/2 có khách (100%), còn 0 phòng trống"':
+    - generic: 0 trống
+    - generic: (100%)
+    - generic: 900.000 ₫
   - 'generic "Hạng Single Room ngày 02/11: 0/2 có khách (0%), còn 2 phòng trống"':
     - generic: 2 trống
     - generic: (0%)
+    - generic: 900.000 ₫
   - 'generic "Hạng Single Room ngày 03/11: 0/2 có khách (0%), còn 2 phòng trống"':
     - generic: 2 trống
     - generic: (0%)
+    - generic: 900.000 ₫
   - 'generic "Hạng Single Room ngày 04/11: 0/2 có khách (0%), còn 2 phòng trống"':
     - generic: 2 trống
     - generic: (0%)
-  - 'generic "Hạng Single Room ngày 05/11: 0/2 có khách (0%), còn 2 phòng trống"':
-    - generic: 2 trống
-    - generic: (0%)
-  - 'generic "Hạng Single Room ngày 06/11: 0/2 có khách (0%), còn 2 phòng trống"':
-    - generic: 2 trống
-    - generic: (0%)
+    - generic: 900.000 ₫
+  - 'generic "Hạng Single Room ngày 05/11: 1/2 có khách (50%), còn 1 phòng trống"':
+    - generic: 1 trống
+    - generic: (50%)
+    - generic: 900.000 ₫
+  - 'generic "Hạng Single Room ngày 06/11: 1/2 có khách (50%), còn 1 phòng trống"':
+    - generic: 1 trống
+    - generic: (50%)
+    - generic: 900.000 ₫
   - button "P.1003 T.10":
     - button "P.1003"
     - generic: T.10
+  - button "QA TA 3010 QA GROUP AUTO 3010 B":
+    - slider "Kéo mép trái để điều chỉnh ngày nhận phòng"
+    - generic: QA TA 3010
+    - generic: QA GROUP AUTO 3010 B
+    - slider "Kéo mép phải để gia hạn lưu trú hoặc điều chỉnh ngày trả phòng"
   - button "P.1004 T.10":
     - button "P.1004"
     - generic: T.10
+  - button "QA TA 3010 QA GROUP AUTO 3010 B":
+    - slider "Kéo mép trái để điều chỉnh ngày nhận phòng"
+    - generic: QA TA 3010
+    - generic: QA GROUP AUTO 3010 B
+    - slider "Kéo mép phải để gia hạn lưu trú hoặc điều chỉnh ngày trả phòng"
   - status
 - region "Notifications alt+T"
 - button "Open Next.js Dev Tools":

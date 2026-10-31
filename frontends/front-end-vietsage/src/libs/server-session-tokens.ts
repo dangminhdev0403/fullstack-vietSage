@@ -61,23 +61,7 @@ async function readServerSessionTokensUncached(req?: Request | { headers: Header
     ...cookiePolicy,
   }).catch(() => null);
 
-  const parsed = toSessionTokens(token);
-  if (parsed.accessToken && parsed.refreshToken) {
-    return parsed;
-  }
-
-  const { auth } = await import("@/auth");
-  const session = await auth();
-  if (session?.user) {
-    return {
-      accessToken: parsed.accessToken ?? (typeof (session as unknown as Record<string, unknown>).accessToken === "string" ? (session as unknown as Record<string, string>).accessToken : null),
-      refreshToken: parsed.refreshToken ?? "session_valid_active",
-      accessTokenExpiresAt: parsed.accessTokenExpiresAt ?? session.accessTokenExpiresAt,
-      authError: session.authError ?? parsed.authError,
-    };
-  }
-
-  return parsed;
+  return toSessionTokens(token);
 }
 
 export async function readServerSessionTokens(req?: Request | { headers: Headers }): Promise<ServerSessionTokens> {

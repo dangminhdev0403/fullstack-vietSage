@@ -479,7 +479,7 @@
   },
   {
     "file": "frontends/front-end-vietsage/src/features/hotel-ops/components/edit-reservation-modal.tsx",
-    "errorCount": 10,
+    "errorCount": 0,
     "warningCount": 1,
     "messages": [
       {
@@ -489,86 +489,6 @@
         "severity": 1,
         "ruleId": "@typescript-eslint/no-unused-vars",
         "message": "'iso' is assigned a value but never used. Allowed unused vars must match /^_/u."
-      },
-      {
-        "line": 404,
-        "column": 5,
-        "endLine": 404,
-        "severity": 2,
-        "ruleId": "react-hooks/refs",
-        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\edit-reservation-modal.tsx:404:5\n  402 |     const inLocal = toVietnamDatetimeLocal(reservation.plannedCheckInAt);\n  403 |     const outLocal = toVietnamDatetimeLocal(reservation.plannedCheckOutAt);\n> 404 |     originalCheckInInstantRef.current = reservation.plannedCheckInAt || \"\";\n      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot update ref during render\n  405 |     originalCheckInLocalRef.current = inLocal;\n  406 |     originalCheckOutInstantRef.current = reservation.plannedCheckOutAt || \"\";\n  407 |     originalCheckOutLocalRef.current = outLocal;"
-      },
-      {
-        "line": 405,
-        "column": 5,
-        "endLine": 405,
-        "severity": 2,
-        "ruleId": "react-hooks/refs",
-        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\edit-reservation-modal.tsx:405:5\n  403 |     const outLocal = toVietnamDatetimeLocal(reservation.plannedCheckOutAt);\n  404 |     originalCheckInInstantRef.current = reservation.plannedCheckInAt || \"\";\n> 405 |     originalCheckInLocalRef.current = inLocal;\n      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot update ref during render\n  406 |     originalCheckOutInstantRef.current = reservation.plannedCheckOutAt || \"\";\n  407 |     originalCheckOutLocalRef.current = outLocal;\n  408 |     setPlannedCheckInAt(inLocal);"
-      },
-      {
-        "line": 406,
-        "column": 5,
-        "endLine": 406,
-        "severity": 2,
-        "ruleId": "react-hooks/refs",
-        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\edit-reservation-modal.tsx:406:5\n  404 |     originalCheckInInstantRef.current = reservation.plannedCheckInAt || \"\";\n  405 |     originalCheckInLocalRef.current = inLocal;\n> 406 |     originalCheckOutInstantRef.current = reservation.plannedCheckOutAt || \"\";\n      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot update ref during render\n  407 |     originalCheckOutLocalRef.current = outLocal;\n  408 |     setPlannedCheckInAt(inLocal);\n  409 |     setPlannedCheckOutAt(outLocal);"
-      },
-      {
-        "line": 407,
-        "column": 5,
-        "endLine": 407,
-        "severity": 2,
-        "ruleId": "react-hooks/refs",
-        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\edit-reservation-modal.tsx:407:5\n  405 |     originalCheckInLocalRef.current = inLocal;\n  406 |     originalCheckOutInstantRef.current = reservation.plannedCheckOutAt || \"\";\n> 407 |     originalCheckOutLocalRef.current = outLocal;\n      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot update ref during render\n  408 |     setPlannedCheckInAt(inLocal);\n  409 |     setPlannedCheckOutAt(outLocal);\n  410 |"
-      },
-      {
-        "line": 421,
-        "column": 5,
-        "endLine": 421,
-        "severity": 2,
-        "ruleId": "react-hooks/refs",
-        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\edit-reservation-modal.tsx:421:5\n  419 |         : \"\");\n  420 |     const rateStr = existingRate !== \"\" && existingRate !== null ? String(existingRate) : \"\";\n> 421 |     originalRateInputRef.current = rateStr;\n      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot update ref during render\n  422 |     setNightlyRate(rateStr);\n  423 |     setIsRateDirty(false);\n  424 |     setNotes(reservation.notes || \"\");"
-      },
-      {
-        "line": 440,
-        "column": 60,
-        "endLine": 440,
-        "severity": 2,
-        "ruleId": "react-hooks/refs",
-        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\edit-reservation-modal.tsx:440:60\n  438 |   const hasRoomTotal = typeof originalRoomTotal === \"number\" && Number.isFinite(originalRoomTotal);\n  439 |   const hasTotal = typeof originalTotal === \"number\" && Number.isFinite(originalTotal);\n> 440 |   const isQuoteUnchanged = !isRateDirty && nightlyRate === originalRateInputRef.current &&\n      |                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot access ref value during render\n  441 |     plannedCheckInAt.slice(0, 10) === originalCheckInLocalRef.current.slice(0, 10) &&\n  442 |     plannedCheckOutAt.slice(0, 10) === originalCheckOutLocalRef.current.slice(0, 10);\n  443 |   const estimatedRoomTotal = isQuoteUnchanged && hasRoomTotal ? originalRoomTotal : numericRate * nights;"
-      },
-      {
-        "line": 441,
-        "column": 39,
-        "endLine": 441,
-        "severity": 2,
-        "ruleId": "react-hooks/refs",
-        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\edit-reservation-modal.tsx:441:39\n  439 |   const hasTotal = typeof originalTotal === \"number\" && Number.isFinite(originalTotal);\n  440 |   const isQuoteUnchanged = !isRateDirty && nightlyRate === originalRateInputRef.current &&\n> 441 |     plannedCheckInAt.slice(0, 10) === originalCheckInLocalRef.current.slice(0, 10) &&\n      |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Passing a ref to a function may read its value during render\n  442 |     plannedCheckOutAt.slice(0, 10) === originalCheckOutLocalRef.current.slice(0, 10);\n  443 |   const estimatedRoomTotal = isQuoteUnchanged && hasRoomTotal ? originalRoomTotal : numericRate * nights;\n  444 |   const extraTotal = hasTotal && hasRoomTotal ? originalTotal - originalRoomTotal : 0;"
-      },
-      {
-        "line": 441,
-        "column": 39,
-        "endLine": 441,
-        "severity": 2,
-        "ruleId": "react-hooks/refs",
-        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\edit-reservation-modal.tsx:441:39\n  439 |   const hasTotal = typeof originalTotal === \"number\" && Number.isFinite(originalTotal);\n  440 |   const isQuoteUnchanged = !isRateDirty && nightlyRate === originalRateInputRef.current &&\n> 441 |     plannedCheckInAt.slice(0, 10) === originalCheckInLocalRef.current.slice(0, 10) &&\n      |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Passing a ref to a function may read its value during render\n  442 |     plannedCheckOutAt.slice(0, 10) === originalCheckOutLocalRef.current.slice(0, 10);\n  443 |   const estimatedRoomTotal = isQuoteUnchanged && hasRoomTotal ? originalRoomTotal : numericRate * nights;\n  444 |   const extraTotal = hasTotal && hasRoomTotal ? originalTotal - originalRoomTotal : 0;"
-      },
-      {
-        "line": 442,
-        "column": 40,
-        "endLine": 442,
-        "severity": 2,
-        "ruleId": "react-hooks/refs",
-        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\edit-reservation-modal.tsx:442:40\n  440 |   const isQuoteUnchanged = !isRateDirty && nightlyRate === originalRateInputRef.current &&\n  441 |     plannedCheckInAt.slice(0, 10) === originalCheckInLocalRef.current.slice(0, 10) &&\n> 442 |     plannedCheckOutAt.slice(0, 10) === originalCheckOutLocalRef.current.slice(0, 10);\n      |                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Passing a ref to a function may read its value during render\n  443 |   const estimatedRoomTotal = isQuoteUnchanged && hasRoomTotal ? originalRoomTotal : numericRate * nights;\n  444 |   const extraTotal = hasTotal && hasRoomTotal ? originalTotal - originalRoomTotal : 0;\n  445 |   const estimatedTotal = isQuoteUnchanged && hasTotal ? originalTotal : estimatedRoomTotal + extraTotal;"
-      },
-      {
-        "line": 442,
-        "column": 40,
-        "endLine": 442,
-        "severity": 2,
-        "ruleId": "react-hooks/refs",
-        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\edit-reservation-modal.tsx:442:40\n  440 |   const isQuoteUnchanged = !isRateDirty && nightlyRate === originalRateInputRef.current &&\n  441 |     plannedCheckInAt.slice(0, 10) === originalCheckInLocalRef.current.slice(0, 10) &&\n> 442 |     plannedCheckOutAt.slice(0, 10) === originalCheckOutLocalRef.current.slice(0, 10);\n      |                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Passing a ref to a function may read its value during render\n  443 |   const estimatedRoomTotal = isQuoteUnchanged && hasRoomTotal ? originalRoomTotal : numericRate * nights;\n  444 |   const extraTotal = hasTotal && hasRoomTotal ? originalTotal - originalRoomTotal : 0;\n  445 |   const estimatedTotal = isQuoteUnchanged && hasTotal ? originalTotal : estimatedRoomTotal + extraTotal;"
       }
     ]
   },
@@ -792,121 +712,121 @@
         "message": "'isPlanLoading' is assigned a value but never used. Allowed unused vars must match /^_/u."
       },
       {
-        "line": 2043,
+        "line": 2038,
         "column": 42,
+        "endLine": 2038,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2041,
+        "column": 21,
+        "endLine": 2041,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2041,
+        "column": 56,
+        "endLine": 2041,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2043,
+        "column": 20,
         "endLine": 2043,
         "severity": 2,
         "ruleId": "@typescript-eslint/no-explicit-any",
         "message": "Unexpected any. Specify a different type."
       },
       {
-        "line": 2046,
-        "column": 21,
-        "endLine": 2046,
-        "severity": 2,
-        "ruleId": "@typescript-eslint/no-explicit-any",
-        "message": "Unexpected any. Specify a different type."
-      },
-      {
-        "line": 2046,
-        "column": 56,
-        "endLine": 2046,
-        "severity": 2,
-        "ruleId": "@typescript-eslint/no-explicit-any",
-        "message": "Unexpected any. Specify a different type."
-      },
-      {
-        "line": 2048,
-        "column": 20,
-        "endLine": 2048,
-        "severity": 2,
-        "ruleId": "@typescript-eslint/no-explicit-any",
-        "message": "Unexpected any. Specify a different type."
-      },
-      {
-        "line": 2048,
+        "line": 2043,
         "column": 54,
-        "endLine": 2048,
+        "endLine": 2043,
         "severity": 2,
         "ruleId": "@typescript-eslint/no-explicit-any",
         "message": "Unexpected any. Specify a different type."
       },
       {
-        "line": 2076,
+        "line": 2071,
         "column": 9,
-        "endLine": 2076,
+        "endLine": 2071,
         "severity": 2,
         "ruleId": "react-hooks/set-state-in-effect",
-        "message": "Error: Calling setState synchronously within an effect can trigger cascading renders\n\nEffects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:\n* Update external systems with the latest state from React.\n* Subscribe for updates from some external system, calling setState in a callback function when external state changes.\n\nCalling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\tape-chart\\tape-chart-view.tsx:2076:9\n  2074 |       const targetDate = blockMatch.startDate;\n  2075 |       if (targetDate !== startDate) {\n> 2076 |         setStartDate(targetDate);\n       |         ^^^^^^^^^^^^ Avoid calling setState() directly within an effect\n  2077 |       }\n  2078 |       onBusinessDateChange?.(targetDate);\n  2079 |       return;"
+        "message": "Error: Calling setState synchronously within an effect can trigger cascading renders\n\nEffects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:\n* Update external systems with the latest state from React.\n* Subscribe for updates from some external system, calling setState in a callback function when external state changes.\n\nCalling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\tape-chart\\tape-chart-view.tsx:2071:9\n  2069 |       const targetDate = blockMatch.startDate;\n  2070 |       if (targetDate !== startDate) {\n> 2071 |         setStartDate(targetDate);\n       |         ^^^^^^^^^^^^ Avoid calling setState() directly within an effect\n  2072 |       }\n  2073 |       onBusinessDateChange?.(targetDate);\n  2074 |       return;"
       },
       {
-        "line": 2087,
+        "line": 2082,
         "column": 35,
-        "endLine": 2087,
+        "endLine": 2082,
         "severity": 2,
         "ruleId": "@typescript-eslint/no-explicit-any",
         "message": "Unexpected any. Specify a different type."
       },
       {
-        "line": 2087,
+        "line": 2082,
         "column": 69,
-        "endLine": 2087,
+        "endLine": 2082,
         "severity": 2,
         "ruleId": "@typescript-eslint/no-explicit-any",
         "message": "Unexpected any. Specify a different type."
       },
       {
-        "line": 2105,
+        "line": 2100,
         "column": 34,
-        "endLine": 2105,
+        "endLine": 2100,
         "severity": 2,
         "ruleId": "@typescript-eslint/no-explicit-any",
         "message": "Unexpected any. Specify a different type."
       },
       {
-        "line": 2105,
+        "line": 2100,
         "column": 67,
-        "endLine": 2105,
+        "endLine": 2100,
         "severity": 2,
         "ruleId": "@typescript-eslint/no-explicit-any",
         "message": "Unexpected any. Specify a different type."
       },
       {
-        "line": 2120,
+        "line": 2115,
         "column": 40,
-        "endLine": 2120,
+        "endLine": 2115,
         "severity": 2,
         "ruleId": "@typescript-eslint/no-explicit-any",
         "message": "Unexpected any. Specify a different type."
       },
       {
-        "line": 2666,
+        "line": 2661,
         "column": 5,
-        "endLine": 2676,
+        "endLine": 2671,
         "severity": 1,
         "ruleId": "react-hooks/exhaustive-deps",
         "message": "React Hook useCallback has a missing dependency: 'setSearchQuery'. Either include it or remove the dependency array."
       },
       {
-        "line": 3640,
+        "line": 3635,
         "column": 5,
-        "endLine": 3640,
+        "endLine": 3635,
         "severity": 1,
         "ruleId": "react-hooks/exhaustive-deps",
         "message": "React Hook useCallback has a missing dependency: 'isReadOnly'. Either include it or remove the dependency array."
       },
       {
-        "line": 4194,
+        "line": 4189,
         "column": 6,
-        "endLine": 4194,
+        "endLine": 4189,
         "severity": 1,
         "ruleId": "react-hooks/exhaustive-deps",
         "message": "React Hook useEffect has a missing dependency: 'activeBlockResize'. Either include it or remove the dependency array."
       },
       {
-        "line": 4194,
+        "line": 4189,
         "column": 7,
-        "endLine": 4194,
+        "endLine": 4189,
         "severity": 1,
         "ruleId": "react-hooks/exhaustive-deps",
         "message": "React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked."

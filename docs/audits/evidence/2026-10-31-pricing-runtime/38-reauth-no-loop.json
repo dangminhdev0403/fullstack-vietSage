@@ -1,0 +1,37 @@
+{
+  "beforeResetCookies": [
+    {
+      "name": "__Secure-authjs.session-token",
+      "secure": true,
+      "httpOnly": true,
+      "expires": 1796018467.735528
+    }
+  ],
+  "afterResetCookies": [],
+  "navigation": [
+    {
+      "event": "Network.requestWillBeSent",
+      "path": "https://vietsage.localhost/dangnhap?reauth=1&callbackUrl=%2Fowner%2Fdashboard"
+    },
+    {
+      "event": "Network.responseReceived",
+      "path": "https://vietsage.localhost/dangnhap?reauth=1&callbackUrl=%2Fowner%2Fdashboard",
+      "status": 200
+    },
+    {
+      "event": "Network.requestWillBeSent",
+      "path": "https://vietsage.localhost/owner/dashboard"
+    },
+    {
+      "event": "Network.requestWillBeSent",
+      "path": "https://vietsage.localhost/dangnhap?callbackUrl=%2Fowner%2Fdashboard&reauth=1",
+      "redirectFrom": "https://vietsage.localhost/owner/dashboard",
+      "redirectStatus": 307
+    },
+    {
+      "event": "Network.responseReceived",
+      "path": "https://vietsage.localhost/dangnhap?callbackUrl=%2Fowner%2Fdashboard&reauth=1",
+      "status": 200
+    }
+  ]
+}
