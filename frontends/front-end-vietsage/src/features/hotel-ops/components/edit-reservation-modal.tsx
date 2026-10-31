@@ -13,6 +13,12 @@ import {
   toDisplayVnDate,
   toIsoDate,
 } from "@/features/local-biometric/components/check-in-workspace";
+import {
+  extractVietnamMinuteString,
+  parseHotelDatetimeToIso,
+  toVietnamDatetimeLocal,
+  toVietnamYmd,
+} from "@/libs/vietnam-temporal";
 import { showErrorAlert, showSuccessAlert, showWarningAlert } from "@/libs/swal";
 
 export type EditReservationModalProps = {
@@ -96,20 +102,6 @@ function addDaysToDate(baseDateStr: string, daysToAdd: number): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const dt = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${dt}`;
-}
-
-function toDatetimeLocal(isoString?: string | null): string {
-  if (!isoString) return "";
-  try {
-    const d = new Date(isoString);
-    if (isNaN(d.getTime())) return "";
-    const tzOffset = 7 * 60;
-    const localMs = d.getTime() + (tzOffset + d.getTimezoneOffset()) * 60000;
-    const localDate = new Date(localMs);
-    return localDate.toISOString().slice(0, 16);
-  } catch {
-    return "";
-  }
 }
 
 function calculateDiffNights(startIso?: string, endIso?: string): number {
@@ -311,10 +303,20 @@ export function EditReservationModal({
   const [notes, setNotes] = useState("");
   const [depositAmountInput, setDepositAmount] = useState<string | null>(null);
   const [depositPercentInput, setDepositPercent] = useState<string | null>(null);
+  const [depositInputMode, setDepositInputMode] = useState<"AMOUNT" | "PERCENT" | null>(null);
   const [depositMethod, setDepositMethod] = useState<string>("CASH");
   const [showRoomOverride, setShowRoomOverride] = useState(false);
   const [editScope, setEditScope] = useState<"SINGLE" | "GROUP">("SINGLE");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [originalQuote, setOriginalQuote] = useState({
+    checkInInstant: "",
+    checkInLocal: "",
+    checkOutInstant: "",
+    checkOutLocal: "",
+    rateInput: "",
+  });
+  const [isRateDirty, setIsRateDirty] = useState(false);
 
   // Query rooms if propRooms not provided
   const { data: roomsPage } = useQuery({
@@ -399,8 +401,10 @@ export function EditReservationModal({
     setGuestPhone(reservation.guestPhone || "");
     setGuestCount(reservation.guestCount ?? 1);
     setRoomId(reservation.roomId || "");
-    setPlannedCheckInAt(toDatetimeLocal(reservation.plannedCheckInAt));
-    setPlannedCheckOutAt(toDatetimeLocal(reservation.plannedCheckOutAt));
+    const inLocal = toVietnamDatetimeLocal(reservation.plannedCheckInAt);
+    const outLocal = toVietnamDatetimeLocal(reservation.plannedCheckOutAt);
+    setPlannedCheckInAt(inLocal);
+    setPlannedCheckOutAt(outLocal);
 
     const existingRate =
       reservation.nightlyRateSnapshot ??
@@ -411,33 +415,48 @@ export function EditReservationModal({
               calculateDiffNights(reservation.plannedCheckInAt, reservation.plannedCheckOutAt),
           )
         : "");
-    setNightlyRate(existingRate !== "" && existingRate !== null ? String(existingRate) : "");
+    const rateStr = existingRate !== "" && existingRate !== null ? String(existingRate) : "";
+    setOriginalQuote({
+      checkInInstant: reservation.plannedCheckInAt || "",
+      checkInLocal: inLocal,
+      checkOutInstant: reservation.plannedCheckOutAt || "",
+      checkOutLocal: outLocal,
+      rateInput: rateStr,
+    });
+    setNightlyRate(rateStr);
+    setIsRateDirty(false);
     setNotes(reservation.notes || "");
     setShowRoomOverride(false);
     setEditScope("SINGLE");
     setIsSubmitting(false);
     setDepositAmount(null);
     setDepositPercent(null);
+    setDepositInputMode(null);
     }
   }
 
   const nights = calculateDiffNights(plannedCheckInAt, plannedCheckOutAt);
-  const numericRate = nightlyRate ? Number(nightlyRate.replace(/\D/g, "")) : baseRate;
-  const estimatedRoomTotal = numericRate * nights;
+  const numericRate = nightlyRate !== "" ? (Number(nightlyRate.replace(/\D/g, "")) || 0) : baseRate;
+  const originalRoomTotal = reservation?.roomSubtotal;
+  const originalTotal = reservation?.totalAmount;
+  const hasRoomTotal = typeof originalRoomTotal === "number" && Number.isFinite(originalRoomTotal);
+  const hasTotal = typeof originalTotal === "number" && Number.isFinite(originalTotal);
+  const isQuoteUnchanged = !isRateDirty && nightlyRate === originalQuote.rateInput &&
+    plannedCheckInAt.slice(0, 10) === originalQuote.checkInLocal.slice(0, 10) &&
+    plannedCheckOutAt.slice(0, 10) === originalQuote.checkOutLocal.slice(0, 10);
+  const estimatedRoomTotal = isQuoteUnchanged && hasRoomTotal ? originalRoomTotal : numericRate * nights;
+  const extraTotal = hasTotal && hasRoomTotal ? originalTotal - originalRoomTotal : 0;
+  const estimatedTotal = isQuoteUnchanged && hasTotal ? originalTotal : estimatedRoomTotal + extraTotal;
 
-  const depositAmount = depositAmountInput ?? (paidDeposits.total > 0 ? String(paidDeposits.total) : "");
-  const defaultDepositPercent = estimatedRoomTotal > 0 ? Math.round((paidDeposits.total / estimatedRoomTotal) * 100) : 0;
+  const explicitPercent = Number(depositPercentInput);
+  const depositAmount = depositInputMode === "PERCENT" && depositPercentInput !== "" &&
+    depositPercentInput !== null && Number.isFinite(explicitPercent) && explicitPercent >= 0 && explicitPercent <= 100
+    ? String(Math.round((estimatedTotal * explicitPercent) / 100))
+    : depositAmountInput ?? (paidDeposits.total > 0 ? String(paidDeposits.total) : "");
+  const defaultDepositPercent = estimatedTotal > 0 ? Math.round((paidDeposits.total / estimatedTotal) * 100) : 0;
   const depositPercent = depositPercentInput ?? (paidDeposits.total > 0 && defaultDepositPercent <= 100 ? String(defaultDepositPercent) : "");
-  const [previousTotal, setPreviousTotal] = useState(estimatedRoomTotal);
-  if (previousTotal !== estimatedRoomTotal) {
-    setPreviousTotal(estimatedRoomTotal);
-    const pct = Number(depositPercent);
-    if (estimatedRoomTotal > 0 && depositPercent !== "" && Number.isFinite(pct) && pct >= 0 && pct <= 100) {
-      setDepositAmount(String(Math.round(((estimatedRoomTotal * pct) / 100) / 1000) * 1000));
-    }
-  }
   const numericDeposit = depositAmount ? Number(depositAmount.replace(/\D/g, "")) : paidDeposits.total;
-  const remainingDue = Math.max(0, estimatedRoomTotal - numericDeposit);
+  const remainingDue = Math.max(0, estimatedTotal - numericDeposit);
 
   // Focus trap and Escape key listener
   useEffect(() => {
@@ -491,33 +510,38 @@ export function EditReservationModal({
     const factor = 1 + percentDelta / 100;
     const newRate = Math.round((anchor * factor) / 1000) * 1000;
     setNightlyRate(String(Math.max(0, newRate)));
+    setIsRateDirty(true);
   };
 
   const handleAmountRateChange = (amountDelta: number) => {
-    const cur = numericRate > 0 ? numericRate : baseRate;
+    const cur = typeof numericRate === "number" && numericRate >= 0 ? numericRate : baseRate;
     const newRate = Math.max(0, cur + amountDelta);
     setNightlyRate(String(newRate));
+    setIsRateDirty(true);
   };
 
   const handleResetBaseRate = () => {
     if (baseRate > 0) {
       setNightlyRate(String(baseRate));
+      setIsRateDirty(true);
     }
   };
 
   // Quick deposit percent handlers & auto calculation
   const handleApplyDepositPercent = (pct: number) => {
+    setDepositInputMode("PERCENT");
     setDepositPercent(String(pct));
     if (pct === 0) {
       setDepositAmount("0");
       return;
     }
-    if (estimatedRoomTotal <= 0) return;
-    const dep = Math.round(((estimatedRoomTotal * pct) / 100) / 1000) * 1000;
+    if (estimatedTotal <= 0) return;
+    const dep = Math.round((estimatedTotal * pct) / 100);
     setDepositAmount(String(dep));
   };
 
   const handleCustomDepositPercentChange = (valStr: string) => {
+    setDepositInputMode("PERCENT");
     setDepositPercent(valStr);
     if (valStr === "") {
       setDepositAmount("");
@@ -529,19 +553,20 @@ export function EditReservationModal({
         setDepositAmount("0");
         return;
       }
-      if (estimatedRoomTotal > 0) {
-        const dep = Math.round(((estimatedRoomTotal * num) / 100) / 1000) * 1000;
+      if (estimatedTotal > 0) {
+        const dep = Math.round((estimatedTotal * num) / 100);
         setDepositAmount(String(dep));
       }
     }
   };
 
   const handleDepositAmountChange = (rawText: string) => {
+    setDepositInputMode("AMOUNT");
     const rawDigits = rawText.replace(/\D/g, "");
     setDepositAmount(rawDigits);
-    if (estimatedRoomTotal > 0 && rawDigits) {
+    if (estimatedTotal > 0 && rawDigits) {
       const num = Number(rawDigits);
-      const pct = Math.round((num / estimatedRoomTotal) * 100);
+      const pct = Math.round((num / estimatedTotal) * 100);
       setDepositPercent(pct >= 0 && pct <= 100 ? String(pct) : "");
     } else {
       setDepositPercent("");
@@ -564,12 +589,31 @@ export function EditReservationModal({
       return;
     }
 
-    const checkInDate = new Date(plannedCheckInAt);
-    const checkOutDate = new Date(plannedCheckOutAt);
+    // Preserve untouched check-in/out instants exactly; use hotel timezone parse when intentionally edited
+    const isCheckInUnchanged =
+      Boolean(originalQuote.checkInInstant) &&
+      extractVietnamMinuteString(plannedCheckInAt) === originalQuote.checkInLocal;
+
+    const isCheckOutUnchanged =
+      Boolean(originalQuote.checkOutInstant) &&
+      extractVietnamMinuteString(plannedCheckOutAt) === originalQuote.checkOutLocal;
+
+    const effectiveCheckInIso = isCheckInUnchanged
+      ? originalQuote.checkInInstant
+      : parseHotelDatetimeToIso(plannedCheckInAt) || new Date(plannedCheckInAt).toISOString();
+
+    const effectiveCheckOutIso = isCheckOutUnchanged
+      ? originalQuote.checkOutInstant
+      : parseHotelDatetimeToIso(plannedCheckOutAt) || new Date(plannedCheckOutAt).toISOString();
+
+    const checkInDate = new Date(effectiveCheckInIso);
+    const checkOutDate = new Date(effectiveCheckOutIso);
     if (checkOutDate <= checkInDate) {
       await showWarningAlert("Lịch trình không hợp lệ", "Ngày trả phòng phải sau ngày nhận phòng.");
       return;
     }
+
+    const isRateEdited = isRateDirty || (nightlyRate.trim() !== originalQuote.rateInput.trim());
 
     setIsSubmitting(true);
     try {
@@ -579,11 +623,18 @@ export function EditReservationModal({
         guestCount: guestCount > 0 ? guestCount : 1,
         notes: notes.trim() || null,
         roomId: roomId.trim() || null,
-        plannedCheckInAt: checkInDate.toISOString(),
-        plannedCheckOutAt: checkOutDate.toISOString(),
-        startDate: plannedCheckInAt.slice(0, 10),
-        endDate: plannedCheckOutAt.slice(0, 10),
-        nightlyRateSnapshot: numericRate > 0 ? numericRate : null,
+        plannedCheckInAt: effectiveCheckInIso,
+        plannedCheckOutAt: effectiveCheckOutIso,
+        startDate: toVietnamYmd(effectiveCheckInIso),
+        endDate: toVietnamYmd(effectiveCheckOutIso),
+        ...(isRateEdited
+          ? {
+              nightlyRateSnapshot:
+                typeof numericRate === "number" && !isNaN(numericRate) && numericRate >= 0
+                  ? numericRate
+                  : null,
+            }
+          : {}),
         expectedUpdatedAt: reservation.expectedUpdatedAt || undefined,
       };
 
@@ -660,7 +711,7 @@ export function EditReservationModal({
       aria-modal="true"
       aria-labelledby={titleId}
       aria-describedby={descId}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-5 md:p-6 animate-in fade-in duration-150"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-5 md:p-6 animate-in fade-in duration-150"
       onClick={() => onClose()}
     >
       <div
@@ -818,12 +869,6 @@ export function EditReservationModal({
                         onChange={(e) => {
                           const chosenId = e.target.value;
                           setRoomId(chosenId);
-                          if (chosenId) {
-                            const matched = roomsList.find((r) => r.id === chosenId);
-                            if (matched && (matched.price || matched.basePrice)) {
-                              setNightlyRate(String(matched.price || matched.basePrice));
-                            }
-                          }
                         }}
                         className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 focus:border-blue-700 focus:outline-hidden focus:ring-1 focus:ring-blue-700 transition cursor-pointer"
                       >
@@ -925,7 +970,7 @@ export function EditReservationModal({
                         className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition ${
                           editScope === "SINGLE"
                             ? "border-purple-600 bg-white shadow-2xs text-purple-950 font-bold"
-                            : "border-purple-200/60 bg-purple-50/50 text-slate-700 font-medium"
+                            : "border-purple-200/60 bg-purple-50/50 text-purple-900 font-medium"
                         }`}
                       >
                         <input
@@ -942,7 +987,7 @@ export function EditReservationModal({
                         className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition ${
                           editScope === "GROUP"
                             ? "border-purple-600 bg-white shadow-2xs text-purple-950 font-bold"
-                            : "border-purple-200/60 bg-purple-50/50 text-slate-700 font-medium"
+                            : "border-purple-200/60 bg-purple-50/50 text-purple-900 font-medium"
                         }`}
                       >
                         <input
@@ -1075,10 +1120,15 @@ export function EditReservationModal({
                   <div className="relative">
                     <input
                       type="text"
-                      value={numericRate > 0 ? numericRate.toLocaleString("vi-VN") : ""}
+                      value={
+                        nightlyRate !== ""
+                          ? (nightlyRate === "0" ? "0" : Number(nightlyRate).toLocaleString("vi-VN"))
+                          : (numericRate !== null && numericRate >= 0 ? numericRate.toLocaleString("vi-VN") : "")
+                      }
                       onChange={(e) => {
                         const raw = e.target.value.replace(/\D/g, "");
                         setNightlyRate(raw);
+                        setIsRateDirty(true);
                       }}
                       placeholder="VD: 900.000"
                       className="w-full rounded-xl border border-slate-300 bg-white pl-3.5 pr-10 py-2 text-xs sm:text-sm font-black text-slate-900 placeholder:text-slate-400 focus:border-blue-700 focus:outline-hidden focus:ring-1 focus:ring-blue-700 transition"
@@ -1281,6 +1331,13 @@ export function EditReservationModal({
                     </span>
                   </div>
                 </div>
+
+                {extraTotal !== 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 font-semibold text-slate-700">
+                    <span>Dịch vụ / điều chỉnh: {formatVnd(extraTotal)}</span>
+                    <span>Tổng cộng: <strong className="text-slate-900 tabular-nums">{formatVnd(estimatedTotal)}</strong></span>
+                  </div>
+                )}
 
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
                   <div className="flex items-center gap-2 font-semibold">

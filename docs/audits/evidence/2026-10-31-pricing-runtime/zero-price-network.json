@@ -1,0 +1,15 @@
+[
+  {
+    "kind": "request",
+    "method": "POST",
+    "guest": "AUDIT3110-ZERO",
+    "hasNightlyRate": false
+  },
+  {
+    "kind": "response",
+    "status": 201,
+    "code": "VSH_RESERVATION_0115",
+    "nightlyRateSnapshot": "1300000",
+    "baseNightlyRateSnapshot": "1300000"
+  }
+]

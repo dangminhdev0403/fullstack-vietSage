@@ -1,0 +1,15 @@
+[
+  {
+    "kind": "request",
+    "inputMode": "PERCENT",
+    "percentValue": 10
+  },
+  {
+    "kind": "response",
+    "status": 200,
+    "receivedAmount": "100000",
+    "requestedAmount": "100000",
+    "inputMode": "PERCENT",
+    "percentValue": "10"
+  }
+]

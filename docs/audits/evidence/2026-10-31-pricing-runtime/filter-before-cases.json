@@ -1,0 +1,58 @@
+[
+  {
+    "q": "  vsh_group_0015  ",
+    "rows": [
+      "  - generic: Hiển thị 2/71 phòng",
+      "  - button \"Phòng (2)\":",
+      "    - generic: Phòng (2)",
+      "  - button \"P.1003 T.10\":",
+      "    - button \"P.1003\"",
+      "  - button \"P.1004 T.10\":",
+      "    - button \"P.1004\""
+    ]
+  },
+  {
+    "q": "#VSH_RESERVATION_0112",
+    "rows": [
+      "  - generic: Hiển thị 0/71 phòng",
+      "  - button \"Phòng (0)\":",
+      "    - generic: Phòng (0)",
+      "  - paragraph: Không tìm thấy phòng phù hợp"
+    ]
+  },
+  {
+    "q": "VSH_RESERVATION_0112",
+    "rows": [
+      "  - generic: Hiển thị 1/71 phòng",
+      "  - button \"Phòng (1)\":",
+      "    - generic: Phòng (1)",
+      "  - button \"P.1007 Đã đặt T.10\":",
+      "    - button \"P.1007\""
+    ]
+  },
+  {
+    "q": "GROUP_0015",
+    "rows": [
+      "  - generic: Hiển thị 2/71 phòng",
+      "  - button \"Phòng (2)\":",
+      "    - generic: Phòng (2)",
+      "  - button \"P.1003 T.10\":",
+      "    - button \"P.1003\"",
+      "  - button \"P.1004 T.10\":",
+      "    - button \"P.1004\""
+    ]
+  },
+  {
+    "q": "ZZZ_NO_BOOKING_99999",
+    "rows": [
+      "  - generic: Hiển thị 0/71 phòng",
+      "  - button \"Phòng (0)\":",
+      "    - generic: Phòng (0)",
+      "  - paragraph: Không tìm thấy phòng phù hợp"
+    ]
+  },
+  {
+    "q": "VSH_RESERVATION_0112 from timeline 2026-12-01",
+    "result": "aligned to 2026-10-31; room1007 visible"
+  }
+]

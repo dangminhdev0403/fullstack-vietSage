@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import { Prisma, ReservationStatus, RoomStatus } from "@prisma/client";
 import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
+import { calculateReservationChargeTotal } from "../../../common/pricing/reservation-charge-total";
 import {
   addHours,
   generateOpaqueToken,
@@ -231,50 +232,18 @@ export class ReservationsService {
       q: query.q,
     });
     const items = rawItems.map((r: any) => {
-      const roomChargeLines = (r.chargeLines || []).filter((l: any) => l.lineType === "ROOM_NIGHT");
-      const extraLines = (r.chargeLines || []).filter((l: any) => l.lineType !== "ROOM_NIGHT");
-      const nights =
-        r.plannedCheckInAt && r.plannedCheckOutAt
-          ? Math.max(1, diffCalendarDays(r.plannedCheckInAt, r.plannedCheckOutAt, tz))
-          : 1;
-      let roomSubtotal = 0;
-      if (roomChargeLines.length > 0) {
-        roomSubtotal = roomChargeLines.reduce(
-          (sum: number, l: any) => sum + Number(l.totalSnapshot || l.unitPriceSnapshot || 0),
-          0,
-        );
-      } else {
-        const fallbackRate = Number(
-          r.nightlyRateSnapshot ??
-            r.baseNightlyRateSnapshot ??
-            r.room?.price ??
-            r.room?.roomType?.basePrice ??
-            r.roomType?.basePrice ??
-            0,
-        );
-        roomSubtotal = fallbackRate * nights;
-      }
-      const serviceSubtotal = extraLines.reduce(
-        (sum: number, l: any) =>
-          sum +
-          Number(l.totalSnapshot || Number(l.unitPriceSnapshot || 0) * Number(l.quantity || 1)),
-        0,
-      );
-      const totalAmount = roomSubtotal + serviceSubtotal;
+      const quote = calculateReservationChargeTotal(r, tz);
+      const roomSubtotal = quote.roomSubtotal.toNumber();
+      const serviceSubtotal = quote.extraSubtotal.toNumber();
+      const totalAmount = quote.totalAmount.toNumber();
       const effectiveRate =
         r.nightlyRateSnapshot ??
-        (nights > 0 && roomSubtotal > 0
-          ? Math.round(roomSubtotal / nights)
-          : (r.baseNightlyRateSnapshot ??
-            r.room?.price ??
-            r.room?.roomType?.basePrice ??
-            r.roomType?.basePrice ??
-            null));
+        quote.roomSubtotal.div(quote.nights).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP);
 
       return {
         ...r,
-        nightlyRateSnapshot: effectiveRate ? String(effectiveRate) : null,
-        rate: effectiveRate ? String(effectiveRate) : null,
+        nightlyRateSnapshot: String(effectiveRate),
+        rate: String(effectiveRate),
         roomSubtotal,
         serviceSubtotal,
         totalAmount,
@@ -605,6 +574,7 @@ export class ReservationsService {
       plannedCheckInAt: dto.plannedCheckInAt,
       plannedCheckOutAt: dto.plannedCheckOutAt,
       nightlyRateSnapshot: appliedNightlyRate,
+      chargeLines: dto.chargeLines,
       expectedUpdatedAt: dto.expectedUpdatedAt,
       actorUserId,
     });
@@ -878,41 +848,15 @@ export class ReservationsService {
 
     const checkInDate = new Date(data.plannedCheckInAt);
     const checkOutDate = new Date(data.plannedCheckOutAt);
-    const nights = Math.max(1, diffCalendarDays(checkInDate, checkOutDate, tz));
-
-    const roomChargeLines = (data.chargeLines || []).filter(
-      (l: any) => l.lineType === "ROOM_NIGHT",
-    );
-    let nightlyBreakdown: Array<{
-      date: string;
-      description: string;
-      rate: number;
-      lineType: string;
-    }> = [];
-
-    if (roomChargeLines.length > 0) {
-      nightlyBreakdown = roomChargeLines.map((l: any, idx: number) => ({
-        date: l.serviceDate ? toYmd(new Date(l.serviceDate), tz) : toYmd(checkInDate, tz),
-        description: l.nameSnapshot || `Đêm ${idx + 1}`,
-        rate: Number(l.unitPriceSnapshot ?? l.totalSnapshot ?? 0),
-        lineType: "ROOM_NIGHT",
-      }));
-    } else {
-      const nightlyRate = Number(
-        data.nightlyRateSnapshot ?? data.room?.price ?? data.roomType?.basePrice ?? 0,
-      );
-      for (let i = 0; i < nights; i++) {
-        const nightDate = addDaysYmd(toYmd(checkInDate, tz), i);
-        nightlyBreakdown.push({
-          date: nightDate,
-          description: `Đêm ${i + 1}`,
-          rate: nightlyRate,
-          lineType: "ROOM_NIGHT",
-        });
-      }
-    }
-
-    const roomSubtotal = nightlyBreakdown.reduce((sum, item) => sum + item.rate, 0);
+    const quote = calculateReservationChargeTotal(data, tz);
+    const nights = quote.nights;
+    const nightlyBreakdown = quote.nightlyCharges.map((line, index) => ({
+      date: line.date,
+      description: `Đêm ${index + 1}`,
+      rate: line.amount.toNumber(),
+      lineType: "ROOM_NIGHT",
+    }));
+    const roomSubtotal = quote.roomSubtotal.toNumber();
     const extraLines = (data.chargeLines || []).filter((l: any) => l.lineType !== "ROOM_NIGHT");
     const serviceBreakdown = extraLines.map((l: any) => ({
       name: l.nameSnapshot || "Dịch vụ",
@@ -920,7 +864,7 @@ export class ReservationsService {
       unitPrice: Number(l.unitPriceSnapshot ?? l.totalSnapshot ?? 0),
       total: Number(l.totalSnapshot ?? Number(l.unitPriceSnapshot || 0) * Number(l.quantity || 1)),
     }));
-    const serviceAmount = serviceBreakdown.reduce((sum: number, l: any) => sum + l.total, 0);
+    const serviceAmount = quote.extraSubtotal.toNumber();
     const taxAmount = (data.chargeLines || []).reduce(
       (sum: number, l: any) => sum + Number(l.taxAmountSnapshot || 0),
       0,
@@ -929,7 +873,7 @@ export class ReservationsService {
       (sum: number, l: any) => sum + Number(l.discountAmountSnapshot || 0),
       0,
     );
-    const totalAmount = roomSubtotal + serviceAmount + taxAmount - discountAmount;
+    const totalAmount = quote.totalAmount.toNumber();
 
     const paidPayments = (data.bookingPayments || []).filter(
       (p: any) => p.status === "COMPLETED" || p.status === "ALLOCATED",
@@ -1091,28 +1035,26 @@ export class ReservationsService {
       if (cIn < earliestCheckIn) earliestCheckIn = cIn;
       if (cOut > latestCheckOut) latestCheckOut = cOut;
 
-      const rNights = Math.max(1, diffCalendarDays(cIn, cOut, tz));
-      const roomChargeLines = (r.chargeLines || []).filter((l: any) => l.lineType === "ROOM_NIGHT");
-
-      let rRoomSubtotal = 0;
-      if (roomChargeLines.length > 0) {
-        rRoomSubtotal = roomChargeLines.reduce(
-          (sum: number, l: any) => sum + Number(l.totalSnapshot || l.unitPriceSnapshot || 0),
-          0,
-        );
-      } else {
-        const fallbackRate = Number(
-          r.nightlyRateSnapshot ?? r.room?.price ?? r.roomType?.basePrice ?? 0,
-        );
-        rRoomSubtotal = fallbackRate * rNights;
-      }
-
-      const rNightlyRate = rNights > 0 ? Math.round(rRoomSubtotal / rNights) : 0;
+      const quote = calculateReservationChargeTotal(
+        {
+          ...r,
+          plannedCheckInAt: cIn,
+          plannedCheckOutAt: cOut,
+        },
+        tz,
+      );
+      const rNights = quote.nights;
+      const rRoomSubtotal = quote.roomSubtotal.toNumber();
+      const rTotal = quote.totalAmount.toNumber();
+      const rNightlyRate = quote.roomSubtotal
+        .div(rNights)
+        .toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
+        .toNumber();
 
       const rPaid = (r.bookingPayments || [])
         .filter((p: any) => p.status === "COMPLETED" || p.status === "ALLOCATED")
         .reduce((sum: number, p: any) => sum + Number(p.receivedAmount || 0), 0);
-      const rBalance = Math.max(0, rRoomSubtotal - rPaid);
+      const rBalance = Math.max(0, rTotal - rPaid);
 
       const rawStay = r.stay;
       const rawGuestStays = r.guestStays;
@@ -1166,7 +1108,7 @@ export class ReservationsService {
         nightlyRate: rNightlyRate,
         ratePerNight: rNightlyRate,
         roomSubtotal: rRoomSubtotal,
-        totalAmount: rRoomSubtotal,
+        totalAmount: rTotal,
         paidAmount: rPaid,
         depositAmount: rPaid,
         balanceAmount: rBalance,
@@ -1210,10 +1152,15 @@ export class ReservationsService {
     const roomSubtotal = rooms.reduce((s: number, r: any) => s + r.roomSubtotal, 0);
     const roomsPaid = rooms.reduce((s: number, r: any) => s + r.paidAmount, 0);
     const groupDirectPaid = (data.groupRecord?.bookingPayments || [])
-      .filter((p: any) => p.status === "COMPLETED" || p.status === "ALLOCATED")
+      .filter(
+        (p: any) =>
+          p.reservationId == null && (p.status === "COMPLETED" || p.status === "ALLOCATED"),
+      )
       .reduce((sum: number, p: any) => sum + Number(p.receivedAmount || 0), 0);
     const totalPaidAmount = roomsPaid + groupDirectPaid;
-    const totalAmount = roomSubtotal + totalServiceAmount + totalTaxAmount - totalDiscountAmount;
+    const totalAmount = rooms
+      .reduce((sum: Prisma.Decimal, room) => sum.add(room.totalAmount), new Prisma.Decimal(0))
+      .toNumber();
     const totalBalanceAmount = Math.max(0, totalAmount - totalPaidAmount);
 
     const cancellationPolicy =

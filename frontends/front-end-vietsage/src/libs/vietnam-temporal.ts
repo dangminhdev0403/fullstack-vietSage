@@ -31,3 +31,45 @@ export function toVietnamYmd(value: Date | string): string {
 export function dayOfWeekYmd(ymd: string): number {
   return Temporal.PlainDate.from(ymd.slice(0, 10)).dayOfWeek;
 }
+
+/** Formats an ISO instant or Date into Vietnam local "YYYY-MM-DDTHH:mm" */
+export function toVietnamDatetimeLocal(isoString?: string | Date | null): string {
+  if (!isoString) return "";
+  try {
+    const instant = isoString instanceof Date
+      ? Temporal.Instant.fromEpochMilliseconds(isoString.getTime())
+      : Temporal.Instant.from(isoString);
+    return instant.toZonedDateTimeISO(VIETNAM_TIME_ZONE).toPlainDateTime()
+      .toString({ smallestUnit: "minute" });
+  } catch {
+    return "";
+  }
+}
+
+/** Parses minute/second datetime-local strings or explicit-offset instants into UTC ISO instant */
+export function parseHotelDatetimeToIso(value?: string | null): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const instant = /([+-]\d{2}:?\d{2}|Z)$/i.test(trimmed)
+      ? Temporal.Instant.from(trimmed)
+      : Temporal.PlainDateTime.from(trimmed.replace(" ", "T"), { overflow: "reject" })
+        .toZonedDateTime(VIETNAM_TIME_ZONE).toInstant();
+    return instant.toString({ fractionalSecondDigits: 3 });
+  } catch {
+    return null;
+  }
+}
+
+/** Extracts "YYYY-MM-DDTHH:mm" in Vietnam local time for comparison */
+export function extractVietnamMinuteString(val?: string | null): string {
+  if (!val) return "";
+  const trimmed = val.trim();
+  if (!trimmed) return "";
+  if (/([+-]\d{2}:?\d{2}|Z)$/i.test(trimmed)) {
+    return toVietnamDatetimeLocal(trimmed);
+  }
+  return trimmed.slice(0, 16);
+}

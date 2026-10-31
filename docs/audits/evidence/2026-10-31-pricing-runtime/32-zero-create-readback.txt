@@ -1,0 +1,358 @@
+- banner:
+  - generic: Chủ khách sạn
+  - generic: Khách sạn minh 123
+  - button "Đổi mật khẩu":
+    - generic: Đổi mật khẩu
+  - button "Đăng xuất"
+  - img "Logo VietSage (Chủ khách sạn)"
+- complementary:
+  - button "Thu gọn thanh điều hướng":
+  - img "VietSage"
+  - generic: VietSage
+  - generic: Quản trị khách sạn
+  - navigation:
+    - generic: Tổng quan
+    - link "Tổng quan":
+      - /url: /owner/dashboard
+      - generic: Tổng quan
+    - link "Tài chính & đối soát":
+      - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/billing
+      - generic: Tài chính & đối soát
+    - link "Báo cáo & Phân tích":
+      - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/reports
+      - generic: Báo cáo & Phân tích
+    - generic: Vận hành
+    - link "Sơ đồ phòng & Check In":
+      - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/rooms
+      - generic: Sơ đồ phòng & Check In
+    - link "Quản lý khách lưu trú":
+      - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/front-desk
+      - generic: Quản lý khách lưu trú
+    - link "Kho Phòng & Kênh Bán":
+      - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/channel-manager
+      - generic: Kho Phòng & Kênh Bán
+    - link "Xử lý yêu cầu":
+      - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/requests
+      - generic: Xử lý yêu cầu
+    - link "Tin nhắn phòng":
+      - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/messages
+      - generic: Tin nhắn phòng
+    - generic: Thiết lập & Cấu hình
+    - link "Thanh toán & Doanh thu":
+      - /url: /hotels/cmq2k2lm0003f2oui3ifqp808/billing
+      - generic: Thanh toán & Doanh thu
+    - link "Máy quét CCCD":
+      - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/biometric
+      - generic: Máy quét CCCD
+    - link "Thông tin khách sạn":
+      - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/profile
+      - generic: Thông tin khách sạn
+    - link "Thiết lập khách sạn":
+      - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/settings
+      - generic: Thiết lập khách sạn
+- main:
+  - paragraph: SƠ ĐỒ PHÒNG — Khách sạn minh 123
+  - heading "Mở phòng và lưu trú" [level=1]
+  - paragraph: "Đang xem sơ đồ dự kiến ngày: 07:00 01-1"
+  - paragraph: Trạng thái phòng hiển thị theo lịch đặt phòng tương lai (projectedStatus). Trạng thái vật lý hiện tại của phòng không bị thay đổi.
+  - button "Quay lại Hôm nay"
+  - 'article "Lọc phòng: Sẵn sàng"':
+    - paragraph: Sẵn sàng
+    - paragraph: "28"
+    - generic: phòng
+    - generic: Sẵn sàng đón khách
+    - generic: 51%
+  - 'article "Lọc phòng: Đang ở"':
+    - paragraph: Đang ở
+    - paragraph: "11"
+    - generic: phòng
+    - generic: Đang có khách lưu trú
+    - generic: 20%
+  - 'article "Lọc phòng: Chờ dọn"':
+    - paragraph: Chờ dọn
+    - paragraph: "10"
+    - generic: phòng
+    - generic: Chờ dọn dẹp buồng
+    - generic: 18%
+  - 'article "Lọc phòng: Bảo trì"':
+    - paragraph: Bảo trì
+    - paragraph: "6"
+    - generic: phòng
+    - generic: Tạm ngưng đón khách
+    - generic: 11%
+  - generic "Ngày vận hành khách sạn":
+    - generic: "Ngày vận hành:"
+  - button "Ngày trước":
+  - textbox "Chọn ngày vận hành khách sạn": 2026-11-01
+  - button "Ngày sau":
+  - button "Hôm nay"
+  - button "Ngày mai"
+  - generic: Sơ đồ phòng dự kiến tương lai
+  - button "Khách đến 5":
+    - generic: Khách đến
+    - generic: "5"
+  - button "Khách đi 1":
+    - generic: Khách đi
+    - generic: "1"
+  - button "Đoàn khách 3":
+    - generic: Đoàn khách
+    - generic: "3"
+  - button "Sơ đồ phòng":
+    - generic: Sơ đồ phòng
+  - button "Kế hoạch phòng":
+    - generic: Kế hoạch phòng
+  - button "Đặt trước nhanh / Đoàn":
+    - generic: Đặt trước nhanh / Đoàn
+  - button "Check-in đoàn":
+    - generic: Check-in đoàn
+  - button "Lùi kỳ trước":
+  - button "1 ngày":
+    - generic: 1 ngày
+  - button "Hôm nay"
+  - button "01/11 – 07/11/2026":
+    - generic: 01/11 – 07/11/2026
+  - textbox "Chọn ngày bắt đầu xem": 2026-11-01
+  - button "1 ngày":
+    - generic: 1 ngày
+  - button "Tiến kỳ sau":
+  - group "Khung ngày hiển thị":
+    - button "7 ngày"
+    - button "14 ngày"
+  - 'generic "Công suất trung bình cả kỳ (7 ngày): 14% • Hôm nay: 0% (0/1 phòng)"':
+    - text: "Công suất TB:"
+    - strong: 14%
+    - generic: •
+    - generic: 0/1 hôm nay
+  - button "8 phòng quá hạn 1/8":
+    - generic: 8 phòng quá hạn
+    - generic: 1/8
+  - button "Check-in đoàn":
+    - generic: Check-in đoàn
+  - button "Đặt phòng nhanh":
+    - generic: Đặt phòng nhanh
+  - searchbox "Tìm số phòng, tên khách, mã đặt / đoàn...": "#VSH_RESERVATION_0117"
+  - button "Xóa từ khóa tìm kiếm":
+  - combobox "Lọc theo hạng phòng":
+    - option "Tất cả hạng phòng (4)" [selected]
+    - option "AUDIT3110-TYPE"
+    - option "Double Room"
+    - option "Single Room"
+    - option "Suite"
+  - combobox "Lọc theo tầng":
+    - option "Tất cả tầng (7)" [selected]
+    - option "Tầng 2"
+    - option "Tầng 3"
+    - option "Tầng 4"
+    - option "Tầng 5"
+    - option "Tầng 6"
+    - option "Tầng 10"
+    - option "Tầng QA"
+  - group "Lọc nhanh trạng thái phòng hôm nay":
+    - button "Tất cả 71":
+      - generic: Tất cả
+      - generic: "71"
+    - button "Trống hôm nay 23":
+      - generic: Trống hôm nay
+      - generic: "23"
+    - button "Có khách hôm nay 21":
+      - generic: Có khách hôm nay
+      - generic: "21"
+    - button "Chờ dọn 10":
+      - generic: Chờ dọn
+      - generic: "10"
+  - generic: Hiển thị 1/71 phòng
+  - button "Chỉ hiện đơn khớp (Bấm để hiện cả phòng)":
+    - generic: Chỉ hiện đơn khớp (Bấm để hiện cả phòng)
+  - button "Xóa lọc":
+    - generic: Xóa lọc
+  - generic: Đang ở
+  - generic: Đặt trước (Kéo để đổi phòng)
+  - generic: Quá hạn trả
+  - generic: Chờ dọn phòng
+  - generic: Bảo trì / Khóa
+  - generic: Kéo ngang chọn số đêm, kéo dọc chọn nhiều phòng (đặt đoàn).
+  - 'generic "Phím tắt: [← / →] Trượt 1 ngày • [Shift + ← / →] Trượt kỳ • [T] Hôm nay • [W] Đổi khung 7/14 ngày"':
+    - strong: "Phím tắt:"
+    - generic: ←/→ trượt ngày · T hôm nay · W khung ngày
+  - button "Phòng (1)":
+    - generic: Phòng (1)
+  - generic: Tầng
+  - generic: CN
+  - generic: 01/11
+  - generic: T2
+  - generic: 02/11
+  - generic: T3
+  - generic: 03/11
+  - generic: T4
+  - generic: 04/11
+  - generic: T5
+  - generic: 05/11
+  - generic: T6
+  - generic: 06/11
+  - generic: T7
+  - generic: 07/11
+  - generic: Công suất phòng
+  - 'generic "Công suất trung bình cả kỳ: 14%"': TB 14%
+  - 'generic "Ngày 01/11: Công suất 100% (1/1 phòng có khách, 0 phòng trống)"':
+    - generic: 100%
+    - generic: (1/1)
+  - 'generic "Ngày 02/11: Công suất 0% (0/1 phòng có khách, 1 phòng trống)"':
+    - generic: 0%
+    - generic: (0/1)
+  - 'generic "Ngày 03/11: Công suất 0% (0/1 phòng có khách, 1 phòng trống)"':
+    - generic: 0%
+    - generic: (0/1)
+  - 'generic "Ngày 04/11: Công suất 0% (0/1 phòng có khách, 1 phòng trống)"':
+    - generic: 0%
+    - generic: (0/1)
+  - 'generic "Ngày 05/11: Công suất 0% (0/1 phòng có khách, 1 phòng trống)"':
+    - generic: 0%
+    - generic: (0/1)
+  - 'generic "Ngày 06/11: Công suất 0% (0/1 phòng có khách, 1 phòng trống)"':
+    - generic: 0%
+    - generic: (0/1)
+  - 'generic "Ngày 07/11: Công suất 0% (0/1 phòng có khách, 1 phòng trống)"':
+    - generic: 0%
+    - generic: (0/1)
+  - button "Double Room":
+    - generic: Double Room
+  - generic: "1"
+  - 'generic "Hạng Double Room ngày 01/11: 1/1 có khách (100%), còn 0 phòng trống"':
+    - generic: 0 trống
+    - generic: (100%)
+    - generic: 1.300.000 ₫
+  - 'generic "Hạng Double Room ngày 02/11: 0/1 có khách (0%), còn 1 phòng trống"':
+    - generic: 1 trống
+    - generic: (0%)
+    - generic: 1.300.000 ₫
+  - 'generic "Hạng Double Room ngày 03/11: 0/1 có khách (0%), còn 1 phòng trống"':
+    - generic: 1 trống
+    - generic: (0%)
+    - generic: 1.300.000 ₫
+  - 'generic "Hạng Double Room ngày 04/11: 0/1 có khách (0%), còn 1 phòng trống"':
+    - generic: 1 trống
+    - generic: (0%)
+    - generic: 1.300.000 ₫
+  - 'generic "Hạng Double Room ngày 05/11: 0/1 có khách (0%), còn 1 phòng trống"':
+    - generic: 1 trống
+    - generic: (0%)
+    - generic: 1.300.000 ₫
+  - 'generic "Hạng Double Room ngày 06/11: 0/1 có khách (0%), còn 1 phòng trống"':
+    - generic: 1 trống
+    - generic: (0%)
+    - generic: 1.300.000 ₫
+  - 'generic "Hạng Double Room ngày 07/11: 0/1 có khách (0%), còn 1 phòng trống"':
+    - generic: 1 trống
+    - generic: (0%)
+    - generic: 1.300.000 ₫
+  - button "P.627 T.6":
+    - button "P.627"
+    - generic: T.6
+  - button "AUDIT3110-ZERO-CREATE":
+    - slider "Kéo mép trái để điều chỉnh ngày nhận phòng"
+    - generic: AUDIT3110-ZERO-CREATE
+    - slider "Kéo mép phải để gia hạn lưu trú hoặc điều chỉnh ngày trả phòng"
+  - status
+  - dialog "Chỉnh sửa đơn đặt phòng":
+    - heading "Chỉnh sửa đơn đặt phòng" [level=2]
+    - generic: "#VSH_RESERVATION_0117"
+    - generic: Trực tiếp
+    - paragraph: Phòng 627 (Double Room)
+    - button "Đóng":
+    - heading "Thông tin khách đại diện" [level=3]:
+      - generic: Thông tin khách đại diện
+    - generic: ARRIVAL_READY
+    - generic: Họ và tên khách *
+    - 'textbox "VD: Nguyễn Văn An" [active]': AUDIT3110-ZERO-CREATE
+    - generic: Số điện thoại
+    - 'textbox "VD: 0901234567"'
+    - generic: Số lượng khách
+    - spinbutton: "1"
+    - generic: Phòng lưu trú
+    - generic: Phòng 627 (Double Room)
+    - generic: Đổi phòng linh hoạt khi Check-in hoặc kéo thả Tape Chart
+    - button "Đổi phòng..."
+    - heading "Ghi chú / Yêu cầu lưu trú" [level=3]:
+      - generic: Ghi chú / Yêu cầu lưu trú
+    - generic: "Kênh: Trực tiếp"
+    - 'textbox "VD: Khách yêu cầu tầng cao, đón khách lúc 15:00, xuất hóa đơn công ty..."'
+    - heading "Lịch lưu trú (1 đêm)" [level=3]:
+      - generic: Lịch lưu trú (1 đêm)
+    - generic: 1 đêm lưu trú
+    - generic: Nhận phòng dự kiến *
+    - generic: Chủ Nhật
+    - textbox "Nhận phòng dự kiến *":
+      - /placeholder: dd/mm/yyyy
+      - text: 01/11/2026
+    - textbox: 2026-11-01
+    - button "Chọn ngày từ lịch":
+    - textbox "Giờ nhận / trả phòng": 14:00
+    - generic: Trả phòng dự kiến *
+    - generic: Thứ Hai
+    - textbox "Trả phòng dự kiến *":
+      - /placeholder: dd/mm/yyyy
+      - text: 02/11/2026
+    - textbox: 2026-11-02
+    - button "Chọn ngày từ lịch":
+    - textbox "Giờ nhận / trả phòng": 12:00
+    - generic: "Chọn nhanh số đêm tính từ ngày nhận:"
+    - button "1 đêm"
+    - button "2 đêm"
+    - button "3 đêm"
+    - button "4 đêm"
+    - button "5 đêm"
+    - button "7 đêm"
+    - button "10 đêm"
+    - button "14 đêm"
+    - heading "Đơn giá phòng mỗi đêm" [level=3]:
+      - generic: Đơn giá phòng mỗi đêm
+    - 'button "Giá gốc: 1.300.000 ₫"':
+      - generic: "Giá gốc: 1.300.000 ₫"
+    - 'textbox "VD: 900.000"': "0"
+    - generic: ₫/đêm
+    - generic: Giảm 100% (-1.300.000 ₫/đêm so với giá niêm yết)
+    - generic: "Điều chỉnh nhanh đơn giá:"
+    - button "-15%"
+    - button "-10%"
+    - button "-5%"
+    - button "+5%"
+    - button "+10%"
+    - generic: "|"
+    - button "-50.000 ₫"
+    - button "-100.000 ₫"
+    - heading "Tiền đặt cọc của khách" [level=3]:
+      - generic: Tiền đặt cọc của khách
+    - generic: Số tiền đã đặt cọc (₫)
+    - 'textbox "VD: 500.000"'
+    - generic: ₫
+    - generic: Phương thức đặt cọc
+    - combobox:
+      - option "Tiền mặt (Cash)" [selected]
+      - option "Chuyển khoản (Bank Transfer)"
+      - option "Thẻ tín dụng / POS"
+    - generic: "Mức đặt cọc theo %:"
+    - button "0%"
+    - button "20%"
+    - button "30%"
+    - button "50%"
+    - button "100%"
+    - generic: "Tuỳ chỉnh:"
+    - spinbutton
+    - generic: "%"
+    - text: "Thời gian:"
+    - strong: 1 đêm
+    - text: "· Đơn giá:"
+    - strong: 0 ₫/đêm
+    - generic: "Tổng tiền phòng:"
+    - generic: 0 ₫
+    - text: "Tiền cọc ghi nhận:"
+    - strong: 0 ₫
+    - generic: "Còn lại phải thu khi nhận phòng:"
+    - generic: 0 ₫
+    - button "Hủy bỏ":
+      - generic: Hủy bỏ
+    - button "Lưu thay đổi":
+      - generic: Lưu thay đổi
+- region "Notifications alt+T"
+- button "Open Next.js Dev Tools":
+- alert

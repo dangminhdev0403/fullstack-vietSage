@@ -1882,6 +1882,7 @@ describe("ReservationsRepository transactional lifecycle", () => {
         plannedCheckInAt: new Date("2026-10-21T14:00:00.000Z"),
         plannedCheckOutAt: new Date("2026-10-23T12:00:00.000Z"),
         updatedAt: new Date("2026-10-21T00:00:00.000Z"),
+        nightlyRateSnapshot: new Prisma.Decimal(500000),
       };
       const tx = {
         reservation: {
@@ -1891,7 +1892,10 @@ describe("ReservationsRepository transactional lifecycle", () => {
           }),
           update: jest.fn().mockResolvedValue({
             ...res,
-            plannedCheckOutAt: new Date("2026-10-25T12:00:00.000Z"),
+            plannedCheckOutAt: new Date("2026-10-25T05:00:00.000Z"),
+          }),
+          findUniqueOrThrow: jest.fn().mockResolvedValue({
+            ...res, plannedCheckOutAt: new Date("2026-10-25T05:00:00.000Z"), chargeLines: [],
           }),
         },
         guestStay: {
@@ -1899,6 +1903,11 @@ describe("ReservationsRepository transactional lifecycle", () => {
         },
         auditLog: {
           create: jest.fn().mockResolvedValue({ id: "audit-1" }),
+        },
+        hotel: { findUnique: jest.fn().mockResolvedValue({ timezone: "Asia/Ho_Chi_Minh" }) },
+        reservationChargeLine: {
+          findMany: jest.fn().mockResolvedValue([]),
+          deleteMany: jest.fn(), createMany: jest.fn(),
         },
       };
       const prisma = {
@@ -1915,7 +1924,7 @@ describe("ReservationsRepository transactional lifecycle", () => {
         actorUserId: "user-1",
       });
 
-      expect(result.plannedCheckOutAt).toEqual(new Date("2026-10-25T12:00:00.000Z"));
+      expect(result.plannedCheckOutAt).toEqual(new Date("2026-10-25T05:00:00.000Z"));
       expect(tx.auditLog.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({

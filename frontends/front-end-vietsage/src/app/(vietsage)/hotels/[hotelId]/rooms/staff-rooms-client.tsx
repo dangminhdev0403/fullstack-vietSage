@@ -38,6 +38,7 @@ import {
   filterExtraOccupants,
   formatMoney,
 } from "@/features/hotel-ops/utils/hotel-ops-display";
+import { parseHotelDatetimeToIso } from "@/libs/vietnam-temporal";
 import { getArrivalDateRange } from "@/features/hotel-ops/utils/arrival-date-range";
 import type {
   BookingSourcePartnerItem,
@@ -745,6 +746,16 @@ export function StaffRoomsClient({
   const [pageSize, setPageSize] = useState<number>(100);
   const [inputQuery, setInputQuery] = useState(initialQuery ?? "");
   const [query, setQuery] = useState(initialQuery ?? "");
+
+  const [previousInitialQuery, setPreviousInitialQuery] = useState(initialQuery);
+  if (initialQuery !== previousInitialQuery) {
+    setPreviousInitialQuery(initialQuery);
+    if (initialQuery !== undefined) {
+      setInputQuery(initialQuery);
+      setQuery(initialQuery);
+      setPage(1);
+    }
+  }
   const [floor, setFloor] = useState("all");
   const [type, setType] = useState("all");
   const [zone, setZone] = useState("all");
@@ -998,7 +1009,7 @@ export function StaffRoomsClient({
   const [reservationPrebookedServices, setReservationPrebookedServices] = useState<PrebookedServiceItem[]>([]);
   const [reservationCustomPercent, setReservationCustomPercent] = useState<string>("10");
 
-  // Bulk Reservation (Lane D) State
+  // Bulk Reservation State
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [bulkMode, setBulkMode] = useState<"auto" | "manual">("auto");
   const [bulkRoomTypeCounts, setBulkRoomTypeCounts] = useState<Record<string, number>>({});
@@ -1481,8 +1492,12 @@ export function StaffRoomsClient({
 
     setReservationSubmitting(true);
     try {
-      const checkInIso = new Date(reservationCheckIn).toISOString();
-      const checkOutIso = new Date(reservationCheckOut).toISOString();
+      const checkInIso =
+        parseHotelDatetimeToIso(reservationCheckIn) ||
+        new Date(reservationCheckIn).toISOString();
+      const checkOutIso =
+        parseHotelDatetimeToIso(reservationCheckOut) ||
+        new Date(reservationCheckOut).toISOString();
 
       let effectivePartnerId =
         reservationSourcePartnerId && reservationSourcePartnerId !== "NEW"
@@ -1516,11 +1531,12 @@ export function StaffRoomsClient({
         currency: string;
       }> = [];
 
-      const baseRateNum = reservationNightlyRate
-        ? Number(reservationNightlyRate.replace(/\D/g, "")) || 0
-        : selectedReservationRoom?.price
+      const hasExplicitRate = reservationNightlyRate.trim() !== "";
+      const baseRateNum = hasExplicitRate
+        ? (Number(reservationNightlyRate.replace(/\D/g, "")) || 0)
+        : (selectedReservationRoom?.price
           ? Number(selectedReservationRoom.price)
-          : 0;
+          : 0);
 
       if (reservationIsCustomNightlyRates && reservationNightDates.length > 0) {
         for (const d of reservationNightDates) {
@@ -1565,7 +1581,9 @@ export function StaffRoomsClient({
       if (reservationRoomId.trim()) {
         payload.roomId = reservationRoomId.trim();
       }
-      if (baseRateNum > 0) {
+      if (hasExplicitRate) {
+        payload.nightlyRateSnapshot = baseRateNum;
+      } else if (baseRateNum > 0) {
         payload.nightlyRateSnapshot = baseRateNum;
       }
 
@@ -1883,7 +1901,7 @@ export function StaffRoomsClient({
     ...staffRoomsResource.bind({ hotelId }).queries.list.options({
       page,
       limit: pageSize,
-      q: query,
+      q: operationalViewMode === "tape-chart" ? undefined : query,
       status: isFutureDate ? "all" : status,
       floor,
       zone,
@@ -3569,12 +3587,12 @@ export function StaffRoomsClient({
         ? Number(bulkUniformPrice.replace(/\D/g, ""))
         : undefined;
 
-      const formattedCheckIn = bulkCheckInDate.includes("T")
-        ? bulkCheckInDate
-        : `${bulkCheckInDate}T14:00:00+07:00`;
-      const formattedCheckOut = bulkCheckOutDate.includes("T")
-        ? bulkCheckOutDate
-        : `${bulkCheckOutDate}T12:00:00+07:00`;
+      const formattedCheckIn =
+        parseHotelDatetimeToIso(bulkCheckInDate.includes("T") ? bulkCheckInDate : `${bulkCheckInDate}T14:00:00`) ||
+        `${bulkCheckInDate}T14:00:00+07:00`;
+      const formattedCheckOut =
+        parseHotelDatetimeToIso(bulkCheckOutDate.includes("T") ? bulkCheckOutDate : `${bulkCheckOutDate}T12:00:00`) ||
+        `${bulkCheckOutDate}T12:00:00+07:00`;
 
       // Resolve Booking Partner if new partner was typed
       let effectivePartnerId =
@@ -6386,8 +6404,9 @@ export function StaffRoomsClient({
                     ) : null}
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         setDailyMovementsTab(item.tab);
+                        await loadArrivals("week");
                         setIsDailyMovementsOpen(true);
                       }}
                       className={`inline-flex h-full items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold whitespace-nowrap transition cursor-pointer ${item.tone}`}
@@ -6757,12 +6776,12 @@ export function StaffRoomsClient({
               params.set("stayId", stayId);
               if (roomNum) params.set("roomNumber", roomNum);
 
-              const routePrefix = baseRoutePrefix ?? "/hotels";
+              const routePrefix = "/hotels";
               if (typeof window !== "undefined") {
                 window.open(`${routePrefix}/${encodeURIComponent(hotelId)}/billing?${params.toString()}`, "_blank");
               }
             } catch {
-              const routePrefix = baseRoutePrefix ?? "/hotels";
+              const routePrefix = "/hotels";
               if (typeof window !== "undefined") {
                 window.open(
                   `${routePrefix}/${encodeURIComponent(hotelId)}/billing?stayId=${encodeURIComponent(stayId)}&roomNumber=${encodeURIComponent(roomNum)}`,
@@ -6773,6 +6792,7 @@ export function StaffRoomsClient({
           }}
           onRefresh={() => {
             void refetch();
+            void loadArrivals("week");
           }}
         />
       ) : (
@@ -8362,7 +8382,7 @@ export function StaffRoomsClient({
           )
         : null}
 
-      {/* Bulk Reservation (Lane D) Modal Portal */}
+      {/* Bulk Reservation Modal Portal */}
       {isBulkModalOpen && typeof document !== "undefined"
         ? createPortal(
             <div

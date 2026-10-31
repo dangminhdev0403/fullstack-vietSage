@@ -1,0 +1,83 @@
+AUDIT3110-NIGHTLY
+#VSH_RESERVATION_0112
+HÔM NAY NHẬN PHÒNG
+PHÒNG 1007
+
+Khách đặt trước · Dự kiến nhận: 14:00 31/10/2026
+
+Chỉnh sửa
+Quay lại
+THÔNG TIN KHÁCH ĐẶT PHÒNG
+Sửa thông tin
+Khách đại diện:
+AUDIT3110-NIGHTLY-RETEST
+Số điện thoại:
+Chưa cung cấp
+Mã đặt phòng:
+#VSH_RESERVATION_0112
+Đoàn / Ghi chú:
+#VSH_GROUP_0018
+Mở quản lý đoàn
+Trạng thái:
+Sẵn sàng đón khách
+LỊCH LƯU TRÚ & CHI PHÍ DỰ KIẾN
+Sửa ngày / giá
+Nhận phòng dự kiến:
+14:00 31/10/2026
+Trả phòng dự kiến:
+12:00 02/11/2026
+Số đêm lưu trú:
+2 đêm
+Giá phòng niêm yết:
+500.000 ₫ / đêm
+Dịch vụ đặt trước:
+70.000 ₫
+Tổng tiền phòng dự kiến:
+1.270.000 ₫
+PHÂN BỔ PHÒNG CHO KHÁCH
+Đổi phòng khác
+1007
+Phòng 1007
+
+Sức chứa: — · Phòng đã sẵn sàng tiếp đón khi khách đến.
+
+Đã phân bổ phòng
+ĐẶT CỌC & THANH TOÁN TRƯỚC
+Đã ghi nhận: 3 giao dịch
+TỔNG TIỀN BOOKING
+1.270.000 ₫
+2 đêm · P.1007
+ĐÃ THANH TOÁN / CỌC
+862.000 ₫
+TM: 862.000 ₫
+CK: 0 ₫
+CÒN LẠI PHẢI THU
+408.000 ₫
+Cần thu khi check-in / check-out
+Chọn nhanh:
+Cọc 50% (635.000 ₫)
+Toàn bộ 100% (408.000 ₫)
+Tùy chỉnh số tiền
+Hình thức tính cọc
+Theo số tiền (VND)
+Theo tỷ lệ (%)
+Tỷ lệ cọc (%)
+Nguồn tiền đối soát
+🏦 Chuyển khoản (CK)
+💵 Tiền mặt (TM)
+💳 Quẹt thẻ (POS)
+Ghi nhận đặt cọc
+Mã tham chiếu / Số chuẩn chi ngân hàng
+Ghi chú người nộp / nội dung
+Lịch sử các khoản cọc & trả trước đã ghi nhận (3)
+Tổng đã thu: 862.000 ₫
+THỜI GIAN	SỐ TIỀN	NGUỒN TIỀN	MÃ GD / GHI CHÚ	TRẠNG THÁI
+08:54 31/10/2026	127.000 ₫	💵 Tiền mặt (TM)	AUDIT3110 RETEST PERCENT10 - test phan mem, khong thu tien thuc	Thành công
+06:28 31/10/2026	100.000 ₫	💵 Tiền mặt (TM)	AUDIT3110 PERCENT10 - giao dich thu nghiem	Thành công
+06:16 31/10/2026	635.000 ₫	💵 Tiền mặt (TM)	AUDIT3110 - giao dich thu nghiem noi bo, khong thu tien thuc	Thành công
+Xem trên sơ đồ phòng
+Hủy đặt phòng
+Báo vắng mặt (No-show)
+In phiếu đoàn
+Đóng
+Nhận phòng ngay

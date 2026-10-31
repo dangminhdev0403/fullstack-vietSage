@@ -1,0 +1,22 @@
+[
+  {
+    "url": "https://vietsage.localhost/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/billing/stays/cmvvliba10043jgv4q44yd4d6/active-folio",
+    "status": 404,
+    "mimeType": "text/html"
+  },
+  {
+    "url": "https://vietsage.localhost/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/billing/stays/cmvvliba10043jgv4q44yd4d6/active-folio",
+    "status": 404,
+    "mimeType": "text/html"
+  },
+  {
+    "url": "https://vietsage.localhost/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/billing/stays/cmvvliba10043jgv4q44yd4d6/active-folio",
+    "status": 404,
+    "mimeType": "text/html"
+  },
+  {
+    "url": "https://vietsage.localhost/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/stays/cmvvliba10043jgv4q44yd4d6/check-out",
+    "status": 404,
+    "mimeType": "text/html"
+  }
+]

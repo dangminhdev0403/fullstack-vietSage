@@ -1,0 +1,934 @@
+[
+  {
+    "file": "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx",
+    "errorCount": 0,
+    "warningCount": 7,
+    "messages": [
+      {
+        "line": 261,
+        "column": 9,
+        "endLine": 261,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'queryGroupCode' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 273,
+        "column": 10,
+        "endLine": 273,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'groupCashGivenInput' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 273,
+        "column": 31,
+        "endLine": 273,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'setGroupCashGivenInput' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 277,
+        "column": 10,
+        "endLine": 277,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'bankCopied' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 277,
+        "column": 22,
+        "endLine": 277,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'setBankCopied' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 286,
+        "column": 9,
+        "endLine": 286,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "The 'previewFolioItems' conditional could make the dependencies of useMemo Hook (at line 853) change on every render. To fix this, wrap the initialization of 'previewFolioItems' in its own useMemo() Hook."
+      },
+      {
+        "line": 617,
+        "column": 9,
+        "endLine": 617,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'selectAllFilteredFolios' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      }
+    ]
+  },
+  {
+    "file": "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx",
+    "errorCount": 35,
+    "warningCount": 16,
+    "messages": [
+      {
+        "line": 270,
+        "column": 10,
+        "endLine": 270,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'getProjectedRoomStatus' is defined but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 304,
+        "column": 10,
+        "endLine": 304,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'roomStatusBadgeClass' is defined but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 322,
+        "column": 10,
+        "endLine": 322,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'roomCardClass' is defined but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 676,
+        "column": 37,
+        "endLine": 676,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 712,
+        "column": 3,
+        "endLine": 712,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'baseRoutePrefix' is defined but never used. Allowed unused args must match /^_/u."
+      },
+      {
+        "line": 715,
+        "column": 9,
+        "endLine": 715,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'router' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 777,
+        "column": 9,
+        "endLine": 777,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'collapseAllFloors' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 781,
+        "column": 9,
+        "endLine": 781,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'expandAllFloors' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 1612,
+        "column": 44,
+        "endLine": 1612,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1612,
+        "column": 82,
+        "endLine": 1612,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1612,
+        "column": 109,
+        "endLine": 1612,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1945,
+        "column": 9,
+        "endLine": 1945,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "The 'rooms' logical expression could make the dependencies of useCallback Hook (at line 2130) change on every render. To fix this, wrap the initialization of 'rooms' in its own useMemo() Hook."
+      },
+      {
+        "line": 1945,
+        "column": 9,
+        "endLine": 1945,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "The 'rooms' logical expression could make the dependencies of useMemo Hook (at line 2174) change on every render. To fix this, wrap the initialization of 'rooms' in its own useMemo() Hook."
+      },
+      {
+        "line": 1945,
+        "column": 9,
+        "endLine": 1945,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "The 'rooms' logical expression could make the dependencies of useMemo Hook (at line 2464) change on every render. To fix this, wrap the initialization of 'rooms' in its own useMemo() Hook."
+      },
+      {
+        "line": 1945,
+        "column": 9,
+        "endLine": 1945,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "The 'rooms' logical expression could make the dependencies of useEffect Hook (at line 4826) change on every render. To fix this, wrap the initialization of 'rooms' in its own useMemo() Hook."
+      },
+      {
+        "line": 1967,
+        "column": 42,
+        "endLine": 1967,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1970,
+        "column": 21,
+        "endLine": 1970,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1970,
+        "column": 56,
+        "endLine": 1970,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1972,
+        "column": 20,
+        "endLine": 1972,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1972,
+        "column": 54,
+        "endLine": 1972,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1990,
+        "column": 35,
+        "endLine": 1990,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1990,
+        "column": 69,
+        "endLine": 1990,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1999,
+        "column": 43,
+        "endLine": 1999,
+        "severity": 2,
+        "ruleId": "react-hooks/set-state-in-effect",
+        "message": "Error: Calling setState synchronously within an effect can trigger cascading renders\n\nEffects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:\n* Update external systems with the latest state from React.\n* Subscribe for updates from some external system, calling setState in a callback function when external state changes.\n\nCalling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:1999:43\n  1997 |           if (/^\\d{4}-\\d{2}-\\d{2}$/.test(rawDate)) {\n  1998 |             lastAutoAdjustedQueryRef.current = cleanQ;\n> 1999 |             if (rawDate !== businessDate) handleBusinessDateChange(rawDate);\n       |                                           ^^^^^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect\n  2000 |             return;\n  2001 |           }\n  2002 |         }"
+      },
+      {
+        "line": 2007,
+        "column": 34,
+        "endLine": 2007,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2007,
+        "column": 67,
+        "endLine": 2007,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2021,
+        "column": 40,
+        "endLine": 2021,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2108,
+        "column": 6,
+        "endLine": 2108,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "React Hook useEffect has a missing dependency: 'handleBusinessDateChange'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 2110,
+        "column": 40,
+        "endLine": 2130,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This value was memoized in source but not in compilation output.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2110:40\n  2108 |   }, [query, rooms, arrivalsList, hotelId, businessDate]);\n  2109 |\n> 2110 |   const openGroupCheckIn = useCallback((code?: string | null, targetRooms?: GroupRoomItem[]) => {\n       |                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2111 |     let resolvedCode = code?.trim() || null;\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2112 |     if (!resolvedCode) {\n       …\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2129 |     setIsGroupCheckInOpen(true);\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2130 |   }, [arrivalsList, rooms]);\n       | ^^^^ Could not preserve existing memoization\n  2131 |\n  2132 |   const openGroupOperations = useCallback((code?: string | null) => {\n  2133 |     openGroupCheckIn(code);"
+      },
+      {
+        "line": 2111,
+        "column": 9,
+        "endLine": 2111,
+        "severity": 2,
+        "ruleId": "prefer-const",
+        "message": "'resolvedCode' is never reassigned. Use 'const' instead."
+      },
+      {
+        "line": 2130,
+        "column": 21,
+        "endLine": 2130,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This dependency may be mutated later, which could cause the value to change unexpectedly.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2130:21\n  2128 |     setGroupCheckInRooms(roomsToUse);\n  2129 |     setIsGroupCheckInOpen(true);\n> 2130 |   }, [arrivalsList, rooms]);\n       |                     ^^^^^ This dependency may be modified later\n  2131 |\n  2132 |   const openGroupOperations = useCallback((code?: string | null) => {\n  2133 |     openGroupCheckIn(code);"
+      },
+      {
+        "line": 2132,
+        "column": 9,
+        "endLine": 2132,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'openGroupOperations' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 2132,
+        "column": 43,
+        "endLine": 2134,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This value was memoized in source but not in compilation output.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2132:43\n  2130 |   }, [arrivalsList, rooms]);\n  2131 |\n> 2132 |   const openGroupOperations = useCallback((code?: string | null) => {\n       |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2133 |     openGroupCheckIn(code);\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2134 |   }, [openGroupCheckIn]);\n       | ^^^^ Could not preserve existing memoization\n  2135 |\n  2136 |   const activeMovementsTargetYmd = businessDate || todayYmd;\n  2137 |"
+      },
+      {
+        "line": 2134,
+        "column": 7,
+        "endLine": 2134,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This dependency may be mutated later, which could cause the value to change unexpectedly.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2134:7\n  2132 |   const openGroupOperations = useCallback((code?: string | null) => {\n  2133 |     openGroupCheckIn(code);\n> 2134 |   }, [openGroupCheckIn]);\n       |       ^^^^^^^^^^^^^^^^ This dependency may be modified later\n  2135 |\n  2136 |   const activeMovementsTargetYmd = businessDate || todayYmd;\n  2137 |"
+      },
+      {
+        "line": 2174,
+        "column": 7,
+        "endLine": 2174,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This dependency may be mutated later, which could cause the value to change unexpectedly.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2174:7\n  2172 |     }\n  2173 |     return list;\n> 2174 |   }, [rooms, activeMovementsTargetYmd]);\n       |       ^^^^^ This dependency may be modified later\n  2175 |   const floors = useMemo(() => {\n  2176 |     const rawFloors = roomsPage?.floors ?? initialRoomsPage.floors ?? [];\n  2177 |     return [...new Set(rawFloors)].sort((a, b) => a.localeCompare(b));"
+      },
+      {
+        "line": 2189,
+        "column": 23,
+        "endLine": 2189,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2436,
+        "column": 23,
+        "endLine": 2464,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This value was memoized in source but not in compilation output.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2436:23\n  2434 |   }\n  2435 |\n> 2436 |   const roomPoolMap = useMemo(() => {\n       |                       ^^^^^^^^^^^^^^^\n> 2437 |     const map = new Map<string, HotelRoomSummary>();\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2438 |     for (const r of initialRoomsPage.items) {\n       …\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2463 |     return map;\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2464 |   }, [initialRoomsPage.items, rooms, bulkPlanData?.rooms, hotelId]);\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Could not preserve existing memoization\n  2465 |\n  2466 |   const roomPool = useMemo(() => Array.from(roomPoolMap.values()), [roomPoolMap]);\n  2467 |"
+      },
+      {
+        "line": 2454,
+        "column": 34,
+        "endLine": 2454,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2464,
+        "column": 31,
+        "endLine": 2464,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This dependency may be mutated later, which could cause the value to change unexpectedly.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2464:31\n  2462 |     }\n  2463 |     return map;\n> 2464 |   }, [initialRoomsPage.items, rooms, bulkPlanData?.rooms, hotelId]);\n       |                               ^^^^^ This dependency may be modified later\n  2465 |\n  2466 |   const roomPool = useMemo(() => Array.from(roomPoolMap.values()), [roomPoolMap]);\n  2467 |"
+      },
+      {
+        "line": 2494,
+        "column": 6,
+        "endLine": 2503,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "React Hook useMemo has a missing dependency: 'isRoomConflictingForDates'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 2505,
+        "column": 31,
+        "endLine": 2546,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This value was memoized in source but not in compilation output.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2505:31\n  2503 |   ]);\n  2504 |\n> 2505 |   const roomTypeSummaryList = useMemo(() => {\n       |                               ^^^^^^^^^^^^^^^\n> 2506 |     const map = new Map<\n       | ^^^^^^^^^^^^^^^^^^^^^^^^\n> 2507 |       string,\n       …\n       | ^^^^^^^^^^^^^^^^^^^^^^^^\n> 2545 |     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));\n       | ^^^^^^^^^^^^^^^^^^^^^^^^\n> 2546 |   }, [bulkCandidateRooms]);\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ Could not preserve existing memoization\n  2547 |\n  2548 |   const bulkTotalAutoCount = useMemo(\n  2549 |     () => Object.values(bulkRoomTypeCounts).reduce((a, b) => a + b, 0),"
+      },
+      {
+        "line": 2558,
+        "column": 6,
+        "endLine": 2558,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This dependency may be mutated later, which could cause the value to change unexpectedly.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2558:6\n  2556 |         (rt) => (bulkRoomTypeCounts[rt.roomTypeId] || 0) > rt.availableCount,\n  2557 |       ),\n> 2558 |     [roomTypeSummaryList, bulkRoomTypeCounts],\n       |      ^^^^^^^^^^^^^^^^^^^ This dependency may be modified later\n  2559 |   );\n  2560 |\n  2561 |   useEffect(() => {"
+      },
+      {
+        "line": 2563,
+        "column": 5,
+        "endLine": 2563,
+        "severity": 2,
+        "ruleId": "react-hooks/set-state-in-effect",
+        "message": "Error: Calling setState synchronously within an effect can trigger cascading renders\n\nEffects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:\n* Update external systems with the latest state from React.\n* Subscribe for updates from some external system, calling setState in a callback function when external state changes.\n\nCalling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2563:5\n  2561 |   useEffect(() => {\n  2562 |     if (!isBulkModalOpen) return;\n> 2563 |     setBulkRoomTypeCounts((prev) => {\n       |     ^^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect\n  2564 |       let changed = false;\n  2565 |       const next = { ...prev };\n  2566 |       for (const [rtId, count] of Object.entries(next)) {"
+      },
+      {
+        "line": 2624,
+        "column": 33,
+        "endLine": 2640,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This value was memoized in source but not in compilation output.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2624:33\n  2622 |   }, [bulkCheckInDate, bulkCheckOutDate]);\n  2623 |\n> 2624 |   const reservationNightDates = useMemo(() => {\n       |                                 ^^^^^^^^^^^^^^^\n> 2625 |     if (!reservationCheckIn || !reservationCheckOut) return [];\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2626 |     const start = new Date(reservationCheckIn);\n       …\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2639 |     return dates;\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2640 |   }, [reservationCheckIn, reservationCheckOut]);\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Could not preserve existing memoization\n  2641 |\n  2642 |   const addBulkPrebookedService = useCallback(\n  2643 |     (name: string, defaultPrice: number = 0) => {"
+      },
+      {
+        "line": 2759,
+        "column": 5,
+        "endLine": 2759,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This dependency may be mutated later, which could cause the value to change unexpectedly.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2759:5\n  2757 |     bulkRoomTypeCounts,\n  2758 |     bulkRoomTypeCustomPrices,\n> 2759 |     roomTypeSummaryList,\n       |     ^^^^^^^^^^^^^^^^^^^ This dependency may be modified later\n  2760 |     bulkSelectedRoomIds,\n  2761 |     bulkRoomCustomPrices,\n  2762 |     bulkNightsCount,"
+      },
+      {
+        "line": 2784,
+        "column": 42,
+        "endLine": 2804,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This value was memoized in source but not in compilation output.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2784:42\n  2782 |   );\n  2783 |\n> 2784 |   const reservationEstimatedRoomsTotal = useMemo(() => {\n       |                                          ^^^^^^^^^^^^^^^\n> 2785 |     const baseRateNum = reservationNightlyRate\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2786 |       ? Number(reservationNightlyRate.replace(/\\D/g, \"\")) || 0\n       …\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2803 |     reservationNightlyRates,\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2804 |   ]);\n       | ^^^^^ Could not preserve existing memoization\n  2805 |\n  2806 |   const reservationEstimatedTotalPrice = useMemo(\n  2807 |     () => reservationEstimatedRoomsTotal + reservationEstimatedServicesTotal,"
+      },
+      {
+        "line": 2800,
+        "column": 5,
+        "endLine": 2800,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This dependency may be mutated later, which could cause the value to change unexpectedly.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2800:5\n  2798 |   }, [\n  2799 |     reservationNightlyRate,\n> 2800 |     selectedReservationRoom?.price,\n       |     ^^^^^^^^^^^^^^^^^^^^^^^ This dependency may be modified later\n  2801 |     reservationIsCustomNightlyRates,\n  2802 |     reservationNightDates,\n  2803 |     reservationNightlyRates,"
+      },
+      {
+        "line": 2802,
+        "column": 5,
+        "endLine": 2802,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This dependency may be mutated later, which could cause the value to change unexpectedly.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2802:5\n  2800 |     selectedReservationRoom?.price,\n  2801 |     reservationIsCustomNightlyRates,\n> 2802 |     reservationNightDates,\n       |     ^^^^^^^^^^^^^^^^^^^^^ This dependency may be modified later\n  2803 |     reservationNightlyRates,\n  2804 |   ]);\n  2805 |"
+      },
+      {
+        "line": 2819,
+        "column": 7,
+        "endLine": 2819,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This dependency may be mutated later, which could cause the value to change unexpectedly.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2819:7\n  2817 |     }\n  2818 |     return 0;\n> 2819 |   }, [selectedReservationRoom, initialReservationRoom]);\n       |       ^^^^^^^^^^^^^^^^^^^^^^^ This dependency may be modified later\n  2820 |\n  2821 |   const reservationCurrentNumericRate = useMemo(() => {\n  2822 |     return reservationNightlyRate"
+      },
+      {
+        "line": 4051,
+        "column": 31,
+        "endLine": 4051,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 5115,
+        "column": 12,
+        "endLine": 5115,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'renderRoomStatusHoverMenu' is defined but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 5253,
+        "column": 11,
+        "endLine": 5253,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'physicalStatus' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      }
+    ]
+  },
+  {
+    "file": "frontends/front-end-vietsage/src/features/hotel-ops/components/edit-reservation-modal.tsx",
+    "errorCount": 10,
+    "warningCount": 1,
+    "messages": [
+      {
+        "line": 174,
+        "column": 13,
+        "endLine": 174,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'iso' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 404,
+        "column": 5,
+        "endLine": 404,
+        "severity": 2,
+        "ruleId": "react-hooks/refs",
+        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\edit-reservation-modal.tsx:404:5\n  402 |     const inLocal = toVietnamDatetimeLocal(reservation.plannedCheckInAt);\n  403 |     const outLocal = toVietnamDatetimeLocal(reservation.plannedCheckOutAt);\n> 404 |     originalCheckInInstantRef.current = reservation.plannedCheckInAt || \"\";\n      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot update ref during render\n  405 |     originalCheckInLocalRef.current = inLocal;\n  406 |     originalCheckOutInstantRef.current = reservation.plannedCheckOutAt || \"\";\n  407 |     originalCheckOutLocalRef.current = outLocal;"
+      },
+      {
+        "line": 405,
+        "column": 5,
+        "endLine": 405,
+        "severity": 2,
+        "ruleId": "react-hooks/refs",
+        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\edit-reservation-modal.tsx:405:5\n  403 |     const outLocal = toVietnamDatetimeLocal(reservation.plannedCheckOutAt);\n  404 |     originalCheckInInstantRef.current = reservation.plannedCheckInAt || \"\";\n> 405 |     originalCheckInLocalRef.current = inLocal;\n      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot update ref during render\n  406 |     originalCheckOutInstantRef.current = reservation.plannedCheckOutAt || \"\";\n  407 |     originalCheckOutLocalRef.current = outLocal;\n  408 |     setPlannedCheckInAt(inLocal);"
+      },
+      {
+        "line": 406,
+        "column": 5,
+        "endLine": 406,
+        "severity": 2,
+        "ruleId": "react-hooks/refs",
+        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\edit-reservation-modal.tsx:406:5\n  404 |     originalCheckInInstantRef.current = reservation.plannedCheckInAt || \"\";\n  405 |     originalCheckInLocalRef.current = inLocal;\n> 406 |     originalCheckOutInstantRef.current = reservation.plannedCheckOutAt || \"\";\n      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot update ref during render\n  407 |     originalCheckOutLocalRef.current = outLocal;\n  408 |     setPlannedCheckInAt(inLocal);\n  409 |     setPlannedCheckOutAt(outLocal);"
+      },
+      {
+        "line": 407,
+        "column": 5,
+        "endLine": 407,
+        "severity": 2,
+        "ruleId": "react-hooks/refs",
+        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\edit-reservation-modal.tsx:407:5\n  405 |     originalCheckInLocalRef.current = inLocal;\n  406 |     originalCheckOutInstantRef.current = reservation.plannedCheckOutAt || \"\";\n> 407 |     originalCheckOutLocalRef.current = outLocal;\n      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot update ref during render\n  408 |     setPlannedCheckInAt(inLocal);\n  409 |     setPlannedCheckOutAt(outLocal);\n  410 |"
+      },
+      {
+        "line": 421,
+        "column": 5,
+        "endLine": 421,
+        "severity": 2,
+        "ruleId": "react-hooks/refs",
+        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\edit-reservation-modal.tsx:421:5\n  419 |         : \"\");\n  420 |     const rateStr = existingRate !== \"\" && existingRate !== null ? String(existingRate) : \"\";\n> 421 |     originalRateInputRef.current = rateStr;\n      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot update ref during render\n  422 |     setNightlyRate(rateStr);\n  423 |     setIsRateDirty(false);\n  424 |     setNotes(reservation.notes || \"\");"
+      },
+      {
+        "line": 440,
+        "column": 60,
+        "endLine": 440,
+        "severity": 2,
+        "ruleId": "react-hooks/refs",
+        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\edit-reservation-modal.tsx:440:60\n  438 |   const hasRoomTotal = typeof originalRoomTotal === \"number\" && Number.isFinite(originalRoomTotal);\n  439 |   const hasTotal = typeof originalTotal === \"number\" && Number.isFinite(originalTotal);\n> 440 |   const isQuoteUnchanged = !isRateDirty && nightlyRate === originalRateInputRef.current &&\n      |                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot access ref value during render\n  441 |     plannedCheckInAt.slice(0, 10) === originalCheckInLocalRef.current.slice(0, 10) &&\n  442 |     plannedCheckOutAt.slice(0, 10) === originalCheckOutLocalRef.current.slice(0, 10);\n  443 |   const estimatedRoomTotal = isQuoteUnchanged && hasRoomTotal ? originalRoomTotal : numericRate * nights;"
+      },
+      {
+        "line": 441,
+        "column": 39,
+        "endLine": 441,
+        "severity": 2,
+        "ruleId": "react-hooks/refs",
+        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\edit-reservation-modal.tsx:441:39\n  439 |   const hasTotal = typeof originalTotal === \"number\" && Number.isFinite(originalTotal);\n  440 |   const isQuoteUnchanged = !isRateDirty && nightlyRate === originalRateInputRef.current &&\n> 441 |     plannedCheckInAt.slice(0, 10) === originalCheckInLocalRef.current.slice(0, 10) &&\n      |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Passing a ref to a function may read its value during render\n  442 |     plannedCheckOutAt.slice(0, 10) === originalCheckOutLocalRef.current.slice(0, 10);\n  443 |   const estimatedRoomTotal = isQuoteUnchanged && hasRoomTotal ? originalRoomTotal : numericRate * nights;\n  444 |   const extraTotal = hasTotal && hasRoomTotal ? originalTotal - originalRoomTotal : 0;"
+      },
+      {
+        "line": 441,
+        "column": 39,
+        "endLine": 441,
+        "severity": 2,
+        "ruleId": "react-hooks/refs",
+        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\edit-reservation-modal.tsx:441:39\n  439 |   const hasTotal = typeof originalTotal === \"number\" && Number.isFinite(originalTotal);\n  440 |   const isQuoteUnchanged = !isRateDirty && nightlyRate === originalRateInputRef.current &&\n> 441 |     plannedCheckInAt.slice(0, 10) === originalCheckInLocalRef.current.slice(0, 10) &&\n      |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Passing a ref to a function may read its value during render\n  442 |     plannedCheckOutAt.slice(0, 10) === originalCheckOutLocalRef.current.slice(0, 10);\n  443 |   const estimatedRoomTotal = isQuoteUnchanged && hasRoomTotal ? originalRoomTotal : numericRate * nights;\n  444 |   const extraTotal = hasTotal && hasRoomTotal ? originalTotal - originalRoomTotal : 0;"
+      },
+      {
+        "line": 442,
+        "column": 40,
+        "endLine": 442,
+        "severity": 2,
+        "ruleId": "react-hooks/refs",
+        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\edit-reservation-modal.tsx:442:40\n  440 |   const isQuoteUnchanged = !isRateDirty && nightlyRate === originalRateInputRef.current &&\n  441 |     plannedCheckInAt.slice(0, 10) === originalCheckInLocalRef.current.slice(0, 10) &&\n> 442 |     plannedCheckOutAt.slice(0, 10) === originalCheckOutLocalRef.current.slice(0, 10);\n      |                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Passing a ref to a function may read its value during render\n  443 |   const estimatedRoomTotal = isQuoteUnchanged && hasRoomTotal ? originalRoomTotal : numericRate * nights;\n  444 |   const extraTotal = hasTotal && hasRoomTotal ? originalTotal - originalRoomTotal : 0;\n  445 |   const estimatedTotal = isQuoteUnchanged && hasTotal ? originalTotal : estimatedRoomTotal + extraTotal;"
+      },
+      {
+        "line": 442,
+        "column": 40,
+        "endLine": 442,
+        "severity": 2,
+        "ruleId": "react-hooks/refs",
+        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\edit-reservation-modal.tsx:442:40\n  440 |   const isQuoteUnchanged = !isRateDirty && nightlyRate === originalRateInputRef.current &&\n  441 |     plannedCheckInAt.slice(0, 10) === originalCheckInLocalRef.current.slice(0, 10) &&\n> 442 |     plannedCheckOutAt.slice(0, 10) === originalCheckOutLocalRef.current.slice(0, 10);\n      |                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Passing a ref to a function may read its value during render\n  443 |   const estimatedRoomTotal = isQuoteUnchanged && hasRoomTotal ? originalRoomTotal : numericRate * nights;\n  444 |   const extraTotal = hasTotal && hasRoomTotal ? originalTotal - originalRoomTotal : 0;\n  445 |   const estimatedTotal = isQuoteUnchanged && hasTotal ? originalTotal : estimatedRoomTotal + extraTotal;"
+      }
+    ]
+  },
+  {
+    "file": "frontends/front-end-vietsage/src/features/hotel-ops/components/front-desk-arrival-detail-panel.tsx",
+    "errorCount": 0,
+    "warningCount": 2,
+    "messages": [
+      {
+        "line": 25,
+        "column": 3,
+        "endLine": 25,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'escapeHtml' is defined but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 93,
+        "column": 9,
+        "endLine": 93,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'router' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      }
+    ]
+  },
+  {
+    "file": "frontends/front-end-vietsage/src/features/hotel-ops/components/group-operations-drawer.tsx",
+    "errorCount": 0,
+    "warningCount": 3,
+    "messages": [
+      {
+        "line": 17,
+        "column": 10,
+        "endLine": 17,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'formatFriendlyCheckInError' is defined but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 290,
+        "column": 10,
+        "endLine": 290,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'calculateNights' is defined but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 357,
+        "column": 9,
+        "endLine": 357,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'executeCheckInReservation' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      }
+    ]
+  },
+  {
+    "file": "frontends/front-end-vietsage/src/features/hotel-ops/components/tape-chart/tape-chart-view.tsx",
+    "errorCount": 12,
+    "warningCount": 23,
+    "messages": [
+      {
+        "line": 29,
+        "column": 3,
+        "endLine": 29,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'escapeHtml' is defined but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 31,
+        "column": 3,
+        "endLine": 31,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'formatCheckOutConfirmHtml' is defined but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 40,
+        "column": 3,
+        "endLine": 40,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'SwalVietSage' is defined but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 345,
+        "column": 3,
+        "endLine": 345,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'handleDragLeaveCell' is defined but never used. Allowed unused args must match /^_/u."
+      },
+      {
+        "line": 349,
+        "column": 3,
+        "endLine": 349,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'onOpenCheckIn' is defined but never used. Allowed unused args must match /^_/u."
+      },
+      {
+        "line": 808,
+        "column": 21,
+        "endLine": 808,
+        "severity": 1,
+        "ruleId": "jsx-a11y/role-has-required-aria-props",
+        "message": "Elements with the ARIA role \"slider\" must have the following attributes defined: aria-valuenow"
+      },
+      {
+        "line": 826,
+        "column": 21,
+        "endLine": 826,
+        "severity": 1,
+        "ruleId": "jsx-a11y/role-has-required-aria-props",
+        "message": "Elements with the ARIA role \"slider\" must have the following attributes defined: aria-valuenow"
+      },
+      {
+        "line": 844,
+        "column": 21,
+        "endLine": 844,
+        "severity": 1,
+        "ruleId": "jsx-a11y/role-has-required-aria-props",
+        "message": "Elements with the ARIA role \"slider\" must have the following attributes defined: aria-valuenow"
+      },
+      {
+        "line": 1015,
+        "column": 19,
+        "endLine": 1015,
+        "severity": 1,
+        "ruleId": "jsx-a11y/role-has-required-aria-props",
+        "message": "Elements with the ARIA role \"slider\" must have the following attributes defined: aria-valuenow"
+      },
+      {
+        "line": 1033,
+        "column": 19,
+        "endLine": 1033,
+        "severity": 1,
+        "ruleId": "jsx-a11y/role-has-required-aria-props",
+        "message": "Elements with the ARIA role \"slider\" must have the following attributes defined: aria-valuenow"
+      },
+      {
+        "line": 1051,
+        "column": 19,
+        "endLine": 1051,
+        "severity": 1,
+        "ruleId": "jsx-a11y/role-has-required-aria-props",
+        "message": "Elements with the ARIA role \"slider\" must have the following attributes defined: aria-valuenow"
+      },
+      {
+        "line": 1334,
+        "column": 19,
+        "endLine": 1334,
+        "severity": 1,
+        "ruleId": "jsx-a11y/role-has-required-aria-props",
+        "message": "Elements with the ARIA role \"slider\" must have the following attributes defined: aria-valuenow"
+      },
+      {
+        "line": 1382,
+        "column": 19,
+        "endLine": 1382,
+        "severity": 1,
+        "ruleId": "jsx-a11y/role-has-required-aria-props",
+        "message": "Elements with the ARIA role \"slider\" must have the following attributes defined: aria-valuenow"
+      },
+      {
+        "line": 1522,
+        "column": 17,
+        "endLine": 1522,
+        "severity": 1,
+        "ruleId": "react-hooks/incompatible-library",
+        "message": "Compilation Skipped: Use of incompatible library\n\nThis API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\tape-chart\\tape-chart-view.tsx:1522:17\n  1520 |   );\n  1521 |\n> 1522 |   const table = useReactTable({\n       |                 ^^^^^^^^^^^^^ TanStack Table's `useReactTable()` API returns functions that cannot be memoized safely\n  1523 |     data: catRooms,\n  1524 |     columns,\n  1525 |     getCoreRowModel: getCoreRowModel(),"
+      },
+      {
+        "line": 1669,
+        "column": 3,
+        "endLine": 1669,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'canManageRooms' is assigned a value but never used. Allowed unused args must match /^_/u."
+      },
+      {
+        "line": 1747,
+        "column": 7,
+        "endLine": 1747,
+        "severity": 2,
+        "ruleId": "react-hooks/set-state-in-effect",
+        "message": "Error: Calling setState synchronously within an effect can trigger cascading renders\n\nEffects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:\n* Update external systems with the latest state from React.\n* Subscribe for updates from some external system, calling setState in a callback function when external state changes.\n\nCalling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\tape-chart\\tape-chart-view.tsx:1747:7\n  1745 |   useEffect(() => {\n  1746 |     if (businessDate && /^\\d{4}-\\d{2}-\\d{2}$/.test(businessDate)) {\n> 1747 |       setStartDate((prev) => (prev !== businessDate ? businessDate : prev));\n       |       ^^^^^^^^^^^^ Avoid calling setState() directly within an effect\n  1748 |     }\n  1749 |   }, [businessDate]);\n  1750 |"
+      },
+      {
+        "line": 1818,
+        "column": 10,
+        "endLine": 1818,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'placementTargetSwapResId' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 1819,
+        "column": 10,
+        "endLine": 1819,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'isEditReservationOpen' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 1832,
+        "column": 9,
+        "endLine": 1832,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'staffRoomsScope' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 1836,
+        "column": 16,
+        "endLine": 1836,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'isPlanLoading' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 2043,
+        "column": 42,
+        "endLine": 2043,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2046,
+        "column": 21,
+        "endLine": 2046,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2046,
+        "column": 56,
+        "endLine": 2046,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2048,
+        "column": 20,
+        "endLine": 2048,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2048,
+        "column": 54,
+        "endLine": 2048,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2076,
+        "column": 9,
+        "endLine": 2076,
+        "severity": 2,
+        "ruleId": "react-hooks/set-state-in-effect",
+        "message": "Error: Calling setState synchronously within an effect can trigger cascading renders\n\nEffects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:\n* Update external systems with the latest state from React.\n* Subscribe for updates from some external system, calling setState in a callback function when external state changes.\n\nCalling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\tape-chart\\tape-chart-view.tsx:2076:9\n  2074 |       const targetDate = blockMatch.startDate;\n  2075 |       if (targetDate !== startDate) {\n> 2076 |         setStartDate(targetDate);\n       |         ^^^^^^^^^^^^ Avoid calling setState() directly within an effect\n  2077 |       }\n  2078 |       onBusinessDateChange?.(targetDate);\n  2079 |       return;"
+      },
+      {
+        "line": 2087,
+        "column": 35,
+        "endLine": 2087,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2087,
+        "column": 69,
+        "endLine": 2087,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2105,
+        "column": 34,
+        "endLine": 2105,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2105,
+        "column": 67,
+        "endLine": 2105,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2120,
+        "column": 40,
+        "endLine": 2120,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2666,
+        "column": 5,
+        "endLine": 2676,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "React Hook useCallback has a missing dependency: 'setSearchQuery'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 3640,
+        "column": 5,
+        "endLine": 3640,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "React Hook useCallback has a missing dependency: 'isReadOnly'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 4194,
+        "column": 6,
+        "endLine": 4194,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "React Hook useEffect has a missing dependency: 'activeBlockResize'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 4194,
+        "column": 7,
+        "endLine": 4194,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked."
+      }
+    ]
+  },
+  {
+    "file": "frontends/front-end-vietsage/src/features/hotel-ops/utils/front-desk-groups.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "messages": []
+  },
+  {
+    "file": "frontends/front-end-vietsage/src/libs/vietnam-temporal.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "messages": []
+  },
+  {
+    "file": "frontends/front-end-vietsage/src/features/hotel-ops/utils/tape-chart-filter-helpers.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "messages": []
+  }
+]

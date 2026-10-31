@@ -1,0 +1,751 @@
+{
+  "head": "a1f1c933254b67280f51c9db603e1c42bfbd8111",
+  "current": {
+    "files": 9,
+    "errors": 57,
+    "warnings": 52
+  },
+  "baseline": {
+    "files": 8,
+    "errors": 55,
+    "warnings": 51
+  },
+  "files": [
+    {
+      "file": "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx",
+      "errorCount": 0,
+      "warningCount": 7,
+      "baselineErrorCount": 0,
+      "baselineWarningCount": 7,
+      "errors": []
+    },
+    {
+      "file": "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx",
+      "errorCount": 35,
+      "warningCount": 16,
+      "baselineErrorCount": 35,
+      "baselineWarningCount": 15,
+      "errors": [
+        {
+          "line": 676,
+          "column": 37,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 675,
+          "baselineMatches": [
+            675
+          ],
+          "classification": "BASELINE",
+          "code": "function extractRoomBasePrice(room: any): number | null {"
+        },
+        {
+          "line": 1612,
+          "column": 44,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 1594,
+          "baselineMatches": [
+            1594,
+            1594,
+            1594
+          ],
+          "classification": "BASELINE",
+          "code": "const reservationCode = (res.data as any)?.reservationCode || (res.data as any)?.code || (res.data as any)?.id || \"\";"
+        },
+        {
+          "line": 1612,
+          "column": 82,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 1594,
+          "baselineMatches": [
+            1594,
+            1594,
+            1594
+          ],
+          "classification": "BASELINE",
+          "code": "const reservationCode = (res.data as any)?.reservationCode || (res.data as any)?.code || (res.data as any)?.id || \"\";"
+        },
+        {
+          "line": 1612,
+          "column": 109,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 1594,
+          "baselineMatches": [
+            1594,
+            1594,
+            1594
+          ],
+          "classification": "BASELINE",
+          "code": "const reservationCode = (res.data as any)?.reservationCode || (res.data as any)?.code || (res.data as any)?.id || \"\";"
+        },
+        {
+          "line": 1967,
+          "column": 42,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 1949,
+          "baselineMatches": [
+            1949,
+            2003
+          ],
+          "classification": "BASELINE",
+          "code": "const stayRes = (r.activeStay as any)?.reservation;"
+        },
+        {
+          "line": 1970,
+          "column": 21,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 1952,
+          "baselineMatches": [
+            1952,
+            1952
+          ],
+          "classification": "BASELINE",
+          "code": "((proj as any)?.groupCode && String((proj as any).groupCode).toLowerCase() === cleanQ) ||"
+        },
+        {
+          "line": 1970,
+          "column": 56,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 1952,
+          "baselineMatches": [
+            1952,
+            1952
+          ],
+          "classification": "BASELINE",
+          "code": "((proj as any)?.groupCode && String((proj as any).groupCode).toLowerCase() === cleanQ) ||"
+        },
+        {
+          "line": 1972,
+          "column": 20,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 1954,
+          "baselineMatches": [
+            1954,
+            1954
+          ],
+          "classification": "BASELINE",
+          "code": "((upc as any)?.groupCode && String((upc as any).groupCode).toLowerCase() === cleanQ) ||"
+        },
+        {
+          "line": 1972,
+          "column": 54,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 1954,
+          "baselineMatches": [
+            1954,
+            1954
+          ],
+          "classification": "BASELINE",
+          "code": "((upc as any)?.groupCode && String((upc as any).groupCode).toLowerCase() === cleanQ) ||"
+        },
+        {
+          "line": 1990,
+          "column": 35,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 1972,
+          "baselineMatches": [
+            1972,
+            1972
+          ],
+          "classification": "BASELINE",
+          "code": "const grpCode = ((proj as any)?.groupCode ? String((proj as any).groupCode) : \"\").toLowerCase();"
+        },
+        {
+          "line": 1990,
+          "column": 69,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 1972,
+          "baselineMatches": [
+            1972,
+            1972
+          ],
+          "classification": "BASELINE",
+          "code": "const grpCode = ((proj as any)?.groupCode ? String((proj as any).groupCode) : \"\").toLowerCase();"
+        },
+        {
+          "line": 1999,
+          "column": 43,
+          "ruleId": "react-hooks/set-state-in-effect",
+          "inChangedHunk": false,
+          "mappedHeadLine": 1981,
+          "baselineMatches": [
+            1981
+          ],
+          "classification": "BASELINE",
+          "code": "if (rawDate !== businessDate) handleBusinessDateChange(rawDate);"
+        },
+        {
+          "line": 2007,
+          "column": 34,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 1989,
+          "baselineMatches": [
+            1989,
+            1989
+          ],
+          "classification": "BASELINE",
+          "code": "const grpCode = ((upc as any)?.groupCode ? String((upc as any).groupCode) : \"\").toLowerCase();"
+        },
+        {
+          "line": 2007,
+          "column": 67,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 1989,
+          "baselineMatches": [
+            1989,
+            1989
+          ],
+          "classification": "BASELINE",
+          "code": "const grpCode = ((upc as any)?.groupCode ? String((upc as any).groupCode) : \"\").toLowerCase();"
+        },
+        {
+          "line": 2021,
+          "column": 40,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2003,
+          "baselineMatches": [
+            1949,
+            2003
+          ],
+          "classification": "BASELINE",
+          "code": "const stayRes = (r.activeStay as any)?.reservation;"
+        },
+        {
+          "line": 2110,
+          "column": 40,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2092,
+          "baselineMatches": [
+            2092
+          ],
+          "classification": "BASELINE",
+          "code": "const openGroupCheckIn = useCallback((code?: string | null, targetRooms?: GroupRoomItem[]) => {"
+        },
+        {
+          "line": 2111,
+          "column": 9,
+          "ruleId": "prefer-const",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2093,
+          "baselineMatches": [
+            2093
+          ],
+          "classification": "BASELINE",
+          "code": "let resolvedCode = code?.trim() || null;"
+        },
+        {
+          "line": 2130,
+          "column": 21,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2112,
+          "baselineMatches": [
+            2112
+          ],
+          "classification": "BASELINE",
+          "code": "}, [arrivalsList, rooms]);"
+        },
+        {
+          "line": 2132,
+          "column": 43,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2114,
+          "baselineMatches": [
+            2114
+          ],
+          "classification": "BASELINE",
+          "code": "const openGroupOperations = useCallback((code?: string | null) => {"
+        },
+        {
+          "line": 2134,
+          "column": 7,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2116,
+          "baselineMatches": [
+            2116
+          ],
+          "classification": "BASELINE",
+          "code": "}, [openGroupCheckIn]);"
+        },
+        {
+          "line": 2174,
+          "column": 7,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2156,
+          "baselineMatches": [
+            2156
+          ],
+          "classification": "BASELINE",
+          "code": "}, [rooms, activeMovementsTargetYmd]);"
+        },
+        {
+          "line": 2189,
+          "column": 23,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2171,
+          "baselineMatches": [
+            2171
+          ],
+          "classification": "BASELINE",
+          "code": "const z = (r as any).zone;"
+        },
+        {
+          "line": 2436,
+          "column": 23,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2418,
+          "baselineMatches": [
+            2418
+          ],
+          "classification": "BASELINE",
+          "code": "const roomPoolMap = useMemo(() => {"
+        },
+        {
+          "line": 2454,
+          "column": 34,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2436,
+          "baselineMatches": [
+            2436
+          ],
+          "classification": "BASELINE",
+          "code": "status: pr.status as any,"
+        },
+        {
+          "line": 2464,
+          "column": 31,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2446,
+          "baselineMatches": [
+            2446
+          ],
+          "classification": "BASELINE",
+          "code": "}, [initialRoomsPage.items, rooms, bulkPlanData?.rooms, hotelId]);"
+        },
+        {
+          "line": 2505,
+          "column": 31,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2487,
+          "baselineMatches": [
+            2487
+          ],
+          "classification": "BASELINE",
+          "code": "const roomTypeSummaryList = useMemo(() => {"
+        },
+        {
+          "line": 2558,
+          "column": 6,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2540,
+          "baselineMatches": [
+            2540
+          ],
+          "classification": "BASELINE",
+          "code": "[roomTypeSummaryList, bulkRoomTypeCounts],"
+        },
+        {
+          "line": 2563,
+          "column": 5,
+          "ruleId": "react-hooks/set-state-in-effect",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2545,
+          "baselineMatches": [
+            2545
+          ],
+          "classification": "BASELINE",
+          "code": "setBulkRoomTypeCounts((prev) => {"
+        },
+        {
+          "line": 2624,
+          "column": 33,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2606,
+          "baselineMatches": [
+            2606
+          ],
+          "classification": "BASELINE",
+          "code": "const reservationNightDates = useMemo(() => {"
+        },
+        {
+          "line": 2759,
+          "column": 5,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2741,
+          "baselineMatches": [
+            2741
+          ],
+          "classification": "BASELINE",
+          "code": "roomTypeSummaryList,"
+        },
+        {
+          "line": 2784,
+          "column": 42,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2766,
+          "baselineMatches": [
+            2766
+          ],
+          "classification": "BASELINE",
+          "code": "const reservationEstimatedRoomsTotal = useMemo(() => {"
+        },
+        {
+          "line": 2800,
+          "column": 5,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2782,
+          "baselineMatches": [
+            2782
+          ],
+          "classification": "BASELINE",
+          "code": "selectedReservationRoom?.price,"
+        },
+        {
+          "line": 2802,
+          "column": 5,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2784,
+          "baselineMatches": [
+            2784
+          ],
+          "classification": "BASELINE",
+          "code": "reservationNightDates,"
+        },
+        {
+          "line": 2819,
+          "column": 7,
+          "ruleId": "react-hooks/preserve-manual-memoization",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2801,
+          "baselineMatches": [
+            2801
+          ],
+          "classification": "BASELINE",
+          "code": "}, [selectedReservationRoom, initialReservationRoom]);"
+        },
+        {
+          "line": 4051,
+          "column": 31,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 4033,
+          "baselineMatches": [
+            4033
+          ],
+          "classification": "BASELINE",
+          "code": "(r) => String((r as any).zone || \"\").trim() === zone,"
+        }
+      ]
+    },
+    {
+      "file": "frontends/front-end-vietsage/src/features/hotel-ops/components/edit-reservation-modal.tsx",
+      "errorCount": 10,
+      "warningCount": 1,
+      "baselineErrorCount": 0,
+      "baselineWarningCount": 1,
+      "errors": [
+        {
+          "line": 404,
+          "column": 5,
+          "ruleId": "react-hooks/refs",
+          "inChangedHunk": true,
+          "mappedHeadLine": null,
+          "baselineMatches": [],
+          "classification": "REVIEW",
+          "code": "originalCheckInInstantRef.current = reservation.plannedCheckInAt || \"\";"
+        },
+        {
+          "line": 405,
+          "column": 5,
+          "ruleId": "react-hooks/refs",
+          "inChangedHunk": true,
+          "mappedHeadLine": null,
+          "baselineMatches": [],
+          "classification": "REVIEW",
+          "code": "originalCheckInLocalRef.current = inLocal;"
+        },
+        {
+          "line": 406,
+          "column": 5,
+          "ruleId": "react-hooks/refs",
+          "inChangedHunk": true,
+          "mappedHeadLine": null,
+          "baselineMatches": [],
+          "classification": "REVIEW",
+          "code": "originalCheckOutInstantRef.current = reservation.plannedCheckOutAt || \"\";"
+        },
+        {
+          "line": 407,
+          "column": 5,
+          "ruleId": "react-hooks/refs",
+          "inChangedHunk": true,
+          "mappedHeadLine": null,
+          "baselineMatches": [],
+          "classification": "REVIEW",
+          "code": "originalCheckOutLocalRef.current = outLocal;"
+        },
+        {
+          "line": 421,
+          "column": 5,
+          "ruleId": "react-hooks/refs",
+          "inChangedHunk": true,
+          "mappedHeadLine": null,
+          "baselineMatches": [],
+          "classification": "REVIEW",
+          "code": "originalRateInputRef.current = rateStr;"
+        },
+        {
+          "line": 440,
+          "column": 60,
+          "ruleId": "react-hooks/refs",
+          "inChangedHunk": true,
+          "mappedHeadLine": null,
+          "baselineMatches": [],
+          "classification": "REVIEW",
+          "code": "const isQuoteUnchanged = !isRateDirty && nightlyRate === originalRateInputRef.current &&"
+        },
+        {
+          "line": 441,
+          "column": 39,
+          "ruleId": "react-hooks/refs",
+          "inChangedHunk": true,
+          "mappedHeadLine": null,
+          "baselineMatches": [],
+          "classification": "REVIEW",
+          "code": "plannedCheckInAt.slice(0, 10) === originalCheckInLocalRef.current.slice(0, 10) &&"
+        },
+        {
+          "line": 441,
+          "column": 39,
+          "ruleId": "react-hooks/refs",
+          "inChangedHunk": true,
+          "mappedHeadLine": null,
+          "baselineMatches": [],
+          "classification": "REVIEW",
+          "code": "plannedCheckInAt.slice(0, 10) === originalCheckInLocalRef.current.slice(0, 10) &&"
+        },
+        {
+          "line": 442,
+          "column": 40,
+          "ruleId": "react-hooks/refs",
+          "inChangedHunk": true,
+          "mappedHeadLine": null,
+          "baselineMatches": [],
+          "classification": "REVIEW",
+          "code": "plannedCheckOutAt.slice(0, 10) === originalCheckOutLocalRef.current.slice(0, 10);"
+        },
+        {
+          "line": 442,
+          "column": 40,
+          "ruleId": "react-hooks/refs",
+          "inChangedHunk": true,
+          "mappedHeadLine": null,
+          "baselineMatches": [],
+          "classification": "REVIEW",
+          "code": "plannedCheckOutAt.slice(0, 10) === originalCheckOutLocalRef.current.slice(0, 10);"
+        }
+      ]
+    },
+    {
+      "file": "frontends/front-end-vietsage/src/features/hotel-ops/components/front-desk-arrival-detail-panel.tsx",
+      "errorCount": 0,
+      "warningCount": 2,
+      "baselineErrorCount": 0,
+      "baselineWarningCount": 2,
+      "errors": []
+    },
+    {
+      "file": "frontends/front-end-vietsage/src/features/hotel-ops/components/group-operations-drawer.tsx",
+      "errorCount": 0,
+      "warningCount": 3,
+      "baselineErrorCount": 0,
+      "baselineWarningCount": 3,
+      "errors": []
+    },
+    {
+      "file": "frontends/front-end-vietsage/src/features/hotel-ops/components/tape-chart/tape-chart-view.tsx",
+      "errorCount": 12,
+      "warningCount": 23,
+      "baselineErrorCount": 20,
+      "baselineWarningCount": 23,
+      "errors": [
+        {
+          "line": 1747,
+          "column": 7,
+          "ruleId": "react-hooks/set-state-in-effect",
+          "inChangedHunk": false,
+          "mappedHeadLine": 1756,
+          "baselineMatches": [
+            1756
+          ],
+          "classification": "BASELINE",
+          "code": "setStartDate((prev) => (prev !== businessDate ? businessDate : prev));"
+        },
+        {
+          "line": 2043,
+          "column": 42,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2052,
+          "baselineMatches": [
+            2052,
+            2052
+          ],
+          "classification": "BASELINE",
+          "code": "((upc as any)?.groupCode && String((upc as any).groupCode).toLowerCase() === cleanQ) ||"
+        },
+        {
+          "line": 2046,
+          "column": 21,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2055,
+          "baselineMatches": [],
+          "classification": "REVIEW",
+          "code": ");"
+        },
+        {
+          "line": 2046,
+          "column": 56,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2055,
+          "baselineMatches": [],
+          "classification": "REVIEW",
+          "code": ");"
+        },
+        {
+          "line": 2048,
+          "column": 20,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2057,
+          "baselineMatches": [],
+          "classification": "REVIEW",
+          "code": "arrivalsList.some("
+        },
+        {
+          "line": 2048,
+          "column": 54,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2057,
+          "baselineMatches": [],
+          "classification": "REVIEW",
+          "code": "arrivalsList.some("
+        },
+        {
+          "line": 2076,
+          "column": 9,
+          "ruleId": "react-hooks/set-state-in-effect",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2085,
+          "baselineMatches": [],
+          "classification": "REVIEW",
+          "code": ""
+        },
+        {
+          "line": 2087,
+          "column": 35,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2096,
+          "baselineMatches": [],
+          "classification": "REVIEW",
+          "code": ") {"
+        },
+        {
+          "line": 2087,
+          "column": 69,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2096,
+          "baselineMatches": [],
+          "classification": "REVIEW",
+          "code": ") {"
+        },
+        {
+          "line": 2105,
+          "column": 34,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2114,
+          "baselineMatches": [],
+          "classification": "REVIEW",
+          "code": ") {"
+        },
+        {
+          "line": 2105,
+          "column": 67,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2114,
+          "baselineMatches": [],
+          "classification": "REVIEW",
+          "code": ") {"
+        },
+        {
+          "line": 2120,
+          "column": 40,
+          "ruleId": "@typescript-eslint/no-explicit-any",
+          "inChangedHunk": false,
+          "mappedHeadLine": 2129,
+          "baselineMatches": [],
+          "classification": "REVIEW",
+          "code": "resCode === cleanQ ||"
+        }
+      ]
+    },
+    {
+      "file": "frontends/front-end-vietsage/src/features/hotel-ops/utils/front-desk-groups.ts",
+      "errorCount": 0,
+      "warningCount": 0,
+      "baselineErrorCount": 0,
+      "baselineWarningCount": 0,
+      "errors": []
+    },
+    {
+      "file": "frontends/front-end-vietsage/src/libs/vietnam-temporal.ts",
+      "errorCount": 0,
+      "warningCount": 0,
+      "baselineErrorCount": 0,
+      "baselineWarningCount": 0,
+      "errors": []
+    },
+    {
+      "file": "frontends/front-end-vietsage/src/features/hotel-ops/utils/tape-chart-filter-helpers.ts",
+      "errorCount": 0,
+      "warningCount": 0,
+      "baselineErrorCount": 0,
+      "baselineWarningCount": 0,
+      "errors": []
+    }
+  ]
+}

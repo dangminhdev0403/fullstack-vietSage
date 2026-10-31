@@ -20,14 +20,18 @@ import {
 import {
   addDaysYmd,
   diffCalendarDays,
+  plainDateAtTime,
   resolveTimeZone,
   toYmd,
   VIETNAM_TIME_ZONE,
 } from "../../../../common/time/vietnam-temporal";
 import { generateOpaqueToken } from "../../../../common/security/token-hash.util";
+import { calculateReservationChargeTotal } from "../../../../common/pricing/reservation-charge-total";
 import { PrismaService } from "../../../../prisma/prisma.service";
 import type {
   CheckInReservationBodyInput,
+  UpdateReservationBodyInput,
+  UpdateReservationDatesBodyInput,
   UpdateGroupReservationBodyInput,
 } from "../../domain/schemas/reservations.schema";
 import { inferCitizenshipKind } from "../../domain/infer-citizenship-kind";
@@ -1131,7 +1135,7 @@ export class ReservationsRepository {
         }
       }
 
-      return tx.reservation.update({
+      const updated = await tx.reservation.update({
         where: { id: reservation.id },
         data: {
           roomId: input.roomId,
@@ -1149,8 +1153,29 @@ export class ReservationsRepository {
               ? { nightlyRateSnapshot: assignedRoomPrice ?? null }
               : {}),
         },
-        include: { room: true, roomType: true },
+        include: { room: true, roomType: true, chargeLines: true },
       });
+
+      if (
+        input.nightlyRateSnapshot != null &&
+        (reservation.nightlyRateSnapshot == null ||
+          !new Prisma.Decimal(input.nightlyRateSnapshot).equals(reservation.nightlyRateSnapshot))
+      ) {
+        await this.reconcileReservationChargeLines(tx, {
+          hotelId: input.hotelId,
+          reservationId: reservation.id,
+          checkInAt: reservation.plannedCheckInAt,
+          checkOutAt: reservation.plannedCheckOutAt,
+          nightlyRate: new Prisma.Decimal(input.nightlyRateSnapshot),
+          rateChanged: true,
+        });
+        return tx.reservation.findUniqueOrThrow({
+          where: { id: reservation.id, hotelId: input.hotelId },
+          include: { room: true, roomType: true, chargeLines: true },
+        });
+      }
+
+      return updated;
     }, "RESERVATION_ROOM_ASSIGNMENT_CONCURRENCY_CONFLICT");
   }
 
@@ -1969,7 +1994,32 @@ export class ReservationsRepository {
             select: { id: true },
           },
           reservation: {
-            select: { groupCode: true },
+            select: {
+              groupCode: true,
+              nightlyRateSnapshot: true,
+              baseNightlyRateSnapshot: true,
+              chargeLines: {
+                orderBy: [{ serviceDate: "asc" }, { id: "asc" }],
+              },
+            },
+          },
+          folios: {
+            where: { hotelId: input.hotelId, status: { not: FolioStatus.VOID } },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            take: 1,
+            select: {
+              items: {
+                where: { hotelId: input.hotelId, voidedAt: null },
+                select: {
+                  itemType: true,
+                  nameSnapshot: true,
+                  quantity: true,
+                  unitPriceSnapshot: true,
+                  discountAmountSnapshot: true,
+                  totalSnapshot: true,
+                },
+              },
+            },
           },
         },
         orderBy: { plannedCheckInAt: "asc" },
@@ -2082,29 +2132,9 @@ export class ReservationsRepository {
         const checkOut = r.plannedCheckOutAt;
         const nights = Math.max(1, diffCalendarDays(checkIn, checkOut, timeZone));
 
-        const roomChargeLines = (r.chargeLines || []).filter(
-          (l: any) => l.lineType === "ROOM_NIGHT",
-        );
         const extraLines = (r.chargeLines || []).filter((l: any) => l.lineType !== "ROOM_NIGHT");
-
-        let roomSubtotal = 0;
-        const fallbackRate = Number(
-          r.nightlyRateSnapshot ??
-            r.baseNightlyRateSnapshot ??
-            r.room?.price ??
-            r.room?.roomType?.basePrice ??
-            (r as any).roomType?.basePrice ??
-            0,
-        );
-
-        if (roomChargeLines.length > 0) {
-          roomSubtotal = roomChargeLines.reduce(
-            (sum: number, l: any) => sum + Number(l.totalSnapshot || l.unitPriceSnapshot || 0),
-            0,
-          );
-        } else {
-          roomSubtotal = fallbackRate * nights;
-        }
+        const quote = calculateReservationChargeTotal(r, timeZone);
+        const roomSubtotal = quote.roomSubtotal.toNumber();
 
         const services = extraLines.map((l: any) => ({
           name: l.nameSnapshot || "Dịch vụ",
@@ -2112,9 +2142,12 @@ export class ReservationsRepository {
           unitPrice: Number(l.unitPriceSnapshot || l.totalSnapshot || 0),
           total: Number(l.totalSnapshot || 0),
         }));
-        const serviceSubtotal = services.reduce((sum: number, s: any) => sum + s.total, 0);
-        const totalAmount = roomSubtotal + serviceSubtotal;
-        const effectiveNightlyRate = nights > 0 ? Math.round(roomSubtotal / nights) : fallbackRate;
+        const serviceSubtotal = quote.extraSubtotal.toNumber();
+        const totalAmount = quote.totalAmount.toNumber();
+        const effectiveNightlyRate = quote.roomSubtotal
+          .div(nights)
+          .toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
+          .toNumber();
 
         const isOta = Boolean(
           r.sourceCategory === "OTA" || (r.groupCode && r.groupCode.startsWith("OTA")),
@@ -2209,15 +2242,62 @@ export class ReservationsRepository {
       const channelName = isOta
         ? s.reservationCode?.replace(/^OTA-?/i, "").trim() || "OTA"
         : "Trực tiếp";
-      const nightlyRate = s.nightlyRateSnapshot
-        ? Number(s.nightlyRateSnapshot)
-        : s.baseNightlyRateSnapshot
-          ? Number(s.baseNightlyRateSnapshot)
-          : s.room?.price
-            ? Number(s.room.price)
-            : (s.room as any)?.roomType?.basePrice
-              ? Number((s.room as any).roomType.basePrice)
-              : null;
+      const folioItems = s.folios?.[0]?.items ?? [];
+      const roomItems = folioItems.filter((item) => item.itemType === FolioItemType.ROOM_CHARGE);
+      const quote =
+        roomItems.length > 0
+          ? null
+          : calculateReservationChargeTotal(
+              {
+                plannedCheckInAt: s.plannedCheckInAt ?? checkIn,
+                plannedCheckOutAt: effectiveEnd,
+                nightlyRateSnapshot: s.nightlyRateSnapshot ?? s.reservation?.nightlyRateSnapshot,
+                baseNightlyRateSnapshot:
+                  s.baseNightlyRateSnapshot ?? s.reservation?.baseNightlyRateSnapshot,
+                chargeLines: s.reservation?.chargeLines,
+              },
+              timeZone,
+            );
+      const roomSubtotal =
+        quote?.roomSubtotal ??
+        roomItems.reduce((sum, item) => sum.add(item.totalSnapshot), new Prisma.Decimal(0));
+      const serviceItems = folioItems.filter((item) => item.itemType !== FolioItemType.ROOM_CHARGE);
+      const serviceSubtotal =
+        folioItems.length > 0
+          ? serviceItems.reduce(
+              (sum, item) =>
+                sum.add(
+                  item.itemType === FolioItemType.DISCOUNT
+                    ? item.discountAmountSnapshot.abs().negated()
+                    : item.totalSnapshot,
+                ),
+              new Prisma.Decimal(0),
+            )
+          : (quote?.extraSubtotal ?? new Prisma.Decimal(0));
+      const services =
+        folioItems.length > 0
+          ? serviceItems.map((item) => ({
+              name: item.nameSnapshot,
+              quantity: item.quantity,
+              unitPrice: item.unitPriceSnapshot.toNumber(),
+              total:
+                item.itemType === FolioItemType.DISCOUNT
+                  ? item.discountAmountSnapshot.abs().negated().toNumber()
+                  : item.totalSnapshot.toNumber(),
+            }))
+          : (s.reservation?.chargeLines ?? [])
+              .filter((item) => item.lineType !== "ROOM_NIGHT")
+              .map((item) => ({
+                name: item.nameSnapshot,
+                quantity: item.quantity,
+                unitPrice: item.unitPriceSnapshot.toNumber(),
+                total: item.totalSnapshot.toNumber(),
+              }));
+      const totalAmount = roomSubtotal.add(serviceSubtotal);
+      const nightlyRate = roomSubtotal
+        .div(nights)
+        .toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
+        .toNumber();
       const guestCount = 1 + (s.occupants?.length ?? 0);
 
       blocks.push({
@@ -2252,11 +2332,12 @@ export class ReservationsRepository {
         endAt: effectiveEnd.toISOString(),
         nights,
         nightlyRate,
-        nightlyRateSnapshot: s.nightlyRateSnapshot ? s.nightlyRateSnapshot.toString() : null,
-        roomSubtotal: nightlyRate ? nightlyRate * nights : null,
-        serviceSubtotal: 0,
-        totalAmount: nightlyRate ? nightlyRate * nights : null,
-        services: [],
+        nightlyRateSnapshot:
+          s.nightlyRateSnapshot != null ? s.nightlyRateSnapshot.toString() : null,
+        roomSubtotal: roomSubtotal.toNumber(),
+        serviceSubtotal: serviceSubtotal.toNumber(),
+        totalAmount: totalAmount.toNumber(),
+        services,
         updatedAt: s.updatedAt.toISOString(),
         expectedUpdatedAt: s.updatedAt.toISOString(),
         movable: false,
@@ -2475,30 +2556,14 @@ export class ReservationsRepository {
           );
         }
 
-        const targetDefaultRate = targetRoom.price ?? targetRoom.roomType?.basePrice ?? null;
-        const sourceUsedDefaultRate =
-          sourceRes.nightlyRateSnapshot === null ||
-          sourceRes.nightlyRateSnapshot === undefined ||
-          (sourceRes.baseNightlyRateSnapshot !== null &&
-            sourceRes.baseNightlyRateSnapshot !== undefined &&
-            new Prisma.Decimal(sourceRes.nightlyRateSnapshot).equals(
-              sourceRes.baseNightlyRateSnapshot,
-            ));
-
         const updatedSource = await tx.reservation.update({
           where: { id: sourceRes.id },
           data: {
             roomId: input.targetRoomId,
             assignedAt: now,
             assignedByUserId: input.actorUserId,
-            ...(targetDefaultRate !== null
-              ? {
-                  baseNightlyRateSnapshot: targetDefaultRate,
-                  ...(sourceUsedDefaultRate ? { nightlyRateSnapshot: targetDefaultRate } : {}),
-                }
-              : {}),
           },
-          include: { room: true },
+          include: { room: true, roomType: true, chargeLines: true },
         });
 
         await tx.auditLog.create({
@@ -2592,7 +2657,7 @@ export class ReservationsRepository {
               assignedAt: now,
               assignedByUserId: input.actorUserId,
             },
-            include: { room: true },
+            include: { room: true, roomType: true, chargeLines: true },
           }),
           tx.reservation.update({
             where: { id: swapRes.id },
@@ -2601,7 +2666,7 @@ export class ReservationsRepository {
               assignedAt: now,
               assignedByUserId: input.actorUserId,
             },
-            include: { room: true },
+            include: { room: true, roomType: true, chargeLines: true },
           }),
         ]);
 
@@ -2641,6 +2706,7 @@ export class ReservationsRepository {
     plannedCheckInAt?: Date;
     plannedCheckOutAt?: Date;
     nightlyRateSnapshot?: number | string | Prisma.Decimal | null;
+    chargeLines?: UpdateReservationDatesBodyInput["chargeLines"];
     expectedUpdatedAt: string;
     actorUserId: string;
   }) {
@@ -2720,7 +2786,12 @@ export class ReservationsRepository {
         }
       }
 
-      const updated = await tx.reservation.update({
+      const requestedRate = input.nightlyRateSnapshot;
+      const rateChanged =
+        requestedRate != null &&
+        (res.nightlyRateSnapshot == null ||
+          !new Prisma.Decimal(requestedRate).equals(res.nightlyRateSnapshot));
+      await tx.reservation.update({
         where: { id: res.id },
         data: {
           plannedCheckInAt: newCheckIn,
@@ -2737,68 +2808,21 @@ export class ReservationsRepository {
         include: { room: true },
       });
 
-      // Reconcile nightly ledger (ROOM_NIGHT charge lines) with the new billable dates
-      if (tx.reservationChargeLine) {
-        const hotel = await tx.hotel.findUnique({
-          where: { id: input.hotelId },
-          select: { timezone: true },
+      if (
+        input.chargeLines !== undefined ||
+        rateChanged ||
+        newCheckIn.getTime() !== res.plannedCheckInAt.getTime() ||
+        newCheckOut.getTime() !== res.plannedCheckOutAt.getTime()
+      ) {
+        await this.reconcileReservationChargeLines(tx, {
+          hotelId: input.hotelId,
+          reservationId: res.id,
+          checkInAt: newCheckIn,
+          checkOutAt: newCheckOut,
+          nightlyRate: requestedRate ?? res.nightlyRateSnapshot ?? res.baseNightlyRateSnapshot,
+          rateChanged,
+          chargeLines: input.chargeLines,
         });
-        const tz = hotel?.timezone || VIETNAM_TIME_ZONE;
-        const newNights = Math.max(1, diffCalendarDays(newCheckIn, newCheckOut, tz));
-        const newNightYmds = new Set<string>();
-        for (let i = 0; i < newNights; i++) {
-          newNightYmds.add(addDaysYmd(toYmd(newCheckIn, tz), i));
-        }
-
-        const existingLines = await tx.reservationChargeLine.findMany({
-          where: { reservationId: res.id, hotelId: input.hotelId },
-        });
-        const roomNightLines = existingLines.filter((l) => l.lineType === "ROOM_NIGHT");
-
-        const linesToDelete: string[] = [];
-        const coveredYmds = new Set<string>();
-
-        for (const line of roomNightLines) {
-          const lineYmd = line.serviceDate ? toYmd(new Date(line.serviceDate), tz) : null;
-          if (lineYmd && newNightYmds.has(lineYmd)) {
-            coveredYmds.add(lineYmd);
-          } else {
-            linesToDelete.push(line.id);
-          }
-        }
-
-        if (linesToDelete.length > 0) {
-          await tx.reservationChargeLine.deleteMany({
-            where: { id: { in: linesToDelete } },
-          });
-        }
-
-        const missingYmds = Array.from(newNightYmds).filter((ymd) => !coveredYmds.has(ymd));
-        if (missingYmds.length > 0) {
-          const fallbackRate =
-            input.nightlyRateSnapshot !== undefined && input.nightlyRateSnapshot !== null
-              ? new Prisma.Decimal(input.nightlyRateSnapshot)
-              : (res.nightlyRateSnapshot ??
-                res.baseNightlyRateSnapshot ??
-                (res.room as any)?.price ??
-                new Prisma.Decimal(0));
-
-          await tx.reservationChargeLine.createMany({
-            data: missingYmds.map((ymd) => ({
-              hotelId: input.hotelId,
-              reservationId: res.id,
-              lineType: ReservationChargeLineType.ROOM_NIGHT,
-              serviceDate: new Date(`${ymd}T14:00:00+07:00`),
-              nameSnapshot: `Tiền phòng đêm ${ymd}`,
-              quantity: 1,
-              unitPriceSnapshot: fallbackRate,
-              taxAmountSnapshot: new Prisma.Decimal(0),
-              discountAmountSnapshot: new Prisma.Decimal(0),
-              totalSnapshot: fallbackRate,
-              currency: "VND",
-            })),
-          });
-        }
       }
 
       await tx.auditLog.create({
@@ -2818,7 +2842,10 @@ export class ReservationsRepository {
         },
       });
 
-      return updated;
+      return tx.reservation.findUniqueOrThrow({
+        where: { id: res.id, hotelId: input.hotelId },
+        include: { room: { include: { roomType: true } }, roomType: true, chargeLines: true },
+      });
     }, "RESERVATION_DATES_CONCURRENCY_CONFLICT");
   }
 
@@ -2837,7 +2864,7 @@ export class ReservationsRepository {
     plannedCheckInAt?: Date;
     plannedCheckOutAt?: Date;
     nightlyRateSnapshot?: number | string | Prisma.Decimal | null;
-    chargeLines?: any[];
+    chargeLines?: UpdateReservationBodyInput["chargeLines"];
     sourceCategory?: any;
     sourcePartnerId?: string | null;
     bookingOwnerUserId?: string | null;
@@ -2973,7 +3000,10 @@ export class ReservationsRepository {
               ? input.nightlyRateSnapshot
               : new Prisma.Decimal(input.nightlyRateSnapshot)
             : null;
-        rateChanged = true;
+        rateChanged =
+          newNightlyRate == null
+            ? res.nightlyRateSnapshot != null
+            : res.nightlyRateSnapshot == null || !newNightlyRate.equals(res.nightlyRateSnapshot);
       }
 
       let newStatus = res.status;
@@ -3014,89 +3044,16 @@ export class ReservationsRepository {
         include: { room: { include: { roomType: true } }, roomType: true, chargeLines: true },
       });
 
-      if (input.chargeLines !== undefined && tx.reservationChargeLine) {
-        await tx.reservationChargeLine.deleteMany({
-          where: { reservationId: res.id, hotelId: input.hotelId },
+      if (input.chargeLines !== undefined || datesChanged || rateChanged) {
+        await this.reconcileReservationChargeLines(tx, {
+          hotelId: input.hotelId,
+          reservationId: res.id,
+          checkInAt: newCheckIn,
+          checkOutAt: newCheckOut,
+          nightlyRate: newNightlyRate ?? res.baseNightlyRateSnapshot,
+          rateChanged,
+          chargeLines: input.chargeLines,
         });
-        if (input.chargeLines.length > 0) {
-          await tx.reservationChargeLine.createMany({
-            data: input.chargeLines.map((line: any) => ({
-              hotelId: input.hotelId,
-              reservationId: res.id,
-              lineType: line.lineType,
-              serviceDate: line.serviceDate ? new Date(line.serviceDate) : null,
-              serviceItemId: line.serviceItemId || null,
-              nameSnapshot: line.nameSnapshot,
-              codeSnapshot: line.codeSnapshot || null,
-              quantity: line.quantity || 1,
-              unitPriceSnapshot: new Prisma.Decimal(line.unitPriceSnapshot || 0),
-              taxAmountSnapshot: new Prisma.Decimal(line.taxAmountSnapshot || 0),
-              discountAmountSnapshot: new Prisma.Decimal(line.discountAmountSnapshot || 0),
-              totalSnapshot: new Prisma.Decimal(line.totalSnapshot || 0),
-              currency: line.currency || "VND",
-            })),
-          });
-        }
-      } else if ((datesChanged || rateChanged) && tx.reservationChargeLine) {
-        const hotel = await tx.hotel.findUnique({
-          where: { id: input.hotelId },
-          select: { timezone: true },
-        });
-        const tz = hotel?.timezone || VIETNAM_TIME_ZONE;
-        const newNights = Math.max(1, diffCalendarDays(newCheckIn, newCheckOut, tz));
-        const newNightYmds = new Set<string>();
-        for (let i = 0; i < newNights; i++) {
-          newNightYmds.add(addDaysYmd(toYmd(newCheckIn, tz), i));
-        }
-
-        const existingLines = await tx.reservationChargeLine.findMany({
-          where: { reservationId: res.id, hotelId: input.hotelId },
-        });
-        const roomNightLines = existingLines.filter((l) => l.lineType === "ROOM_NIGHT");
-
-        const linesToDelete: string[] = [];
-        const coveredYmds = new Set<string>();
-
-        for (const line of roomNightLines) {
-          const lineYmd = line.serviceDate ? toYmd(new Date(line.serviceDate), tz) : null;
-          if (lineYmd && newNightYmds.has(lineYmd) && !rateChanged) {
-            coveredYmds.add(lineYmd);
-          } else {
-            linesToDelete.push(line.id);
-          }
-        }
-
-        if (linesToDelete.length > 0) {
-          await tx.reservationChargeLine.deleteMany({
-            where: { id: { in: linesToDelete } },
-          });
-        }
-
-        const missingYmds = Array.from(newNightYmds).filter((ymd) => !coveredYmds.has(ymd));
-        if (missingYmds.length > 0) {
-          const effectiveFallback =
-            newNightlyRate !== null && newNightlyRate !== undefined
-              ? newNightlyRate instanceof Prisma.Decimal
-                ? newNightlyRate
-                : new Prisma.Decimal(newNightlyRate)
-              : (res.baseNightlyRateSnapshot ?? (res.room as any)?.price ?? new Prisma.Decimal(0));
-
-          await tx.reservationChargeLine.createMany({
-            data: missingYmds.map((ymd) => ({
-              hotelId: input.hotelId,
-              reservationId: res.id,
-              lineType: ReservationChargeLineType.ROOM_NIGHT,
-              serviceDate: new Date(`${ymd}T14:00:00+07:00`),
-              nameSnapshot: `Tiền phòng đêm ${ymd}`,
-              quantity: 1,
-              unitPriceSnapshot: effectiveFallback,
-              taxAmountSnapshot: new Prisma.Decimal(0),
-              discountAmountSnapshot: new Prisma.Decimal(0),
-              totalSnapshot: effectiveFallback,
-              currency: "VND",
-            })),
-          });
-        }
       }
 
       await tx.auditLog.create({
@@ -3118,8 +3075,112 @@ export class ReservationsRepository {
         },
       });
 
-      return updated;
+      return tx.reservation.findUniqueOrThrow({
+        where: { id: res.id, hotelId: input.hotelId },
+        include: { room: { include: { roomType: true } }, roomType: true, chargeLines: true },
+      });
     }, "RESERVATION_CONCURRENCY_CONFLICT");
+  }
+
+  private async reconcileReservationChargeLines(
+    tx: Prisma.TransactionClient,
+    input: {
+      hotelId: string;
+      reservationId: string;
+      checkInAt: Date;
+      checkOutAt: Date;
+      nightlyRate?: Prisma.Decimal | number | string | null;
+      rateChanged: boolean;
+      chargeLines?: UpdateReservationBodyInput["chargeLines"];
+    },
+  ) {
+    const where = { hotelId: input.hotelId, reservationId: input.reservationId };
+    if (input.chargeLines !== undefined) {
+      await tx.reservationChargeLine.deleteMany({ where });
+      if (input.chargeLines.length > 0) {
+        await tx.reservationChargeLine.createMany({
+          data: input.chargeLines.map((line) => ({
+            ...where,
+            lineType: line.lineType,
+            serviceDate: line.serviceDate ? new Date(line.serviceDate) : null,
+            serviceItemId: line.serviceItemId || null,
+            nameSnapshot: line.nameSnapshot,
+            codeSnapshot: line.codeSnapshot || null,
+            quantity: line.quantity,
+            unitPriceSnapshot: new Prisma.Decimal(line.unitPriceSnapshot),
+            taxAmountSnapshot: new Prisma.Decimal(line.taxAmountSnapshot),
+            discountAmountSnapshot: new Prisma.Decimal(line.discountAmountSnapshot),
+            totalSnapshot: new Prisma.Decimal(line.totalSnapshot),
+            currency: line.currency,
+          })),
+        });
+      }
+      return;
+    }
+
+    const hotel = await tx.hotel.findUnique({
+      where: { id: input.hotelId },
+      select: { timezone: true },
+    });
+    const timeZone = resolveTimeZone(hotel?.timezone);
+    const nights = Math.max(1, diffCalendarDays(input.checkInAt, input.checkOutAt, timeZone));
+    const dates = new Set(
+      Array.from({ length: nights }, (_, index) =>
+        addDaysYmd(toYmd(input.checkInAt, timeZone), index),
+      ),
+    );
+    const allLines = await tx.reservationChargeLine.findMany({
+      where,
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+    const lines = allLines.filter((line) => line.lineType === ReservationChargeLineType.ROOM_NIGHT);
+    const hasDatedSchedule = lines.some((line) => line.serviceDate != null);
+    const orderedDates = [...dates];
+    const dateUpdates: Array<{ id: string; serviceDate: Date }> = [];
+    const covered = new Set<string>();
+    const remove: string[] = [];
+    for (const [index, line] of lines.entries()) {
+      const ymd = line.serviceDate
+        ? toYmd(line.serviceDate, timeZone)
+        : !hasDatedSchedule
+          ? orderedDates[index]
+          : null;
+      if (!input.rateChanged && ymd && dates.has(ymd)) {
+        covered.add(ymd);
+        if (!line.serviceDate)
+          dateUpdates.push({ id: line.id, serviceDate: plainDateAtTime(ymd, "14:00", timeZone) });
+      } else remove.push(line.id);
+    }
+    const missing = [...dates].filter((date) => !covered.has(date));
+    const rate = input.nightlyRate == null ? null : new Prisma.Decimal(input.nightlyRate);
+    if (missing.length > 0 && rate === null) {
+      throw new ConflictException("MISSING_AGREED_ROOM_RATE_SNAPSHOT");
+    }
+    for (const update of dateUpdates) {
+      await tx.reservationChargeLine.update({
+        where: { id: update.id },
+        data: { serviceDate: update.serviceDate },
+      });
+    }
+    if (remove.length > 0) {
+      await tx.reservationChargeLine.deleteMany({ where: { ...where, id: { in: remove } } });
+    }
+    if (missing.length > 0 && rate !== null) {
+      await tx.reservationChargeLine.createMany({
+        data: missing.map((ymd) => ({
+          ...where,
+          lineType: ReservationChargeLineType.ROOM_NIGHT,
+          serviceDate: plainDateAtTime(ymd, "14:00", timeZone),
+          nameSnapshot: `Tiền phòng đêm ${ymd}`,
+          quantity: 1,
+          unitPriceSnapshot: rate,
+          taxAmountSnapshot: new Prisma.Decimal(0),
+          discountAmountSnapshot: new Prisma.Decimal(0),
+          totalSnapshot: rate,
+          currency: allLines[0]?.currency ?? "VND",
+        })),
+      });
+    }
   }
 
   private async runSerializable<T>(
@@ -3191,6 +3252,7 @@ export class ReservationsRepository {
       include: {
         room: true,
         roomType: true,
+        chargeLines: true,
         stay: {
           select: {
             id: true,
@@ -3208,7 +3270,7 @@ export class ReservationsRepository {
 
     let checkedInRooms = 0;
     let arrivingRooms = 0;
-    let totalEstimatedAmount = 0;
+    let totalEstimatedAmount = new Prisma.Decimal(0);
 
     const reservationItems = reservations.map((res) => {
       const isCheckedIn = res.status === ReservationStatus.CHECKED_IN;
@@ -3223,15 +3285,16 @@ export class ReservationsRepository {
       const checkOut = new Date(res.plannedCheckOutAt);
       const nights = Math.max(1, diffCalendarDays(checkIn, checkOut, "Asia/Ho_Chi_Minh"));
 
-      const rawRate =
-        res.nightlyRateSnapshot ??
-        res.baseNightlyRateSnapshot ??
-        res.room?.price ??
-        res.roomType?.basePrice;
-      const nightlyRate = rawRate != null ? Number(rawRate) : 0;
-      const estimatedAmount = res.status === ReservationStatus.CANCELLED ? 0 : nights * nightlyRate;
-
-      totalEstimatedAmount += estimatedAmount;
+      const quote =
+        res.status === ReservationStatus.CANCELLED
+          ? { roomSubtotal: new Prisma.Decimal(0), totalAmount: new Prisma.Decimal(0) }
+          : calculateReservationChargeTotal(res);
+      const estimatedAmount = quote.totalAmount.toNumber();
+      totalEstimatedAmount = totalEstimatedAmount.add(quote.totalAmount);
+      const effectiveNightlyRate = quote.roomSubtotal
+        .div(nights)
+        .toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
+        .toNumber();
 
       const rawStay = (res as any).stay;
       const rawGuestStays = (res as any).guestStays;
@@ -3282,7 +3345,7 @@ export class ReservationsRepository {
           res.baseNightlyRateSnapshot != null
             ? new Prisma.Decimal(res.baseNightlyRateSnapshot).toFixed(2)
             : null,
-        ratePerNight: nightlyRate,
+        ratePerNight: effectiveNightlyRate,
         guestCount: res.guestCount ?? 1,
         notes: res.notes,
         specialRequests: res.notes ?? null,
@@ -3309,7 +3372,7 @@ export class ReservationsRepository {
       totalRooms: reservations.length,
       checkedInRooms,
       arrivingRooms,
-      totalEstimatedAmount,
+      totalEstimatedAmount: totalEstimatedAmount.toNumber(),
       reservations: reservationItems,
       rooms: reservationItems,
       createdAt: group?.createdAt ?? first?.createdAt ?? new Date(),

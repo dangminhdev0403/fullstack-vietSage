@@ -1,0 +1,92 @@
+- banner:
+  - paragraph: VietSage
+  - button:
+  - button "Đăng xuất"
+- main:
+  - link "Quay lại thanh toán":
+    - /url: /hotels/cmq2k2lm0003f2oui3ifqp808/billing
+  - heading "Hóa đơn VSH_INVOICE_0023" [level=1]
+  - generic: Đã thanh toán và checkout
+  - button "In hóa đơn"
+  - article:
+    - paragraph: HÓA ĐƠN KHÁCH SẠN VIETSAGE
+    - heading "VSH_INVOICE_0023" [level=2]
+    - paragraph: Phòng 1007 · AUDIT3110-NIGHTLY
+    - paragraph: Trạng thái
+    - paragraph: Đã thanh toán
+    - paragraph: 09:00 31/10/26
+    - term: Folio
+    - definition: VSH_FOLIO_0064
+    - term: Khách
+    - definition: AUDIT3110-NIGHTLY
+    - term: Nhận phòng
+    - definition: 08:58 31/10/26
+    - term: Trả phòng
+    - definition: 09:00 31/10/26
+    - term: Tạm tính
+    - definition: 1.270.000 ₫
+    - term: Thuế
+    - definition: 0 ₫
+    - term: Giảm giá
+    - definition: 0 ₫
+    - term: Tổng
+    - definition: 1.270.000 ₫
+    - heading "Chi tiết chi phí" [level=3]
+    - table:
+      - rowgroup:
+        - row "Nội dung Phân loại nguồn Loại SL Đơn giá Tổng":
+          - columnheader "Nội dung"
+          - columnheader "Phân loại nguồn"
+          - columnheader "Loại"
+          - columnheader "SL"
+          - columnheader "Đơn giá"
+          - columnheader "Tổng"
+      - rowgroup:
+        - row "Ăn sáng buffet 🏨 Trong khách sạn Dịch vụ khách sạn 1 70.000 ₫ 70.000 ₫":
+          - cell "Ăn sáng buffet":
+            - generic: Ăn sáng buffet
+          - cell "🏨 Trong khách sạn":
+            - generic: 🏨 Trong khách sạn
+          - cell "Dịch vụ khách sạn"
+          - cell "1"
+          - cell "70.000 ₫"
+          - cell "70.000 ₫"
+        - row "Room charge - 1007 🏨 Trong khách sạn Tiền phòng 2 600.000 ₫ 1.200.000 ₫":
+          - cell "Room charge - 1007":
+            - generic: Room charge - 1007
+          - cell "🏨 Trong khách sạn":
+            - generic: 🏨 Trong khách sạn
+          - cell "Tiền phòng"
+          - cell "2"
+          - cell "600.000 ₫"
+          - cell "1.200.000 ₫"
+    - generic: 🏨 Dịch vụ trong khách sạn
+    - generic: 1.270.000 ₫
+    - paragraph: Tiền phòng, dịch vụ nội bộ & Phụ thu do KS cung cấp
+    - generic: 🌐 Dịch vụ đối tác liên kết
+    - generic: 0 ₫
+    - paragraph: Dịch vụ đối tác liên kết bên ngoài / thu hộ đối tác
+    - heading "Thanh toán" [level=3]
+    - paragraph: Tiền mặt · Thành công · 408.000 ₫
+    - paragraph: Tiền mặt · Thành công · 127.000 ₫
+    - paragraph: Tiền mặt · Thành công · 100.000 ₫
+    - paragraph: Tiền mặt · Thành công · 635.000 ₫
+    - term: Đã thanh toán
+    - definition: 1.270.000 ₫
+    - term: Còn lại
+    - definition: 0 ₫
+- navigation "Điều hướng":
+  - link "Tổng quan":
+    - /url: /owner/dashboard
+    - generic: Tổng quan
+  - link "Tài chính & đối soát":
+    - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/billing
+    - generic: Tài chính & đối soát
+  - link "Báo cáo & Phân tích":
+    - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/reports
+    - generic: Báo cáo & Phân tích
+  - generic "Thêm":
+    - generic: Thêm
+- region "Notifications alt+T"
+- button "Open Next.js Dev Tools":
+- alert

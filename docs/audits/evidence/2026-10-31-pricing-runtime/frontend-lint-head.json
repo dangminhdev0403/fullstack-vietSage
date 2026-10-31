@@ -1,0 +1,904 @@
+[
+  {
+    "file": "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx",
+    "errorCount": 0,
+    "warningCount": 7,
+    "messages": [
+      {
+        "line": 261,
+        "column": 9,
+        "endLine": 261,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'queryGroupCode' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 271,
+        "column": 10,
+        "endLine": 271,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'groupCashGivenInput' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 271,
+        "column": 31,
+        "endLine": 271,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'setGroupCashGivenInput' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 275,
+        "column": 10,
+        "endLine": 275,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'bankCopied' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 275,
+        "column": 22,
+        "endLine": 275,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'setBankCopied' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 284,
+        "column": 9,
+        "endLine": 284,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "The 'previewFolioItems' conditional could make the dependencies of useMemo Hook (at line 857) change on every render. To fix this, wrap the initialization of 'previewFolioItems' in its own useMemo() Hook."
+      },
+      {
+        "line": 621,
+        "column": 9,
+        "endLine": 621,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'selectAllFilteredFolios' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      }
+    ]
+  },
+  {
+    "file": "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx",
+    "errorCount": 35,
+    "warningCount": 15,
+    "messages": [
+      {
+        "line": 269,
+        "column": 10,
+        "endLine": 269,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'getProjectedRoomStatus' is defined but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 303,
+        "column": 10,
+        "endLine": 303,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'roomStatusBadgeClass' is defined but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 321,
+        "column": 10,
+        "endLine": 321,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'roomCardClass' is defined but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 675,
+        "column": 37,
+        "endLine": 675,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 714,
+        "column": 9,
+        "endLine": 714,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'router' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 766,
+        "column": 9,
+        "endLine": 766,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'collapseAllFloors' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 770,
+        "column": 9,
+        "endLine": 770,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'expandAllFloors' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 1594,
+        "column": 44,
+        "endLine": 1594,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1594,
+        "column": 82,
+        "endLine": 1594,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1594,
+        "column": 109,
+        "endLine": 1594,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1927,
+        "column": 9,
+        "endLine": 1927,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "The 'rooms' logical expression could make the dependencies of useCallback Hook (at line 2112) change on every render. To fix this, wrap the initialization of 'rooms' in its own useMemo() Hook."
+      },
+      {
+        "line": 1927,
+        "column": 9,
+        "endLine": 1927,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "The 'rooms' logical expression could make the dependencies of useMemo Hook (at line 2156) change on every render. To fix this, wrap the initialization of 'rooms' in its own useMemo() Hook."
+      },
+      {
+        "line": 1927,
+        "column": 9,
+        "endLine": 1927,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "The 'rooms' logical expression could make the dependencies of useMemo Hook (at line 2446) change on every render. To fix this, wrap the initialization of 'rooms' in its own useMemo() Hook."
+      },
+      {
+        "line": 1927,
+        "column": 9,
+        "endLine": 1927,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "The 'rooms' logical expression could make the dependencies of useEffect Hook (at line 4808) change on every render. To fix this, wrap the initialization of 'rooms' in its own useMemo() Hook."
+      },
+      {
+        "line": 1949,
+        "column": 42,
+        "endLine": 1949,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1952,
+        "column": 21,
+        "endLine": 1952,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1952,
+        "column": 56,
+        "endLine": 1952,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1954,
+        "column": 20,
+        "endLine": 1954,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1954,
+        "column": 54,
+        "endLine": 1954,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1972,
+        "column": 35,
+        "endLine": 1972,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1972,
+        "column": 69,
+        "endLine": 1972,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1981,
+        "column": 43,
+        "endLine": 1981,
+        "severity": 2,
+        "ruleId": "react-hooks/set-state-in-effect",
+        "message": "Error: Calling setState synchronously within an effect can trigger cascading renders\n\nEffects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:\n* Update external systems with the latest state from React.\n* Subscribe for updates from some external system, calling setState in a callback function when external state changes.\n\nCalling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:1981:43\n  1979 |           if (/^\\d{4}-\\d{2}-\\d{2}$/.test(rawDate)) {\n  1980 |             lastAutoAdjustedQueryRef.current = cleanQ;\n> 1981 |             if (rawDate !== businessDate) handleBusinessDateChange(rawDate);\n       |                                           ^^^^^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect\n  1982 |             return;\n  1983 |           }\n  1984 |         }"
+      },
+      {
+        "line": 1989,
+        "column": 34,
+        "endLine": 1989,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1989,
+        "column": 67,
+        "endLine": 1989,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2003,
+        "column": 40,
+        "endLine": 2003,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2090,
+        "column": 6,
+        "endLine": 2090,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "React Hook useEffect has a missing dependency: 'handleBusinessDateChange'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 2092,
+        "column": 40,
+        "endLine": 2112,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This value was memoized in source but not in compilation output.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2092:40\n  2090 |   }, [query, rooms, arrivalsList, hotelId, businessDate]);\n  2091 |\n> 2092 |   const openGroupCheckIn = useCallback((code?: string | null, targetRooms?: GroupRoomItem[]) => {\n       |                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2093 |     let resolvedCode = code?.trim() || null;\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2094 |     if (!resolvedCode) {\n       …\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2111 |     setIsGroupCheckInOpen(true);\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2112 |   }, [arrivalsList, rooms]);\n       | ^^^^ Could not preserve existing memoization\n  2113 |\n  2114 |   const openGroupOperations = useCallback((code?: string | null) => {\n  2115 |     openGroupCheckIn(code);"
+      },
+      {
+        "line": 2093,
+        "column": 9,
+        "endLine": 2093,
+        "severity": 2,
+        "ruleId": "prefer-const",
+        "message": "'resolvedCode' is never reassigned. Use 'const' instead."
+      },
+      {
+        "line": 2112,
+        "column": 21,
+        "endLine": 2112,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This dependency may be mutated later, which could cause the value to change unexpectedly.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2112:21\n  2110 |     setGroupCheckInRooms(roomsToUse);\n  2111 |     setIsGroupCheckInOpen(true);\n> 2112 |   }, [arrivalsList, rooms]);\n       |                     ^^^^^ This dependency may be modified later\n  2113 |\n  2114 |   const openGroupOperations = useCallback((code?: string | null) => {\n  2115 |     openGroupCheckIn(code);"
+      },
+      {
+        "line": 2114,
+        "column": 9,
+        "endLine": 2114,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'openGroupOperations' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 2114,
+        "column": 43,
+        "endLine": 2116,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This value was memoized in source but not in compilation output.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2114:43\n  2112 |   }, [arrivalsList, rooms]);\n  2113 |\n> 2114 |   const openGroupOperations = useCallback((code?: string | null) => {\n       |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2115 |     openGroupCheckIn(code);\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2116 |   }, [openGroupCheckIn]);\n       | ^^^^ Could not preserve existing memoization\n  2117 |\n  2118 |   const activeMovementsTargetYmd = businessDate || todayYmd;\n  2119 |"
+      },
+      {
+        "line": 2116,
+        "column": 7,
+        "endLine": 2116,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This dependency may be mutated later, which could cause the value to change unexpectedly.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2116:7\n  2114 |   const openGroupOperations = useCallback((code?: string | null) => {\n  2115 |     openGroupCheckIn(code);\n> 2116 |   }, [openGroupCheckIn]);\n       |       ^^^^^^^^^^^^^^^^ This dependency may be modified later\n  2117 |\n  2118 |   const activeMovementsTargetYmd = businessDate || todayYmd;\n  2119 |"
+      },
+      {
+        "line": 2156,
+        "column": 7,
+        "endLine": 2156,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This dependency may be mutated later, which could cause the value to change unexpectedly.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2156:7\n  2154 |     }\n  2155 |     return list;\n> 2156 |   }, [rooms, activeMovementsTargetYmd]);\n       |       ^^^^^ This dependency may be modified later\n  2157 |   const floors = useMemo(() => {\n  2158 |     const rawFloors = roomsPage?.floors ?? initialRoomsPage.floors ?? [];\n  2159 |     return [...new Set(rawFloors)].sort((a, b) => a.localeCompare(b));"
+      },
+      {
+        "line": 2171,
+        "column": 23,
+        "endLine": 2171,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2418,
+        "column": 23,
+        "endLine": 2446,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This value was memoized in source but not in compilation output.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2418:23\n  2416 |   }\n  2417 |\n> 2418 |   const roomPoolMap = useMemo(() => {\n       |                       ^^^^^^^^^^^^^^^\n> 2419 |     const map = new Map<string, HotelRoomSummary>();\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2420 |     for (const r of initialRoomsPage.items) {\n       …\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2445 |     return map;\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2446 |   }, [initialRoomsPage.items, rooms, bulkPlanData?.rooms, hotelId]);\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Could not preserve existing memoization\n  2447 |\n  2448 |   const roomPool = useMemo(() => Array.from(roomPoolMap.values()), [roomPoolMap]);\n  2449 |"
+      },
+      {
+        "line": 2436,
+        "column": 34,
+        "endLine": 2436,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2446,
+        "column": 31,
+        "endLine": 2446,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This dependency may be mutated later, which could cause the value to change unexpectedly.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2446:31\n  2444 |     }\n  2445 |     return map;\n> 2446 |   }, [initialRoomsPage.items, rooms, bulkPlanData?.rooms, hotelId]);\n       |                               ^^^^^ This dependency may be modified later\n  2447 |\n  2448 |   const roomPool = useMemo(() => Array.from(roomPoolMap.values()), [roomPoolMap]);\n  2449 |"
+      },
+      {
+        "line": 2476,
+        "column": 6,
+        "endLine": 2485,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "React Hook useMemo has a missing dependency: 'isRoomConflictingForDates'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 2487,
+        "column": 31,
+        "endLine": 2528,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This value was memoized in source but not in compilation output.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2487:31\n  2485 |   ]);\n  2486 |\n> 2487 |   const roomTypeSummaryList = useMemo(() => {\n       |                               ^^^^^^^^^^^^^^^\n> 2488 |     const map = new Map<\n       | ^^^^^^^^^^^^^^^^^^^^^^^^\n> 2489 |       string,\n       …\n       | ^^^^^^^^^^^^^^^^^^^^^^^^\n> 2527 |     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));\n       | ^^^^^^^^^^^^^^^^^^^^^^^^\n> 2528 |   }, [bulkCandidateRooms]);\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ Could not preserve existing memoization\n  2529 |\n  2530 |   const bulkTotalAutoCount = useMemo(\n  2531 |     () => Object.values(bulkRoomTypeCounts).reduce((a, b) => a + b, 0),"
+      },
+      {
+        "line": 2540,
+        "column": 6,
+        "endLine": 2540,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This dependency may be mutated later, which could cause the value to change unexpectedly.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2540:6\n  2538 |         (rt) => (bulkRoomTypeCounts[rt.roomTypeId] || 0) > rt.availableCount,\n  2539 |       ),\n> 2540 |     [roomTypeSummaryList, bulkRoomTypeCounts],\n       |      ^^^^^^^^^^^^^^^^^^^ This dependency may be modified later\n  2541 |   );\n  2542 |\n  2543 |   useEffect(() => {"
+      },
+      {
+        "line": 2545,
+        "column": 5,
+        "endLine": 2545,
+        "severity": 2,
+        "ruleId": "react-hooks/set-state-in-effect",
+        "message": "Error: Calling setState synchronously within an effect can trigger cascading renders\n\nEffects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:\n* Update external systems with the latest state from React.\n* Subscribe for updates from some external system, calling setState in a callback function when external state changes.\n\nCalling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2545:5\n  2543 |   useEffect(() => {\n  2544 |     if (!isBulkModalOpen) return;\n> 2545 |     setBulkRoomTypeCounts((prev) => {\n       |     ^^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect\n  2546 |       let changed = false;\n  2547 |       const next = { ...prev };\n  2548 |       for (const [rtId, count] of Object.entries(next)) {"
+      },
+      {
+        "line": 2606,
+        "column": 33,
+        "endLine": 2622,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This value was memoized in source but not in compilation output.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2606:33\n  2604 |   }, [bulkCheckInDate, bulkCheckOutDate]);\n  2605 |\n> 2606 |   const reservationNightDates = useMemo(() => {\n       |                                 ^^^^^^^^^^^^^^^\n> 2607 |     if (!reservationCheckIn || !reservationCheckOut) return [];\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2608 |     const start = new Date(reservationCheckIn);\n       …\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2621 |     return dates;\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2622 |   }, [reservationCheckIn, reservationCheckOut]);\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Could not preserve existing memoization\n  2623 |\n  2624 |   const addBulkPrebookedService = useCallback(\n  2625 |     (name: string, defaultPrice: number = 0) => {"
+      },
+      {
+        "line": 2741,
+        "column": 5,
+        "endLine": 2741,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This dependency may be mutated later, which could cause the value to change unexpectedly.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2741:5\n  2739 |     bulkRoomTypeCounts,\n  2740 |     bulkRoomTypeCustomPrices,\n> 2741 |     roomTypeSummaryList,\n       |     ^^^^^^^^^^^^^^^^^^^ This dependency may be modified later\n  2742 |     bulkSelectedRoomIds,\n  2743 |     bulkRoomCustomPrices,\n  2744 |     bulkNightsCount,"
+      },
+      {
+        "line": 2766,
+        "column": 42,
+        "endLine": 2786,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This value was memoized in source but not in compilation output.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2766:42\n  2764 |   );\n  2765 |\n> 2766 |   const reservationEstimatedRoomsTotal = useMemo(() => {\n       |                                          ^^^^^^^^^^^^^^^\n> 2767 |     const baseRateNum = reservationNightlyRate\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2768 |       ? Number(reservationNightlyRate.replace(/\\D/g, \"\")) || 0\n       …\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2785 |     reservationNightlyRates,\n       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 2786 |   ]);\n       | ^^^^^ Could not preserve existing memoization\n  2787 |\n  2788 |   const reservationEstimatedTotalPrice = useMemo(\n  2789 |     () => reservationEstimatedRoomsTotal + reservationEstimatedServicesTotal,"
+      },
+      {
+        "line": 2782,
+        "column": 5,
+        "endLine": 2782,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This dependency may be mutated later, which could cause the value to change unexpectedly.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2782:5\n  2780 |   }, [\n  2781 |     reservationNightlyRate,\n> 2782 |     selectedReservationRoom?.price,\n       |     ^^^^^^^^^^^^^^^^^^^^^^^ This dependency may be modified later\n  2783 |     reservationIsCustomNightlyRates,\n  2784 |     reservationNightDates,\n  2785 |     reservationNightlyRates,"
+      },
+      {
+        "line": 2784,
+        "column": 5,
+        "endLine": 2784,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This dependency may be mutated later, which could cause the value to change unexpectedly.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2784:5\n  2782 |     selectedReservationRoom?.price,\n  2783 |     reservationIsCustomNightlyRates,\n> 2784 |     reservationNightDates,\n       |     ^^^^^^^^^^^^^^^^^^^^^ This dependency may be modified later\n  2785 |     reservationNightlyRates,\n  2786 |   ]);\n  2787 |"
+      },
+      {
+        "line": 2801,
+        "column": 7,
+        "endLine": 2801,
+        "severity": 2,
+        "ruleId": "react-hooks/preserve-manual-memoization",
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This dependency may be mutated later, which could cause the value to change unexpectedly.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\app\\(vietsage)\\hotels\\[hotelId]\\rooms\\staff-rooms-client.tsx:2801:7\n  2799 |     }\n  2800 |     return 0;\n> 2801 |   }, [selectedReservationRoom, initialReservationRoom]);\n       |       ^^^^^^^^^^^^^^^^^^^^^^^ This dependency may be modified later\n  2802 |\n  2803 |   const reservationCurrentNumericRate = useMemo(() => {\n  2804 |     return reservationNightlyRate"
+      },
+      {
+        "line": 4033,
+        "column": 31,
+        "endLine": 4033,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 5097,
+        "column": 12,
+        "endLine": 5097,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'renderRoomStatusHoverMenu' is defined but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 5235,
+        "column": 11,
+        "endLine": 5235,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'physicalStatus' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      }
+    ]
+  },
+  {
+    "file": "frontends/front-end-vietsage/src/features/hotel-ops/components/edit-reservation-modal.tsx",
+    "errorCount": 0,
+    "warningCount": 1,
+    "messages": [
+      {
+        "line": 182,
+        "column": 13,
+        "endLine": 182,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'iso' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      }
+    ]
+  },
+  {
+    "file": "frontends/front-end-vietsage/src/features/hotel-ops/components/front-desk-arrival-detail-panel.tsx",
+    "errorCount": 0,
+    "warningCount": 2,
+    "messages": [
+      {
+        "line": 25,
+        "column": 3,
+        "endLine": 25,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'escapeHtml' is defined but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 93,
+        "column": 9,
+        "endLine": 93,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'router' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      }
+    ]
+  },
+  {
+    "file": "frontends/front-end-vietsage/src/features/hotel-ops/components/group-operations-drawer.tsx",
+    "errorCount": 0,
+    "warningCount": 3,
+    "messages": [
+      {
+        "line": 17,
+        "column": 10,
+        "endLine": 17,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'formatFriendlyCheckInError' is defined but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 278,
+        "column": 10,
+        "endLine": 278,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'calculateNights' is defined but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 345,
+        "column": 9,
+        "endLine": 345,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'executeCheckInReservation' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      }
+    ]
+  },
+  {
+    "file": "frontends/front-end-vietsage/src/features/hotel-ops/components/tape-chart/tape-chart-view.tsx",
+    "errorCount": 20,
+    "warningCount": 23,
+    "messages": [
+      {
+        "line": 29,
+        "column": 3,
+        "endLine": 29,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'escapeHtml' is defined but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 31,
+        "column": 3,
+        "endLine": 31,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'formatCheckOutConfirmHtml' is defined but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 40,
+        "column": 3,
+        "endLine": 40,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'SwalVietSage' is defined but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 340,
+        "column": 3,
+        "endLine": 340,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'handleDragLeaveCell' is defined but never used. Allowed unused args must match /^_/u."
+      },
+      {
+        "line": 344,
+        "column": 3,
+        "endLine": 344,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'onOpenCheckIn' is defined but never used. Allowed unused args must match /^_/u."
+      },
+      {
+        "line": 803,
+        "column": 21,
+        "endLine": 803,
+        "severity": 1,
+        "ruleId": "jsx-a11y/role-has-required-aria-props",
+        "message": "Elements with the ARIA role \"slider\" must have the following attributes defined: aria-valuenow"
+      },
+      {
+        "line": 821,
+        "column": 21,
+        "endLine": 821,
+        "severity": 1,
+        "ruleId": "jsx-a11y/role-has-required-aria-props",
+        "message": "Elements with the ARIA role \"slider\" must have the following attributes defined: aria-valuenow"
+      },
+      {
+        "line": 839,
+        "column": 21,
+        "endLine": 839,
+        "severity": 1,
+        "ruleId": "jsx-a11y/role-has-required-aria-props",
+        "message": "Elements with the ARIA role \"slider\" must have the following attributes defined: aria-valuenow"
+      },
+      {
+        "line": 1010,
+        "column": 19,
+        "endLine": 1010,
+        "severity": 1,
+        "ruleId": "jsx-a11y/role-has-required-aria-props",
+        "message": "Elements with the ARIA role \"slider\" must have the following attributes defined: aria-valuenow"
+      },
+      {
+        "line": 1028,
+        "column": 19,
+        "endLine": 1028,
+        "severity": 1,
+        "ruleId": "jsx-a11y/role-has-required-aria-props",
+        "message": "Elements with the ARIA role \"slider\" must have the following attributes defined: aria-valuenow"
+      },
+      {
+        "line": 1046,
+        "column": 19,
+        "endLine": 1046,
+        "severity": 1,
+        "ruleId": "jsx-a11y/role-has-required-aria-props",
+        "message": "Elements with the ARIA role \"slider\" must have the following attributes defined: aria-valuenow"
+      },
+      {
+        "line": 1343,
+        "column": 19,
+        "endLine": 1343,
+        "severity": 1,
+        "ruleId": "jsx-a11y/role-has-required-aria-props",
+        "message": "Elements with the ARIA role \"slider\" must have the following attributes defined: aria-valuenow"
+      },
+      {
+        "line": 1391,
+        "column": 19,
+        "endLine": 1391,
+        "severity": 1,
+        "ruleId": "jsx-a11y/role-has-required-aria-props",
+        "message": "Elements with the ARIA role \"slider\" must have the following attributes defined: aria-valuenow"
+      },
+      {
+        "line": 1531,
+        "column": 17,
+        "endLine": 1531,
+        "severity": 1,
+        "ruleId": "react-hooks/incompatible-library",
+        "message": "Compilation Skipped: Use of incompatible library\n\nThis API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\tape-chart\\tape-chart-view.tsx:1531:17\n  1529 |   );\n  1530 |\n> 1531 |   const table = useReactTable({\n       |                 ^^^^^^^^^^^^^ TanStack Table's `useReactTable()` API returns functions that cannot be memoized safely\n  1532 |     data: catRooms,\n  1533 |     columns,\n  1534 |     getCoreRowModel: getCoreRowModel(),"
+      },
+      {
+        "line": 1678,
+        "column": 3,
+        "endLine": 1678,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'canManageRooms' is assigned a value but never used. Allowed unused args must match /^_/u."
+      },
+      {
+        "line": 1756,
+        "column": 7,
+        "endLine": 1756,
+        "severity": 2,
+        "ruleId": "react-hooks/set-state-in-effect",
+        "message": "Error: Calling setState synchronously within an effect can trigger cascading renders\n\nEffects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:\n* Update external systems with the latest state from React.\n* Subscribe for updates from some external system, calling setState in a callback function when external state changes.\n\nCalling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\tape-chart\\tape-chart-view.tsx:1756:7\n  1754 |   useEffect(() => {\n  1755 |     if (businessDate && /^\\d{4}-\\d{2}-\\d{2}$/.test(businessDate)) {\n> 1756 |       setStartDate((prev) => (prev !== businessDate ? businessDate : prev));\n       |       ^^^^^^^^^^^^ Avoid calling setState() directly within an effect\n  1757 |     }\n  1758 |   }, [businessDate]);\n  1759 |"
+      },
+      {
+        "line": 1827,
+        "column": 10,
+        "endLine": 1827,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'placementTargetSwapResId' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 1828,
+        "column": 10,
+        "endLine": 1828,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'isEditReservationOpen' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 1841,
+        "column": 9,
+        "endLine": 1841,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'staffRoomsScope' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 1845,
+        "column": 16,
+        "endLine": 1845,
+        "severity": 1,
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "message": "'isPlanLoading' is assigned a value but never used. Allowed unused vars must match /^_/u."
+      },
+      {
+        "line": 2047,
+        "column": 42,
+        "endLine": 2047,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2050,
+        "column": 21,
+        "endLine": 2050,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2050,
+        "column": 56,
+        "endLine": 2050,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2052,
+        "column": 20,
+        "endLine": 2052,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2052,
+        "column": 54,
+        "endLine": 2052,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2080,
+        "column": 9,
+        "endLine": 2080,
+        "severity": 2,
+        "ruleId": "react-hooks/set-state-in-effect",
+        "message": "Error: Calling setState synchronously within an effect can trigger cascading renders\n\nEffects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:\n* Update external systems with the latest state from React.\n* Subscribe for updates from some external system, calling setState in a callback function when external state changes.\n\nCalling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).\n\nC:\\Users\\Dangminhdev0403\\Desktop\\workspace\\fullstack-vietSage\\frontends\\front-end-vietsage\\src\\features\\hotel-ops\\components\\tape-chart\\tape-chart-view.tsx:2080:9\n  2078 |       const targetDate = blockMatch.startDate;\n  2079 |       if (targetDate !== startDate) {\n> 2080 |         setStartDate(targetDate);\n       |         ^^^^^^^^^^^^ Avoid calling setState() directly within an effect\n  2081 |       }\n  2082 |       onBusinessDateChange?.(targetDate);\n  2083 |       return;"
+      },
+      {
+        "line": 2091,
+        "column": 35,
+        "endLine": 2091,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2091,
+        "column": 69,
+        "endLine": 2091,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2109,
+        "column": 34,
+        "endLine": 2109,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2109,
+        "column": 67,
+        "endLine": 2109,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2124,
+        "column": 40,
+        "endLine": 2124,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2497,
+        "column": 48,
+        "endLine": 2497,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2497,
+        "column": 108,
+        "endLine": 2497,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2499,
+        "column": 47,
+        "endLine": 2499,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2499,
+        "column": 106,
+        "endLine": 2499,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2500,
+        "column": 38,
+        "endLine": 2500,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2500,
+        "column": 107,
+        "endLine": 2500,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2501,
+        "column": 38,
+        "endLine": 2501,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2501,
+        "column": 101,
+        "endLine": 2501,
+        "severity": 2,
+        "ruleId": "@typescript-eslint/no-explicit-any",
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 2708,
+        "column": 5,
+        "endLine": 2718,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "React Hook useCallback has a missing dependency: 'setSearchQuery'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 3682,
+        "column": 5,
+        "endLine": 3682,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "React Hook useCallback has a missing dependency: 'isReadOnly'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 4236,
+        "column": 6,
+        "endLine": 4236,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "React Hook useEffect has a missing dependency: 'activeBlockResize'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 4236,
+        "column": 7,
+        "endLine": 4236,
+        "severity": 1,
+        "ruleId": "react-hooks/exhaustive-deps",
+        "message": "React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked."
+      }
+    ]
+  },
+  {
+    "file": "frontends/front-end-vietsage/src/features/hotel-ops/utils/front-desk-groups.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "messages": []
+  },
+  {
+    "file": "frontends/front-end-vietsage/src/libs/vietnam-temporal.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "messages": []
+  }
+]

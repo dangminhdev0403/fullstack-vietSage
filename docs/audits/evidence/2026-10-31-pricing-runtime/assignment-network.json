@@ -1,0 +1,12 @@
+[
+  {
+    "method": "Network.requestWillBeSent",
+    "url": "https://vietsage.localhost/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/reservations/cmvvlnnr2004cjgv43tf7wxnb/room",
+    "httpMethod": "PUT"
+  },
+  {
+    "method": "Network.responseReceived",
+    "url": "https://vietsage.localhost/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/reservations/cmvvlnnr2004cjgv43tf7wxnb/room",
+    "status": 404
+  }
+]

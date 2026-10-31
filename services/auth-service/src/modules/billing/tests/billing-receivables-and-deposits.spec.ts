@@ -64,6 +64,7 @@ describe("Billing Receivables & Deposits Suite", () => {
       };
 
       const txMock = {
+        invoice: { findFirst: jest.fn().mockResolvedValue(null) },
         bookingPayment: {
           findFirst: jest.fn().mockResolvedValue(null),
           create: mockCreate,
@@ -86,6 +87,7 @@ describe("Billing Receivables & Deposits Suite", () => {
 
       expect(txMock.reservation.findFirst).toHaveBeenCalledWith({
         where: { id: "res-1", hotelId },
+        include: { chargeLines: true },
       });
       expect(mockCreate).toHaveBeenCalledTimes(1);
       expect(mockCreate).toHaveBeenCalledWith(

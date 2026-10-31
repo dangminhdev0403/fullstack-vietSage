@@ -29,7 +29,10 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
       roomId: "room-1",
       status: "CONFIRMED",
     }),
-    listArrivals: jest.fn().mockResolvedValue([1, [{ id: "reservation-1" }]]),
+    listArrivals: jest.fn().mockResolvedValue([1, [{
+      id: "reservation-1", plannedCheckInAt: new Date("2026-11-01T07:00:00Z"),
+      plannedCheckOutAt: new Date("2026-11-03T05:00:00Z"), nightlyRateSnapshot: "500000",
+    }]]),
     assignRoom: jest.fn().mockResolvedValue({ id: "reservation-1", roomId: "room-1" }),
     checkInReservation: jest.fn().mockResolvedValue({
       idempotent: false,
@@ -987,9 +990,10 @@ describe("ReservationsService front-desk lifecycle", () => {
       expect(result.pricing.roomSubtotal).toBe(2000000);
       expect(result.pricing.serviceAmount).toBe(350000);
       expect(result.pricing.taxAmount).toBe(235000);
-      expect(result.pricing.totalAmount).toBe(2585000);
+      // totalSnapshot is already final; tax metadata must not be charged again.
+      expect(result.pricing.totalAmount).toBe(2350000);
       expect(result.pricing.paidAmount).toBe(1500000);
-      expect(result.pricing.balanceAmount).toBe(1085000);
+      expect(result.pricing.balanceAmount).toBe(850000);
     });
 
     it("rejects cross-hotel access when reservation does not belong to hotelId", async () => {
@@ -1189,6 +1193,7 @@ describe("ReservationsService front-desk lifecycle", () => {
         createRepository({
           findReservationConfirmation: jest.fn().mockResolvedValue({
             id: "reservation-placeholder",
+            nightlyRateSnapshot: "500000",
             hotelId: "hotel-1",
             reservationCode: "VSH_RES_PH",
             guestDisplayName: "Test Guest",
@@ -1317,5 +1322,38 @@ describe("ReservationsService front-desk lifecycle", () => {
         service.getReservation("actor-1", "active-role", "hotel-1", "res-nonexistent"),
       ).rejects.toThrow(NotFoundException);
     });
+  });
+});
+
+describe("reservation pricing projection regressions", () => {
+  it("forwards an explicit dated charge ledger through date updates", async () => {
+    const updateReservationDates = jest.fn().mockResolvedValue({ id: "res-1", roomId: null });
+    const repository = createRepository({ updateReservationDates });
+    const { service } = createService(repository);
+    const chargeLines = [{
+      lineType: "ROOM_NIGHT" as const, serviceDate: "2026-11-01T07:00:00Z",
+      nameSnapshot: "Agreed free night", quantity: 1, unitPriceSnapshot: 0,
+      taxAmountSnapshot: 0, discountAmountSnapshot: 0, totalSnapshot: 0, currency: "VND",
+    }];
+    await service.updateReservationDates("actor-1", "active-role", "hotel-1", "res-1", {
+      expectedUpdatedAt: "2026-10-31T00:00:00Z", chargeLines,
+    });
+    expect(updateReservationDates).toHaveBeenCalledWith(expect.objectContaining({ chargeLines }));
+  });
+
+  it("counts a payment with both group and reservation IDs only once", async () => {
+    const repository = createRepository();
+    const data = await repository.findGroupConfirmation();
+    const sharedPayment = {
+      id: "overlapping-payment", reservationId: "res-g-1", groupId: "group-1",
+      status: "COMPLETED", receivedAmount: "250000",
+    };
+    data.reservations[0].bookingPayments = [sharedPayment];
+    data.groupRecord.bookingPayments = [sharedPayment];
+    repository.findGroupConfirmation.mockResolvedValue(data);
+    const { service } = createService(repository);
+    const result = await service.getGroupConfirmation("actor-1", "active-role", "hotel-1", "GRP_TOUR_01");
+    expect(result.pricing.paidAmount).toBe(250000);
+    expect(result.pricing.balanceAmount).toBe(3750000);
   });
 });

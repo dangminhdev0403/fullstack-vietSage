@@ -14,6 +14,10 @@ jest.mock("../../../prisma/prisma.service", () => ({
 }));
 
 import {
+  BookingPaymentIntent,
+  BookingPaymentMode,
+  BookingPaymentStatus,
+  FolioItemType,
   FolioStatus,
   GuestSessionStatus,
   GuestStayStatus,
@@ -2621,5 +2625,770 @@ describe("BillingService checkout safety", () => {
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(tx.invoice.create).not.toHaveBeenCalled();
+  });
+
+  describe("Authoritative booking deposits, allocations, and invoice integration regressions", () => {
+    it("issueInvoice applies completed booking deposit and settles full prepaid checkout atomically", async () => {
+      const tx: any = {
+        $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+        folio: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: "folio-dep-1",
+            hotelId: "hotel-1",
+            stayId: "stay-dep-1",
+            roomId: "room-1",
+            folioNumber: "FOL-DEP-001",
+            status: FolioStatus.OPEN,
+            currency: "VND",
+            subtotalAmount: new Prisma.Decimal(1000000),
+            taxAmount: new Prisma.Decimal(0),
+            discountAmount: new Prisma.Decimal(0),
+            totalAmount: new Prisma.Decimal(1000000),
+            hotel: { id: "hotel-1", name: "Hotel" },
+            room: { id: "room-1", roomNumber: "101" },
+            stay: {
+              id: "stay-dep-1",
+              reservationId: "res-dep-1",
+              roomId: "room-1",
+              checkedInAt: new Date("2026-07-17T14:00:00.000Z"),
+              nightlyRateSnapshot: new Prisma.Decimal(1000000),
+            },
+          }),
+          update: jest.fn().mockResolvedValue({}),
+        },
+        invoice: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockResolvedValue({
+            id: "inv-dep-1",
+            hotelId: "hotel-1",
+            folioId: "folio-dep-1",
+            stayId: "stay-dep-1",
+            totalAmount: new Prisma.Decimal(1000000),
+            paidAmount: new Prisma.Decimal(0),
+            balanceAmount: new Prisma.Decimal(1000000),
+            currency: "VND",
+            status: InvoiceStatus.ISSUED,
+          }),
+          update: jest.fn().mockImplementation(({ data }) =>
+            Promise.resolve({
+              id: "inv-dep-1",
+              hotelId: "hotel-1",
+              folioId: "folio-dep-1",
+              stayId: "stay-dep-1",
+              totalAmount: new Prisma.Decimal(1000000),
+              paidAmount: data.paidAmount,
+              balanceAmount: data.balanceAmount,
+              status: data.status,
+              stay: { roomId: "room-1", checkedInAt: new Date() },
+            }),
+          ),
+        },
+        folioItem: {
+          findFirst: jest.fn().mockResolvedValue({ id: "item-1" }),
+          update: jest.fn().mockResolvedValue({ id: "item-1" }),
+          findMany: jest.fn().mockResolvedValue([
+            {
+              id: "item-1",
+              itemType: FolioItemType.ROOM_CHARGE,
+              subtotalSnapshot: new Prisma.Decimal(1000000),
+              taxAmountSnapshot: new Prisma.Decimal(0),
+              discountAmountSnapshot: new Prisma.Decimal(0),
+              totalSnapshot: new Prisma.Decimal(1000000),
+              currency: "VND",
+            },
+          ]),
+        },
+        bookingPaymentAllocation: {
+          findMany: jest.fn().mockResolvedValue([
+            {
+              id: "bpa-1",
+              hotelId: "hotel-1",
+              bookingPaymentId: "bp-1",
+              reservationId: "res-dep-1",
+              folioId: null,
+              invoiceId: null,
+              allocatedAmount: new Prisma.Decimal(1000000),
+              bookingPayment: {
+                id: "bp-1",
+                hotelId: "hotel-1",
+                paymentMethod: PaymentMethod.BANK_TRANSFER,
+                status: BookingPaymentStatus.COMPLETED,
+              },
+            },
+          ]),
+          update: jest.fn().mockResolvedValue({}),
+          create: jest.fn().mockResolvedValue({}),
+        },
+        bookingPayment: {
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+        payment: {
+          create: jest.fn().mockResolvedValue({ id: "pay-1" }),
+        },
+        guestStay: {
+          update: jest.fn().mockResolvedValue({}),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+        guestSession: {
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+        room: {
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+        roomQRCode: {
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+        reservation: {
+          findUnique: jest.fn().mockResolvedValue({ id: "res-dep-1", groupId: null }),
+        },
+      };
+
+      const prisma = {
+        invoice: { findFirst: jest.fn().mockResolvedValue(null) },
+        $transaction: jest.fn((cb) => cb(tx)),
+      };
+      const repository = {
+        getFolioSummary: jest.fn().mockResolvedValue({
+          latestItemPostedAt: null,
+          grouped: [],
+          folio: {
+            id: "folio-dep-1",
+            hotelId: "hotel-1",
+            stayId: "stay-dep-1",
+            totalAmount: new Prisma.Decimal(1000000),
+            status: FolioStatus.OPEN,
+          },
+        }),
+      };
+      const service = createService(prisma, repository);
+
+      const invoice = await service.issueInvoice("user-1", "active-role", "hotel-1", "folio-dep-1");
+
+      expect(invoice.status).toBe(InvoiceStatus.PAID);
+      expect(invoice.balanceAmount).toEqual(new Prisma.Decimal(0));
+      expect(invoice.paidAmount).toEqual(new Prisma.Decimal(1000000));
+      expect(tx.bookingPaymentAllocation.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "bpa-1" },
+          data: expect.objectContaining({
+            invoiceId: "inv-dep-1",
+            folioId: "folio-dep-1",
+          }),
+        }),
+      );
+      expect(tx.payment.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            invoiceId: "inv-dep-1",
+            amount: new Prisma.Decimal(1000000),
+            paidAmount: new Prisma.Decimal(1000000),
+            status: PaymentStatus.SUCCEEDED,
+          }),
+        }),
+      );
+      expect(tx.guestStay.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "stay-dep-1" },
+          data: expect.objectContaining({ status: GuestStayStatus.CHECKED_OUT }),
+        }),
+      );
+    });
+
+    it("issueInvoice ignores pending or refunded allocations and does not apply fake credit", async () => {
+      const tx: any = {
+        $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+        folio: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: "folio-pending-1",
+            hotelId: "hotel-1",
+            stayId: "stay-p-1",
+            roomId: "room-1",
+            folioNumber: "FOL-P-001",
+            status: FolioStatus.OPEN,
+            currency: "VND",
+            subtotalAmount: new Prisma.Decimal(1000000),
+            taxAmount: new Prisma.Decimal(0),
+            discountAmount: new Prisma.Decimal(0),
+            totalAmount: new Prisma.Decimal(1000000),
+            hotel: { id: "hotel-1", name: "Hotel" },
+            room: { id: "room-1", roomNumber: "101" },
+            stay: {
+              id: "stay-p-1",
+              reservationId: "res-p-1",
+              roomId: "room-1",
+              checkedInAt: new Date("2026-07-17T14:00:00.000Z"),
+              nightlyRateSnapshot: new Prisma.Decimal(1000000),
+            },
+          }),
+          update: jest.fn().mockResolvedValue({}),
+        },
+        invoice: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockResolvedValue({
+            id: "inv-p-1",
+            hotelId: "hotel-1",
+            folioId: "folio-pending-1",
+            stayId: "stay-p-1",
+            totalAmount: new Prisma.Decimal(1000000),
+            paidAmount: new Prisma.Decimal(0),
+            balanceAmount: new Prisma.Decimal(1000000),
+            currency: "VND",
+            status: InvoiceStatus.ISSUED,
+          }),
+          update: jest.fn(),
+        },
+        folioItem: {
+          findFirst: jest.fn().mockResolvedValue({ id: "item-1" }),
+          update: jest.fn().mockResolvedValue({ id: "item-1" }),
+          findMany: jest.fn().mockResolvedValue([
+            {
+              id: "item-1",
+              itemType: FolioItemType.ROOM_CHARGE,
+              totalSnapshot: new Prisma.Decimal(1000000),
+              currency: "VND",
+            },
+          ]),
+        },
+        bookingPaymentAllocation: {
+          // findMany filters for COMPLETED/ALLOCATED status, so pending returns []
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+        bookingPayment: {
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+        payment: {
+          create: jest.fn(),
+        },
+        guestStay: { updateMany: jest.fn() },
+        reservation: { findUnique: jest.fn().mockResolvedValue({ id: "res-p-1", groupId: null }) },
+      };
+
+      const prisma = {
+        invoice: { findFirst: jest.fn().mockResolvedValue(null) },
+        $transaction: jest.fn((cb) => cb(tx)),
+      };
+      const repository = {
+        getFolioSummary: jest.fn().mockResolvedValue({
+          latestItemPostedAt: null,
+          grouped: [],
+          folio: {
+            id: "folio-pending-1",
+            hotelId: "hotel-1",
+            stayId: "stay-p-1",
+            totalAmount: new Prisma.Decimal(1000000),
+            status: FolioStatus.OPEN,
+          },
+        }),
+      };
+      const service = createService(prisma, repository);
+
+      const invoice = await service.issueInvoice("user-1", "active-role", "hotel-1", "folio-pending-1");
+
+      expect(invoice.status).toBe(InvoiceStatus.ISSUED);
+      expect(invoice.paidAmount).toEqual(new Prisma.Decimal(0));
+      expect(invoice.balanceAmount).toEqual(new Prisma.Decimal(1000000));
+      expect(tx.payment.create).not.toHaveBeenCalled();
+      expect(tx.bookingPaymentAllocation.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ bookingPayment: {
+          hotelId: "hotel-1", status: { in: [BookingPaymentStatus.COMPLETED, BookingPaymentStatus.ALLOCATED] },
+        } }),
+      }));
+    });
+
+    it("issueInvoice splits excess allocation and preserves remainder on original target", async () => {
+      const tx: any = {
+        $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+        folio: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: "folio-split-1",
+            hotelId: "hotel-1",
+            stayId: "stay-split-1",
+            roomId: "room-1",
+            folioNumber: "FOL-SPLIT-001",
+            status: FolioStatus.OPEN,
+            currency: "VND",
+            subtotalAmount: new Prisma.Decimal(1000000),
+            taxAmount: new Prisma.Decimal(0),
+            discountAmount: new Prisma.Decimal(0),
+            totalAmount: new Prisma.Decimal(1000000),
+            hotel: { id: "hotel-1", name: "Hotel" },
+            room: { id: "room-1", roomNumber: "101" },
+            stay: {
+              id: "stay-split-1",
+              reservationId: "res-split-1",
+              roomId: "room-1",
+              checkedInAt: new Date("2026-07-17T14:00:00.000Z"),
+              nightlyRateSnapshot: new Prisma.Decimal(1000000),
+            },
+          }),
+          update: jest.fn().mockResolvedValue({}),
+        },
+        invoice: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockResolvedValue({
+            id: "inv-split-1",
+            hotelId: "hotel-1",
+            folioId: "folio-split-1",
+            stayId: "stay-split-1",
+            totalAmount: new Prisma.Decimal(1000000),
+            paidAmount: new Prisma.Decimal(0),
+            balanceAmount: new Prisma.Decimal(1000000),
+            currency: "VND",
+            status: InvoiceStatus.ISSUED,
+          }),
+          update: jest.fn().mockImplementation(({ data }) =>
+            Promise.resolve({
+              id: "inv-split-1",
+              totalAmount: new Prisma.Decimal(1000000),
+              paidAmount: data.paidAmount,
+              balanceAmount: data.balanceAmount,
+              status: data.status,
+              stay: { roomId: "room-1", checkedInAt: new Date() },
+            }),
+          ),
+        },
+        folioItem: {
+          findFirst: jest.fn().mockResolvedValue({ id: "item-1" }),
+          update: jest.fn().mockResolvedValue({ id: "item-1" }),
+          findMany: jest.fn().mockResolvedValue([
+            {
+              id: "item-1",
+              itemType: FolioItemType.ROOM_CHARGE,
+              totalSnapshot: new Prisma.Decimal(1000000),
+              currency: "VND",
+            },
+          ]),
+        },
+        bookingPaymentAllocation: {
+          findMany: jest.fn().mockResolvedValue([
+            {
+              id: "bpa-split-1",
+              hotelId: "hotel-1",
+              bookingPaymentId: "bp-split-1",
+              reservationId: "res-split-1",
+              groupId: null,
+              folioId: "folio-split-1",
+              invoiceId: null,
+              allocatedAmount: new Prisma.Decimal(1500000), // 1.5M deposit on 1.0M invoice
+              bookingPayment: {
+                id: "bp-split-1",
+                paymentMethod: PaymentMethod.CASH,
+                status: BookingPaymentStatus.COMPLETED,
+              },
+            },
+          ]),
+          update: jest.fn().mockResolvedValue({}),
+          create: jest.fn().mockResolvedValue({}),
+        },
+        bookingPayment: {
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+        payment: {
+          create: jest.fn().mockResolvedValue({ id: "pay-1" }),
+        },
+        guestStay: { update: jest.fn().mockResolvedValue({}), updateMany: jest.fn() },
+        guestSession: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+        room: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+        roomQRCode: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+        reservation: { findUnique: jest.fn().mockResolvedValue({ id: "res-split-1", groupId: null }) },
+      };
+
+      const prisma = {
+        invoice: { findFirst: jest.fn().mockResolvedValue(null) },
+        $transaction: jest.fn((cb) => cb(tx)),
+      };
+      const repository = {
+        getFolioSummary: jest.fn().mockResolvedValue({
+          latestItemPostedAt: null,
+          grouped: [],
+          folio: {
+            id: "folio-split-1",
+            hotelId: "hotel-1",
+            stayId: "stay-split-1",
+            totalAmount: new Prisma.Decimal(1000000),
+            status: FolioStatus.OPEN,
+          },
+        }),
+      };
+      const service = createService(prisma, repository);
+
+      const invoice = await service.issueInvoice("user-1", "active-role", "hotel-1", "folio-split-1");
+
+      expect(invoice.status).toBe(InvoiceStatus.PAID);
+      expect(invoice.paidAmount).toEqual(new Prisma.Decimal(1000000));
+      expect(tx.bookingPaymentAllocation.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "bpa-split-1" },
+          data: expect.objectContaining({
+            allocatedAmount: new Prisma.Decimal(1000000),
+            invoiceId: "inv-split-1",
+            folioId: "folio-split-1",
+          }),
+        }),
+      );
+      // Remainder created preserving folioId and reservationId
+      expect(tx.bookingPaymentAllocation.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            allocatedAmount: new Prisma.Decimal(500000),
+            folioId: "folio-split-1",
+            reservationId: "res-split-1",
+            invoiceId: null,
+          }),
+        }),
+      );
+    });
+
+    it("webhook settlement preserves prior deposit and adds newly received payment", async () => {
+      const paymentRecord = {
+        id: "pay-wb-1",
+        hotelId: "hotel-1",
+        invoiceId: "inv-wb-1",
+        folioId: "folio-wb-1",
+        stayId: "stay-wb-1",
+        status: PaymentStatus.PENDING,
+        amount: new Prisma.Decimal(600000), // remaining balance after 400k deposit
+        currency: "VND",
+        invoice: {
+          id: "inv-wb-1",
+          hotelId: "hotel-1",
+          status: InvoiceStatus.ISSUED,
+          totalAmount: new Prisma.Decimal(1000000),
+          paidAmount: new Prisma.Decimal(400000), // deposit already paid
+          balanceAmount: new Prisma.Decimal(600000),
+          stay: { roomId: "room-1" },
+        },
+      };
+
+      const tx: any = {
+        $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+        payment: {
+          findFirst: jest.fn().mockResolvedValue(paymentRecord),
+          findUnique: jest.fn().mockResolvedValue(paymentRecord),
+          update: jest.fn().mockResolvedValue({}),
+        },
+        paymentTransaction: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockResolvedValue({ id: "pt-1" }),
+        },
+        invoice: {
+          update: jest.fn().mockResolvedValue({}),
+        },
+        folio: { update: jest.fn().mockResolvedValue({}) },
+        guestStay: { update: jest.fn().mockResolvedValue({}) },
+        guestSession: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+        room: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+        roomQRCode: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      };
+
+      const prisma = {
+        paymentTransaction: {
+          findFirst: jest.fn().mockResolvedValue(null),
+        },
+        $transaction: jest.fn((cb) => cb(tx)),
+      };
+      const service = createService(prisma);
+
+      await service.processPaymentWebhook(
+        PaymentProvider.BANK_TRANSFER,
+        {
+          hotelId: "hotel-1",
+          providerEventId: "evt-wb-1",
+          eventType: "payment.succeeded",
+          paymentId: "pay-wb-1",
+          amount: 600000,
+          signatureVerified: true,
+        },
+      );
+
+      // Verifies paidAmount is 1,000,000 (400k prior deposit + 600k webhook payment)
+      expect(tx.invoice.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "inv-wb-1" },
+          data: expect.objectContaining({
+            status: InvoiceStatus.PAID,
+            paidAmount: new Prisma.Decimal(1000000),
+            balanceAmount: new Prisma.Decimal(0),
+          }),
+        }),
+      );
+    });
+
+    it("recordBookingPayment calculates PERCENT from authoritative dated ROOM_NIGHT and extras", async () => {
+      const mockCreate = jest.fn().mockImplementation(({ data }) =>
+        Promise.resolve({
+          id: "bp-percent-1",
+          ...data,
+        }),
+      );
+
+      const tx: any = {
+        bookingPayment: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: mockCreate,
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+        reservation: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: "res-dated-1",
+            hotelId: "hotel-1",
+            groupId: null,
+            groupCode: "GROUP-LEGACY",
+            plannedCheckInAt: "2026-11-01T14:00:00+07:00",
+            plannedCheckOutAt: "2026-11-03T12:00:00+07:00",
+            chargeLines: [
+              { lineType: "ROOM_NIGHT", serviceDate: "2026-11-01", totalSnapshot: new Prisma.Decimal(500000) },
+              { lineType: "ROOM_NIGHT", serviceDate: "2026-11-02", totalSnapshot: new Prisma.Decimal(700000) },
+              { lineType: "EXTRA_SERVICE", totalSnapshot: new Prisma.Decimal(70000) },
+            ],
+          }),
+        },
+        bookingPaymentAllocation: {
+          create: jest.fn().mockResolvedValue({ id: "alloc-1" }),
+        },
+        invoice: { findFirst: jest.fn().mockResolvedValue(null) },
+        reservationGroup: { findFirst: jest.fn().mockResolvedValue({
+          id: "group-legacy", groupCode: "GROUP-LEGACY", reservations: [
+            { id: "res-dated-1", status: "CONFIRMED" },
+            { id: "other-room", status: "CONFIRMED" },
+          ],
+        }) },
+      };
+
+      const prisma = {
+        paymentTransaction: {
+          findFirst: jest.fn().mockResolvedValue(null),
+        },
+        $transaction: jest.fn((cb) => cb(tx)),
+      };
+      const service = createService(prisma);
+
+      await service.recordBookingPayment("user-1", "active-role", "hotel-1", {
+        reservationId: "res-dated-1",
+        groupCode: "GROUP-LEGACY",
+        intent: BookingPaymentIntent.DEPOSIT,
+        inputMode: BookingPaymentMode.PERCENT,
+        percentValue: 10, // 10% of (500k + 700k + 70k = 1,270,000) = 127,000
+        paymentMethod: PaymentMethod.BANK_TRANSFER,
+      });
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            requestedAmount: new Prisma.Decimal(127000),
+            receivedAmount: new Prisma.Decimal(127000),
+          }),
+        }),
+      );
+    });
+
+    it("recordBookingPayment calculates sparse schedule with agreed snapshot gaps (3 nights, 500k agreed, 700k override -> 1,700,000)", async () => {
+      const mockCreate = jest.fn().mockImplementation(({ data }) =>
+        Promise.resolve({
+          id: "bp-sparse-1",
+          ...data,
+        }),
+      );
+
+      const tx: any = {
+        bookingPayment: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: mockCreate,
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+        reservation: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: "res-sparse-1",
+            hotelId: "hotel-1",
+            plannedCheckInAt: "2026-11-01T14:00:00+07:00",
+            plannedCheckOutAt: "2026-11-04T12:00:00+07:00",
+            nightlyRateSnapshot: new Prisma.Decimal(500000),
+            chargeLines: [
+              { lineType: "ROOM_NIGHT", serviceDate: "2026-11-01", totalSnapshot: new Prisma.Decimal(700000) },
+            ],
+          }),
+        },
+        bookingPaymentAllocation: {
+          create: jest.fn().mockResolvedValue({ id: "alloc-sparse-1" }),
+        },
+        invoice: { findFirst: jest.fn().mockResolvedValue(null) },
+      };
+
+      const prisma = {
+        paymentTransaction: {
+          findFirst: jest.fn().mockResolvedValue(null),
+        },
+        $transaction: jest.fn((cb) => cb(tx)),
+      };
+      const service = createService(prisma);
+
+      await service.recordBookingPayment("user-1", "active-role", "hotel-1", {
+        reservationId: "res-sparse-1",
+        intent: BookingPaymentIntent.DEPOSIT,
+        inputMode: BookingPaymentMode.PERCENT,
+        percentValue: 10, // 10% of 1,700,000 = 170,000
+        paymentMethod: PaymentMethod.BANK_TRANSFER,
+      });
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            requestedAmount: new Prisma.Decimal(170000),
+            receivedAmount: new Prisma.Decimal(170000),
+          }),
+        }),
+      );
+    });
+
+    it("recordBookingPayment in PERCENT mode throws MISSING_AGREED_ROOM_RATE_SNAPSHOT when rate snapshot is missing and days uncovered", async () => {
+      const tx: any = {
+        bookingPayment: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: jest.fn(),
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+        reservation: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: "res-missing-snapshot",
+            hotelId: "hotel-1",
+            plannedCheckInAt: "2026-11-01T14:00:00+07:00",
+            plannedCheckOutAt: "2026-11-04T12:00:00+07:00",
+            nightlyRateSnapshot: null,
+            baseNightlyRateSnapshot: null,
+            chargeLines: [
+              { lineType: "ROOM_NIGHT", serviceDate: "2026-11-01", totalSnapshot: new Prisma.Decimal(700000) },
+            ],
+          }),
+        },
+      };
+
+      const prisma = {
+        paymentTransaction: {
+          findFirst: jest.fn().mockResolvedValue(null),
+        },
+        $transaction: jest.fn((cb) => cb(tx)),
+      };
+      const service = createService(prisma);
+
+      await expect(
+        service.recordBookingPayment("user-1", "active-role", "hotel-1", {
+          reservationId: "res-missing-snapshot",
+          intent: BookingPaymentIntent.DEPOSIT,
+          inputMode: BookingPaymentMode.PERCENT,
+          percentValue: 10,
+          paymentMethod: PaymentMethod.BANK_TRANSFER,
+        }),
+      ).rejects.toThrow("MISSING_AGREED_ROOM_RATE_SNAPSHOT");
+    });
+
+    it("rejects a new booking deposit after its invoice has been issued", async () => {
+      const tx = {
+        bookingPayment: { findMany: jest.fn().mockResolvedValue([]), create: jest.fn() },
+        reservation: { findFirst: jest.fn().mockResolvedValue({ id: "res-late", hotelId: "hotel-1" }) },
+        invoice: { findFirst: jest.fn().mockResolvedValue({ id: "invoice-issued" }) },
+      };
+      const prisma = { $transaction: jest.fn(async (callback) => callback(tx)) };
+      const service = createService(prisma);
+      await expect(service.recordBookingPayment("user-1", "role-1", "hotel-1", {
+        reservationId: "res-late", amount: 200, inputMode: BookingPaymentMode.AMOUNT,
+      })).rejects.toThrow("Hóa đơn đã được phát hành");
+      expect(tx.bookingPayment.create).not.toHaveBeenCalled();
+      expect(tx.invoice.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: { hotelId: "hotel-1", voidedAt: null, stay: { reservationId: { in: ["res-late"] } } },
+      }));
+      expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
+    });
+
+    it("calculates group percentage from active rooms and excludes cancelled/no-show bookings", async () => {
+      const quote = { plannedCheckInAt: "2026-11-01T07:00:00Z", plannedCheckOutAt: "2026-11-03T05:00:00Z", nightlyRateSnapshot: 500 };
+      const tx = {
+        bookingPayment: { findMany: jest.fn().mockResolvedValue([]), create: jest.fn(async ({ data }) => ({ id: "bp-group", ...data })) },
+        bookingPaymentAllocation: { create: jest.fn().mockResolvedValue({ id: "allocation" }) },
+        reservationGroup: { findFirst: jest.fn().mockResolvedValue({ id: "group-1", reservations: [
+          { ...quote, id: "active", status: "CONFIRMED" },
+          { ...quote, id: "cancelled", status: "CANCELLED" },
+          { ...quote, id: "no-show", status: "NO_SHOW" },
+        ] }) },
+        invoice: { findFirst: jest.fn().mockResolvedValue(null) },
+      };
+      const service = createService({ $transaction: jest.fn(async (callback) => callback(tx)) });
+      const payment = await service.recordBookingPayment("user-1", "role-1", "hotel-1", {
+        groupId: "group-1", inputMode: BookingPaymentMode.PERCENT, percentValue: 10,
+      });
+      expect(payment.receivedAmount.toString()).toBe("100");
+      expect(tx.invoice.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ stay: { reservationId: { in: ["active"] } } }),
+      }));
+    });
+
+    it("shares a legacy group deposit once across invoices without taking another room's credit", async () => {
+      const receivedAt = new Date("2026-07-10T10:00:00Z");
+      const bookingPayments = [
+        { id: "group-credit", groupId: "group-1", reservationId: null,
+          status: BookingPaymentStatus.COMPLETED, paymentMethod: PaymentMethod.CASH,
+          receivedAmount: new Prisma.Decimal(2000), receivedAt, createdAt: receivedAt },
+        { id: "other-room-credit", groupId: "group-1", reservationId: "res-other",
+          status: BookingPaymentStatus.COMPLETED, paymentMethod: PaymentMethod.CASH,
+          receivedAmount: new Prisma.Decimal(9000), receivedAt, createdAt: receivedAt },
+      ];
+      type Target = { reservationId?: string | null; groupId?: string | null; folioId?: string | null };
+      type Allocation = { id: string; hotelId: string; bookingPaymentId: string;
+        reservationId: string | null; groupId: string | null; folioId: string | null;
+        invoiceId: string | null; allocatedAmount: Prisma.Decimal };
+      let allocations: Allocation[] = [];
+      const matches = (row: Target, target: Target) =>
+        (target.reservationId === undefined || row.reservationId === target.reservationId) &&
+        (target.groupId === undefined || row.groupId === target.groupId) &&
+        (target.folioId === undefined || row.folioId === target.folioId);
+      const invoices = ["a", "b"].map((key) => ({
+        id: `invoice-${key}`, folioId: `folio-${key}`, stayId: `stay-${key}`, currency: "VND",
+        totalAmount: new Prisma.Decimal(1000), paidAmount: new Prisma.Decimal(0),
+        balanceAmount: new Prisma.Decimal(1000), status: InvoiceStatus.ISSUED,
+      }));
+      const tx = {
+        reservation: { findUnique: jest.fn().mockResolvedValue({ groupId: "group-1" }) },
+        bookingPaymentAllocation: {
+          findMany: jest.fn(async ({ where }) => allocations
+            .filter((entry) => entry.invoiceId === null && where.OR.some((target: Target) => matches(entry, target)))
+            .map((entry) => ({ ...entry, bookingPayment: bookingPayments.find((payment) => payment.id === entry.bookingPaymentId) }))),
+          create: jest.fn(async ({ data }) => {
+            const result = { id: `allocation-${allocations.length}`, ...data };
+            allocations.push(result);
+            return result;
+          }),
+          update: jest.fn(async ({ where, data }) => {
+            allocations = allocations.map((entry) => entry.id === where.id ? { ...entry, ...data } : entry);
+            return allocations.find((entry) => entry.id === where.id);
+          }),
+        },
+        bookingPayment: { findMany: jest.fn(async ({ where }) => bookingPayments
+          .filter((payment) => where.OR.some((target: Target) => matches(payment, target)))
+          .map((payment) => ({ ...payment, allocations: allocations.filter((entry) => entry.bookingPaymentId === payment.id) }))) },
+        payment: { create: jest.fn(async ({ data }) => ({ id: "invoice-payment", ...data })) },
+        invoice: { update: jest.fn(async ({ where, data }) => ({
+          ...invoices.find((invoice) => invoice.id === where.id), ...data,
+        })) },
+      };
+      const service = createService({});
+      const close = jest.fn().mockResolvedValue(undefined);
+      Reflect.set(service, "closeCheckoutEntities", close);
+      const apply = Reflect.get(service, "applyBookingDepositsToInvoice").bind(service);
+      for (const [index, invoice] of invoices.entries()) {
+        const result = await apply(tx, "hotel-1", invoice, {
+          id: invoice.folioId, stay: { reservationId: `res-${index}` },
+        }, "user-1");
+        expect(result.paidAmount.toNumber()).toBe(1000);
+        expect(result.balanceAmount.toNumber()).toBe(0);
+      }
+      expect(allocations.reduce((sum, entry) => sum.add(entry.allocatedAmount), new Prisma.Decimal(0)).toNumber()).toBe(2000);
+      expect(allocations.some((entry) => entry.bookingPaymentId === "other-room-credit")).toBe(false);
+      expect(bookingPayments[0].receivedAmount.toNumber()).toBe(2000);
+      expect(close).toHaveBeenCalledTimes(2);
+      expect(tx.payment.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ confirmedAt: receivedAt }),
+      }));
+    });
   });
 });

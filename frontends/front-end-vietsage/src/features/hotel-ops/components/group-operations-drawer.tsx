@@ -45,6 +45,10 @@ export type GroupRoomItem = {
   roomStatus?: string | null;
   hasQr?: boolean;
   qrStatus?: string | null;
+  totalAmount?: number | string | null;
+  roomSubtotal?: number | string | null;
+  serviceSubtotal?: number | string | null;
+  chargeLines?: Array<{ totalSnapshot?: number | string }> | null;
 };
 
 export type GroupRoomEntry = GroupRoomItem;
@@ -99,6 +103,10 @@ export function buildGroupRoomItems(params: {
         roomStatus,
         hasQr,
         qrStatus,
+        totalAmount: arr.totalAmount ?? null,
+        roomSubtotal: arr.roomSubtotal ?? null,
+        serviceSubtotal: arr.serviceSubtotal ?? null,
+        chargeLines: arr.chargeLines ?? null,
       });
     }
   }
@@ -137,6 +145,10 @@ export function buildGroupRoomItems(params: {
       roomStatus,
       hasQr,
       qrStatus,
+      totalAmount: item.totalAmount ?? existing?.totalAmount ?? null,
+      roomSubtotal: item.roomSubtotal ?? existing?.roomSubtotal ?? null,
+      serviceSubtotal: item.serviceSubtotal ?? existing?.serviceSubtotal ?? null,
+      chargeLines: item.chargeLines ?? existing?.chargeLines ?? null,
     });
   }
 
@@ -472,10 +484,44 @@ export function GroupOperationsDrawer({
       if (!item.roomId) {
         unassigned++;
       }
-      const rateVal = Number(item.rate);
-      if (Number.isFinite(rateVal)) {
-        totalEstimatedAmount += rateVal;
+      let itemAmount = 0;
+      if (
+        item.totalAmount !== null &&
+        item.totalAmount !== undefined &&
+        Number.isFinite(Number(item.totalAmount))
+      ) {
+        itemAmount = Number(item.totalAmount);
+      } else if (item.chargeLines && item.chargeLines.length > 0) {
+        const sum = item.chargeLines.reduce(
+          (acc, cl) => acc + (Number(cl.totalSnapshot) || 0),
+          0,
+        );
+        if (Number.isFinite(sum)) itemAmount = sum;
+      } else if (
+        item.roomSubtotal !== null &&
+        item.roomSubtotal !== undefined &&
+        Number.isFinite(Number(item.roomSubtotal))
+      ) {
+        itemAmount =
+          Number(item.roomSubtotal) + (Number(item.serviceSubtotal) || 0);
+      } else {
+        const rateVal = Number(item.rate);
+        if (Number.isFinite(rateVal)) {
+          let nights = 1;
+          if (item.plannedCheckInAt && item.plannedCheckOutAt) {
+            const d1 = new Date(item.plannedCheckInAt).getTime();
+            const d2 = new Date(item.plannedCheckOutAt).getTime();
+            if (d2 > d1) {
+              nights = Math.max(
+                1,
+                Math.round((d2 - d1) / (1000 * 60 * 60 * 24)),
+              );
+            }
+          }
+          itemAmount = rateVal * nights;
+        }
       }
+      totalEstimatedAmount += itemAmount;
     }
 
     const leadGuestName = groupItems[0]?.guestDisplayName || "Chưa xác định";

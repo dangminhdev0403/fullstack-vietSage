@@ -58,6 +58,11 @@ import { roomPlanResource } from "@/features/hotel-ops/resources/room-plan-resou
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import { useRoomOrderStore } from "@/features/hotel-ops/store/room-order-store";
+import {
+  matchesBlockQuery,
+  matchesRoomFilter,
+  normalizeSearchQuery,
+} from "@/features/hotel-ops/utils/tape-chart-filter-helpers";
 import { EditReservationModal } from "../edit-reservation-modal";
 
 export type TapeChartViewMode = "week" | "biweek";
@@ -1253,21 +1258,7 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
           const isMatchedBySearch = Boolean(
             searchQuery &&
             searchQuery.trim().length > 0 &&
-            (() => {
-              const q = searchQuery.trim().replace(/^#/, "").toLowerCase();
-              const resCode = (b.reservationCode || "").toLowerCase();
-              const grpCode = (b.groupCode || "").toLowerCase();
-              const gName = (b.guestName || "").toLowerCase();
-              const gDisp = (b.guestDisplayName || "").toLowerCase();
-              const phone = (b.phone || "").toLowerCase();
-              return (
-                (resCode && (resCode === q || resCode.includes(q))) ||
-                (grpCode && (grpCode === q || grpCode.includes(q))) ||
-                (gName && gName.includes(q)) ||
-                (gDisp && gDisp.includes(q)) ||
-                (phone && phone.includes(q))
-              );
-            })()
+            matchesBlockQuery(b, searchQuery)
           );
 
           return (
@@ -1943,19 +1934,14 @@ export function TapeChartView({
               : "Trực tiếp");
 
       const matchedRoom = roomById.get(String(raw.roomId));
-      const roomPriceFallback =
-        matchedRoom?.price ?? matchedRoom?.basePrice ?? matchedRoom?.roomType?.basePrice ??
-        null;
-
       const nightlyRate =
         raw.nightlyRate ??
-        (raw.nightlyRateSnapshot ? Number(raw.nightlyRateSnapshot) : null) ??
-        (roomPriceFallback ? Number(roomPriceFallback) : null);
+        (raw.nightlyRateSnapshot != null ? Number(raw.nightlyRateSnapshot) : null);
 
       const roomSubtotal =
         typeof raw.roomSubtotal === "number"
           ? raw.roomSubtotal
-          : (nightlyRate ? nightlyRate * diffNights : null);
+          : (nightlyRate != null ? nightlyRate * diffNights : null);
 
       const roomNumber =
         raw.roomNumber ||
@@ -1969,7 +1955,7 @@ export function TapeChartView({
 
       const serviceSubtotal = typeof raw.serviceSubtotal === "number" ? raw.serviceSubtotal : null;
       const totalAmount =
-        typeof raw.totalAmount === "number" && raw.totalAmount > 0
+        typeof raw.totalAmount === "number"
           ? raw.totalAmount
           : (roomSubtotal != null ? roomSubtotal + (serviceSubtotal ?? 0) : null);
 
@@ -2029,7 +2015,12 @@ export function TapeChartView({
       return;
     }
 
-    const cleanQ = rawQ.replace(/^#/, "").trim().toLowerCase();
+    const normQ = normalizeSearchQuery(rawQ);
+    const cleanQ = normQ.clean;
+    if (!cleanQ || cleanQ.length < 3) {
+      lastAutoAdjustedCodeRef.current = "";
+      return;
+    }
     if (lastAutoAdjustedCodeRef.current === cleanQ) return;
 
     // Fast check: is this query likely a booking or group code?
@@ -2297,7 +2288,8 @@ export function TapeChartView({
     const rawQ = searchQuery.trim();
     if (!rawQ || !showOnlyMatchedBlocks) return blocksByRoomId;
 
-    const cleanQ = rawQ.replace(/^#/, "").trim().toLowerCase();
+    const normQ = normalizeSearchQuery(searchQuery);
+    const cleanQ = normQ.clean;
     const map = new Map<string, RoomPlanBlock[]>();
 
     allBlocks.forEach((b) => {
@@ -2308,7 +2300,7 @@ export function TapeChartView({
       // 1. If user specifically searched a room number (e.g. 1001 or P.1001), show all blocks for that room
       const matchedRoom = roomById.get(b.roomId);
       const roomNum = (b.roomNumber || matchedRoom?.roomNumber || "").toLowerCase();
-      const cleanQueryRoom = cleanQ.replace(/^(p\.|p|phòng\s*)/i, "").trim();
+      const cleanQueryRoom = normQ.lower.replace(/^(p\.|p|phòng\s*)/i, "").trim();
       const isRoomNumberQuery =
         cleanQueryRoom.length > 0 &&
         (roomNum === cleanQueryRoom || (cleanQueryRoom.length >= 2 && roomNum.includes(cleanQueryRoom))) &&
@@ -2328,20 +2320,7 @@ export function TapeChartView({
       }
 
       // 3. Otherwise, only display blocks matching the search code, name or phone
-      const resCode = (b.reservationCode || "").toLowerCase();
-      const grpCode = (b.groupCode || "").toLowerCase();
-      const gName = (b.guestName || "").toLowerCase();
-      const gDisp = (b.guestDisplayName || "").toLowerCase();
-      const phone = (b.phone || "").toLowerCase();
-
-      const matchesBlock =
-        (resCode && (resCode === cleanQ || resCode.includes(cleanQ) || cleanQ.includes(resCode))) ||
-        (grpCode && (grpCode === cleanQ || grpCode.includes(cleanQ) || cleanQ.includes(grpCode))) ||
-        (gName && gName.includes(cleanQ)) ||
-        (gDisp && gDisp.includes(cleanQ)) ||
-        (phone && phone.includes(cleanQ));
-
-      if (matchesBlock) {
+      if (matchesBlockQuery(b, normQ)) {
         map.get(b.roomId)!.push(b);
       }
     });
@@ -2471,37 +2450,11 @@ export function TapeChartView({
       }
 
       if (searchQuery.trim()) {
-        const query = searchQuery.trim().toLowerCase();
-        const cleanQueryRoom = query.replace(/^(p\.|p|phòng\s*)/i, "").trim();
-        const matchesRoom =
-          r.roomNumber.toLowerCase().includes(query) ||
-          (cleanQueryRoom.length > 0 && r.roomNumber.toLowerCase().includes(cleanQueryRoom));
-        const matchesType = (r.roomTypeName || "").toLowerCase().includes(query);
         const roomBlocks = blocksByRoomId.get(r.id) || [];
-        const matchesGuest = roomBlocks.some(
-          (b) =>
-            (b.guestName || "").toLowerCase().includes(query) ||
-            (b.guestDisplayName || "").toLowerCase().includes(query) ||
-            (b.reservationCode || "").toLowerCase().includes(query) ||
-            (b.groupCode || "").toLowerCase().includes(query) ||
-            (b.channel || "").toLowerCase().includes(query) ||
-            (b.channelName || "").toLowerCase().includes(query) ||
-            (b.source || "").toLowerCase().includes(query) ||
-            (b.phone || "").toLowerCase().includes(query) ||
-            (b.notes || "").toLowerCase().includes(query),
-        );
         const propRoom = propRooms.find((pr) => pr.id === r.id);
-        const matchesProp = Boolean(
-          propRoom && (
-            (propRoom.projectedReservation?.reservationCode && propRoom.projectedReservation.reservationCode.toLowerCase().includes(query)) ||
-            ((propRoom.projectedReservation as any)?.groupCode && String((propRoom.projectedReservation as any).groupCode).toLowerCase().includes(query)) ||
-            (propRoom.upcomingReservation?.reservationCode && propRoom.upcomingReservation.reservationCode.toLowerCase().includes(query)) ||
-            ((propRoom.upcomingReservation as any)?.groupCode && String((propRoom.upcomingReservation as any).groupCode).toLowerCase().includes(query)) ||
-            ((propRoom.activeStay as any)?.reservation?.reservationCode && String((propRoom.activeStay as any).reservation.reservationCode).toLowerCase().includes(query)) ||
-            ((propRoom.activeStay as any)?.reservation?.groupCode && String((propRoom.activeStay as any).reservation.groupCode).toLowerCase().includes(query))
-          )
-        );
-        if (!matchesRoom && !matchesType && !matchesGuest && !matchesProp) return false;
+        if (!matchesRoomFilter(r, roomBlocks, searchQuery, propRoom)) {
+          return false;
+        }
       }
       return true;
     });
@@ -5270,7 +5223,7 @@ export function TapeChartView({
                             <button
                               type="button"
                               onClick={() => {
-                                const code = selectedBlock.groupCode!;
+                                const code = selectedBlock.groupCode!.replace(/^#+/, "").trim();
                                 setSelectedBlock(null);
                                 onOpenGroupCheckIn(code);
                               }}
@@ -5553,7 +5506,7 @@ export function TapeChartView({
                     <button
                       type="button"
                       onClick={() => {
-                        const code = selectedBlock.groupCode!;
+                        const code = selectedBlock.groupCode!.replace(/^#+/, "").trim();
                         setSelectedBlock(null);
                         onOpenGroupCheckIn(code);
                       }}
@@ -5589,7 +5542,7 @@ export function TapeChartView({
                 <button
                   type="button"
                   onClick={() => {
-                    const code = selectedBlock.groupCode!;
+                    const code = selectedBlock.groupCode!.replace(/^#+/, "").trim();
                     setSelectedBlock(null);
                     onOpenGroupCheckIn(code);
                   }}

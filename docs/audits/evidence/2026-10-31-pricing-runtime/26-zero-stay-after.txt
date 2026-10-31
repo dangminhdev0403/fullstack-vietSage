@@ -1,0 +1,51 @@
+Phòng 626
+Đang ở
+Double Room
+Thông tin chi tiết
+Dịch vụ
+Lịch sử
+MÃ ĐẶT PHÒNG
+VSH_RESERVATION_0115
+Kênh:
+Trực tiếp
+Phụ trách: TENANT_OWNER
+Lịch phòng 626:
+Trước đó: Trống lịch
+•
+Tiếp theo: Trống lịch
+Xem toàn bộ lịch phòng
+AU
+AUDIT3110-ZERO
+2 khách
+Chưa có SĐT
+PHÒNG XẾP
+
+Phòng 626
+
+Double Room
+
+LỊCH TRÌNH LƯU TRÚ
+Ngày nhận phòng
+
+2026-10-31
+
+14:00
+
+Ngày trả phòng
+
+2026-11-02
+
+12:00
+
+Tổng thời gian:
+2 đêm lưu trú
+TÀI CHÍNH & THANH TOÁN
+Đơn giá phòng TB:
+0 ₫
+Tổng tiền phòng (2 đêm):
+0 ₫
+Trạng thái:
+• Đã nhận phòng / Đang ở
+Chuyển / Đổi phòng
+Trả phòng (Check-out)
+Đóng

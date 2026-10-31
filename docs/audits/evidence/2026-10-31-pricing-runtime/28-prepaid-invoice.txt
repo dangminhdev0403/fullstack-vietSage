@@ -1,0 +1,120 @@
+- banner:
+  - generic: Chủ khách sạn
+  - generic: Khách sạn minh 123
+  - button "Đổi mật khẩu":
+    - generic: Đổi mật khẩu
+  - button "Đăng xuất"
+  - img "Logo VietSage (Chủ khách sạn)"
+- complementary:
+  - button "Thu gọn thanh điều hướng":
+  - img "VietSage"
+  - generic: VietSage
+  - generic: Quản trị khách sạn
+  - navigation:
+    - generic: Tổng quan
+    - link "Tổng quan":
+      - /url: /owner/dashboard
+      - generic: Tổng quan
+    - link "Tài chính & đối soát":
+      - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/billing
+      - generic: Tài chính & đối soát
+    - link "Báo cáo & Phân tích":
+      - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/reports
+      - generic: Báo cáo & Phân tích
+    - generic: Vận hành
+    - link "Sơ đồ phòng & Check In":
+      - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/rooms
+      - generic: Sơ đồ phòng & Check In
+    - link "Quản lý khách lưu trú":
+      - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/front-desk
+      - generic: Quản lý khách lưu trú
+    - link "Kho Phòng & Kênh Bán":
+      - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/channel-manager
+      - generic: Kho Phòng & Kênh Bán
+    - link "Xử lý yêu cầu":
+      - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/requests
+      - generic: Xử lý yêu cầu
+    - link "Tin nhắn phòng":
+      - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/messages
+      - generic: Tin nhắn phòng
+    - generic: Thiết lập & Cấu hình
+    - link "Thanh toán & Doanh thu":
+      - /url: /hotels/cmq2k2lm0003f2oui3ifqp808/billing
+      - generic: Thanh toán & Doanh thu
+    - link "Máy quét CCCD":
+      - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/biometric
+      - generic: Máy quét CCCD
+    - link "Thông tin khách sạn":
+      - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/profile
+      - generic: Thông tin khách sạn
+    - link "Thiết lập khách sạn":
+      - /url: /owner/hotels/cmq2k2lm0003f2oui3ifqp808/settings
+      - generic: Thiết lập khách sạn
+- main:
+  - link "Quay lại thanh toán":
+    - /url: /hotels/cmq2k2lm0003f2oui3ifqp808/billing
+  - heading "Hóa đơn VSH_INVOICE_0025" [level=1]
+  - generic: Đã thanh toán và checkout
+  - button "In hóa đơn"
+  - article:
+    - paragraph: HÓA ĐƠN KHÁCH SẠN VIETSAGE
+    - heading "VSH_INVOICE_0025" [level=2]
+    - paragraph: Phòng 200 · AUDIT3110-EDIT700
+    - paragraph: Trạng thái
+    - paragraph: Đã thanh toán
+    - paragraph: 09:12 31/10/26
+    - term: Folio
+    - definition: VSH_FOLIO_0066
+    - term: Khách
+    - definition: AUDIT3110-EDIT700
+    - term: Nhận phòng
+    - definition: 09:06 31/10/26
+    - term: Trả phòng
+    - definition: 09:12 31/10/26
+    - term: Tạm tính
+    - definition: 1.400.000 ₫
+    - term: Thuế
+    - definition: 0 ₫
+    - term: Giảm giá
+    - definition: 0 ₫
+    - term: Tổng
+    - definition: 1.400.000 ₫
+    - heading "Chi tiết chi phí" [level=3]
+    - table:
+      - rowgroup:
+        - row "Nội dung Phân loại nguồn Loại SL Đơn giá Tổng":
+          - columnheader "Nội dung"
+          - columnheader "Phân loại nguồn"
+          - columnheader "Loại"
+          - columnheader "SL"
+          - columnheader "Đơn giá"
+          - columnheader "Tổng"
+      - rowgroup:
+        - row "Room charge - 200 🏨 Trong khách sạn Tiền phòng 2 700.000 ₫ 1.400.000 ₫":
+          - cell "Room charge - 200":
+            - generic: Room charge - 200
+          - cell "🏨 Trong khách sạn":
+            - generic: 🏨 Trong khách sạn
+          - cell "Tiền phòng"
+          - cell "2"
+          - cell "700.000 ₫"
+          - cell "1.400.000 ₫"
+    - generic: 🏨 Dịch vụ trong khách sạn
+    - generic: 1.400.000 ₫
+    - paragraph: Tiền phòng, dịch vụ nội bộ & Phụ thu do KS cung cấp
+    - generic: 🌐 Dịch vụ đối tác liên kết
+    - generic: 0 ₫
+    - paragraph: Dịch vụ đối tác liên kết bên ngoài / thu hộ đối tác
+    - heading "Thanh toán" [level=3]
+    - paragraph: Tiền mặt · Thành công · 1.400.000 ₫
+    - term: Đã thanh toán
+    - definition: 1.400.000 ₫
+    - term: Còn lại
+    - definition: 0 ₫
+- region "Notifications alt+T"
+- button "Open Next.js Dev Tools":
+  - text: Rendering
+  - generic: .
+  - generic: .
+  - generic: .
+- alert

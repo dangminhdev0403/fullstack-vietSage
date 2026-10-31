@@ -83,7 +83,7 @@ export function FrontDeskArrivalDetailPanel({
   isOpen,
   onClose,
   hotelId,
-  arrival,
+  arrival: suppliedArrival,
   todayYmd,
   canCheckInStay = false,
   canManageReservations = false,
@@ -116,15 +116,15 @@ export function FrontDeskArrivalDetailPanel({
   const [depositNotes, setDepositNotes] = useState<string>("");
   const [isSubmittingDeposit, setIsSubmittingDeposit] = useState<boolean>(false);
   const [isSubmittingReceivable, setIsSubmittingReceivable] = useState<boolean>(false);
-  const [localArrival, setLocalArrival] = useState<HotelArrival | null>(arrival);
+  const [localArrival, setLocalArrival] = useState<HotelArrival | null>(suppliedArrival);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
 
   // Synchronize state when arrival changes without cascading render effect
-  if (arrival && arrival.id !== prevArrivalId) {
-    setPrevArrivalId(arrival.id);
-    setLocalArrival(arrival);
-    setSelectedRoomId(arrival.roomId || "");
-    setIsAssigningMode(!arrival.roomId);
+  if (suppliedArrival && suppliedArrival.id !== prevArrivalId) {
+    setPrevArrivalId(suppliedArrival.id);
+    setLocalArrival(suppliedArrival);
+    setSelectedRoomId(suppliedArrival.roomId || "");
+    setIsAssigningMode(!suppliedArrival.roomId);
     setIsCheckInWorkspaceOpen(false);
     setIsEditModalOpen(false);
     setCheckInError(undefined);
@@ -138,6 +138,10 @@ export function FrontDeskArrivalDetailPanel({
     setDepositReference("");
     setDepositNotes("");
   }
+
+  const arrival = suppliedArrival
+    ? (localArrival?.id === suppliedArrival.id ? localArrival : suppliedArrival)
+    : null;
 
   // Keyboard navigation and focus trap
   useEffect(() => {

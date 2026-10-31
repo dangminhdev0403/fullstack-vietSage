@@ -259,9 +259,11 @@ export function StaffBillingWorkspaceClient({
     searchParams?.get("stayId") ?? searchParams?.get("stay") ?? "";
   const queryRoomId = searchParams?.get("roomId") ?? "";
   const queryGroupCode = searchParams?.get("groupCode") ?? "";
+  const hasFolioTarget = Boolean(queryFolioId || queryStayId || queryRoomId || queryRoomNumber);
+  const folioTargetKey = [queryFolioId, queryStayId, queryRoomId, queryRoomNumber].join("|");
 
   // Chế độ thanh toán: Phòng lẻ (SINGLE) hoặc Theo đoàn / Đa phòng (GROUP)
-  const [checkoutMode, setCheckoutMode] = useState<"SINGLE" | "GROUP">("GROUP");
+  const [checkoutMode, setCheckoutMode] = useState<"SINGLE" | "GROUP">(hasFolioTarget ? "SINGLE" : "GROUP");
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [selectedGroupFolioIds, setSelectedGroupFolioIds] = useState<Set<string>>(new Set());
   const [groupDiscountInput, setGroupDiscountInput] = useState<string>("");
@@ -305,8 +307,8 @@ export function StaffBillingWorkspaceClient({
       );
       if (found) return found;
     }
-    return folios[0] ?? null;
-  }, [folios, queryFolioId, queryStayId, queryRoomId, queryRoomNumber]);
+    return hasFolioTarget ? null : folios[0] ?? null;
+  }, [folios, queryFolioId, queryStayId, queryRoomId, queryRoomNumber, hasFolioTarget]);
 
   const [selectedFolioId, setSelectedFolioId] = useState(
     () => initialFolio?.id ?? "",
@@ -318,10 +320,17 @@ export function StaffBillingWorkspaceClient({
     setSelectedFolioId(initialFolio.id);
   }
 
-  const [lastQueryFolioId, setLastQueryFolioId] = useState(queryFolioId);
-  if (queryFolioId !== lastQueryFolioId) {
-    setLastQueryFolioId(queryFolioId);
-    if (queryFolioId) setSelectedFolioId(queryFolioId);
+  const [appliedFolioTarget, setAppliedFolioTarget] = useState({
+    key: folioTargetKey,
+    folioId: initialFolio?.id ?? null,
+  });
+  if (appliedFolioTarget.key !== folioTargetKey ||
+    (hasFolioTarget && !appliedFolioTarget.folioId && initialFolio)) {
+    setAppliedFolioTarget({ key: folioTargetKey, folioId: initialFolio?.id ?? null });
+    if (hasFolioTarget) {
+      setSelectedFolioId(initialFolio?.id ?? "");
+      setCheckoutMode("SINGLE");
+    }
   }
   const [summary, setSummary] = useState<FolioSummary | null>(
     initialFolio ?? null,
@@ -351,6 +360,9 @@ export function StaffBillingWorkspaceClient({
 
   if (selectedFolioId !== prevSelectedFolioId) {
       setPrevSelectedFolioId(selectedFolioId);
+      setLoadedFolioId("");
+      setSummary(null);
+      setItems([]);
       setDiscountInput("");
       setSurchargeInput("");
       setDiscountNote("");
@@ -387,18 +399,14 @@ export function StaffBillingWorkspaceClient({
     });
   }, [folios, search, statusFilter]);
 
-  const selectedFolio = useMemo(
-    () =>
-      folios.find((folio) => folio.id === selectedFolioId) ??
-      filteredFolios[0] ??
-      folios[0],
-    [folios, filteredFolios, selectedFolioId],
-  );
-
   const isDetailLoaded =
     selectedFolioId !== "" && loadedFolioId === selectedFolioId;
   const loading = selectedFolioId !== "" && !isDetailLoaded;
   const activeSummary = isDetailLoaded ? summary : null;
+  const selectedFolio = useMemo(() => {
+    const folio = folios.find((entry) => entry.id === selectedFolioId);
+    return folio ? { ...folio, ...activeSummary, id: folio.id } : undefined;
+  }, [folios, selectedFolioId, activeSummary]);
   const activeItems = useMemo(
     () => (isDetailLoaded ? items : []),
     [isDetailLoaded, items],
@@ -557,23 +565,19 @@ export function StaffBillingWorkspaceClient({
     );
   })();
 
-  // Helper tính tiền cho từng folio bất kỳ trong danh sách (tính chuẩn theo giá đã chốt, giá đặt trước hoặc giá cấu hình)
+  // Prefer server quotes, including zero, over immutable agreed-rate fallback.
   const getFolioRoomCharge = useCallback((f: FolioListItem): number => {
     if (f.postedRoomCharge !== undefined && f.postedRoomCharge !== null) {
       return toNumber(f.postedRoomCharge);
     }
-    if (f.estimatedRoomCharge?.subtotal) {
+    if (f.estimatedRoomCharge?.subtotal != null) {
       return toNumber(f.estimatedRoomCharge.subtotal);
     }
-    const nightlyRate = toNumber(
+    const agreedRate =
       f.stay?.nightlyRateSnapshot ??
         f.stay?.baseNightlyRateSnapshot ??
         f.stay?.reservation?.nightlyRateSnapshot ??
-        f.stay?.reservation?.baseNightlyRateSnapshot ??
-        f.room?.price ??
-        f.room?.roomType?.basePrice ??
-        0,
-    );
+        f.stay?.reservation?.baseNightlyRateSnapshot;
 
     const checkIn =
       f.stay?.checkedInAt ??
@@ -588,20 +592,12 @@ export function StaffBillingWorkspaceClient({
     }
     if (nights <= 0) nights = 1;
 
-    const computedRate = nightlyRate * nights;
-    if (computedRate > 0) return computedRate;
-
-    const val = toNumber(f.total ?? f.totalAmount);
-    if (val > 0) return val;
-    const rPrice = toNumber(f.room?.price ?? 0);
-    return rPrice > 0 ? rPrice : 0;
+    return agreedRate != null ? toNumber(agreedRate) * nights : 0;
   }, []);
 
   const getFolioTotalAmount = useCallback((f: FolioListItem): number => {
-    const val = toNumber(f.total ?? f.totalAmount);
-    const roomCharge = getFolioRoomCharge(f);
-    if (val > 0) return Math.max(val, roomCharge);
-    return roomCharge;
+    const total = f.total ?? f.totalAmount;
+    return total != null ? toNumber(total) : getFolioRoomCharge(f);
   }, [getFolioRoomCharge]);
 
   const selectedGroupFolios = useMemo(
@@ -881,8 +877,9 @@ export function StaffBillingWorkspaceClient({
     return Math.max(0, groupSubtotal + groupSurchargeVal - groupDiscountVal);
   }, [groupSubtotal, groupSurchargeVal, groupDiscountVal]);
 
-  const refreshActiveFolio = useCallback(async () => {
+  const refreshActiveFolio = useCallback(async (invalidateDetail = false) => {
     if (!selectedFolioId) return;
+    if (invalidateDetail) setLoadedFolioId("");
     try {
       const [summaryResponse, itemsResponse] = await Promise.all([
         requestInternalApiEnvelope<FolioSummary>(
@@ -924,7 +921,6 @@ export function StaffBillingWorkspaceClient({
       })
       .catch((error) => {
         if (cancelled) return;
-        setLoadedFolioId(selectedFolioId);
         void showErrorAlert("Không thể tải chi tiết folio", error);
       });
 
@@ -941,7 +937,7 @@ export function StaffBillingWorkspaceClient({
   }, [apiBase, selectedFolioId, refreshActiveFolio]);
 
   async function issueInvoiceAndCollect() {
-    if (!selectedFolioId || !canManage) return;
+    if (!selectedFolioId || !selectedFolio || !canManage || saving || !isDetailLoaded || !activeSummary || isClosedFolio) return;
     const activeRequests = activeSummary?.activeServiceRequests ?? [];
     const unresolved = activeRequests.find((request) => {
       const choice = reconciliations[request.id];
@@ -1146,12 +1142,14 @@ export function StaffBillingWorkspaceClient({
     } catch (error) {
       await showErrorAlert("Không thể hoàn tất checkout", error);
     } finally {
+      await refreshActiveFolio(true);
+      router.refresh();
       setSaving(false);
     }
   }
 
   async function issueGroupInvoicesAndCollect() {
-    if (selectedGroupFolios.length === 0 || !canManage) return;
+    if (selectedGroupFolios.length === 0 || !canManage || saving) return;
 
     if (groupDiscountVal > groupSubtotal + groupSurchargeVal) {
       await showWarningAlert(
@@ -1289,6 +1287,8 @@ export function StaffBillingWorkspaceClient({
       }
     }
 
+    await refreshActiveFolio(true);
+    router.refresh();
     setSaving(false);
     await invalidateHotelRealtimeQueries(queryClient, hotelId);
 
@@ -2915,7 +2915,10 @@ export function StaffBillingWorkspaceClient({
                   onClick={() => void issueInvoiceAndCollect()}
                   disabled={
                     !selectedFolioId ||
+                    !selectedFolio ||
                     !canManage ||
+                    loading ||
+                    !activeSummary ||
                     saving
                   }
                   className="w-full inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#fbbf24] via-[#f59e0b] to-[#d97706] px-4 text-sm sm:text-base font-black text-[#1c1204] shadow-xl shadow-amber-950/60 transition hover:from-[#f59e0b] hover:to-[#b45309] active:scale-[0.99] disabled:opacity-50 cursor-pointer text-balance"

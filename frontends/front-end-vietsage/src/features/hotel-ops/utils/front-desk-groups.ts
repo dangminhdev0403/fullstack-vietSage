@@ -28,7 +28,43 @@ export function buildFrontDeskGroupSummaries(arrivals: HotelArrival[]): FrontDes
     const isCheckedIn = arrival.status === "CHECKED_IN";
     const isArriving = arrival.status === "CONFIRMED" || arrival.status === "ARRIVAL_READY";
     const roomNum = arrival.room?.roomNumber;
-    const rate = Number(arrival.rate ?? arrival.nightlyRateSnapshot ?? 0);
+    let itemAmount = 0;
+    if (
+      arrival.totalAmount !== null &&
+      arrival.totalAmount !== undefined &&
+      Number.isFinite(Number(arrival.totalAmount))
+    ) {
+      itemAmount = Number(arrival.totalAmount);
+    } else if (arrival.chargeLines && arrival.chargeLines.length > 0) {
+      const sum = arrival.chargeLines.reduce(
+        (acc, cl) => acc + (Number(cl.totalSnapshot) || 0),
+        0,
+      );
+      if (Number.isFinite(sum)) itemAmount = sum;
+    } else if (
+      arrival.roomSubtotal !== null &&
+      arrival.roomSubtotal !== undefined &&
+      Number.isFinite(Number(arrival.roomSubtotal))
+    ) {
+      itemAmount =
+        Number(arrival.roomSubtotal) + (Number(arrival.serviceSubtotal) || 0);
+    } else {
+      const rateVal = Number(arrival.rate ?? arrival.nightlyRateSnapshot ?? 0);
+      if (Number.isFinite(rateVal)) {
+        let nights = 1;
+        if (arrival.plannedCheckInAt && arrival.plannedCheckOutAt) {
+          const d1 = new Date(arrival.plannedCheckInAt).getTime();
+          const d2 = new Date(arrival.plannedCheckOutAt).getTime();
+          if (d2 > d1) {
+            nights = Math.max(
+              1,
+              Math.round((d2 - d1) / (1000 * 60 * 60 * 24)),
+            );
+          }
+        }
+        itemAmount = rateVal * nights;
+      }
+    }
 
     if (!existing) {
       map.set(groupKey, {
@@ -40,7 +76,7 @@ export function buildFrontDeskGroupSummaries(arrivals: HotelArrival[]): FrontDes
         arrivingRooms: isArriving ? 1 : 0,
         earliestCheckInAt: arrival.plannedCheckInAt || null,
         latestCheckOutAt: arrival.plannedCheckOutAt || null,
-        totalEstimatedAmount: Number.isFinite(rate) ? rate : 0,
+        totalEstimatedAmount: itemAmount,
         assignedRoomNumbers: roomNum ? [roomNum] : [],
         unassignedRoomCount: roomNum ? 0 : 1,
         arrivals: [arrival],
@@ -49,7 +85,7 @@ export function buildFrontDeskGroupSummaries(arrivals: HotelArrival[]): FrontDes
       existing.totalRooms += 1;
       if (isCheckedIn) existing.checkedInRooms += 1;
       if (isArriving) existing.arrivingRooms += 1;
-      if (Number.isFinite(rate)) existing.totalEstimatedAmount += rate;
+      existing.totalEstimatedAmount += itemAmount;
 
       if (roomNum && !existing.assignedRoomNumbers.includes(roomNum)) {
         existing.assignedRoomNumbers.push(roomNum);

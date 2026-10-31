@@ -1,0 +1,68 @@
+Chỉnh sửa đơn đặt phòng
+#VSH_RESERVATION_0116
+Trực tiếp
+
+Phòng QA3110-A (AUDIT3110-TYPE)
+
+THÔNG TIN KHÁCH ĐẠI DIỆN
+ARRIVAL_READY
+Họ và tên khách *
+Số điện thoại
+Số lượng khách
+Phòng lưu trú
+Phòng QA3110-A (AUDIT3110-TYPE)
+Đổi phòng linh hoạt khi Check-in hoặc kéo thả Tape Chart
+Đổi phòng...
+GHI CHÚ / YÊU CẦU LƯU TRÚ
+Kênh: Trực tiếp
+LỊCH LƯU TRÚ (2 ĐÊM)
+2 đêm lưu trú
+Nhận phòng dự kiến *
+Chủ Nhật
+Trả phòng dự kiến *
+Thứ Ba
+Chọn nhanh số đêm tính từ ngày nhận:
+1 đêm
+2 đêm
+3 đêm
+4 đêm
+5 đêm
+7 đêm
+10 đêm
+14 đêm
+ĐƠN GIÁ PHÒNG MỖI ĐÊM
+Giá gốc: 700.000 ₫
+₫/đêm
+Giảm 29% (-200.000 ₫/đêm so với giá niêm yết)
+Điều chỉnh nhanh đơn giá:
+-15%
+-10%
+-5%
++5%
++10%
+|
+-50.000 ₫
+-100.000 ₫
+TIỀN ĐẶT CỌC CỦA KHÁCH
+Số tiền đã đặt cọc (₫)
+₫
+Phương thức đặt cọc
+Tiền mặt (Cash)
+Chuyển khoản (Bank Transfer)
+Thẻ tín dụng / POS
+Mức đặt cọc theo %:
+0%
+20%
+30%
+50%
+100%
+Tuỳ chỉnh:
+%
+Thời gian: 2 đêm · Đơn giá: 500.000 ₫/đêm
+Tổng tiền phòng:
+1.000.000 ₫
+Tiền cọc ghi nhận: 0 ₫
+Còn lại phải thu khi nhận phòng:
+1.000.000 ₫
+Hủy bỏ
+Lưu thay đổi

@@ -1,0 +1,16 @@
+[
+  {
+    "url": "https://vietsage.localhost/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/reservations/cmvvlb2xy003sjgv46hdiguf6/check-in",
+    "status": 404,
+    "contentType": "text/html",
+    "title": "VietSage | Hospitality Operating System",
+    "html404": true
+  },
+  {
+    "url": "https://vietsage.localhost/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/reservations/cmvvlb2xh003ojgv4b1bnh9re/check-in",
+    "status": 404,
+    "contentType": "text/html",
+    "title": "VietSage | Hospitality Operating System",
+    "html404": true
+  }
+]
