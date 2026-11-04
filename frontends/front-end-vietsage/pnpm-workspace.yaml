@@ -5,7 +5,7 @@ ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
 minimumReleaseAgeExclude:
-  - '@dangminhdev04032005/query-resource@0.1.1'
+  - '@dangminhdev04032005/query-resource@0.1.1 || 0.2.0'
 overrides:
   sharp: 0.35.4
   postcss: 8.5.26

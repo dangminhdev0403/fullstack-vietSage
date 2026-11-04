@@ -15,6 +15,6 @@
     "prisma:studio": "pnpm -C services/auth-service prisma:studio"
   },
   "dependencies": {
-    "@dangminhdev04032005/query-resource": "^0.1.1"
+    "@dangminhdev04032005/query-resource": "^0.2.0"
   }
 }

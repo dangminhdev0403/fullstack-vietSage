@@ -1,0 +1,5 @@
+# Keep root installs inside this repository; frontend/service installs stay separate.
+packages: []
+
+minimumReleaseAgeExclude:
+  - '@dangminhdev04032005/query-resource@0.2.0'

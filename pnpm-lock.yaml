@@ -9,16 +9,16 @@ importers:
   .:
     dependencies:
       '@dangminhdev04032005/query-resource':
-        specifier: ^0.1.1
-        version: 0.1.1(@tanstack/react-query@5.101.4(react@19.2.8))
+        specifier: ^0.2.0
+        version: 0.2.0(@tanstack/react-query@5.101.4(react@19.2.8))
 
 packages:
 
-  '@dangminhdev04032005/query-resource@0.1.1':
-    resolution: {integrity: sha512-Ixr9WYcX4eLjbLYxC3S/NDcaM+KTxqH6rVTwCtxtRo2tyax4JPqs6J6lQpZau/LP1A8EryudvvqSwbb9RV+rtg==}
+  '@dangminhdev04032005/query-resource@0.2.0':
+    resolution: {integrity: sha512-YM4EWguExIA2Ry+YCzxG0BqDlfc/V8sGqmnC1FF0eLJ33gmZjVka/dHzuxgTKoo/rWi0uBhOFPwDgX44NBE/zA==}
     engines: {node: '>=20'}
     peerDependencies:
-      '@tanstack/react-query': ^5.0.0
+      '@tanstack/react-query': ^5.101.0
 
   '@tanstack/query-core@5.101.4':
     resolution: {integrity: sha512-gNwcvOJcRbLWPOLG/2OBm+zM+Yv+MKsXKEOWC57USuZDEsI71hEErQsiEGx5wX9rzWWkfwM0fVSPoiIFSsxfiw==}
@@ -34,7 +34,7 @@ packages:
 
 snapshots:
 
-  '@dangminhdev04032005/query-resource@0.1.1(@tanstack/react-query@5.101.4(react@19.2.8))':
+  '@dangminhdev04032005/query-resource@0.2.0(@tanstack/react-query@5.101.4(react@19.2.8))':
     dependencies:
       '@tanstack/react-query': 5.101.4(react@19.2.8)
 
