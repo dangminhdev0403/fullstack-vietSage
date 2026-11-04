@@ -1840,9 +1840,12 @@ export function StaffRoomsClient({
     }
   }
 
-  function handleCheckInArrival(arrival: HotelArrival) {
+  function handleCheckInArrival(
+    arrival: HotelArrival,
+    options?: { forceSingleRoom?: boolean },
+  ) {
     if (!canCheckInStay) return;
-    if (arrival.groupCode) {
+    if (arrival.groupCode && !options?.forceSingleRoom) {
       openGroupCheckIn(arrival.groupCode);
       return;
     }
@@ -4312,6 +4315,7 @@ export function StaffRoomsClient({
   function handleCheckInReservationGeneric(
     room: HotelRoomSummary,
     res: {
+      reservationId?: string | null;
       guestDisplayName: string;
       guestPhone?: string | null;
       plannedCheckOutAt: string;
@@ -4319,6 +4323,7 @@ export function StaffRoomsClient({
       groupCode?: string | null;
       arrival?: HotelArrival | null;
     },
+    options?: { forceSingleRoom?: boolean },
   ) {
     if (!canCheckInStay) return;
     const groupCode =
@@ -4326,11 +4331,12 @@ export function StaffRoomsClient({
       res.arrival?.groupCode ||
       room.projectedReservation?.groupCode ||
       room.upcomingReservation?.groupCode;
-    if (groupCode) {
+    if (groupCode && !options?.forceSingleRoom) {
       openGroupCheckIn(groupCode);
       return;
     }
     const reservationId =
+      res.reservationId ||
       res.arrival?.id ||
       room.projectedReservation?.id ||
       room.upcomingReservation?.id ||
@@ -6701,8 +6707,8 @@ export function StaffRoomsClient({
             setSubmitError(undefined);
             setIsCheckInOpen(true);
           }}
-          onCheckInReservation={(block) => {
-            if (block.groupCode) {
+          onCheckInReservation={(block, options) => {
+            if (block.groupCode && !options?.forceSingleRoom) {
               openGroupCheckIn(block.groupCode);
               return;
             }
@@ -6718,15 +6724,21 @@ export function StaffRoomsClient({
               (a) => a.id === block.reservationId || a.reservationCode === block.reservationCode,
             );
             if (matchingArrival) {
-              handleCheckInArrival(matchingArrival);
+              handleCheckInArrival(matchingArrival, options);
             } else {
-              handleCheckInReservationGeneric(room, {
-                guestDisplayName: block.guestName,
-                guestPhone: block.phone,
-                plannedCheckOutAt: `${block.endDate}T12:00:00+07:00`,
-                reservationCode: block.reservationCode || undefined,
-                arrival: null,
-              });
+              handleCheckInReservationGeneric(
+                room,
+                {
+                  reservationId: block.reservationId || block.id.replace(/^res-/, ""),
+                  guestDisplayName: block.guestName,
+                  guestPhone: block.phone,
+                  plannedCheckOutAt: `${block.endDate}T12:00:00+07:00`,
+                  reservationCode: block.reservationCode || undefined,
+                  groupCode: block.groupCode,
+                  arrival: null,
+                },
+                options,
+              );
             }
           }}
           onOpenQuickReservation={(room, initialDate, initialEndDate) => {

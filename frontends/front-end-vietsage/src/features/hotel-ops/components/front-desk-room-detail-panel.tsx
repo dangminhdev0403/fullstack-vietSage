@@ -705,17 +705,52 @@ export function FrontDeskRoomDetailPanel({
               {businessDate ? `· Ngày: ${businessDate}` : ""}
             </p>
           </div>
-          <button
-            ref={closeButtonRef}
-            type="button"
-            onClick={onClose}
-            aria-label="Quay lại"
-            title="Quay lại"
-            className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 px-3.5 text-xs sm:text-sm font-bold shadow-2xs transition active:scale-[0.98] cursor-pointer min-h-[40px] shrink-0"
-          >
-            <VsIcon name="arrow_back" className="text-lg text-slate-600" />
-            <span>Quay lại</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {isOccupiedMode && canViewBilling && (canCheckoutBilling || canCheckOutStay) && (
+              <button
+                type="button"
+                onClick={() => setIsCheckoutSettlementOpen(true)}
+                className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 text-white px-3.5 text-xs sm:text-sm font-black shadow-xs transition active:scale-[0.98] cursor-pointer min-h-[40px] shrink-0 whitespace-nowrap"
+              >
+                <VsIcon name="payments" className="text-base" />
+                <span>Trả phòng (Check-out)</span>
+              </button>
+            )}
+            {isReservedMode && reservation && (
+              <>
+                {canCheckInStay && onCheckInReservation && (
+                  <button
+                    type="button"
+                    disabled={isCheckingIn}
+                    onClick={() => void handleExecuteCheckIn()}
+                    className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white px-3.5 text-xs sm:text-sm font-black shadow-xs transition active:scale-[0.98] cursor-pointer min-h-[40px] shrink-0 whitespace-nowrap"
+                  >
+                    <VsIcon name="login" className="text-base" />
+                    <span>{isCheckingIn ? "Đang nhận..." : isToday ? "Nhận phòng ngay" : "Nhận phòng sớm"}</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900 px-3.5 text-xs sm:text-sm font-bold shadow-2xs transition active:scale-[0.98] cursor-pointer min-h-[40px] shrink-0 whitespace-nowrap"
+                >
+                  <VsIcon name="edit" className="text-base text-amber-700" />
+                  <span>Sửa đơn</span>
+                </button>
+              </>
+            )}
+            <button
+              ref={closeButtonRef}
+              type="button"
+              onClick={onClose}
+              aria-label="Quay lại"
+              title="Quay lại"
+              className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 px-3.5 text-xs sm:text-sm font-bold shadow-2xs transition active:scale-[0.98] cursor-pointer min-h-[40px] shrink-0 whitespace-nowrap"
+            >
+              <VsIcon name="arrow_back" className="text-lg text-slate-600" />
+              <span>Quay lại</span>
+            </button>
+          </div>
         </header>
 
         {/* Body */}
@@ -739,6 +774,62 @@ export function FrontDeskRoomDetailPanel({
               </span>
             </div>
           )}
+
+          {/* Turnaround / Incoming Reservation on Occupied Room Alert */}
+          {isOccupiedMode &&
+            stay &&
+            reservation &&
+            reservation.status !== "CANCELLED" &&
+            reservation.status !== "NO_SHOW" &&
+            reservation.status !== "CHECKED_IN" && (
+              <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-4 space-y-3 shadow-2xs">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex items-start gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-200/80 text-amber-900 shrink-0 mt-0.5">
+                      <VsIcon name="swap_horiz" className="text-lg" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs sm:text-sm font-black text-amber-950">
+                          Có đơn đặt trước gán trùng Phòng {roomNumberDisplay} (Chờ khách hiện tại Check-out)
+                        </span>
+                        {reservation.reservationCode && (
+                          <span className="rounded bg-white border border-amber-300 px-2 py-0.5 font-mono text-xs font-bold text-amber-900 whitespace-nowrap">
+                            #{reservation.reservationCode}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-amber-900 text-pretty">
+                        Khách đặt trước: <strong>{reservation.guestDisplayName}</strong>
+                        {reservation.guestPhone ? ` (${reservation.guestPhone})` : ""} · Dự kiến nhận phòng:{" "}
+                        <strong>{formatDateTime(reservation.plannedCheckInAt)}</strong>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {canViewBilling && (canCheckoutBilling || canCheckOutStay) && (
+                      <button
+                        type="button"
+                        onClick={() => setIsCheckoutSettlementOpen(true)}
+                        className="inline-flex min-h-[36px] items-center gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 px-3.5 py-1.5 text-xs font-black text-white shadow-xs transition cursor-pointer whitespace-nowrap"
+                      >
+                        <VsIcon name="payments" className="text-sm" />
+                        <span>Trả phòng khách hiện tại ngay</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsEditModalOpen(true)}
+                      className="inline-flex min-h-[36px] items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3.5 py-1.5 text-xs font-black text-white shadow-xs transition cursor-pointer whitespace-nowrap"
+                    >
+                      <VsIcon name="swap_horiz" className="text-sm text-amber-300" />
+                      <span>Đổi sang phòng trống khác / Nhận phòng</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
           {/* Room Profile & Compatibility Spec Grid */}
           <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
@@ -1499,19 +1590,25 @@ export function FrontDeskRoomDetailPanel({
                 >
                   <span>Đóng</span>
                 </button>
-                {isToday && canCheckInStay && onCheckInReservation ? (
+                {canCheckInStay && onCheckInReservation ? (
                   <button
                     type="button"
                     disabled={isCheckingIn}
                     onClick={() => void handleExecuteCheckIn()}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 disabled:opacity-50 px-6 py-2.5 text-white font-black text-sm sm:text-base shadow-md transition active:scale-[0.98] cursor-pointer min-h-[46px]"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 px-6 py-2.5 text-white font-black text-sm sm:text-base shadow-md transition active:scale-[0.98] cursor-pointer min-h-[46px] whitespace-nowrap"
                   >
                     <VsIcon name="login" className="text-lg" />
-                    <span>{isCheckingIn ? "Đang nhận phòng..." : "Nhận phòng"}</span>
+                    <span>
+                      {isCheckingIn
+                        ? "Đang nhận phòng..."
+                        : isToday
+                          ? "Nhận phòng ngay"
+                          : "Nhận phòng sớm (Check-in)"}
+                    </span>
                   </button>
                 ) : (
                   <div className="inline-flex min-h-[46px] items-center justify-center rounded-xl bg-slate-200/80 px-4 py-2 text-slate-800 text-sm font-bold border border-slate-300">
-                    <span>Lịch đặt tương lai — Đến vào ngày nhận</span>
+                    <span>Chế độ xem lịch đặt</span>
                   </div>
                 )}
               </div>
@@ -1519,7 +1616,7 @@ export function FrontDeskRoomDetailPanel({
           )}
         </footer>
 
-        {isReservedMode && reservation && (
+        {reservation && (
           <EditReservationModal
             isOpen={isEditModalOpen}
             onClose={() => setIsEditModalOpen(false)}
@@ -1541,8 +1638,34 @@ export function FrontDeskRoomDetailPanel({
               totalAmount: reservation.totalAmount,
               expectedUpdatedAt: reservation.updatedAt ?? ("expectedUpdatedAt" in reservation ? reservation.expectedUpdatedAt : undefined),
               status: reservation.status,
+              groupCode: "groupCode" in reservation ? reservation.groupCode : null,
             }}
             availableRooms={availableRooms}
+            conflictingStay={
+              isOccupiedMode && stay
+                ? {
+                    stayId: stay.id,
+                    guestName: stay.guestDisplayName || "Khách đang lưu trú",
+                    endDate: stay.plannedCheckOutAt,
+                    status: stay.status,
+                    phone: stay.guestPhone,
+                  }
+                : null
+            }
+            onCheckOutConflictingStay={
+              isOccupiedMode && stay && canViewBilling && (canCheckoutBilling || canCheckOutStay)
+                ? () => {
+                    setIsEditModalOpen(false);
+                    setIsCheckoutSettlementOpen(true);
+                  }
+                : undefined
+            }
+            canCheckIn={Boolean(canCheckInStay && onCheckInReservation)}
+            onCheckIn={() => {
+              setIsEditModalOpen(false);
+              void handleExecuteCheckIn();
+            }}
+            onViewDetails={() => setIsEditModalOpen(false)}
             onSuccess={async (updated) => {
               setLocalReservation(updated);
               setIsEditModalOpen(false);

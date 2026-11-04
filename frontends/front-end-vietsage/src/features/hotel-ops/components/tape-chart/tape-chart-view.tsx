@@ -119,7 +119,10 @@ export interface TapeChartViewProps {
   canManageRooms?: boolean;
   onOpenGroupCheckIn?: (groupCode: string) => void;
   onOpenCheckIn?: (room: HotelRoomSummary | RoomPlanRoom, initialDate?: string) => void;
-  onCheckInReservation?: (reservation: RoomPlanBlock) => void | Promise<void>;
+  onCheckInReservation?: (
+    reservation: RoomPlanBlock,
+    options?: { forceSingleRoom?: boolean },
+  ) => void | Promise<void>;
   onOpenQuickReservation?: (
     room?: HotelRoomSummary | RoomPlanRoom,
     initialDate?: string,
@@ -324,6 +327,9 @@ interface DraggableRoomRowProps {
     e: React.MouseEvent,
   ) => void;
   onFocusOverdueRoom?: (room: RoomPlanRoom) => void;
+  onQuickCheckInBlock?: (block: RoomPlanBlock) => void;
+  onQuickCheckOutBlock?: (block: RoomPlanBlock) => void;
+  onOpenGroupCheckIn?: (groupCode: string) => void;
   isSearchActive?: boolean;
   searchQuery?: string;
 }
@@ -364,6 +370,9 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
   onStartBlockResize,
   onStartDraftAdjust,
   onFocusOverdueRoom,
+  onQuickCheckInBlock,
+  onQuickCheckOutBlock,
+  onOpenGroupCheckIn,
 }: DraggableRoomRowProps) {
   const {
     attributes,
@@ -1297,7 +1306,7 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                 top: "5px",
                 bottom: "5px",
               }}
-              className={`absolute z-10 flex items-center gap-1.5 px-2 rounded-md border shadow-xs transition-all text-xs font-bold overflow-hidden select-none ${barBg} ${
+              className={`group/block absolute z-10 flex items-center gap-1.5 px-2 rounded-md border shadow-xs transition-all text-xs font-bold overflow-hidden select-none ${barBg} ${
                 isMatchedBySearch
                   ? "ring-2 ring-amber-300 ring-offset-2 ring-offset-slate-900 shadow-lg animate-pulse"
                   : isSearchActive
@@ -1365,6 +1374,66 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
               <span className="truncate font-black whitespace-nowrap text-left flex-1 min-w-0">
                 {cleanBlockGuestName(b.guestName)}
               </span>
+
+              {/* Quick Hover Reception Actions on Timeline Bar */}
+              {!readOnly && !isBeingResized && !isDraggingRange && (
+                <div className="hidden group-hover/block:inline-flex items-center gap-1 shrink-0 z-20 pr-1">
+                  {b.kind === "RESERVATION" &&
+                    b.status !== "CANCELLED" &&
+                    b.status !== "NO_SHOW" &&
+                    b.status !== "CHECKED_OUT" &&
+                    b.status !== "CHECKED_IN" &&
+                    onQuickCheckInBlock && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onQuickCheckInBlock(b);
+                        }}
+                        className="inline-flex items-center gap-1 rounded bg-white text-emerald-900 hover:bg-emerald-50 px-1.5 py-0.5 text-xs font-black shadow-xs transition cursor-pointer whitespace-nowrap"
+                        title={`Nhận phòng P.${b.roomNumber} ngay`}
+                      >
+                        <VsIcon name="login" className="text-xs text-emerald-700" />
+                        <span>Nhận phòng</span>
+                      </button>
+                    )}
+
+                  {b.kind === "RESERVATION" &&
+                    b.groupCode &&
+                    onOpenGroupCheckIn && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const code = b.groupCode!.replace(/^#+/, "").trim();
+                          onOpenGroupCheckIn(code);
+                        }}
+                        className="inline-flex items-center gap-0.5 rounded bg-purple-950/85 hover:bg-purple-950 text-white border border-purple-300/60 px-1.5 py-0.5 text-xs font-bold shadow-xs transition cursor-pointer whitespace-nowrap"
+                        title={`Check-in / Quản lý cả đoàn #${b.groupCode}`}
+                      >
+                        <VsIcon name="groups" className="text-xs" />
+                        <span>Đoàn</span>
+                      </button>
+                    )}
+
+                  {b.kind === "STAY" &&
+                    b.guestStayId &&
+                    onQuickCheckOutBlock && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onQuickCheckOutBlock(b);
+                        }}
+                        className="inline-flex items-center gap-1 rounded bg-white text-rose-900 hover:bg-rose-50 px-1.5 py-0.5 text-xs font-black shadow-xs transition cursor-pointer whitespace-nowrap"
+                        title={`Trả phòng & thanh toán P.${b.roomNumber}`}
+                      >
+                        <VsIcon name="payments" className="text-xs text-rose-700" />
+                        <span>Trả phòng</span>
+                      </button>
+                    )}
+                </div>
+              )}
 
               {/* Spillover to next week indicator */}
               {isSpilloverToNext && (
@@ -1459,6 +1528,9 @@ interface CategoryRoomTableProps {
     e: React.MouseEvent,
   ) => void;
   onFocusOverdueRoom?: (room: RoomPlanRoom) => void;
+  onQuickCheckInBlock?: (block: RoomPlanBlock) => void;
+  onQuickCheckOutBlock?: (block: RoomPlanBlock) => void;
+  onOpenGroupCheckIn?: (groupCode: string) => void;
   isSearchActive?: boolean;
   searchQuery?: string;
 }
@@ -1500,6 +1572,9 @@ const CategoryRoomTable = memo(function CategoryRoomTable({
   onStartBlockResize,
   onStartDraftAdjust,
   onFocusOverdueRoom,
+  onQuickCheckInBlock,
+  onQuickCheckOutBlock,
+  onOpenGroupCheckIn,
 }: CategoryRoomTableProps) {
   const handleToggleCollapseClick = useCallback(() => {
     onToggleCollapse(cat);
@@ -1635,6 +1710,9 @@ const CategoryRoomTable = memo(function CategoryRoomTable({
               onToggleRoomBlocked={onToggleRoomBlocked}
               onProcessingRoomClick={onProcessingRoomClick}
               onFocusOverdueRoom={onFocusOverdueRoom}
+              onQuickCheckInBlock={onQuickCheckInBlock}
+              onQuickCheckOutBlock={onQuickCheckOutBlock}
+              onOpenGroupCheckIn={onOpenGroupCheckIn}
               draftSelection={draftSelection}
               isDraggingRange={isDraggingRange}
               activeDragRange={activeDragRange}
@@ -1795,6 +1873,7 @@ export function TapeChartView({
     (block: RoomPlanBlock | null) => {
       setSelectedBlock(block);
       setDrawerTab("info");
+      setIsEditReservationOpen(Boolean(block && block.kind === "RESERVATION"));
     },
     [],
   );
@@ -2866,52 +2945,160 @@ export function TapeChartView({
     handleGoToday,
   ]);
 
-  // Check-out action from Drawer -> redirects to Billing / Folio page to process
-  const handleDrawerCheckOut = async () => {
-    if (!selectedBlock || !selectedBlock.guestStayId || !onCheckOutStay) return;
-    const stayId = selectedBlock.guestStayId;
-    const roomNumber = selectedBlock.roomNumber;
-    setSelectedBlock(null);
-    await onCheckOutStay(stayId, roomNumber);
-    await invalidateHotelRealtimeQueries(queryClient, hotelId);
-    void refetchPlan();
-  };
-
-  // Check-in action from Modal for pre-booked reservation
-  const handleDrawerCheckIn = async () => {
-    if (!selectedBlock) return;
-
-    if (selectedBlock.startDate > todayYmd) {
-      const confirmEarly = await showConfirmDialog({
-        icon: "warning",
-        title: "Xác nhận nhận phòng sớm?",
-        html: formatEarlyCheckInConfirmHtml({
-          guestName: selectedBlock.guestName,
-          roomNumber: selectedBlock.roomNumber,
-          scheduledDate: selectedBlock.startDate,
-          actualDate: todayYmd,
-          isEarly: true,
-        }),
-        confirmText: "Xác nhận nhận phòng sớm",
-        cancelText: "Hủy bỏ",
-      });
-      if (!confirmEarly.isConfirmed) return;
-    }
-
-    const currentBlock = selectedBlock;
-    setSelectedBlock(null);
-
-    if (onCheckInReservation) {
-      await onCheckInReservation(currentBlock);
+  // Check-out action for a block -> redirects to Billing / Folio page to process
+  const handleBlockCheckOut = useCallback(
+    async (targetBlock: RoomPlanBlock) => {
+      if (!targetBlock.guestStayId || !onCheckOutStay) return;
+      const stayId = targetBlock.guestStayId;
+      const roomNumber = targetBlock.roomNumber;
+      setSelectedBlock(null);
+      await onCheckOutStay(stayId, roomNumber);
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       void refetchPlan();
-    } else if (onOpenCheckIn) {
-      const targetRoom = allRooms.find((r) => r.id === currentBlock.roomId);
-      if (targetRoom) {
-        onOpenCheckIn(targetRoom, currentBlock.startDate);
-      }
-    }
+    },
+    [onCheckOutStay, queryClient, hotelId, refetchPlan],
+  );
+
+  const handleDrawerCheckOut = async () => {
+    if (!selectedBlock) return;
+    await handleBlockCheckOut(selectedBlock);
   };
+
+  // Check-in action for a pre-booked reservation block
+  const handleBlockCheckIn = useCallback(
+    async (
+      targetBlock: RoomPlanBlock,
+      options?: { forceSingleRoom?: boolean },
+    ) => {
+      // 1. Check if the assigned room currently has an un-checked-out STAY (Turnaround / Overstay conflict)
+      const sameRoomBlocks = blocksByRoomId.get(targetBlock.roomId) || [];
+      const activeStayOnSameRoom = sameRoomBlocks.find(
+        (b) =>
+          b.kind === "STAY" &&
+          b.status !== "CHECKED_OUT" &&
+          Boolean(b.guestStayId),
+      );
+      const targetRoomObj = allRooms.find((r) => r.id === targetBlock.roomId);
+      const liveRoomStatus = (targetRoomObj?.status || "").toUpperCase();
+
+      if (activeStayOnSameRoom && activeStayOnSameRoom.guestStayId) {
+        const askConflict = await showConfirmDialog({
+          icon: "warning",
+          title: `Phòng ${targetBlock.roomNumber} đang có khách lưu trú`,
+          text: `Khách "${cleanBlockGuestName(activeStayOnSameRoom.guestName)}" tại Phòng ${targetBlock.roomNumber} chưa làm thủ tục trả phòng (Check-out). Bạn muốn trả phòng cho khách cũ ngay bây giờ, hay mở điều phối để đổi sang phòng trống khác cho khách "${cleanBlockGuestName(targetBlock.guestName)}"?`,
+          confirmText: `Trả phòng P.${targetBlock.roomNumber} trước`,
+          cancelText: "Đổi sang phòng trống khác",
+          reverseButtons: false,
+        });
+        if (askConflict.isConfirmed) {
+          await handleBlockCheckOut(activeStayOnSameRoom);
+          return;
+        }
+        setSelectedBlock(targetBlock);
+        setIsEditReservationOpen(true);
+        return;
+      }
+
+      if (liveRoomStatus === "OCCUPIED" || liveRoomStatus === "OVERDUE") {
+        setSelectedBlock(targetBlock);
+        setIsEditReservationOpen(true);
+        return;
+      }
+
+      // 2. Check if the assigned room is waiting for housekeeping (PROCESSING / DIRTY)
+      if (
+        liveRoomStatus === "PROCESSING" ||
+        liveRoomStatus === "DIRTY" ||
+        liveRoomStatus === "CLEANING"
+      ) {
+        const askClean = await showConfirmDialog({
+          icon: "question",
+          title: `Phòng ${targetBlock.roomNumber} vừa trả — đang chờ dọn`,
+          text: `Phòng ${targetBlock.roomNumber} đang ở trạng thái chờ dọn buồng phòng. Bạn muốn xác nhận phòng đã dọn sạch để nhận phòng ngay, hay mở đổi sang phòng trống khác?`,
+          confirmText: `Xác nhận P.${targetBlock.roomNumber} sạch & Nhận phòng`,
+          cancelText: "Đổi sang phòng trống khác",
+          reverseButtons: false,
+        });
+        if (!askClean.isConfirmed) {
+          setSelectedBlock(targetBlock);
+          setIsEditReservationOpen(true);
+          return;
+        }
+        try {
+          await staffRoomsRepository.markRoomReady(hotelId, targetBlock.roomId);
+          await invalidateHotelRealtimeQueries(queryClient, hotelId);
+        } catch (cleanErr) {
+          await showErrorAlert(
+            "Không thể xác nhận phòng sạch",
+            cleanErr instanceof Error
+              ? cleanErr.message
+              : "Đã có lỗi xảy ra khi mở khóa phòng chờ dọn.",
+          );
+          return;
+        }
+      }
+
+      if (targetBlock.startDate > todayYmd) {
+        const confirmEarly = await showConfirmDialog({
+          icon: "warning",
+          title: "Xác nhận nhận phòng sớm?",
+          html: formatEarlyCheckInConfirmHtml({
+            guestName: targetBlock.guestName,
+            roomNumber: targetBlock.roomNumber,
+            scheduledDate: targetBlock.startDate,
+            actualDate: todayYmd,
+            isEarly: true,
+          }),
+          confirmText: "Xác nhận nhận phòng sớm",
+          cancelText: "Hủy bỏ",
+        });
+        if (!confirmEarly.isConfirmed) return;
+      }
+
+      setSelectedBlock(null);
+
+      if (onCheckInReservation) {
+        await onCheckInReservation(targetBlock, options);
+        await invalidateHotelRealtimeQueries(queryClient, hotelId);
+        void refetchPlan();
+      } else if (onOpenCheckIn) {
+        const targetRoom = allRooms.find((r) => r.id === targetBlock.roomId);
+        if (targetRoom) {
+          onOpenCheckIn(targetRoom, targetBlock.startDate);
+        }
+      }
+    },
+    [
+      blocksByRoomId,
+      allRooms,
+      handleBlockCheckOut,
+      hotelId,
+      queryClient,
+      todayYmd,
+      onCheckInReservation,
+      refetchPlan,
+      onOpenCheckIn,
+    ],
+  );
+
+  const handleDrawerCheckIn = async (options?: { forceSingleRoom?: boolean }) => {
+    if (!selectedBlock) return;
+    await handleBlockCheckIn(selectedBlock, options);
+  };
+
+  const handleQuickHoverCheckIn = useCallback(
+    (block: RoomPlanBlock) => {
+      void handleBlockCheckIn(block, { forceSingleRoom: true });
+    },
+    [handleBlockCheckIn],
+  );
+
+  const handleQuickHoverCheckOut = useCallback(
+    (block: RoomPlanBlock) => {
+      void handleBlockCheckOut(block);
+    },
+    [handleBlockCheckOut],
+  );
 
   // Open placement modal for accessible button
   const handleOpenPlacementModal = (block: RoomPlanBlock) => {
@@ -4979,6 +5166,17 @@ export function TapeChartView({
                   onToggleRoomBlocked={onToggleRoomBlocked}
                   onProcessingRoomClick={onProcessingRoomClick}
                   onFocusOverdueRoom={focusOverdueRoom}
+                  onQuickCheckInBlock={
+                    !isReadOnly && (canCheckInStay ?? true)
+                      ? handleQuickHoverCheckIn
+                      : undefined
+                  }
+                  onQuickCheckOutBlock={
+                    !isReadOnly && onCheckOutStay
+                      ? handleQuickHoverCheckOut
+                      : undefined
+                  }
+                  onOpenGroupCheckIn={!isReadOnly ? onOpenGroupCheckIn : undefined}
                   isCollapsed={Boolean(collapsedCategories[categoryName])}
                   onToggleCollapse={toggleCategory}
                   draftSelection={draftSelection}
@@ -5016,7 +5214,7 @@ export function TapeChartView({
       </div>
 
       {/* ── Detail View: Modal hiển thị chi tiết trung tâm ──────── */}
-      {selectedBlock && selectedBlock.kind !== "RESERVATION" && (
+      {selectedBlock && (!isEditReservationOpen || (selectedBlock.kind !== "RESERVATION" && !selectedBlock.reservationId)) && (
         <div
           role="dialog"
           aria-modal="true"
@@ -5029,7 +5227,7 @@ export function TapeChartView({
             className="bg-white shadow-2xl border border-slate-200/90 rounded-2xl flex flex-col overflow-hidden w-full max-w-4xl max-h-[90vh] animate-in fade-in zoom-in-95 duration-200"
           >
             {/* Header with Room & Status badges, without mode switcher */}
-            <div className="flex items-center justify-between border-b border-slate-100 p-4 sm:px-6 shrink-0 bg-slate-50/70">
+            <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-100 p-4 sm:px-6 shrink-0 bg-slate-50/70">
               <div className="min-w-0 pr-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3
@@ -5079,18 +5277,49 @@ export function TapeChartView({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                {(selectedBlock.kind as string) === "RESERVATION" && !isReadOnly && (
+              <div className="flex flex-wrap items-center gap-2">
+                {!isReadOnly &&
+                  selectedBlock.kind === "RESERVATION" &&
+                  (canCheckInStay ?? true) &&
+                  (onCheckInReservation || onOpenCheckIn) &&
+                  selectedBlock.status !== "CANCELLED" &&
+                  selectedBlock.status !== "NO_SHOW" && (
+                    <button
+                      type="button"
+                      onClick={() => void handleDrawerCheckIn({ forceSingleRoom: true })}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black text-white bg-emerald-700 hover:bg-emerald-800 shadow-xs transition cursor-pointer whitespace-nowrap"
+                      title="Nhận phòng ngay cho phòng này"
+                    >
+                      <VsIcon name="login" className="text-sm" />
+                      <span>Nhận phòng P.{selectedBlock.roomNumber}</span>
+                    </button>
+                  )}
+
+                {!isReadOnly && selectedBlock.guestStayId && onCheckOutStay && (
                   <button
                     type="button"
-                    onClick={() => setIsEditReservationOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition cursor-pointer"
-                    title="Chỉnh sửa thông tin đặt phòng"
+                    onClick={handleDrawerCheckOut}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black text-white bg-rose-700 hover:bg-rose-800 shadow-xs transition cursor-pointer whitespace-nowrap"
+                    title="Trả phòng & thanh toán"
                   >
-                    <VsIcon name="edit" className="text-sm text-amber-700" />
-                    <span>Chỉnh sửa</span>
+                    <VsIcon name="payments" className="text-sm" />
+                    <span>Trả phòng (Check-out)</span>
                   </button>
                 )}
+
+                {!isReadOnly &&
+                  (selectedBlock.kind === "RESERVATION" || Boolean(selectedBlock.reservationId)) && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditReservationOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition cursor-pointer whitespace-nowrap"
+                      title="Chỉnh sửa thông tin đặt phòng"
+                    >
+                      <VsIcon name="edit" className="text-sm text-amber-700" />
+                      <span>Chỉnh sửa đơn</span>
+                    </button>
+                  )}
+
                 <button
                   type="button"
                   onClick={() => setSelectedBlock(null)}
@@ -5421,6 +5650,51 @@ export function TapeChartView({
                         </div>
                       </div>
                     </div>
+
+                    {/* Cảnh báo & Xử lý nhanh nếu phòng Đặt trước đang có khách ở chưa Check-out */}
+                    {selectedBlock.kind === "RESERVATION" && (() => {
+                      const roomBlocks = blocksByRoomId.get(selectedBlock.roomId) || [];
+                      const activeStay = roomBlocks.find(
+                        (b) => b.kind === "STAY" && b.status !== "CHECKED_OUT" && b.guestStayId,
+                      );
+                      if (!activeStay) return null;
+                      return (
+                        <div className="rounded-xl border border-rose-200 bg-rose-50/90 p-3.5 space-y-2.5 text-xs text-rose-950">
+                          <div className="flex items-start gap-2">
+                            <VsIcon name="warning" className="text-base text-rose-600 shrink-0 mt-0.5" />
+                            <div className="space-y-0.5">
+                              <p className="font-black text-rose-900">
+                                Phòng P.{selectedBlock.roomNumber} đang có khách lưu trú (chưa Check-out)
+                              </p>
+                              <p className="text-rose-800 text-pretty">
+                                Khách hiện tại: <strong>{cleanBlockGuestName(activeStay.guestName)}</strong> (Trả dự kiến:{" "}
+                                {activeStay.endDate}). Vui lòng trả phòng khách cũ hoặc đổi sang phòng trống khác trước khi nhận phòng.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 pt-1">
+                            {activeStay.guestStayId && onCheckOutStay && (
+                              <button
+                                type="button"
+                                onClick={() => void handleBlockCheckOut(activeStay)}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-rose-700 hover:bg-rose-800 px-3 py-1.5 text-xs font-black text-white shadow-2xs transition cursor-pointer whitespace-nowrap"
+                              >
+                                <VsIcon name="payments" className="text-xs" />
+                                <span>Trả phòng (Check-out) P.{selectedBlock.roomNumber} ngay</span>
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setIsEditReservationOpen(true)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-white hover:bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-900 shadow-2xs transition cursor-pointer whitespace-nowrap"
+                            >
+                              <VsIcon name="swap_horiz" className="text-xs text-emerald-700" />
+                              <span>Đổi sang phòng trống khác (1 chạm)</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
@@ -5518,7 +5792,7 @@ export function TapeChartView({
                     {(onCheckInReservation || onOpenCheckIn) && (
                       <button
                         type="button"
-                        onClick={() => void handleDrawerCheckIn()}
+                        onClick={() => void handleDrawerCheckIn({ forceSingleRoom: true })}
                         className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 font-bold px-4 py-2.5 text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
                       >
                         <span>Chỉ nhận phòng này (P.{selectedBlock.roomNumber})</span>
@@ -5528,7 +5802,7 @@ export function TapeChartView({
                 ) : (onCheckInReservation || onOpenCheckIn) ? (
                   <button
                     type="button"
-                    onClick={() => void handleDrawerCheckIn()}
+                    onClick={() => void handleDrawerCheckIn({ forceSingleRoom: true })}
                     className="flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black px-5 py-2.5 text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
                   >
                     <VsIcon name="login" className="text-base" />
@@ -5553,7 +5827,7 @@ export function TapeChartView({
                 </button>
               )}
 
-              {!isReadOnly && (selectedBlock.kind as string) === "RESERVATION" && (
+              {!isReadOnly && ((selectedBlock.kind as string) === "RESERVATION" || Boolean(selectedBlock.reservationId)) && (
                 <button
                   type="button"
                   onClick={() => setIsEditReservationOpen(true)}
@@ -5599,62 +5873,108 @@ export function TapeChartView({
         </div>
       )}
 
-      {/* ── Edit Reservation Modal (Sửa ngay khi click, không qua box con) ── */}
-      {selectedBlock && selectedBlock.kind === "RESERVATION" && (
-        <EditReservationModal
-          isOpen={Boolean(selectedBlock && selectedBlock.kind === "RESERVATION")}
-          onClose={() => setSelectedBlock(null)}
-          hotelId={hotelId}
-          reservation={{
-            id: selectedBlock.reservationId || selectedBlock.id.replace(/^res-/, ""),
-            reservationCode: selectedBlock.reservationCode,
-            guestDisplayName: selectedBlock.guestName,
-            guestPhone: selectedBlock.phone,
-            guestCount: selectedBlock.guestCount,
-            notes: selectedBlock.notes,
-            roomId: selectedBlock.roomId,
-            roomNumber: selectedBlock.roomNumber,
-            roomTypeName: selectedBlock.roomTypeName,
-            plannedCheckInAt: selectedBlock.startAt || `${selectedBlock.startDate}T14:00:00+07:00`,
-            plannedCheckOutAt: selectedBlock.endAt || `${selectedBlock.endDate}T12:00:00+07:00`,
-            nightlyRateSnapshot: selectedBlock.nightlyRate,
-            roomSubtotal: selectedBlock.roomSubtotal,
-            totalAmount: selectedBlock.totalAmount,
-            expectedUpdatedAt: selectedBlock.expectedUpdatedAt,
-            status: selectedBlock.status,
-            channel: selectedBlock.channel,
-            source: selectedBlock.source,
-            sourcePartnerName: selectedBlock.sourcePartnerName,
-            groupCode: selectedBlock.groupCode,
-          }}
-          availableRooms={allRooms.map((r) => ({
-            id: r.id,
-            roomNumber: r.roomNumber,
-            type: r.roomTypeName,
-            status: r.status,
-            price: r.price,
-          }))}
-          canCheckIn={!isReadOnly && Boolean(selectedBlock.canCheckIn || selectedBlock.status === "CONFIRMED" || selectedBlock.status === "PENDING")}
-          onCheckIn={handleDrawerCheckIn}
-          onOpenGroupOperations={onOpenGroupCheckIn}
-          onSelectReservation={(nextRes) => {
-            const matchedBlock = allBlocks.find(
-              (b: RoomPlanBlock) =>
-                b.kind === "RESERVATION" &&
-                (b.reservationId === nextRes.id ||
-                  b.id.replace(/^res-/, "") === nextRes.id ||
-                  (nextRes.reservationCode && b.reservationCode === nextRes.reservationCode)),
-            );
-            if (matchedBlock) {
-              setSelectedBlock(matchedBlock);
+      {/* ── Edit Reservation Modal (Sửa + Thao tác Lễ tân nhanh khi click) ── */}
+      {selectedBlock &&
+        isEditReservationOpen &&
+        (selectedBlock.kind === "RESERVATION" || Boolean(selectedBlock.reservationId)) && (
+          <EditReservationModal
+            isOpen={Boolean(
+              selectedBlock &&
+                isEditReservationOpen &&
+                (selectedBlock.kind === "RESERVATION" || Boolean(selectedBlock.reservationId)),
+            )}
+            onClose={() => setSelectedBlock(null)}
+            hotelId={hotelId}
+            reservation={{
+              id: selectedBlock.reservationId || selectedBlock.id.replace(/^res-/, ""),
+              reservationCode: selectedBlock.reservationCode,
+              guestDisplayName: selectedBlock.guestName,
+              guestPhone: selectedBlock.phone,
+              guestCount: selectedBlock.guestCount,
+              notes: selectedBlock.notes,
+              roomId: selectedBlock.roomId,
+              roomNumber: selectedBlock.roomNumber,
+              roomTypeName: selectedBlock.roomTypeName,
+              plannedCheckInAt: selectedBlock.startAt || `${selectedBlock.startDate}T14:00:00+07:00`,
+              plannedCheckOutAt: selectedBlock.endAt || `${selectedBlock.endDate}T12:00:00+07:00`,
+              nightlyRateSnapshot: selectedBlock.nightlyRate,
+              roomSubtotal: selectedBlock.roomSubtotal,
+              totalAmount: selectedBlock.totalAmount,
+              expectedUpdatedAt: selectedBlock.expectedUpdatedAt,
+              status: selectedBlock.status,
+              channel: selectedBlock.channel,
+              source: selectedBlock.source,
+              sourcePartnerName: selectedBlock.sourcePartnerName,
+              groupCode: selectedBlock.groupCode,
+            }}
+            availableRooms={allRooms.map((r) => ({
+              id: r.id,
+              roomNumber: r.roomNumber,
+              type: r.roomTypeName,
+              status: r.status,
+              price: r.price,
+            }))}
+            conflictingStay={(() => {
+              const roomBlocks = blocksByRoomId.get(selectedBlock.roomId) || [];
+              const activeStay = roomBlocks.find(
+                (b) =>
+                  b.kind === "STAY" &&
+                  b.status !== "CHECKED_OUT" &&
+                  Boolean(b.guestStayId),
+              );
+              if (!activeStay || !activeStay.guestStayId) return null;
+              return {
+                stayId: activeStay.guestStayId,
+                guestName: cleanBlockGuestName(activeStay.guestName),
+                endDate: activeStay.endDate,
+                status: activeStay.status,
+                phone: activeStay.phone,
+              };
+            })()}
+            onCheckOutConflictingStay={
+              onCheckOutStay
+                ? async (stayId, roomNum) => {
+                    setSelectedBlock(null);
+                    await onCheckOutStay(stayId, roomNum);
+                    await invalidateHotelRealtimeQueries(queryClient, hotelId);
+                    void refetchPlan();
+                  }
+                : undefined
             }
-          }}
-          onSuccess={async () => {
-            setSelectedBlock(null);
-            await invalidateHotelRealtimeQueries(queryClient, hotelId);
-          }}
-        />
-      )}
+            canCheckIn={
+              !isReadOnly &&
+              (canCheckInStay ?? true) &&
+              Boolean(onCheckInReservation || onOpenCheckIn) &&
+              selectedBlock.kind === "RESERVATION" &&
+              selectedBlock.status !== "CANCELLED" &&
+              selectedBlock.status !== "NO_SHOW" &&
+              selectedBlock.status !== "CHECKED_OUT" &&
+              selectedBlock.status !== "CHECKED_IN"
+            }
+            onCheckIn={() => handleDrawerCheckIn({ forceSingleRoom: true })}
+            canCheckOut={!isReadOnly && Boolean(selectedBlock.guestStayId && onCheckOutStay)}
+            onCheckOut={handleDrawerCheckOut}
+            onViewDetails={() => setIsEditReservationOpen(false)}
+            onOpenGroupOperations={onOpenGroupCheckIn}
+            onSelectReservation={(nextRes) => {
+              const matchedBlock = allBlocks.find(
+                (b: RoomPlanBlock) =>
+                  b.kind === "RESERVATION" &&
+                  (b.reservationId === nextRes.id ||
+                    b.id.replace(/^res-/, "") === nextRes.id ||
+                    (nextRes.reservationCode && b.reservationCode === nextRes.reservationCode)),
+              );
+              if (matchedBlock) {
+                setSelectedBlock(matchedBlock);
+                setIsEditReservationOpen(true);
+              }
+            }}
+            onSuccess={async () => {
+              setSelectedBlock(null);
+              await invalidateHotelRealtimeQueries(queryClient, hotelId);
+            }}
+          />
+        )}
 
       {/* ── Accessible Placement Modal (Move / Swap Fallback) ─────── */}
       {!isReadOnly && placementModalOpen && placementSourceBlock && (

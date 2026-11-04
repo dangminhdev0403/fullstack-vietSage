@@ -7,6 +7,11 @@ import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { staffRoomsRepository } from "@/features/hotel-ops/repositories/staff-rooms-repository";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import type { HotelArrival, UpdateReservationInput } from "@/features/hotel-ops/types/hotel-ops-contract";
+import {
+  formatFriendlyCheckInError,
+  isEarlyCheckInError,
+  isLateCheckInError,
+} from "@/features/hotel-ops/utils/check-in-error";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import {
   formatVnDateInput,
@@ -19,7 +24,13 @@ import {
   toVietnamDatetimeLocal,
   toVietnamYmd,
 } from "@/libs/vietnam-temporal";
-import { showErrorAlert, showSuccessAlert, showWarningAlert } from "@/libs/swal";
+import {
+  formatEarlyCheckInConfirmHtml,
+  showConfirmDialog,
+  showErrorAlert,
+  showSuccessAlert,
+  showWarningAlert,
+} from "@/libs/swal";
 
 export type EditReservationModalProps = {
   isOpen: boolean;
@@ -56,12 +67,86 @@ export type EditReservationModalProps = {
     price?: number | string | null;
     basePrice?: number | string | null;
   }>;
+  conflictingStay?: {
+    stayId: string;
+    guestName: string;
+    endDate?: string | null;
+    status?: string | null;
+    phone?: string | null;
+  } | null;
+  onCheckOutConflictingStay?: (
+    stayId: string,
+    roomNumber: string,
+  ) => void | Promise<void>;
   canCheckIn?: boolean;
   onCheckIn?: () => void | Promise<void>;
+  canCheckOut?: boolean;
+  onCheckOut?: () => void | Promise<void>;
+  onViewDetails?: () => void;
   onOpenGroupOperations?: (groupCode: string) => void;
   onSelectReservation?: (res: { id: string; reservationCode?: string | null; roomNumber?: string | null }) => void;
   onSuccess?: (updated: HotelArrival) => void | Promise<void>;
 };
+
+function formatReservationStatusMeta(status?: string | null): {
+  label: string;
+  badgeClass: string;
+} {
+  const normalized = (status || "").trim().toUpperCase();
+  switch (normalized) {
+    case "ARRIVAL_READY":
+      return {
+        label: "Sẵn sàng nhận phòng",
+        badgeClass: "text-emerald-800 bg-emerald-50 border-emerald-200",
+      };
+    case "CONFIRMED":
+      return {
+        label: "Đã xác nhận",
+        badgeClass: "text-blue-800 bg-blue-50 border-blue-200",
+      };
+    case "RESERVED":
+      return {
+        label: "Đã giữ chỗ",
+        badgeClass: "text-indigo-800 bg-indigo-50 border-indigo-200",
+      };
+    case "PENDING":
+      return {
+        label: "Chờ xác nhận",
+        badgeClass: "text-amber-800 bg-amber-50 border-amber-200",
+      };
+    case "CHECKED_IN":
+    case "OCCUPIED":
+      return {
+        label: "Đang lưu trú",
+        badgeClass: "text-emerald-900 bg-emerald-100 border-emerald-300",
+      };
+    case "OVERDUE":
+      return {
+        label: "Quá hạn trả phòng",
+        badgeClass: "text-rose-900 bg-rose-100 border-rose-300",
+      };
+    case "CHECKED_OUT":
+      return {
+        label: "Đã trả phòng",
+        badgeClass: "text-slate-700 bg-slate-100 border-slate-200",
+      };
+    case "CANCELLED":
+      return {
+        label: "Đã hủy",
+        badgeClass: "text-rose-800 bg-rose-50 border-rose-200",
+      };
+    case "NO_SHOW":
+      return {
+        label: "Vắng mặt (No-show)",
+        badgeClass: "text-slate-700 bg-slate-100 border-slate-300",
+      };
+    default:
+      return {
+        label: "Đã đặt trước",
+        badgeClass: "text-slate-700 bg-white border-slate-200",
+      };
+  }
+}
 
 function formatVnd(val?: number | string | null): string {
   if (val === null || val === undefined || val === "") return "0 ₫";
@@ -280,8 +365,13 @@ export function EditReservationModal({
   hotelId,
   reservation,
   availableRooms: propRooms,
+  conflictingStay,
+  onCheckOutConflictingStay,
   canCheckIn,
   onCheckIn,
+  canCheckOut,
+  onCheckOut,
+  onViewDetails,
   onOpenGroupOperations,
   onSelectReservation,
   onSuccess,
@@ -308,6 +398,8 @@ export function EditReservationModal({
   const [showRoomOverride, setShowRoomOverride] = useState(false);
   const [editScope, setEditScope] = useState<"SINGLE" | "GROUP">("SINGLE");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMarkingRoomReady, setIsMarkingRoomReady] = useState(false);
+  const [cleanedRoomIds, setCleanedRoomIds] = useState<string[]>([]);
 
   const [originalQuote, setOriginalQuote] = useState({
     checkInInstant: "",
@@ -318,14 +410,13 @@ export function EditReservationModal({
   });
   const [isRateDirty, setIsRateDirty] = useState(false);
 
-  // Query rooms if propRooms not provided
+  // Always query full rooms list when modal is open so we know live status & activeStay of every room
   const { data: roomsPage } = useQuery({
     ...staffRoomsResource.bind({ hotelId }).queries.list.options({
-      status: "AVAILABLE",
-      limit: 100,
+      limit: 200,
     }),
-    enabled: isOpen && !propRooms,
-    staleTime: 10_000,
+    enabled: Boolean(isOpen && hotelId),
+    staleTime: 8_000,
   });
 
   // Query group arrivals if reservation has groupCode
@@ -364,22 +455,130 @@ export function EditReservationModal({
   }, [bookingPaymentsPage?.items]);
 
   const roomsList = useMemo(() => {
-    if (propRooms && propRooms.length > 0) return propRooms;
-    const items = roomsPage?.items || [];
-    return items.map((r) => ({
+    const apiItems = roomsPage?.items || [];
+    const apiById = new Map(apiItems.map((r) => [r.id, r]));
+    if (propRooms && propRooms.length > 0) {
+      const merged = propRooms.map((pr) => {
+        const live = apiById.get(pr.id);
+        return {
+          id: pr.id,
+          roomNumber: pr.roomNumber ?? live?.roomNumber,
+          type: pr.type ?? live?.type,
+          status: cleanedRoomIds.includes(pr.id)
+            ? "AVAILABLE"
+            : (live?.status ?? pr.status ?? "AVAILABLE"),
+          price: pr.price ?? pr.basePrice ?? live?.price ?? live?.basePrice,
+          basePrice: pr.basePrice ?? live?.basePrice,
+          activeStay: live?.activeStay ?? null,
+        };
+      });
+      const seenIds = new Set(merged.map((m) => m.id));
+      for (const r of apiItems) {
+        if (!seenIds.has(r.id)) {
+          merged.push({
+            id: r.id,
+            roomNumber: r.roomNumber,
+            type: r.type,
+            status: cleanedRoomIds.includes(r.id) ? "AVAILABLE" : r.status,
+            price: r.price ?? r.basePrice,
+            basePrice: r.basePrice,
+            activeStay: r.activeStay ?? null,
+          });
+        }
+      }
+      return merged;
+    }
+    return apiItems.map((r) => ({
       id: r.id,
       roomNumber: r.roomNumber,
       type: r.type,
-      status: r.status,
+      status: cleanedRoomIds.includes(r.id) ? "AVAILABLE" : r.status,
       price: r.price ?? r.basePrice,
       basePrice: r.basePrice,
+      activeStay: r.activeStay ?? null,
     }));
-  }, [propRooms, roomsPage?.items]);
+  }, [propRooms, roomsPage?.items, cleanedRoomIds]);
 
-  // Selected room base price
+  // Selected room object & live conflict detection
+  const effectiveRoomId = roomId || reservation?.roomId || "";
   const selectedRoom = useMemo(() => {
-    return roomsList.find((r) => r.id === roomId);
-  }, [roomsList, roomId]);
+    return roomsList.find((r) => r.id === effectiveRoomId);
+  }, [roomsList, effectiveRoomId]);
+
+  const selectedRoomNumber =
+    selectedRoom?.roomNumber ||
+    (effectiveRoomId === reservation?.roomId ? reservation?.roomNumber : "") ||
+    effectiveRoomId;
+
+  const selectedRoomTypeName =
+    selectedRoom?.type ||
+    (effectiveRoomId === reservation?.roomId ? reservation?.roomTypeName : "") ||
+    "Tiêu chuẩn";
+
+  const selectedRoomStatus = useMemo(() => {
+    if (effectiveRoomId && cleanedRoomIds.includes(effectiveRoomId)) {
+      return "AVAILABLE";
+    }
+    return (selectedRoom?.status || "").toUpperCase();
+  }, [effectiveRoomId, cleanedRoomIds, selectedRoom?.status]);
+
+  const effectiveConflictingStay = useMemo(() => {
+    if (effectiveRoomId === (reservation?.roomId || "") && conflictingStay) {
+      return conflictingStay;
+    }
+    const liveStay = selectedRoom?.activeStay;
+    if (
+      liveStay &&
+      liveStay.id &&
+      (liveStay.status || "").toUpperCase() !== "CHECKED_OUT"
+    ) {
+      return {
+        stayId: liveStay.id,
+        guestName: liveStay.guestDisplayName || "Khách đang lưu trú",
+        endDate: liveStay.plannedCheckOutAt || null,
+        status: liveStay.status || "OCCUPIED",
+        phone: liveStay.guestPhone || null,
+      };
+    }
+    return null;
+  }, [effectiveRoomId, reservation?.roomId, conflictingStay, selectedRoom?.activeStay]);
+
+  const isRoomOccupiedConflict = Boolean(
+    effectiveRoomId &&
+      (Boolean(effectiveConflictingStay) ||
+        selectedRoomStatus === "OCCUPIED" ||
+        selectedRoomStatus === "OVERDUE"),
+  );
+
+  const isRoomCleaningConflict = Boolean(
+    effectiveRoomId &&
+      !isRoomOccupiedConflict &&
+      (selectedRoomStatus === "PROCESSING" ||
+        selectedRoomStatus === "DIRTY" ||
+        selectedRoomStatus === "CLEANING"),
+  );
+
+  // Clean available rooms for 1-click turnaround reassignment
+  const { sameTypeCleanRooms, otherCleanRooms } = useMemo(() => {
+    const targetTypeNorm = (reservation?.roomTypeName || selectedRoomTypeName || "")
+      .trim()
+      .toLowerCase();
+    const same: typeof roomsList = [];
+    const other: typeof roomsList = [];
+
+    for (const r of roomsList) {
+      if (r.id === effectiveRoomId) continue;
+      const st = (r.status || "AVAILABLE").toUpperCase();
+      if (st !== "AVAILABLE") continue;
+      const rTypeNorm = (r.type || "").trim().toLowerCase();
+      if (targetTypeNorm && rTypeNorm === targetTypeNorm) {
+        same.push(r);
+      } else {
+        other.push(r);
+      }
+    }
+    return { sameTypeCleanRooms: same, otherCleanRooms: other };
+  }, [roomsList, effectiveRoomId, reservation?.roomTypeName, selectedRoomTypeName]);
 
   const baseRate = useMemo(() => {
     return Number(
@@ -396,6 +595,7 @@ export function EditReservationModal({
   if (previousInput?.isOpen !== isOpen || previousInput?.reservation !== reservation) {
     setPreviousInput({ isOpen, reservation });
     if (isOpen && reservation) {
+      setCleanedRoomIds([]);
 
     setGuestDisplayName(reservation.guestDisplayName || "");
     setGuestPhone(reservation.guestPhone || "");
@@ -573,20 +773,22 @@ export function EditReservationModal({
     }
   };
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!reservation) return;
+  async function saveReservationCore(options?: {
+    silentSuccessAlert?: boolean;
+    overrideRoomId?: string;
+  }): Promise<HotelArrival | null> {
+    if (!reservation) return null;
 
     const trimmedName = guestDisplayName.trim();
     if (!trimmedName) {
       await showWarningAlert("Thiếu thông tin", "Vui lòng nhập họ và tên khách đại diện.");
       firstInputRef.current?.focus();
-      return;
+      return null;
     }
 
     if (!plannedCheckInAt || !plannedCheckOutAt) {
       await showWarningAlert("Thiếu thông tin", "Vui lòng chọn ngày nhận và trả phòng hợp lệ.");
-      return;
+      return null;
     }
 
     // Preserve untouched check-in/out instants exactly; use hotel timezone parse when intentionally edited
@@ -610,10 +812,11 @@ export function EditReservationModal({
     const checkOutDate = new Date(effectiveCheckOutIso);
     if (checkOutDate <= checkInDate) {
       await showWarningAlert("Lịch trình không hợp lệ", "Ngày trả phòng phải sau ngày nhận phòng.");
-      return;
+      return null;
     }
 
     const isRateEdited = isRateDirty || (nightlyRate.trim() !== originalQuote.rateInput.trim());
+    const finalRoomId = (options?.overrideRoomId ?? roomId).trim() || null;
 
     setIsSubmitting(true);
     try {
@@ -622,7 +825,7 @@ export function EditReservationModal({
         guestPhone: guestPhone.trim() || null,
         guestCount: guestCount > 0 ? guestCount : 1,
         notes: notes.trim() || null,
-        roomId: roomId.trim() || null,
+        roomId: finalRoomId,
         plannedCheckInAt: effectiveCheckInIso,
         plannedCheckOutAt: effectiveCheckOutIso,
         startDate: toVietnamYmd(effectiveCheckInIso),
@@ -677,27 +880,282 @@ export function EditReservationModal({
         }
       }
 
-      await showSuccessAlert(
-        "Cập nhật thành công",
-        editScope === "GROUP" && reservation.groupCode
-          ? `Đã lưu thay đổi cho toàn bộ đoàn #${reservation.groupCode}.`
-          : `Đã lưu thay đổi cho đơn đặt phòng #${reservation.reservationCode || reservation.id}.`,
-      );
+      if (!options?.silentSuccessAlert) {
+        await showSuccessAlert(
+          "Cập nhật thành công",
+          editScope === "GROUP" && reservation.groupCode
+            ? `Đã lưu thay đổi cho toàn bộ đoàn #${reservation.groupCode}.`
+            : `Đã lưu thay đổi cho đơn đặt phòng #${reservation.reservationCode || reservation.id}.`,
+        );
+      }
 
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       if (onSuccess) {
         await onSuccess(updated);
       }
-      onClose();
+      return updated;
     } catch (err) {
       await showErrorAlert(
         "Không thể lưu thay đổi",
         err instanceof Error ? err.message : "Đã có lỗi xảy ra khi cập nhật đơn đặt phòng.",
       );
+      return null;
     } finally {
       setIsSubmitting(false);
     }
   }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const updated = await saveReservationCore();
+    if (updated) {
+      onClose();
+    }
+  }
+
+  async function handleMarkRoomReadyInPlace(andCheckIn?: boolean) {
+    if (!effectiveRoomId) return;
+    setIsMarkingRoomReady(true);
+    try {
+      await staffRoomsRepository.markRoomReady(hotelId, effectiveRoomId);
+      setCleanedRoomIds((prev) =>
+        prev.includes(effectiveRoomId) ? prev : [...prev, effectiveRoomId],
+      );
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
+      if (andCheckIn && canCheckIn) {
+        await handleExpressCheckIn({ skipCleaningPrompt: true });
+      } else {
+        await showSuccessAlert(
+          "Phòng đã sẵn sàng!",
+          `Đã xác nhận Phòng ${selectedRoomNumber} dọn sạch và sẵn sàng đón khách.`,
+        );
+      }
+    } catch (err) {
+      await showErrorAlert(
+        "Không thể cập nhật trạng thái phòng",
+        err instanceof Error ? err.message : "Đã có lỗi xảy ra khi xác nhận phòng sạch.",
+      );
+    } finally {
+      setIsMarkingRoomReady(false);
+    }
+  }
+
+  async function handleSaveAndCheckIn() {
+    if (!canCheckIn || !onCheckIn) return;
+    if (isRoomOccupiedConflict) {
+      if (effectiveConflictingStay && onCheckOutConflictingStay) {
+        const ask = await showConfirmDialog({
+          icon: "warning",
+          title: `Phòng ${selectedRoomNumber} đang có khách ở`,
+          text: `Khách "${effectiveConflictingStay.guestName}" tại Phòng ${selectedRoomNumber} chưa làm thủ tục trả phòng (Check-out). Bạn muốn mở trả phòng cho khách cũ ngay bây giờ, hay chọn đổi sang phòng trống khác cho đơn đặt này?`,
+          confirmText: `Trả phòng (Check-out) P.${selectedRoomNumber} ngay`,
+          cancelText: "Để tôi đổi sang phòng trống khác",
+          reverseButtons: false,
+        });
+        if (ask.isConfirmed) {
+          await onCheckOutConflictingStay(
+            effectiveConflictingStay.stayId,
+            String(selectedRoomNumber),
+          );
+          return;
+        }
+        setShowRoomOverride(true);
+        return;
+      }
+      setShowRoomOverride(true);
+      await showWarningAlert(
+        `Phòng ${selectedRoomNumber} đang có khách lưu trú`,
+        "Phòng này chưa làm thủ tục trả phòng (Check-out). Vui lòng nhấn chọn một phòng trống khả dụng ở khung Xử lý xung đột hoặc trả phòng khách hiện tại trước.",
+      );
+      return;
+    }
+
+    const updated = await saveReservationCore({ silentSuccessAlert: true });
+    if (updated) {
+      await onCheckIn();
+    }
+  }
+
+  async function handleExpressCheckIn(options?: {
+    overrideRoomId?: string;
+    skipCleaningPrompt?: boolean;
+  }) {
+    if (!reservation || !canCheckIn) return;
+    const targetRoomId =
+      options?.overrideRoomId?.trim() || roomId.trim() || reservation.roomId || "";
+    if (!targetRoomId) {
+      await showWarningAlert(
+        "Chưa phân bổ phòng",
+        "Vui lòng chọn số phòng cụ thể trước khi thực hiện Nhận phòng nhanh 1 chạm.",
+      );
+      return;
+    }
+
+    const targetRoomObj = roomsList.find((r) => r.id === targetRoomId);
+    const displayRoomNumber =
+      targetRoomObj?.roomNumber || reservation.roomNumber || targetRoomId;
+    const targetStatus = (
+      cleanedRoomIds.includes(targetRoomId)
+        ? "AVAILABLE"
+        : targetRoomObj?.status || ""
+    ).toUpperCase();
+
+    const targetHasOccupiedConflict =
+      !options?.overrideRoomId && isRoomOccupiedConflict;
+
+    if (targetHasOccupiedConflict || targetStatus === "OCCUPIED" || targetStatus === "OVERDUE") {
+      if (effectiveConflictingStay && onCheckOutConflictingStay) {
+        const ask = await showConfirmDialog({
+          icon: "warning",
+          title: `Phòng ${displayRoomNumber} chưa trả phòng (Check-out)`,
+          text: `Khách "${effectiveConflictingStay.guestName}" vẫn đang lưu trú tại Phòng ${displayRoomNumber}. Bạn muốn làm thủ tục Trả phòng (Check-out) cho khách cũ ngay bây giờ, hay đổi sang phòng trống khác?`,
+          confirmText: `Trả phòng P.${displayRoomNumber} ngay`,
+          cancelText: "Đổi sang phòng trống khác",
+          reverseButtons: false,
+        });
+        if (ask.isConfirmed) {
+          await onCheckOutConflictingStay(
+            effectiveConflictingStay.stayId,
+            String(displayRoomNumber),
+          );
+          return;
+        }
+        setShowRoomOverride(true);
+        return;
+      }
+
+      setShowRoomOverride(true);
+      await showWarningAlert(
+        `Phòng ${displayRoomNumber} đang có khách lưu trú`,
+        `Phòng ${displayRoomNumber} chưa được trả phòng (Check-out). Bạn có thể bấm chọn nhanh 1 phòng trống cùng hạng ngay trong khung điều phối bên dưới để nhận phòng tức thì.`,
+      );
+      return;
+    }
+
+    if (
+      !options?.skipCleaningPrompt &&
+      (targetStatus === "PROCESSING" || targetStatus === "DIRTY" || targetStatus === "CLEANING")
+    ) {
+      const confirmClean = await showConfirmDialog({
+        icon: "question",
+        title: `Phòng ${displayRoomNumber} đang chờ dọn`,
+        text: `Phòng ${displayRoomNumber} khách cũ vừa trả, đang ở trạng thái chờ buồng phòng dọn. Bạn có muốn xác nhận phòng đã sạch và nhận phòng ngay cho khách ${guestDisplayName.trim() || reservation.guestDisplayName} không?`,
+        confirmText: `Xác nhận phòng sạch & Nhận phòng ngay`,
+        cancelText: "Hủy bỏ",
+        reverseButtons: false,
+      });
+      if (!confirmClean.isConfirmed) return;
+      try {
+        await staffRoomsRepository.markRoomReady(hotelId, targetRoomId);
+        setCleanedRoomIds((prev) =>
+          prev.includes(targetRoomId) ? prev : [...prev, targetRoomId],
+        );
+      } catch (cleanErr) {
+        await showErrorAlert(
+          "Không thể xác nhận phòng sạch",
+          cleanErr instanceof Error ? cleanErr.message : "Đã có lỗi xảy ra khi mở khóa phòng chờ dọn.",
+        );
+        return;
+      }
+    }
+
+    const updated = await saveReservationCore({
+      silentSuccessAlert: true,
+      overrideRoomId: options?.overrideRoomId,
+    });
+    if (!updated) return;
+
+    const basePayload: Record<string, unknown> = {
+      guestDisplayName: guestDisplayName.trim() || reservation.guestDisplayName,
+      ...(guestPhone.trim() ? { guestPhone: guestPhone.trim() } : {}),
+      ...(updated.plannedCheckOutAt
+        ? { plannedCheckOutAt: updated.plannedCheckOutAt }
+        : {}),
+      expectedRoomId: targetRoomId,
+      ...(updated.updatedAt ? { expectedUpdatedAt: updated.updatedAt } : {}),
+    };
+
+    setIsSubmitting(true);
+    try {
+      const resData = await staffRoomsRepository.checkInReservation(
+        hotelId,
+        reservation.id,
+        basePayload,
+      );
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
+      await showSuccessAlert(
+        `Đã nhận phòng P.${displayRoomNumber}!`,
+        `Khách ${guestDisplayName.trim() || reservation.guestDisplayName} đã nhận phòng thành công${resData?.accessCode ? ` (Mã GuestOS: ${resData.accessCode})` : ""}.`,
+      );
+      onClose();
+    } catch (err) {
+      if (isEarlyCheckInError(err) || isLateCheckInError(err)) {
+        const isEarly = isEarlyCheckInError(err);
+        const warningConfirm = await showConfirmDialog({
+          icon: "warning",
+          title: isEarly ? "Xác nhận nhận phòng sớm?" : "Xác nhận nhận phòng quá hạn?",
+          html: formatEarlyCheckInConfirmHtml({
+            guestName: guestDisplayName.trim() || reservation.guestDisplayName,
+            roomNumber: String(displayRoomNumber),
+            scheduledDate: updated.plannedCheckInAt
+              ? updated.plannedCheckInAt.slice(0, 10)
+              : "Theo lịch hẹn",
+            reservationCode: reservation.reservationCode,
+            isEarly,
+          }),
+          confirmText: isEarly ? "Đồng ý nhận phòng sớm" : "Đồng ý nhận phòng trễ",
+          cancelText: "Hủy bỏ",
+          reverseButtons: false,
+        });
+
+        if (warningConfirm.isConfirmed) {
+          try {
+            const retryData = await staffRoomsRepository.checkInReservation(
+              hotelId,
+              reservation.id,
+              {
+                ...basePayload,
+                ...(isEarly
+                  ? { confirmEarlyCheckIn: true }
+                  : { confirmLateCheckIn: true }),
+              },
+            );
+            await invalidateHotelRealtimeQueries(queryClient, hotelId);
+            await showSuccessAlert(
+              `Đã nhận phòng P.${displayRoomNumber}!`,
+              `Khách ${guestDisplayName.trim() || reservation.guestDisplayName} đã nhận phòng thành công${retryData?.accessCode ? ` (Mã GuestOS: ${retryData.accessCode})` : ""}.`,
+            );
+            onClose();
+            return;
+          } catch (retryErr) {
+            await invalidateHotelRealtimeQueries(queryClient, hotelId);
+            await showErrorAlert(
+              "Không thể nhận phòng nhanh",
+              formatFriendlyCheckInError(retryErr),
+            );
+            return;
+          }
+        }
+        return;
+      }
+
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
+      await showErrorAlert(
+        "Không thể nhận phòng nhanh",
+        formatFriendlyCheckInError(err),
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  const statusMeta = formatReservationStatusMeta(reservation.status);
+  const hasQuickReceptionActions = Boolean(
+    (canCheckIn && onCheckIn) ||
+      (canCheckOut && onCheckOut) ||
+      (reservation.groupCode && onOpenGroupOperations) ||
+      onViewDetails,
+  );
 
   // Rate difference badge calculation
   const rateDiffPercent =
@@ -745,6 +1203,13 @@ export function EditReservationModal({
                     Đoàn #{reservation.groupCode}
                   </span>
                 )}
+                {reservation.status && (
+                  <span
+                    className={`text-xs font-bold border px-2 py-0.5 rounded-md whitespace-nowrap ${statusMeta.badgeClass}`}
+                  >
+                    {statusMeta.label}
+                  </span>
+                )}
               </div>
               <p id={descId} className="text-xs text-slate-500 font-medium mt-0.5">
                 {reservation.roomNumber
@@ -753,18 +1218,244 @@ export function EditReservationModal({
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
-            aria-label="Đóng"
-          >
-            <VsIcon name="close" className="text-base" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onViewDetails && (
+              <button
+                type="button"
+                onClick={onViewDetails}
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer whitespace-nowrap shadow-2xs"
+                title="Xem chi tiết lưu trú & dịch vụ"
+              >
+                <VsIcon name="receipt_long" className="text-sm text-slate-600" />
+                <span>Chi tiết & Dịch vụ</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
+              aria-label="Đóng"
+            >
+              <VsIcon name="close" className="text-base" />
+            </button>
+          </div>
         </header>
 
+        {/* Thanh thao tác nhanh Lễ tân (Check-in / Check-out / Đoàn ngay trên đầu) */}
+        {hasQuickReceptionActions && (
+          <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-emerald-200/80 bg-emerald-50/60 px-6 py-2.5 shrink-0">
+            <div className="flex items-center gap-2 text-xs font-bold text-emerald-950">
+              <VsIcon name="bolt" className="text-base text-emerald-700 shrink-0" />
+              <span>
+                Thao tác lễ tân nhanh{" "}
+                {selectedRoomNumber ? `cho Phòng ${selectedRoomNumber}` : ""}:
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {canCheckIn && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void handleExpressCheckIn()}
+                    disabled={isSubmitting || isMarkingRoomReady}
+                    className="inline-flex min-h-[36px] items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3.5 py-1.5 text-xs font-black text-white shadow-xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                    title="Lưu thông tin hiện tại và chuyển trạng thái phòng sang Đang ở ngay lập tức (1 chạm)"
+                  >
+                    <VsIcon name="bolt" className="text-sm text-amber-300" />
+                    <span>
+                      {selectedRoomNumber
+                        ? `Nhận phòng nhanh P.${selectedRoomNumber} (1 chạm)`
+                        : "Nhận phòng nhanh (1 chạm)"}
+                    </span>
+                  </button>
+                  {onCheckIn && (
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveAndCheckIn()}
+                      disabled={isSubmitting || isMarkingRoomReady}
+                      className="inline-flex min-h-[36px] items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-white hover:bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-900 shadow-2xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                      title="Lưu thông tin và mở cửa sổ quét CCCD / Hộ chiếu"
+                    >
+                      <VsIcon name="badge" className="text-sm text-emerald-700" />
+                      <span>Nhận phòng & Quét CCCD</span>
+                    </button>
+                  )}
+                </>
+              )}
+
+              {reservation.groupCode && onOpenGroupOperations && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const code = reservation.groupCode!.replace(/^#+/, "").trim();
+                    onClose();
+                    onOpenGroupOperations(code);
+                  }}
+                  disabled={isSubmitting}
+                  className="inline-flex min-h-[36px] items-center justify-center gap-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                >
+                  <VsIcon name="groups" className="text-sm" />
+                  <span>Check-in / Quản lý đoàn #{reservation.groupCode}</span>
+                </button>
+              )}
+
+              {canCheckOut && onCheckOut && (
+                <button
+                  type="button"
+                  onClick={onCheckOut}
+                  disabled={isSubmitting}
+                  className="inline-flex min-h-[36px] items-center justify-center gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 px-3.5 py-1.5 text-xs font-black text-white shadow-xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                >
+                  <VsIcon name="payments" className="text-sm" />
+                  <span>Trả phòng (Check-out)</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Khung Điều phối Nhanh Xung đột Phòng đang ở / Chờ dọn (Turnaround & Conflict Resolution) */}
+        {isRoomOccupiedConflict && (
+          <div className="border-b border-rose-200 bg-rose-50/90 px-6 py-3 shrink-0 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-rose-950">
+                <VsIcon name="warning" className="text-base text-rose-600 shrink-0" />
+                <span className="text-pretty">
+                  Phòng <strong>P.{selectedRoomNumber}</strong> đang có khách lưu trú{" "}
+                  {effectiveConflictingStay?.guestName ? (
+                    <>
+                      (<strong>{effectiveConflictingStay.guestName}</strong>
+                      {effectiveConflictingStay.endDate
+                        ? ` · Trả dự kiến: ${toDisplayVnDate(effectiveConflictingStay.endDate.slice(0, 10))}`
+                        : ""}
+                      )
+                    </>
+                  ) : null}{" "}
+                  chưa làm thủ tục trả phòng (Check-out).
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {effectiveConflictingStay?.stayId && onCheckOutConflictingStay && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void onCheckOutConflictingStay(
+                        effectiveConflictingStay.stayId,
+                        String(selectedRoomNumber),
+                      )
+                    }
+                    disabled={isSubmitting}
+                    className="inline-flex min-h-[34px] items-center gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 px-3 py-1.5 text-xs font-black text-white shadow-xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
+                    title="Mở quyết toán & trả phòng cho khách đang ở để giải phóng phòng này"
+                  >
+                    <VsIcon name="payments" className="text-sm" />
+                    <span>Trả phòng (Check-out) khách cũ P.{selectedRoomNumber} ngay</span>
+                  </button>
+                )}
+
+                {(sameTypeCleanRooms[0] || otherCleanRooms[0]) && canCheckIn && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = sameTypeCleanRooms[0] || otherCleanRooms[0];
+                      if (target) {
+                        setRoomId(target.id);
+                        void handleExpressCheckIn({ overrideRoomId: target.id });
+                      }
+                    }}
+                    disabled={isSubmitting}
+                    className="inline-flex min-h-[34px] items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 text-xs font-black text-white shadow-xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
+                    title="Đổi sang phòng trống sẵn sàng và hoàn tất nhận phòng trong 1 chạm"
+                  >
+                    <VsIcon name="swap_horiz" className="text-sm text-amber-300" />
+                    <span>
+                      Đổi sang P.{(sameTypeCleanRooms[0] || otherCleanRooms[0])?.roomNumber} & Nhận phòng ngay
+                    </span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {(sameTypeCleanRooms.length > 0 || otherCleanRooms.length > 0) && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-rose-200/70">
+                <span className="text-xs font-bold text-rose-900 mr-1">
+                  Đổi nhanh sang phòng trống sẵn sàng (1 chạm):
+                </span>
+                {sameTypeCleanRooms.slice(0, 6).map((rm) => (
+                  <button
+                    key={rm.id}
+                    type="button"
+                    onClick={() => setRoomId(rm.id)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white hover:bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-900 shadow-2xs transition cursor-pointer whitespace-nowrap"
+                    title={`Đổi sang Phòng ${rm.roomNumber} (${rm.type || "Cùng hạng"} - Đang trống)`}
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                    <span>P.{rm.roomNumber} (Cùng hạng)</span>
+                  </button>
+                ))}
+                {otherCleanRooms.slice(0, 4).map((rm) => (
+                  <button
+                    key={rm.id}
+                    type="button"
+                    onClick={() => setRoomId(rm.id)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-2xs transition cursor-pointer whitespace-nowrap"
+                    title={`Đổi sang Phòng ${rm.roomNumber} (${rm.type || "Khác hạng"} - Đang trống)`}
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    <span>
+                      P.{rm.roomNumber} {rm.type ? `· ${rm.type}` : ""}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {isRoomCleaningConflict && (
+          <div className="border-b border-amber-200 bg-amber-50/90 px-6 py-3 shrink-0 flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2 text-xs font-bold text-amber-950">
+              <VsIcon name="cleaning_services" className="text-base text-amber-700 shrink-0" />
+              <span className="text-pretty">
+                Phòng <strong>P.{selectedRoomNumber}</strong> khách cũ vừa trả, đang ở trạng thái{" "}
+                <strong>Chờ dọn phòng</strong>.
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {canCheckIn && (
+                <button
+                  type="button"
+                  onClick={() => void handleMarkRoomReadyInPlace(true)}
+                  disabled={isSubmitting || isMarkingRoomReady}
+                  className="inline-flex min-h-[34px] items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 text-xs font-black text-white shadow-xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                >
+                  <VsIcon name="bolt" className="text-sm text-amber-300" />
+                  <span>
+                    {isMarkingRoomReady
+                      ? "Đang xử lý..."
+                      : `Xác nhận P.${selectedRoomNumber} sạch & Nhận phòng ngay`}
+                  </span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => void handleMarkRoomReadyInPlace(false)}
+                disabled={isSubmitting || isMarkingRoomReady}
+                className="inline-flex min-h-[34px] items-center gap-1.5 rounded-xl border border-amber-300 bg-white hover:bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-950 shadow-2xs transition cursor-pointer disabled:opacity-50 whitespace-nowrap"
+              >
+                <VsIcon name="check_circle" className="text-sm text-emerald-700" />
+                <span>Xác nhận P.{selectedRoomNumber} đã sạch</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             {/* Cột 1: Thông tin khách hàng, Phòng lưu trú & Đoàn khách (lg:col-span-5) */}
             <div className="lg:col-span-5 flex flex-col space-y-4">
@@ -776,12 +1467,10 @@ export function EditReservationModal({
                     <span>{reservation.groupCode ? "Thông tin khách / Trưởng đoàn" : "Thông tin khách đại diện"}</span>
                   </h3>
                   {reservation.status && (
-                    <span className="text-xs font-bold text-slate-600 bg-white border border-slate-200 px-2 py-0.5 rounded-md whitespace-nowrap">
-                      {reservation.status === "CONFIRMED"
-                        ? "Đã xác nhận"
-                        : reservation.status === "PENDING"
-                          ? "Chờ xác nhận"
-                          : reservation.status}
+                    <span
+                      className={`text-xs font-bold border px-2 py-0.5 rounded-md whitespace-nowrap ${statusMeta.badgeClass}`}
+                    >
+                      {statusMeta.label}
                     </span>
                   )}
                 </div>
@@ -831,18 +1520,62 @@ export function EditReservationModal({
                 </div>
 
                 {/* Phòng lưu trú (Chuẩn tinh gọn: Hiển thị trạng thái + đổi tại check-in) */}
-                <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2 shadow-2xs">
-                  <div className="flex items-center justify-between">
+                <div
+                  className={`rounded-xl border p-3 space-y-2 shadow-2xs ${
+                    isRoomOccupiedConflict
+                      ? "border-rose-300 bg-rose-50/40"
+                      : isRoomCleaningConflict
+                        ? "border-amber-300 bg-amber-50/40"
+                        : "border-slate-200 bg-white"
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-1.5">
                     <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                       <VsIcon name="meeting_room" className="text-sm text-blue-700" />
                       <span>Phòng lưu trú</span>
                     </span>
-                    <span className="text-xs font-black text-blue-900 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-md whitespace-nowrap">
-                      {reservation.roomNumber
-                        ? `Phòng ${reservation.roomNumber} (${reservation.roomTypeName || "Tiêu chuẩn"})`
-                        : "Chưa phân bổ cụ thể"}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-xs font-black text-blue-900 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-md whitespace-nowrap">
+                        {selectedRoomNumber
+                          ? `Phòng ${selectedRoomNumber} (${selectedRoomTypeName})`
+                          : "Chưa phân bổ cụ thể"}
+                      </span>
+                      {effectiveRoomId && (
+                        isRoomOccupiedConflict ? (
+                          <span className="text-xs font-bold text-rose-800 bg-rose-100 border border-rose-300 px-2 py-0.5 rounded-md whitespace-nowrap">
+                            Đang có khách
+                          </span>
+                        ) : isRoomCleaningConflict ? (
+                          <span className="text-xs font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md whitespace-nowrap">
+                            Chờ dọn
+                          </span>
+                        ) : (
+                          <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md whitespace-nowrap">
+                            Trống sẵn sàng
+                          </span>
+                        )
+                      )}
+                    </div>
                   </div>
+
+                  {roomId && reservation.roomId && roomId !== reservation.roomId && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50/90 px-2.5 py-1.5 text-xs text-emerald-950">
+                      <span className="font-bold">
+                        Đã chọn đổi: P.{reservation.roomNumber} ➔ P.{selectedRoomNumber}
+                      </span>
+                      {canCheckIn && (
+                        <button
+                          type="button"
+                          onClick={() => void handleExpressCheckIn({ overrideRoomId: roomId })}
+                          disabled={isSubmitting}
+                          className="inline-flex items-center gap-1 rounded-md bg-emerald-700 hover:bg-emerald-800 px-2.5 py-1 text-xs font-black text-white shadow-2xs transition cursor-pointer whitespace-nowrap"
+                        >
+                          <VsIcon name="bolt" className="text-xs text-amber-300" />
+                          <span>Lưu & Nhận P.{selectedRoomNumber} ngay</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between text-xs text-slate-500 font-medium pt-1 border-t border-slate-100">
                     <span className="flex items-center gap-1 text-slate-500">
@@ -858,10 +1591,10 @@ export function EditReservationModal({
                     </button>
                   </div>
 
-                  {showRoomOverride && (
-                    <div className="pt-2 border-t border-slate-100 animate-in fade-in duration-150 space-y-1">
+                  {(showRoomOverride || isRoomOccupiedConflict || isRoomCleaningConflict) && (
+                    <div className="pt-2 border-t border-slate-100 animate-in fade-in duration-150 space-y-1.5">
                       <label htmlFor="edit-reservation-room-select" className="text-xs font-semibold text-slate-600 block">
-                        Chọn phòng khác:
+                        Chọn phòng khác (ưu tiên phòng trống cùng hạng):
                       </label>
                       <select
                         id="edit-reservation-room-select"
@@ -878,12 +1611,24 @@ export function EditReservationModal({
                             Phòng {reservation.roomNumber || reservation.roomId} (Phòng hiện tại)
                           </option>
                         ) : null}
-                        {roomsList.map((room) => (
-                          <option key={room.id} value={room.id}>
-                            Phòng {room.roomNumber} {room.type ? `· ${room.type}` : ""}{" "}
-                            {room.price ? `(${formatVnd(room.price)}/đêm)` : ""}
-                          </option>
-                        ))}
+                        {roomsList.map((room) => {
+                          const st = (room.status || "AVAILABLE").toUpperCase();
+                          const statusLabel =
+                            st === "AVAILABLE"
+                              ? "Trống sẵn sàng"
+                              : st === "OCCUPIED" || st === "OVERDUE"
+                                ? "Đang có khách"
+                                : st === "PROCESSING" || st === "DIRTY" || st === "CLEANING"
+                                  ? "Chờ dọn"
+                                  : st;
+                          return (
+                            <option key={room.id} value={room.id}>
+                              Phòng {room.roomNumber} [{statusLabel}]
+                              {room.type ? ` · ${room.type}` : ""}{" "}
+                              {room.price ? `(${formatVnd(room.price)}/đêm)` : ""}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
                   )}
@@ -1364,19 +2109,67 @@ export function EditReservationModal({
               </div>
             </div>
           </div>
+          </div>
 
-          {/* Footer buttons */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-3.5 border-t border-slate-200">
-            <div>
-              {canCheckIn && onCheckIn ? (
+          {/* Sticky Footer buttons */}
+          <footer className="shrink-0 flex flex-wrap items-center justify-between gap-3 px-6 py-3.5 border-t border-slate-200 bg-slate-50/95">
+            <div className="flex flex-wrap items-center gap-2">
+              {canCheckIn ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void handleExpressCheckIn()}
+                    disabled={isSubmitting}
+                    className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs sm:text-sm font-black text-white shadow-2xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                    title="Lưu thông tin và chuyển trạng thái phòng sang Đang ở ngay lập tức"
+                  >
+                    <VsIcon name="bolt" className="text-base text-amber-300" />
+                    <span>
+                      {selectedRoomNumber
+                        ? `Nhận phòng nhanh P.${selectedRoomNumber}`
+                        : "Nhận phòng nhanh (1 chạm)"}
+                    </span>
+                  </button>
+                  {onCheckIn && (
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveAndCheckIn()}
+                      disabled={isSubmitting}
+                      className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-3.5 py-2 text-xs sm:text-sm font-bold text-emerald-950 shadow-2xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                      title="Lưu thông tin và mở cửa sổ quét CCCD / Hộ chiếu"
+                    >
+                      <VsIcon name="badge" className="text-base text-emerald-700" />
+                      <span>Nhận phòng & CCCD</span>
+                    </button>
+                  )}
+                </>
+              ) : null}
+
+              {reservation.groupCode && onOpenGroupOperations ? (
                 <button
                   type="button"
-                  onClick={onCheckIn}
+                  onClick={() => {
+                    const code = reservation.groupCode!.replace(/^#+/, "").trim();
+                    onClose();
+                    onOpenGroupOperations(code);
+                  }}
                   disabled={isSubmitting}
-                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs sm:text-sm font-bold text-white shadow-2xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50"
+                  className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl border border-purple-300 bg-purple-50 hover:bg-purple-100 px-3.5 py-2 text-xs sm:text-sm font-bold text-purple-900 shadow-2xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
                 >
-                  <VsIcon name="login" className="text-base" />
-                  <span>Nhận phòng (Check-in) ngay</span>
+                  <VsIcon name="groups" className="text-base text-purple-700" />
+                  <span>Check-in cả đoàn</span>
+                </button>
+              ) : null}
+
+              {canCheckOut && onCheckOut ? (
+                <button
+                  type="button"
+                  onClick={onCheckOut}
+                  disabled={isSubmitting}
+                  className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 px-4 py-2 text-xs sm:text-sm font-black text-white shadow-2xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                >
+                  <VsIcon name="payments" className="text-base" />
+                  <span>Trả phòng (Check-out)</span>
                 </button>
               ) : null}
             </div>
@@ -1386,14 +2179,14 @@ export function EditReservationModal({
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs sm:text-sm font-bold text-slate-700 transition hover:bg-slate-100 cursor-pointer disabled:opacity-50"
+                className="inline-flex min-h-[42px] items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs sm:text-sm font-bold text-slate-700 transition hover:bg-slate-100 cursor-pointer disabled:opacity-50 whitespace-nowrap"
               >
                 <span>Hủy bỏ</span>
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-blue-700 hover:bg-blue-800 px-6 py-2 text-xs sm:text-sm font-bold text-white shadow-xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-xl bg-blue-700 hover:bg-blue-800 px-5 py-2 text-xs sm:text-sm font-bold text-white shadow-xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
               >
                 {isSubmitting ? (
                   <>
@@ -1408,7 +2201,7 @@ export function EditReservationModal({
                 )}
               </button>
             </div>
-          </div>
+          </footer>
         </form>
       </div>
     </div>
