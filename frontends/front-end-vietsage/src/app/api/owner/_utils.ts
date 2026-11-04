@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
 
 import { auth } from "@/auth";
+import { runtimeConsole } from "@/core/logging/runtime-console";
 import { HttpError } from "@/core/http/http-error";
 import { refreshAndSaveSessionTokens } from "@/libs/auth-session-refresh";
 import type { UserRole } from "@/libs/auth";
@@ -112,7 +113,7 @@ export async function executeOwnerBackendRequest<T>(
       throw error;
     }
 
-    console.info("[API_AUTH] 401_owner_refresh_retry", { operationName: _operationName });
+    runtimeConsole.info("[API_AUTH] 401_owner_refresh_retry", { operationName: _operationName });
 
     try {
       const refreshedTokens = await refreshAndSaveSessionTokens(ownerAuth.refreshToken);

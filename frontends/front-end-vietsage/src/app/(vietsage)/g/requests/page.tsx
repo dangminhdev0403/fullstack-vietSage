@@ -352,7 +352,7 @@ export default function GuestRequestsPage() {
               <div className="rounded-3xl border-2 border-dashed border-amber-200 bg-amber-50/30 px-6 py-12 text-center">
                 <VsIcon name="storefront" className="mx-auto mb-3 text-4xl text-amber-300" />
                 <p className="text-sm font-bold text-[#465149]">Chưa có đơn dịch vụ bên ngoài</p>
-                <p className="mt-1 text-xs text-[#5e6a62]">Khi bạn đặt dịch vụ từ đối tác liên kết, đơn sẽ xuất hiện tại đây.</p>
+                <p className="mt-1 text-xs text-[#5e6a62]">Đơn đặt dịch vụ từ đối tác liên kết sẽ xuất hiện trong danh sách này.</p>
               </div>
             )}
           </section>

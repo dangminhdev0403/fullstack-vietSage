@@ -1,0 +1,16 @@
+[
+  {
+    "reservationCode": "VSH_RESERVATION_0122",
+    "status": "ARRIVAL_READY",
+    "roomId": "audit-fix-20261104-room-L",
+    "stayId": null,
+    "stayStatus": null
+  },
+  {
+    "reservationCode": "VSH_RESERVATION_0123",
+    "status": "CHECKED_IN",
+    "roomId": "audit-fix-20261104-room-M",
+    "stayId": "cmw1xbdq1003rmgv430ztll3j",
+    "stayStatus": "ACTIVE"
+  }
+]

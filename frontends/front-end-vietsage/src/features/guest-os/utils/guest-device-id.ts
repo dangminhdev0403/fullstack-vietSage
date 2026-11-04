@@ -1,3 +1,5 @@
+import { safeLocalStorage } from "@/core/storage/safe-storage";
+
 const GUEST_DEVICE_ID_STORAGE_KEY = "vietsage.guest-os.device-id.v1";
 const GUEST_DEVICE_ID_PREFIX = "guest-device-";
 
@@ -25,7 +27,7 @@ export function getOrCreateGuestDeviceId(): string | undefined {
   }
 
   try {
-    const existingDeviceId = window.localStorage.getItem(GUEST_DEVICE_ID_STORAGE_KEY)?.trim();
+    const existingDeviceId = safeLocalStorage.getItem(GUEST_DEVICE_ID_STORAGE_KEY)?.trim();
     if (existingDeviceId) {
       return existingDeviceId;
     }
@@ -35,7 +37,7 @@ export function getOrCreateGuestDeviceId(): string | undefined {
       return undefined;
     }
 
-    window.localStorage.setItem(GUEST_DEVICE_ID_STORAGE_KEY, newDeviceId);
+    safeLocalStorage.setItem(GUEST_DEVICE_ID_STORAGE_KEY, newDeviceId);
     return newDeviceId;
   } catch {
     return createGuestDeviceId() ?? undefined;

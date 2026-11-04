@@ -599,12 +599,6 @@ export class ReservationsController {
     );
   }
 
-  @RequirePermission("hotel.reservations.manage")
-  @SuccessMessage("Tạo đặt phòng theo đoàn thành công")
-  @ApiDescript(
-    "Tạo danh sách đặt phòng theo đoàn (1–50 phòng) với 1 groupCode chung và các reservation riêng biệt",
-  )
-  @ApiParam({ name: "hotelId", type: String })
   @RequirePermission(["hotel.reservations.view", "hotel.reservations.manage"])
   @SuccessMessage("Lấy kế hoạch phòng thành công")
   @ApiDescript("Kế hoạch phòng trong khoảng thời gian tối đa 31 ngày")

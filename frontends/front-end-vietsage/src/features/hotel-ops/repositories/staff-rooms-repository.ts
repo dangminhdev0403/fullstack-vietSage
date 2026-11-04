@@ -272,6 +272,20 @@ export const staffRoomsRepository = {
     return response.data;
   },
 
+  async listAll(hotelId: string, signal?: AbortSignal): Promise<HotelOpsPage<HotelRoomSummary>> {
+    const first = await staffRoomsRepository.list(hotelId, { page: 1, limit: 200 }, signal);
+    const items = [...first.items];
+    const seen = new Set(items.map((room) => room.id));
+    for (let page = 2; items.length < first.total; page += 1) {
+      const next = await staffRoomsRepository.list(hotelId, { page, limit: first.limit }, signal);
+      const additions = next.items.filter((room) => !seen.has(room.id));
+      if (!additions.length) throw new Error("Không thể tải đủ danh sách phòng. Vui lòng cập nhật lại.");
+      for (const room of additions) seen.add(room.id);
+      items.push(...additions);
+    }
+    return { ...first, items };
+  },
+
   async getActiveFolioByStay(
     hotelId: string,
     stayId: string,
@@ -563,6 +577,15 @@ export const staffRoomsRepository = {
         method: "GET",
         signal,
       },
+    );
+    return response.data;
+  },
+
+  async listArrivals(hotelId: string, input: { from: string; to: string }, signal?: AbortSignal): Promise<HotelOpsPage<HotelArrival>> {
+    const params = new URLSearchParams({ ...input, limit: "100" });
+    const response = await requestInternalApiEnvelope<HotelOpsPage<HotelArrival>>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/arrivals?${params}`,
+      { method: "GET", signal },
     );
     return response.data;
   },

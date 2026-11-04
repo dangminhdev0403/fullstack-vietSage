@@ -39,7 +39,7 @@ type ItemFormState = {
   name: string;
   description: string;
   price: string;
-  currency: string;
+
   sortOrder: string;
   status: HotelServiceStatus;
 };
@@ -113,7 +113,7 @@ export function ServiceCatalogClient({
         description: categoryForm.description.trim() || undefined,
         id_group: categoryForm.id_group?.trim() || null,
         defaultPrice: 0,
-        currency: "USD",
+        currency: "VND",
         sortOrder: toNumber(categoryForm.sortOrder) ?? 0,
         status: categoryForm.status,
       };
@@ -285,18 +285,6 @@ export function ServiceCatalogClient({
         cell: (category) => <span className="text-base font-semibold text-[var(--primary)]">{category.name}</span>,
       },
       {
-        key: "description",
-        header: "Mô tả",
-        cell: (category) => <span className="text-sm text-[var(--on-surface-variant)]">{category.description ?? "-"}</span>,
-      },
-      {
-        key: "sort",
-        header: "Thứ tự sắp xếp",
-        headerClassName: "text-center",
-        className: "text-center",
-        cell: (category) => <span className="text-base font-semibold text-[var(--on-surface)]">{category.sortOrder}</span>,
-      },
-      {
         key: "status",
         header: "Trạng thái",
         headerClassName: "text-center",
@@ -357,12 +345,7 @@ export function ServiceCatalogClient({
       {
         key: "item",
         header: "Tên dịch vụ",
-        cell: (item) => (
-          <div>
-            <div className="text-base font-semibold text-[var(--primary)]">{item.name}</div>
-            <div className="max-w-md truncate text-sm text-[var(--on-surface-variant)]">{item.description ?? "-"}</div>
-          </div>
-        ),
+        cell: (item) => <span className="text-base font-semibold text-[var(--primary)]">{item.name}</span>,
       },
       {
         key: "category",
@@ -375,13 +358,6 @@ export function ServiceCatalogClient({
         headerClassName: "text-right",
         className: "text-right",
         cell: (item) => <span className="text-base font-semibold text-[var(--primary)]">{formatMoney(item)}</span>,
-      },
-      {
-        key: "sort",
-        header: "Thứ tự",
-        headerClassName: "text-center",
-        className: "text-center",
-        cell: (item) => <span className="text-base font-semibold text-[var(--on-surface)]">{item.sortOrder}</span>,
       },
       {
         key: "status",
@@ -413,7 +389,7 @@ export function ServiceCatalogClient({
                   name: item.name,
                   description: item.description ?? "",
                   price: item.priceOverride != null ? String(item.priceOverride) : "",
-                  currency: "USD",
+
                   sortOrder: String(item.sortOrder ?? 0),
                   status: item.status,
                 })
@@ -486,7 +462,7 @@ export function ServiceCatalogClient({
                     name: "",
                     description: "",
                     price: "",
-                    currency: "USD",
+  
                     sortOrder: "0",
                     status: "ACTIVE",
                   })
@@ -510,6 +486,14 @@ export function ServiceCatalogClient({
           emptyMessage="Không tìm thấy nhóm dịch vụ nào khớp với bộ lọc."
           minWidth="860px"
           rowClassName={(category) => category.status === "DISABLED" ? "bg-zinc-50 text-zinc-500" : ""}
+          onRowClick={canManage ? (category) => setCategoryForm({
+            id: category.id,
+            name: category.name,
+            description: category.description ?? "",
+            id_group: category.id_group ?? "",
+            sortOrder: String(category.sortOrder ?? 0),
+            status: category.status,
+          }) : undefined}
         />
       ) : (
         <DataTable
@@ -519,45 +503,91 @@ export function ServiceCatalogClient({
           emptyMessage="Không tìm thấy dịch vụ nào khớp với bộ lọc."
           minWidth="980px"
           rowClassName={(item) => item.status === "DISABLED" ? "bg-zinc-50 text-zinc-500" : ""}
+          onRowClick={canManage ? (item) => setItemForm({
+            id: item.id,
+            categoryId: item.categoryId,
+            name: item.name,
+            description: item.description ?? "",
+            price: item.priceOverride != null ? String(item.priceOverride) : "",
+            sortOrder: String(item.sortOrder ?? 0),
+            status: item.status,
+          }) : undefined}
         />
       )}
 
       {canManage && categoryForm ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
-          <form onSubmit={saveCategory} className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
-            <h2 className="vs-display mb-5 text-2xl font-semibold text-[var(--primary)]">{categoryForm.id ? "Sửa nhóm dịch vụ" : "Thêm nhóm dịch vụ"}</h2>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+          <form onSubmit={saveCategory} className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
+            <h2 className="vs-display mb-5 text-2xl font-semibold text-[var(--primary)] text-balance">{categoryForm.id ? "Sửa nhóm dịch vụ" : "Thêm nhóm dịch vụ"}</h2>
             <div className="space-y-4">
-              <input required value={categoryForm.name} onChange={(event) => setCategoryForm({ ...categoryForm, name: event.target.value })} placeholder="Tên nhóm" className="w-full rounded-lg border px-3 py-2" />
-              <textarea value={categoryForm.description} onChange={(event) => setCategoryForm({ ...categoryForm, description: event.target.value })} placeholder="Mô tả" className="w-full rounded-lg border px-3 py-2" />
-              <input type="number" value={categoryForm.sortOrder} onChange={(event) => setCategoryForm({ ...categoryForm, sortOrder: event.target.value })} placeholder="Thứ tự sắp xếp" className="w-full rounded-lg border px-3 py-2" />
-              <select value={categoryForm.status} onChange={(event) => setCategoryForm({ ...categoryForm, status: event.target.value as HotelServiceStatus })} className="w-full rounded-lg border px-3 py-2">
-                {hotelServiceStatuses.map((status) => <option key={status} value={status}>{serviceStatusLabelMap[status]}</option>)}
-              </select>
+              <div>
+                <label htmlFor="category-name-input" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Tên nhóm dịch vụ <span className="text-rose-500">*</span></label>
+                <input id="category-name-input" required value={categoryForm.name} onChange={(event) => setCategoryForm({ ...categoryForm, name: event.target.value })} placeholder="Tên nhóm dịch vụ" className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]" />
+              </div>
+              <div>
+                <label htmlFor="category-desc-input" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Mô tả</label>
+                <textarea id="category-desc-input" value={categoryForm.description} onChange={(event) => setCategoryForm({ ...categoryForm, description: event.target.value })} placeholder="Mô tả nhóm dịch vụ" className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]" />
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="category-sort-input" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Thứ tự sắp xếp</label>
+                  <input id="category-sort-input" type="number" value={categoryForm.sortOrder} onChange={(event) => setCategoryForm({ ...categoryForm, sortOrder: event.target.value })} placeholder="0" className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]" />
+                </div>
+                <div>
+                  <label htmlFor="category-status-input" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Trạng thái</label>
+                  <select id="category-status-input" value={categoryForm.status} onChange={(event) => setCategoryForm({ ...categoryForm, status: event.target.value as HotelServiceStatus })} className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]">
+                    {hotelServiceStatuses.map((status) => <option key={status} value={status}>{serviceStatusLabelMap[status]}</option>)}
+                  </select>
+                </div>
+              </div>
             </div>
-            <div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setCategoryForm(null)} className="rounded-lg px-4 py-2 text-sm font-semibold">Hủy</button><button disabled={isSaving} className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)]">Lưu</button></div>
+            <div className="mt-6 flex justify-end gap-2.5">
+              <button type="button" onClick={() => setCategoryForm(null)} className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">Hủy</button>
+              <button disabled={isSaving} className="rounded-xl bg-[var(--primary)] px-6 py-2.5 text-sm font-semibold text-[var(--on-primary)] transition-opacity hover:opacity-95 disabled:opacity-50">Lưu</button>
+            </div>
           </form>
         </div>
       ) : null}
 
       {canManage && itemForm ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
-          <form onSubmit={saveItem} className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl">
-            <h2 className="vs-display mb-5 text-2xl font-semibold text-[var(--primary)]">{itemForm.id ? "Sửa dịch vụ" : "Thêm dịch vụ"}</h2>
-            <div className="grid gap-4 md:grid-cols-2">
-              <input required value={itemForm.name} onChange={(event) => setItemForm({ ...itemForm, name: event.target.value })} placeholder="Tên dịch vụ" className="rounded-lg border px-3 py-2" />
-              <select required value={itemForm.categoryId} onChange={(event) => setItemForm({ ...itemForm, categoryId: event.target.value })} className="rounded-lg border px-3 py-2">
-                <option value="">Chọn nhóm dịch vụ</option>
-                {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-              </select>
-              <select value={itemForm.status} onChange={(event) => setItemForm({ ...itemForm, status: event.target.value as HotelServiceStatus })} className="rounded-lg border px-3 py-2">
-                {hotelServiceStatuses.map((status) => <option key={status} value={status}>{serviceStatusLabelMap[status]}</option>)}
-              </select>
-              <input type="number" step="0.01" value={itemForm.price} onChange={(event) => setItemForm({ ...itemForm, price: event.target.value })} placeholder="Giá dịch vụ" className="rounded-lg border px-3 py-2" />
-              <input value={itemForm.currency} onChange={(event) => setItemForm({ ...itemForm, currency: event.target.value })} placeholder="Đơn vị tiền tệ (ví dụ: VND, USD)" className="rounded-lg border px-3 py-2" />
-              <input type="number" value={itemForm.sortOrder} onChange={(event) => setItemForm({ ...itemForm, sortOrder: event.target.value })} placeholder="Thứ tự" className="rounded-lg border px-3 py-2" />
-              <textarea value={itemForm.description} onChange={(event) => setItemForm({ ...itemForm, description: event.target.value })} placeholder="Mô tả" className="min-h-24 rounded-lg border px-3 py-2 md:col-span-2" />
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+          <form onSubmit={saveItem} className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl">
+            <h2 className="vs-display mb-5 text-2xl font-semibold text-[var(--primary)] text-balance">{itemForm.id ? "Sửa dịch vụ" : "Thêm dịch vụ"}</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="item-name-input" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Tên dịch vụ <span className="text-rose-500">*</span></label>
+                <input id="item-name-input" required value={itemForm.name} onChange={(event) => setItemForm({ ...itemForm, name: event.target.value })} placeholder="Tên dịch vụ" className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]" />
+              </div>
+              <div>
+                <label htmlFor="item-category-input" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Nhóm dịch vụ <span className="text-rose-500">*</span></label>
+                <select id="item-category-input" required value={itemForm.categoryId} onChange={(event) => setItemForm({ ...itemForm, categoryId: event.target.value })} className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]">
+                  <option value="">Chọn nhóm dịch vụ</option>
+                  {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="item-price-input" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Giá dịch vụ (VND)</label>
+                <input id="item-price-input" type="number" step="1000" min="0" value={itemForm.price} onChange={(event) => setItemForm({ ...itemForm, price: event.target.value })} placeholder="Theo giá nhóm dịch vụ" className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]" />
+              </div>
+              <div>
+                <label htmlFor="item-status-input" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Trạng thái</label>
+                <select id="item-status-input" value={itemForm.status} onChange={(event) => setItemForm({ ...itemForm, status: event.target.value as HotelServiceStatus })} className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]">
+                  {hotelServiceStatuses.map((status) => <option key={status} value={status}>{serviceStatusLabelMap[status]}</option>)}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="item-sort-input" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Thứ tự</label>
+                <input id="item-sort-input" type="number" value={itemForm.sortOrder} onChange={(event) => setItemForm({ ...itemForm, sortOrder: event.target.value })} placeholder="0" className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]" />
+              </div>
+              <div className="sm:col-span-2">
+                <label htmlFor="item-desc-input" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Mô tả</label>
+                <textarea id="item-desc-input" value={itemForm.description} onChange={(event) => setItemForm({ ...itemForm, description: event.target.value })} placeholder="Mô tả dịch vụ" className="min-h-24 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]" />
+              </div>
             </div>
-            <div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setItemForm(null)} className="rounded-lg px-4 py-2 text-sm font-semibold">Hủy</button><button disabled={isSaving} className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)]">Lưu</button></div>
+            <div className="mt-6 flex justify-end gap-2.5">
+              <button type="button" onClick={() => setItemForm(null)} className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">Hủy</button>
+              <button disabled={isSaving} className="rounded-xl bg-[var(--primary)] px-6 py-2.5 text-sm font-semibold text-[var(--on-primary)] transition-opacity hover:opacity-95 disabled:opacity-50">Lưu</button>
+            </div>
           </form>
         </div>
       ) : null}

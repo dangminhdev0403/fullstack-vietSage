@@ -97,7 +97,7 @@ export function printMarketplaceVoucherTicket(data: PrintVoucherData) {
       letter-spacing: -0.5px;
     }
     .brand-sub {
-      font-size: 11px;
+      font-size: 12px;
       color: #64748b;
       font-weight: 600;
       text-transform: uppercase;
@@ -109,7 +109,7 @@ export function printMarketplaceVoucherTicket(data: PrintVoucherData) {
       border: 1px solid #6ee7b7;
       padding: 6px 14px;
       border-radius: 20px;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -125,7 +125,7 @@ export function printMarketplaceVoucherTicket(data: PrintVoucherData) {
       justify-content: space-between;
     }
     .voucher-label {
-      font-size: 10px;
+      font-size: 12px;
       text-transform: uppercase;
       letter-spacing: 1px;
       color: #94a3b8;
@@ -154,7 +154,7 @@ export function printMarketplaceVoucherTicket(data: PrintVoucherData) {
       background: #ffffff;
     }
     .card-label {
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 800;
       color: #475569;
       text-transform: uppercase;
@@ -226,7 +226,7 @@ export function printMarketplaceVoucherTicket(data: PrintVoucherData) {
       color: #475569;
     }
     .footer-time {
-      font-size: 11px;
+      font-size: 12px;
       color: #94a3b8;
       margin-top: 4px;
       font-weight: 600;
@@ -263,7 +263,7 @@ export function printMarketplaceVoucherTicket(data: PrintVoucherData) {
       <div class="info-card">
         <span class="card-label">🏨 Đối Tác Cung Cấp</span>
         <div class="card-value-main">${data.providerDisplayName}</div>
-        <div class="card-value-sub" style="font-size:11px;font-family:monospace;">Mã đơn: ${data.orderNumber}</div>
+        <div class="card-value-sub" style="font-size:12px;font-family:monospace;">Mã đơn: ${data.orderNumber}</div>
       </div>
     </div>
 

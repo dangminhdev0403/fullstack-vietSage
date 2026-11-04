@@ -1,0 +1,990 @@
+{
+  "version": 1,
+  "generated_at": "2026-10-31T07:18:42.709498+00:00",
+  "execution": "Reanalysis of captured evidence; this CLI does not operate the browser. See captured_at per case.",
+  "status": "FAIL",
+  "case_counts": {
+    "PASS": 0,
+    "FAIL": 4,
+    "GAP": 4
+  },
+  "component_counts": {
+    "PASS": 27,
+    "FAIL": 4,
+    "GAP": 5,
+    "NOT_REQUIRED": 0
+  },
+  "cases": [
+    {
+      "id": "AUTH_VALID",
+      "title": "Phiên hợp lệ mở dashboard chủ khách sạn",
+      "components": [
+        {
+          "name": "evidence",
+          "status": "PASS",
+          "detail": "Capture and screenshot present"
+        },
+        {
+          "name": "owner_dashboard",
+          "status": "PASS",
+          "detail": {
+            "criterion": {
+              "source": "DOM",
+              "expected": "Heading dashboard chủ khách sạn hiển thị"
+            },
+            "observation": {
+              "source": "DOM",
+              "observed": "Heading Tổng quan vận hành — Khách sạn minh 123",
+              "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+            }
+          }
+        },
+        {
+          "name": "logout_visible",
+          "status": "PASS",
+          "detail": {
+            "criterion": {
+              "source": "DOM",
+              "expected": "Nút Đăng xuất hiển thị"
+            },
+            "observation": {
+              "source": "DOM",
+              "observed": "Nút Đăng xuất được đối chiếu hiển thị",
+              "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+            }
+          }
+        },
+        {
+          "name": "document_200",
+          "status": "PASS",
+          "detail": {
+            "criterion": {
+              "source": "CDP",
+              "expected": "Document /owner/dashboard trả 200"
+            },
+            "observation": {
+              "source": "CDP",
+              "observed": "CDP: /owner/dashboard status 200",
+              "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+            }
+          }
+        },
+        {
+          "name": "flow",
+          "status": "PASS",
+          "detail": {
+            "planned": [
+              "Mở dashboard với phiên đã đăng nhập và thu ảnh tham chiếu.",
+              "Bắt đầu CDP, tải lại dashboard, đợi nội dung vận hành hiện.",
+              "Đọc heading, nút đăng xuất và HTTP document; lưu screenshot/capture."
+            ],
+            "recorded": [
+              "Mở dashboard với phiên đã đăng nhập và thu ảnh tham chiếu.",
+              "Bắt đầu CDP, tải lại dashboard, đợi nội dung vận hành hiện.",
+              "Đọc heading, nút đăng xuất và HTTP document; lưu screenshot/capture."
+            ],
+            "origin": "Bổ sung mô tả từ trace thao tác của lượt capture trước; không phải log timestamp từng bước hoặc lượt browser mới."
+          }
+        },
+        {
+          "name": "runtime",
+          "status": "FAIL",
+          "detail": {
+            "complete": true,
+            "faults": [
+              {
+                "kind": "request_failed",
+                "path": "/api/owner/hotels",
+                "message": "net::ERR_ABORTED",
+                "canceled": true
+              },
+              {
+                "kind": "request_failed",
+                "path": "/g/collect",
+                "message": "net::ERR_ABORTED",
+                "canceled": true
+              }
+            ],
+            "allowed": [],
+            "invalid_allowlist": false,
+            "events": 8,
+            "redirects": [
+              {
+                "path": "/socket.io/",
+                "status": 308
+              },
+              {
+                "path": "/socket.io/",
+                "status": 308
+              },
+              {
+                "path": "/socket.io/",
+                "status": 308
+              },
+              {
+                "path": "/socket.io/",
+                "status": 308
+              },
+              {
+                "path": "/socket.io/",
+                "status": 308
+              },
+              {
+                "path": "/socket.io/",
+                "status": 308
+              }
+            ],
+            "documents": [
+              {
+                "path": "/owner/dashboard",
+                "status": 200
+              }
+            ]
+          }
+        },
+        {
+          "name": "visual",
+          "status": "PASS",
+          "detail": {
+            "detections": [
+              {
+                "class_id": 0,
+                "label": "logout_button",
+                "confidence": 0.28098732233047485,
+                "box": [
+                  1077.933349609375,
+                  8.7262601852417,
+                  1180.3382568359375,
+                  57.423370361328125
+                ]
+              }
+            ],
+            "targets": [
+              {
+                "label": "logout_button",
+                "max_iou": 0.822967510579567
+              }
+            ],
+            "annotated": "AUTH_VALID-yolo.jpg",
+            "scope": "object detection only; a miss is inconclusive for this unvalidated UI model"
+          }
+        }
+      ],
+      "captured_at": "2026-10-31T06:46:57.561Z",
+      "url": "https://vietsage.localhost/owner/dashboard",
+      "screenshot": "AUTH_VALID.jpg",
+      "evidence_file": "AUTH_VALID.json",
+      "status": "FAIL",
+      "assessment": {
+        "verdict": "NEEDS_REVIEW",
+        "basis": [
+          "3/3 assertion nghiệp vụ đạt trong khoảng capture đã ghi.",
+          "Runtime có 2 sự kiện ngoài ngoại lệ, trong đó 2 request bị hủy.",
+          "YOLO tìm đủ vùng mục tiêu theo ngưỡng; không xác nhận chữ, tiền hoặc loại trừ nhận nhầm ở vùng khác."
+        ],
+        "next_steps": [
+          "Đối chiếu request hủy với navigation/unmount và request thay thế; chưa kết luận lỗi sản phẩm chỉ từ ERR_ABORTED."
+        ],
+        "scope": "Nhận xét suy ra theo quy tắc từ các component, không phải kết luận nghiệp vụ do YOLO sinh ra."
+      },
+      "scope_note": "Chỉ xác nhận dashboard với phiên hợp lệ; chưa chứng minh refresh đồng thời hoặc nhiều instance."
+    },
+    {
+      "id": "FILTER_GROUP",
+      "title": "Mã đoàn có thật hiển thị đúng phòng trên timeline",
+      "components": [
+        {
+          "name": "evidence",
+          "status": "PASS",
+          "detail": "Capture and screenshot present"
+        },
+        {
+          "name": "query_exact",
+          "status": "PASS",
+          "detail": {
+            "criterion": {
+              "source": "DOM",
+              "expected": "Ô tìm kiếm chứa #VSH_GROUP_0015"
+            },
+            "observation": {
+              "source": "DOM",
+              "observed": "Searchbox: #VSH_GROUP_0015",
+              "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+            }
+          }
+        },
+        {
+          "name": "room_1003",
+          "status": "PASS",
+          "detail": {
+            "criterion": {
+              "source": "DOM",
+              "expected": "Có nút phòng 1003 trong kết quả"
+            },
+            "observation": {
+              "source": "DOM",
+              "observed": "DOM có P.1003",
+              "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+            }
+          }
+        },
+        {
+          "name": "room_1004",
+          "status": "PASS",
+          "detail": {
+            "criterion": {
+              "source": "DOM",
+              "expected": "Có nút phòng 1004 trong kết quả"
+            },
+            "observation": {
+              "source": "DOM",
+              "observed": "DOM có P.1004",
+              "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+            }
+          }
+        },
+        {
+          "name": "no_empty_result",
+          "status": "PASS",
+          "detail": {
+            "criterion": {
+              "source": "DOM",
+              "expected": "Không hiện thông báo không tìm thấy phòng"
+            },
+            "observation": {
+              "source": "DOM",
+              "observed": "DOM không có Không tìm thấy phòng phù hợp; hiển thị 2/71 phòng",
+              "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+            }
+          }
+        },
+        {
+          "name": "flow",
+          "status": "PASS",
+          "detail": {
+            "planned": [
+              "Mở timeline từ 31/10/2026 và bật thu CDP.",
+              "Nhập #VSH_GROUP_0015 vào ô tìm mã đặt/đoàn.",
+              "Đọc phòng 1003/1004, trạng thái kết quả; lưu ảnh và box mẫu."
+            ],
+            "recorded": [
+              "Mở timeline từ 31/10/2026 và bật thu CDP.",
+              "Nhập #VSH_GROUP_0015 vào ô tìm mã đặt/đoàn.",
+              "Đọc phòng 1003/1004, trạng thái kết quả; lưu ảnh và box mẫu."
+            ],
+            "origin": "Bổ sung mô tả từ trace thao tác của lượt capture trước; không phải log timestamp từng bước hoặc lượt browser mới."
+          }
+        },
+        {
+          "name": "runtime",
+          "status": "FAIL",
+          "detail": {
+            "complete": true,
+            "faults": [
+              {
+                "kind": "request_failed",
+                "path": "/api/owner/hotels",
+                "message": "net::ERR_ABORTED",
+                "canceled": true
+              },
+              {
+                "kind": "request_failed",
+                "path": "/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/room-plan",
+                "message": "net::ERR_ABORTED",
+                "canceled": true
+              },
+              {
+                "kind": "request_failed",
+                "path": "/g/collect",
+                "message": "net::ERR_ABORTED",
+                "canceled": true
+              },
+              {
+                "kind": "request_failed",
+                "path": "/g/collect",
+                "message": "net::ERR_ABORTED",
+                "canceled": true
+              }
+            ],
+            "allowed": [],
+            "invalid_allowlist": false,
+            "events": 8,
+            "redirects": [
+              {
+                "path": "/socket.io/",
+                "status": 308
+              },
+              {
+                "path": "/socket.io/",
+                "status": 308
+              },
+              {
+                "path": "/socket.io/",
+                "status": 308
+              },
+              {
+                "path": "/socket.io/",
+                "status": 308
+              }
+            ],
+            "documents": [
+              {
+                "path": "/owner/hotels/cmq2k2lm0003f2oui3ifqp808/rooms",
+                "status": 200
+              }
+            ]
+          }
+        },
+        {
+          "name": "visual",
+          "status": "GAP",
+          "detail": {
+            "detections": [
+              {
+                "class_id": 0,
+                "label": "clear_filter_button",
+                "confidence": 0.3688798248767853,
+                "box": [
+                  768.368408203125,
+                  407.020751953125,
+                  857.0887451171875,
+                  440.1003723144531
+                ]
+              }
+            ],
+            "targets": [
+              {
+                "label": "clear_filter_button",
+                "max_iou": 0.8408930820058138
+              },
+              {
+                "label": "room_button",
+                "max_iou": 0
+              }
+            ],
+            "annotated": "FILTER_GROUP-yolo.jpg",
+            "scope": "object detection only; a miss is inconclusive for this unvalidated UI model"
+          }
+        }
+      ],
+      "captured_at": "2026-10-31T06:47:33.284Z",
+      "url": "https://vietsage.localhost/owner/hotels/cmq2k2lm0003f2oui3ifqp808/rooms?view=tape-chart&startDate=2026-10-31",
+      "screenshot": "FILTER_GROUP.jpg",
+      "evidence_file": "FILTER_GROUP.json",
+      "status": "FAIL",
+      "assessment": {
+        "verdict": "NEEDS_REVIEW",
+        "basis": [
+          "4/4 assertion nghiệp vụ đạt trong khoảng capture đã ghi.",
+          "Runtime có 4 sự kiện ngoài ngoại lệ, trong đó 4 request bị hủy.",
+          "YOLO còn GAP; không dùng việc bỏ sót để kết luận giao diện hỏng.",
+          "Vùng YOLO chưa tìm được: room_button."
+        ],
+        "next_steps": [
+          "Đối chiếu request hủy với navigation/unmount và request thay thế; chưa kết luận lỗi sản phẩm chỉ từ ERR_ABORTED.",
+          "Kiểm tra ảnh/box mẫu, vùng nằm trong viewport và hiệu chỉnh detector trên dữ liệu UI riêng."
+        ],
+        "scope": "Nhận xét suy ra theo quy tắc từ các component, không phải kết luận nghiệp vụ do YOLO sinh ra."
+      },
+      "scope_note": "Chỉ kiểm chứng query #VSH_GROUP_0015 trong lượt capture này; phòng 1003/1004 dựa DOM. YOLO bỏ sót nút phòng không phủ định kết quả lọc."
+    },
+    {
+      "id": "AUTH_COOKIE_EXPIRED",
+      "title": "Cookie hết hạn về đăng nhập một lần rồi khôi phục phiên",
+      "components": [
+        {
+          "name": "evidence",
+          "status": "PASS",
+          "detail": "Capture and screenshot present"
+        },
+        {
+          "name": "session_cookie_expired",
+          "status": "PASS",
+          "detail": {
+            "criterion": {
+              "source": "COOKIE_METADATA",
+              "expected": "Session cookie biến mất sau khi expiry về quá khứ"
+            },
+            "observation": {
+              "source": "COOKIE_METADATA",
+              "observed": "Trước thử có session cookie; sau đặt expiry quá khứ danh sách session cookie rỗng",
+              "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+            }
+          }
+        },
+        {
+          "name": "one_redirect",
+          "status": "PASS",
+          "detail": {
+            "criterion": {
+              "source": "CDP",
+              "expected": "Đúng một 307 từ dashboard về login"
+            },
+            "observation": {
+              "source": "CDP",
+              "observed": "CDP ghi một 307 từ /owner/dashboard",
+              "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+            }
+          }
+        },
+        {
+          "name": "login_200",
+          "status": "PASS",
+          "detail": {
+            "criterion": {
+              "source": "CDP",
+              "expected": "Document login trả 200"
+            },
+            "observation": {
+              "source": "CDP",
+              "observed": "CDP /dangnhap status 200",
+              "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+            }
+          }
+        },
+        {
+          "name": "login_form",
+          "status": "PASS",
+          "detail": {
+            "criterion": {
+              "source": "DOM",
+              "expected": "Form đăng nhập hiển thị"
+            },
+            "observation": {
+              "source": "DOM",
+              "observed": "DOM có textbox email trên form login",
+              "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+            }
+          }
+        },
+        {
+          "name": "relogin_dashboard",
+          "status": "PASS",
+          "detail": {
+            "criterion": {
+              "source": "DOM",
+              "expected": "Đăng nhập lại về dashboard"
+            },
+            "observation": {
+              "source": "DOM",
+              "observed": "Sau login, DOM có heading dashboard chủ khách sạn",
+              "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+            }
+          }
+        },
+        {
+          "name": "new_secure_httponly_cookie",
+          "status": "PASS",
+          "detail": {
+            "criterion": {
+              "source": "COOKIE_METADATA",
+              "expected": "Có cookie phiên mới với Secure và HttpOnly"
+            },
+            "observation": {
+              "source": "COOKIE_METADATA",
+              "observed": "Metadata cookie phục hồi: Secure=true, HttpOnly=true; không lưu giá trị",
+              "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+            }
+          }
+        },
+        {
+          "name": "flow",
+          "status": "PASS",
+          "detail": {
+            "planned": [
+              "Bật CDP; đặt expiry của session cookie hiện hữu về quá khứ trong tab thử.",
+              "Mở dashboard; đối chiếu một 307 tới login 200 và form đăng nhập.",
+              "Thu ảnh login trước khi đăng nhập; dùng tài khoản được người dùng cấp để đăng nhập lại.",
+              "Đọc dashboard và thuộc tính Secure/HttpOnly của cookie mới; không ghi cookie value."
+            ],
+            "recorded": [
+              "Bật CDP; đặt expiry của session cookie hiện hữu về quá khứ trong tab thử.",
+              "Mở dashboard; đối chiếu một 307 tới login 200 và form đăng nhập.",
+              "Thu ảnh login trước khi đăng nhập; dùng tài khoản được người dùng cấp để đăng nhập lại.",
+              "Đọc dashboard và thuộc tính Secure/HttpOnly của cookie mới; không ghi cookie value."
+            ],
+            "origin": "Bổ sung mô tả từ trace thao tác của lượt capture trước; không phải log timestamp từng bước hoặc lượt browser mới."
+          }
+        },
+        {
+          "name": "runtime",
+          "status": "FAIL",
+          "detail": {
+            "complete": true,
+            "faults": [
+              {
+                "kind": "request_failed",
+                "path": "/g/collect",
+                "message": "net::ERR_ABORTED",
+                "canceled": true
+              },
+              {
+                "kind": "request_failed",
+                "path": "/api/owner/hotels",
+                "message": "net::ERR_ABORTED",
+                "canceled": true
+              },
+              {
+                "kind": "request_failed",
+                "path": "/g/collect",
+                "message": "net::ERR_ABORTED",
+                "canceled": true
+              }
+            ],
+            "allowed": [],
+            "invalid_allowlist": false,
+            "events": 11,
+            "redirects": [
+              {
+                "path": "/owner/dashboard",
+                "status": 307
+              },
+              {
+                "path": "/api/auth/post-login",
+                "status": 303
+              },
+              {
+                "path": "/socket.io/",
+                "status": 308
+              },
+              {
+                "path": "/socket.io/",
+                "status": 308
+              },
+              {
+                "path": "/socket.io/",
+                "status": 308
+              },
+              {
+                "path": "/socket.io/",
+                "status": 308
+              },
+              {
+                "path": "/socket.io/",
+                "status": 308
+              },
+              {
+                "path": "/socket.io/",
+                "status": 308
+              }
+            ],
+            "documents": [
+              {
+                "path": "/dangnhap",
+                "status": 200
+              },
+              {
+                "path": "/owner/dashboard",
+                "status": 200
+              }
+            ]
+          }
+        },
+        {
+          "name": "visual",
+          "status": "PASS",
+          "detail": {
+            "detections": [
+              {
+                "class_id": 0,
+                "label": "login_button",
+                "confidence": 0.8333372473716736,
+                "box": [
+                  858.2725830078125,
+                  501.53863525390625,
+                  1170.7952880859375,
+                  560.36767578125
+                ]
+              },
+              {
+                "class_id": 0,
+                "label": "login_button",
+                "confidence": 0.2530113160610199,
+                "box": [
+                  856.8040161132812,
+                  324.1024169921875,
+                  1170.5716552734375,
+                  374.1848449707031
+                ]
+              }
+            ],
+            "targets": [
+              {
+                "label": "login_button",
+                "max_iou": 0.8970903209097834
+              }
+            ],
+            "annotated": "AUTH_COOKIE_EXPIRED-yolo.jpg",
+            "scope": "object detection only; a miss is inconclusive for this unvalidated UI model"
+          }
+        }
+      ],
+      "captured_at": "2026-10-31T06:48:38.156Z",
+      "url": "https://vietsage.localhost/dangnhap?callbackUrl=%2Fowner%2Fdashboard&reauth=1",
+      "screenshot": "AUTH_COOKIE_EXPIRED.jpg",
+      "evidence_file": "AUTH_COOKIE_EXPIRED.json",
+      "status": "FAIL",
+      "assessment": {
+        "verdict": "NEEDS_REVIEW",
+        "basis": [
+          "6/6 assertion nghiệp vụ đạt trong khoảng capture đã ghi.",
+          "Runtime có 3 sự kiện ngoài ngoại lệ, trong đó 3 request bị hủy.",
+          "YOLO tìm đủ vùng mục tiêu theo ngưỡng; không xác nhận chữ, tiền hoặc loại trừ nhận nhầm ở vùng khác."
+        ],
+        "next_steps": [
+          "Đối chiếu request hủy với navigation/unmount và request thay thế; chưa kết luận lỗi sản phẩm chỉ từ ERR_ABORTED."
+        ],
+        "scope": "Nhận xét suy ra theo quy tắc từ các component, không phải kết luận nghiệp vụ do YOLO sinh ra."
+      },
+      "scope_note": "Expiry được đặt về quá khứ để tái hiện; chưa chờ JWT hết hạn tự nhiên. Ảnh YOLO có thêm vùng email bị nhận như nút login; không dùng detection để tự click."
+    },
+    {
+      "id": "FILTER_BOOKING_RANGE",
+      "title": "Mã booking ngoài kỳ timeline tự căn ngày và xóa lọc khôi phục phòng",
+      "components": [
+        {
+          "name": "evidence",
+          "status": "GAP",
+          "detail": "asset is missing or outside evidence directory"
+        }
+      ],
+      "status": "GAP",
+      "assessment": {
+        "verdict": "INCOMPLETE",
+        "basis": [
+          "Chưa đủ bằng chứng nghiệp vụ để kết luận ca đạt.",
+          "Thiếu bằng chứng ảnh hoặc luồng ghi nhận chưa khớp thứ tự dự kiến.",
+          "Cửa sổ runtime chưa đủ để xác nhận.",
+          "YOLO còn GAP; không dùng việc bỏ sót để kết luận giao diện hỏng."
+        ],
+        "next_steps": [
+          "Chạy luồng còn thiếu và thu observation cho từng assertion.",
+          "Kiểm tra ảnh/box mẫu, vùng nằm trong viewport và hiệu chỉnh detector trên dữ liệu UI riêng."
+        ],
+        "scope": "Nhận xét suy ra theo quy tắc từ các component, không phải kết luận nghiệp vụ do YOLO sinh ra."
+      },
+      "scope_note": ""
+    },
+    {
+      "id": "PRICE_ZERO",
+      "title": "Đọc lại booking giá 0 giữ đơn giá và tổng bằng 0",
+      "components": [
+        {
+          "name": "evidence",
+          "status": "PASS",
+          "detail": "Capture and screenshot present"
+        },
+        {
+          "name": "rate_zero",
+          "status": "PASS",
+          "detail": {
+            "criterion": {
+              "source": "DOM",
+              "expected": "Đơn giá đã chốt bằng 0"
+            },
+            "observation": {
+              "source": "DOM",
+              "observed": "Value ô đơn giá: 0",
+              "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+            }
+          }
+        },
+        {
+          "name": "total_zero",
+          "status": "PASS",
+          "detail": {
+            "criterion": {
+              "source": "DOM",
+              "expected": "Tổng tiền phòng bằng 0"
+            },
+            "observation": {
+              "source": "DOM",
+              "observed": "DOM: Tổng tiền phòng: 0 ₫",
+              "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+            }
+          }
+        },
+        {
+          "name": "no_current_price_fallback",
+          "status": "PASS",
+          "detail": {
+            "criterion": {
+              "source": "DOM",
+              "expected": "Form giữ giá 0 khi giá gốc hiện tại 1.300.000"
+            },
+            "observation": {
+              "source": "DOM",
+              "observed": "DOM: Giá gốc 1.300.000 ₫; Đơn giá 0 ₫/đêm và tổng 0 ₫",
+              "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+            }
+          }
+        },
+        {
+          "name": "flow",
+          "status": "PASS",
+          "detail": {
+            "planned": [
+              "Từ timeline đã tải, mở booking thử 0117 tại phòng 627; bật CDP trước khi mở modal.",
+              "Đọc đơn giá 0, tổng 0 và giá gốc 1.300.000 trong form; thu ảnh và box ô đơn giá.",
+              "Đóng bằng Hủy bỏ; không lưu hoặc thu tiền."
+            ],
+            "recorded": [
+              "Từ timeline đã tải, mở booking thử 0117 tại phòng 627; bật CDP trước khi mở modal.",
+              "Đọc đơn giá 0, tổng 0 và giá gốc 1.300.000 trong form; thu ảnh và box ô đơn giá.",
+              "Đóng bằng Hủy bỏ; không lưu hoặc thu tiền."
+            ],
+            "origin": "Bổ sung mô tả từ trace thao tác của lượt capture trước; không phải log timestamp từng bước hoặc lượt browser mới."
+          }
+        },
+        {
+          "name": "runtime",
+          "status": "FAIL",
+          "detail": {
+            "complete": true,
+            "faults": [
+              {
+                "kind": "request_failed",
+                "path": "/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/billing/booking-payments",
+                "message": "net::ERR_ABORTED",
+                "canceled": true
+              }
+            ],
+            "allowed": [],
+            "invalid_allowlist": false,
+            "events": 3,
+            "redirects": [
+              {
+                "path": "/socket.io/",
+                "status": 308
+              },
+              {
+                "path": "/socket.io/",
+                "status": 308
+              }
+            ],
+            "documents": []
+          }
+        },
+        {
+          "name": "visual",
+          "status": "PASS",
+          "detail": {
+            "detections": [
+              {
+                "class_id": 0,
+                "label": "nightly_rate_input",
+                "confidence": 0.6431607604026794,
+                "box": [
+                  577.1412963867188,
+                  418.36358642578125,
+                  1165.753662109375,
+                  461.8093566894531
+                ]
+              },
+              {
+                "class_id": 0,
+                "label": "nightly_rate_input",
+                "confidence": 0.6010123491287231,
+                "box": [
+                  550.4512939453125,
+                  456.3338623046875,
+                  1167.1165771484375,
+                  504.47210693359375
+                ]
+              },
+              {
+                "class_id": 0,
+                "label": "nightly_rate_input",
+                "confidence": 0.502476692199707,
+                "box": [
+                  105.65681457519531,
+                  206.94375610351562,
+                  510.6338195800781,
+                  250.12149047851562
+                ]
+              },
+              {
+                "class_id": 0,
+                "label": "nightly_rate_input",
+                "confidence": 0.46692249178886414,
+                "box": [
+                  72.63328552246094,
+                  461.65728759765625,
+                  528.7315673828125,
+                  527.2500610351562
+                ]
+              },
+              {
+                "class_id": 0,
+                "label": "nightly_rate_input",
+                "confidence": 0.4388110041618347,
+                "box": [
+                  539.5416259765625,
+                  353.26959228515625,
+                  1179.020751953125,
+                  416.5660400390625
+                ]
+              },
+              {
+                "class_id": 0,
+                "label": "nightly_rate_input",
+                "confidence": 0.4100610017776489,
+                "box": [
+                  555.4402465820312,
+                  455.0143737792969,
+                  1140.1845703125,
+                  492.1977233886719
+                ]
+              },
+              {
+                "class_id": 0,
+                "label": "nightly_rate_input",
+                "confidence": 0.34623467922210693,
+                "box": [
+                  547.9681396484375,
+                  441.28204345703125,
+                  1167.19873046875,
+                  512.8583374023438
+                ]
+              },
+              {
+                "class_id": 0,
+                "label": "nightly_rate_input",
+                "confidence": 0.33478713035583496,
+                "box": [
+                  549.9105224609375,
+                  585.8441162109375,
+                  1228.7388916015625,
+                  646.70263671875
+                ]
+              },
+              {
+                "class_id": 0,
+                "label": "nightly_rate_input",
+                "confidence": 0.2857414484024048,
+                "box": [
+                  495.36212158203125,
+                  502.1154479980469,
+                  1167.7918701171875,
+                  575.92041015625
+                ]
+              }
+            ],
+            "targets": [
+              {
+                "label": "nightly_rate_input",
+                "max_iou": 0.8406792697853368
+              }
+            ],
+            "annotated": "PRICE_ZERO-yolo.jpg",
+            "scope": "object detection only; a miss is inconclusive for this unvalidated UI model"
+          }
+        }
+      ],
+      "captured_at": "2026-10-31T07:03:43.198Z",
+      "url": "https://vietsage.localhost/owner/hotels/cmq2k2lm0003f2oui3ifqp808/rooms?view=tape-chart&startDate=2026-11-01&businessDate=2026-11-01",
+      "screenshot": "PRICE_ZERO.jpg",
+      "evidence_file": "PRICE_ZERO.json",
+      "status": "FAIL",
+      "assessment": {
+        "verdict": "NEEDS_REVIEW",
+        "basis": [
+          "3/3 assertion nghiệp vụ đạt trong khoảng capture đã ghi.",
+          "Runtime có 1 sự kiện ngoài ngoại lệ, trong đó 1 request bị hủy.",
+          "YOLO tìm đủ vùng mục tiêu theo ngưỡng; không xác nhận chữ, tiền hoặc loại trừ nhận nhầm ở vùng khác."
+        ],
+        "next_steps": [
+          "Đối chiếu request hủy với navigation/unmount và request thay thế; chưa kết luận lỗi sản phẩm chỉ từ ERR_ABORTED."
+        ],
+        "scope": "Nhận xét suy ra theo quy tắc từ các component, không phải kết luận nghiệp vụ do YOLO sinh ra."
+      },
+      "scope_note": "Đối chiếu form đọc lại booking 0117: đơn giá/tổng 0, giá gốc 1.300.000. Không lưu form, check-in, checkout hoặc đối soát ledger trong ca này; YOLO nhận nhiều vùng giống ô nhập nên không tự đọc tiền."
+    },
+    {
+      "id": "PRICE_BASE_CHANGE",
+      "title": "Đổi giá gốc không đổi giá đã chốt của booking cũ",
+      "components": [
+        {
+          "name": "evidence",
+          "status": "GAP",
+          "detail": "asset is missing or outside evidence directory"
+        }
+      ],
+      "status": "GAP",
+      "assessment": {
+        "verdict": "INCOMPLETE",
+        "basis": [
+          "Chưa đủ bằng chứng nghiệp vụ để kết luận ca đạt.",
+          "Thiếu bằng chứng ảnh hoặc luồng ghi nhận chưa khớp thứ tự dự kiến.",
+          "Cửa sổ runtime chưa đủ để xác nhận.",
+          "YOLO còn GAP; không dùng việc bỏ sót để kết luận giao diện hỏng."
+        ],
+        "next_steps": [
+          "Chạy luồng còn thiếu và thu observation cho từng assertion.",
+          "Kiểm tra ảnh/box mẫu, vùng nằm trong viewport và hiệu chỉnh detector trên dữ liệu UI riêng."
+        ],
+        "scope": "Nhận xét suy ra theo quy tắc từ các component, không phải kết luận nghiệp vụ do YOLO sinh ra."
+      },
+      "scope_note": ""
+    },
+    {
+      "id": "PRICE_NAME_ONLY",
+      "title": "Chỉ sửa tên không đổi giờ, tổng, lịch giá hoặc cọc",
+      "components": [
+        {
+          "name": "evidence",
+          "status": "GAP",
+          "detail": "asset is missing or outside evidence directory"
+        }
+      ],
+      "status": "GAP",
+      "assessment": {
+        "verdict": "INCOMPLETE",
+        "basis": [
+          "Chưa đủ bằng chứng nghiệp vụ để kết luận ca đạt.",
+          "Thiếu bằng chứng ảnh hoặc luồng ghi nhận chưa khớp thứ tự dự kiến.",
+          "Cửa sổ runtime chưa đủ để xác nhận.",
+          "YOLO còn GAP; không dùng việc bỏ sót để kết luận giao diện hỏng."
+        ],
+        "next_steps": [
+          "Chạy luồng còn thiếu và thu observation cho từng assertion.",
+          "Kiểm tra ảnh/box mẫu, vùng nằm trong viewport và hiệu chỉnh detector trên dữ liệu UI riêng."
+        ],
+        "scope": "Nhận xét suy ra theo quy tắc từ các component, không phải kết luận nghiệp vụ do YOLO sinh ra."
+      },
+      "scope_note": ""
+    },
+    {
+      "id": "CHECKOUT_PREPAID",
+      "title": "Checkout đã trả trước không thu lần hai",
+      "components": [
+        {
+          "name": "evidence",
+          "status": "GAP",
+          "detail": "asset is missing or outside evidence directory"
+        }
+      ],
+      "status": "GAP",
+      "assessment": {
+        "verdict": "INCOMPLETE",
+        "basis": [
+          "Chưa đủ bằng chứng nghiệp vụ để kết luận ca đạt.",
+          "Thiếu bằng chứng ảnh hoặc luồng ghi nhận chưa khớp thứ tự dự kiến.",
+          "Cửa sổ runtime chưa đủ để xác nhận.",
+          "YOLO còn GAP; không dùng việc bỏ sót để kết luận giao diện hỏng."
+        ],
+        "next_steps": [
+          "Chạy luồng còn thiếu và thu observation cho từng assertion.",
+          "Kiểm tra ảnh/box mẫu, vùng nằm trong viewport và hiệu chỉnh detector trên dữ liệu UI riêng."
+        ],
+        "scope": "Nhận xét suy ra theo quy tắc từ các component, không phải kết luận nghiệp vụ do YOLO sinh ra."
+      },
+      "scope_note": ""
+    }
+  ],
+  "limitations": [
+    "YOLO detects reference objects; it does not validate text, money, permissions or database transactions.",
+    "Visual misses remain GAP until a UI model and thresholds are validated.",
+    "Only captured cases/runtime intervals are covered; missing or truncated evidence never passes."
+  ]
+}

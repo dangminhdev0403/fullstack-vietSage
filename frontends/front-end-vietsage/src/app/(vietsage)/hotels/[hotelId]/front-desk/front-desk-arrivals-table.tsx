@@ -4,7 +4,6 @@ import React, { useRef, useState } from "react";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { FrontDeskArrivalDetailPanel } from "@/features/hotel-ops/components/front-desk-arrival-detail-panel";
-import { GroupOperationsDrawer } from "@/features/hotel-ops/components/group-operations-drawer";
 import type { HotelArrival } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { getArrivalStatusDisplay } from "@/features/hotel-ops/utils/hotel-ops-display";
 
@@ -48,19 +47,10 @@ export function FrontDeskArrivalsTable({
   canManageReservations = false,
 }: FrontDeskArrivalsTableProps) {
   const [selectedArrival, setSelectedArrival] = useState<HotelArrival | null>(null);
-  const [activeGroupCode, setActiveGroupCode] = useState<string | null>(null);
   const lastFocusedTriggerRef = useRef<HTMLElement | null>(null);
-
-  const hasAnyGroup = arrivals.some((a) => Boolean(a.groupCode));
 
   return (
     <>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="text-xs font-semibold text-slate-500">
-          Hiển thị <span className="font-bold text-slate-800">{arrivals.length}</span> lượt đặt trước
-        </div>
-      </div>
-
       <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 shadow-2xs">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[850px] border-collapse text-left">
@@ -72,9 +62,6 @@ export function FrontDeskArrivalsTable({
                 <th scope="col" className="px-4 py-3 whitespace-nowrap">Dự kiến trả</th>
                 <th scope="col" className="px-4 py-3 whitespace-nowrap">Giá phòng</th>
                 <th scope="col" className="px-4 py-3 whitespace-nowrap">Trạng thái</th>
-                <th scope="col" className="w-12 px-4 py-3 text-right">
-                  <span className="sr-only">Chi tiết</span>
-                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
@@ -100,33 +87,17 @@ export function FrontDeskArrivalsTable({
                   >
                     {/* Khách hàng */}
                     <td className="px-4 py-3 align-middle">
-                      <div className="font-bold text-slate-900 text-base leading-tight group-hover:text-blue-900 transition-colors">
-                        {arrival.guestDisplayName}
-                      </div>
-                      <div className="mt-0.5 text-xs text-slate-500 font-medium whitespace-nowrap">
-                        {arrival.reservationCode ? (
-                          <span className="font-mono text-blue-700 font-semibold">#{arrival.reservationCode}</span>
-                        ) : null}
-                        {arrival.reservationCode && arrival.guestPhone ? <span> · </span> : null}
-                        {arrival.guestPhone ? <span>{arrival.guestPhone}</span> : null}
-                      </div>
-                      {arrival.groupCode ? (
-                        <div className="mt-1 flex items-center">
-                          <button
-                            type="button"
-                            title={`Mở quản lý đoàn #${arrival.groupCode}`}
-                            aria-label={`Mở quản lý đoàn #${arrival.groupCode}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveGroupCode(arrival.groupCode || null);
-                            }}
-                            className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs font-bold text-purple-700 hover:bg-purple-100 hover:text-purple-900 transition-colors cursor-pointer whitespace-nowrap shadow-2xs min-h-[24px]"
-                          >
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 text-base leading-tight group-hover:text-blue-900 transition-colors">
+                          {arrival.guestDisplayName}
+                        </span>
+                        {arrival.groupCode ? (
+                          <span className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs font-bold text-purple-700 whitespace-nowrap shadow-2xs">
                             <VsIcon name="groups" className="h-3.5 w-3.5 text-purple-600" />
                             <span>Đoàn #{arrival.groupCode}</span>
-                          </button>
-                        </div>
-                      ) : null}
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
 
                     {/* Phòng */}
@@ -171,14 +142,6 @@ export function FrontDeskArrivalsTable({
                         );
                       })()}
                     </td>
-
-                    {/* Chỉ báo xem chi tiết */}
-                    <td className="w-12 px-4 py-3 align-middle text-right whitespace-nowrap text-slate-400 group-hover:text-blue-600 transition-colors">
-                      <VsIcon
-                        name="chevron_right"
-                        className="text-xl inline-block transition-transform duration-150 group-hover:translate-x-0.5"
-                      />
-                    </td>
                   </tr>
                 );
               })}
@@ -197,18 +160,6 @@ export function FrontDeskArrivalsTable({
         canManageReservations={canManageReservations}
         canOperateArrivals={canOperateArrivals}
         triggerElementRef={lastFocusedTriggerRef}
-      />
-
-      <GroupOperationsDrawer
-        isOpen={activeGroupCode !== null}
-        onClose={() => setActiveGroupCode(null)}
-        hotelId={hotelId}
-        groupCode={activeGroupCode}
-        initialArrivals={arrivals}
-        todayYmd={todayYmd}
-        canOperateArrivals={canOperateArrivals}
-        canCheckInStay={canCheckInStay}
-        canCheckOutStay={Boolean(canManageReservations || canOperateArrivals)}
       />
     </>
   );

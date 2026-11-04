@@ -14,6 +14,7 @@ import {
   showConfirmDialog,
   showErrorAlert,
   showSuccessAlert,
+  showWarningAlert,
 } from "@/libs/swal";
 import { z } from "zod";
 
@@ -113,14 +114,6 @@ const qrStatusMeta: Record<string, { label: string; className: string }> = {
   REVOKED: { label: "Đã thu hồi", className: "bg-red-100 text-red-700" },
   EXPIRED: { label: "Hết hạn", className: "bg-amber-100 text-amber-800" },
 };
-
-const toast = SwalVietSage.mixin({
-  toast: true,
-  position: "top-end",
-  showConfirmButton: false,
-  timer: 1800,
-  timerProgressBar: true,
-});
 
 function subscribeClientOriginChange() {
   return () => undefined;
@@ -721,17 +714,15 @@ export function OwnerRoomsClient({
       setSelectedDetailRoom((prev) =>
         prev && prev.id === roomId ? { ...prev, ...updated.data } : prev,
       );
-      await toast.fire({
-        icon: "success",
-        title: "Đã lưu thông tin phòng",
-      });
+      await showSuccessAlert(
+        "Đã lưu thông tin phòng",
+        "Đã cập nhật thông tin phòng thành công.",
+      );
     } catch (error) {
-      await SwalVietSage.fire({
-        icon: "error",
-        title: "Không thể cập nhật phòng",
-        text: getBusinessErrorMessage(error, "Vui lòng thử lại."),
-        confirmButtonText: "OK",
-      });
+      await showErrorAlert(
+        "Không thể cập nhật phòng",
+        getBusinessErrorMessage(error, "Vui lòng thử lại."),
+      );
       throw error;
     } finally {
       setIsSaving(false);
@@ -818,10 +809,12 @@ export function OwnerRoomsClient({
       closeRoomForm();
       await refreshRooms();
       await refetchRoomTypes();
-      await toast.fire({
-        icon: "success",
-        title: isEditing ? "Đã lưu thông tin phòng" : "Đã tạo phòng mới",
-      });
+      await showSuccessAlert(
+        isEditing ? "Đã lưu thông tin phòng" : "Đã tạo phòng mới",
+        isEditing
+          ? "Đã lưu thông tin phòng thành công."
+          : `Đã tạo phòng mới thành công.`,
+      );
     } catch (error) {
       await showErrorAlert(
         isEditing ? "Không thể cập nhật phòng" : "Không thể tạo phòng",
@@ -866,7 +859,7 @@ export function OwnerRoomsClient({
         current?.id === updated.id ? updated : current,
       );
       await refreshRooms();
-      await toast.fire({ icon: "success", title: "Đã cập nhật QR" });
+      await showSuccessAlert("Đã cập nhật QR", "Trạng thái mã QR phòng đã được lưu thành công.");
     } catch (error) {
       await showErrorAlert(
         "Không thể cập nhật QR",
@@ -881,11 +874,10 @@ export function OwnerRoomsClient({
 
   function downloadSelectedQrRoom(): void {
     if (!selectedQrRoom || !getQrValue(selectedQrRoom) || !qrCodeRef.current) {
-      void SwalVietSage.fire({
-        icon: "error",
-        title: "Chưa có mã QR public",
-        text: "Vui lòng kích hoạt hoặc đổi mã QR trước.",
-      });
+      void showErrorAlert(
+        "Chưa có mã QR public",
+        "Vui lòng kích hoạt hoặc đổi mã QR trước.",
+      );
       return;
     }
 
@@ -906,10 +898,10 @@ export function OwnerRoomsClient({
       const context = canvas.getContext("2d");
       if (!context) {
         URL.revokeObjectURL(svgUrl);
-        void SwalVietSage.fire({
-          icon: "error",
-          title: "Không thể tải mã QR",
-        });
+        void showErrorAlert(
+          "Không thể tải mã QR",
+          "Vui lòng thử lại sau.",
+        );
         return;
       }
 
@@ -955,21 +947,20 @@ export function OwnerRoomsClient({
       };
       brandImage.onerror = () => {
         URL.revokeObjectURL(svgUrl);
-        void SwalVietSage.fire({
-          icon: "error",
-          title: "Không thể tải nhận diện VietSage",
-          text: "Vui lòng thử tải lại mã QR.",
-        });
+        void showErrorAlert(
+          "Không thể tải nhận diện VietSage",
+          "Vui lòng thử tải lại mã QR.",
+        );
       };
       brandImage.src = BRANDED_QR_MARK_SRC;
     };
 
     qrImage.onerror = () => {
       URL.revokeObjectURL(svgUrl);
-      void SwalVietSage.fire({
-        icon: "error",
-        title: "Không thể tải mã QR",
-      });
+      void showErrorAlert(
+        "Không thể tải mã QR",
+        "Vui lòng thử lại sau.",
+      );
     };
 
     qrImage.src = svgUrl;
@@ -979,11 +970,10 @@ export function OwnerRoomsClient({
     const qrRooms = getRoomsWithQr();
 
     if (!qrRooms.length) {
-      await SwalVietSage.fire({
-        icon: "warning",
-        title: "Chưa có mã QR",
-        text: "Không có phòng nào có QR để xuất.",
-      });
+      await showWarningAlert(
+        "Chưa có mã QR",
+        "Không có phòng nào có QR để xuất.",
+      );
       return;
     }
 
@@ -1006,11 +996,10 @@ export function OwnerRoomsClient({
   async function rotateAllQrCodes() {
     const qrRooms = getRoomsWithQr();
     if (!qrRooms.length) {
-      await SwalVietSage.fire({
-        icon: "warning",
-        title: "Chưa có mã QR",
-        text: "Không có phòng nào có QR để đổi mã.",
-      });
+      await showWarningAlert(
+        "Chưa có mã QR",
+        "Không có phòng nào có QR để đổi mã.",
+      );
       return;
     }
 
@@ -1047,11 +1036,10 @@ export function OwnerRoomsClient({
   async function activateAllQrCodes() {
     const targetRooms = rooms.filter(canActivateQr);
     if (!targetRooms.length) {
-      await SwalVietSage.fire({
-        icon: "info",
-        title: "QR đã hoạt động",
-        text: "Không còn phòng nào cần kích hoạt QR.",
-      });
+      await showSuccessAlert(
+        "QR đã hoạt động",
+        "Không còn phòng nào cần kích hoạt QR.",
+      );
       return;
     }
 
@@ -1091,27 +1079,11 @@ export function OwnerRoomsClient({
   const [isResetting, setIsResetting] = useState(false);
 
   async function handleOperationalReset() {
-    const confirmed = await SwalVietSage.fire({
-      icon: "warning",
+    const confirmed = await showConfirmDialog({
       title: "Khởi động lại dữ liệu vận hành?",
-      html: `
-        <div class="text-left text-sm space-y-2">
-          <p>Hệ thống sẽ làm mới toàn bộ dữ liệu vận hành về trạng thái ban đầu:</p>
-          <ul class="list-disc pl-5 space-y-1 text-slate-700">
-            <li><strong>Xoá sạch hoá đơn</strong>, thanh toán và đặt doanh thu về 0.</li>
-            <li><strong>Xoá toàn bộ người dùng truy cập</strong>, các lượt khách lưu trú và tin nhắn/yêu cầu.</li>
-            <li><strong>Xoá đơn hàng marketplace</strong>, giỏ hàng, voucher dịch vụ và đối soát liên kết.</li>
-            <li><strong>Xoá bản khai báo KBTT</strong>, nhật ký đối tác, trạm sinh trắc và sự cố khẩn cấp.</li>
-            <li><strong>Đưa toàn bộ trạng thái phòng về Trống</strong>.</li>
-            <li class="text-slate-800 font-semibold"><strong>Bảo toàn tài khoản & cấu hình nhân viên</strong>.</li>
-            <li class="text-emerald-800 font-semibold"><strong>Bảo toàn nguyên vẹn danh mục phòng và mã QR Code</strong>.</li>
-          </ul>
-        </div>
-      `,
-      showCancelButton: true,
-      confirmButtonText: "Đồng ý khởi động lại",
-      cancelButtonText: "Hủy bỏ",
-      reverseButtons: false,
+      text: "Hệ thống sẽ làm mới toàn bộ dữ liệu vận hành về trạng thái ban đầu: xoá hoá đơn, lượt lưu trú, đưa phòng về TRỐNG, bảo toàn danh mục phòng và QR.",
+      confirmText: "Đồng ý khởi động lại",
+      cancelText: "Hủy bỏ",
     });
 
     if (!confirmed.isConfirmed) return;
@@ -1138,23 +1110,17 @@ export function OwnerRoomsClient({
 
       await refreshRooms();
 
-      await SwalVietSage.fire({
-        icon: "success",
-        title: "Khởi động lại thành công",
-        text: res.data.message || "Dữ liệu vận hành đã được làm mới về trạng thái ban đầu.",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showSuccessAlert(
+        "Khởi động lại thành công",
+        res.data.message || "Dữ liệu vận hành đã được làm mới về trạng thái ban đầu.",
+      );
 
       await refreshRooms();
     } catch (error) {
-      await SwalVietSage.fire({
-        icon: "error",
-        title: "Không thể khởi động lại",
-        text: getBusinessErrorMessage(error, "Vui lòng thử lại."),
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showErrorAlert(
+        "Không thể khởi động lại",
+        getBusinessErrorMessage(error, "Vui lòng thử lại."),
+      );
     } finally {
       setIsResetting(false);
     }
@@ -1164,26 +1130,27 @@ export function OwnerRoomsClient({
     {
       key: "roomNumber",
       sortable: true,
-      header: "S\u1ed1 ph\u00f2ng",
+      header: "Số phòng",
       className: "px-8 py-5 font-bold text-[var(--primary)]",
       headerClassName: "px-8 py-5",
-      cell: (room) => "#" + getRoomNumber(room),
+      cell: (room) => (
+        <div className="flex items-center gap-1.5 whitespace-nowrap">
+          <span>#{getRoomNumber(room)}</span>
+          {room.floor ? (
+            <span className="text-xs font-normal text-[var(--on-surface-variant)]">
+              · T{room.floor}
+            </span>
+          ) : null}
+        </div>
+      ),
     },
     {
       key: "type",
       sortable: true,
-      header: "Lo\u1ea1i ph\u00f2ng",
+      header: "Loại phòng",
       className: "px-6 py-5 text-[var(--on-surface)]",
       headerClassName: "px-6 py-5",
       cell: (room) => room.type ?? "--",
-    },
-    {
-      key: "floor",
-      sortable: true,
-      header: "T\u1ea7ng",
-      className: "px-6 py-5 text-[var(--on-surface-variant)]",
-      headerClassName: "px-6 py-5",
-      cell: (room) => room.floor ?? "--",
     },
     {
       key: "price",
@@ -1195,14 +1162,14 @@ export function OwnerRoomsClient({
     },
     {
       key: "status",
-      header: "Trạng thái phòng",
+      header: "Trạng thái",
       className: "px-4 py-5",
       headerClassName: "px-4 py-5",
       cell: (room) => {
         const statusMeta = getRoomStatusMeta(room);
         return (
           <span
-            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.03em] ${statusMeta.className}`}
+            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.03em] whitespace-nowrap ${statusMeta.className}`}
           >
             {statusMeta.label}
           </span>
@@ -1217,23 +1184,15 @@ export function OwnerRoomsClient({
       headerClassName: "px-4 py-5",
       cell: (room) => {
         const qrMeta = getQrMeta(room);
-        const showMissingQrHint = !getQrValue(room);
         return (
-          <div className="space-y-1.5">
-            <span
-              className={[
-                "inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.03em]",
-                qrMeta.className,
-              ].join(" ")}
-            >
-              {qrMeta.label}
-            </span>
-            {showMissingQrHint ? (
-              <p className="max-w-[180px] truncate text-xs font-medium leading-4 text-[var(--outline)]">
-                {"Chưa tạo mã QR"}
-              </p>
-            ) : null}
-          </div>
+          <span
+            className={[
+              "inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.03em] whitespace-nowrap",
+              qrMeta.className,
+            ].join(" ")}
+          >
+            {qrMeta.label}
+          </span>
         );
       },
     },
@@ -1242,85 +1201,25 @@ export function OwnerRoomsClient({
       header: "Thao tác",
       className: "whitespace-nowrap px-4 py-5 text-right",
       headerClassName: "px-4 py-5 text-right",
-      cell: (room) => {
-        const qrIsActive = isQrActive(room);
-        const showActivate = canActivateQr(room);
-
-        return (
-          <div
-            className="flex items-center justify-end gap-1.5"
-            onClick={(e) => e.stopPropagation()}
+      cell: (room) => (
+        <div
+          className="flex items-center justify-end"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            title="Chỉnh sửa phòng"
+            aria-label="Chỉnh sửa phòng"
+            onClick={(e) => {
+              e.stopPropagation();
+              openEditRoom(room);
+            }}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
           >
-
-            <button
-              type="button"
-              title="Chỉnh sửa phòng"
-              aria-label="Chỉnh sửa phòng"
-              onClick={(e) => {
-                e.stopPropagation();
-                openEditRoom(room);
-              }}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
-            >
-              <VsIcon name="edit" className="text-lg" />
-            </button>
-
-            {qrIsActive ? (
-              <>
-                <button
-                  type="button"
-                  title="Quản lý QR"
-                  aria-label="Quản lý QR"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedQrRoom(room);
-                  }}
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
-                >
-                  <VsIcon name="qr_code" className="text-lg" />
-                </button>
-                <button
-                  type="button"
-                  title="Lịch sử / Đổi mã QR"
-                  aria-label="Lịch sử hoặc đổi mã QR"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void updateRoomFromQrAction(room, "rotate");
-                  }}
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-blue-700 transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
-                >
-                  <VsIcon name="history" className="text-lg" />
-                </button>
-                <button
-                  type="button"
-                  title="Tạm tắt QR"
-                  aria-label="Tạm tắt QR"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void updateRoomFromQrAction(room, "deactivate");
-                  }}
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-amber-700 transition hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
-                >
-                  <VsIcon name="visibility_off" className="text-lg" />
-                </button>
-              </>
-            ) : showActivate ? (
-              <button
-                type="button"
-                title="Kích hoạt QR"
-                aria-label="Kích hoạt QR"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void updateRoomFromQrAction(room, "activate");
-                }}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-emerald-700 transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
-              >
-                <VsIcon name="verified" className="text-lg" />
-              </button>
-            ) : null}
-          </div>
-        );
-      },
+            <VsIcon name="edit" className="text-lg" />
+          </button>
+        </div>
+      ),
     },
   ];
 
@@ -2140,18 +2039,6 @@ export function OwnerRoomsClient({
               </label>
               <label className="space-y-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
-                  Khu vực
-                </span>
-                <input
-                  value={roomForm.zone}
-                  onChange={(event) => updateRoomFormField("zone", event.target.value)}
-                  aria-invalid={Boolean(roomFormErrors.zone)}
-                  className={roomInputClass(Boolean(roomFormErrors.zone))}
-                />
-                <RoomFieldError message={roomFormErrors.zone} />
-              </label>
-              <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
                   Loại phòng
                 </span>
                 {roomForm.id ? (
@@ -2182,44 +2069,23 @@ export function OwnerRoomsClient({
                     {catalog.map((item) => <option key={item.id} value={item.id}>{item.name}{item.readiness === "MISSING_PRICE" ? " (cần giá gốc)" : ""}</option>)}
                   </select>
                 )}
-                {roomTypesLoading && <span role="status">Đang tải loại phòng...</span>}
-                {roomTypesError && <span role="alert">Không tải được danh mục. Thử tải lại trang.</span>}
+                {roomTypesLoading && <span role="status" className="text-xs text-slate-500">Đang tải loại phòng...</span>}
+                {roomTypesError && <span role="alert" className="text-xs text-rose-600">Không tải được danh mục. Thử tải lại trang.</span>}
                 <RoomFieldError message={roomFormErrors.type} />
               </label>
               {!roomForm.id && !roomForm.roomTypeId && (
                 <label className="space-y-2">
-                  <span className="text-sm font-semibold text-[var(--on-surface-variant)]">Tên loại phòng mới</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">Tên loại phòng mới</span>
                   <input value={roomForm.type} onChange={(event) => updateRoomFormField("type", event.target.value)}
                     aria-invalid={Boolean(roomFormErrors.type)} className={roomInputClass(Boolean(roomFormErrors.type))} />
                 </label>
               )}
               {!roomForm.id && selectedRoomType?.readiness === "READY" && (
-                <p className="self-center text-base text-[var(--on-surface-variant)]">
-                  Giá gốc hạng phòng: {formatVnd(selectedRoomType.basePrice)}. Giá phòng mới lấy theo giá gốc; chưa đẩy Channex.
+                <p className="self-center text-xs text-[var(--on-surface-variant)]">
+                  Giá gốc hạng phòng: {formatVnd(selectedRoomType.basePrice)}. Giá phòng mới lấy theo giá gốc.
                 </p>
               )}
-              {!roomForm.id && selectedRoomType?.readiness === "MISSING_PRICE" && (
-                <div className="space-y-2 self-center text-base">
-                  <p>Hạng {selectedRoomType.name} chưa có giá gốc. Nhập giá bên dưới, lưu giá gốc trước khi tạo phòng.</p>
-                  <button type="button" disabled={repairPrice.isPending || createCatalogType.isPending || !roomForm.price || !Number.isFinite(Number(roomForm.price)) || Number(roomForm.price) <= 0}
-                    onClick={async () => {
-                      try {
-                        const saved = selectedRoomType.id.startsWith("legacy:")
-                          ? await createCatalogType.mutateAsync({ name: selectedRoomType.name, basePrice: Number(roomForm.price) })
-                          : await repairPrice.mutateAsync({ roomTypeId: selectedRoomType.id, basePrice: Number(roomForm.price) });
-                        updateRoomFormField("roomTypeId", saved.id);
-                        updateRoomFormField("price", "");
-                        await refetchRoomTypes();
-                        await toast.fire({ icon: "success", title: "Đã lưu giá gốc hạng phòng thành công." });
-                      } catch (error) {
-                        await SwalVietSage.fire({ icon: "error", title: "Không thể lưu giá gốc", text: getBusinessErrorMessage(error, "Vui lòng thử lại."), confirmButtonText: "OK" });
-                      }
-                    }}
-                    className="min-h-11 rounded-xl border border-[var(--outline-variant)] px-4 focus-visible:outline-2">Lưu giá gốc hạng phòng</button>
-                  {selectedRoomType.id.startsWith("legacy:") && <p role="alert">Nếu giá phòng cũ thiếu hoặc không đồng nhất, cần đối soát giá trước khi lưu giá gốc.</p>}
-                </div>
-              )}
-              {(roomForm.id || !roomForm.roomTypeId || selectedRoomType?.readiness === "MISSING_PRICE") && (
+              {(roomForm.id || !roomForm.roomTypeId) && (
               <label className="space-y-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
                   {roomForm.id ? "Giá riêng của phòng" : "Giá gốc loại phòng mới"}
@@ -2249,35 +2115,104 @@ export function OwnerRoomsClient({
                 <RoomFieldError message={roomFormErrors.price} />
               </label>
               )}
-              <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
-                  Thiết bị tối đa
-                </span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  placeholder="Mặc định 3"
-                  value={roomForm.maxActiveGuestDevices}
-                  onChange={(event) =>
-                    updateRoomFormField(
-                      "maxActiveGuestDevices",
-                      event.target.value.replace(/\D/g, ""),
-                    )
-                  }
-                  aria-invalid={Boolean(roomFormErrors.maxActiveGuestDevices)}
-                  className={roomInputClass(
-                    Boolean(roomFormErrors.maxActiveGuestDevices),
-                  )}
-                />
-                <p className="text-xs font-medium text-[var(--outline)]">
-                  Để trống để hệ thống dùng mặc định 3.
-                </p>
-                <RoomFieldError
-                  message={roomFormErrors.maxActiveGuestDevices}
-                />
-              </label>
 
+              <details
+                className="col-span-full rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-3.5 transition-all text-xs"
+                open={Boolean(
+                  roomForm.zone?.trim() ||
+                  roomForm.maxActiveGuestDevices?.trim() ||
+                  (!roomForm.id && selectedRoomType?.readiness === "MISSING_PRICE")
+                )}
+              >
+                <summary className="cursor-pointer font-bold uppercase tracking-wider text-[var(--primary)] flex items-center justify-between select-none">
+                  <span>Tùy chọn nâng cao</span>
+                  <span className="text-xs font-normal text-slate-500">
+                    (Khu vực, thiết bị tối đa, thiết lập giá gốc)
+                  </span>
+                </summary>
+                <div className="mt-3 grid items-start gap-x-5 gap-y-4 sm:grid-cols-2">
+                  <label className="space-y-2">
+                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
+                      Khu vực
+                    </span>
+                    <input
+                      value={roomForm.zone}
+                      onChange={(event) => updateRoomFormField("zone", event.target.value)}
+                      aria-invalid={Boolean(roomFormErrors.zone)}
+                      className={roomInputClass(Boolean(roomFormErrors.zone))}
+                      placeholder="VD: Khu A, Tòa Bắc"
+                    />
+                    <RoomFieldError message={roomFormErrors.zone} />
+                  </label>
+
+                  <label className="space-y-2">
+                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
+                      Thiết bị tối đa
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      placeholder="Mặc định 3"
+                      value={roomForm.maxActiveGuestDevices}
+                      onChange={(event) =>
+                        updateRoomFormField(
+                          "maxActiveGuestDevices",
+                          event.target.value.replace(/\D/g, ""),
+                        )
+                      }
+                      aria-invalid={Boolean(roomFormErrors.maxActiveGuestDevices)}
+                      className={roomInputClass(
+                        Boolean(roomFormErrors.maxActiveGuestDevices),
+                      )}
+                    />
+                    <p className="text-xs font-medium text-[var(--outline)]">
+                      Để trống để hệ thống dùng mặc định 3 thiết bị đồng thời.
+                    </p>
+                    <RoomFieldError
+                      message={roomFormErrors.maxActiveGuestDevices}
+                    />
+                  </label>
+
+                  {!roomForm.id && selectedRoomType?.readiness === "MISSING_PRICE" && (
+                    <div className="col-span-full space-y-2 rounded-lg border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-900">
+                      <p className="font-semibold">
+                        Hạng {selectedRoomType.name} chưa có giá gốc. Nhập giá bên dưới và lưu giá gốc trước khi tạo phòng:
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="Nhập giá gốc VNĐ..."
+                          value={formatPriceInput(roomForm.price)}
+                          onChange={(e) => updateRoomFormField("price", toRawPriceDigits(e.target.value))}
+                          className="min-h-10 rounded-lg border border-amber-300 bg-white px-3 text-xs"
+                        />
+                        <button
+                          type="button"
+                          disabled={repairPrice.isPending || createCatalogType.isPending || !roomForm.price || !Number.isFinite(Number(roomForm.price)) || Number(roomForm.price) <= 0}
+                          onClick={async () => {
+                            try {
+                              const saved = selectedRoomType.id.startsWith("legacy:")
+                                ? await createCatalogType.mutateAsync({ name: selectedRoomType.name, basePrice: Number(roomForm.price) })
+                                : await repairPrice.mutateAsync({ roomTypeId: selectedRoomType.id, basePrice: Number(roomForm.price) });
+                              updateRoomFormField("roomTypeId", saved.id);
+                              updateRoomFormField("price", "");
+                              await refetchRoomTypes();
+                              await showSuccessAlert("Đã lưu giá gốc", "Đã cập nhật giá gốc hạng phòng thành công.");
+                            } catch (error) {
+                              await showErrorAlert("Không thể lưu giá gốc", getBusinessErrorMessage(error, "Vui lòng thử lại."));
+                            }
+                          }}
+                          className="min-h-10 rounded-lg bg-amber-600 px-3 text-xs font-bold text-white hover:bg-amber-700 transition"
+                        >
+                          Lưu giá gốc
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </details>
             </div>
             <div className="mt-6 flex flex-col-reverse gap-3 border-t border-[var(--surface-container)] pt-5 sm:flex-row sm:justify-end">
               <button

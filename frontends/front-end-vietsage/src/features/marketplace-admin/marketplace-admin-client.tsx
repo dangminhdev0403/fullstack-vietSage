@@ -6,7 +6,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { DataTable } from "@/components/ui/data-table";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { OneTimePasswordDialog } from "@/features/account/security/one-time-password-dialog";
-import { SwalVietSage } from "@/libs/swal";
+import { showConfirmDialog, showErrorAlert, showSuccessAlert, SwalVietSage } from "@/libs/swal";
 import { marketplaceAdminResource } from "./resource";
 import { useMarketplaceAdminImportStore } from "./store/marketplace-admin-import-store";
 import type { MarketplaceCategorySheetPreview, ServiceTenant } from "./types";
@@ -135,51 +135,32 @@ export function MarketplaceAdminClient() {
   });
 
   const deleteCategoryMutation = useMutation({
-    mutationFn: (id: string) =>
-      fetch("/api/admin/marketplace", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "deleteCategory", id }),
-      }).then((r) => r.json()),
-    onSuccess: (res) => {
-      if (res.status === "success") {
-        SwalVietSage.fire({
-          title: "Đã xóa!",
-          text: "Danh mục đã được xóa hẳn thành công.",
-          icon: "success",
-          confirmButtonText: "OK",
-        });
-        data.refetch();
-      } else {
-        SwalVietSage.fire({
-          title: "Thất bại!",
-          text: res.message || "Không thể xóa danh mục.",
-          icon: "error",
-        });
-      }
+    ...resource.mutations.deleteCategory.options(),
+    onSuccess: async () => {
+      await showSuccessAlert(
+        "Đã xóa!",
+        "Danh mục đã được xóa hẳn thành công.",
+      );
+      data.refetch();
     },
-    onError: (err) => {
-      SwalVietSage.fire({
-        title: "Thất bại!",
-        text: getErrorMessage(err, "Không thể xóa danh mục."),
-        icon: "error",
-      });
+    onError: async (err) => {
+      await showErrorAlert(
+        "Thất bại!",
+        getErrorMessage(err, "Không thể xóa danh mục."),
+      );
     },
   });
 
-  const handleDeleteCategory = (cat: MarketplaceCategory) => {
-    SwalVietSage.fire({
+  const handleDeleteCategory = async (cat: MarketplaceCategory) => {
+    const result = await showConfirmDialog({
       title: "Xác nhận xóa hẳn danh mục",
       text: `Bạn có chắc chắn muốn xóa hẳn danh mục "${cat.nameVi}" (${cat.code}) không? Danh mục chỉ được xóa khi chưa có đối tác hoặc dịch vụ sử dụng. Nếu đang được sử dụng, hãy tạm tắt hoặc chuyển đối tác sang danh mục khác.`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Xóa vĩnh viễn",
-      cancelButtonText: "Hủy bỏ",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        deleteCategoryMutation.mutate(cat.id);
-      }
+      confirmText: "Xóa vĩnh viễn",
+      cancelText: "Hủy bỏ",
     });
+    if (result.isConfirmed) {
+      deleteCategoryMutation.mutate(cat.id);
+    }
   };
 
   // Workspace View & Dialog state
@@ -279,14 +260,7 @@ export function MarketplaceAdminClient() {
       (sheetPreview.summary as Record<string, number>).disable ??
       0;
 
-    SwalVietSage.fire({
-      title: "Xác nhận áp dụng thay đổi",
-      text: `Bạn có chắc chắn muốn áp dụng (${creates} tạo mới, ${updates} cập nhật, ${disables} gỡ bỏ/tắt) từ Google Sheets không?`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Áp dụng thay đổi",
-      cancelButtonText: "Hủy bỏ",
-    }).then((result) => {
+    showConfirmDialog({ title: "Xác nhận áp dụng thay đổi", text:  `Bạn có chắc chắn muốn áp dụng (${creates} tạo mới, ${updates} cập nhật, ${disables} gỡ bỏ/tắt) từ Google Sheets không?`, confirmText: "Áp dụng thay đổi", cancelText: "Hủy bỏ" }).then((result) => {
       if (result.isConfirmed) {
         commitMutation.mutate(
           {
@@ -314,14 +288,8 @@ export function MarketplaceAdminClient() {
               data.refetch();
             },
             onError: (err) => {
-              SwalVietSage.fire({
-                title: "Thất bại!",
-                text: getErrorMessage(
-                  err,
-                  "Không thể áp dụng thay đổi từ Google Sheets.",
-                ),
-                icon: "error",
-              });
+              showErrorAlert("Thất bại!", getErrorMessage(err, "Không thể áp dụng thay đổi từ Google Sheets.",
+                ));
             },
           },
         );
@@ -361,14 +329,7 @@ export function MarketplaceAdminClient() {
     if (nameRu) translations.ru = nameRu;
     if (nameHi) translations.hi = nameHi;
 
-    SwalVietSage.fire({
-      title: "Xác nhận tạo danh mục",
-      text: `Bạn có chắc chắn muốn tạo danh mục dịch vụ mới "${nameVi}"${nameEn ? ` (${nameEn})` : ""} không?`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Tạo danh mục",
-      cancelButtonText: "Hủy bỏ",
-    }).then((result) => {
+    showConfirmDialog({ title: "Xác nhận tạo danh mục", text: `Bạn có chắc chắn muốn tạo danh mục dịch vụ mới "${nameVi}"${nameEn ? ` (${nameEn})` : ""} không?`, confirmText: "Tạo danh mục", cancelText: "Hủy bỏ" }).then((result) => {
       if (result.isConfirmed) {
         mutation.mutate(
           {
@@ -385,21 +346,11 @@ export function MarketplaceAdminClient() {
               formElement.reset();
               setIsCategoryModalOpen(false);
               setFormValidationError(null);
-              SwalVietSage.fire({
-                title: "Thành công!",
-                text: `Đã tạo danh mục dịch vụ "${nameVi}" thành công.`,
-                icon: "success",
-                showConfirmButton: true,
-                confirmButtonText: "OK",
-              });
+              showSuccessAlert("Thành công!", `Đã tạo danh mục dịch vụ "${nameVi}" thành công.`);
               data.refetch();
             },
             onError: (err) => {
-              SwalVietSage.fire({
-                title: "Thất bại!",
-                text: getErrorMessage(err, "Không thể tạo danh mục dịch vụ."),
-                icon: "error",
-              });
+              showErrorAlert("Thất bại!", getErrorMessage(err, "Không thể tạo danh mục dịch vụ."));
             },
           },
         );
@@ -448,14 +399,7 @@ export function MarketplaceAdminClient() {
     if (nameRu) translations.ru = nameRu;
     if (nameHi) translations.hi = nameHi;
 
-    SwalVietSage.fire({
-      title: "Xác nhận cập nhật danh mục",
-      text: `Bạn có chắc chắn muốn lưu các thay đổi cho danh mục "${nameVi}" không?`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Lưu thay đổi",
-      cancelButtonText: "Hủy bỏ",
-    }).then((result) => {
+    showConfirmDialog({ title: "Xác nhận cập nhật danh mục", text: `Bạn có chắc chắn muốn lưu các thay đổi cho danh mục "${nameVi}" không?`, confirmText: "Lưu thay đổi", cancelText: "Hủy bỏ" }).then((result) => {
       if (result.isConfirmed) {
         mutation.mutate(
           {
@@ -470,24 +414,12 @@ export function MarketplaceAdminClient() {
             onSuccess: () => {
               setEditingCategory(null);
               setFormValidationError(null);
-              SwalVietSage.fire({
-                title: "Thành công!",
-                text: `Đã cập nhật danh mục "${nameVi}" thành công.`,
-                icon: "success",
-                showConfirmButton: true,
-                confirmButtonText: "OK",
-              });
+              showSuccessAlert("Thành công!", `Đã cập nhật danh mục "${nameVi}" thành công.`);
               data.refetch();
             },
             onError: (err) => {
-              SwalVietSage.fire({
-                title: "Thất bại!",
-                text: getErrorMessage(
-                  err,
-                  "Không thể cập nhật danh mục dịch vụ.",
-                ),
-                icon: "error",
-              });
+              showErrorAlert("Thất bại!", getErrorMessage(err, "Không thể cập nhật danh mục dịch vụ.",
+                ));
             },
           },
         );
@@ -540,14 +472,7 @@ export function MarketplaceAdminClient() {
       return;
     }
 
-    SwalVietSage.fire({
-      title: "Xác nhận tạo đối tác",
-      text: `Bạn có chắc chắn muốn khởi tạo đối tác "${displayName}" với tài khoản owner "${email}" không?`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Tạo đối tác",
-      cancelButtonText: "Hủy bỏ",
-    }).then((result) => {
+    showConfirmDialog({ title: "Xác nhận tạo đối tác", text: `Bạn có chắc chắn muốn khởi tạo đối tác "${displayName}" với tài khoản owner "${email}" không?`, confirmText: "Tạo đối tác", cancelText: "Hủy bỏ" }).then((result) => {
       if (result.isConfirmed) {
         const form = new FormData(formElement);
         const spreadsheetUrl = String(form.get("spreadsheetUrl") ?? "").trim();
@@ -567,21 +492,11 @@ export function MarketplaceAdminClient() {
               formElement.reset();
               setIsTenantModalOpen(false);
               setFormValidationError(null);
-              SwalVietSage.fire({
-                title: "Thành công!",
-                text: `Đã khởi tạo đối tác dịch vụ "${displayName}" thành công.`,
-                icon: "success",
-                showConfirmButton: true,
-                confirmButtonText: "OK",
-              });
+              showSuccessAlert("Thành công!", `Đã khởi tạo đối tác dịch vụ "${displayName}" thành công.`);
               data.refetch();
             },
             onError: (err) => {
-              SwalVietSage.fire({
-                title: "Thất bại!",
-                text: getErrorMessage(err, "Không thể tạo đối tác dịch vụ."),
-                icon: "error",
-              });
+              showErrorAlert("Thất bại!", getErrorMessage(err, "Không thể tạo đối tác dịch vụ."));
             },
           },
         );
@@ -684,14 +599,7 @@ export function MarketplaceAdminClient() {
       categoryId !== currentCategoryId ||
       deliveryServiceFeeRate !== currentFeeRate;
 
-    SwalVietSage.fire({
-      title: "Xác nhận cập nhật đối tác",
-      text: `Bạn có chắc chắn muốn lưu các thay đổi cho đối tác "${editingTenant.code}" (${displayName}) không?`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Lưu thay đổi",
-      cancelButtonText: "Hủy bỏ",
-    }).then((result) => {
+    showConfirmDialog({ title: "Xác nhận cập nhật đối tác", text: `Bạn có chắc chắn muốn lưu các thay đổi cho đối tác "${editingTenant.code}" (${displayName}) không?`, confirmText: "Lưu thay đổi", cancelText: "Hủy bỏ" }).then((result) => {
       if (!result.isConfirmed) return;
 
       if (
@@ -715,37 +623,19 @@ export function MarketplaceAdminClient() {
             onSuccess: () => {
               setEditingTenant(null);
               setFormValidationError(null);
-              SwalVietSage.fire({
-                title: "Thành công!",
-                text: `Đã cập nhật thông tin đối tác "${editingTenant.code}" thành công.`,
-                icon: "success",
-                showConfirmButton: true,
-                confirmButtonText: "OK",
-              });
+              showSuccessAlert("Thành công!", `Đã cập nhật thông tin đối tác "${editingTenant.code}" thành công.`);
               data.refetch();
             },
             onError: (err) => {
-              SwalVietSage.fire({
-                title: "Thất bại!",
-                text: getErrorMessage(
-                  err,
-                  "Không thể cập nhật thông tin đối tác.",
-                ),
-                icon: "error",
-              });
+              showErrorAlert("Thất bại!", getErrorMessage(err, "Không thể cập nhật thông tin đối tác.",
+                ));
             },
           },
         );
       } else {
         setEditingTenant(null);
         setFormValidationError(null);
-        SwalVietSage.fire({
-          title: "Thành công!",
-          text: `Đã lưu cập nhật đối tác "${editingTenant.code}" thành công.`,
-          icon: "success",
-          showConfirmButton: true,
-          confirmButtonText: "OK",
-        });
+        showSuccessAlert("Thành công!", `Đã lưu cập nhật đối tác "${editingTenant.code}" thành công.`);
         data.refetch();
       }
     });
@@ -756,14 +646,7 @@ export function MarketplaceAdminClient() {
     const ownerEmail = editingTenant.ownerEmail?.trim() ?? "";
     const ownerFullName = editingTenant.ownerFullName?.trim() ?? "";
 
-    SwalVietSage.fire({
-      title: "Xác nhận đặt lại mật khẩu",
-      text: `Hệ thống sẽ sinh ngẫu nhiên mật khẩu mới (14 ký tự) cho đối tác "${editingTenant.name}". Bạn có chắc chắn muốn tiếp tục?`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Đặt lại mật khẩu",
-      cancelButtonText: "Hủy bỏ",
-    }).then((result) => {
+    showConfirmDialog({ title: "Xác nhận đặt lại mật khẩu", text: `Hệ thống sẽ sinh ngẫu nhiên mật khẩu mới (14 ký tự) cho đối tác "${editingTenant.name}". Bạn có chắc chắn muốn tiếp tục?`, confirmText: "Đặt lại mật khẩu", cancelText: "Hủy bỏ" }).then((result) => {
       if (result.isConfirmed) {
         const newPassword = generateTemporaryPassword();
         setIsResettingPassword(true);
@@ -787,22 +670,12 @@ export function MarketplaceAdminClient() {
               );
               setGeneratedPassword(newPassword);
               setEditingTenant(null);
-              SwalVietSage.fire({
-                title: "Thành công!",
-                text: `Mật khẩu mới cho đối tác "${editingTenant.name}" đã được tạo.`,
-                icon: "success",
-                showConfirmButton: true,
-                confirmButtonText: "OK",
-              });
+              showSuccessAlert("Thành công!", `Mật khẩu mới cho đối tác "${editingTenant.name}" đã được tạo.`);
               data.refetch();
             },
             onError: (err) => {
               setIsResettingPassword(false);
-              SwalVietSage.fire({
-                title: "Thất bại!",
-                text: getErrorMessage(err, "Không thể đặt lại mật khẩu."),
-                icon: "error",
-              });
+              showErrorAlert("Thất bại!", getErrorMessage(err, "Không thể đặt lại mật khẩu."));
             },
           },
         );
@@ -838,24 +711,12 @@ export function MarketplaceAdminClient() {
           },
           {
             onSuccess: () => {
-              SwalVietSage.fire({
-                title: "Thành công!",
-                text: `Đã ${isStatusActive ? "tạm tắt" : "kích hoạt"} đối tác "${tenantName}" thành công.`,
-                icon: "success",
-                showConfirmButton: true,
-                confirmButtonText: "OK",
-              });
+              showSuccessAlert("Thành công!", `Đã ${isStatusActive ? "tạm tắt" : "kích hoạt"} đối tác "${tenantName}" thành công.`);
               data.refetch();
             },
             onError: (err) => {
-              SwalVietSage.fire({
-                title: "Thất bại!",
-                text: getErrorMessage(
-                  err,
-                  "Không thể thay đổi trạng thái đối tác.",
-                ),
-                icon: "error",
-              });
+              showErrorAlert("Thất bại!", getErrorMessage(err, "Không thể thay đổi trạng thái đối tác.",
+                ));
             },
           },
         );
@@ -883,24 +744,12 @@ export function MarketplaceAdminClient() {
           },
           {
             onSuccess: () => {
-              SwalVietSage.fire({
-                title: "Thành công!",
-                text: `Đã ${item.isActive ? "tạm tắt" : "kích hoạt"} danh mục "${item.nameVi}" thành công.`,
-                icon: "success",
-                showConfirmButton: true,
-                confirmButtonText: "OK",
-              });
+              showSuccessAlert("Thành công!", `Đã ${item.isActive ? "tạm tắt" : "kích hoạt"} danh mục "${item.nameVi}" thành công.`);
               data.refetch();
             },
             onError: (err) => {
-              SwalVietSage.fire({
-                title: "Thất bại!",
-                text: getErrorMessage(
-                  err,
-                  "Không thể thay đổi trạng thái danh mục.",
-                ),
-                icon: "error",
-              });
+              showErrorAlert("Thất bại!", getErrorMessage(err, "Không thể thay đổi trạng thái danh mục.",
+                ));
             },
           },
         );
@@ -987,15 +836,7 @@ export function MarketplaceAdminClient() {
       return;
     }
 
-    SwalVietSage.fire({
-      title: "Xác nhận cập nhật biểu phí",
-      text: "Bạn có chắc chắn muốn lưu thay đổi biểu phí Marketplace không? Biểu phí mới chỉ áp dụng cho các đơn hàng mới (không ảnh hưởng đơn đã tạo).",
-      icon: "question",
-      showCancelButton: true,
-      reverseButtons: false,
-      confirmButtonText: "Lưu biểu phí",
-      cancelButtonText: "Hủy bỏ",
-    }).then((result) => {
+    showConfirmDialog({ title: "Xác nhận cập nhật biểu phí", text: "Bạn có chắc chắn muốn lưu thay đổi biểu phí Marketplace không? Biểu phí mới chỉ áp dụng cho các đơn hàng mới (không ảnh hưởng đơn đã tạo).", confirmText: "Lưu biểu phí", cancelText: "Hủy bỏ" }).then((result) => {
       if (!result.isConfirmed) return;
       const input: { deliveryServiceFeeRate?: number; localMatePlatformFeeRate?: number } = {};
       if (deliveryVal !== undefined) input.deliveryServiceFeeRate = deliveryVal;
@@ -1010,20 +851,10 @@ export function MarketplaceAdminClient() {
           onSuccess: () => {
             setIsPricingModalOpen(false);
             setPricingFormError(null);
-            SwalVietSage.fire({
-              title: "Thành công!",
-              text: "Đã cập nhật cấu hình biểu phí Marketplace thành công.",
-              icon: "success",
-              showConfirmButton: true,
-              confirmButtonText: "OK",
-            });
+            showSuccessAlert("Thành công!", "Đã cập nhật cấu hình biểu phí Marketplace thành công.");
           },
           onError: (err) => {
-            SwalVietSage.fire({
-              title: "Cập nhật thất bại",
-              text: getErrorMessage(err, "Không thể cập nhật cấu hình biểu phí."),
-              icon: "error",
-            });
+            showErrorAlert("Cập nhật thất bại", getErrorMessage(err, "Không thể cập nhật cấu hình biểu phí."));
           },
         },
       );
@@ -1271,17 +1102,12 @@ export function MarketplaceAdminClient() {
                       item.serviceProfile?.displayName ?? item.name;
                     return (
                       <div className="flex items-center gap-3">
-                        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#24473d] text-base font-extrabold text-[#e8b363] shadow-xs ring-2 ring-[#e8b363]/30">
+                        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#24473d] text-sm font-extrabold text-[#e8b363] shadow-xs ring-2 ring-[#e8b363]/30">
                           {displayName.charAt(0).toUpperCase()}
                         </div>
-                        <div>
-                          <p className="text-base font-extrabold text-[#17201b]">
-                            {displayName}
-                          </p>
-                          <p className="text-sm font-medium text-[#69726b]">
-                            {item.name}
-                          </p>
-                        </div>
+                        <p className="text-base font-extrabold text-[#17201b]">
+                          {displayName}
+                        </p>
                       </div>
                     );
                   },
@@ -1294,20 +1120,11 @@ export function MarketplaceAdminClient() {
                     </span>
                   ),
                   cell: (item: ServiceTenant) => (
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#e8dfd1] bg-[#fbf8f2] text-[#24473d]">
-                        <VsIcon name="person" className="text-lg" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-sans text-sm font-extrabold text-[#17201b]">
-                          {item.ownerEmail ?? "Chưa thiết lập"}
-                        </span>
-                        {item.ownerFullName && (
-                          <span className="text-xs font-semibold text-[#69726b]">
-                            {item.ownerFullName}
-                          </span>
-                        )}
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <VsIcon name="person" className="text-base text-[#69726b]" />
+                      <span className="font-sans text-sm font-bold text-[#17201b]">
+                        {item.ownerEmail ?? "Chưa thiết lập"}
+                      </span>
                     </div>
                   ),
                 },
@@ -1849,7 +1666,7 @@ export function MarketplaceAdminClient() {
       {/* Modal 1: Create External Service Partner */}
       {isTenantModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201b]/60 p-4 backdrop-blur-md animate-in fade-in duration-150">
-          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
             <div className="flex items-center justify-between border-b border-[#e8dfd1] pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#24473d] text-[#e8b363]">
@@ -1956,26 +1773,31 @@ export function MarketplaceAdminClient() {
                   />
                 </div>
 
-                <div className="sm:col-span-2">
-                  <label
-                    htmlFor="modal-tenant-sheet-url"
-                    className={labelClass}
-                  >
-                    URL Google Sheets / Excel Online (Cấu hình đồng bộ dịch vụ
-                    đối tác)
-                  </label>
-                  <input
-                    id="modal-tenant-sheet-url"
-                    type="url"
-                    name="spreadsheetUrl"
-                    placeholder="https://docs.google.com/spreadsheets/d/..."
-                    className={inputClass}
-                  />
-                  <p className="mt-1 text-xs text-[#69726b]">
-                    Super Admin dán link Google Sheets / Excel Online cấp cho
-                    đối tác này để hệ thống tự động đồng bộ dịch vụ.
-                  </p>
-                </div>
+                <details className="sm:col-span-2 rounded-2xl border border-[#e8dfd1] bg-[#faf6ef]/50 p-4 group">
+                  <summary className="cursor-pointer text-sm font-semibold text-[#24473d] flex items-center justify-between select-none">
+                    <span>Tùy chọn nâng cao (Cấu hình Google Sheets / Excel Online)</span>
+                    <span className="text-xs text-[#69726b] group-open:hidden">Mở rộng ▼</span>
+                    <span className="text-xs text-[#69726b] hidden group-open:inline">Thu gọn ▲</span>
+                  </summary>
+                  <div className="mt-3 pt-3 border-t border-[#e8dfd1] space-y-2">
+                    <label
+                      htmlFor="modal-tenant-sheet-url"
+                      className={labelClass}
+                    >
+                      URL Google Sheets / Excel Online (Cấu hình đồng bộ dịch vụ đối tác)
+                    </label>
+                    <input
+                      id="modal-tenant-sheet-url"
+                      type="url"
+                      name="spreadsheetUrl"
+                      placeholder="https://docs.google.com/spreadsheets/d/..."
+                      className={inputClass}
+                    />
+                    <p className="text-xs text-[#69726b]">
+                      Super Admin dán link Google Sheets / Excel Online cấp cho đối tác này để hệ thống tự động đồng bộ dịch vụ.
+                    </p>
+                  </div>
+                </details>
 
                 <div>
                   <label htmlFor="modal-owner-password" className={labelClass}>
@@ -2035,7 +1857,7 @@ export function MarketplaceAdminClient() {
       {/* Modal 2: Edit External Service Partner */}
       {editingTenant && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201b]/60 p-4 backdrop-blur-md animate-in fade-in duration-150">
-          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
             <div className="flex items-center justify-between border-b border-[#e8dfd1] pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#24473d] text-[#e8b363]">
@@ -2252,7 +2074,7 @@ export function MarketplaceAdminClient() {
       {/* Modal 3: Create Service Category */}
       {isCategoryModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201b]/60 p-4 backdrop-blur-md animate-in fade-in duration-150">
-          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
             <div className="flex items-center justify-between border-b border-[#e8dfd1] pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#24473d] text-[#e8b363]">
@@ -2307,11 +2129,13 @@ export function MarketplaceAdminClient() {
                 />
               </div>
 
-              <div className="space-y-3 pt-2">
-                <p className="text-xs font-black uppercase tracking-wider text-[#24473d]">
-                  Tên đa ngôn ngữ khác (Tùy chọn)
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <details className="rounded-2xl border border-[#e8dfd1] bg-[#faf6ef]/50 p-4 group">
+                <summary className="cursor-pointer text-sm font-semibold text-[#24473d] flex items-center justify-between select-none">
+                  <span>Tùy chọn nâng cao (Tên đa ngôn ngữ khác: EN, ZH, KO, RU, HI)</span>
+                  <span className="text-xs text-[#69726b] group-open:hidden">Mở rộng ▼</span>
+                  <span className="text-xs text-[#69726b] hidden group-open:inline">Thu gọn ▲</span>
+                </summary>
+                <div className="mt-3 pt-3 border-t border-[#e8dfd1] grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label htmlFor="modal-cat-name-en" className={labelClass}>
                       🇬🇧 Tiếng Anh
@@ -2368,7 +2192,7 @@ export function MarketplaceAdminClient() {
                     />
                   </div>
                 </div>
-              </div>
+              </details>
 
               <div className="flex items-center justify-end gap-3 pt-5 border-t border-[#e8dfd1]">
                 <button
@@ -2397,7 +2221,7 @@ export function MarketplaceAdminClient() {
       {/* Modal 4: Edit Service Category */}
       {editingCategory && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201b]/60 p-4 backdrop-blur-md animate-in fade-in duration-150">
-          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
             <div className="flex items-center justify-between border-b border-[#e8dfd1] pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#24473d] text-[#e8b363]">
@@ -2452,11 +2276,13 @@ export function MarketplaceAdminClient() {
                 />
               </div>
 
-              <div className="space-y-3 pt-2">
-                <p className="text-xs font-black uppercase tracking-wider text-[#24473d]">
-                  Tên đa ngôn ngữ khác (Tùy chọn)
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <details className="rounded-2xl border border-[#e8dfd1] bg-[#faf6ef]/50 p-4 group">
+                <summary className="cursor-pointer text-sm font-semibold text-[#24473d] flex items-center justify-between select-none">
+                  <span>Tùy chọn nâng cao (Tên đa ngôn ngữ khác: EN, ZH, KO, RU, HI)</span>
+                  <span className="text-xs text-[#69726b] group-open:hidden">Mở rộng ▼</span>
+                  <span className="text-xs text-[#69726b] hidden group-open:inline">Thu gọn ▲</span>
+                </summary>
+                <div className="mt-3 pt-3 border-t border-[#e8dfd1] grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label htmlFor="edit-cat-name-en" className={labelClass}>
                       🇬🇧 Tiếng Anh
@@ -2533,7 +2359,7 @@ export function MarketplaceAdminClient() {
                     />
                   </div>
                 </div>
-              </div>
+              </details>
 
               <div className="flex items-center justify-end gap-3 pt-5 border-t border-[#e8dfd1]">
                 <button

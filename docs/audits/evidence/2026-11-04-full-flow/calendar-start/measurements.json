@@ -1,0 +1,86 @@
+[
+  {
+    "label": "desktop-1366",
+    "calendarHeight": 603,
+    "calendarTop": 328,
+    "pageWidth": 1360,
+    "viewport": [
+      1366,
+      768
+    ],
+    "visibleHeight": 440,
+    "visibleRows": 9
+  },
+  {
+    "label": "desktop-1440",
+    "calendarHeight": 735,
+    "calendarTop": 328,
+    "pageWidth": 1434,
+    "viewport": [
+      1440,
+      900
+    ],
+    "visibleHeight": 572,
+    "visibleRows": 13
+  },
+  {
+    "label": "viewport-320",
+    "calendarHeight": 575,
+    "calendarTop": 798,
+    "pageWidth": 314,
+    "viewport": [
+      320,
+      740
+    ],
+    "visibleHeight": 0,
+    "visibleRows": 0
+  },
+  {
+    "label": "viewport-390",
+    "calendarHeight": 679,
+    "calendarTop": 696,
+    "pageWidth": 384,
+    "viewport": [
+      390,
+      844
+    ],
+    "visibleHeight": 148,
+    "visibleRows": 1
+  },
+  {
+    "label": "viewport-768",
+    "calendarHeight": 859,
+    "calendarTop": 484,
+    "pageWidth": 762,
+    "viewport": [
+      768,
+      1024
+    ],
+    "visibleHeight": 540,
+    "visibleRows": 12
+  },
+  {
+    "label": "viewport-1024",
+    "calendarHeight": 603,
+    "calendarTop": 368,
+    "pageWidth": 1018,
+    "viewport": [
+      1024,
+      768
+    ],
+    "visibleHeight": 400,
+    "visibleRows": 8
+  },
+  {
+    "label": "viewport-1920",
+    "calendarHeight": 915,
+    "calendarTop": 288,
+    "pageWidth": 1914,
+    "viewport": [
+      1920,
+      1080
+    ],
+    "visibleHeight": 792,
+    "visibleRows": 19
+  }
+]

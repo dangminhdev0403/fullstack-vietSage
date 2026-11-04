@@ -12,7 +12,7 @@ export type ScanResult = {
 async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
   const body = await response.json().catch(() => ({})) as T & { error?: string };
-  if (!response.ok) throw new Error(`${(body as { error?: string }).error ?? "Request failed"} (HTTP ${response.status})`);
+  if (!response.ok) throw new Error((body as { error?: string }).error ?? "Request failed");
   return body;
 }
 

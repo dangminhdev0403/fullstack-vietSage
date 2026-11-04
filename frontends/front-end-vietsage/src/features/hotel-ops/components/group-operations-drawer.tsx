@@ -900,16 +900,6 @@ export function GroupOperationsDrawer({
         {/* Modal Header */}
         <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-slate-50 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer shadow-2xs whitespace-nowrap"
-              title="Quay lại danh sách"
-            >
-              <VsIcon name="arrow_back" className="text-base text-slate-600" />
-              <span>Quay lại danh sách</span>
-            </button>
-            <div className="h-6 w-px bg-slate-300 shrink-0 hidden sm:block" />
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-purple-700 shadow-2xs">
               <VsIcon name="groups" className="text-2xl" />
             </div>
@@ -958,8 +948,8 @@ export function GroupOperationsDrawer({
               ref={closeButtonRef}
               type="button"
               onClick={onClose}
-              aria-label="Quay lại danh sách"
-              title="Quay lại danh sách"
+              aria-label="Đóng"
+              title="Đóng"
               className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-200 transition cursor-pointer min-h-[40px]"
             >
               <VsIcon name="close" className="text-2xl" />
@@ -1256,7 +1246,7 @@ export function GroupOperationsDrawer({
                           <span className="sr-only">Chọn</span>
                         </th>
                         <th scope="col" className="px-4 py-3 whitespace-nowrap">
-                          Phòng & Tiền phòng
+                          Phòng
                         </th>
                         <th scope="col" className="px-4 py-3 whitespace-nowrap">
                           Khách lưu trú
@@ -1307,7 +1297,7 @@ export function GroupOperationsDrawer({
                                 />
                               </td>
 
-                              {/* Phòng & Tiền phòng */}
+                              {/* Phòng */}
                               <td className="px-4 py-3.5 align-middle whitespace-nowrap">
                                 <div className="flex items-center gap-2">
                                   {item.roomNumber ? (
@@ -1325,19 +1315,12 @@ export function GroupOperationsDrawer({
                                     </span>
                                   ) : null}
                                 </div>
-                                <div className="mt-0.5 text-xs font-bold text-amber-700">
-                                  {formatMoney(item.rate)}
-                                </div>
                               </td>
 
                               {/* Khách lưu trú */}
                               <td className="px-4 py-3.5 align-middle whitespace-nowrap">
                                 <div className="font-bold text-slate-900 text-sm">
                                   {cleanGuestDisplayName(item.guestDisplayName)}
-                                </div>
-                                <div className="mt-0.5 text-xs text-slate-500 font-medium">
-                                  <span className="font-mono text-purple-700 font-semibold">#{item.reservationCode}</span>
-                                  {item.guestPhone ? <span> · {item.guestPhone}</span> : null}
                                 </div>
                               </td>
 
@@ -1519,21 +1502,6 @@ export function GroupOperationsDrawer({
             </div>
           )}
         </div>
-
-        {/* Modal Footer */}
-        <footer className="flex items-center justify-between border-t border-slate-200 px-6 py-3.5 bg-slate-50 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer shadow-2xs"
-          >
-            <VsIcon name="arrow_back" className="text-base text-slate-600" />
-            <span>Quay lại</span>
-          </button>
-          <div className="text-xs font-medium text-slate-500">
-            Nhấn phím <kbd className="px-1.5 py-0.5 rounded border border-slate-300 bg-slate-100 font-mono text-xs">Esc</kbd> hoặc nút &quot;Quay lại&quot; để trở về danh sách
-          </div>
-        </footer>
       </div>
 
       {/* Room Assignment Sub-Modal (Centered Horizontal Modal Box Ngang) */}
@@ -1596,16 +1564,26 @@ export function GroupOperationsDrawer({
                 )}
               </div>
 
-              {assigningItem.roomType ? (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600 space-y-1">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600 space-y-1">
+                {assigningItem.roomType ? (
                   <p>
                     <strong>Hạng phòng đăng ký:</strong> {assigningItem.roomType}
                   </p>
+                ) : null}
+                <p>
+                  <strong>Lịch trình:</strong> {formatDateRange(assigningItem.plannedCheckInAt, assigningItem.plannedCheckOutAt)}
+                </p>
+                {assigningItem.rate != null ? (
                   <p>
-                    <strong>Lịch trình:</strong> {formatDateRange(assigningItem.plannedCheckInAt, assigningItem.plannedCheckOutAt)}
+                    <strong>Giá phòng:</strong> {formatMoney(assigningItem.rate)}
                   </p>
-                </div>
-              ) : null}
+                ) : null}
+                {assigningItem.guestPhone ? (
+                  <p>
+                    <strong>Số điện thoại:</strong> {assigningItem.guestPhone}
+                  </p>
+                ) : null}
+              </div>
             </div>
 
             <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-200">

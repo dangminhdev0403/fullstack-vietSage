@@ -1,0 +1,45 @@
+{
+  "verified_at": "2026-10-31T07:19:26.190151+00:00",
+  "source_sha256": {
+    "tools/visual-tests/analyze.py": "0d7c2df58d6b776af8aa6214a4c517d3f4c971752158264b146de08a5dcf632b",
+    "tools/visual-tests/test_analyze.py": "cbdada262fdde0869de2fb80754965edb28a21ca81de763c60c60407ca127d4f",
+    "tools/visual-tests/cases.json": "afd058f3e6ce91855268e38e2ea25487e15f6bb577ff6470fa4f506ef9da971a"
+  },
+  "unit_tests": {
+    "command": "python -m unittest discover -s tools/visual-tests -p test_analyze.py",
+    "unique_tests": 15,
+    "exit_code": 0
+  },
+  "compile": {
+    "command": "python -m py_compile tools/visual-tests/analyze.py tools/visual-tests/test_analyze.py",
+    "exit_code": 0
+  },
+  "pip_check": {
+    "exit_code": 0
+  },
+  "actual_yolo_cli": {
+    "exit_code": 1,
+    "case_counts": {
+      "PASS": 0,
+      "FAIL": 4,
+      "GAP": 4
+    },
+    "component_counts": {
+      "PASS": 27,
+      "FAIL": 4,
+      "GAP": 5,
+      "NOT_REQUIRED": 0
+    }
+  },
+  "browser_business_assertions": {
+    "passed": 16,
+    "total": 16
+  },
+  "runtime_errors": {
+    "exceptions": 0,
+    "http_errors": 0,
+    "canceled_requests": 10
+  },
+  "previous_tool_test_count": 12,
+  "execution_note": "Reanalyzed prior captured evidence; no new browser run. Flow/observation descriptions reconstructed from previous trace; original captured_at retained."
+}

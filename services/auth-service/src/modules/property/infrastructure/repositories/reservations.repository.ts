@@ -608,7 +608,7 @@ export class ReservationsRepository {
             where: { id: input.hotelId },
             select: { timezone: true },
           });
-          const tz = hotel?.timezone || VIETNAM_TIME_ZONE;
+          const tz = resolveTimeZone(hotel?.timezone);
           const nights = Math.max(
             1,
             diffCalendarDays(input.plannedCheckInAt, input.plannedCheckOutAt, tz),
@@ -621,7 +621,7 @@ export class ReservationsRepository {
               hotelId: input.hotelId,
               reservationId: reservation.id,
               lineType: ReservationChargeLineType.ROOM_NIGHT,
-              serviceDate: new Date(`${ymd}T14:00:00+07:00`),
+              serviceDate: plainDateAtTime(ymd, "14:00:00", tz),
               nameSnapshot: `Tiền phòng đêm ${ymd}`,
               quantity: 1,
               unitPriceSnapshot: rateDec,
@@ -708,7 +708,7 @@ export class ReservationsRepository {
           where: { id: input.hotelId },
           select: { timezone: true },
         });
-        const tz = hotel?.timezone || VIETNAM_TIME_ZONE;
+        const tz = resolveTimeZone(hotel?.timezone);
         const nights = Math.max(
           1,
           diffCalendarDays(input.plannedCheckInAt, input.plannedCheckOutAt, tz),
@@ -721,7 +721,7 @@ export class ReservationsRepository {
             hotelId: input.hotelId,
             reservationId: reservation.id,
             lineType: ReservationChargeLineType.ROOM_NIGHT,
-            serviceDate: new Date(`${ymd}T14:00:00+07:00`),
+            serviceDate: plainDateAtTime(ymd, "14:00:00", tz),
             nameSnapshot: `Tiền phòng đêm ${ymd}`,
             quantity: 1,
             unitPriceSnapshot: rateDec,
@@ -2713,7 +2713,7 @@ export class ReservationsRepository {
     return this.runSerializable(async (tx) => {
       const res = await tx.reservation.findFirst({
         where: { id: input.reservationId, hotelId: input.hotelId },
-        include: { room: true },
+        include: { room: true, hotel: { select: { timezone: true } } },
       });
       if (!res) {
         throw new NotFoundException("Không tìm thấy đặt phòng");
@@ -2730,11 +2730,12 @@ export class ReservationsRepository {
         );
       }
 
+      const tz = resolveTimeZone(res.hotel?.timezone);
       let newCheckIn = input.plannedCheckInAt;
       if (!newCheckIn && input.startDate) {
         newCheckIn = input.startDate.includes("T")
           ? new Date(input.startDate)
-          : new Date(`${input.startDate}T14:00:00+07:00`);
+          : plainDateAtTime(input.startDate, "14:00:00", tz);
       }
       if (!newCheckIn) {
         newCheckIn = res.plannedCheckInAt;
@@ -2744,7 +2745,7 @@ export class ReservationsRepository {
       if (!newCheckOut && input.endDate) {
         newCheckOut = input.endDate.includes("T")
           ? new Date(input.endDate)
-          : new Date(`${input.endDate}T12:00:00+07:00`);
+          : plainDateAtTime(input.endDate, "12:00:00", tz);
       }
       if (!newCheckOut) {
         newCheckOut = res.plannedCheckOutAt;
@@ -2875,7 +2876,7 @@ export class ReservationsRepository {
     return this.runSerializable(async (tx) => {
       const res = await tx.reservation.findFirst({
         where: { id: input.reservationId, hotelId: input.hotelId },
-        include: { room: { include: { roomType: true } }, roomType: true },
+        include: { room: { include: { roomType: true } }, roomType: true, hotel: { select: { timezone: true } } },
       });
       if (!res) {
         throw new NotFoundException("Không tìm thấy đặt phòng");
@@ -2894,11 +2895,12 @@ export class ReservationsRepository {
         }
       }
 
+      const tz = resolveTimeZone(res.hotel?.timezone);
       let newCheckIn = input.plannedCheckInAt;
       if (!newCheckIn && input.startDate) {
         newCheckIn = input.startDate.includes("T")
           ? new Date(input.startDate)
-          : new Date(`${input.startDate}T14:00:00+07:00`);
+          : plainDateAtTime(input.startDate, "14:00:00", tz);
       }
       if (!newCheckIn) {
         newCheckIn = res.plannedCheckInAt;
@@ -2908,7 +2910,7 @@ export class ReservationsRepository {
       if (!newCheckOut && input.endDate) {
         newCheckOut = input.endDate.includes("T")
           ? new Date(input.endDate)
-          : new Date(`${input.endDate}T12:00:00+07:00`);
+          : plainDateAtTime(input.endDate, "12:00:00", tz);
       }
       if (!newCheckOut) {
         newCheckOut = res.plannedCheckOutAt;

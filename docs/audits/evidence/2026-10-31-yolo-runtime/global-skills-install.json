@@ -1,0 +1,67 @@
+{
+  "source": "https://github.com/ultralytics/skills",
+  "source_head_observed": "4fb64f51eedcfd851ece0c331066036e022bc3dd",
+  "skills": [
+    "yolo",
+    "yolo-models",
+    "yolo-datasets",
+    "yolo-training",
+    "yolo-tuning",
+    "yolo-inference",
+    "yolo-export",
+    "platform-cli"
+  ],
+  "verification": "All 8 SKILL.md files readable and identical through every target path",
+  "hashes": {
+    "C:/Users/Dangminhdev0403/.agents/skills": {
+      "yolo": "33041841b493f09a1a6c81db25ccd6bec6be3ec6dd7f40a86a21008ea3999094",
+      "yolo-models": "3ffa19029579833398c4eff7de333535873e3eec0cea957122cc9f067ea91b9d",
+      "yolo-datasets": "b38d846942128a8864a8a36c343fea7b5b6bd48512afb821337555ee141ddd46",
+      "yolo-training": "fd78cf6a0b7fd51682c2d1d007618805750be306c616a8fbc055d0a3c02840f2",
+      "yolo-tuning": "5a54cd5907b71e14bf8edf34bb76d1f5f1a8a0f3e26e95f8bf925f9a9d34dc1c",
+      "yolo-inference": "bfc5ca862b26c2f5b9efe06330a9e98d8af26b6d408d636a7181f3a4e318174c",
+      "yolo-export": "eef596a1a018e57e1845c5063f28648ea476128cf6a189e8202f5d291194ff4c",
+      "platform-cli": "884c0435bc560ffe482a2fd59e730a6c946a0ce1f99bc2f7210db67386adf85f"
+    },
+    "C:/Users/Dangminhdev0403/.codex/skills": {
+      "yolo": "33041841b493f09a1a6c81db25ccd6bec6be3ec6dd7f40a86a21008ea3999094",
+      "yolo-models": "3ffa19029579833398c4eff7de333535873e3eec0cea957122cc9f067ea91b9d",
+      "yolo-datasets": "b38d846942128a8864a8a36c343fea7b5b6bd48512afb821337555ee141ddd46",
+      "yolo-training": "fd78cf6a0b7fd51682c2d1d007618805750be306c616a8fbc055d0a3c02840f2",
+      "yolo-tuning": "5a54cd5907b71e14bf8edf34bb76d1f5f1a8a0f3e26e95f8bf925f9a9d34dc1c",
+      "yolo-inference": "bfc5ca862b26c2f5b9efe06330a9e98d8af26b6d408d636a7181f3a4e318174c",
+      "yolo-export": "eef596a1a018e57e1845c5063f28648ea476128cf6a189e8202f5d291194ff4c",
+      "platform-cli": "884c0435bc560ffe482a2fd59e730a6c946a0ce1f99bc2f7210db67386adf85f"
+    },
+    "C:/Users/Dangminhdev0403/.gemini/config/skills": {
+      "yolo": "33041841b493f09a1a6c81db25ccd6bec6be3ec6dd7f40a86a21008ea3999094",
+      "yolo-models": "3ffa19029579833398c4eff7de333535873e3eec0cea957122cc9f067ea91b9d",
+      "yolo-datasets": "b38d846942128a8864a8a36c343fea7b5b6bd48512afb821337555ee141ddd46",
+      "yolo-training": "fd78cf6a0b7fd51682c2d1d007618805750be306c616a8fbc055d0a3c02840f2",
+      "yolo-tuning": "5a54cd5907b71e14bf8edf34bb76d1f5f1a8a0f3e26e95f8bf925f9a9d34dc1c",
+      "yolo-inference": "bfc5ca862b26c2f5b9efe06330a9e98d8af26b6d408d636a7181f3a4e318174c",
+      "yolo-export": "eef596a1a018e57e1845c5063f28648ea476128cf6a189e8202f5d291194ff4c",
+      "platform-cli": "884c0435bc560ffe482a2fd59e730a6c946a0ce1f99bc2f7210db67386adf85f"
+    },
+    "C:/Users/Dangminhdev0403/.gemini/antigravity-cli/skills": {
+      "yolo": "33041841b493f09a1a6c81db25ccd6bec6be3ec6dd7f40a86a21008ea3999094",
+      "yolo-models": "3ffa19029579833398c4eff7de333535873e3eec0cea957122cc9f067ea91b9d",
+      "yolo-datasets": "b38d846942128a8864a8a36c343fea7b5b6bd48512afb821337555ee141ddd46",
+      "yolo-training": "fd78cf6a0b7fd51682c2d1d007618805750be306c616a8fbc055d0a3c02840f2",
+      "yolo-tuning": "5a54cd5907b71e14bf8edf34bb76d1f5f1a8a0f3e26e95f8bf925f9a9d34dc1c",
+      "yolo-inference": "bfc5ca862b26c2f5b9efe06330a9e98d8af26b6d408d636a7181f3a4e318174c",
+      "yolo-export": "eef596a1a018e57e1845c5063f28648ea476128cf6a189e8202f5d291194ff4c",
+      "platform-cli": "884c0435bc560ffe482a2fd59e730a6c946a0ce1f99bc2f7210db67386adf85f"
+    },
+    "C:/Users/Dangminhdev0403/.gemini/antigravity/skills": {
+      "yolo": "33041841b493f09a1a6c81db25ccd6bec6be3ec6dd7f40a86a21008ea3999094",
+      "yolo-models": "3ffa19029579833398c4eff7de333535873e3eec0cea957122cc9f067ea91b9d",
+      "yolo-datasets": "b38d846942128a8864a8a36c343fea7b5b6bd48512afb821337555ee141ddd46",
+      "yolo-training": "fd78cf6a0b7fd51682c2d1d007618805750be306c616a8fbc055d0a3c02840f2",
+      "yolo-tuning": "5a54cd5907b71e14bf8edf34bb76d1f5f1a8a0f3e26e95f8bf925f9a9d34dc1c",
+      "yolo-inference": "bfc5ca862b26c2f5b9efe06330a9e98d8af26b6d408d636a7181f3a4e318174c",
+      "yolo-export": "eef596a1a018e57e1845c5063f28648ea476128cf6a189e8202f5d291194ff4c",
+      "platform-cli": "884c0435bc560ffe482a2fd59e730a6c946a0ce1f99bc2f7210db67386adf85f"
+    }
+  }
+}

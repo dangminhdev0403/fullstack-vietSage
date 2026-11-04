@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "case_id": "FILTER_GROUP",
+  "captured_at": "2026-10-31T06:47:33.284Z",
+  "url": "https://vietsage.localhost/owner/hotels/cmq2k2lm0003f2oui3ifqp808/rooms?view=tape-chart&startDate=2026-10-31",
+  "screenshot": "FILTER_GROUP.jpg",
+  "checks": {
+    "query_exact": true,
+    "room_1003": true,
+    "room_1004": true,
+    "no_empty_result": true
+  },
+  "runtime": {
+    "complete": true,
+    "truncated": false,
+    "events": [
+      {
+        "kind": "request_failed",
+        "path": "/api/owner/hotels",
+        "message": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "kind": "redirect",
+        "status": 308,
+        "path": "/socket.io/"
+      },
+      {
+        "kind": "redirect",
+        "status": 308,
+        "path": "/socket.io/"
+      },
+      {
+        "kind": "redirect",
+        "status": 308,
+        "path": "/socket.io/"
+      },
+      {
+        "kind": "redirect",
+        "status": 308,
+        "path": "/socket.io/"
+      },
+      {
+        "kind": "request_failed",
+        "path": "/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/room-plan",
+        "message": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "kind": "request_failed",
+        "path": "/g/collect",
+        "message": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "kind": "request_failed",
+        "path": "/g/collect",
+        "message": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    ],
+    "documents": [
+      {
+        "path": "/owner/hotels/cmq2k2lm0003f2oui3ifqp808/rooms",
+        "status": 200
+      }
+    ]
+  },
+  "visual": {
+    "reference": "FILTER_GROUP-reference.jpg",
+    "bboxes": [
+      [
+        774.4375,
+        409,
+        858.578125,
+        441
+      ],
+      [
+        333,
+        686.5,
+        383.28125,
+        706.5
+      ]
+    ],
+    "labels": [
+      "clear_filter_button",
+      "room_button"
+    ],
+    "targets": [
+      {
+        "label": "clear_filter_button",
+        "box": [
+          774.4375,
+          409,
+          858.578125,
+          441
+        ]
+      },
+      {
+        "label": "room_button",
+        "box": [
+          333,
+          686.5,
+          383.28125,
+          706.5
+        ]
+      }
+    ]
+  },
+  "screenshot_sha256": "8f7ad26675e685d111c3aea7d1c1577c441e37037d07d9b1732bfc96f87aa226",
+  "reference_sha256": "1557f1902d07df9120f8be0bd48d8b483fc291deb45e528a586b92dea59bce61",
+  "completed_steps": [
+    "Mở timeline từ 31/10/2026 và bật thu CDP.",
+    "Nhập #VSH_GROUP_0015 vào ô tìm mã đặt/đoàn.",
+    "Đọc phòng 1003/1004, trạng thái kết quả; lưu ảnh và box mẫu."
+  ],
+  "steps_origin": "Bổ sung mô tả từ trace thao tác của lượt capture trước; không phải log timestamp từng bước hoặc lượt browser mới.",
+  "observations": {
+    "query_exact": {
+      "source": "DOM",
+      "observed": "Searchbox: #VSH_GROUP_0015",
+      "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+    },
+    "room_1003": {
+      "source": "DOM",
+      "observed": "DOM có P.1003",
+      "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+    },
+    "room_1004": {
+      "source": "DOM",
+      "observed": "DOM có P.1004",
+      "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+    },
+    "no_empty_result": {
+      "source": "DOM",
+      "observed": "DOM không có Không tìm thấy phòng phù hợp; hiển thị 2/71 phòng",
+      "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+    }
+  }
+}

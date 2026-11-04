@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@/auth";
+import { runtimeConsole } from "@/core/logging/runtime-console";
 import { createRequestRedirectUrl } from "@/features/auth/utils/redirect-isolation-core";
 import { resolveSafeRedirectByRoles, sanitizeInternalCallbackUrl } from "@/libs/rbac";
 
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
   const roles = activeRole ? [activeRole] : [];
   const safePath = resolveSafeRedirectByRoles(roles, callbackUrl);
 
-  console.info("[POST_LOGIN_REDIRECT]", {
+  runtimeConsole.info("[POST_LOGIN_REDIRECT]", {
     activeRoleCode: session?.activeRoleCode ?? null,
     callbackUrl: callbackUrl ?? null,
     resolvedPath: safePath,

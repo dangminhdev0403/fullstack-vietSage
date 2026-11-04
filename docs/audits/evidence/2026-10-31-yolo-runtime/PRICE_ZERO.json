@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "case_id": "PRICE_ZERO",
+  "captured_at": "2026-10-31T07:03:43.198Z",
+  "url": "https://vietsage.localhost/owner/hotels/cmq2k2lm0003f2oui3ifqp808/rooms?view=tape-chart&startDate=2026-11-01&businessDate=2026-11-01",
+  "screenshot": "PRICE_ZERO.jpg",
+  "checks": {
+    "rate_zero": true,
+    "total_zero": true,
+    "no_current_price_fallback": true
+  },
+  "runtime": {
+    "complete": true,
+    "truncated": false,
+    "events": [
+      {
+        "kind": "request_failed",
+        "path": "/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/billing/booking-payments",
+        "message": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "kind": "redirect",
+        "status": 308,
+        "path": "/socket.io/"
+      },
+      {
+        "kind": "redirect",
+        "status": 308,
+        "path": "/socket.io/"
+      }
+    ],
+    "documents": []
+  },
+  "visual": {
+    "reference": "PRICE_ZERO-reference.jpg",
+    "bboxes": [
+      [
+        572,
+        424.296875,
+        1161,
+        462.296875
+      ]
+    ],
+    "labels": [
+      "nightly_rate_input"
+    ],
+    "targets": [
+      {
+        "label": "nightly_rate_input",
+        "box": [
+          572,
+          424.296875,
+          1161,
+          462.296875
+        ]
+      }
+    ]
+  },
+  "note": "Read-only modal open on existing booking 0117. Room base 1.300.000; committed nightly rate and total 0. No save/payment submitted. Captured interval covers modal open, not a page reload.",
+  "screenshot_sha256": "86e2b6495b910584d6211923dbc317d48bea4ec677e8f660b9c3afb2b242b736",
+  "reference_sha256": "86e2b6495b910584d6211923dbc317d48bea4ec677e8f660b9c3afb2b242b736",
+  "completed_steps": [
+    "Từ timeline đã tải, mở booking thử 0117 tại phòng 627; bật CDP trước khi mở modal.",
+    "Đọc đơn giá 0, tổng 0 và giá gốc 1.300.000 trong form; thu ảnh và box ô đơn giá.",
+    "Đóng bằng Hủy bỏ; không lưu hoặc thu tiền."
+  ],
+  "steps_origin": "Bổ sung mô tả từ trace thao tác của lượt capture trước; không phải log timestamp từng bước hoặc lượt browser mới.",
+  "observations": {
+    "rate_zero": {
+      "source": "DOM",
+      "observed": "Value ô đơn giá: 0",
+      "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+    },
+    "total_zero": {
+      "source": "DOM",
+      "observed": "DOM: Tổng tiền phòng: 0 ₫",
+      "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+    },
+    "no_current_price_fallback": {
+      "source": "DOM",
+      "observed": "DOM: Giá gốc 1.300.000 ₫; Đơn giá 0 ₫/đêm và tổng 0 ₫",
+      "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+    }
+  }
+}

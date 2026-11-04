@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { runtimeConsole } from "@/core/logging/runtime-console";
 import { AuthServiceError } from "@/features/auth/service/auth-service";
 import { LOGIN_PATH } from "@/features/auth/utils/login-route";
 import { createRequestRedirectUrl } from "@/features/auth/utils/redirect-isolation-core";
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
 
     await refreshAndSaveSessionTokens(refreshToken);
 
-    console.info("[AUTH_REFRESH_GATE_SUCCESS]", {
+    runtimeConsole.info("[AUTH_REFRESH_GATE_SUCCESS]", {
       source: "refresh-session-route",
       callbackUrl,
       timestamp: Date.now(),

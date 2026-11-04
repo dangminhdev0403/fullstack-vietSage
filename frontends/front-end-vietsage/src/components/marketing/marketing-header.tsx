@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { VietSageBrand } from "@/components/brand/vietsage-brand";
 import { LOCALE_OPTIONS, normalizeLocale, type SupportedLocale } from "@/core/i18n/locales";
+import { authRepository } from "@/features/auth/repositories/auth-repository";
 import { REQUEST_DEMO_URL } from "./marketing-links";
 
 type HeaderCopy = {
@@ -240,8 +241,8 @@ export function MarketingHeader({
     if (accountAction.href !== "/dangnhap") return;
 
     let isMounted = true;
-    fetch("/api/auth/session")
-      .then((res) => (res.ok ? res.json() : null))
+    authRepository
+      .getSession()
       .then((session) => {
         if (!isMounted) return;
         if (session && (session.user?.id || (session.activeRoleCode && !session.authError))) {

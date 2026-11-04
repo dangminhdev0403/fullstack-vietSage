@@ -1,0 +1,365 @@
+{
+  "date": "2026-11-04",
+  "environment": "local",
+  "url": "https://vietsage.localhost",
+  "reservationCode": "VSH_RESERVATION_0118",
+  "testGuest": "QA Turnaround 0411",
+  "observations": [
+    {
+      "case": "tenant-login",
+      "result": "PASS",
+      "evidence": "Owner dashboard loaded after backend readiness HTTP 200"
+    },
+    {
+      "case": "active-stay-conflict",
+      "result": "PASS",
+      "evidence": "Room 1001 reservation 0110 blocked by Trần Bảo Nam stay; checkout or swap offered; canceled without checkout"
+    },
+    {
+      "case": "cancel-early-check-in",
+      "result": "PASS",
+      "evidence": "Reservation 0118 saved; early confirmation canceled; edit modal and guest input retained"
+    },
+    {
+      "case": "saved-room-cccd",
+      "result": "PASS",
+      "evidence": "Reservation 0118 moved from 1004 to 1009; CCCD heading Check-in phòng 1009; workspace canceled"
+    },
+    {
+      "case": "express-check-in",
+      "result": "PASS",
+      "evidence": "Room 1009 showed occupied; room detail contained QA Turnaround 0411, reservation 0118, rate 0"
+    },
+    {
+      "case": "checkout-to-processing",
+      "result": "PASS",
+      "evidence": "Zero-balance test stay checked out with ready checkbox unchecked; grid showed room 1009 chờ dọn"
+    },
+    {
+      "case": "confirm-ready",
+      "result": "PASS",
+      "evidence": "Edit station selected 1009 temporarily; mark ready succeeded; existing reservation 200 room assignment was not saved; room 1009 grid returned ready"
+    },
+    {
+      "case": "arrival-detail-cleaning",
+      "result": "PASS",
+      "evidence": "Arrivals 2026-11-08 displayed room 200 waiting for housekeeping with ready/swap actions"
+    }
+  ],
+  "runtime": {
+    "complete": false,
+    "truncated": true,
+    "events": [
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "http",
+        "path": "/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/reservations/cmw1uggt4003oaov4r9uc7eu5/check-in",
+        "status": 409
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "http",
+        "path": "/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/reservations/cmw1uggt4003oaov4r9uc7eu5/check-in",
+        "status": 409
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "type": "failed",
+        "error": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    ],
+    "notes": "HTTP 409 occurred on first early check-in requests and was handled by confirmation. Canceled requests need separate diagnosis. No captured Runtime.exceptionThrown events; capture incomplete."
+  },
+  "dataChanges": {
+    "created": "Reservation 0118, test guest QA Turnaround 0411, price 0",
+    "final": "Checked out, zero balance; room 1009 AVAILABLE; no deletion, migration, seed or reset"
+  }
+}

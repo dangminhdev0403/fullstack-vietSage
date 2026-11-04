@@ -1,0 +1,102 @@
+[
+  {
+    "reservationCode": "AUDIT04-ACTIVE",
+    "reservationStatus": "CONFIRMED",
+    "roomId": "audit-20261104-room-D",
+    "nightlyRateSnapshot": "100000.00",
+    "stayStatus": null,
+    "stayId": null,
+    "occupants": "0",
+    "deposits": "0"
+  },
+  {
+    "reservationCode": "AUDIT04-BLOCKED",
+    "reservationStatus": "CONFIRMED",
+    "roomId": "audit-20261104-room-G",
+    "nightlyRateSnapshot": "100000.00",
+    "stayStatus": null,
+    "stayId": null,
+    "occupants": "0",
+    "deposits": "0"
+  },
+  {
+    "reservationCode": "AUDIT04-DIRTY",
+    "reservationStatus": "CHECKED_IN",
+    "roomId": "audit-20261104-room-C",
+    "nightlyRateSnapshot": "100000.00",
+    "stayStatus": "ACTIVE",
+    "stayId": "cmw1v9d1600g2aov4gy5rhsf7",
+    "occupants": "1",
+    "deposits": "0"
+  },
+  {
+    "reservationCode": "AUDIT04-EARLY",
+    "reservationStatus": "NO_SHOW",
+    "roomId": null,
+    "nightlyRateSnapshot": "100000.00",
+    "stayStatus": null,
+    "stayId": null,
+    "occupants": "0",
+    "deposits": "0"
+  },
+  {
+    "reservationCode": "AUDIT04-LATE",
+    "reservationStatus": "CHECKED_IN",
+    "roomId": "audit-20261104-room-B",
+    "nightlyRateSnapshot": "100000.00",
+    "stayStatus": "ACTIVE",
+    "stayId": "cmw1vaop500gbaov4kry0qgqn",
+    "occupants": "1",
+    "deposits": "0"
+  },
+  {
+    "reservationCode": "AUDIT04-NOQR",
+    "reservationStatus": "CHECKED_IN",
+    "roomId": "audit-20261104-room-I",
+    "nightlyRateSnapshot": "100000.00",
+    "stayStatus": "ACTIVE",
+    "stayId": "cmw1v725w00fuaov4vajg5w2b",
+    "occupants": "1",
+    "deposits": "0"
+  },
+  {
+    "reservationCode": "AUDIT04-OVERDUE",
+    "reservationStatus": "CONFIRMED",
+    "roomId": "audit-20261104-room-E",
+    "nightlyRateSnapshot": "100000.00",
+    "stayStatus": null,
+    "stayId": null,
+    "occupants": "0",
+    "deposits": "0"
+  },
+  {
+    "reservationCode": "AUDIT04-TODAY",
+    "reservationStatus": "CHECKED_IN",
+    "roomId": "audit-20261104-room-A",
+    "nightlyRateSnapshot": "100000.00",
+    "stayStatus": "CHECKED_OUT",
+    "stayId": "cmw1vci7300gmaov413lxchdg",
+    "occupants": "1",
+    "deposits": "100000.00"
+  },
+  {
+    "reservationCode": "AUDIT04-UNASSIGNED",
+    "reservationStatus": "CHECKED_IN",
+    "roomId": "audit-20261104-room-H",
+    "nightlyRateSnapshot": "100000.00",
+    "stayStatus": "ACTIVE",
+    "stayId": "cmw1vmyoh00h2aov41u8x2pu8",
+    "occupants": "2",
+    "deposits": "0"
+  },
+  {
+    "reservationCode": "VSH_RESERVATION_0119",
+    "reservationStatus": "ARRIVAL_READY",
+    "roomId": "audit-20261104-room-A",
+    "nightlyRateSnapshot": "0.00",
+    "stayStatus": null,
+    "stayId": null,
+    "occupants": "0",
+    "deposits": "0"
+  }
+]

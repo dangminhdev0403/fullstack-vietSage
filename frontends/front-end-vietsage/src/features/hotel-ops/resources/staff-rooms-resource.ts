@@ -38,6 +38,16 @@ const baseStaffRoomsResource = createResource<{ hotelId: string }>()({
   name: "staff-rooms",
   scopeKey: ({ hotelId }) => ["hotel", hotelId],
   queries: {
+    arrivals: defineQuery({
+      inputKey: (input: { from: string; to: string }) => [input.from, input.to],
+      queryFn: ({ scope, input, signal }: ResourceQueryContext<{ hotelId: string }, { from: string; to: string }>) =>
+        staffRoomsRepository.listArrivals(scope.hotelId, input, signal),
+    }),
+    allRooms: defineQuery({
+      inputKey: () => [],
+      queryFn: ({ scope, signal }: ResourceQueryContext<{ hotelId: string }, void>) =>
+        staffRoomsRepository.listAll(scope.hotelId, signal),
+    }),
     list: defineQuery({
       inputKey: (input?: StaffRoomsListInput) => [
         input?.q ?? "",

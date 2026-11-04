@@ -1509,6 +1509,7 @@ export function OwnerServiceCatalogClient({
           getRowKey={(category) => category.id}
           emptyMessage="Chưa có nhóm dịch vụ phù hợp."
           minWidth="900px"
+          onRowClick={canManage ? (category) => setCategoryForm(categoryToForm(category)) : undefined}
           footer={
             <PaginationControls
               page={activeCategoryPage}
@@ -1529,6 +1530,7 @@ export function OwnerServiceCatalogClient({
           getRowKey={(item) => item.id}
           emptyMessage="Chưa có dịch vụ phù hợp."
           minWidth="860px"
+          onRowClick={canManage ? (item) => setItemForm(itemToForm(item)) : undefined}
           footer={
             <PaginationControls
               page={activeItemPage}
@@ -1545,19 +1547,21 @@ export function OwnerServiceCatalogClient({
       )}
 
       {categoryForm ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
           <form
             noValidate
             onSubmit={saveCategory}
-            className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
+            className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
           >
-            <h2 className="mb-5 text-2xl font-semibold text-[var(--primary)]">
+            <h2 className="mb-5 text-2xl font-semibold text-[var(--primary)] text-balance">
               {categoryForm.id ? "Sửa nhóm dịch vụ" : "Tạo nhóm dịch vụ"}
             </h2>
+            
+            {/* Core Fields */}
             <div className="grid gap-4 md:grid-cols-2">
-              <label className="space-y-2 md:col-span-2">
-                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                  Tên nhóm dịch vụ
+              <label className="space-y-1.5 md:col-span-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
+                  Tên nhóm dịch vụ <span className="text-rose-500">*</span>
                 </span>
                 <input
                   required
@@ -1569,32 +1573,13 @@ export function OwnerServiceCatalogClient({
                     })
                   }
                   placeholder="VD: Housekeeping"
-                  className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]"
+                  className="w-full rounded-xl border border-[var(--outline-variant)] px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
                 />
               </label>
-              <label className="space-y-2 md:col-span-2">
-                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                  ID group Telegram (tùy chọn)
-                </span>
-                <input
-                  value={categoryForm.id_group}
-                  onChange={(event) =>
-                    setCategoryForm({
-                      ...categoryForm,
-                      id_group: event.target.value,
-                    })
-                  }
-                  placeholder="VD: -1001234567890"
-                  className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]"
-                />
-                <span className="block text-sm text-[var(--on-surface-variant)]">
-                  Chỉ nhập khi nhóm dịch vụ cần bắn thông báo vào group Telegram
-                  riêng.
-                </span>
-              </label>
-              <label className="space-y-2">
-                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                  Giá mặc định
+
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
+                  Giá mặc định <span className="text-rose-500">*</span>
                 </span>
                 <input
                   required
@@ -1617,12 +1602,13 @@ export function OwnerServiceCatalogClient({
                       event.preventDefault();
                   }}
                   placeholder="VD: 10000"
-                  className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]"
+                  className="w-full rounded-xl border border-[var(--outline-variant)] px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
                 />
               </label>
-              <label className="space-y-2">
-                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                  Tiền tệ
+
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
+                  Tiền tệ <span className="text-rose-500">*</span>
                 </span>
                 <input
                   required
@@ -1634,32 +1620,13 @@ export function OwnerServiceCatalogClient({
                     })
                   }
                   placeholder="VND"
-                  className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]"
+                  className="w-full rounded-xl border border-[var(--outline-variant)] px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
                 />
               </label>
-              <label className="space-y-2">
-                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                  Thứ tự hiển thị
-                </span>
-                <input
-                  required
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={categoryForm.sortOrder}
-                  onChange={(event) =>
-                    setCategoryForm({
-                      ...categoryForm,
-                      sortOrder: event.target.value,
-                    })
-                  }
-                  placeholder="VD: 1"
-                  className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]"
-                />
-              </label>
-              <label className="space-y-2">
-                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                  Trạng thái
+
+              <label className="space-y-1.5 md:col-span-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
+                  Trạng thái <span className="text-rose-500">*</span>
                 </span>
                 <select
                   required
@@ -1670,107 +1637,160 @@ export function OwnerServiceCatalogClient({
                       status: event.target.value as HotelServiceStatus,
                     })
                   }
-                  className="w-full cursor-pointer rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]"
+                  className="w-full cursor-pointer rounded-xl border border-[var(--outline-variant)] px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
                 >
-                  <option value="ACTIVE">Active</option>
-                  <option value="DISABLED">Inactive</option>
+                  <option value="ACTIVE">Hoạt động (Active)</option>
+                  <option value="DISABLED">Tạm ngừng (Inactive)</option>
                 </select>
               </label>
-              <label className="space-y-2 md:col-span-2">
-                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                  Mô tả
-                </span>
-                <textarea
-                  value={categoryForm.description}
-                  onChange={(event) =>
-                    setCategoryForm({
-                      ...categoryForm,
-                      description: event.target.value,
-                    })
-                  }
-                  placeholder="Mô tả nhóm dịch vụ"
-                  className="min-h-24 w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]"
-                />
-              </label>
             </div>
-            <section className="mt-4 rounded-lg border border-[var(--outline-variant)] p-4">
-              <h3 className="text-sm font-semibold text-[var(--primary)]">
-                Tùy chọn đa ngôn ngữ
-              </h3>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {catalogLocales.map(({ key, label }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    title={label}
-                    aria-label={label}
-                    onClick={() =>
-                      setCategoryForm({ ...categoryForm, activeLocale: key })
-                    }
-                    className={`rounded-full px-3 py-1.5 text-sm font-semibold uppercase transition ${categoryForm.activeLocale === key ? "bg-[var(--primary)] text-[var(--on-primary)]" : "bg-[var(--surface-container-low)] text-[var(--on-surface-variant)] hover:text-[var(--primary)]"}`}
-                  >
-                    {key}
-                  </button>
-                ))}
-              </div>
-              {categoryForm.activeLocale === "vi" ? (
-                <p className="mt-3 text-sm text-[var(--on-surface-variant)]">
-                  Tiếng Việt dùng các trường Tên nhóm dịch vụ và Mô tả ở trên.
-                </p>
-              ) : (
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
+
+            {/* Advanced Options Disclosure */}
+            <details className="mt-5 rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)]/50 p-4 group">
+              <summary className="cursor-pointer select-none text-sm font-semibold text-[var(--primary)] flex items-center justify-between">
+                <span>Tùy chọn nâng cao (Mô tả, Telegram, Đa ngôn ngữ, Thứ tự)</span>
+                <span className="text-xs text-[var(--on-surface-variant)] group-open:hidden">Mở rộng ▼</span>
+                <span className="text-xs text-[var(--on-surface-variant)] hidden group-open:inline">Thu gọn ▲</span>
+              </summary>
+              <div className="mt-4 space-y-4 pt-3 border-t border-[var(--outline-variant)]">
+                <label className="block space-y-1.5">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
+                    ID group Telegram (tùy chọn)
+                  </span>
                   <input
-                    value={
-                      categoryForm.translations[
-                        categoryForm.activeLocale as TranslationLocale
-                      ].name
-                    }
+                    value={categoryForm.id_group}
                     onChange={(event) =>
                       setCategoryForm({
                         ...categoryForm,
-                        translations: {
-                          ...categoryForm.translations,
-                          [categoryForm.activeLocale]: {
-                            ...categoryForm.translations[
-                              categoryForm.activeLocale as TranslationLocale
-                            ],
-                            name: event.target.value,
-                          },
-                        },
+                        id_group: event.target.value,
                       })
                     }
-                    placeholder={`Tên (${categoryForm.activeLocale})`}
-                    className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]"
+                    placeholder="VD: -1001234567890"
+                    className="w-full rounded-xl border border-[var(--outline-variant)] bg-white px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
                   />
+                  <span className="block text-xs text-[var(--on-surface-variant)]">
+                    Chỉ nhập khi nhóm dịch vụ cần thông báo vào group Telegram riêng.
+                  </span>
+                </label>
+
+                <label className="block space-y-1.5">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
+                    Thứ tự hiển thị
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={categoryForm.sortOrder}
+                    onChange={(event) =>
+                      setCategoryForm({
+                        ...categoryForm,
+                        sortOrder: event.target.value,
+                      })
+                    }
+                    placeholder="VD: 1"
+                    className="w-full rounded-xl border border-[var(--outline-variant)] bg-white px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
+                  />
+                </label>
+
+                <label className="block space-y-1.5">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
+                    Mô tả
+                  </span>
                   <textarea
-                    value={
-                      categoryForm.translations[
-                        categoryForm.activeLocale as TranslationLocale
-                      ].description
-                    }
+                    value={categoryForm.description}
                     onChange={(event) =>
                       setCategoryForm({
                         ...categoryForm,
-                        translations: {
-                          ...categoryForm.translations,
-                          [categoryForm.activeLocale]: {
-                            ...categoryForm.translations[
-                              categoryForm.activeLocale as TranslationLocale
-                            ],
-                            description: event.target.value,
-                          },
-                        },
+                        description: event.target.value,
                       })
                     }
-                    placeholder={`Mô tả (${categoryForm.activeLocale})`}
-                    className="min-h-20 w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)] md:col-span-2"
+                    placeholder="Mô tả nhóm dịch vụ"
+                    className="min-h-24 w-full rounded-xl border border-[var(--outline-variant)] bg-white px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
                   />
-                </div>
-              )}
-            </section>
+                </label>
+
+                <section className="rounded-xl border border-[var(--outline-variant)] bg-white p-4">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--primary)]">
+                    Tùy chọn đa ngôn ngữ
+                  </h3>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {catalogLocales.map(({ key, label }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        title={label}
+                        aria-label={label}
+                        onClick={() =>
+                          setCategoryForm({ ...categoryForm, activeLocale: key })
+                        }
+                        className={`rounded-full px-3 py-1.5 text-xs font-semibold uppercase transition ${categoryForm.activeLocale === key ? "bg-[var(--primary)] text-[var(--on-primary)]" : "bg-[var(--surface-container-low)] text-[var(--on-surface-variant)] hover:text-[var(--primary)]"}`}
+                      >
+                        {key}
+                      </button>
+                    ))}
+                  </div>
+                  {categoryForm.activeLocale === "vi" ? (
+                    <p className="mt-3 text-xs text-[var(--on-surface-variant)]">
+                      Tiếng Việt dùng các trường Tên nhóm dịch vụ và Mô tả ở trên.
+                    </p>
+                  ) : (
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      <input
+                        value={
+                          categoryForm.translations[
+                            categoryForm.activeLocale as TranslationLocale
+                          ].name
+                        }
+                        onChange={(event) =>
+                          setCategoryForm({
+                            ...categoryForm,
+                            translations: {
+                              ...categoryForm.translations,
+                              [categoryForm.activeLocale]: {
+                                ...categoryForm.translations[
+                                  categoryForm.activeLocale as TranslationLocale
+                                ],
+                                name: event.target.value,
+                              },
+                            },
+                          })
+                        }
+                        placeholder={`Tên (${categoryForm.activeLocale})`}
+                        className="w-full rounded-xl border border-[var(--outline-variant)] px-3.5 py-2 text-sm outline-none focus:border-[var(--primary)]"
+                      />
+                      <textarea
+                        value={
+                          categoryForm.translations[
+                            categoryForm.activeLocale as TranslationLocale
+                          ].description
+                        }
+                        onChange={(event) =>
+                          setCategoryForm({
+                            ...categoryForm,
+                            translations: {
+                              ...categoryForm.translations,
+                              [categoryForm.activeLocale]: {
+                                ...categoryForm.translations[
+                                  categoryForm.activeLocale as TranslationLocale
+                                ],
+                                description: event.target.value,
+                              },
+                            },
+                          })
+                        }
+                        placeholder={`Mô tả (${categoryForm.activeLocale})`}
+                        className="min-h-20 w-full rounded-xl border border-[var(--outline-variant)] px-3.5 py-2 text-sm outline-none focus:border-[var(--primary)] md:col-span-2"
+                      />
+                    </div>
+                  )}
+                </section>
+              </div>
+            </details>
+
             {categoryForm.id ? (
-              <fieldset className="mt-4 rounded-lg border border-[var(--outline-variant)] p-4">
-                <legend className="px-1 text-sm font-semibold text-[var(--primary)]">
+              <fieldset className="mt-4 rounded-xl border border-[var(--outline-variant)] p-4">
+                <legend className="px-1 text-xs font-semibold uppercase tracking-wider text-[var(--primary)]">
                   Phạm vi cập nhật giá
                 </legend>
                 <div className="mt-2 space-y-2">
@@ -1802,17 +1822,18 @@ export function OwnerServiceCatalogClient({
                 </div>
               </fieldset>
             ) : null}
-            <div className="mt-6 flex justify-end gap-2">
+
+            <div className="mt-6 flex justify-end gap-2.5">
               <button
                 type="button"
                 onClick={() => setCategoryForm(null)}
-                className="cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold transition-colors hover:bg-[var(--surface-container-low)]"
+                className="cursor-pointer rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
               >
                 Hủy
               </button>
               <button
                 disabled={isSaving}
-                className="cursor-pointer rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)] transition-colors hover:bg-[color:rgba(0,0,60,0.88)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="cursor-pointer rounded-xl bg-[var(--primary)] px-6 py-2.5 text-sm font-semibold text-[var(--on-primary)] transition-colors hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isSaving ? "Đang lưu..." : "Lưu"}
               </button>
@@ -1821,19 +1842,22 @@ export function OwnerServiceCatalogClient({
         </div>
       ) : null}
 
+
       {itemForm ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
           <form
             onSubmit={saveItem}
-            className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
+            className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
           >
-            <h2 className="mb-5 text-2xl font-semibold text-[var(--primary)]">
+            <h2 className="mb-5 text-2xl font-semibold text-[var(--primary)] text-balance">
               {itemForm.id ? "Sửa dịch vụ" : "Tạo dịch vụ"}
             </h2>
+            
+            {/* Core Fields */}
             <div className="grid gap-4 md:grid-cols-2">
-              <label className="space-y-2">
-                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                  Tên dịch vụ
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
+                  Tên dịch vụ <span className="text-rose-500">*</span>
                 </span>
                 <input
                   required
@@ -1842,12 +1866,13 @@ export function OwnerServiceCatalogClient({
                     setItemForm({ ...itemForm, name: event.target.value })
                   }
                   placeholder="VD: Bàn chải đánh răng"
-                  className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]"
+                  className="w-full rounded-xl border border-[var(--outline-variant)] px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
                 />
               </label>
-              <label className="space-y-2">
-                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                  Nhóm dịch vụ
+
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
+                  Nhóm dịch vụ <span className="text-rose-500">*</span>
                 </span>
                 <select
                   required
@@ -1855,7 +1880,7 @@ export function OwnerServiceCatalogClient({
                   onChange={(event) =>
                     setItemForm({ ...itemForm, categoryId: event.target.value })
                   }
-                  className="w-full cursor-pointer rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]"
+                  className="w-full cursor-pointer rounded-xl border border-[var(--outline-variant)] px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
                 >
                   <option value="">Chọn nhóm</option>
                   {categories.map((category) => (
@@ -1865,29 +1890,9 @@ export function OwnerServiceCatalogClient({
                   ))}
                 </select>
               </label>
-              <label className="space-y-2">
-                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                  Trạng thái
-                </span>
-                <select
-                  value={itemForm.status}
-                  onChange={(event) =>
-                    setItemForm({
-                      ...itemForm,
-                      status: event.target.value as HotelServiceStatus,
-                    })
-                  }
-                  className="w-full cursor-pointer rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]"
-                >
-                  {hotelServiceStatuses.map((status) => (
-                    <option key={status} value={status}>
-                      {serviceStatusLabelMap[status]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="space-y-2">
-                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
+
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
                   Giá riêng
                 </span>
                 <input
@@ -1909,193 +1914,231 @@ export function OwnerServiceCatalogClient({
                     if (/\D/.test(event.clipboardData.getData("text")))
                       event.preventDefault();
                   }}
-                  placeholder="VD: 10000"
-                  className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]"
+                  placeholder="Để trống để dùng giá nhóm"
+                  className="w-full rounded-xl border border-[var(--outline-variant)] px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
                 />
               </label>
-              <p className="text-sm text-[var(--on-surface-variant)] md:col-span-2">
-                Để trống giá riêng để sử dụng giá mặc định của nhóm dịch vụ.
-              </p>
-              <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-[var(--outline-variant)] p-3 md:col-span-2">
-                <input
-                  type="checkbox"
-                  checked={itemForm.quantityEnabled}
+
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
+                  Trạng thái <span className="text-rose-500">*</span>
+                </span>
+                <select
+                  value={itemForm.status}
                   onChange={(event) =>
                     setItemForm({
                       ...itemForm,
-                      quantityEnabled: event.target.checked,
+                      status: event.target.value as HotelServiceStatus,
                     })
                   }
-                  className="size-4 accent-[var(--primary)]"
-                />
-                <span>
-                  <span className="block text-sm font-semibold text-[var(--primary)]">
-                    Yêu cầu khách chọn số lượng
-                  </span>
-                  <span className="block text-sm text-[var(--on-surface-variant)]">
-                    Bật khi dịch vụ cần số lượng như khăn, nước uống, bàn chải.
-                  </span>
-                </span>
-              </label>
-              <label className="space-y-2">
-                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                  Số lượng tối thiểu
-                </span>
-                <input
-                  type="number"
-                  min={1}
-                  step={1}
-                  disabled={!itemForm.quantityEnabled}
-                  value={itemForm.minQuantity}
-                  onChange={(event) =>
-                    setItemForm({
-                      ...itemForm,
-                      minQuantity: event.target.value,
-                    })
-                  }
-                  placeholder="VD: 1"
-                  className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)] disabled:bg-[var(--surface-container-low)] disabled:text-[var(--on-surface-variant)]"
-                />
-              </label>
-              <label className="space-y-2">
-                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                  Số lượng tối đa
-                </span>
-                <input
-                  type="number"
-                  min={1}
-                  step={1}
-                  disabled={!itemForm.quantityEnabled}
-                  value={itemForm.maxQuantity}
-                  onChange={(event) =>
-                    setItemForm({
-                      ...itemForm,
-                      maxQuantity: event.target.value,
-                    })
-                  }
-                  placeholder="Để trống nếu không giới hạn"
-                  className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)] disabled:bg-[var(--surface-container-low)] disabled:text-[var(--on-surface-variant)]"
-                />
-              </label>
-              <label className="space-y-2">
-                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                  Thứ tự hiển thị
-                </span>
-                <input
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={itemForm.sortOrder}
-                  onChange={(event) =>
-                    setItemForm({ ...itemForm, sortOrder: event.target.value })
-                  }
-                  placeholder="VD: 13"
-                  className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]"
-                />
-              </label>
-              <label className="space-y-2 md:col-span-2">
-                <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                  Mô tả
-                </span>
-                <textarea
-                  value={itemForm.description}
-                  onChange={(event) =>
-                    setItemForm({
-                      ...itemForm,
-                      description: event.target.value,
-                    })
-                  }
-                  placeholder="Mô tả dịch vụ"
-                  className="min-h-24 w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]"
-                />
+                  className="w-full cursor-pointer rounded-xl border border-[var(--outline-variant)] px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
+                >
+                  {hotelServiceStatuses.map((status) => (
+                    <option key={status} value={status}>
+                      {serviceStatusLabelMap[status]}
+                    </option>
+                  ))}
+                </select>
               </label>
             </div>
-            <section className="mt-4 rounded-lg border border-[var(--outline-variant)] p-4">
-              <h3 className="text-sm font-semibold text-[var(--primary)]">
-                Tùy chọn đa ngôn ngữ
-              </h3>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {catalogLocales.map(({ key, label }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    title={label}
-                    aria-label={label}
-                    onClick={() =>
-                      setItemForm({ ...itemForm, activeLocale: key })
-                    }
-                    className={`rounded-full px-3 py-1.5 text-sm font-semibold uppercase transition ${itemForm.activeLocale === key ? "bg-[var(--primary)] text-[var(--on-primary)]" : "bg-[var(--surface-container-low)] text-[var(--on-surface-variant)] hover:text-[var(--primary)]"}`}
-                  >
-                    {key}
-                  </button>
-                ))}
-              </div>
-              {itemForm.activeLocale === "vi" ? (
-                <p className="mt-3 text-sm text-[var(--on-surface-variant)]">
-                  Tiếng Việt dùng các trường Tên dịch vụ và Mô tả ở trên.
-                </p>
-              ) : (
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
+
+            {/* Advanced Options Disclosure */}
+            <details className="mt-5 rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)]/50 p-4 group">
+              <summary className="cursor-pointer select-none text-sm font-semibold text-[var(--primary)] flex items-center justify-between">
+                <span>Tùy chọn nâng cao (Số lượng, Mô tả, Đa ngôn ngữ, Thứ tự)</span>
+                <span className="text-xs text-[var(--on-surface-variant)] group-open:hidden">Mở rộng ▼</span>
+                <span className="text-xs text-[var(--on-surface-variant)] hidden group-open:inline">Thu gọn ▲</span>
+              </summary>
+              <div className="mt-4 space-y-4 pt-3 border-t border-[var(--outline-variant)]">
+                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--outline-variant)] bg-white p-3.5">
                   <input
-                    value={
-                      itemForm.translations[
-                        itemForm.activeLocale as TranslationLocale
-                      ].name
-                    }
+                    type="checkbox"
+                    checked={itemForm.quantityEnabled}
                     onChange={(event) =>
                       setItemForm({
                         ...itemForm,
-                        translations: {
-                          ...itemForm.translations,
-                          [itemForm.activeLocale]: {
-                            ...itemForm.translations[
-                              itemForm.activeLocale as TranslationLocale
-                            ],
-                            name: event.target.value,
-                          },
-                        },
+                        quantityEnabled: event.target.checked,
                       })
                     }
-                    placeholder={`Tên (${itemForm.activeLocale})`}
-                    className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]"
+                    className="size-4 accent-[var(--primary)]"
                   />
-                  <textarea
-                    value={
-                      itemForm.translations[
-                        itemForm.activeLocale as TranslationLocale
-                      ].description
-                    }
-                    onChange={(event) =>
-                      setItemForm({
-                        ...itemForm,
-                        translations: {
-                          ...itemForm.translations,
-                          [itemForm.activeLocale]: {
-                            ...itemForm.translations[
-                              itemForm.activeLocale as TranslationLocale
-                            ],
-                            description: event.target.value,
-                          },
-                        },
-                      })
-                    }
-                    placeholder={`Mô tả (${itemForm.activeLocale})`}
-                    className="min-h-20 w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)] md:col-span-2"
-                  />
+                  <span>
+                    <span className="block text-sm font-semibold text-[var(--primary)]">
+                      Yêu cầu khách chọn số lượng
+                    </span>
+                    <span className="block text-xs text-[var(--on-surface-variant)]">
+                      Bật khi dịch vụ cần số lượng như khăn, nước uống, bàn chải.
+                    </span>
+                  </span>
+                </label>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="space-y-1.5">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
+                      Số lượng tối thiểu
+                    </span>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      disabled={!itemForm.quantityEnabled}
+                      value={itemForm.minQuantity}
+                      onChange={(event) =>
+                        setItemForm({
+                          ...itemForm,
+                          minQuantity: event.target.value,
+                        })
+                      }
+                      placeholder="VD: 1"
+                      className="w-full rounded-xl border border-[var(--outline-variant)] bg-white px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)] disabled:bg-[var(--surface-container-low)] disabled:text-[var(--on-surface-variant)]"
+                    />
+                  </label>
+
+                  <label className="space-y-1.5">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
+                      Số lượng tối đa
+                    </span>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      disabled={!itemForm.quantityEnabled}
+                      value={itemForm.maxQuantity}
+                      onChange={(event) =>
+                        setItemForm({
+                          ...itemForm,
+                          maxQuantity: event.target.value,
+                        })
+                      }
+                      placeholder="Để trống nếu không giới hạn"
+                      className="w-full rounded-xl border border-[var(--outline-variant)] bg-white px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)] disabled:bg-[var(--surface-container-low)] disabled:text-[var(--on-surface-variant)]"
+                    />
+                  </label>
                 </div>
-              )}
-            </section>
-            <div className="mt-6 flex justify-end gap-2">
+
+                <label className="block space-y-1.5">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
+                    Thứ tự hiển thị
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={itemForm.sortOrder}
+                    onChange={(event) =>
+                      setItemForm({ ...itemForm, sortOrder: event.target.value })
+                    }
+                    placeholder="VD: 1"
+                    className="w-full rounded-xl border border-[var(--outline-variant)] bg-white px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
+                  />
+                </label>
+
+                <label className="block space-y-1.5">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
+                    Mô tả
+                  </span>
+                  <textarea
+                    value={itemForm.description}
+                    onChange={(event) =>
+                      setItemForm({
+                        ...itemForm,
+                        description: event.target.value,
+                      })
+                    }
+                    placeholder="Mô tả dịch vụ"
+                    className="min-h-24 w-full rounded-xl border border-[var(--outline-variant)] bg-white px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
+                  />
+                </label>
+
+                <section className="rounded-xl border border-[var(--outline-variant)] bg-white p-4">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--primary)]">
+                    Tùy chọn đa ngôn ngữ
+                  </h3>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {catalogLocales.map(({ key, label }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        title={label}
+                        aria-label={label}
+                        onClick={() =>
+                          setItemForm({ ...itemForm, activeLocale: key })
+                        }
+                        className={`rounded-full px-3 py-1.5 text-xs font-semibold uppercase transition ${itemForm.activeLocale === key ? "bg-[var(--primary)] text-[var(--on-primary)]" : "bg-[var(--surface-container-low)] text-[var(--on-surface-variant)] hover:text-[var(--primary)]"}`}
+                      >
+                        {key}
+                      </button>
+                    ))}
+                  </div>
+                  {itemForm.activeLocale === "vi" ? (
+                    <p className="mt-3 text-xs text-[var(--on-surface-variant)]">
+                      Tiếng Việt dùng các trường Tên dịch vụ và Mô tả ở trên.
+                    </p>
+                  ) : (
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      <input
+                        value={
+                          itemForm.translations[
+                            itemForm.activeLocale as TranslationLocale
+                          ].name
+                        }
+                        onChange={(event) =>
+                          setItemForm({
+                            ...itemForm,
+                            translations: {
+                              ...itemForm.translations,
+                              [itemForm.activeLocale]: {
+                                ...itemForm.translations[
+                                  itemForm.activeLocale as TranslationLocale
+                                ],
+                                name: event.target.value,
+                              },
+                            },
+                          })
+                        }
+                        placeholder={`Tên (${itemForm.activeLocale})`}
+                        className="w-full rounded-xl border border-[var(--outline-variant)] px-3.5 py-2 text-sm outline-none focus:border-[var(--primary)]"
+                      />
+                      <textarea
+                        value={
+                          itemForm.translations[
+                            itemForm.activeLocale as TranslationLocale
+                          ].description
+                        }
+                        onChange={(event) =>
+                          setItemForm({
+                            ...itemForm,
+                            translations: {
+                              ...itemForm.translations,
+                              [itemForm.activeLocale]: {
+                                ...itemForm.translations[
+                                  itemForm.activeLocale as TranslationLocale
+                                ],
+                                description: event.target.value,
+                              },
+                            },
+                          })
+                        }
+                        placeholder={`Mô tả (${itemForm.activeLocale})`}
+                        className="min-h-20 w-full rounded-xl border border-[var(--outline-variant)] px-3.5 py-2 text-sm outline-none focus:border-[var(--primary)] md:col-span-2"
+                      />
+                    </div>
+                  )}
+                </section>
+              </div>
+            </details>
+
+            <div className="mt-6 flex justify-end gap-2.5">
               <button
                 type="button"
                 onClick={() => setItemForm(null)}
-                className="cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold transition-colors hover:bg-[var(--surface-container-low)]"
+                className="cursor-pointer rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
               >
                 Hủy
               </button>
               <button
                 disabled={isSaving}
-                className="cursor-pointer rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)] transition-colors hover:bg-[color:rgba(0,0,60,0.88)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="cursor-pointer rounded-xl bg-[var(--primary)] px-6 py-2.5 text-sm font-semibold text-[var(--on-primary)] transition-colors hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isSaving ? "Đang lưu..." : "Lưu"}
               </button>

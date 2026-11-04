@@ -6,15 +6,17 @@ Use this mode for an audit/review deliverable or an explicit audit trigger such 
 
 Audit is read-only by default: inspect and run necessary non-destructive checks; do not edit, install, mutate data, deploy or dispatch implementation workers without authorization. Strictness improves evidence quality, not permissions.
 
-An explicit instruction to fix audited findings authorizes scoped implementation and validation. Code Focus, Focused Execution and remediation are implementation styles; they do not activate this audit workflow, require an activation turn, or require an audit ledger. Reuse the existing findings instead of auditing again. For implementation follow the global [focused-execution](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/SKILL.md) profile and [Efficient Execution and Validation](zero-waste-validation.md).
+For audit-only work, deliver the findings and wait read-only for the user's decision. Approval to fix automatically selects [CODE MODE](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/SKILL.md#code-mode) for the approved scope through validation and completion, without a new activation or restarted audit.
+
+When the user authorizes audit and fixes together, use the shared [continuous audit and remediation workflow](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/SKILL.md#continuous-audit-and-remediation) from the start. Retain all evidence requirements below while confirmed causes are repaired by module owners. Do not insert whole-project audit, priority-group or Phase approval barriers. The shared profile owns scheduling, module ownership and the single Markdown issue register; apply [Efficient Execution and Validation](zero-waste-validation.md) for checks.
 
 ## Reporting and delegation
 
 - Apply Ponytail ultra to audit reasoning: challenge unnecessary complexity and recommend the smallest root-cause correction.
-- Consolidate verified findings into one final audit report, starting with `STRICT AUDIT MODE: ACTIVE (PONYTAIL: ULTRA).`. Avoid play-by-play; retain any progress updates and lifecycle messages required by the runtime.
+- For an audit-only deliverable, consolidate verified findings into one final report, starting with `STRICT AUDIT MODE: ACTIVE (PONYTAIL: ULTRA).`. For audit+fix, maintain evidence in the shared register and summarize the final result concisely. Avoid play-by-play; retain progress updates and lifecycle messages required by the runtime.
 - Delegated audit reviewers inherit the exact review boundary, invariants and read-only policy. Their task brief needs those task-specific facts, not a copy of this ruleset.
 - Ordinary implementation workers and their focused tests remain implementation. They report changed behavior, checks and remaining gaps without audit markers, a separate evidence ledger or a settlement essay.
-- The host owns the shared map, evidence consolidation and final report. Use the fewest disjoint reviewers only when delegation is authorized. Keep Orca's actual Task/Dispatch lifecycle intact and do not repeat its preamble in task briefs.
+- The host owns the shared map, evidence consolidation and final report/register. Use useful scoped reviewers or module owners within the active authorization and shared profile. Keep Orca's actual Task/Dispatch lifecycle intact and do not repeat its preamble in task briefs.
 
 ## Core Standard
 
@@ -39,9 +41,11 @@ Strictness means:
 - no personal style, speculative rewrite, or equivalent technology choice reported as a violation;
 - no broad file scan substituted for end-to-end system coverage.
 
-## Required Workflow
+## Evidence requirements
 
-### 1. Freeze the audit boundary
+These are coverage obligations, not sequential execution Phases. Establish enough context for each module before judging or changing it; independent modules can progress concurrently. Record evidence before changing a confirmed defect so remediation does not erase its basis.
+
+### Scope and baseline
 
 Record:
 
@@ -54,7 +58,7 @@ Record:
 
 For diff review, include tracked changes and relevant untracked files. Never stash, reset, stage, or rewrite unrelated work.
 
-### 2. Build the minimum system map
+### Minimum system map
 
 Map only the scoped flow:
 
@@ -67,13 +71,13 @@ Map only the scoped flow:
 
 Use Graphify/Repomix under repository policy when available. Start from target symbols or flows; expand one dependency hop at a time. Widen only when the map has a stated evidence gap.
 
-### 3. Define invariants
+### Invariants
 
 State the observable rules the system must preserve: authorization, tenancy/ownership, business state, money/precision, idempotency, consistency, compatibility, privacy, failure handling, accessibility, and operational readiness as applicable.
 
 Trace each invariant through producer, transport, consumer, persistence, and verification where relevant.
 
-### 4. Audit in design-first order
+### Design-first coverage
 
 | Area | Required questions |
 |---|---|
@@ -91,7 +95,7 @@ Trace each invariant through producer, transport, consumer, persistence, and ver
 
 Technology fit comes last. A preferred library does not excuse a broken system invariant. A raw platform primitive is not automatically wrong when the repository permits it or the abstraction cannot satisfy the requirement.
 
-### 5. Verify every finding
+### Finding verification
 
 A `VIOLATION` requires:
 
@@ -105,17 +109,11 @@ Use `GAP` when evidence or test coverage is missing. Use `COMPLIANT` only with p
 
 ## Agent Coordination
 
-When agents are requested or orchestration is available:
-
-1. One host orchestrator owns scope, system map, invariant ledger, shared assumptions, evidence rules, and final deduplication.
-2. Use the fewest useful reviewers. A small local diff may need one specialist. A cross-layer/module/repository audit normally uses 2–4 disjoint read-only lanes.
-3. Split by system boundary or invariant, not merely by language: architecture/dependencies; contracts/data/state; trust/security/reliability; runtime/UX/QA.
-4. Every lane receives exact paths/flows, invariants, allowed non-destructive commands, forbidden actions, and the finding schema below.
-5. Do not launch duplicate general reviewers or all available agents by default.
-6. The host verifies every candidate finding against current source/runtime. Agent consensus is not evidence.
-7. Use one independent tester/reviewer at the frozen combined boundary only when explicit or justified by high-risk/shared-contract scope.
-8. Review cards remain read-only. Create remediation cards only after the user explicitly requests fixes; writers then get disjoint ownership and focused checks.
-9. If agents are unavailable, the host performs the same matrix directly and reports that orchestration was skipped.
+- The shared CODE MODE profile owns decomposition and scheduling. Assign independent modules or cohesive business workflows, not one writer per file or one team per severity Phase. Use read-only invariant specialists when they add coverage; avoid duplicate general reviews.
+- In audit-only work, delegated reviewers stay read-only. With audit+fix authorization, module owners may investigate and repair verified in-scope causes immediately without waiting for a separate remediation dispatch cycle.
+- Give each owner the task-specific boundary, invariants, relevant issue IDs, dependencies and completion checks. Shared assumptions/contracts belong to one integration owner; only dependent work waits for them.
+- The host verifies candidate findings against current source/runtime, deduplicates root causes and maintains the register. Agent consensus is not evidence. Independent review of high-risk or shared-contract changes can proceed as soon as the affected boundary is stable.
+- If agents are unavailable, the host performs the same coverage and fixes directly within authorization; disclose the limitation without reducing the evidence standard.
 
 ## Finding & Remediation Verification Format
 
@@ -126,7 +124,8 @@ Impact: Blocking | Non-blocking
 Confidence: High | Medium | Low
 Location: file:line, symbol, endpoint, schema, or runtime boundary
 Invariant / expected design:
-Evidence (or Applied Root-Cause Fix + Diff):
+Pre-change source/runtime evidence:
+Applied root-cause fix + diff (when authorized):
 System effect / failure path:
 Minimum correction:
 Verification (exact command, exit code, unique test count, or runtime proof):
@@ -136,7 +135,7 @@ Do not emit severity labels disconnected from a violated invariant. Impact contr
 
 ## Final Report
 
-For an audit deliverable, emit one consolidated final report starting with `STRICT AUDIT MODE: ACTIVE (PONYTAIL: ULTRA).`:
+For an audit-only deliverable, emit one consolidated final report starting with `STRICT AUDIT MODE: ACTIVE (PONYTAIL: ULTRA).`. For audit+fix, retain the following detail in the single register, including before/after evidence, and link it from a concise completion report:
 
 1. `Verdict: PASS | FAIL | PARTIAL | BLOCKED`.
 2. Scope, baseline, and compact system map.
@@ -150,4 +149,4 @@ For an audit deliverable, emit one consolidated final report starting with `STRI
 
 The **audit** is complete when the scoped system map and invariants are explicit, every applicable matrix area has evidence or a declared gap, findings are verified/deduplicated, and skipped checks are named. Audit completion does not require code changes.
 
-**Remediation / Focused Execution** uses the shared focused-execution profile and project validation policy: fix confirmed causes, validate affected behavior, and report changes, checks and remaining gaps concisely. Do not require another audit report or matrix unless the user requested one. Never claim success from line coverage, a scanner-only result or one generic build command.
+**Remediation / Focused Execution** uses the shared continuous workflow and project validation policy. Remediation is complete when required in-scope findings are verified or disproven with evidence. If an unmet prerequisite prevents completion, report PARTIAL or BLOCKED with the remaining items; a blocker is not completion or a full PASS. Keep the register current rather than starting another audit report or Phase. Never claim success from line coverage, a scanner-only result or one generic build command.

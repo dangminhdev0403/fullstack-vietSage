@@ -1,0 +1,16 @@
+[
+  {
+    "reservationCode": "AUDIT04-FIX-ASSIGN",
+    "status": "CHECKED_IN",
+    "stayId": "cmw1x58jm003or0v48hxsy1b8",
+    "stayStatus": "ACTIVE",
+    "occupants": "2"
+  },
+  {
+    "reservationCode": "AUDIT04-FIX-EXPRESS",
+    "status": "CHECKED_IN",
+    "stayId": "cmw1x63sk003yr0v4pvkn6vtu",
+    "stayStatus": "ACTIVE",
+    "occupants": "1"
+  }
+]

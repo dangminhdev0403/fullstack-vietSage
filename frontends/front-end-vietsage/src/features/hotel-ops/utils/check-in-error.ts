@@ -1,3 +1,20 @@
+export function checkInRecovery(reason: string) {
+  if (/không có quyền|chưa được cấp quyền|forbidden|permission|access.denied/i.test(reason)) {
+    return { label: "Thiếu quyền nhận phòng", action: "permission" as const,
+      guidance: "Nhờ quản lý kiểm tra quyền nhận phòng tại khách sạn này. Đổi phòng hoặc xử lý hóa đơn không khắc phục lỗi quyền." };
+  }
+  if (/hóa đơn|hoá đơn|folio|lượt lưu trú/i.test(reason)) {
+    return { label: "Còn hồ sơ chưa đóng", action: "settlement" as const, guidance: "Kiểm tra khách đang ở và hóa đơn trước khi nhận khách mới." };
+  }
+  if (/dữ liệu|thay đổi|đồng bộ|đã.*nhận phòng|bị hủy|vắng mặt/i.test(reason)) {
+    return { label: "Cần cập nhật đặt phòng", action: "refresh" as const, guidance: "Cập nhật trạng thái mới nhất trước khi thử lại. Thông tin khách đang nhập được giữ lại." };
+  }
+  if (/chưa sẵn sàng|mã QR|sức chứa/i.test(reason)) {
+    return { label: "Cần kiểm tra phòng", action: "swap" as const, guidance: "Kiểm tra điều kiện phòng hoặc chọn phòng phù hợp khác." };
+  }
+  return { label: "Nhận phòng chưa thành công", action: "retry" as const, guidance: "Kiểm tra lại thông tin, cập nhật trạng thái rồi thử lại. Thông tin khách đang nhập được giữ lại." };
+}
+
 export function formatFriendlyCheckInError(error: unknown): string {
   const errObj = error as Record<string, unknown> | null;
   const nestedData = (errObj?.data as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
@@ -9,6 +26,10 @@ export function formatFriendlyCheckInError(error: unknown): string {
   const msg = error instanceof Error ? error.message : String(error || "");
   const combined = `${detailStr} ${msg}`.trim();
   const normalized = combined.toUpperCase();
+
+  if (errObj?.status === 403 || /FORBIDDEN|PERMISSION_DENIED|ACCESS_DENIED|KHÔNG CÓ QUYỀN/.test(normalized)) {
+    return "Tài khoản chưa được cấp quyền nhận phòng tại khách sạn này. Vui lòng nhờ quản lý kiểm tra quyền truy cập.";
+  }
 
   if (normalized.includes("ROOM_ALREADY_HAS_ACTIVE_STAY_OR_FOLIO")) {
     return "Phòng còn lượt lưu trú hoặc hồ sơ hóa đơn (Folio) chưa tất toán. Vui lòng kiểm tra trả phòng/đóng folio trước hoặc đổi phòng trống khác.";

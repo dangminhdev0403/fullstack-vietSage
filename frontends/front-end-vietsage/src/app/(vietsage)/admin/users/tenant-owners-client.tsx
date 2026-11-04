@@ -2,7 +2,12 @@
 
 import { type FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SwalVietSage, showSuccessAlert } from "@/libs/swal";
+import {
+  showConfirmDialog,
+  showErrorAlert,
+  showSuccessAlert,
+  showWarningAlert,
+} from "@/libs/swal";
 import { z } from "zod";
 
 import { HttpError } from "@/core/http/http-error";
@@ -46,6 +51,18 @@ const editOwnerSchema = z.object({
   ownerStatus: z.enum(["ACTIVE", "LOCKED", "DISABLED"]),
   tenantUserStatus: z.enum(["ACTIVE", "INVITED", "DISABLED"]),
 });
+
+const OWNER_STATUS_LABELS: Record<string, string> = {
+  ACTIVE: "Hoạt động",
+  LOCKED: "Đã khóa",
+  DISABLED: "Tạm ngưng",
+};
+
+const ROLE_CODE_LABELS: Record<string, string> = {
+  SUPER_ADMIN: "Quản trị nền tảng",
+  TENANT_OWNER: "Chủ sở hữu",
+  STAFF: "Nhân viên",
+};
 
 const emptyForm: OwnerFormState = {
   fullName: "",
@@ -100,31 +117,31 @@ async function requestJson<TData>(path: string, options: { method: "POST" | "PAT
   } catch (error) {
     if (error instanceof HttpError && error.status === 401) {
       if (typeof window !== "undefined") {
+        const callbackUrl = `${window.location.pathname}${window.location.search}`;
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+        window.location.assign(`/dangnhap?reauth=1&callbackUrl=${encodeURIComponent(callbackUrl)}`);
       }
       throw new Error("UNAUTHORIZED");
     }
     if (error instanceof HttpError) {
       const data = error.data as Record<string, unknown> | null;
       const detail = typeof data?.detail === "string" ? data.detail : typeof data?.message === "string" ? data.message : null;
-      throw new Error(detail ?? `HTTP ${error.status}`);
+      throw new Error(detail ?? "Yêu cầu máy chủ không thành công. Vui lòng thử lại.");
     }
     throw error;
   }
 }
 
 async function confirmOwnerSave(mode: FormMode, ownerName: string, tenantName: string): Promise<boolean> {
-  const result = await SwalVietSage.fire({
+  const result = await showConfirmDialog({
     icon: "question",
     title: mode === "create" ? "Tạo đối tác mới?" : "Lưu thay đổi đối tác?",
     text:
       mode === "create"
         ? `Tạo tài khoản cho ${ownerName} và tổ chức ${tenantName}.`
         : `Cập nhật thông tin của ${ownerName}.`,
-    showCancelButton: true,
-    confirmButtonText: mode === "create" ? "Đồng ý tạo" : "Đồng ý lưu",
-    cancelButtonText: "Hủy",
+    confirmText: mode === "create" ? "Đồng ý tạo" : "Đồng ý lưu",
+    cancelText: "Hủy",
   });
 
   return result.isConfirmed;
@@ -145,13 +162,12 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
   const [resetAccountLabel, setResetAccountLabel] = useState("");
 
   async function resetOwnerPassword(owner: TenantOwner) {
-    const confirmed = await SwalVietSage.fire({
+    const confirmed = await showConfirmDialog({
       icon: "warning",
       title: "Cấp lại mật khẩu?",
       text: `Tạo mật khẩu tạm thời mới cho ${owner.fullName}. Tất cả phiên hiện tại sẽ bị thu hồi.`,
-      showCancelButton: true,
-      confirmButtonText: "Cấp lại mật khẩu",
-      cancelButtonText: "Hủy",
+      confirmText: "Cấp lại mật khẩu",
+      cancelText: "Hủy",
     });
     if (!confirmed.isConfirmed) return;
     try {
@@ -159,13 +175,10 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
       setResetAccountLabel(owner.fullName);
       setTemporaryPassword(result.temporaryPassword);
     } catch (error) {
-      await SwalVietSage.fire({
-        icon: "error",
-        title: "Không thể cấp lại mật khẩu",
-        text: error instanceof Error ? error.message : "Vui lòng thử lại.",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showErrorAlert(
+        "Không thể cấp lại mật khẩu",
+        error instanceof Error ? error.message : "Vui lòng thử lại.",
+      );
     }
   }
 
@@ -216,13 +229,10 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
     event.preventDefault();
     const validation = formMode === "create" ? createOwnerSchema.safeParse(form) : editOwnerSchema.safeParse(form);
     if (!validation.success) {
-      await SwalVietSage.fire({
-        icon: "warning",
-        title: "Kiểm tra thông tin",
-        text: validation.error.issues[0]?.message ?? "Thông tin chưa hợp lệ.",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showWarningAlert(
+        "Kiểm tra thông tin",
+        validation.error.issues[0]?.message ?? "Thông tin chưa hợp lệ.",
+      );
       return;
     }
 
@@ -277,13 +287,10 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
       if (error instanceof Error && error.message === "UNAUTHORIZED") {
         return;
       }
-      await SwalVietSage.fire({
-        icon: "error",
-        title: "Không thể lưu",
-        text: error instanceof Error ? error.message : "Vui lòng thử lại.",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showErrorAlert(
+        "Không thể lưu",
+        error instanceof Error ? error.message : "Vui lòng thử lại.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -292,13 +299,10 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
   function handleExportExcel() {
     const listToExport = filteredOwners.length > 0 ? filteredOwners : owners;
     if (listToExport.length === 0) {
-      void SwalVietSage.fire({
-        icon: "info",
-        title: "Không có dữ liệu",
-        text: "Không có tài khoản nào để xuất Excel.",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      void showWarningAlert(
+        "Không có dữ liệu",
+        "Không có tài khoản nào để xuất Excel.",
+      );
       return;
     }
 
@@ -334,14 +338,10 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
       data: exportData,
     });
 
-    void SwalVietSage.fire({
-      icon: "success",
-      title: "Xuất Excel thành công",
-      text: `Đã xuất ${listToExport.length} tài khoản ra tệp Excel.`,
-      timer: 2000,
-      showConfirmButton: true,
-      confirmButtonText: "OK",
-    });
+    void showSuccessAlert(
+      "Xuất Excel thành công",
+      `Đã xuất ${listToExport.length} tài khoản ra tệp Excel.`,
+    );
   }
 
   return (
@@ -440,16 +440,6 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
                 ),
             },
             {
-              key: "role",
-              header: "Vai trò",
-              cell: () => (
-                <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#eddab9] bg-[#fcf6ea] px-3 py-1 text-xs font-extrabold text-[#8c5e1a]">
-                  <VsIcon name="shield_person" className="text-[#c89b4f]" />
-                  Chủ sở hữu
-                </span>
-              ),
-            },
-            {
               key: "updatedAt",
               header: "Cập nhật",
               cell: (owner) => formatDate(owner.updatedAt),
@@ -459,17 +449,6 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
               header: <div className="text-right">Thao tác</div>,
               cell: (owner) => (
                 <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openEditDialog(owner);
-                    }}
-                    className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#dcd1bf] bg-[#fffcf7] px-4 py-1.5 text-xs font-semibold text-[#24473d] shadow-2xs transition-all hover:border-[#24473d] hover:bg-[#f5efe4]"
-                  >
-                    <VsIcon name="edit" className="text-sm" />
-                    Sửa
-                  </button>
                   <button
                     type="button"
                     disabled={resetPassword.isPending}
@@ -506,8 +485,8 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
                 <p className="font-semibold text-base text-[var(--primary)]">{owner.fullName}</p>
                 <p className="text-sm text-[var(--on-surface-variant)]">{owner.email}</p>
               </div>
-              <span className="shrink-0 rounded-full bg-[var(--secondary-container)] px-3 py-1 text-sm font-semibold text-[var(--on-secondary-container)]">
-                {owner.status}
+              <span className="shrink-0 rounded-full bg-[var(--secondary-container)] px-3 py-1 text-xs font-semibold text-[var(--on-secondary-container)] whitespace-nowrap">
+                {OWNER_STATUS_LABELS[owner.status] ?? owner.status}
               </span>
             </div>
             <div className="border-t border-[var(--outline-variant)] pt-3 text-sm space-y-1">
@@ -517,7 +496,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
               </p>
               <p className="text-[var(--on-surface)]">
                 <span className="font-semibold text-[var(--on-surface-variant)]">Vai trò: </span>
-                {owner.role.code}
+                {ROLE_CODE_LABELS[owner.role.code] ?? owner.role.name ?? owner.role.code}
               </p>
               <p className="text-[var(--on-surface-variant)]">
                 <span>Cập nhật: </span>
@@ -548,7 +527,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
 
       {isDialogOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-4 py-6 md:items-center">
-          <form onSubmit={submitForm} className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-2xl">
+          <form onSubmit={submitForm} className="w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-2xl font-semibold text-[var(--primary)]">{formMode === "create" ? "Tạo đối tác mới" : "Cập nhật thông tin đối tác"}</h2>

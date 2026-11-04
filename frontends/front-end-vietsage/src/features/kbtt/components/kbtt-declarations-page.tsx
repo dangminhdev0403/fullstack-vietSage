@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useCallback,
@@ -15,7 +16,7 @@ import {
   showConfirmDialog,
   showErrorAlert,
   showSuccessAlert,
-  SwalVietSage,
+  showWarningAlert,
   trustedAlertHtml,
 } from "@/libs/swal";
 
@@ -631,6 +632,8 @@ export function KbttDeclarationsPage({
   initialTab?: "declarations" | "connection";
 }) {
   const queryClient = useQueryClient();
+  const pathname = usePathname();
+  const isOwnerWorkspace = pathname ? pathname.startsWith("/owner") : false;
   const { connection: connectionQuery } = useKbttConnection(hotelId);
   const connectionData = connectionQuery.data;
   const isConnected = connectionData?.status === "CONNECTED";
@@ -929,7 +932,7 @@ export function KbttDeclarationsPage({
     async (generateNewIdentityNumbers = false) => {
       const confirm = await showConfirmDialog({
         title: generateNewIdentityNumbers
-          ? "Sinh mới Số giấy tờ & Reset chưa gửi"
+          ? "Tạo mới Số giấy tờ & Đặt lại chưa gửi"
           : "Đổi trạng thái về Chưa gửi",
         text: generateNewIdentityNumbers
           ? "Bạn có chắc muốn tự động tạo số CCCD / Hộ chiếu mới hợp lệ cho tất cả khách và chuyển toàn bộ hồ sơ về trạng thái Chưa gửi không?"
@@ -1070,13 +1073,10 @@ export function KbttDeclarationsPage({
   const handleSubmitAll = useCallback(async () => {
     if (!isListReady || isSubmittingBatch) return;
     if (!isConnected) {
-      await SwalVietSage.fire({
-        title: "Chưa đăng nhập Cổng BCA",
-        text: "Khách sạn chưa đăng nhập hoặc chưa kết nối thành công với Cổng dịch vụ công Bộ Công An. Vui lòng kết nối tài khoản trước khi gửi hồ sơ.",
-        icon: "warning",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showWarningAlert(
+        "Chưa đăng nhập Cổng BCA",
+        "Khách sạn chưa đăng nhập hoặc chưa kết nối thành công với Cổng dịch vụ công Bộ Công An. Vui lòng kết nối tài khoản trước khi gửi hồ sơ.",
+      );
       return;
     }
 
@@ -1292,13 +1292,10 @@ export function KbttDeclarationsPage({
     async (row: KbttDeclarationListItem) => {
       if (!isListReady || !canSelectKbttDeclaration(row)) return;
       if (!isConnected) {
-        await SwalVietSage.fire({
-          title: "Chưa đăng nhập Cổng BCA",
-          text: "Khách sạn chưa đăng nhập hoặc chưa kết nối thành công với Cổng dịch vụ công Bộ Công An. Vui lòng kết nối tài khoản trước khi gửi hồ sơ.",
-          icon: "warning",
-          showConfirmButton: true,
-          confirmButtonText: "OK",
-        });
+        await showWarningAlert(
+          "Chưa đăng nhập Cổng BCA",
+          "Khách sạn chưa đăng nhập hoặc chưa kết nối thành công với Cổng dịch vụ công Bộ Công An. Vui lòng kết nối tài khoản trước khi gửi hồ sơ.",
+        );
         return;
       }
       const confirmResult = await showConfirmDialog({
@@ -1522,7 +1519,7 @@ export function KbttDeclarationsPage({
             </div>
 
             <div className="flex items-center gap-2">
-              {canConfigure ? (
+              {canConfigure && isOwnerWorkspace ? (
                 <a
                   href={`/owner/hotels/${encodeURIComponent(hotelId)}/settings?tab=integrations`}
                   className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-amber-800 px-4 py-1.5 text-sm font-semibold text-white shadow-xs hover:bg-amber-900 transition-colors"
@@ -1717,39 +1714,15 @@ export function KbttDeclarationsPage({
                 </th>
                 <th
                   scope="col"
-                  className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs w-40 min-w-[150px] px-3 py-3.5 whitespace-nowrap"
+                  className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs px-3 py-3.5 whitespace-nowrap"
                 >
                   Tên khách
-                </th>
-                <th
-                  scope="col"
-                  className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs w-48 px-3 py-3.5 whitespace-nowrap"
-                >
-                  Quốc tịch
                 </th>
                 <th
                   scope="col"
                   className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs w-44 px-3 py-3.5 whitespace-nowrap"
                 >
                   Số giấy tờ
-                </th>
-                <th
-                  scope="col"
-                  className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs w-36 px-3 py-3.5 whitespace-nowrap"
-                >
-                  Loại giấy tờ
-                </th>
-                <th
-                  scope="col"
-                  className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs w-40 px-3 py-3.5 whitespace-nowrap"
-                >
-                  Ngày sinh
-                </th>
-                <th
-                  scope="col"
-                  className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs w-28 px-3 py-3.5 whitespace-nowrap"
-                >
-                  Giới tính
                 </th>
                 <th
                   scope="col"
@@ -1769,227 +1742,58 @@ export function KbttDeclarationsPage({
               {filteredRows.map((row, idx) => {
                 const statusInfo = getDeclarationStatus(row);
                 const isSelectable = canManage && isListReady && canSelectKbttDeclaration(row);
-                const edits = inlineEdits[row.occupantId] ?? {};
-                const currentIdentity = (
-                  edits.identityNumber ??
-                  row.identityNumber ??
-                  ""
-                ).trim();
-                const isVietnameseIdentity = /^\d{9,12}$/.test(currentIdentity);
-                const isForeignPassport =
-                  /^(?=.*[A-Za-z])[A-Za-z0-9]{1,12}$/.test(currentIdentity);
 
-                const effectiveNationality =
-                  edits.nationality ??
-                  row.nationality ??
-                  (row.citizenshipKind === "VIETNAMESE" || isVietnameseIdentity
-                    ? "VNM"
-                    : "");
-
-                const effectiveDocType = String(
-                  edits.documentType ??
-                    row.documentType ??
-                    (effectiveNationality && effectiveNationality !== "VNM"
-                      ? 4
-                      : row.citizenshipKind === "FOREIGN"
-                        ? 4
-                        : /^\d{12}$/.test(currentIdentity)
-                          ? 1
-                          : /^\d{9}$/.test(currentIdentity)
-                            ? 2
-                            : isForeignPassport
-                              ? 4
-                              : ""),
-                );
                 return (
                   <tr
                     key={row.occupantId}
-                    className={
-                      isSelectable ? "hover:bg-slate-50/80" : "bg-slate-50/70"
-                    }
+                    onClick={() => setSelectedOccupant(row)}
+                    className="cursor-pointer hover:bg-slate-50/80 transition-colors"
                   >
                     {/* STT */}
-                    <td className="px-3 py-3 text-center text-slate-500 font-medium">
+                    <td className="px-3 py-3 text-center text-slate-500 font-medium whitespace-nowrap">
                       {(page - 1) * limit + idx + 1}
                     </td>
 
                     {/* Số phòng */}
-                    <td className="px-3 py-3">
-                      <div className="flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-1.5 text-center text-base font-semibold text-slate-800">
-                        {row.roomNumber ?? "—"}
-                      </div>
+                    <td className="px-3 py-3 whitespace-nowrap">
+                      {row.roomNumber ? (
+                        <span className="inline-flex min-h-8 items-center rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-sm font-bold text-slate-800">
+                          P.{row.roomNumber}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 font-normal italic text-sm">Chưa xếp phòng</span>
+                      )}
                     </td>
 
                     {/* Tên khách */}
                     <td className="px-3 py-3">
-                      <input
-                        value={edits.fullName ?? row.fullName}
-                        disabled={!isSelectable || isSubmittingBatch}
-                        onChange={(event) =>
-                          updateInlineField(
-                            row.occupantId,
-                            "fullName",
-                            event.target.value,
-                          )
-                        }
-                        className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-base font-medium text-slate-900 disabled:bg-slate-50"
-                        aria-label={`Tên khách phòng ${row.roomNumber ?? "—"}`}
-                      />
-                    </td>
-
-                    {/* Quốc tịch */}
-                    <td className="px-3 py-3">
-                      <select
-                        value={effectiveNationality}
-                        disabled={!isSelectable || isSubmittingBatch}
-                        onChange={(event) =>
-                          updateInlineField(
-                            row.occupantId,
-                            "nationality",
-                            event.target.value,
-                          )
-                        }
-                        className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-base text-slate-800 disabled:bg-slate-50"
-                        aria-label={`Quốc tịch phòng ${row.roomNumber ?? "—"}`}
-                      >
-                        <option value="">Chọn quốc tịch</option>
-                        {effectiveNationality &&
-                          !nationalities.some(
-                            (item) => item.code === effectiveNationality,
-                          ) && (
-                            <option value={effectiveNationality}>
-                              {effectiveNationality}
-                            </option>
-                          )}
-                        {nationalities.map((item) => (
-                          <option key={item.code} value={item.code}>
-                            {item.code} ({item.nameVi})
-                          </option>
-                        ))}
-                      </select>
+                      <div className="font-semibold text-slate-900">{row.fullName}</div>
                     </td>
 
                     {/* Số giấy tờ */}
-                    <td className="px-3 py-3">
-                      <input
-                        value={edits.identityNumber ?? row.identityNumber ?? ""}
-                        disabled={!isSelectable || isSubmittingBatch}
-                        onChange={(event) =>
-                          updateInlineField(
-                            row.occupantId,
-                            "identityNumber",
-                            event.target.value,
-                          )
-                        }
-                        className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-mono text-base text-slate-800 disabled:bg-slate-50"
-                        aria-label={`Số giấy tờ phòng ${row.roomNumber ?? "—"}`}
-                      />
+                    <td className="px-3 py-3 whitespace-nowrap">
+                      <span className="font-mono text-sm font-medium text-slate-800">
+                        {row.identityNumber || "—"}
+                      </span>
                     </td>
 
-                    {/* Loại giấy tờ */}
-                    <td className="px-3 py-3">
-                      <select
-                        value={effectiveDocType}
-                        disabled={!isSelectable || isSubmittingBatch}
-                        onChange={(event) =>
-                          updateInlineField(
-                            row.occupantId,
-                            "documentType",
-                            event.target.value,
-                          )
-                        }
-                        className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm disabled:bg-slate-50"
-                        aria-label="Loại giấy tờ bắt buộc"
-                      >
-                        <option value="">Chọn *</option>
-                        {effectiveDocType &&
-                          !documentTypes.some(
-                            (item) => String(item.code) === effectiveDocType,
-                          ) && (
-                            <option value={effectiveDocType}>
-                              {effectiveDocType === "1"
-                                ? "Thẻ CCCD"
-                                : effectiveDocType === "2"
-                                  ? "Thẻ CMND"
-                                  : effectiveDocType === "4"
-                                    ? "Hộ chiếu"
-                                    : effectiveDocType === "8"
-                                      ? "Thẻ Căn Cước"
-                                      : `Loại ${effectiveDocType}`}
-                            </option>
-                          )}
-                        {documentTypes.map((item) => (
-                          <option key={item.code} value={String(item.code)}>
-                            {item.nameVi}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-
-                    {/* Ngày sinh */}
-                    <td className="px-3 py-3">
-                      <input
-                        type="date"
-                        value={edits.dateOfBirth ?? row.dateOfBirth ?? ""}
-                        disabled={!isSelectable || isSubmittingBatch}
-                        onChange={(event) =>
-                          updateInlineField(
-                            row.occupantId,
-                            "dateOfBirth",
-                            event.target.value,
-                          )
-                        }
-                        className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm disabled:bg-slate-50"
-                        aria-label="Ngày sinh bắt buộc"
-                      />
-                    </td>
-                    {/* Giới tính */}
-                    <td className="px-3 py-3">
-                      <select
-                        value={edits.gender ?? row.gender ?? ""}
-                        disabled={!isSelectable || isSubmittingBatch}
-                        onChange={(event) =>
-                          updateInlineField(
-                            row.occupantId,
-                            "gender",
-                            event.target.value,
-                          )
-                        }
-                        className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm disabled:bg-slate-50"
-                        aria-label="Giới tính bắt buộc"
-                      >
-                        <option value="">Chọn *</option>
-                        <option value="M">Nam</option>
-                        <option value="F">Nữ</option>
-                      </select>
-                    </td>
                     {/* Trạng thái */}
-                    <td className="px-3 py-3 text-center">
-                      <div className="inline-flex flex-col items-center gap-1">
+                    <td className="px-3 py-3 text-center whitespace-nowrap">
+                      <span
+                        className={`inline-flex whitespace-nowrap items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold shadow-2xs ${statusInfo.badgeClass}`}
+                      >
                         <span
-                          className={`inline-flex whitespace-nowrap items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold shadow-2xs ${statusInfo.badgeClass}`}
-                        >
-                          <span
-                            className={`h-2 w-2 rounded-full ${statusInfo.dotColor}`}
-                          />
-                          {statusInfo.label}
-                        </span>
-                        {statusInfo.key === "UNSENT" && (
-                          <span
-                            className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800 shadow-2xs"
-                            title="Hồ sơ sẽ được hệ thống tự động đẩy lên C06 Bộ Công An"
-                          >
-                            <ClockIcon className="h-3 w-3 text-emerald-600" />
-                            {isAutoPaused
-                              ? "Tạm dừng"
-                              : `Tự động gửi sau ${countdownSeconds ?? AUTO_SUBMIT_DELAY_SECONDS}s`}
-                          </span>
-                        )}
-                      </div>
+                          className={`h-2 w-2 rounded-full ${statusInfo.dotColor}`}
+                        />
+                        {statusInfo.label}
+                      </span>
                     </td>
 
                     {/* Thao tác */}
-                    <td className="px-3 py-3 text-center whitespace-nowrap">
+                    <td
+                      className="px-3 py-3 text-center whitespace-nowrap"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <RowActionMenu
                         statusInfo={statusInfo}
                         canEdit={isSelectable}
@@ -2421,13 +2225,10 @@ function DeclarationModal({
     if (!canManage) return;
     if (isReadOnly) return;
     if (!isConnected) {
-      await SwalVietSage.fire({
-        title: "Chưa đăng nhập Cổng BCA",
-        text: "Khách sạn chưa đăng nhập hoặc chưa kết nối thành công với Cổng dịch vụ công Bộ Công An. Vui lòng kết nối tài khoản trước khi gửi hồ sơ.",
-        icon: "warning",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showWarningAlert(
+        "Chưa đăng nhập Cổng BCA",
+        "Khách sạn chưa đăng nhập hoặc chưa kết nối thành công với Cổng dịch vụ công Bộ Công An. Vui lòng kết nối tài khoản trước khi gửi hồ sơ.",
+      );
       return;
     }
     if (!citizenshipKind) {
@@ -2440,7 +2241,7 @@ function DeclarationModal({
 
     const confirmResult = await showConfirmDialog({
       title: "Xác nhận gửi khai báo lên Bộ Công an?",
-      text: `Gửi hồ sơ khai báo lưu trú của khách "${formData.hoVaTen || "khách lưu trú"}" lên Cổng dịch vụ công Bộ Công an?`,
+      text: `Gửi hồ sơ khai báo lưu trú của khách "${formData.hoTen || formData.hoVaTen || "khách lưu trú"}" lên Cổng dịch vụ công Bộ Công an?`,
       confirmText: "Lưu & Khai báo BCA",
       cancelText: "Hủy bỏ",
       reverseButtons: false,
@@ -2510,9 +2311,6 @@ function DeclarationModal({
             >
               Hồ sơ khai báo: {occupantSummary.fullName}
             </h2>
-            <p className="mt-0.5 text-base text-slate-500">
-              Mã khách: {occupantId}
-            </p>
           </div>
           <button
             type="button"
@@ -2806,7 +2604,7 @@ function DeclarationModal({
                       htmlFor="lyDoCuTru"
                       className="block text-sm font-semibold text-slate-700 mb-1"
                     >
-                      Lý do cư trú (Mã BCA){" "}
+                      Lý do cư trú{" "}
                       <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -2840,7 +2638,7 @@ function DeclarationModal({
                       htmlFor="lyDoChiTiet"
                       className="block text-sm font-semibold text-slate-700 mb-1"
                     >
-                      Lý do chi tiết (bắt buộc khi lý do là 20)
+                      Lý do chi tiết (bắt buộc khi chọn lý do khác)
                     </label>
                     <input
                       id="lyDoChiTiet"
@@ -2925,7 +2723,7 @@ function DeclarationModal({
                       htmlFor="maTT"
                       className="block text-sm font-semibold text-slate-700 mb-1"
                     >
-                      Mã tỉnh/TP (Mã BCA)
+                      Tỉnh / Thành phố
                     </label>
                     <select
                       id="maTT"
@@ -2963,7 +2761,7 @@ function DeclarationModal({
                       htmlFor="maPX"
                       className="block text-sm font-semibold text-slate-700 mb-1"
                     >
-                      Mã phường/xã (Mã BCA)
+                      Phường / Xã
                     </label>
                     <select
                       id="maPX"
@@ -3004,7 +2802,7 @@ function DeclarationModal({
                       htmlFor="noiCuTru"
                       className="block text-sm font-semibold text-slate-700 mb-1"
                     >
-                      Nơi cư trú (Mã BCA)
+                      Nơi cư trú
                     </label>
                     <select
                       id="noiCuTru"
@@ -3101,7 +2899,7 @@ function DeclarationModal({
                       htmlFor="quocTich"
                       className="block text-sm font-semibold text-slate-700 mb-1"
                     >
-                      Mã quốc tịch BCA <span className="text-red-500">*</span>
+                      Quốc tịch <span className="text-red-500">*</span>
                     </label>
                     <select
                       id="quocTich"
@@ -3183,9 +2981,9 @@ function DeclarationModal({
                       }
                       className={selectClass}
                     >
-                      <option value="D">D - Đầy đủ ngày/tháng/năm</option>
+                      <option value="D">Đầy đủ ngày/tháng/năm</option>
                       <option value="Y">
-                        Y - Chỉ có năm sinh (01/01/YYYY)
+                        Chỉ có năm sinh (01/01/YYYY)
                       </option>
                     </select>
                   </div>
@@ -3479,7 +3277,7 @@ function KbttDevInterventionModal({
               <div className="flex items-center gap-2">
                 <span className="text-lg">🔄</span>
                 <h3 className="font-bold text-slate-900">
-                  1-Click: Reset toàn bộ về Chưa gửi
+                  Đặt lại toàn bộ về Chưa gửi
                 </h3>
               </div>
               <p className="mt-1 text-xs text-slate-600 leading-relaxed">
@@ -3564,16 +3362,6 @@ function KbttDevInterventionModal({
                 className="h-8.5 w-full rounded-lg border border-slate-200 bg-slate-50 pl-8.5 pr-3 text-xs text-slate-800 outline-none focus:border-amber-500 focus:bg-white"
               />
             </div>
-            {pendingCount > 0 && (
-              <button
-                type="button"
-                disabled={isDevLoading}
-                onClick={() => void onSaveAllDevModalRows()}
-                className="inline-flex h-8.5 shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-bold text-white shadow-2xs hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-              >
-                💾 Lưu {pendingCount} thay đổi
-              </button>
-            )}
           </div>
         </div>
 
@@ -3654,7 +3442,7 @@ function KbttDevInterventionModal({
                             className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300"
                           >
                             <SparklesIcon className="h-3 w-3 text-amber-600" />
-                            <span>Random</span>
+                            <span>Tạo ngẫu nhiên</span>
                           </button>
                         </div>
                       </td>
@@ -3680,7 +3468,7 @@ function KbttDevInterventionModal({
                             onClick={() => void onSaveDevModalRow(row)}
                             className="inline-flex h-8 items-center gap-1 rounded-lg bg-amber-600 px-3 text-xs font-bold text-white shadow-2xs hover:bg-amber-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                           >
-                            <span>💾 Lưu DB</span>
+                            <span>Lưu</span>
                           </button>
                         </div>
                       </td>
@@ -3695,7 +3483,7 @@ function KbttDevInterventionModal({
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-3.5">
           <div className="text-xs text-slate-500">
-            {filtered.length} khách lưu trú • Khi lưu, số giấy tờ được ghi trực tiếp vào bảng <code className="font-mono text-slate-700">GuestStayOccupant</code> và trạng thái chuyển về <code className="font-mono text-slate-700">DRAFT</code>.
+            {filtered.length} khách lưu trú • Khi lưu, số giấy tờ được cập nhật vào hồ sơ khách và trạng thái chuyển về Chưa gửi.
           </div>
           <div className="flex items-center gap-2.5">
             {pendingCount > 0 && (
@@ -3705,7 +3493,7 @@ function KbttDevInterventionModal({
                 onClick={() => void onSaveAllDevModalRows()}
                 className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-700 disabled:opacity-50 transition-colors"
               >
-                💾 Lưu tất cả ({pendingCount})
+                Lưu tất cả ({pendingCount})
               </button>
             )}
             <button

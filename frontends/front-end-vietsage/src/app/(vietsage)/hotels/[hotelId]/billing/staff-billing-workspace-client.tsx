@@ -1751,11 +1751,6 @@ export function StaffBillingWorkspaceClient({
                           </td>
                           <td className="py-2 px-3 text-right font-black text-xs text-[var(--primary)]">
                             <div>{formatMoney(totalAmt, folio.currency ?? "VND")}</div>
-                            {svcCharge > 0 ? (
-                              <div className="text-xs font-bold text-amber-700">
-                                (DV: +{formatMoney(svcCharge, folio.currency ?? "VND")})
-                              </div>
-                            ) : null}
                           </td>
                           <td className="py-2 px-2 text-center">
                             <button

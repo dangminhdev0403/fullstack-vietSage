@@ -76,7 +76,7 @@ function parseRolePermissions(
     const description =
       typeof item.description === "string" && item.description.trim().length > 0
         ? item.description.trim()
-        : `${item.method} ${item.path}`;
+        : "Quyền thao tác hệ thống";
     mapped.push({
       id: item.id,
       method: item.method,
@@ -112,7 +112,7 @@ async function fetchRolePermissions(
   } catch (error) {
     if (error instanceof HttpError) {
       throw new Error(
-        getErrorMessage(error.data, `Yêu cầu thất bại với mã ${error.status}`),
+        getErrorMessage(error.data, "Không thể tải danh sách quyền của vai trò. Vui lòng thử lại sau."),
       );
     }
     throw error;

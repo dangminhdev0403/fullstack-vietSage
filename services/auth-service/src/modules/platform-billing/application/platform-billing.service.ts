@@ -6,7 +6,10 @@ import { HotelAccessService } from "../../property/property-public";
 import {
   addDaysYmd,
   diffCalendarDays,
+  plainDateAtTime,
   startOfPlainDate,
+  todayPlainDate,
+  toPlainDate,
   VIETNAM_TIME_ZONE,
 } from "../../../common/time/vietnam-temporal";
 
@@ -320,6 +323,7 @@ export class PlatformBillingService {
           entityId: { in: periodIds },
         },
         orderBy: { createdAt: "desc" },
+        take: Math.min(1000, Math.max(100, periodIds.length * 50)),
         select: { entityId: true, createdAt: true },
       });
 
@@ -485,6 +489,7 @@ export class PlatformBillingService {
           entityId: periodId,
         },
         orderBy: { createdAt: "desc" },
+        take: 100,
         include: {
           actor: { select: { fullName: true } },
         },
@@ -508,6 +513,7 @@ export class PlatformBillingService {
           lt: period.periodEnd,
         },
       },
+      take: 10000,
       select: {
         id: true,
         calculationVersion: true,
@@ -730,6 +736,13 @@ export class PlatformBillingService {
   ) {
     assertReconciliationRange(input.periodStart, input.periodEnd);
 
+    const MAX_BATCH_FINALIZE_SIZE = 100;
+    if (input.contractIds && input.contractIds.length > MAX_BATCH_FINALIZE_SIZE) {
+      throw new BadRequestException(
+        `Số lượng hợp đồng trong một đợt chốt không được vượt quá ${MAX_BATCH_FINALIZE_SIZE}`,
+      );
+    }
+
     const targetContracts = await this.prisma.platformBillingContract.findMany({
       where: {
         status: "ACTIVE",
@@ -738,7 +751,7 @@ export class PlatformBillingService {
           : {}),
       },
       include: { hotel: { select: { id: true, name: true, code: true } } },
-      take: 200,
+      take: MAX_BATCH_FINALIZE_SIZE,
     });
 
     const results: Array<{
@@ -1093,17 +1106,43 @@ export class PlatformBillingService {
       };
     }
 
-    const targetDate = monthDate ? new Date(monthDate) : new Date();
-    if (!Number.isFinite(targetDate.getTime())) {
-      throw new BadRequestException("Tháng đối soát không hợp lệ");
+    let targetYear: number;
+    let targetMonth: number;
+    if (monthDate) {
+      if (typeof monthDate === "string" && /^\d{4}-\d{2}$/.test(monthDate.trim())) {
+        const [y, m] = monthDate.trim().split("-").map(Number);
+        targetYear = y;
+        targetMonth = m;
+      } else {
+        const d = new Date(monthDate);
+        if (!Number.isFinite(d.getTime())) {
+          throw new BadRequestException("Tháng đối soát không hợp lệ");
+        }
+        const pd = toPlainDate(d, VIETNAM_TIME_ZONE);
+        targetYear = pd.year;
+        targetMonth = pd.month;
+      }
+    } else {
+      const pd = todayPlainDate(VIETNAM_TIME_ZONE);
+      targetYear = pd.year;
+      targetMonth = pd.month;
     }
-    const startOfMonth = new Date(
-      Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), 1),
+    const monthStr = String(targetMonth).padStart(2, "0");
+    const nextMonthYear = targetMonth === 12 ? targetYear + 1 : targetYear;
+    const nextMonth = targetMonth === 12 ? 1 : targetMonth + 1;
+    const nextMonthStr = String(nextMonth).padStart(2, "0");
+
+    const startOfMonth = plainDateAtTime(
+      `${targetYear}-${monthStr}-01`,
+      "00:00:00",
+      VIETNAM_TIME_ZONE,
     );
-    const endOfMonth = new Date(
-      Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth() + 1, 1),
+    const endOfMonth = plainDateAtTime(
+      `${nextMonthYear}-${nextMonthStr}-01`,
+      "00:00:00",
+      VIETNAM_TIME_ZONE,
     );
-    const monthKey = startOfMonth.toISOString().slice(0, 7);
+    const monthKey = `${targetYear}-${monthStr}`;
 
     const now = new Date();
     const next7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);

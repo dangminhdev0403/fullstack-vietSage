@@ -39,6 +39,7 @@ Do not load every markdown file by default.
 | `EVENT_FLOW.md` | Event envelope, lifecycle flow, and outbox-readiness notes. |
 | `FRONTEND_SYNC_VALIDATION.md` | Frontend sync validation checklist. |
 | `P1_QA_MIGRATION_VERIFICATION_CHECKLIST.md` | QA/migration verification checklist. |
+| [testing/yolo-visual-runtime.md](testing/yolo-visual-runtime.md) | YOLO-assisted screenshots, runtime evidence, extensible cases and local reports. |
 | `RBAC_ARCHITECTURE.md` | Cross-system RBAC architecture and migration direction. |
 | `DEPLOYMENT.md` | VPS/deployment notes. |
 | `SECRETS.md` | Runtime secrets policy and file structure. |

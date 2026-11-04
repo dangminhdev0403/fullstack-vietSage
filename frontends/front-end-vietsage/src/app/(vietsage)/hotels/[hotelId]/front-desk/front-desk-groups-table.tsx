@@ -56,17 +56,8 @@ export function FrontDeskGroupsTable({
   const [activeGroupCode, setActiveGroupCode] = useState<string | null>(initialSelectedGroupCode);
   const lastFocusedTriggerRef = useRef<HTMLElement | null>(null);
 
-  const totalRoomsInGroups = groups.reduce((acc, g) => acc + g.totalRooms, 0);
-
   return (
     <>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="text-xs font-semibold text-slate-500">
-          Hiển thị <span className="font-bold text-slate-800">{groups.length}</span> đoàn khách (
-          <span className="font-bold text-slate-800">{totalRoomsInGroups}</span> phòng)
-        </div>
-      </div>
-
       <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 shadow-2xs">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[850px] border-collapse text-left">
@@ -78,9 +69,6 @@ export function FrontDeskGroupsTable({
                 <th scope="col" className="px-4 py-3 whitespace-nowrap">Dự kiến trả</th>
                 <th scope="col" className="px-4 py-3 whitespace-nowrap">Tạm tính</th>
                 <th scope="col" className="px-4 py-3 whitespace-nowrap">Trạng thái đoàn</th>
-                <th scope="col" className="w-24 px-4 py-3 text-right">
-                  <span className="sr-only">Chi tiết</span>
-                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
@@ -175,30 +163,6 @@ export function FrontDeskGroupsTable({
                           <span>Đã kết thúc</span>
                         </span>
                       )}
-                    </td>
-
-                    {/* Thao tác */}
-                    <td className="w-24 px-4 py-3 align-middle text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          title={`Xem chi tiết đoàn #${group.groupCode}`}
-                          aria-label={`Xem chi tiết đoàn #${group.groupCode}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            lastFocusedTriggerRef.current = e.currentTarget;
-                            setActiveGroupCode(group.groupCode);
-                          }}
-                          className="inline-flex min-h-[36px] items-center gap-1 rounded-xl border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-bold text-purple-700 hover:bg-purple-100 hover:text-purple-900 transition-colors cursor-pointer shadow-2xs whitespace-nowrap"
-                        >
-                          <VsIcon name="visibility" className="h-3.5 w-3.5" />
-                          <span>Chi tiết</span>
-                        </button>
-                        <VsIcon
-                          name="chevron_right"
-                          className="text-xl text-slate-400 group-hover:text-purple-600 transition-transform duration-150 group-hover:translate-x-0.5"
-                        />
-                      </div>
                     </td>
                   </tr>
                 );

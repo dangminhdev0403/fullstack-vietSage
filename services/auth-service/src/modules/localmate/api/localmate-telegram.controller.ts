@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { SkipAuthorization } from "../../../shared/decorators/skip-authorization.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import { LocalMateTelegramPairingService } from "../application/localmate-telegram-pairing.service";
 
@@ -11,6 +12,7 @@ type RequestWithUser = {
 };
 
 @ApiTags("localmate-telegram")
+@SkipAuthorization()
 @Controller("localmate/telegram")
 export class LocalMateTelegramController {
   constructor(private readonly pairingService: LocalMateTelegramPairingService) {}

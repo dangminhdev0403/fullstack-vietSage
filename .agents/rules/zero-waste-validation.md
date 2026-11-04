@@ -4,10 +4,10 @@ Mandatory for Codex, Antigravity and every runner in this repository. Optimize e
 
 ## 1. Decide the work once
 
-- Default to one agent. A local correction or Markdown/rules task needs no worker, new plan file, broad audit or graph refresh.
-- For an implementation task, identify the requested behavior, allowed files/owners, important negative cases, contract impact and smallest verification set before editing. Keep this in a short internal checklist or the existing plan; do not create extra tracking documents.
+- Use the shared [CODE MODE task-size policy](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/SKILL.md#code-mode) for analysis and delegation. A small correction or Markdown/rules task normally needs no worker, new plan file, broad audit or graph refresh; explicit user requests still apply.
+- For an implementation task, identify the requested behavior, allowed files/owners, important negative cases, contract impact and smallest verification set before editing. Keep this in a short internal checklist or existing tracking. Long audit/remediation work uses the shared profile's single Markdown register; do not create duplicate plans or evidence inventories.
 - Reuse an existing audit's verified findings and source map for authorized remediation. Refresh only changed evidence; do not audit the entire project again. A check inside implementation does not reactivate a separate strict audit workflow.
-- Local tasks normally touch 1-3 files. Cross-file root-cause fixes may include necessary callers, focused tests and contract artifacts within the authorized outcome; name that bounded set before editing. The file count alone does not require another approval. Explicit user file limits and UI/data/ops boundaries still apply. New independent issues remain report-only.
+- Local tasks normally touch 1-3 files. Cross-file root-cause fixes may include necessary callers, focused tests and contract artifacts within the authorized outcome; name that bounded set before editing. The file count alone does not require another approval. Explicit user file limits and UI/data/ops boundaries still apply. New issues outside the authorized boundary remain report-only; audit+fix approval for a whole boundary includes newly confirmed defects there unless limited to named findings.
 
 ## 2. Read and navigate only what changes the decision
 
@@ -18,8 +18,8 @@ Mandatory for Codex, Antigravity and every runner in this repository. Optimize e
 
 ## 3. Make each implementation handoff complete
 
-- Delegation requires the user's request or an applicable explicit instruction. Tool availability alone is not authorization. If the user requests Orca/Antigravity, use its existing terminal/context before launching another.
-- Assign one writer per file. The host may work on independent files; it must not edit a worker-owned file until that worker has acknowledged stopping writes there. Never discard existing dirty work to obtain a clean baseline.
+- Follow the shared profile's delegation scope; do not add a second permission gate for routine scoped sub-agents. Tool availability alone is not a reason to delegate. If the user requests Orca/Antigravity, use its existing terminal/context before launching another.
+- Assign module/workflow ownership using the shared profile's dependency policy; paths define write fences, not how tasks are split. The host must not edit a worker-owned module or shared mutable surface until that owner has acknowledged stopping writes there. Never discard existing dirty work to obtain a clean baseline.
 - Give the worker the exact outcome, ownership, invariants, negative cases, existing primitives, contract obligations and allowed checks in one initial message. For authorization: allowed/denied/mixed-resource cases. For money: date boundaries, sparse/missing prices and transaction failure. Include only applicable cases.
 - Determine API impact before coding. The same owner completes runtime validation, affected callers, Swagger/OpenAPI, generated types and required changelog together. Freeze schemas before exporting and generating once; regenerate only if a later semantic change invalidates them.
 - Require one handoff with files changed, behavior, exact commands/exit results, unique test counts and remaining gaps. The host reviews the resulting diff and missing evidence; it reuses completed valid checks.

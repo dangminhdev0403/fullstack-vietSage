@@ -290,13 +290,13 @@ export class GoogleSheetsServiceCatalogSyncService {
       const durationMs = Date.now() - startedAt;
       const summary = {
         categoriesProcessed:
-          result.summary.byEntityType.serviceCategory?.create ??
-          0 +
+          (result.summary.byEntityType.serviceCategory?.create ?? 0)
+          +
             (result.summary.byEntityType.serviceCategory?.update ?? 0) +
             (result.summary.byEntityType.serviceCategory?.unchanged ?? 0),
         itemsProcessed:
-          result.summary.byEntityType.serviceItem?.create ??
-          0 +
+          (result.summary.byEntityType.serviceItem?.create ?? 0)
+          +
             (result.summary.byEntityType.serviceItem?.update ?? 0) +
             (result.summary.byEntityType.serviceItem?.unchanged ?? 0),
         inserted: result.summary.create,

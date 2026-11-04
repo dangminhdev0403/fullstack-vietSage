@@ -45,17 +45,17 @@ export function RouteBoundaryState({
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--secondary)]">
           {eyebrow}
         </p>
-        <h2 className="mt-3 text-2xl font-semibold leading-tight md:text-3xl">
+        <h2 className="mt-3 text-2xl font-semibold leading-tight md:text-3xl text-balance">
           {title}
         </h2>
-        <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--on-surface-variant)]">
+        <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--on-surface-variant)] text-pretty">
           {message}
         </p>
         {action ? (
           <button
             type="button"
             onClick={action.onClick}
-            className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--primary)] px-5 text-sm font-bold text-[var(--on-primary)]"
+            className="mt-6 inline-flex min-h-11 min-w-[44px] items-center justify-center rounded-lg bg-[var(--primary)] px-5 text-sm font-bold text-[var(--on-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
           >
             {action.label}
           </button>
@@ -164,17 +164,17 @@ export function ContentErrorState({
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--secondary)]">
           {eyebrow}
         </p>
-        <h2 className="mt-3 text-2xl font-semibold leading-tight md:text-3xl">
+        <h2 className="mt-3 text-2xl font-semibold leading-tight md:text-3xl text-balance">
           {title}
         </h2>
-        <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--on-surface-variant)]">
+        <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--on-surface-variant)] text-pretty">
           {message}
         </p>
         {action ? (
           <button
             type="button"
             onClick={action.onClick}
-            className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--primary)] px-5 text-sm font-bold text-[var(--on-primary)]"
+            className="mt-6 inline-flex min-h-11 min-w-[44px] items-center justify-center rounded-lg bg-[var(--primary)] px-5 text-sm font-bold text-[var(--on-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
           >
             {action.label}
           </button>

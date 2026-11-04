@@ -21,6 +21,7 @@ import {
   statusTone,
 } from "@/features/hotel-ops/utils/hotel-ops-display";
 import type { GuestRequestStatus } from "@/features/guest-os/types/guest-os-contract";
+import { invalidateHotelRequestRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 
 export type StaffOption = {
   id: string;
@@ -124,13 +125,13 @@ export function RequestDetailClient({
       try {
         const res = await requestInternalApiEnvelope<{
           items?: Array<{ id: string; fullName?: string; name?: string; role?: string; roles?: Array<{ name: string }> }>;
-        }>(`/api/owner/staff?hotelId=${encodeURIComponent(hotelId)}&limit=100`, {
+        }>(`/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/staff-assignments?limit=100`, {
           method: "GET",
         });
         if (active && res?.data?.items) {
           const list = res.data.items.map((u) => ({
-            id: u.id,
-            name: u.fullName || u.name || "Nhân viên",
+            id: (u as { user?: { id: string } }).user?.id || u.id,
+            name: (u as { user?: { fullName: string } }).user?.fullName || u.fullName || u.name || "Nhân viên",
             role: u.roles?.[0]?.name || u.role,
           }));
           setFetchedStaff(list);
@@ -165,9 +166,9 @@ export function RequestDetailClient({
     );
     setRequest(fresh);
     setAssignment(fresh.assignedToUserId ?? "");
-    queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
-    queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }).catch(() => {});
-    queryClient.invalidateQueries({ queryKey: ["owner-requests", hotelId] }).catch(() => {});
+    void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
+
+
 
   }
 

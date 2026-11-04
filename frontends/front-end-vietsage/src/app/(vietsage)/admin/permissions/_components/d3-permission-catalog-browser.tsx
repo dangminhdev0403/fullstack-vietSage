@@ -655,7 +655,7 @@ export function D3PermissionCatalogBrowser({
                           className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-semibold whitespace-nowrap border ${riskCfg.badgeBg}`}
                         >
                           <span className={`h-1.5 w-1.5 rounded-full ${riskCfg.dotBg}`} />
-                          <span>{perm.risk}</span>
+                          <span>{riskCfg.label}</span>
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">

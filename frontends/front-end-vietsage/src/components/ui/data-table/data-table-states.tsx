@@ -26,8 +26,8 @@ export function DataTableEmptyState({
               </svg>
             </div>
           )}
-          <h3 className="text-base font-extrabold text-slate-800">{title}</h3>
-          <p className="text-sm font-medium text-slate-500">{description}</p>
+          <h3 className="text-base font-extrabold text-slate-800 text-balance">{title}</h3>
+          <p className="text-sm font-medium text-slate-500 text-pretty">{description}</p>
           {action ? <div className="pt-2">{action}</div> : null}
         </div>
       </td>
@@ -55,14 +55,14 @@ export function DataTableErrorState({
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
-          <h3 className="text-base font-extrabold text-rose-900">Không thể tải dữ liệu bảng</h3>
-          <p className="text-sm font-medium text-rose-700">{errorMessage}</p>
+          <h3 className="text-base font-extrabold text-rose-900 text-balance">Không thể tải dữ liệu bảng</h3>
+          <p className="text-sm font-medium text-rose-700 text-pretty">{errorMessage}</p>
           {onRetry ? (
             <div className="pt-2">
               <button
                 type="button"
                 onClick={onRetry}
-                className="h-10 px-5 inline-flex items-center gap-2 rounded-xl bg-rose-600 text-sm font-extrabold text-white shadow-xs hover:bg-rose-700 transition cursor-pointer"
+                className="min-h-[44px] h-11 px-5 inline-flex items-center gap-2 rounded-xl bg-rose-600 text-sm font-extrabold text-white shadow-xs hover:bg-rose-700 transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
               >
                 🔄 Thử lại
               </button>

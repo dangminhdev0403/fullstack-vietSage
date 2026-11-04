@@ -7,10 +7,12 @@ import {
   Post,
   Req,
 } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import { StripeWebhookService } from "../application/stripe-webhook.service";
 import type { WebhookProcessingResult } from "../domain/localmate-payment.dto";
 
+@ApiTags("stripe-webhook")
 @Controller()
 export class StripeWebhookController {
   constructor(private readonly webhookService: StripeWebhookService) {}

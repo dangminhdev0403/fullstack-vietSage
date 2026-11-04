@@ -10,7 +10,7 @@ import {
   showConfirmDialog,
   showErrorAlert,
   showSuccessAlert,
-  SwalVietSage,
+  showWarningAlert,
 } from "@/libs/swal";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
@@ -289,12 +289,10 @@ export function RoomTypeRoomsModal({
     );
 
     if (targetRooms.length === 0) {
-      await SwalVietSage.fire({
-        icon: "info",
-        title: "Tất cả QR đã kích hoạt",
-        text: `Toàn bộ ${rooms.length} phòng của hạng ${roomType.roomTypeName} đều đang có mã QR GuestOS hoạt động.`,
-        confirmButtonText: "OK",
-      });
+      await showWarningAlert(
+        "Tất cả QR đã kích hoạt",
+        `Toàn bộ ${rooms.length} phòng của hạng ${roomType.roomTypeName} đều đang có mã QR GuestOS hoạt động.`,
+      );
       return;
     }
 
@@ -317,8 +315,8 @@ export function RoomTypeRoomsModal({
             { method: "POST" },
           );
           successCount++;
-        } catch (err) {
-          console.error(`Lỗi kích hoạt QR phòng ${room.id}:`, err);
+        } catch (_err) {
+          // Continue activating remaining rooms
         }
       }
       await refetchRooms();

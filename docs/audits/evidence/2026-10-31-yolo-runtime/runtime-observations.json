@@ -1,0 +1,252 @@
+{
+  "cases": [
+    {
+      "case_id": "AUTH_VALID",
+      "checks": {
+        "owner_dashboard": true,
+        "logout_visible": true,
+        "document_200": true
+      },
+      "captured_at": "2026-10-31T06:46:57.561Z",
+      "runtime": {
+        "complete": true,
+        "truncated": false,
+        "events": [
+          {
+            "kind": "request_failed",
+            "path": "/api/owner/hotels",
+            "message": "net::ERR_ABORTED",
+            "canceled": true
+          },
+          {
+            "kind": "redirect",
+            "status": 308,
+            "path": "/socket.io/"
+          },
+          {
+            "kind": "redirect",
+            "status": 308,
+            "path": "/socket.io/"
+          },
+          {
+            "kind": "redirect",
+            "status": 308,
+            "path": "/socket.io/"
+          },
+          {
+            "kind": "redirect",
+            "status": 308,
+            "path": "/socket.io/"
+          },
+          {
+            "kind": "request_failed",
+            "path": "/g/collect",
+            "message": "net::ERR_ABORTED",
+            "canceled": true
+          },
+          {
+            "kind": "redirect",
+            "status": 308,
+            "path": "/socket.io/"
+          },
+          {
+            "kind": "redirect",
+            "status": 308,
+            "path": "/socket.io/"
+          }
+        ],
+        "documents": [
+          {
+            "path": "/owner/dashboard",
+            "status": 200
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "FILTER_GROUP",
+      "checks": {
+        "query_exact": true,
+        "room_1003": true,
+        "room_1004": true,
+        "no_empty_result": true
+      },
+      "captured_at": "2026-10-31T06:47:33.284Z",
+      "runtime": {
+        "complete": true,
+        "truncated": false,
+        "events": [
+          {
+            "kind": "request_failed",
+            "path": "/api/owner/hotels",
+            "message": "net::ERR_ABORTED",
+            "canceled": true
+          },
+          {
+            "kind": "redirect",
+            "status": 308,
+            "path": "/socket.io/"
+          },
+          {
+            "kind": "redirect",
+            "status": 308,
+            "path": "/socket.io/"
+          },
+          {
+            "kind": "redirect",
+            "status": 308,
+            "path": "/socket.io/"
+          },
+          {
+            "kind": "redirect",
+            "status": 308,
+            "path": "/socket.io/"
+          },
+          {
+            "kind": "request_failed",
+            "path": "/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/room-plan",
+            "message": "net::ERR_ABORTED",
+            "canceled": true
+          },
+          {
+            "kind": "request_failed",
+            "path": "/g/collect",
+            "message": "net::ERR_ABORTED",
+            "canceled": true
+          },
+          {
+            "kind": "request_failed",
+            "path": "/g/collect",
+            "message": "net::ERR_ABORTED",
+            "canceled": true
+          }
+        ],
+        "documents": [
+          {
+            "path": "/owner/hotels/cmq2k2lm0003f2oui3ifqp808/rooms",
+            "status": 200
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "AUTH_COOKIE_EXPIRED",
+      "checks": {
+        "session_cookie_expired": true,
+        "one_redirect": true,
+        "login_200": true,
+        "login_form": true,
+        "relogin_dashboard": true,
+        "new_secure_httponly_cookie": true
+      },
+      "captured_at": "2026-10-31T06:48:38.156Z",
+      "runtime": {
+        "complete": true,
+        "truncated": false,
+        "events": [
+          {
+            "kind": "redirect",
+            "status": 307,
+            "path": "/owner/dashboard"
+          },
+          {
+            "kind": "request_failed",
+            "path": "/g/collect",
+            "message": "net::ERR_ABORTED",
+            "canceled": true
+          },
+          {
+            "kind": "redirect",
+            "status": 303,
+            "path": "/api/auth/post-login"
+          },
+          {
+            "kind": "request_failed",
+            "path": "/api/owner/hotels",
+            "message": "net::ERR_ABORTED",
+            "canceled": true
+          },
+          {
+            "kind": "redirect",
+            "status": 308,
+            "path": "/socket.io/"
+          },
+          {
+            "kind": "redirect",
+            "status": 308,
+            "path": "/socket.io/"
+          },
+          {
+            "kind": "redirect",
+            "status": 308,
+            "path": "/socket.io/"
+          },
+          {
+            "kind": "redirect",
+            "status": 308,
+            "path": "/socket.io/"
+          },
+          {
+            "kind": "request_failed",
+            "path": "/g/collect",
+            "message": "net::ERR_ABORTED",
+            "canceled": true
+          },
+          {
+            "kind": "redirect",
+            "status": 308,
+            "path": "/socket.io/"
+          },
+          {
+            "kind": "redirect",
+            "status": 308,
+            "path": "/socket.io/"
+          }
+        ],
+        "documents": [
+          {
+            "path": "/dangnhap",
+            "status": 200
+          },
+          {
+            "path": "/owner/dashboard",
+            "status": 200
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "PRICE_ZERO",
+      "checks": {
+        "rate_zero": true,
+        "total_zero": true,
+        "no_current_price_fallback": true
+      },
+      "captured_at": "2026-10-31T07:03:43.198Z",
+      "runtime": {
+        "complete": true,
+        "truncated": false,
+        "events": [
+          {
+            "kind": "request_failed",
+            "path": "/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/billing/booking-payments",
+            "message": "net::ERR_ABORTED",
+            "canceled": true
+          },
+          {
+            "kind": "redirect",
+            "status": 308,
+            "path": "/socket.io/"
+          },
+          {
+            "kind": "redirect",
+            "status": 308,
+            "path": "/socket.io/"
+          }
+        ],
+        "documents": []
+      }
+    }
+  ],
+  "interpretation": "Canceled requests are reported by the strict runtime gate; not yet confirmed product defects. No allowlist added. HTTP redirects alone do not prove a socket failure. Only these capture intervals were inspected."
+}

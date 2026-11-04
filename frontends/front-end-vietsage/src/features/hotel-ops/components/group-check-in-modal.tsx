@@ -24,7 +24,7 @@ import { kbttResource } from "@/features/kbtt/resources/kbtt-resource";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import { staffRoomsRepository } from "@/features/hotel-ops/repositories/staff-rooms-repository";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
-import { formatFriendlyCheckInError } from "@/features/hotel-ops/utils/check-in-error";
+import { checkInRecovery, formatFriendlyCheckInError, isEarlyCheckInError, isLateCheckInError } from "@/features/hotel-ops/utils/check-in-error";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { RoomCheckoutSettlementModal } from "./room-checkout-settlement-modal";
 import type { HotelRoomSummary } from "@/features/hotel-ops/types/hotel-ops-contract";
@@ -34,7 +34,6 @@ import {
   showErrorAlert,
   showSuccessAlert,
   showWarningAlert,
-  trustedAlertHtml,
 } from "@/libs/swal";
 
 const TECHNICAL_ERROR_PATTERN =
@@ -52,6 +51,37 @@ import {
   type BatchOperationResult,
   type GroupRoomItem,
 } from "./group-operations-drawer";
+
+async function checkInGroupRoom(
+  hotelId: string,
+  room: Pick<GroupRoomItem, "reservationId" | "roomNumber" | "plannedCheckInAt">,
+  payload: Parameters<typeof staffRoomsRepository.checkInReservation>[2],
+  guestName: string,
+) {
+  const checkIn = () => staffRoomsRepository.checkInReservation(hotelId, room.reservationId, payload);
+  let result;
+  try {
+    result = await checkIn();
+  } catch (error) {
+    const early = isEarlyCheckInError(error);
+    if (!early && !isLateCheckInError(error)) throw error;
+    const confirmation = await showConfirmDialog({
+      icon: "warning",
+      title: early ? "Xác nhận nhận phòng sớm?" : "Xác nhận nhận phòng quá hạn?",
+      text: `Phòng ${room.roomNumber} · ${guestName} · Ngày đến dự kiến: ${toDisplayVnDate(room.plannedCheckInAt?.slice(0, 10) || "")}.`,
+      confirmText: early ? "Nhận phòng sớm" : "Nhận phòng muộn",
+      cancelText: "Chưa nhận phòng này",
+    });
+    if (!confirmation.isConfirmed) throw error;
+    result = await staffRoomsRepository.checkInReservation(hotelId, room.reservationId, {
+      ...payload,
+      ...(early
+        ? { allowEarlyCheckIn: true, confirmEarlyCheckIn: true }
+        : { allowLateCheckIn: true, confirmLateCheckIn: true }),
+    });
+  }
+  return result;
+}
 
 const cellInputClass =
   "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-900 shadow-2xs outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-400 placeholder:font-normal";
@@ -171,6 +201,7 @@ export type GroupRoomCheckInState = {
   roomId: string;
   roomNumber: string;
   roomType?: string;
+  plannedCheckInAt: string;
   plannedCheckOutAt: string;
   updatedAt?: string | null;
   guests: GroupGuestItem[];
@@ -207,6 +238,7 @@ function GroupCheckInForm({
 }: GroupCheckInModalProps) {
   const queryClient = useQueryClient();
   const dialogRef = useRef<HTMLDivElement>(null);
+  const submitLock = useRef(false);
   const titleId = useId();
   const descId = useId();
 
@@ -252,6 +284,9 @@ function GroupCheckInForm({
 
   // Map of failed check-in errors per reservationId
   const [failedRoomMap, setFailedRoomMap] = useState<Record<string, string>>({});
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState("");
   const [isMarkingReady, setIsMarkingReady] = useState<boolean>(false);
 
   const effectiveRooms = useMemo(() => {
@@ -382,6 +417,7 @@ function GroupCheckInForm({
       roomId: r.roomId || "",
       roomNumber: r.roomNumber || r.reservationCode,
       roomType: r.roomType || undefined,
+      plannedCheckInAt: r.plannedCheckInAt || "",
       plannedCheckOutAt: r.plannedCheckOutAt || "",
       updatedAt: r.updatedAt || null,
       guests: [
@@ -405,12 +441,13 @@ function GroupCheckInForm({
   const [lastRoomSourceKey, setLastRoomSourceKey] = useState(roomSourceKey);
   if (lastRoomSourceKey !== roomSourceKey) {
     setLastRoomSourceKey(roomSourceKey);
-    setRoomsState((previous) => eligibleRooms.map((room) => {
+    setRoomsState((previous) => eligibleRooms.filter((room) => !completedIds.has(room.reservationId)).map((room) => {
       const draft = previous.find((item) => item.reservationId === room.reservationId);
       return {
         reservationId: room.reservationId, reservationCode: room.reservationCode,
         roomId: room.roomId || "", roomNumber: room.roomNumber || room.reservationCode,
         roomType: room.roomType || undefined, plannedCheckOutAt: room.plannedCheckOutAt || "",
+        plannedCheckInAt: room.plannedCheckInAt || "",
         updatedAt: room.updatedAt || null,
         guests: draft?.guests ?? [{ fullName: "", gender: "Nam", nationality: "Việt Nam", isPrimary: true }],
         capturesByGuest: draft?.capturesByGuest ?? {}, activeGuestIndex: draft?.activeGuestIndex ?? 0,
@@ -429,8 +466,10 @@ function GroupCheckInForm({
 
     setIsSwappingRoom(true);
     try {
-      await staffRoomsRepository.assignReservationRoom(hotelId, reassigningItem.reservationId, {
+      const assigned = await staffRoomsRepository.assignReservationRoom(hotelId, reassigningItem.reservationId, {
         roomId: targetSwapRoomId,
+        expectedRoomId: reassigningItem.roomId,
+        ...(reassigningItem.updatedAt ? { expectedUpdatedAt: reassigningItem.updatedAt } : {}),
       });
 
       // Instantly update room in local roomsState while preserving all guest data & captures
@@ -442,6 +481,7 @@ function GroupCheckInForm({
                 roomId: targetSwapRoomId,
                 roomNumber: chosenRoom?.roomNumber || r.roomNumber,
                 roomType: chosenRoom?.type || chosenRoom?.roomTypeName || r.roomType,
+                updatedAt: assigned.updatedAt,
               }
             : r,
         ),
@@ -478,7 +518,7 @@ function GroupCheckInForm({
     const confirm = await showConfirmDialog({
       icon: "question",
       title: `Xác nhận phòng ${room.roomNumber} đã dọn sạch?`,
-      text: "Chuyển trạng thái phòng sang TRỐNG (AVAILABLE) để sẵn sàng nhận phòng đón khách.",
+      text: "Chỉ xác nhận sau khi đã kiểm tra phòng sạch và sẵn sàng đón khách.",
       confirmText: "Xác nhận sạch",
       cancelText: "Hủy",
     });
@@ -495,7 +535,7 @@ function GroupCheckInForm({
       );
       await showSuccessAlert(
         "Phòng đã sẵn sàng",
-        `Phòng ${room.roomNumber} đã chuyển sang trạng thái TRỐNG khả dụng.`,
+        `Phòng ${room.roomNumber} đã sẵn sàng đón khách.`,
       );
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       await allRoomsQuery.refetch();
@@ -525,6 +565,11 @@ function GroupCheckInForm({
 
       const failedReason = item.reservationId ? failedRoomMap[item.reservationId] : null;
 
+      // An authorization failure must not suggest checkout or a room swap.
+      if (failedReason && checkInRecovery(failedReason).action === "permission") {
+        return { type: "CHECK_IN_FAILED" as const, reason: failedReason, stay: null, room: hr ?? null };
+      }
+
       if (!hr) {
         if (failedReason) {
           return {
@@ -541,7 +586,7 @@ function GroupCheckInForm({
       if (hr.activeStay && hr.activeStay.reservationCode !== item.reservationCode) {
         return {
           type: "CONFLICTING_STAY" as const,
-          reason: `Phòng ${item.roomNumber} hiện đang có khách lưu trú (${hr.activeStay.guestDisplayName || "Khách trước"}). Cần rà soát chi phí, trả phòng và đóng folio trước khi nhận khách mới.`,
+          reason: `Phòng ${item.roomNumber} đang có khách ${hr.activeStay.guestDisplayName || "lưu trú trước"}. Kiểm tra hóa đơn và hoàn tất trả phòng hoặc đổi sang phòng khác.`,
           stay: hr.activeStay,
           room: hr,
         };
@@ -551,7 +596,7 @@ function GroupCheckInForm({
       if (hr.status === "OCCUPIED" && hr.activeStay?.reservationCode !== item.reservationCode) {
         return {
           type: "OCCUPIED" as const,
-          reason: `Phòng ${item.roomNumber} đang ở trạng thái CÓ KHÁCH (OCCUPIED). Cần hoàn tất trả phòng trước khi nhận phòng.`,
+          reason: `Phòng ${item.roomNumber} đang có khách. Cần hoàn tất trả phòng trước khi nhận khách mới.`,
           stay: hr.activeStay ?? null,
           room: hr,
         };
@@ -561,7 +606,7 @@ function GroupCheckInForm({
       if (hr.status === "PROCESSING" || hr.status === "DIRTY") {
         return {
           type: "PROCESSING" as const,
-          reason: `Phòng ${item.roomNumber} đang ở trạng thái Chờ dọn buồng (Processing). Cần dọn sạch trước khi nhận phòng.`,
+          reason: `Phòng ${item.roomNumber} đang chờ dọn buồng. Chỉ xác nhận sẵn sàng sau khi đã kiểm tra phòng sạch.`,
           stay: null,
           room: hr,
         };
@@ -583,6 +628,34 @@ function GroupCheckInForm({
   );
 
   const activeRoom = roomsState[activeRoomIndex] || roomsState[0];
+
+  const handleRefreshStatus = async () => {
+    if (isRefreshing || isSubmitting) return;
+    setIsRefreshing(true);
+    setRefreshError("");
+    try {
+      const latest = await queryClient.fetchQuery({
+        ...staffRoomsResource.bind({ hotelId }).queries.groupArrivals.options(groupCode),
+        staleTime: 0,
+      });
+      const roomResult = await allRoomsQuery.refetch();
+      if (roomResult.isError) throw roomResult.error;
+      await availableRoomsQuery.refetch();
+      setRoomsState((previous) => previous.map((draft) => {
+        const current = latest.find((item) => item.id === draft.reservationId);
+        if (!current) return draft;
+        return { ...draft, roomId: current.roomId || draft.roomId,
+          roomNumber: current.room?.roomNumber || draft.roomNumber,
+          updatedAt: current.updatedAt, plannedCheckInAt: current.plannedCheckInAt || draft.plannedCheckInAt,
+          plannedCheckOutAt: current.plannedCheckOutAt || draft.plannedCheckOutAt };
+      }));
+      // Keep unresolved errors visible; only the next successful attempt clears them.
+    } catch (error) {
+      setRefreshError(resolveFrontDeskCheckInReason(error));
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const [isOpeningSettlement, setIsOpeningSettlement] = useState<boolean>(false);
 
@@ -633,7 +706,7 @@ function GroupCheckInForm({
         // No open folio exists, meaning the room is clean/ready or error can be cleared
         await showSuccessAlert(
           "Phòng không có hóa đơn tồn đọng",
-          `Phòng ${targetRoom.roomNumber} hiện không còn hóa đơn mở nào cần thanh toán. Bạn có thể tiến hành nhận phòng ngay.`,
+          `Không tìm thấy hóa đơn mở cho phòng ${targetRoom.roomNumber}. Cần kiểm tra lại trạng thái phòng trước khi thử nhận phòng.`,
         );
         if (activeRoom?.reservationId) {
           setFailedRoomMap((prev) => {
@@ -663,6 +736,7 @@ function GroupCheckInForm({
           roomNumber: activeRoom.roomNumber || match.roomNumber,
           roomType: activeRoom.roomType || match.roomType || null,
           plannedCheckOutAt: activeRoom.plannedCheckOutAt || match.plannedCheckOutAt,
+          updatedAt: activeRoom.updatedAt,
         }
       : {
           reservationId: activeRoom.reservationId,
@@ -674,7 +748,7 @@ function GroupCheckInForm({
           roomType: activeRoom.roomType || null,
           guestDisplayName: activeRoom.guests[0]?.fullName || "Khách đoàn",
           guestPhone: null,
-          plannedCheckInAt: "",
+          plannedCheckInAt: activeRoom.plannedCheckInAt,
           plannedCheckOutAt: activeRoom.plannedCheckOutAt,
           rate: null,
           status: "CONFIRMED",
@@ -849,9 +923,10 @@ function GroupCheckInForm({
     });
   };
 
-  const handleSafeClose = async () => {
+  const handleSafeClose = useCallback(async () => {
+    if (isSubmitting || isSwappingRoom || isMarkingReady || isRefreshing) return;
     const hasAnyCccd = roomsState.some((r) =>
-      r.guests.some((g) => Boolean(g.identityNumber?.trim())),
+      r.guests.some((g) => Boolean(g.identityNumber?.trim() || g.fullName.trim())),
     );
     if (hasAnyCccd) {
       const confirm = await showConfirmDialog({
@@ -865,7 +940,7 @@ function GroupCheckInForm({
       if (!confirm.isConfirmed) return;
     }
     onClose();
-  };
+  }, [isSubmitting, isSwappingRoom, isMarkingReady, isRefreshing, roomsState, onClose]);
 
   // Keyboard escape
   useEffect(() => {
@@ -878,10 +953,13 @@ function GroupCheckInForm({
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [isOpen]);
+  }, [isOpen, handleSafeClose]);
 
   // Submit complete group check-in
   const handleSubmitGroupCheckIn = async () => {
+    if (submitLock.current || isSubmitting || isRefreshing || isSwappingRoom || isMarkingReady) return;
+    submitLock.current = true;
+    try {
     // Validate: each room must have at least 1 guest with a name
     for (let i = 0; i < roomsState.length; i++) {
       const r = roomsState[i];
@@ -926,7 +1004,7 @@ function GroupCheckInForm({
     const newResults: Record<string, BatchOperationResult> = {};
     let successCount = 0;
     let failCount = 0;
-    const failedRooms: Array<{ roomNumber: string; reason: string }> = [];
+    const failedRooms: Array<{ reservationId: string; reason: string }> = [];
 
     for (let i = 0; i < roomsState.length; i++) {
       const room = roomsState[i];
@@ -935,12 +1013,12 @@ function GroupCheckInForm({
       const primary = room.guests[0];
       const extraOccupants = room.guests.slice(1).map((occ) => ({
         fullName: occ.fullName.trim(),
-        phone: occ.phone?.trim() || null,
-        identityNumber: occ.identityNumber?.trim() || null,
-        dateOfBirth: toIsoDate(occ.dateOfBirth?.trim()) || null,
-        gender: occ.gender?.trim() || null,
-        nationality: occ.nationality?.trim() || null,
-        residencePlace: occ.residencePlace?.trim() || null,
+        phone: occ.phone?.trim() || undefined,
+        identityNumber: occ.identityNumber?.trim() || undefined,
+        dateOfBirth: toIsoDate(occ.dateOfBirth?.trim()) || undefined,
+        gender: occ.gender?.trim() || undefined,
+        nationality: occ.nationality?.trim() || undefined,
+        residencePlace: occ.residencePlace?.trim() || undefined,
         isPrimary: false,
       }));
 
@@ -955,19 +1033,11 @@ function GroupCheckInForm({
         plannedCheckOutAt: room.plannedCheckOutAt,
         occupants: extraOccupants.length > 0 ? extraOccupants : undefined,
         expectedRoomId: room.roomId?.trim() ? room.roomId.trim() : undefined,
-        allowEarlyCheckIn: true,
-        confirmEarlyCheckIn: true,
-        allowLateCheckIn: true,
-        confirmLateCheckIn: true,
         ...(room.updatedAt ? { expectedUpdatedAt: room.updatedAt } : {}),
       };
 
       try {
-        const result = await staffRoomsRepository.checkInReservation(
-          hotelId,
-          room.reservationId,
-          payload,
-        );
+        const result = await checkInGroupRoom(hotelId, room, payload, primary.fullName.trim());
 
         successCount++;
         newResults[room.reservationId] = {
@@ -977,10 +1047,11 @@ function GroupCheckInForm({
           action: "CHECK_IN",
           timestamp: Date.now(),
         };
+        setCompletedIds((previous) => new Set([...previous, room.reservationId]));
       } catch (err: unknown) {
         failCount++;
         const friendlyMsg = resolveFrontDeskCheckInReason(err);
-        failedRooms.push({ roomNumber: room.roomNumber, reason: friendlyMsg });
+        failedRooms.push({ reservationId: room.reservationId, reason: friendlyMsg });
 
         newResults[room.reservationId] = {
           reservationId: room.reservationId,
@@ -1011,10 +1082,7 @@ function GroupCheckInForm({
     } else {
       const newFailedMap: Record<string, string> = {};
       for (const f of failedRooms) {
-        const found = roomsState.find((r) => r.roomNumber === f.roomNumber);
-        if (found) {
-          newFailedMap[found.reservationId] = f.reason;
-        }
+        newFailedMap[f.reservationId] = f.reason;
       }
       setFailedRoomMap(newFailedMap);
 
@@ -1025,26 +1093,6 @@ function GroupCheckInForm({
         setActiveRoomIndex(firstFailedIdx);
       }
 
-      await showWarningAlert(
-        successCount > 0 ? "Một số phòng chưa nhận được" : "Chưa nhận phòng được",
-        trustedAlertHtml(`
-          <div style="text-align: left; font-size: 14px; line-height: 1.55; color: #334155;">
-            ${successCount > 0 ? `<p style="margin: 0 0 8px;">Đã nhận phòng thành công ${successCount} phòng. Còn ${failCount} phòng chưa nhận được:</p>` : ""}
-            <ul style="margin: 0; padding-left: 18px; display: grid; gap: 6px;">
-              ${failedRooms
-                .map(
-                  (item) =>
-                    `<li><strong style="color: #0f172a;">Phòng ${escapeHtml(item.roomNumber)}:</strong> ${escapeHtml(item.reason)}</li>`,
-                )
-                .join("")}
-            </ul>
-            <p style="margin: 10px 0 0; font-size: 13px; color: #b45309; font-weight: 600;">
-              💡 Lễ tân có thể dùng nút <strong>Rà soát hoá đơn</strong> hoặc <strong>Đổi sang phòng khác</strong> ngay trên từng phòng để xử lý nhanh.
-            </p>
-          </div>
-        `),
-        { timer: false },
-      );
       if (successCount > 0) {
         setRoomsState((prev) =>
           prev.filter((r) => newResults[r.reservationId]?.success !== true),
@@ -1054,9 +1102,15 @@ function GroupCheckInForm({
       }
       // Giữ hộp thoại mở để lễ tân không bị mất thông tin khách/CCCD đã nhập, có thể kiểm tra hoặc thử lại
     }
+    } finally {
+      submitLock.current = false;
+      setIsSubmitting(false);
+      setSubmitProgress(null);
+    }
   };
 
   const activeRoomConflict = activeRoom ? getRoomConflict(activeRoom) : null;
+  const recovery = activeRoomConflict ? checkInRecovery(activeRoomConflict.reason) : null;
 
   if (!isOpen) return null;
 
@@ -1176,6 +1230,8 @@ function GroupCheckInForm({
                   key={r.reservationId}
                   type="button"
                   onClick={() => setActiveRoomIndex(idx)}
+                  disabled={isSubmitting || isRefreshing}
+                  aria-pressed={isActive}
                   className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer min-h-[40px] ${
                     isActive
                       ? "bg-blue-700 text-white shadow-xs ring-2 ring-blue-300"
@@ -1196,7 +1252,7 @@ function GroupCheckInForm({
                   <span>Phòng {r.roomNumber}</span>
                   {hasIssue && (
                     <span className="rounded-md bg-amber-200/90 text-amber-950 px-1.5 py-0.2 text-xs font-black">
-                      ⚠ Cần xử lý
+                      {conflict?.type === "PROCESSING" ? "Chờ dọn" : conflict?.type === "CONFLICTING_STAY" || conflict?.type === "OCCUPIED" ? "Đang có khách" : checkInRecovery(conflict?.reason || "").label}
                     </span>
                   )}
                   <span
@@ -1215,7 +1271,20 @@ function GroupCheckInForm({
         </section>
 
         {/* MODAL MAIN CONTENT */}
-        <main className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <main inert={isSubmitting} className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          {(completedIds.size > 0 || Object.keys(failedRoomMap).length > 0) && (
+            <div role="status" aria-live="polite" className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3 text-base text-slate-900">
+              <p className="text-pretty">
+                Đã nhận {completedIds.size} phòng · Còn {roomsState.length} phòng chưa nhận.
+                {Object.keys(failedRoomMap).length > 0 && " Chọn phòng có lỗi để xử lý. Thông tin khách đã nhập vẫn được giữ."}
+              </p>
+              <button type="button" onClick={() => void handleRefreshStatus()} disabled={isRefreshing || isSubmitting}
+                className="min-h-11 rounded-lg border border-slate-300 px-3 text-base font-semibold whitespace-nowrap focus-visible:ring-2 focus-visible:ring-blue-600 disabled:opacity-50">
+                {isRefreshing ? "Đang cập nhật..." : "Cập nhật trạng thái"}
+              </button>
+            </div>
+          )}
+          {refreshError && <p role="alert" className="text-base text-rose-800 text-pretty">Không cập nhật được: {refreshError}</p>}
           {excludedRooms.length > 0 && (
             <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-3.5 text-xs text-amber-900 shadow-2xs">
               <div className="flex items-start gap-2.5">
@@ -1278,14 +1347,15 @@ function GroupCheckInForm({
             <>
               {/* Active Room In-Place Resolution Banner */}
               {activeRoomConflict && (
-                <div className="rounded-xl border border-amber-300 bg-amber-50/95 p-4 text-xs shadow-2xs space-y-3">
+                <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50/95 p-4 text-base shadow-2xs space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                     <div className="flex items-start gap-2.5">
                       <VsIcon name="warning" className="text-xl text-amber-600 shrink-0 mt-0.5" />
                       <div className="space-y-1">
-                        <p className="font-black text-amber-950 text-sm sm:text-base">
-                          Phòng {activeRoom.roomNumber} chưa sẵn sàng nhận phòng
+                        <p className="font-bold text-amber-950 text-base text-balance">
+                          Phòng {activeRoom.roomNumber} · {activeRoomConflict.type === "PROCESSING" ? "Chờ dọn buồng" : activeRoomConflict.type === "CONFLICTING_STAY" || activeRoomConflict.type === "OCCUPIED" ? "Đang có khách" : recovery?.label}
                         </p>
+                        {activeRoomConflict.type === "CHECK_IN_FAILED" && <p className="text-amber-900 text-pretty">{recovery?.guidance}</p>}
                         <p className="text-amber-800 font-medium text-pretty">
                           {activeRoomConflict.reason}
                         </p>
@@ -1300,12 +1370,12 @@ function GroupCheckInForm({
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 shrink-0">
-                      {activeRoomConflict.type !== "PROCESSING" && (
+                      {(activeRoomConflict.type === "CONFLICTING_STAY" || activeRoomConflict.type === "OCCUPIED" || recovery?.action === "settlement") && (
                         <button
                           type="button"
                           onClick={() => void handleOpenSettlement()}
                           disabled={isOpeningSettlement}
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-800 transition cursor-pointer min-h-[38px] disabled:opacity-50 whitespace-nowrap"
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-2 text-base font-bold text-white shadow-xs hover:bg-emerald-800 transition cursor-pointer min-h-[44px] disabled:opacity-50 whitespace-nowrap"
                         >
                           <VsIcon
                             name={isOpeningSettlement ? "progress_activity" : "receipt_long"}
@@ -1319,20 +1389,27 @@ function GroupCheckInForm({
                           type="button"
                           onClick={() => void handleConfirmRoomCleanReady(activeRoomConflict.room!)}
                           disabled={isMarkingReady}
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer min-h-[38px] disabled:opacity-50 whitespace-nowrap"
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-base font-bold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer min-h-[44px] disabled:opacity-50 whitespace-nowrap"
                         >
                           <VsIcon name="check_circle" className="text-base" />
                           <span>Xác nhận phòng đã dọn sạch</span>
                         </button>
                       )}
-                      <button
+                      {activeRoomConflict.type === "CHECK_IN_FAILED" && !["permission", "settlement", "swap"].includes(recovery?.action || "") && (
+                        <button type="button" onClick={() => void handleRefreshStatus()} disabled={isRefreshing || isSubmitting}
+                          className="min-h-11 rounded-xl border border-amber-400 bg-white px-3 text-base font-semibold text-amber-950 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-blue-600 disabled:opacity-50">
+                          {isRefreshing ? "Đang cập nhật..." : "Cập nhật đặt phòng"}
+                        </button>
+                      )}
+                      {(activeRoomConflict.type !== "CHECK_IN_FAILED" || recovery?.action === "settlement" || recovery?.action === "swap") && <button
                         type="button"
                         onClick={handleOpenSwapModalForActiveRoom}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer min-h-[38px] whitespace-nowrap"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-base font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer min-h-[44px] whitespace-nowrap"
                       >
                         <VsIcon name="swap_horiz" className="text-base" />
                         <span>Đổi sang phòng khác</span>
                       </button>
+                      }
                     </div>
                   </div>
                 </div>
@@ -1602,7 +1679,7 @@ function GroupCheckInForm({
                               type="button"
                               onClick={() => handleRemoveGuest(gIdx)}
                               aria-label={`Xóa khách ${gIdx + 1}`}
-                              className="rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer"
+                              className="rounded-lg p-1 text-blue-700 hover:bg-rose-50 hover:text-rose-700 transition cursor-pointer"
                             >
                               <VsIcon name="delete" className="text-base" />
                             </button>
@@ -1682,14 +1759,14 @@ function GroupCheckInForm({
             <button
               type="button"
               onClick={handleSubmitGroupCheckIn}
-              disabled={isSubmitting || roomsState.length === 0}
+              disabled={isSubmitting || isRefreshing || isSwappingRoom || isMarkingReady || roomsState.length === 0}
               className="inline-flex items-center gap-1.5 rounded-xl bg-blue-700 px-5 py-2 text-xs sm:text-sm font-bold text-white shadow-sm hover:bg-blue-800 transition cursor-pointer disabled:opacity-50 min-h-[44px]"
             >
               <VsIcon name="login" className="text-base" />
               <span>
                 {isSubmitting
                   ? "Đang xử lý..."
-                  : `Hoàn tất Check-in đoàn (${roomsState.length} phòng)`}
+                  : `Nhận ${roomsState.length} phòng${completedIds.size > 0 ? " còn lại" : " trong đoàn"}`}
               </span>
             </button>
           </div>

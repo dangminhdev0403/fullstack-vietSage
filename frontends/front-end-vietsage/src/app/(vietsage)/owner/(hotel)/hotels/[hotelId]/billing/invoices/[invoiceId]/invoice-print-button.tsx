@@ -24,7 +24,7 @@ function buildWordHtml(invoiceHtml: string): string {
       color: #0f172a;
       background: #ffffff;
       font-family: Arial, sans-serif;
-      font-size: 11px;
+      font-size: 12px;
       line-height: 1.35;
     }
     .invoice-a4 {
@@ -59,7 +59,7 @@ function buildWordHtml(invoiceHtml: string): string {
       width: 100%;
       border-collapse: collapse;
       table-layout: fixed;
-      font-size: 9px;
+      font-size: 12px;
     }
     th,
     td {
@@ -71,7 +71,7 @@ function buildWordHtml(invoiceHtml: string): string {
     th {
       background: #f1f5f9;
       color: #475569;
-      font-size: 8px;
+      font-size: 12px;
       text-transform: uppercase;
     }
     .text-right { text-align: right; }

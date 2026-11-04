@@ -1,7 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import {
   SwalVietSage,
@@ -260,7 +260,7 @@ function getRoomStatus(room: HotelRoomSummary): RoomStatusFilter {
   const status = (room.physicalStatus || room.status)?.toUpperCase();
   if (status === "OCCUPIED" || (!room.physicalStatus && room.activeStay)) return "occupied";
   if (status === "RESERVED") return "reserved";
-  if (status === "PROCESSING") return "processing";
+  if (status === "PROCESSING" || status === "DIRTY") return "processing";
   if (status === "BLOCKED") return "blocked";
   if (status === "MAINTENANCE" || status === "OUT_OF_SERVICE")
     return "maintenance";
@@ -683,10 +683,10 @@ function extractRoomBasePrice(room: any): number | null {
     room.roomType?.price ??
     room.roomType?.basePrice;
   if (raw == null) return null;
-  if (typeof raw === "number") return isNaN(raw) || raw <= 0 ? null : raw;
+  if (typeof raw === "number") return !Number.isFinite(raw) || raw < 0 ? null : raw;
   const cleaned = String(raw).replace(/[^\d.-]/g, "");
   const num = Number(cleaned);
-  return !isNaN(num) && num > 0 ? num : null;
+  return cleaned.trim() !== "" && Number.isFinite(num) && num >= 0 ? num : null;
 }
 
 export function StaffRoomsClient({
@@ -876,27 +876,13 @@ export function StaffRoomsClient({
   const storedViewMode = useRoomViewStore((s) => s.viewModeMap[hotelId]);
   const setStoredViewMode = useRoomViewStore((s) => s.setViewMode);
 
-  const [operationalViewMode, setOperationalViewMode] = useState<
-    "grid" | "tape-chart"
-  >(() => {
-    if (typeof window !== "undefined") {
-      const sp = new URLSearchParams(window.location.search);
-      const urlView = sp.get("view") || sp.get("tab");
-      if (
-        urlView === "tape-chart" ||
-        urlView === "room-plan" ||
-        urlView === "plan"
-      ) {
-        return "tape-chart";
-      }
-      if (urlView === "grid" || urlView === "rooms") {
-        return "grid";
-      }
-    }
-    if (initialView) return initialView;
-    if (storedViewMode) return storedViewMode;
-    return "grid";
-  });
+  const roomViewHydrated = useSyncExternalStore(
+    useRoomViewStore.persist.onFinishHydration,
+    useRoomViewStore.persist.hasHydrated,
+    () => false,
+  );
+  const [requestedViewMode, setOperationalViewMode] = useState<"grid" | "tape-chart" | undefined>(initialView);
+  const operationalViewMode = requestedViewMode ?? storedViewMode ?? (isHousekeeping ? "grid" : "tape-chart");
 
   const handleOperationalViewModeChange = useCallback(
     (mode: "grid" | "tape-chart") => {
@@ -907,7 +893,7 @@ export function StaffRoomsClient({
         if (mode === "tape-chart") {
           url.searchParams.set("view", "tape-chart");
         } else {
-          url.searchParams.delete("view");
+          url.searchParams.set("view", "grid");
           url.searchParams.delete("tab");
           url.searchParams.delete("startDate");
           url.searchParams.delete("viewMode");
@@ -936,19 +922,6 @@ export function StaffRoomsClient({
     window.addEventListener("popstate", syncFromUrl);
     return () => window.removeEventListener("popstate", syncFromUrl);
   }, []);
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && operationalViewMode === "tape-chart") {
-      const url = new URL(window.location.href);
-      if (
-        url.searchParams.get("view") !== "tape-chart" &&
-        url.searchParams.get("tab") !== "room-plan"
-      ) {
-        url.searchParams.set("view", "tape-chart");
-        window.history.replaceState(null, "", url.toString());
-      }
-    }
-  }, [operationalViewMode]);
 
   // Future Reservation State
   const [isReservationOpen, setIsReservationOpen] = useState(
@@ -1516,8 +1489,8 @@ export function StaffRoomsClient({
             notes: "Tự động tạo từ đặt phòng trước",
           });
           effectivePartnerId = createdPartner.id;
-        } catch (err) {
-          console.error("Lỗi tự động tạo đối tác:", err);
+        } catch (_err) {
+          // Silent swallow fallback
         }
       }
 
@@ -1736,6 +1709,13 @@ export function StaffRoomsClient({
     }
   }
 
+
+  const groupArrivalsRange = getArrivalDateRange("week", todayYmd);
+  const { data: groupArrivalsPage } = useQuery({
+    ...staffRoomsResource.bind({ hotelId }).queries.arrivals.options(groupArrivalsRange),
+    enabled: !isHousekeeping,
+  });
+  const groupArrivalsList = useMemo(() => groupArrivalsPage?.items ?? [], [groupArrivalsPage]);
 
   useEffect(() => {
     let ignore = false;
@@ -2123,14 +2103,14 @@ export function StaffRoomsClient({
       ? targetRooms
       : buildGroupRoomItems({
           activeGroupCode: resolvedCode,
-          initialArrivals: arrivalsList,
+          initialArrivals: groupArrivalsList,
           rooms,
         }).filter((r) => r.status === "ARRIVAL_READY" || r.status === "CONFIRMED");
 
     setGroupCheckInCode(resolvedCode);
     setGroupCheckInRooms(roomsToUse);
     setIsGroupCheckInOpen(true);
-  }, [arrivalsList, rooms]);
+  }, [groupArrivalsList, rooms]);
 
   const openGroupOperations = useCallback((code?: string | null) => {
     openGroupCheckIn(code);
@@ -2146,8 +2126,8 @@ export function StaffRoomsClient({
   }, [arrivalsList, activeMovementsTargetYmd]);
 
   const groupSummaryCount = useMemo(
-    () => buildFrontDeskGroupSummaries(arrivalsList).length,
-    [arrivalsList],
+    () => buildFrontDeskGroupSummaries(groupArrivalsList).length,
+    [groupArrivalsList],
   );
 
   const todayDeparturesList = useMemo(() => {
@@ -3615,8 +3595,8 @@ export function StaffRoomsClient({
             notes: "Tự động tạo từ đặt phòng đoàn",
           });
           effectivePartnerId = createdPartner.id;
-        } catch (err) {
-          console.error("Lỗi tự động tạo đối tác:", err);
+        } catch (_err) {
+          // Silent swallow fallback
         }
       }
 
@@ -3704,7 +3684,7 @@ export function StaffRoomsClient({
       setBulkPrebookedServices([]);
 
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
-      void refetch();
+      await refetch();
 
       await SwalVietSage.fire({
         icon: "success",
@@ -4290,7 +4270,7 @@ export function StaffRoomsClient({
           stay?.checkedInAt ?? stay?.plannedCheckInAt,
         );
 
-        const primaryRow = `<tr><td><strong>${getRoomNumber(room)}</strong></td><td><strong>${stay?.guestDisplayName ?? "chưa có"}</strong> <span style="font-size:11px;color:#0284c7;font-weight:600">(Đại diện)</span></td><td>${cccd}</td><td>${dob}</td><td>${gender}</td><td>${nationality}</td><td>${address}</td><td>${phone}</td><td>${checkIn}</td></tr>`;
+        const primaryRow = `<tr><td><strong>${getRoomNumber(room)}</strong></td><td><strong>${stay?.guestDisplayName ?? "chưa có"}</strong> <span style="font-size:12px;color:#0284c7;font-weight:600">(Đại diện)</span></td><td>${cccd}</td><td>${dob}</td><td>${gender}</td><td>${nationality}</td><td>${address}</td><td>${phone}</td><td>${checkIn}</td></tr>`;
 
         const extraOccupants = filterExtraOccupants(stay?.occupants, stay);
         const occupantRows = extraOccupants.map((occ) => {
@@ -4300,7 +4280,7 @@ export function StaffRoomsClient({
           const occNationality = occ.nationality || "chưa có";
           const occAddress = occ.residencePlace || "chưa có";
           const occPhone = occ.phone || "chưa có";
-          return `<tr><td style="color:#64748b;font-size:12px">↳ ${getRoomNumber(room)}</td><td>${occ.fullName} <span style="font-size:11px;color:#475569">(Ở cùng)</span></td><td>${occCccd}</td><td>${occDob}</td><td>${occGender}</td><td>${occNationality}</td><td>${occAddress}</td><td>${occPhone}</td><td>${checkIn}</td></tr>`;
+          return `<tr><td style="color:#64748b;font-size:12px">↳ ${getRoomNumber(room)}</td><td>${occ.fullName} <span style="font-size:12px;color:#475569">(Ở cùng)</span></td><td>${occCccd}</td><td>${occDob}</td><td>${occGender}</td><td>${occNationality}</td><td>${occAddress}</td><td>${occPhone}</td><td>${checkIn}</td></tr>`;
         });
 
         return [primaryRow, ...occupantRows];
@@ -5349,6 +5329,10 @@ export function StaffRoomsClient({
       stateCategory = "departing_today";
     } else if (hasActiveStay) {
       stateCategory = "occupied";
+    } else if (physicalStatus === "blocked" || physicalStatus === "maintenance") {
+      stateCategory = physicalStatus;
+    } else if (physicalStatus === "processing" && !isFutureDate) {
+      stateCategory = "processing";
     } else if (isInToday || effectiveStatus === "reserved") {
       stateCategory = "arriving_today";
     } else if (effectiveStatus === "processing") {
@@ -5504,11 +5488,6 @@ export function StaffRoomsClient({
                     <span className="truncate text-xs sm:text-sm">
                       {cleanGuestDisplayName(stay?.guestDisplayName) || "Khách đang ở"}
                     </span>
-                    {stay?.guestPhone && (
-                      <span className="text-amber-900/80 font-bold shrink-0 whitespace-nowrap text-xs">
-                        · {stay.guestPhone}
-                      </span>
-                    )}
                   </div>
                   <span className="text-amber-900 font-black whitespace-nowrap shrink-0 text-xs sm:text-sm bg-amber-100/90 px-1.5 py-0.5 rounded">
                     Out: {formatTimeOnly(stay?.plannedCheckOutAt) || "12:00"}
@@ -5525,11 +5504,6 @@ export function StaffRoomsClient({
                     <span className="truncate text-xs sm:text-sm">
                       {cleanGuestDisplayName(incomingGuestName) || "Khách đặt trước"}
                     </span>
-                    {incomingPhone && (
-                      <span className="text-purple-900/80 font-bold shrink-0 whitespace-nowrap text-xs">
-                        · {incomingPhone}
-                      </span>
-                    )}
                   </div>
                   <span className="text-purple-900 font-black whitespace-nowrap shrink-0 text-xs sm:text-sm bg-purple-100/90 px-1.5 py-0.5 rounded">
                     In: {formatTimeOnly(incomingCheckInAt) || "14:00"}
@@ -5549,11 +5523,6 @@ export function StaffRoomsClient({
                 <span className="truncate text-sm font-black text-slate-950">
                   {cleanGuestDisplayName(stay?.guestDisplayName) || "Khách lưu trú"}
                 </span>
-                {stay?.guestPhone && (
-                  <span className="text-xs font-bold text-slate-600 shrink-0 whitespace-nowrap">
-                    · {stay.guestPhone}
-                  </span>
-                )}
               </div>
               {matchedOccupant && (
                 <div className="text-xs font-bold text-sky-900 bg-sky-100/90 px-2 py-0.5 rounded-md w-fit truncate">
@@ -5598,11 +5567,6 @@ export function StaffRoomsClient({
                   <span className="truncate text-sm font-black text-slate-950">
                     {cleanGuestDisplayName(incomingGuestName) || "Khách đặt trước"}
                   </span>
-                  {incomingPhone && (
-                    <span className="text-xs font-bold text-slate-600 shrink-0 whitespace-nowrap">
-                      · {incomingPhone}
-                    </span>
-                  )}
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   {incomingGroupCode && (
@@ -5649,11 +5613,6 @@ export function StaffRoomsClient({
                     <span className="truncate text-sm font-black text-slate-900">
                       Lịch: {cleanGuestDisplayName(room.upcomingReservation.guestDisplayName)}
                     </span>
-                    {room.upcomingReservation.guestPhone && (
-                      <span className="text-xs font-bold text-purple-800 shrink-0 whitespace-nowrap">
-                        · {room.upcomingReservation.guestPhone}
-                      </span>
-                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-2 rounded-xl bg-purple-50/80 border border-purple-200/80 p-2 sm:p-2.5">
                     <div>
@@ -6126,7 +6085,7 @@ export function StaffRoomsClient({
         </div>
       ) : null}
 
-      {isFutureDate ? (
+      {isFutureDate && operationalViewMode === "grid" ? (
         <div className="rounded-2xl border border-sky-300 bg-sky-50/90 p-4 text-sky-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-700 text-white">
@@ -6153,7 +6112,9 @@ export function StaffRoomsClient({
           </button>
         </div>
       ) : null}
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+
+      {operationalViewMode === "grid" ? (
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
           {
             key: "available" as RoomStatusFilter,
@@ -6279,7 +6240,9 @@ export function StaffRoomsClient({
           );
         })}
       </section>
+      ) : null}
 
+      {operationalViewMode === "grid" ? (
       <section className="sticky top-0 z-20 -mx-2 rounded-2xl border border-slate-200/90 bg-white/95 p-3.5 shadow-sm backdrop-blur-md md:top-2 space-y-3 transition-shadow hover:shadow-md">
         {!isHousekeeping ? (
           <div className="grid gap-2.5 2xl:grid-cols-[auto_auto] 2xl:items-center 2xl:justify-between">
@@ -6452,7 +6415,7 @@ export function StaffRoomsClient({
                   type="button"
                   onClick={() => handleOperationalViewModeChange("tape-chart")}
                   className={`inline-flex h-full items-center gap-1.5 rounded-lg px-3 text-xs font-bold transition cursor-pointer ${
-                    operationalViewMode === "tape-chart"
+                    (operationalViewMode as string) === "tape-chart"
                       ? "bg-white text-purple-800 shadow-xs font-black border border-slate-200"
                       : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                   }`}
@@ -6662,11 +6625,13 @@ export function StaffRoomsClient({
           </div>
         ) : null}
       </section>
+      ) : null}
 
       {/* Operational Body: Tape Chart View vs Room Grid/Tasklist View */}
       {operationalViewMode === "tape-chart" ? (
         <TapeChartView
           hotelId={hotelId}
+          deferUrlSync={!roomViewHydrated}
           rooms={rooms}
           arrivalsList={arrivalsList}
           businessDate={businessDate}
@@ -6677,6 +6642,23 @@ export function StaffRoomsClient({
           onSearchQueryChange={setInputQuery}
           canCheckInStay={canCheckInStay}
           canManageRooms={canManageRooms}
+          operationalViewMode={operationalViewMode}
+          onOperationalViewModeChange={handleOperationalViewModeChange}
+          onOpenDailyMovements={(tab) => {
+            setDailyMovementsTab(tab);
+            void loadArrivals("week");
+            setIsDailyMovementsOpen(true);
+          }}
+          movementsCounts={{
+            arrivals: todayArrivalsList.length,
+            departures: todayDeparturesList.length,
+            groups: groupSummaryCount,
+          }}
+          onRefresh={async () => {
+            await invalidateHotelRealtimeQueries(queryClient, hotelId);
+            await refetch();
+            void loadArrivals("week");
+          }}
           onOpenGroupCheckIn={(groupCode) => {
             openGroupCheckIn(groupCode);
           }}
@@ -6801,10 +6783,6 @@ export function StaffRoomsClient({
                 );
               }
             }
-          }}
-          onRefresh={() => {
-            void refetch();
-            void loadArrivals("week");
           }}
         />
       ) : (
@@ -7499,23 +7477,7 @@ export function StaffRoomsClient({
                               role="button"
                               aria-label={`Xem chi tiết đặt phòng của ${arrival.guestDisplayName}`}
                               onClick={() => {
-                                void SwalVietSage.fire({
-                                  title: `Chi tiết khách đặt trước`,
-                                  html: `
-                                <div style="font-size:14px;text-align:left;line-height:1.7;color:#334155">
-                                  <p><strong>Khách hàng:</strong> ${arrival.guestDisplayName}</p>
-                                  <p><strong>Điện thoại:</strong> ${arrival.guestPhone || "Chưa có"}</p>
-                                  <p><strong>Mã đặt phòng:</strong> ${arrival.reservationCode || arrival.id}</p>
-                                  ${arrival.groupCode ? `<p><strong>Mã đoàn:</strong> ${arrival.groupCode}</p>` : ""}
-                                  <p><strong>Phòng:</strong> ${arrival.room?.roomNumber ? `Phòng ${arrival.room?.roomNumber}` : "Chưa gán phòng"}</p>
-                                  <p><strong>Thời gian nhận phòng:</strong> ${formatDateTime(arrival.plannedCheckInAt)}</p>
-                                  <p><strong>Thời gian trả phòng:</strong> ${formatDateTime(arrival.plannedCheckOutAt)}</p>
-                                  <p><strong>Giá phòng:</strong> ${arrival.rate || arrival.nightlyRateSnapshot ? formatMoney({ price: Number(arrival.rate || arrival.nightlyRateSnapshot) || null, currency: "VND" }) : "Giá linh hoạt"}</p>
-                                  <p><strong>Trạng thái:</strong> ${arrival.status || "CONFIRMED"}</p>
-                                </div>
-                              `,
-                                  confirmButtonText: "Đóng",
-                                });
+                                setSelectedArrivalForDetail(arrival);
                               }}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter" || e.key === " ") {
@@ -7530,11 +7492,6 @@ export function StaffRoomsClient({
                                 <div className="font-bold text-slate-900 text-sm leading-tight group-hover:text-blue-900 transition-colors">
                                   {arrival.guestDisplayName}
                                 </div>
-                                {arrival.guestPhone ? (
-                                  <div className="mt-0.5 text-xs text-slate-500 font-medium">
-                                    {arrival.guestPhone}
-                                  </div>
-                                ) : null}
                               </td>
 
                               {/* Phòng */}
@@ -9331,7 +9288,8 @@ export function StaffRoomsClient({
                                             <input
                                               type="text"
                                               inputMode="numeric"
-                                              value={formatPriceInput(currentPrice)}
+                                              value={currentPrice === 0 ? "0" : formatPriceInput(currentPrice)}
+                                              aria-label={`Giá phòng ${room.roomNumber} mỗi đêm`}
                                               onChange={(e) =>
                                                 handleBulkRoomPriceChange(
                                                   room.id,
@@ -9352,7 +9310,7 @@ export function StaffRoomsClient({
                                             Giá gốc:
                                           </span>
                                           <span className="font-semibold text-slate-700 whitespace-nowrap">
-                                            {defaultRoomPrice > 0
+                                            {roomBasePrice === 0 || defaultRoomPrice > 0
                                               ? `${formatMoney({ price: defaultRoomPrice, currency: "VND" })}/đêm`
                                               : "Chưa có giá"}
                                           </span>
@@ -9952,7 +9910,7 @@ export function StaffRoomsClient({
         isOpen={isGroupListModalOpen}
         onClose={() => setIsGroupListModalOpen(false)}
         hotelId={hotelId}
-        arrivals={arrivalsList}
+        arrivals={groupArrivalsList}
         todayYmd={todayYmd}
         onSelectGroup={(code) => {
           setIsGroupListModalOpen(false);
@@ -9976,7 +9934,7 @@ export function StaffRoomsClient({
           hotelId={hotelId}
           groupCode={groupCheckInCode}
           rooms={groupCheckInRooms}
-          initialArrivals={arrivalsList}
+          initialArrivals={groupArrivalsList}
           enabledFeatures={enabledFeatures}
           onSuccess={async () => {
             await invalidateHotelRealtimeQueries(queryClient, hotelId);

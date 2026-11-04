@@ -1,0 +1,289 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "AUTH_VALID",
+      "title": "Phiên hợp lệ mở dashboard chủ khách sạn",
+      "checks": [
+        "owner_dashboard",
+        "logout_visible",
+        "document_200"
+      ],
+      "visual_required": true,
+      "allowed_runtime": [],
+      "steps": [
+        "Mở dashboard với phiên đã đăng nhập và thu ảnh tham chiếu.",
+        "Bắt đầu CDP, tải lại dashboard, đợi nội dung vận hành hiện.",
+        "Đọc heading, nút đăng xuất và HTTP document; lưu screenshot/capture."
+      ],
+      "check_sources": {
+        "owner_dashboard": {
+          "source": "DOM",
+          "expected": "Heading dashboard chủ khách sạn hiển thị"
+        },
+        "logout_visible": {
+          "source": "DOM",
+          "expected": "Nút Đăng xuất hiển thị"
+        },
+        "document_200": {
+          "source": "CDP",
+          "expected": "Document /owner/dashboard trả 200"
+        }
+      },
+      "scope_note": "Chỉ xác nhận dashboard với phiên hợp lệ; chưa chứng minh refresh đồng thời hoặc nhiều instance."
+    },
+    {
+      "id": "FILTER_GROUP",
+      "title": "Mã đoàn có thật hiển thị đúng phòng trên timeline",
+      "checks": [
+        "query_exact",
+        "room_1003",
+        "room_1004",
+        "no_empty_result"
+      ],
+      "visual_required": true,
+      "allowed_runtime": [],
+      "steps": [
+        "Mở timeline từ 31/10/2026 và bật thu CDP.",
+        "Nhập #VSH_GROUP_0015 vào ô tìm mã đặt/đoàn.",
+        "Đọc phòng 1003/1004, trạng thái kết quả; lưu ảnh và box mẫu."
+      ],
+      "check_sources": {
+        "query_exact": {
+          "source": "DOM",
+          "expected": "Ô tìm kiếm chứa #VSH_GROUP_0015"
+        },
+        "room_1003": {
+          "source": "DOM",
+          "expected": "Có nút phòng 1003 trong kết quả"
+        },
+        "room_1004": {
+          "source": "DOM",
+          "expected": "Có nút phòng 1004 trong kết quả"
+        },
+        "no_empty_result": {
+          "source": "DOM",
+          "expected": "Không hiện thông báo không tìm thấy phòng"
+        }
+      },
+      "scope_note": "Chỉ kiểm chứng query #VSH_GROUP_0015 trong lượt capture này; phòng 1003/1004 dựa DOM. YOLO bỏ sót nút phòng không phủ định kết quả lọc."
+    },
+    {
+      "id": "AUTH_COOKIE_EXPIRED",
+      "title": "Cookie hết hạn về đăng nhập một lần rồi khôi phục phiên",
+      "checks": [
+        "session_cookie_expired",
+        "one_redirect",
+        "login_200",
+        "login_form",
+        "relogin_dashboard",
+        "new_secure_httponly_cookie"
+      ],
+      "visual_required": true,
+      "allowed_runtime": [],
+      "steps": [
+        "Bật CDP; đặt expiry của session cookie hiện hữu về quá khứ trong tab thử.",
+        "Mở dashboard; đối chiếu một 307 tới login 200 và form đăng nhập.",
+        "Thu ảnh login trước khi đăng nhập; dùng tài khoản được người dùng cấp để đăng nhập lại.",
+        "Đọc dashboard và thuộc tính Secure/HttpOnly của cookie mới; không ghi cookie value."
+      ],
+      "check_sources": {
+        "session_cookie_expired": {
+          "source": "COOKIE_METADATA",
+          "expected": "Session cookie biến mất sau khi expiry về quá khứ"
+        },
+        "one_redirect": {
+          "source": "CDP",
+          "expected": "Đúng một 307 từ dashboard về login"
+        },
+        "login_200": {
+          "source": "CDP",
+          "expected": "Document login trả 200"
+        },
+        "login_form": {
+          "source": "DOM",
+          "expected": "Form đăng nhập hiển thị"
+        },
+        "relogin_dashboard": {
+          "source": "DOM",
+          "expected": "Đăng nhập lại về dashboard"
+        },
+        "new_secure_httponly_cookie": {
+          "source": "COOKIE_METADATA",
+          "expected": "Có cookie phiên mới với Secure và HttpOnly"
+        }
+      },
+      "scope_note": "Expiry được đặt về quá khứ để tái hiện; chưa chờ JWT hết hạn tự nhiên. Ảnh YOLO có thêm vùng email bị nhận như nút login; không dùng detection để tự click."
+    },
+    {
+      "id": "FILTER_BOOKING_RANGE",
+      "title": "Mã booking ngoài kỳ timeline tự căn ngày và xóa lọc khôi phục phòng",
+      "checks": [
+        "booking_found",
+        "date_aligned",
+        "clear_restores_rooms"
+      ],
+      "visual_required": true,
+      "allowed_runtime": [],
+      "note": "Chạy lại bằng dữ liệu thử có ngày xác định; bằng chứng lượt trước không tự tính vào lượt này.",
+      "steps": [
+        "Chọn booking thử ngoài kỳ đang xem và ghi kỳ ban đầu.",
+        "Tìm theo mã booking; đối chiếu tự căn ngày và phòng trả về.",
+        "Xóa lọc, đối chiếu danh sách phòng khôi phục."
+      ],
+      "check_sources": {
+        "booking_found": {
+          "source": "DOM",
+          "expected": "Tìm đúng booking thử"
+        },
+        "date_aligned": {
+          "source": "DOM_URL",
+          "expected": "Kỳ timeline chứa ngày booking"
+        },
+        "clear_restores_rooms": {
+          "source": "DOM",
+          "expected": "Xóa lọc khôi phục số phòng"
+        }
+      }
+    },
+    {
+      "id": "PRICE_ZERO",
+      "title": "Đọc lại booking giá 0 giữ đơn giá và tổng bằng 0",
+      "checks": [
+        "rate_zero",
+        "total_zero",
+        "no_current_price_fallback"
+      ],
+      "visual_required": true,
+      "allowed_runtime": [],
+      "note": "Số tiền phải đối chiếu DOM/response có thẩm quyền; YOLO chỉ nhận diện thành phần.",
+      "steps": [
+        "Từ timeline đã tải, mở booking thử 0117 tại phòng 627; bật CDP trước khi mở modal.",
+        "Đọc đơn giá 0, tổng 0 và giá gốc 1.300.000 trong form; thu ảnh và box ô đơn giá.",
+        "Đóng bằng Hủy bỏ; không lưu hoặc thu tiền."
+      ],
+      "check_sources": {
+        "rate_zero": {
+          "source": "DOM",
+          "expected": "Đơn giá đã chốt bằng 0"
+        },
+        "total_zero": {
+          "source": "DOM",
+          "expected": "Tổng tiền phòng bằng 0"
+        },
+        "no_current_price_fallback": {
+          "source": "DOM",
+          "expected": "Form giữ giá 0 khi giá gốc hiện tại 1.300.000"
+        }
+      },
+      "scope_note": "Đối chiếu form đọc lại booking 0117: đơn giá/tổng 0, giá gốc 1.300.000. Không lưu form, check-in, checkout hoặc đối soát ledger trong ca này; YOLO nhận nhiều vùng giống ô nhập nên không tự đọc tiền."
+    },
+    {
+      "id": "PRICE_BASE_CHANGE",
+      "title": "Đổi giá gốc không đổi giá đã chốt của booking cũ",
+      "checks": [
+        "base_changed",
+        "old_snapshot_retained",
+        "base_restored"
+      ],
+      "visual_required": true,
+      "allowed_runtime": [],
+      "note": "Cần loại phòng thử riêng và đọc lại sau khôi phục.",
+      "steps": [
+        "Ghi snapshot giá booking cũ và giá gốc loại phòng thử.",
+        "Đổi giá gốc loại thử; đọc lại booking cũ và đối chiếu snapshot.",
+        "Khôi phục giá gốc và đọc lại sau khôi phục."
+      ],
+      "check_sources": {
+        "base_changed": {
+          "source": "READ_BACK",
+          "expected": "Giá gốc mới đã lưu và đọc lại"
+        },
+        "old_snapshot_retained": {
+          "source": "READ_BACK",
+          "expected": "Booking cũ giữ snapshot đã ghi trước khi đổi giá"
+        },
+        "base_restored": {
+          "source": "READ_BACK",
+          "expected": "Đọc lại giá gốc đã khôi phục"
+        }
+      }
+    },
+    {
+      "id": "PRICE_NAME_ONLY",
+      "title": "Chỉ sửa tên không đổi giờ, tổng, lịch giá hoặc cọc",
+      "checks": [
+        "name_saved",
+        "time_retained",
+        "nightly_rates_retained",
+        "total_retained",
+        "no_new_deposit"
+      ],
+      "visual_required": true,
+      "allowed_runtime": [],
+      "steps": [
+        "Ghi tên, giờ, giá từng đêm, tổng và cọc của booking thử.",
+        "Chỉ sửa tên và lưu.",
+        "Đọc lại dữ liệu; xác nhận giờ/giá/tổng/cọc giữ nguyên, không thêm khoản cọc."
+      ],
+      "check_sources": {
+        "name_saved": {
+          "source": "READ_BACK",
+          "expected": "Tên mới đã lưu"
+        },
+        "time_retained": {
+          "source": "READ_BACK",
+          "expected": "Giờ nhận/trả giữ nguyên"
+        },
+        "nightly_rates_retained": {
+          "source": "READ_BACK",
+          "expected": "Lịch giá từng đêm giữ nguyên"
+        },
+        "total_retained": {
+          "source": "READ_BACK",
+          "expected": "Tổng giữ nguyên"
+        },
+        "no_new_deposit": {
+          "source": "READ_BACK",
+          "expected": "Không thêm giao dịch cọc"
+        }
+      }
+    },
+    {
+      "id": "CHECKOUT_PREPAID",
+      "title": "Checkout đã trả trước không thu lần hai",
+      "checks": [
+        "deposit_consumed_once",
+        "balance_zero",
+        "folio_closed",
+        "no_duplicate_payment"
+      ],
+      "visual_required": true,
+      "allowed_runtime": [],
+      "note": "Chỉ chạy trên booking thử; không tái sử dụng folio đã đóng hoặc coi tiền thử là giao dịch ngân hàng.",
+      "steps": [
+        "Chuẩn bị booking thử đã trả trước; ghi tổng, cọc và mã folio.",
+        "Check-in rồi checkout booking thử theo luồng quầy thu ngân.",
+        "Đọc invoice và các giao dịch: cọc áp một lần, không thu trùng, còn 0, folio đóng."
+      ],
+      "check_sources": {
+        "deposit_consumed_once": {
+          "source": "INVOICE_TRANSACTIONS",
+          "expected": "Cọc được áp đúng một lần"
+        },
+        "balance_zero": {
+          "source": "INVOICE",
+          "expected": "Số dư invoice bằng 0"
+        },
+        "folio_closed": {
+          "source": "READ_BACK",
+          "expected": "Folio đóng"
+        },
+        "no_duplicate_payment": {
+          "source": "INVOICE_TRANSACTIONS",
+          "expected": "Không tạo khoản thu lần hai"
+        }
+      }
+    }
+  ]
+}

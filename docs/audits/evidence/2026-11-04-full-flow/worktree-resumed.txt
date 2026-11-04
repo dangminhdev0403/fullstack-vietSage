@@ -1,0 +1,21 @@
+## master...origin/master [ahead 2]
+ M docs/README.md
+ M frontends/front-end-vietsage/src/features/hotel-ops/components/edit-reservation-modal.tsx
+ M frontends/front-end-vietsage/src/features/hotel-ops/components/front-desk-arrival-detail-panel.tsx
+ M frontends/front-end-vietsage/src/features/hotel-ops/components/front-desk-room-detail-panel.tsx
+ M frontends/front-end-vietsage/src/features/hotel-ops/components/group-check-in-modal.tsx
+ M frontends/front-end-vietsage/src/features/hotel-ops/components/tape-chart/tape-chart-view.tsx
+ M frontends/front-end-vietsage/src/features/hotel-ops/repositories/staff-rooms-repository.ts
+ M frontends/front-end-vietsage/src/features/hotel-ops/resources/staff-rooms-resource.ts
+ M frontends/front-end-vietsage/src/features/hotel-ops/utils/check-in-error.ts
+ M frontends/front-end-vietsage/src/features/hotel-ops/utils/invalidate-hotel-realtime-queries.ts
+?? docs/audits/2026-10-31-yolo-runtime-report.json
+?? docs/audits/2026-10-31-yolo-runtime-report.md
+?? docs/audits/2026-11-04-full-flow-responsive-audit.md
+?? docs/audits/evidence/2026-10-31-yolo-runtime/
+?? docs/audits/evidence/2026-11-04-full-flow/
+?? docs/audits/evidence/2026-11-04-turnaround/
+?? docs/testing/
+?? frontends/front-end-vietsage/src/features/hotel-ops/turnaround-regression.test.mjs
+?? frontends/front-end-vietsage/src/features/hotel-ops/utils/check-in-error.test.ts
+?? tools/visual-tests/

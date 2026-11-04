@@ -2,76 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { DebtStatementModal } from "@/app/(vietsage)/_components/debt-statement-modal";
-
-type PeriodItem = {
-  id: string;
-  periodStart: string;
-  periodEnd: string;
-  status: string;
-  total: number;
-  dueAt: string;
-  settledAmount?: number;
-  outstandingAmount?: number;
-  paymentState?: "UNPAID" | "PARTIALLY_PAID" | "PAID";
-  isOverdue?: boolean;
-};
-
-type PaginatedResult<T> = {
-  page: number;
-  limit: number;
-  total: number;
-  items: T[];
-};
-
-type RoomUsageRow = {
-  roomNumber: string;
-  usageCount: number;
-  billableDaysCount: number;
-  billedAmount?: number;
-  currency?: string;
-};
-
-type OwnerAnalyticsData = {
-  hasContract: boolean;
-  contract?: {
-    id?: string;
-    hotelId?: string;
-    status?: string;
-    hotel?: { name?: string; code?: string };
-  };
-  unitPrice: number;
-  monthKey?: string;
-  billableDaysCount: number;
-  usageCount: number;
-  estimatedFee: number;
-  periods?: PeriodItem[];
-  periodsPage?: PaginatedResult<PeriodItem>;
-  debtSummary?: {
-    totalOutstandingAmount: number;
-    unpaidPeriodCount: number;
-    totalSettledAmount: number;
-    totalFinalizedAmount: number;
-    overdueAmount: number;
-    overdueCount: number;
-    dueSoonAmount: number;
-    dueSoonCount: number;
-    nearestDueAt: string | null;
-  };
-  reminder?: {
-    dueSoonCount: number;
-    overdueCount: number;
-    dueSoonOutstandingAmount: number;
-    overdueOutstandingAmount: number;
-    totalOutstandingAmount?: number;
-    unpaidPeriodCount?: number;
-    nearestDueAt: string | null;
-  };
-  roomUsageSummary?: RoomUsageRow[];
-};
+import { useOwnerSaasBilling } from "@/features/billing/hooks/use-owner-saas-billing";
+import type {
+  OwnerAnalyticsData,
+  PeriodItem,
+  RoomUsageRow,
+} from "@/features/billing/repositories/owner-saas-billing-repository";
 
 const MONTH_PARAM = /^\d{4}-\d{2}$/;
 
@@ -101,28 +39,14 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
     null,
   );
 
-  // One query per (hotel, month, page): React Query wires AbortController signal to abort in-flight requests on unmount.
-  const analytics = useQuery({
-    queryKey: ["owner-saas-billing", hotelId, month, periodPage],
-    queryFn: async ({ signal }) => {
-      const queryParams = new URLSearchParams({
-        periodPage: String(periodPage),
-        periodLimit: "10",
-        monthDate: `${month}-01`,
-      });
-      const res = await requestInternalApiEnvelope<OwnerAnalyticsData>(
-        `/api/owner/platform-billing/analytics/${hotelId}?${queryParams.toString()}`,
-        { method: "GET", signal },
-      );
-      return res.data ?? null;
+  const { data, loading, error, refetch } = useOwnerSaasBilling({
+    hotelId,
+    query: {
+      periodPage,
+      periodLimit: 10,
+      monthDate: `${month}-01`,
     },
   });
-
-  const data = analytics.data ?? null;
-  const loading = analytics.isPending;
-  const error = analytics.isError
-    ? "Không tải được dữ liệu đối soát phí VietSage SaaS. Vui lòng thử lại."
-    : null;
 
   const updateQueryParams = (entries: Record<string, string>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -160,7 +84,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
         </p>
         <button
           type="button"
-          onClick={() => void analytics.refetch()}
+          onClick={() => void refetch()}
           className="mt-4 inline-flex items-center justify-center rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-red-700"
         >
           Thử lại
@@ -587,25 +511,29 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[640px] text-left text-base text-slate-600 dark:text-slate-300">
                 <colgroup>
-                  <col className="w-[28%]" />
-                  <col className="w-[20%]" />
+                  <col className="w-[24%]" />
                   <col className="w-[16%]" />
-                  <col className="w-[20%]" />
+                  <col className="w-[14%]" />
                   <col className="w-[16%]" />
+                  <col className="w-[16%]" />
+                  <col className="w-[14%]" />
                 </colgroup>
                 <thead className="border-b border-slate-200/80 bg-slate-50/90 text-sm sm:text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300">
                   <tr>
                     <th scope="col" className="px-5 py-4">
                       Chu kỳ chốt sổ
                     </th>
-                    <th scope="col" className="px-5 py-4 text-right">
+                    <th scope="col" className="px-5 py-4 text-center">
                       Trạng thái thanh toán
                     </th>
                     <th scope="col" className="px-5 py-4 text-right">
                       Hạn thanh toán
                     </th>
                     <th scope="col" className="px-5 py-4 text-right">
-                      Tổng tiền &amp; Dư nợ
+                      Tổng tiền
+                    </th>
+                    <th scope="col" className="px-5 py-4 text-right">
+                      Còn phải trả
                     </th>
                     <th scope="col" className="px-5 py-4 text-right">
                       Đối soát
@@ -626,7 +554,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                           {new Date(p.periodStart).toLocaleDateString("vi-VN")}{" "}
                           — {new Date(p.periodEnd).toLocaleDateString("vi-VN")}
                         </td>
-                        <td className="px-5 py-4 text-right">
+                        <td className="px-5 py-4 text-center">
                           <div className="flex flex-wrap items-center justify-center gap-2">
                             <span
                               className={`inline-flex rounded-full px-3.5 py-1 text-sm sm:text-sm font-bold ${
@@ -658,17 +586,22 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                         <td className="px-5 py-4 text-right text-slate-900 dark:text-white">
                           <div className="text-base sm:text-lg font-extrabold tabular-nums">
                             {formatVnd(p.total)}{" "}
-                            <span className="text-sm sm:text-sm font-semibold text-slate-400">
+                            <span className="text-xs font-semibold text-slate-400">
                               VND
                             </span>
                           </div>
-                          {!isFullyPaid &&
-                            p.outstandingAmount !== undefined && (
-                              <div className="mt-1 text-sm sm:text-sm font-semibold tabular-nums text-amber-600 dark:text-amber-400">
-                                Còn phải trả: {formatVnd(p.outstandingAmount)}{" "}
-                                VND
-                              </div>
+                        </td>
+                        <td className="px-5 py-4 text-right text-slate-900 dark:text-white">
+                          <div className="text-base sm:text-lg font-extrabold tabular-nums text-amber-600 dark:text-amber-400">
+                            {!isFullyPaid && p.outstandingAmount !== undefined ? (
+                              <>
+                                {formatVnd(p.outstandingAmount)}{" "}
+                                <span className="text-xs font-semibold text-slate-400">VND</span>
+                              </>
+                            ) : (
+                              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">0 VND</span>
                             )}
+                          </div>
                         </td>
                         <td className="px-5 py-4 text-right">
                           <button

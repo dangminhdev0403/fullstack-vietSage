@@ -7,6 +7,7 @@ import { VsIcon } from "../../_components/vs-icon";
 import { VsTopBar } from "../../_components/vs-top-bar";
 import { GuestAccessRequiredState } from "@/features/guest-os/components/shared/guest-access-required-state";
 import { HttpError } from "@/core/http/http-error";
+import { safeLocalStorage } from "@/core/storage/safe-storage";
 import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
 import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
 import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
@@ -216,7 +217,7 @@ export default function GuestMessagesPage() {
       }
       await queryClient.invalidateQueries({ queryKey: historyOptions.queryKey });
     },
-    onError: () => setSendError("Không thể gửi tin nhắn. Vui lòng thử lại."),
+    onError: () => setSendError(t("messages.errorSend")),
   });
 
   // Listen for staff typing signals across windows/tabs
@@ -283,7 +284,7 @@ export default function GuestMessagesPage() {
           } catch {}
         }
         try {
-          localStorage.setItem("vietsage_typing_signal", JSON.stringify(payload));
+          safeLocalStorage.setItem("vietsage_typing_signal", JSON.stringify(payload));
         } catch {}
       }
     }
@@ -306,7 +307,7 @@ export default function GuestMessagesPage() {
     if (now - lastSentAtRef.current < 600) return; // 600ms send cooldown debounce
     if (!body.trim() || send.isPending || conversationUnavailable) return;
     if (body.length > 1000) {
-      setSendError("Tin nhắn vượt quá 1000 ký tự. Hãy rút gọn trước khi gửi.");
+      setSendError(t("messages.characterLimitExceeded"));
       return;
     }
     lastSentAtRef.current = now;
@@ -326,7 +327,7 @@ export default function GuestMessagesPage() {
     return <GuestAccessRequiredState icon={<VsIcon name="qr_code_scanner" className="text-3xl" />} />;
   }
 
-  const roomLabel = room?.roomNumber ? `Phòng ${room.roomNumber}` : "Lễ tân";
+  const roomLabel = room?.roomNumber ? t("common.roomNumber", { room: room.roomNumber }) : t("common.reception");
 
   return (
     <div className="vs-page-shell vs-safe-bottom flex h-dvh max-h-dvh flex-col overflow-hidden bg-[#f8f4ea] text-[#18211d]">
@@ -336,17 +337,17 @@ export default function GuestMessagesPage() {
           <header className="shrink-0 flex items-center justify-between border-b border-[#25483f]/10 bg-[#fbf8f1] px-5 py-3.5">
             <div>
               <p className="text-sm font-bold text-[#8a6a13] tracking-wide">{roomLabel}</p>
-              <h1 className="vs-display text-2xl sm:text-3xl font-extrabold text-[#25483f] leading-tight">Nhắn lễ tân</h1>
+              <h1 className="vs-display text-2xl sm:text-3xl font-extrabold text-[#25483f] leading-tight">{t("messages.title")}</h1>
             </div>
             <div className="flex items-center gap-2 rounded-full bg-[#25483f]/10 px-3.5 py-1.5 text-xs font-bold text-[#25483f]">
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              Hỗ trợ 24/7
+              {t("messages.support247")}
             </div>
           </header>
           {conversationUnavailable ? (
             <div className="border-b border-amber-200 bg-amber-50 px-5 py-3 text-amber-950">
-              <p className="font-bold">Phiên trò chuyện đã kết thúc.</p>
-              <p className="text-sm">Lượt lưu trú đã checkout nên không thể gửi thêm tin nhắn.</p>
+              <p className="font-bold">{t("messages.sessionEndedTitle")}</p>
+              <p className="text-sm">{t("messages.sessionEndedDescription")}</p>
             </div>
           ) : null}
           <div
@@ -358,7 +359,7 @@ export default function GuestMessagesPage() {
               <div className="flex justify-center py-2 transition-all">
                 <div className="inline-flex items-center gap-2 rounded-full border border-[#25483f]/15 bg-[#fbf8f1]/90 px-4 py-1.5 text-xs font-bold text-[#25483f] shadow-md backdrop-blur-md">
                   <VsIcon name="progress_activity" className="animate-spin text-sm text-[#8a6a13]" />
-                  <span>Đang tải tin nhắn cũ hơn...</span>
+                  <span>{t("messages.loadingOlder")}</span>
                 </div>
               </div>
             )}

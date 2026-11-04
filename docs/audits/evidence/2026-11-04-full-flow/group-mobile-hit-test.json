@@ -1,0 +1,32 @@
+{
+  "buttons": [
+    {
+      "covered": false,
+      "hit": "Hủy bỏ",
+      "hitTag": "BUTTON",
+      "rect": {
+        "h": 50,
+        "w": 57.171875,
+        "x": 33,
+        "y": 719.671875
+      },
+      "text": "Hủy bỏ"
+    },
+    {
+      "covered": false,
+      "hit": "Nhận 3 phòng trong đoàn",
+      "hitTag": "SPAN",
+      "rect": {
+        "h": 64,
+        "w": 136.609375,
+        "x": 214.390625,
+        "y": 712.671875
+      },
+      "text": "Nhận 3 phòng trong đoàn"
+    }
+  ],
+  "viewport": [
+    390,
+    844
+  ]
+}

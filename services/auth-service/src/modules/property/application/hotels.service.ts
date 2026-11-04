@@ -17,6 +17,7 @@ import type {
   UpdateHotelBodyInput,
 } from "../domain/schemas/hotel.schema";
 import { GoogleSheetsServiceCatalogSyncService } from "../infrastructure/imports/google-sheets-service-catalog-sync.service";
+import { resolveTimeZone } from "../../../common/time/vietnam-temporal";
 
 @Injectable()
 export class HotelsService {
@@ -66,7 +67,7 @@ export class HotelsService {
         tenant: { connect: { id: tenantId } },
         name: dto.name.trim(),
         code: hotelCode,
-        timezone: dto.timezone?.trim() || "Asia/Ho_Chi_Minh",
+        timezone: resolveTimeZone(dto.timezone),
         brandSettings: dto.brandSettings as Prisma.InputJsonValue | undefined,
         googleSheetId: dto.googleSheetUrl,
         status: HotelStatus.ACTIVE,
@@ -182,7 +183,7 @@ export class HotelsService {
 
     const data = {
       name: dto.name?.trim(),
-      timezone: dto.timezone?.trim(),
+      timezone: dto.timezone !== undefined ? resolveTimeZone(dto.timezone) : undefined,
       brandSettings:
         dto.brandSettings === null
           ? Prisma.JsonNull
@@ -282,7 +283,7 @@ export class HotelsService {
       tenantId: row.tenantId,
       name: row.name,
       code: row.code,
-      timezone: row.timezone,
+      timezone: resolveTimeZone(row.timezone),
       status: row.status,
       brandSettings: row.brandSettings,
       googleSheetId: row.googleSheetId,

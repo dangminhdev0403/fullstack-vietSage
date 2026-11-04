@@ -418,14 +418,9 @@ export function RbacPermissionGroups({
                           {perm.actionLabel}
                         </span>
 
-                        {perm.path && (
-                          <span
-                            className="max-w-[150px] truncate font-mono text-xs text-gray-400 group-hover:text-gray-600"
-                            title={`${perm.method} ${perm.path}`}
-                          >
-                            {perm.method} {perm.path}
-                          </span>
-                        )}
+                        <span className="text-xs font-medium text-gray-400">
+                          Quyền hệ thống
+                        </span>
                       </div>
                     </div>
                   );
@@ -449,9 +444,6 @@ export function RbacPermissionGroups({
                   </th>
                   <th scope="col" className="px-4 py-3.5">
                     Cấp độ thao tác
-                  </th>
-                  <th scope="col" className="px-4 py-3.5">
-                    Phương thức & Endpoint API
                   </th>
                   <th scope="col" className="px-4 py-3.5 text-right">
                     Trạng thái
@@ -489,24 +481,6 @@ export function RbacPermissionGroups({
                         >
                           {perm.actionLabel}
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5 font-mono text-xs text-gray-600">
-                          <span
-                            className={`rounded px-1.5 py-0.2 text-xs font-bold ${
-                              perm.method === "GET"
-                                ? "bg-blue-100 text-blue-800"
-                                : perm.method === "POST"
-                                ? "bg-emerald-100 text-emerald-800"
-                                : perm.method === "DELETE"
-                                ? "bg-red-100 text-red-800"
-                                : "bg-purple-100 text-purple-800"
-                            }`}
-                          >
-                            {perm.method}
-                          </span>
-                          <span className="truncate max-w-xs">{perm.path || "—"}</span>
-                        </div>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800">

@@ -1,0 +1,166 @@
+{
+  "version": 1,
+  "case_id": "AUTH_COOKIE_EXPIRED",
+  "captured_at": "2026-10-31T06:48:38.156Z",
+  "url": "https://vietsage.localhost/dangnhap?callbackUrl=%2Fowner%2Fdashboard&reauth=1",
+  "screenshot": "AUTH_COOKIE_EXPIRED.jpg",
+  "checks": {
+    "session_cookie_expired": true,
+    "one_redirect": true,
+    "login_200": true,
+    "login_form": true,
+    "relogin_dashboard": true,
+    "new_secure_httponly_cookie": true
+  },
+  "runtime": {
+    "complete": true,
+    "truncated": false,
+    "events": [
+      {
+        "kind": "redirect",
+        "status": 307,
+        "path": "/owner/dashboard"
+      },
+      {
+        "kind": "request_failed",
+        "path": "/g/collect",
+        "message": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "kind": "redirect",
+        "status": 303,
+        "path": "/api/auth/post-login"
+      },
+      {
+        "kind": "request_failed",
+        "path": "/api/owner/hotels",
+        "message": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "kind": "redirect",
+        "status": 308,
+        "path": "/socket.io/"
+      },
+      {
+        "kind": "redirect",
+        "status": 308,
+        "path": "/socket.io/"
+      },
+      {
+        "kind": "redirect",
+        "status": 308,
+        "path": "/socket.io/"
+      },
+      {
+        "kind": "redirect",
+        "status": 308,
+        "path": "/socket.io/"
+      },
+      {
+        "kind": "request_failed",
+        "path": "/g/collect",
+        "message": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "kind": "redirect",
+        "status": 308,
+        "path": "/socket.io/"
+      },
+      {
+        "kind": "redirect",
+        "status": 308,
+        "path": "/socket.io/"
+      }
+    ],
+    "documents": [
+      {
+        "path": "/dangnhap",
+        "status": 200
+      },
+      {
+        "path": "/owner/dashboard",
+        "status": 200
+      }
+    ]
+  },
+  "visual": {
+    "reference": "AUTH_COOKIE_EXPIRED-reference.jpg",
+    "bboxes": [
+      [
+        860.390625,
+        504.296875,
+        1177.984375,
+        562.296875
+      ]
+    ],
+    "labels": [
+      "login_button"
+    ],
+    "targets": [
+      {
+        "label": "login_button",
+        "box": [
+          860.390625,
+          504.296875,
+          1177.984375,
+          562.296875
+        ]
+      }
+    ]
+  },
+  "recovery": {
+    "url": "https://vietsage.localhost/owner/dashboard",
+    "cookies": [
+      {
+        "name": "__Secure-authjs.session-token",
+        "secure": true,
+        "httpOnly": true,
+        "expires": 1796021281.213677
+      }
+    ]
+  },
+  "screenshot_sha256": "eb0108b0afa6f541c853698a10b05fa292b1480772adfa50674fab63dcded82a",
+  "reference_sha256": "eb0108b0afa6f541c853698a10b05fa292b1480772adfa50674fab63dcded82a",
+  "completed_steps": [
+    "Bật CDP; đặt expiry của session cookie hiện hữu về quá khứ trong tab thử.",
+    "Mở dashboard; đối chiếu một 307 tới login 200 và form đăng nhập.",
+    "Thu ảnh login trước khi đăng nhập; dùng tài khoản được người dùng cấp để đăng nhập lại.",
+    "Đọc dashboard và thuộc tính Secure/HttpOnly của cookie mới; không ghi cookie value."
+  ],
+  "steps_origin": "Bổ sung mô tả từ trace thao tác của lượt capture trước; không phải log timestamp từng bước hoặc lượt browser mới.",
+  "observations": {
+    "session_cookie_expired": {
+      "source": "COOKIE_METADATA",
+      "observed": "Trước thử có session cookie; sau đặt expiry quá khứ danh sách session cookie rỗng",
+      "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+    },
+    "one_redirect": {
+      "source": "CDP",
+      "observed": "CDP ghi một 307 từ /owner/dashboard",
+      "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+    },
+    "login_200": {
+      "source": "CDP",
+      "observed": "CDP /dangnhap status 200",
+      "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+    },
+    "login_form": {
+      "source": "DOM",
+      "observed": "DOM có textbox email trên form login",
+      "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+    },
+    "relogin_dashboard": {
+      "source": "DOM",
+      "observed": "Sau login, DOM có heading dashboard chủ khách sạn",
+      "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+    },
+    "new_secure_httponly_cookie": {
+      "source": "COOKIE_METADATA",
+      "observed": "Metadata cookie phục hồi: Secure=true, HttpOnly=true; không lưu giá trị",
+      "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+    }
+  }
+}

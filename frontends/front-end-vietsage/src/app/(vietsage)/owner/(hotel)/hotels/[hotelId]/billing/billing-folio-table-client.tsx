@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { showConfirmDialog } from "@/libs/swal";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
@@ -34,9 +33,8 @@ function getFolioInvoiceId(folio: FolioListItem): string | null {
 export function BillingFolioTableClient({
   hotelId,
   foliosPage,
-  invoiceBasePath = `/owner/hotels/${encodeURIComponent(hotelId)}/billing/invoices`,
+  invoiceBasePath: _invoiceBasePath,
 }: BillingFolioTableClientProps) {
-  const router = useRouter();
   const folios = foliosPage.items;
   const page = foliosPage.page;
   const totalItems = foliosPage.total;
@@ -76,19 +74,8 @@ export function BillingFolioTableClient({
     setSelectedFolio(folio);
   }
 
-  async function openFolioDetail(folio: FolioListItem) {
-    if (toDisplayStatus(folio.status) === "OPEN") {
-      openFolio(folio);
-      return;
-    }
-
-    const invoiceId = getFolioInvoiceId(folio);
-    if (!invoiceId) {
-      openFolio(folio);
-      return;
-    }
-
-    router.push(`${invoiceBasePath}/${encodeURIComponent(invoiceId)}`);
+  function openFolioDetail(folio: FolioListItem) {
+    openFolio(folio);
   }
 
   async function exportOrder(folio: FolioListItem) {
@@ -123,7 +110,7 @@ export function BillingFolioTableClient({
                 Theo dõi doanh thu lưu trú
               </h2>
               <p className="max-w-xl text-sm leading-relaxed text-slate-600">
-                Bảng này chỉ hiển thị số tiền backend trả về, giúp nhân sự kiểm tra nhanh trước khi phát hành hóa đơn.
+                Theo dõi trạng thái thanh toán và đối soát doanh thu các lượt lưu trú.
               </p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -194,11 +181,8 @@ export function BillingFolioTableClient({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {filteredFolios.map((folio) => {
-                const discountValue = Number(folio.discount ?? 0);
-
-                return (
-                  <tr
+              {filteredFolios.map((folio) => (
+                <tr
                     key={folio.id}
                     tabIndex={0}
                     role="button"
@@ -216,9 +200,6 @@ export function BillingFolioTableClient({
                       <div className="font-mono font-bold text-emerald-700 text-base sm:text-lg group-hover:underline dark:text-emerald-400">
                         {folio.folioNumber ?? folio.id}
                       </div>
-                      <div className="mt-0.5 text-sm text-slate-400 flex items-center gap-1">
-                        <span>Click để xem chi tiết</span>
-                      </div>
                     </td>
                     <td className="px-6 py-4 text-slate-900 dark:text-white">
                       <div className="font-bold text-base sm:text-lg">Phòng {folio.room?.roomNumber ?? "-"}</div>
@@ -231,18 +212,12 @@ export function BillingFolioTableClient({
                       <div className="font-mono text-base sm:text-xl font-black tabular-nums text-slate-900 dark:text-white">
                         {formatMoney(folio.total, folio.currency)}
                       </div>
-                      {discountValue > 0 && (
-                        <div className="mt-0.5 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                          Đã giảm -{formatMoney(folio.discount, folio.currency)}
-                        </div>
-                      )}
                     </td>
                     <td className="px-6 py-4 text-center text-sm sm:text-base font-medium text-slate-600 dark:text-slate-400">
                       {formatDateTime(folio.openedAt ?? folio.createdAt)}
                     </td>
                   </tr>
-                );
-              })}
+                ))}
             </tbody>
           </table>
           {filteredFolios.length === 0 ? (

@@ -138,7 +138,7 @@ export default async function StaffRoomsPage({
 
   return (
     <>
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      {isHousekeeping && <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--secondary)]">
             {isHousekeeping ? "VẬN HÀNH BUỒNG PHÒNG" : "SƠ ĐỒ PHÒNG"}
@@ -148,9 +148,10 @@ export default async function StaffRoomsPage({
             {isHousekeeping ? "Buồng phòng & Sơ đồ dọn dẹp" : "Mở phòng và lưu trú"}
           </h1>
         </div>
-      </header>
+      </header>}
 
       <section>
+        {!isHousekeeping && <h1 className="sr-only">Lịch phòng {currentHotel?.name}</h1>}
         <StaffRoomsClient
           hotelId={hotelId}
           baseRoutePrefix={baseRoutePrefix}

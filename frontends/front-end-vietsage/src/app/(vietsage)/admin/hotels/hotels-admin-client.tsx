@@ -114,7 +114,7 @@ function formatDate(value: string | null | undefined): string {
 
 function tenantLabel(tenantId: string, tenantOptions: readonly TenantOption[]): string {
   const tenant = tenantOptions.find((option) => option.id === tenantId);
-  return tenant ? formatTenantDisplayName(tenant.name, tenant.code) : tenantId;
+  return tenant ? formatTenantDisplayName(tenant.name, tenant.code) : "Chưa xác định";
 }
 
 function hotelToForm(hotel: Hotel): HotelFormState {
@@ -420,11 +420,10 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, c
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-left text-sm">
             <colgroup>
-              <col className="w-[32%]" />
-              <col className="w-[24%]" />
-              <col className="w-[16%]" />
-              <col className="w-[14%]" />
-              <col className="w-[14%]" />
+              <col className="w-[35%]" />
+              <col className="w-[27%]" />
+              <col className="w-[19%]" />
+              <col className="w-[19%]" />
             </colgroup>
             <thead className="border-b border-[#e5dcd0] bg-[#f6f1e7]/90 text-xs font-semibold uppercase tracking-[0.1em] text-[#69726b]">
               <tr>
@@ -432,7 +431,7 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, c
                 <th className="px-6 py-4 font-semibold">Tổ chức</th>
                 <th className="px-6 py-4 text-center font-semibold">Trạng thái</th>
                 <th className="px-6 py-4 text-center font-semibold">Cập nhật</th>
-                <th className="px-6 py-4 text-right font-semibold">Thao tác</th>
+
               </tr>
             </thead>
             <tbody className="divide-y divide-[#f2ebd9]">
@@ -449,7 +448,7 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, c
                       </div>
                       <div>
                         <p className="font-semibold text-[#17201b] group-hover:text-[#24473d] transition-colors">{hotel.name}</p>
-                        <p className="text-xs font-medium text-[#69726b]">{hotel.code ?? hotel.id}</p>
+                        <p className="text-xs font-medium text-[#69726b]">{hotel.code || "Chưa có mã"}</p>
                       </div>
                     </div>
                   </td>
@@ -475,22 +474,11 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, c
                     </div>
                   </td>
                   <td className="px-6 py-4.5 align-middle text-center text-xs font-medium text-[#69726b]">{formatDate(hotel.updatedAt ?? hotel.createdAt)}</td>
-                  <td className="px-6 py-4.5 text-right align-middle" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      onClick={() => void openEditDialog(hotel)}
-                      disabled={loadingHotelId === hotel.id || isSaving}
-                      className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#dcd1bf] bg-[#fffcf7] px-4 py-1.5 text-xs font-semibold text-[#24473d] shadow-2xs transition-all hover:border-[#24473d] hover:bg-[#f5efe4] disabled:opacity-50"
-                    >
-                      <VsIcon name="edit" className="text-sm" />
-                      {loadingHotelId === hotel.id ? "Đang tải..." : "Sửa"}
-                    </button>
-                  </td>
                 </tr>
               ))}
               {filteredHotels.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-sm font-semibold text-[#6d756e]">Chưa có khách sạn phù hợp.</td>
+                  <td colSpan={4} className="px-6 py-12 text-center text-sm font-semibold text-[#6d756e]">Chưa có khách sạn phù hợp.</td>
                 </tr>
               ) : null}
             </tbody>
@@ -500,7 +488,7 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, c
 
       {isDialogOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <form onSubmit={submitHotel} className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-200 bg-white p-8 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+          <form onSubmit={submitHotel} className="w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-8 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
             <div className="mb-6 flex items-start justify-between gap-4 border-b border-slate-100 pb-5 dark:border-slate-800">
               <div>
                 <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
@@ -558,21 +546,32 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total, c
                 </label>
               ) : null}
 
-              <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-300 md:col-span-2">
-                Google Sheets tích hợp (Không bắt buộc)
-                <input
-                  type="url"
-                  value={form.googleSheetUrl}
-                  onChange={(event) => setForm((current) => ({ ...current, googleSheetUrl: event.target.value }))}
-                  placeholder="https://docs.google.com/spreadsheets/d/.../edit"
-                  className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition-all focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                />
-                <span className="block text-xs font-normal text-slate-500">
-                  {formMode === "create"
-                    ? "Có thể để trống và cấu hình sau. Nếu nhập, hệ thống sẽ kiểm tra quyền truy cập trước khi tạo."
-                    : "Để trống để ngắt kết nối. Hệ thống kiểm tra quyền truy cập trước khi lưu."}
-                </span>
-              </label>
+              <details
+                open={Boolean(form.googleSheetUrl)}
+                className="group md:col-span-2 rounded-xl border border-slate-200 bg-slate-50/50 p-4 transition-all dark:border-slate-700 dark:bg-slate-800/40"
+              >
+                <summary className="cursor-pointer text-sm font-semibold text-slate-700 select-none flex items-center justify-between dark:text-slate-200">
+                  <span className="flex items-center gap-2">
+                    <VsIcon name="table_chart" className="text-base text-emerald-600" />
+                    Tùy chọn nâng cao: Tích hợp Google Sheets
+                  </span>
+                  <span className="text-xs text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+                </summary>
+                <div className="mt-3 space-y-2">
+                  <input
+                    type="url"
+                    value={form.googleSheetUrl}
+                    onChange={(event) => setForm((current) => ({ ...current, googleSheetUrl: event.target.value }))}
+                    placeholder="https://docs.google.com/spreadsheets/d/.../edit"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition-all focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  />
+                  <span className="block text-xs font-normal text-slate-500">
+                    {formMode === "create"
+                      ? "Có thể để trống và cấu hình sau. Nếu nhập, hệ thống sẽ kiểm tra quyền truy cập trước khi tạo."
+                      : "Để trống để ngắt kết nối. Hệ thống kiểm tra quyền truy cập trước khi lưu."}
+                  </span>
+                </div>
+              </details>
 
               {formMode === "edit" ? <div className="md:col-span-2"><LocationFields value={form} onChange={(location) => setForm((current) => ({ ...current, ...location }))} /></div> : null}
 

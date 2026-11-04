@@ -113,7 +113,7 @@ function TopBarRightControls({
       ) : null}
 
       <ChangePasswordDialog />
-      <VsLogoutButton className="inline-flex min-h-10 sm:min-h-11 shrink-0 items-center justify-center rounded-full border border-[#24473d]/15 bg-white/50 px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold tracking-[0.04em] text-[#24473d] transition-colors hover:bg-[#f8f1e6] disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap" />
+      <VsLogoutButton className="inline-flex min-h-11 min-w-[44px] shrink-0 items-center justify-center rounded-full border border-[#24473d]/15 bg-white/50 px-3.5 py-2 text-xs sm:text-sm font-semibold tracking-[0.04em] text-[#24473d] transition-colors hover:bg-[#f8f1e6] disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#24473d]" />
 
       <div className="hidden size-10 shrink-0 lg:flex items-center justify-center overflow-hidden rounded-full border border-[#24473d]/15 bg-white p-0.5 shadow-[0_10px_24px_rgba(31,61,53,0.12)]">
         <Image
@@ -174,7 +174,7 @@ export function VsTopBar({
           />
         ) : (
           <p
-            className={`vs-display tracking-tight text-[24px] text-[#17201b] ${
+            className={`vs-display tracking-tight text-[24px] text-[#17201b] text-balance ${
               titleClassName ?? "md:text-[48px] md:leading-[1.2]"
             }`}
           >

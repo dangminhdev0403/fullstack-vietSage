@@ -22,10 +22,10 @@ export const PUBLIC_PATTERNS = [
 
 // Regex should be exceptional. Prefer exact paths in PUBLIC_PATTERNS.
 export const PUBLIC_REGEX: RegExp[] = [
-  /^\/guest\/(?:qr\/scan|session\/(?:me|close)|services|service-categories\/[^/]+\/services|requests|requests\/[^/]+\/cancel|messages|messages\/read|messages\/unread-summary|local-partners(?:\/categories|\/[^/]+)?|marketplace\/(?:categories|services(?:\/[^/]+)?|orders(?:\/[^/]+)?|cart(?:\/(?:items(?:\/[^/]+)?|checkout))?|checkout))$/,
+  /^\/guest\/(?:qr\/scan|session\/(?:me|close)|services|service-categories\/[^/]+\/services|requests|requests\/[^/]+\/cancel|messages|messages\/read|messages\/unread-summary|local-partners(?:\/categories|\/[^/]+)?|marketplace\/(?:categories|services(?:\/[^/]+)?|orders(?:\/[^/]+(?:\/(?:payment-session|cancel|conversation(?:\/messages)?))?)?|cart(?:\/(?:items(?:\/[^/]+)?|checkout))?|checkout))$/,
   /^\/emergency\/guest\/calls$/,
   /^\/payments\/webhook\/[^/]+$/,
-  /^\/localmate\/(?:ai\/match|guides\/[^/]+)$/,
+  /^\/localmate\/(?:ai\/match|guides\/[^/]+|booking-candidate\/[^/]+)$/,
   /^\/public\/localmate\/(?:proposals(?:\/[^/]+\/select)?|candidates\/[^/]+|orders(?:\/[^/]+(?:\/payment-session|\/conversation(?:\/messages)?)?)?)$/,
   /^\/api\/v1\/channel-manager\/ical\/[^/]+(?:\.ics)?$/,
   /^\/(?:api\/v1\/)?channel-manager\/direct-booking(?:\/.*)?$/,

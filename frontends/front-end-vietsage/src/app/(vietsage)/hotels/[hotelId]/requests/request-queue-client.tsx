@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
+import { invalidateHotelRequestRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 
 import { RequestDetailClient } from "./[requestId]/request-detail-client";
 
@@ -652,6 +653,14 @@ export function RequestQueueClient({
           (item.latestNote ?? "").toLowerCase().includes(q),
       );
     }
+    if (filters.from) {
+      const fromTimestamp = new Date(`${filters.from}T00:00:00+07:00`).getTime();
+      list = list.filter((item) => new Date(item.createdAt).getTime() >= fromTimestamp);
+    }
+    if (filters.to) {
+      const toTimestamp = new Date(`${filters.to}T23:59:59.999+07:00`).getTime();
+      list = list.filter((item) => new Date(item.createdAt).getTime() <= toTimestamp);
+    }
 
     return list.sort((a, b) => {
       const directionMultiplier = sortState.direction === "asc" ? 1 : -1;
@@ -711,8 +720,16 @@ export function RequestQueueClient({
           (order.guestNote ?? "").toLowerCase().includes(q),
       );
     }
+    if (filters.from) {
+      const fromTimestamp = new Date(`${filters.from}T00:00:00+07:00`).getTime();
+      list = list.filter((order) => new Date(order.createdAt).getTime() >= fromTimestamp);
+    }
+    if (filters.to) {
+      const toTimestamp = new Date(`${filters.to}T23:59:59.999+07:00`).getTime();
+      list = list.filter((order) => new Date(order.createdAt).getTime() <= toTimestamp);
+    }
     return list;
-  }, [externalOrders, filters.status, filters.roomNumber, filters.q]);
+  }, [externalOrders, filters.status, filters.roomNumber, filters.q, filters.from, filters.to]);
 
   const activeSummaryCounts = useMemo(() => {
     const counts: Record<GuestRequestStatus, number> = {
@@ -762,15 +779,9 @@ export function RequestQueueClient({
     applyLiveRequestChange(listItem);
     toast.dismiss(`hotel-ops-request-created-${updated.id}`);
     toast.dismiss(`owner-request-created-${updated.id}`);
-    queryClient
-      .invalidateQueries({ queryKey: ["hotel-ops", hotelId] })
-      .catch(() => {});
-    queryClient
-      .invalidateQueries({ queryKey: ["hotel-requests", hotelId] })
-      .catch(() => {});
-    queryClient
-      .invalidateQueries({ queryKey: ["owner-requests", hotelId] })
-      .catch(() => {});
+    void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
+
+
   }
 
   const statusMutation = useMutation(
@@ -940,10 +951,7 @@ export function RequestQueueClient({
       cell: (request) => (
         <div>
           <div className="font-semibold text-[var(--on-surface)]">
-            <span className="mr-1.5 text-xs font-bold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-              Khách:
-            </span>
-            {request.guestName ?? "Khách"}
+            {request.guestName || "Khách lưu trú"}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--on-surface-variant)]">
             {isCheckedOutRequest(request) ? (
@@ -1341,7 +1349,7 @@ export function RequestQueueClient({
               <tr style="border-bottom:1px solid #f1f5f9">
                 <td style="padding:8px 10px">
                   <div style="font-weight:700;color:#0f172a">${it.serviceName}</div>
-                  <div style="font-size:11px;color:#64748b">${it.serviceTenantName ?? order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác"}</div>
+                  <div style="font-size:12px;color:#64748b">${it.serviceTenantName ?? order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác"}</div>
                 </td>
                 <td style="padding:8px 10px;text-align:center;font-weight:700;color:#334155">${it.quantity} ${it.pricingUnit ?? ""}</td>
                 <td style="padding:8px 10px;text-align:right;color:#475569;font-family:monospace">${Number(it.unitPrice).toLocaleString("vi-VN")} ${financials.currency}</td>
@@ -1376,7 +1384,7 @@ export function RequestQueueClient({
           </div>
 
           <div>
-            <span style="font-size:11px;font-weight:800;text-transform:uppercase;color:#475569;letter-spacing:0.04em">Danh sách hạng mục dịch vụ (${items.length} món):</span>
+            <span style="font-size:12px;font-weight:800;text-transform:uppercase;color:#475569;letter-spacing:0.04em">Danh sách hạng mục dịch vụ (${items.length} món):</span>
             ${itemsTableHtml}
           </div>
 
@@ -1394,7 +1402,7 @@ export function RequestQueueClient({
               <span style="font-weight:800;color:#065f46">Tổng tiền khách thanh toán:</span>
               <span style="font-weight:900;font-family:monospace;color:#047857;font-size:16px">${financials.customerTotal.toLocaleString("vi-VN")} ${financials.currency}</span>
             </div>
-            <div style="font-size:11px;color:#64748b;margin-top:2px;font-style:italic">
+            <div style="font-size:12px;color:#64748b;margin-top:2px;font-style:italic">
               * Khách sạn ghi nhận toàn bộ hạng mục và không điều chỉnh trực tiếp đơn giá dịch vụ của đối tác.
             </div>
           </div>
@@ -2019,13 +2027,6 @@ export function RequestQueueClient({
                 </button>
               </span>
             ) : null}
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="ml-1 text-xs font-bold text-slate-500 hover:text-rose-600 underline cursor-pointer"
-            >
-              Xóa tất cả
-            </button>
           </div>
         ) : null}
       </div>

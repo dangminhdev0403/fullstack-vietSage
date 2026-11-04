@@ -9,6 +9,11 @@ export const marketplaceAdminResource = createResource<Record<string, never>>()(
   queries: { data: defineQuery({ inputKey: () => [], queryFn: () => marketplaceAdminRepository.data() }) },
   mutations: {
     mutate: defineMutation({ mutationFn: ({ variables }: { variables: Parameters<typeof marketplaceAdminRepository.mutate>[0] }) => marketplaceAdminRepository.mutate(variables), invalidates }),
+    deleteCategory: defineMutation({
+      mutationFn: ({ variables }: { variables: string }) =>
+        marketplaceAdminRepository.mutate({ action: "deleteCategory", id: variables }),
+      invalidates,
+    }),
     previewImport: defineMutation({
       mutationFn: ({ variables }: { variables: { spreadsheetUrl: string } }) => marketplaceAdminRepository.previewImport(variables.spreadsheetUrl),
     }),

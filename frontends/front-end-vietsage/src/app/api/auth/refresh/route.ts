@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
+import { runtimeConsole } from "@/core/logging/runtime-console";
 import { refreshAndSaveSessionTokens } from "@/libs/auth-session-refresh";
 import { readServerSessionTokens } from "@/libs/server-session-tokens";
 
@@ -40,7 +41,7 @@ export async function POST() {
   }
 
   try {
-    console.info("[AUTH_REFRESH_BEFORE]", {
+    runtimeConsole.info("[AUTH_REFRESH_BEFORE]", {
       saveLocation: "next-auth-jwt-session",
       accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
       timestamp: Date.now(),
@@ -48,7 +49,7 @@ export async function POST() {
 
     const refreshedTokens = await refreshAndSaveSessionTokens(refreshToken);
 
-    console.info("[AUTH_REFRESH_AFTER]", {
+    runtimeConsole.info("[AUTH_REFRESH_AFTER]", {
       saveLocation: "next-auth-jwt-session",
       accessTokenExpiresAt: refreshedTokens.accessTokenExpiresAt,
       timestamp: Date.now(),

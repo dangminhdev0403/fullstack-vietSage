@@ -7,6 +7,7 @@ import {
   ChannexRoomTypePayload,
 } from "./channex-api-client.service";
 import { resolveChannexRateMultiplier } from "./channex-currency";
+import { resolveTimeZone } from "../../../common/time/vietnam-temporal";
 
 export interface SyncContentResult {
   success: boolean;
@@ -271,7 +272,7 @@ export class ChannexSyncService {
       country: "VN",
       city: hotel.province || undefined,
       address: hotel.area || undefined,
-      timezone: hotel.timezone || "Asia/Ho_Chi_Minh",
+      timezone: resolveTimeZone(hotel.timezone),
       content: {
         description: `VietSage PMS Managed Hotel: ${hotel.name}`,
       },

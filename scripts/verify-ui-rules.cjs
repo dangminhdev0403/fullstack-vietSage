@@ -53,6 +53,8 @@ const violations = [];
 const SUB_12PX_REGEX = /text-\[(\d+(?:\.\d+)?)px\]/g;
 const SUB_REM_REGEX = /text-\[((?:\d+(?:\.\d+)?|\.\d+))rem\]/g;
 const CSS_FONT_REGEX = /\bfont-size\s*:\s*(\d*\.?\d+)\s*(px|rem)\b/g;
+const INLINE_TSX_CSS_FONT_REGEX = /\bfont-size\s*:\s*(\d*\.?\d+)\s*(px|rem)\b/gi;
+const JS_FONT_SIZE_REGEX = /\bfontSize\s*:\s*(?:['"](\d*\.?\d+)\s*(px|rem)?['"]|(\d*\.?\d+))\b/g;
 const FORBIDDEN_FLUFF = [
   { pattern: /lorem\s+ipsum/i, label: 'Lorem Ipsum dummy text' },
   { pattern: /test\s*123/i, label: 'Developer test dummy text' },
@@ -106,6 +108,40 @@ for (const filePath of allFiles) {
           file: path.relative(repoRoot, filePath), line: lineIndex + 1,
           type: 'SUB_12PX_CSS_FONT',
           detail: `CSS font size ${match[1]}${match[2]} is below 12px.`,
+          snippet: line.trim(),
+        });
+      }
+    } else if (/\.(tsx|ts|jsx|js)$/.test(filePath)) {
+      INLINE_TSX_CSS_FONT_REGEX.lastIndex = 0;
+      while ((match = INLINE_TSX_CSS_FONT_REGEX.exec(line)) !== null) {
+        const px = Number(match[1]) * (match[2].toLowerCase() === 'rem' ? 16 : 1);
+        if (px >= 12) continue;
+        violationCount++;
+        violations.push({
+          file: path.relative(repoRoot, filePath),
+          line: lineIndex + 1,
+          type: 'SUB_12PX_INLINE_STYLE',
+          detail: `Inline font-size ${match[1]}${match[2]} is below 12px.`,
+          snippet: line.trim(),
+        });
+      }
+
+      JS_FONT_SIZE_REGEX.lastIndex = 0;
+      while ((match = JS_FONT_SIZE_REGEX.exec(line)) !== null) {
+        let px;
+        if (match[1] !== undefined) {
+          const unit = match[2]?.toLowerCase() || 'px';
+          px = Number(match[1]) * (unit === 'rem' ? 16 : 1);
+        } else if (match[3] !== undefined) {
+          px = Number(match[3]);
+        }
+        if (px === undefined || px >= 12) continue;
+        violationCount++;
+        violations.push({
+          file: path.relative(repoRoot, filePath),
+          line: lineIndex + 1,
+          type: 'SUB_12PX_JS_STYLE',
+          detail: `Inline fontSize '${match[0]}' is below 12px minimum floor.`,
           snippet: line.trim(),
         });
       }

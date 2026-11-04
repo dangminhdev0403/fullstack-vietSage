@@ -419,8 +419,8 @@ export class ServiceCatalogImportAdapter
         (item) =>
           item.importKey &&
           !itemKeys.has(item.importKey) &&
-          !preservedItemKeys.has(item.importKey) &&
-          item.status !== ServiceCatalogStatus.DISABLED,
+          !preservedItemKeys.has(item.importKey)
+
       )
       .map((item) => this.disableDiff("serviceItem", item.importKey!, item.name));
     const disabledCategories = state.categories
@@ -428,8 +428,8 @@ export class ServiceCatalogImportAdapter
         (category) =>
           category.importKey &&
           !categoryKeys.has(category.importKey) &&
-          !preservedCategoryKeys.has(category.importKey) &&
-          category.status !== ServiceCatalogStatus.DISABLED,
+          !preservedCategoryKeys.has(category.importKey)
+
       )
       .map((category) => this.disableDiff("serviceCategory", category.importKey!, category.name));
     return [...changes, ...disabledItems, ...disabledCategories];
@@ -522,9 +522,46 @@ export class ServiceCatalogImportAdapter
         (entry) => entry.entityType === "serviceCategory" && entry.action === "disable",
       );
       if (disabledItems.length) {
-        await input.tx.hotelServiceItem.deleteMany({
-          where: { hotelId, importKey: { in: disabledItems.map((entry) => entry.key) } },
+        const itemKeys = disabledItems.map((entry) => entry.key);
+        const existingItems = await input.tx.hotelServiceItem.findMany({
+          where: { hotelId, importKey: { in: itemKeys } },
+          select: {
+            id: true,
+            _count: {
+              select: {
+                guestRequests: true,
+                folioItems: true,
+                emergencyCallEvents: true,
+              },
+            },
+          },
         });
+
+        const referencedIds: string[] = [];
+        const deletableIds: string[] = [];
+        for (const item of existingItems) {
+          if (
+            item._count.guestRequests > 0 ||
+            item._count.folioItems > 0 ||
+            item._count.emergencyCallEvents > 0
+          ) {
+            referencedIds.push(item.id);
+          } else {
+            deletableIds.push(item.id);
+          }
+        }
+
+        if (referencedIds.length > 0) {
+          await input.tx.hotelServiceItem.updateMany({
+            where: { id: { in: referencedIds } },
+            data: { status: ServiceCatalogStatus.DISABLED },
+          });
+        }
+        if (deletableIds.length > 0) {
+          await input.tx.hotelServiceItem.deleteMany({
+            where: { id: { in: deletableIds } },
+          });
+        }
       }
       if (disabledCategories.length) {
         const categoriesToDelete = await input.tx.hotelServiceCategory.findMany({
@@ -533,12 +570,68 @@ export class ServiceCatalogImportAdapter
         });
         const categoryIds = categoriesToDelete.map((c) => c.id);
         if (categoryIds.length > 0) {
-          await input.tx.hotelServiceItem.deleteMany({
+          const categoryItems = await input.tx.hotelServiceItem.findMany({
             where: { categoryId: { in: categoryIds } },
+            select: {
+              id: true,
+              categoryId: true,
+              _count: {
+                select: {
+                  guestRequests: true,
+                  folioItems: true,
+                  emergencyCallEvents: true,
+                },
+              },
+            },
           });
-          await input.tx.hotelServiceCategory.deleteMany({
-            where: { id: { in: categoryIds } },
-          });
+
+          const referencedCategoryItemIds: string[] = [];
+          const deletableCategoryItemIds: string[] = [];
+          const categoriesWithReferencedItems = new Set<string>();
+
+          for (const item of categoryItems) {
+            if (
+              item._count.guestRequests > 0 ||
+              item._count.folioItems > 0 ||
+              item._count.emergencyCallEvents > 0
+            ) {
+              referencedCategoryItemIds.push(item.id);
+              categoriesWithReferencedItems.add(item.categoryId);
+            } else {
+              deletableCategoryItemIds.push(item.id);
+            }
+          }
+
+          if (referencedCategoryItemIds.length > 0) {
+            await input.tx.hotelServiceItem.updateMany({
+              where: { id: { in: referencedCategoryItemIds } },
+              data: { status: ServiceCatalogStatus.DISABLED },
+            });
+          }
+          if (deletableCategoryItemIds.length > 0) {
+            await input.tx.hotelServiceItem.deleteMany({
+              where: { id: { in: deletableCategoryItemIds } },
+            });
+          }
+
+          const categoriesToDisable = categoryIds.filter((id) =>
+            categoriesWithReferencedItems.has(id),
+          );
+          const categoriesToHardDelete = categoryIds.filter(
+            (id) => !categoriesWithReferencedItems.has(id),
+          );
+
+          if (categoriesToDisable.length > 0) {
+            await input.tx.hotelServiceCategory.updateMany({
+              where: { id: { in: categoriesToDisable } },
+              data: { status: ServiceCatalogStatus.DISABLED },
+            });
+          }
+          if (categoriesToHardDelete.length > 0) {
+            await input.tx.hotelServiceCategory.deleteMany({
+              where: { id: { in: categoriesToHardDelete } },
+            });
+          }
         }
       }
     }

@@ -119,35 +119,35 @@ export class MarketplaceCategoryImportAdapter
             {
               key: "name_en",
               header: "Tên tiếng Anh",
-              aliases: ["name_en", "tên tiếng anh", "name en", "english"],
+              aliases: ["name_en", "tên tiếng anh", "name en", "english", "tên (tiếng anh)", "tên danh mục (tiếng anh)"],
               type: "string",
               maxLength: 120,
             },
             {
               key: "name_zh",
               header: "Tên tiếng Trung",
-              aliases: ["name_zh", "tên tiếng trung", "name zh", "chinese"],
+              aliases: ["name_zh", "tên tiếng trung", "name zh", "chinese", "tên (tiếng trung)", "tên danh mục (tiếng trung)"],
               type: "string",
               maxLength: 120,
             },
             {
               key: "name_ko",
               header: "Tên tiếng Hàn",
-              aliases: ["name_ko", "tên tiếng hàn", "name ko", "korean"],
+              aliases: ["name_ko", "tên tiếng hàn", "name ko", "korean", "tên (tiếng hàn)", "tên danh mục (tiếng hàn)"],
               type: "string",
               maxLength: 120,
             },
             {
               key: "name_ru",
               header: "Tên tiếng Nga",
-              aliases: ["name_ru", "tên tiếng nga", "name ru", "russian"],
+              aliases: ["name_ru", "tên tiếng nga", "name ru", "russian", "tên (tiếng nga)", "tên danh mục (tiếng nga)"],
               type: "string",
               maxLength: 120,
             },
             {
               key: "name_hi",
               header: "Tên tiếng Ấn",
-              aliases: ["name_hi", "tên tiếng ấn", "name hi", "hindi"],
+              aliases: ["name_hi", "tên tiếng ấn", "name hi", "hindi", "tên (tiếng ấn)", "tên (tiếng ấn độ)", "tên danh mục (tiếng ấn độ)"],
               type: "string",
               maxLength: 120,
             },
@@ -499,13 +499,21 @@ export class MarketplaceCategoryImportAdapter
           },
         });
         if (existing) {
-          await tx.marketplaceService.deleteMany({
-            where: { categoryId: existing.id },
-          });
-          await tx.marketplaceCategory.delete({
-            where: { id: existing.id },
-          });
-          disableCount++;
+          const hasOrders = await tx.marketplaceOrder.findFirst({ where: { service: { categoryId: existing.id } }, select: { id: true } });
+          const hasProfiles = await tx.serviceTenantProfile.findFirst({ where: { categoryId: existing.id }, select: { tenantId: true } });
+          if (hasOrders || hasProfiles) {
+            await tx.marketplaceService.updateMany({ where: { categoryId: existing.id }, data: { status: "DISABLED" } });
+            await tx.marketplaceCategory.update({ where: { id: existing.id }, data: { isActive: false } });
+            disableCount++;
+          } else {
+            await tx.marketplaceService.deleteMany({
+              where: { categoryId: existing.id },
+            });
+            await tx.marketplaceCategory.delete({
+              where: { id: existing.id },
+            });
+            disableCount++;
+          }
         }
       }
     }

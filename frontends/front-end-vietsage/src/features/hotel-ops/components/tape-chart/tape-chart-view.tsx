@@ -43,6 +43,7 @@ import {
   addDaysYmd,
   diffDaysYmd,
   getVietnamToday as getTodayInVietnam,
+  toVietnamYmd,
 } from "@/libs/vietnam-temporal";
 import type {
   HotelArrival,
@@ -64,6 +65,7 @@ import {
   normalizeSearchQuery,
 } from "@/features/hotel-ops/utils/tape-chart-filter-helpers";
 import { EditReservationModal } from "../edit-reservation-modal";
+import { readFinancialAmount } from "../../utils/booking-detail-finance";
 
 export type TapeChartViewMode = "week" | "biweek";
 
@@ -113,6 +115,7 @@ export interface TapeChartViewProps {
   businessDate?: string;
   initialStartDate?: string;
   initialViewMode?: TapeChartViewMode | "month";
+  deferUrlSync?: boolean;
   readOnly?: boolean;
   roleScope?: "owner" | "tenant" | "staff";
   canCheckInStay?: boolean;
@@ -141,6 +144,10 @@ export interface TapeChartViewProps {
   searchQuery?: string;
   onSearchQueryChange?: (query: string) => void;
   onBusinessDateChange?: (date: string) => void;
+  operationalViewMode?: "grid" | "tape-chart";
+  onOperationalViewModeChange?: (mode: "grid" | "tape-chart") => void;
+  onOpenDailyMovements?: (tab: "arrivals" | "departures" | "groups") => void;
+  movementsCounts?: { arrivals: number; departures: number; groups: number };
 }
 
 // Channel badge colors (kept inline for tape-chart styling)
@@ -435,28 +442,18 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
         e.preventDefault();
         void handleDropOnRoom(e, room);
       }}
-      className={`group flex border-b border-slate-100 hover:bg-slate-50/60 transition min-h-[46px] select-none relative w-full ${
+      className={`group flex border-b border-slate-100 hover:bg-slate-50/60 transition h-[36px] min-h-[36px] max-h-[36px] select-none relative w-full bg-white ${
         !readOnly && dragOverCellKey === room.id && !isHardVetoRoom
           ? "bg-emerald-50/20 ring-1 ring-emerald-400/40"
-          : isHardVetoRoom
-            ? "bg-slate-200/80 hover:bg-slate-200"
-            : isProcessing
-              ? "bg-amber-100/70 hover:bg-amber-100/90"
-              : ""
+          : ""
       }`}
     >
       {/* Left Room Info Column */}
       <div
         {...(!readOnly ? attributes : {})}
         {...(!readOnly ? listeners : {})}
-        className={`sticky left-0 z-10 w-48 min-w-[192px] max-w-[192px] shrink-0 border-r border-slate-200 px-3 py-2 flex items-center justify-between shadow-xs ${
+        className={`sticky left-0 z-20 w-48 min-w-[192px] max-w-[192px] shrink-0 border-r border-slate-200 px-2.5 h-[36px] flex items-center justify-between shadow-xs bg-white group-hover:bg-slate-50 ${
           !readOnly ? "cursor-grab active:cursor-grabbing" : ""
-        } ${
-          isHardVetoRoom
-            ? "bg-slate-200/90 group-hover:bg-slate-200"
-            : isProcessing
-              ? "bg-amber-100/90 group-hover:bg-amber-100"
-              : "bg-white group-hover:bg-slate-50"
         }`}
         title={!readOnly ? "Kéo thả để đổi thứ tự phòng" : undefined}
       >
@@ -468,13 +465,13 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                 e.stopPropagation();
                 onSelectRoom(room);
               }}
-              className="font-black text-sm text-slate-900 truncate hover:text-emerald-700 transition-colors text-left cursor-pointer"
+              className="font-black text-xs sm:text-sm text-slate-900 truncate hover:text-emerald-700 transition-colors text-left cursor-pointer"
               title="Nhấn để xem chi tiết phòng"
             >
               P.{room.roomNumber}
             </button>
           ) : (
-            <span className="font-black text-sm text-slate-900 truncate">
+            <span className="font-black text-xs sm:text-sm text-slate-900 truncate">
               P.{room.roomNumber}
             </span>
           )}
@@ -486,13 +483,13 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                   e.stopPropagation();
                   void onToggleRoomBlocked(room);
                 }}
-                className="px-1.5 py-0.5 rounded text-xs font-bold bg-slate-300 hover:bg-slate-400 text-slate-900 whitespace-nowrap transition cursor-pointer"
+                className="px-1.5 py-0.5 rounded text-xs font-bold bg-slate-200 hover:bg-slate-300 text-slate-800 border border-slate-300 whitespace-nowrap transition cursor-pointer"
                 title="Nhấn để mở khóa phòng"
               >
                 Khóa
               </button>
             ) : (
-              <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-slate-300 text-slate-900 whitespace-nowrap">
+              <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-slate-200 text-slate-800 border border-slate-300 whitespace-nowrap">
                 Khóa
               </span>
             )
@@ -523,22 +520,21 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                 e.stopPropagation();
                 onFocusOverdueRoom?.(room);
               }}
-              className="px-1.5 py-0.5 rounded text-xs font-bold bg-rose-200 hover:bg-rose-300 text-rose-900 border border-rose-300 whitespace-nowrap transition cursor-pointer"
+              className="px-1.5 py-0.5 rounded text-xs font-bold bg-rose-100 hover:bg-rose-200 text-rose-900 border border-rose-300 whitespace-nowrap transition cursor-pointer"
               title="Nhấp để chuyển tới đơn quá hạn của phòng này"
             >
               Quá hạn
             </button>
           )}
           {room.status === "RESERVED" && !isOccupiedToday && !isHardVetoRoom && !isProcessing && (
-            <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200 whitespace-nowrap">
-              Đã đặt
+            <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-purple-100 text-purple-900 border border-purple-200 whitespace-nowrap">
+              Đặt trước
             </span>
           )}
           {isOccupiedToday && !isHardVetoRoom && !isProcessing && (
-            <span
-              className="size-2 rounded-full bg-emerald-500 shrink-0"
-              title="Đang có khách lưu trú"
-            />
+            <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 whitespace-nowrap">
+              Đang ở
+            </span>
           )}
         </div>
         <span className="text-xs font-bold text-slate-400 uppercase shrink-0 whitespace-nowrap">
@@ -547,7 +543,7 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
       </div>
 
       {/* Timeline Day Grid with Floating Bookings */}
-      <div className="relative flex flex-1 min-w-0 overflow-x-clip">
+      <div className="relative flex flex-1 min-w-0 h-[36px] overflow-x-clip">
         {/* Day Cell Grid Lines */}
         {daysList.map((day) => {
           const isCellOccupied = occupiedRoomDaySet.has(`${room.id}:${day.ymd}`);
@@ -698,14 +694,12 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                             : "border-slate-100"
                         } ${
                           isHardVetoRoom
-                            ? "bg-slate-200/75 cursor-not-allowed"
-                            : isProcessing
-                              ? "bg-amber-100/60"
-                              : day.isToday
-                                ? "bg-sky-50/30"
-                                : isPastDay
-                                  ? "bg-slate-100/40 cursor-default"
-                                  : ""
+                            ? "cursor-not-allowed bg-slate-50/50"
+                            : day.isToday
+                              ? "bg-sky-50/30"
+                              : isPastDay
+                                ? "bg-slate-100/40 cursor-default"
+                                : ""
                         }`
               } ${!readOnly && !isCellOccupied && !isHardVetoRoom && !isPastDay ? "cursor-pointer hover:bg-slate-100/50" : ""}`}
             >
@@ -796,8 +790,8 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                 style={{
                   left: `calc(${leftPct}% + 4px)`,
                   width: `calc(${widthPct}% - 8px)`,
-                  top: isFirstInGroup ? "4px" : "0px",
-                  bottom: isLastInGroup ? "4px" : "-1px",
+                  top: isFirstInGroup ? "3px" : "0px",
+                  bottom: isLastInGroup ? "3px" : "-1px",
                 }}
                 className={`absolute z-10 flex items-center justify-between px-2 bg-purple-50/80 text-purple-900 font-bold text-xs select-none backdrop-blur-[1px] ${
                   isFirstInGroup
@@ -1164,8 +1158,8 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                 style={{
                   left: `calc(${ghostLeftPct}% + 4px)`,
                   width: `calc(${ghostWidthPct}% - 8px)`,
-                  top: "4px",
-                  bottom: "4px",
+                  top: "3px",
+                  bottom: "3px",
                 }}
                 className={`absolute z-30 flex items-center justify-between px-2.5 rounded-md border-2 border-dashed shadow-md select-none pointer-events-none transition-all ${
                   isGhostOverdue
@@ -1296,6 +1290,7 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
                   e.stopPropagation();
                   setSelectedBlock(b);
                 }
@@ -1303,8 +1298,8 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
               style={{
                 left: `calc(${leftPct}% + 4px)`,
                 width: `calc(${widthPct}% - 8px)`,
-                top: "5px",
-                bottom: "5px",
+                top: "3px",
+                bottom: "3px",
               }}
               className={`group/block absolute z-10 flex items-center gap-1.5 px-2 rounded-md border shadow-xs transition-all text-xs font-bold overflow-hidden select-none ${barBg} ${
                 isMatchedBySearch
@@ -1610,12 +1605,12 @@ const CategoryRoomTable = memo(function CategoryRoomTable({
   return (
     <div className="border-b-2 border-slate-200 w-full">
       {/* Category Header Row */}
-      <div className="flex bg-slate-100/90 border-b border-slate-200 py-1.5 font-bold text-xs sticky top-[41px] z-20 w-full items-center">
-        <div className="sticky left-0 z-20 w-48 min-w-[192px] max-w-[192px] shrink-0 bg-slate-100/90 px-3 flex items-center justify-between">
+      <div className="flex bg-slate-100/95 border-b border-slate-200 h-[32px] font-bold text-xs sticky top-[64px] z-20 w-full items-center">
+        <div className="sticky left-0 z-30 w-48 min-w-[192px] max-w-[192px] shrink-0 bg-slate-100/95 px-2.5 h-[32px] flex items-center justify-between border-r border-slate-200">
           <button
             type="button"
             onClick={handleToggleCollapseClick}
-            className="flex items-center gap-1.5 min-w-0 text-left hover:text-emerald-800 transition cursor-pointer group flex-1 mr-2"
+            className="flex items-center gap-1 min-w-0 text-left hover:text-emerald-800 transition cursor-pointer group flex-1 mr-1"
             title={
               isCollapsed
                 ? `Hiện danh sách ${catRooms.length} phòng`
@@ -1626,16 +1621,21 @@ const CategoryRoomTable = memo(function CategoryRoomTable({
               name={isCollapsed ? "chevron_right" : "chevron_down"}
               className="text-xs text-slate-500 group-hover:text-emerald-700 shrink-0 transition-transform"
             />
-            <span className="font-black text-slate-800 group-hover:text-emerald-900 uppercase tracking-wider truncate">
+            <span className="font-black text-slate-800 group-hover:text-emerald-900 uppercase tracking-wider text-xs truncate">
               {cat}
             </span>
+            {catPrice !== null && (
+              <span className="text-xs text-slate-500 font-medium whitespace-nowrap ml-1" title="Giá tham chiếu danh mục">
+                ~{formatVnd(catPrice)}
+              </span>
+            )}
           </button>
-          <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-black text-slate-700 whitespace-nowrap shrink-0">
+          <span className="rounded-full bg-slate-200 px-1.5 py-0.25 text-xs font-black text-slate-700 whitespace-nowrap shrink-0">
             {catRooms.length}
           </span>
         </div>
 
-        <div className="flex flex-1 min-w-0 cursor-pointer" onClick={handleToggleCollapseClick}>
+        <div className="flex flex-1 min-w-0 cursor-pointer h-[32px]" onClick={handleToggleCollapseClick}>
           {daysList.map((day) => {
             const occupiedCount = catRooms.reduce(
               (acc, room) => acc + (occupiedRoomDaySet.has(`${room.id}:${day.ymd}`) ? 1 : 0),
@@ -1648,14 +1648,14 @@ const CategoryRoomTable = memo(function CategoryRoomTable({
             return (
               <div
                 key={day.ymd}
-                className={`flex-1 min-w-[100px] border-r border-slate-200/60 px-1 py-1 text-center text-xs flex flex-col justify-center items-center ${
+                className={`flex-1 min-w-[100px] border-r border-slate-200/60 px-1 h-[32px] text-center text-xs flex items-center justify-center ${
                   day.isToday ? "bg-sky-50/50" : ""
                 }`}
                 title={`Hạng ${cat} ngày ${day.dateNum}: ${occupiedCount}/${catRooms.length} có khách (${occPercent}%), còn ${avail} phòng trống`}
               >
                 <div className="flex items-center justify-center gap-1">
                   <span
-                    className={`inline-block px-1.5 py-0.5 rounded text-xs font-black whitespace-nowrap ${
+                    className={`inline-block px-1.5 py-0.25 rounded text-xs font-black whitespace-nowrap ${
                       isSoldOut
                         ? "bg-rose-100 text-rose-800"
                         : avail < 2
@@ -1669,11 +1669,6 @@ const CategoryRoomTable = memo(function CategoryRoomTable({
                     ({occPercent}%)
                   </span>
                 </div>
-                {catPrice !== null && (
-                  <span className="text-xs text-slate-400 font-semibold mt-0.5 whitespace-nowrap">
-                    {formatVnd(catPrice)}
-                  </span>
-                )}
               </div>
             );
           })}
@@ -1733,6 +1728,273 @@ const CategoryRoomTable = memo(function CategoryRoomTable({
   );
 });
 
+interface BookingDetailPanelProps {
+  hotelId: string;
+  block: RoomPlanBlock;
+  onClose: () => void;
+  onCheckIn?: () => void;
+  onCheckOut?: () => void;
+  onOpenEdit?: () => void;
+  canCheckIn?: boolean;
+  canCheckOut?: boolean;
+}
+
+const BookingDetailPanel = memo(function BookingDetailPanel({
+  hotelId,
+  block,
+  onClose,
+  onCheckIn,
+  onCheckOut,
+  onOpenEdit,
+  canCheckIn = false,
+  canCheckOut = false,
+}: BookingDetailPanelProps) {
+  const stayId = block.guestStayId || "";
+  const resId = block.reservationId || (block.kind === "RESERVATION" ? block.id.replace(/^res-/, "") : "");
+  const isStay = Boolean(stayId);
+
+  const stayFolioQuery = useQuery({
+    ...staffRoomsResource.bind({ hotelId }).queries.stayFolio.options(stayId),
+    enabled: Boolean(hotelId && stayId),
+    staleTime: 10_000,
+  });
+
+  const resConfirmationQuery = useQuery({
+    ...staffRoomsResource.bind({ hotelId }).queries.reservationConfirmation.options(resId),
+    enabled: Boolean(hotelId && resId && !stayId),
+    staleTime: 10_000,
+  });
+
+  const isLoading = isStay ? stayFolioQuery.isLoading : resConfirmationQuery.isLoading;
+  const isError = isStay ? stayFolioQuery.isError : resConfirmationQuery.isError;
+  const refetch = isStay ? stayFolioQuery.refetch : resConfirmationQuery.refetch;
+
+  let totalAmount: number | null = null;
+  let paidAmount: number | null = null;
+  let balanceAmount: number | null = null;
+  let hasFinancialData = false;
+
+  if (isStay && stayFolioQuery.data) {
+    const summary = stayFolioQuery.data.summary;
+    const folio = stayFolioQuery.data.folio;
+    totalAmount = readFinancialAmount(summary?.total ?? folio?.total);
+    hasFinancialData = totalAmount !== null;
+  } else if (!isStay && resConfirmationQuery.data?.pricing) {
+    const pricing = resConfirmationQuery.data.pricing;
+    totalAmount = readFinancialAmount(pricing.totalAmount);
+    paidAmount = readFinancialAmount(pricing.paidAmount);
+    balanceAmount = readFinancialAmount(pricing.balanceAmount);
+    hasFinancialData = totalAmount !== null;
+  }
+
+  const statusLabel =
+    block.status === "OVERDUE"
+      ? "Quá hạn"
+      : block.kind === "STAY"
+        ? "Đang ở"
+        : "Đặt trước";
+
+  const statusBadgeClass =
+    block.status === "OVERDUE"
+      ? "bg-rose-100 text-rose-800 border-rose-300"
+      : block.kind === "STAY"
+        ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+        : "bg-purple-100 text-purple-900 border-purple-300";
+
+  return (
+    <div className="flex flex-col h-full min-h-0 bg-white select-none">
+      {/* Panel Header */}
+      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 bg-slate-50/80 shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <h3 className="text-base font-black text-slate-900 truncate">
+            Phòng {block.roomNumber}
+          </h3>
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-black border ${statusBadgeClass}`}>
+            <span
+              className={`size-1.5 rounded-full ${
+                block.status === "OVERDUE"
+                  ? "bg-rose-600"
+                  : block.kind === "STAY"
+                    ? "bg-emerald-600"
+                    : "bg-purple-600"
+              }`}
+            />
+            {statusLabel}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="size-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
+          title="Đóng chi tiết (Esc)"
+          aria-label="Đóng chi tiết"
+        >
+          <VsIcon name="close" className="text-base" />
+        </button>
+      </div>
+
+      {/* Panel Scrollable Body */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 text-sm">
+        {/* Room type & Group */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
+            {block.roomTypeName || "Hạng tiêu chuẩn"}
+          </span>
+          {block.groupCode && (
+            <span className="font-bold text-purple-900 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded flex items-center gap-1">
+              <VsIcon name="groups" className="text-xs text-purple-700" />
+              <span>Đoàn #{block.groupCode}</span>
+            </span>
+          )}
+        </div>
+
+        {/* Guest Details */}
+        <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-2">
+          <div className="flex justify-between items-start gap-2">
+            <span className="text-slate-500 font-medium">Khách hàng:</span>
+            <span className="font-black text-slate-900 text-right truncate">
+              {cleanBlockGuestName(block.guestName) || "Chưa cập nhật tên"}
+            </span>
+          </div>
+          {block.phone && (
+            <div className="flex justify-between items-center gap-2">
+              <span className="text-slate-500 font-medium">Số điện thoại:</span>
+              <span className="font-bold text-slate-800">{block.phone}</span>
+            </div>
+          )}
+          <div className="flex justify-between items-center gap-2">
+            <span className="text-slate-500 font-medium">Số khách:</span>
+            <span className="font-bold text-slate-800">{block.guestCount || 1} người</span>
+          </div>
+          {block.reservationCode && (
+            <div className="flex justify-between items-center gap-2">
+              <span className="text-slate-500 font-medium">Mã đặt phòng:</span>
+              <span className="font-mono font-bold text-slate-700">{block.reservationCode}</span>
+            </div>
+          )}
+          <div className="flex justify-between items-center gap-2">
+            <span className="text-slate-500 font-medium">Kênh đặt:</span>
+            <span className="font-semibold text-slate-700 uppercase">{block.channel || block.source || "Trực tiếp"}</span>
+          </div>
+        </div>
+
+        {/* Schedule & Nights */}
+        <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-2">
+          <div className="flex justify-between items-center">
+            <span className="text-slate-500 font-medium">Nhận phòng:</span>
+            <span className="font-bold text-slate-900">{block.startDate}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-slate-500 font-medium">Trả phòng:</span>
+            <span className="font-bold text-slate-900">{block.endDate}</span>
+          </div>
+          <div className="flex justify-between items-center pt-1.5 border-t border-slate-200">
+            <span className="text-slate-500 font-medium">Lưu trú:</span>
+            <span className="font-black text-slate-900">{block.nights} đêm</span>
+          </div>
+        </div>
+
+        {/* Financial & Folio breakdown */}
+        <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-2">
+          <div className="font-bold text-slate-800 flex items-center justify-between pb-1 border-b border-slate-200">
+            <span>Chi tiết tiền &amp; Công nợ</span>
+            {isLoading && (
+              <span className="text-slate-400 font-normal text-xs animate-pulse">Đang nạp...</span>
+            )}
+          </div>
+
+          {isLoading ? (
+            <div className="space-y-1.5 py-1">
+              <div className="h-3.5 bg-slate-200 rounded w-full animate-pulse" />
+              <div className="h-3.5 bg-slate-200 rounded w-2/3 animate-pulse" />
+              <p className="text-xs text-slate-400 italic">Đang tải số liệu từ máy chủ...</p>
+            </div>
+          ) : isError ? (
+            <div className="py-2 text-rose-700 space-y-1">
+              <p className="font-semibold">Không thể tải thông tin thanh toán.</p>
+              <button
+                type="button"
+                onClick={() => void refetch()}
+                className="text-xs font-bold text-rose-800 underline hover:text-rose-950 cursor-pointer"
+              >
+                Tải lại
+              </button>
+            </div>
+          ) : hasFinancialData ? (
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-slate-700">
+                <span>Tổng tiền:</span>
+                <span className="font-bold text-slate-900">{totalAmount === null ? "—" : formatVnd(totalAmount)}</span>
+              </div>
+              <div className="flex justify-between text-slate-700">
+                <span>Đã thanh toán / Cọc:</span>
+                <span className="font-bold text-emerald-700">{paidAmount === null ? "—" : formatVnd(paidAmount)}</span>
+              </div>
+              <div className="flex justify-between items-center pt-1.5 border-t border-slate-200">
+                <span className="font-bold text-slate-800">Công nợ:</span>
+                <span className={`font-black ${balanceAmount === null ? "text-slate-600" : balanceAmount > 0 ? "text-rose-700" : "text-emerald-700"}`}>
+                  {balanceAmount === null ? "—" : formatVnd(balanceAmount)}
+                </span>
+              </div>
+              {balanceAmount === null || paidAmount === null ? (
+                <p className="text-slate-600">Chưa có số liệu thanh toán.</p>
+              ) : balanceAmount > 0 ? (
+                <div className="rounded bg-rose-50 border border-rose-200 px-2 py-1 text-center font-bold text-rose-800 mt-1">
+                  Chưa thanh toán: {formatVnd(balanceAmount)}
+                </div>
+              ) : (
+                <div className="rounded bg-emerald-50 border border-emerald-200 px-2 py-1 text-center font-bold text-emerald-800 mt-1">
+                  Đã quyết toán đủ
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-slate-500 py-1 italic">
+              Chưa có số liệu tiền ghi nhận.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Panel Action Footer */}
+      <div className="border-t border-slate-200 p-3 bg-slate-50/80 space-y-2 shrink-0">
+        {canCheckIn && (
+          <button
+            type="button"
+            onClick={onCheckIn}
+            className="w-full h-10 inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-black text-xs shadow-xs transition cursor-pointer"
+          >
+            <VsIcon name="login" className="text-base" />
+            <span>Nhận phòng (Check-in)</span>
+          </button>
+        )}
+
+        {canCheckOut && (
+          <button
+            type="button"
+            onClick={onCheckOut}
+            className="w-full h-10 inline-flex items-center justify-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-black text-xs shadow-xs transition cursor-pointer"
+          >
+            <VsIcon name="logout" className="text-base" />
+            <span>Trả phòng (Check-out)</span>
+          </button>
+        )}
+
+        {onOpenEdit && (
+          <button
+            type="button"
+            onClick={onOpenEdit}
+            className="w-full h-9 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs shadow-2xs transition cursor-pointer"
+          >
+            <VsIcon name="edit" className="text-sm" />
+            <span>Chi tiết đầy đủ &amp; Chỉnh sửa</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+});
+
 export function TapeChartView({
   hotelId,
   rooms: propRooms = [],
@@ -1741,6 +2003,7 @@ export function TapeChartView({
   onBusinessDateChange,
   initialStartDate,
   initialViewMode,
+  deferUrlSync = false,
   readOnly,
   roleScope,
   canCheckInStay = true,
@@ -1757,6 +2020,10 @@ export function TapeChartView({
   onRefresh,
   searchQuery: propSearchQuery,
   onSearchQueryChange,
+  operationalViewMode,
+  onOperationalViewModeChange,
+  onOpenDailyMovements,
+  movementsCounts,
 }: TapeChartViewProps) {
   const isReadOnly = Boolean(
     readOnly ?? (roleScope === "tenant" || roleScope === "owner"),
@@ -1816,8 +2083,8 @@ export function TapeChartView({
   );
 
   useEffect(() => {
-    syncUrlParams(startDate, viewMode);
-  }, [startDate, viewMode, syncUrlParams]);
+    if (!deferUrlSync) syncUrlParams(startDate, viewMode);
+  }, [startDate, viewMode, syncUrlParams, deferUrlSync]);
 
   // Synchronize timeline startDate when parent operational businessDate changes
   useEffect(() => {
@@ -1864,16 +2131,66 @@ export function TapeChartView({
     setShowOnlyMatchedBlocks(true);
   }, [setSearchQuery]);
 
-  // Slide-over Drawer Selected Block & Active Tab
+  // Selected Block & Modal/Sheet states
+  const [isEditReservationOpen, setIsEditReservationOpen] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState<RoomPlanBlock | null>(null);
-  const [drawerTab, setDrawerTab] = useState<"info" | "services" | "history">("info");
-  const [copiedCode, setCopiedCode] = useState(false);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const desktopDetailRef = useRef<HTMLElement>(null);
+  const mobileDetailRef = useRef<HTMLDivElement>(null);
+  const [workspaceHeight, setWorkspaceHeight] = useState<number>();
+
+  useEffect(() => {
+    if (!selectedBlock || isEditReservationOpen) return;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const panel = window.innerWidth >= 1280 ? desktopDetailRef.current : mobileDetailRef.current;
+    panel?.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
+    const handleDetailKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setSelectedBlock(null);
+      } else if (event.key === "Tab" && window.innerWidth < 1280 && panel) {
+        const controls = Array.from(panel.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), [tabindex="0"]'));
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleDetailKey);
+    return () => {
+      window.removeEventListener("keydown", handleDetailKey);
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+    };
+  }, [selectedBlock?.id, isEditReservationOpen]);
+
+  useEffect(() => {
+    const workspace = workspaceRef.current;
+    if (!workspace) return;
+    const updateHeight = () => {
+      const bottomInset = window.innerWidth < 768 ? 96 : 16;
+      setWorkspaceHeight(Math.max(240, window.innerHeight - workspace.getBoundingClientRect().top - bottomInset));
+    };
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(workspace);
+    window.addEventListener("resize", updateHeight);
+    updateHeight();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateHeight);
+    };
+  }, []);
+  const [isSecondaryMenuOpen, setIsSecondaryMenuOpen] = useState(false);
+  const [isKeyboardHelpOpen, setIsKeyboardHelpOpen] = useState(false);
 
   const handleSelectBlock = useCallback(
     (block: RoomPlanBlock | null) => {
       setSelectedBlock(block);
-      setDrawerTab("info");
-      setIsEditReservationOpen(Boolean(block && block.kind === "RESERVATION"));
+      setIsEditReservationOpen(false);
     },
     [],
   );
@@ -1895,7 +2212,6 @@ export function TapeChartView({
   const [placementSourceBlock, setPlacementSourceBlock] = useState<RoomPlanBlock | null>(null);
   const [placementTargetRoomId, setPlacementTargetRoomId] = useState<string>("");
   const [placementTargetSwapResId, setPlacementTargetSwapResId] = useState<string>("");
-  const [isEditReservationOpen, setIsEditReservationOpen] = useState(false);
 
   // Drag over drop target highlighting
   const [dragOverCellKey, setDragOverCellKey] = useState<string | null>(null);
@@ -1926,20 +2242,7 @@ export function TapeChartView({
 
   // Mutation for updating placement
   const placementMutation = useMutation({
-    mutationFn: (vars: {
-      reservationId: string;
-      targetRoomId: string;
-      mode?: "MOVE" | "SWAP";
-      expectedUpdatedAt: string;
-      swapWithReservationId?: string;
-      swapExpectedUpdatedAt?: string;
-    }) =>
-      roomPlanRepository.updatePlacement(hotelId, vars.reservationId, {
-        targetRoomId: vars.targetRoomId,
-        expectedUpdatedAt: vars.expectedUpdatedAt,
-        swapWithReservationId: vars.swapWithReservationId,
-        swapExpectedUpdatedAt: vars.swapExpectedUpdatedAt,
-      }),
+    ...roomPlanScope.mutations.updatePlacement.options(),
     onSuccess: async () => {
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       void refetchPlan();
@@ -1952,7 +2255,7 @@ export function TapeChartView({
         "Hệ thống đã cập nhật vị trí xếp phòng và đồng bộ dữ liệu.",
       );
     },
-    onError: (err: unknown) => {
+    onError: (err: Error) => {
       const msg = err instanceof Error ? err.message : "Không thể chuyển phòng. Vui lòng thử lại.";
       void showErrorAlert("Lỗi chuyển phòng", msg);
     },
@@ -2930,6 +3233,9 @@ export function TapeChartView({
       } else if (e.key === "w" || e.key === "W") {
         e.preventDefault();
         setViewMode((v) => (v === "week" ? "biweek" : "week"));
+      } else if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        e.preventDefault();
+        setIsKeyboardHelpOpen((prev) => !prev);
       }
     }
 
@@ -3025,7 +3331,7 @@ export function TapeChartView({
           return;
         }
         try {
-          await staffRoomsRepository.markRoomReady(hotelId, targetBlock.roomId);
+          await staffRoomsRepository.markRoomReady(hotelId, targetBlock.roomId, propRooms.find((r) => r.id === targetBlock.roomId)?.updatedAt);
           await invalidateHotelRealtimeQueries(queryClient, hotelId);
         } catch (cleanErr) {
           await showErrorAlert(
@@ -3070,6 +3376,7 @@ export function TapeChartView({
     },
     [
       blocksByRoomId,
+      propRooms,
       allRooms,
       handleBlockCheckOut,
       hotelId,
@@ -4091,11 +4398,7 @@ export function TapeChartView({
 
   // Extend stay mutation
   const extendStayMutation = useMutation({
-    mutationFn: (vars: {
-      stayId: string;
-      plannedCheckOutAt: string;
-      newEndDate: string;
-    }) => roomPlanRepository.extendStay(hotelId, vars.stayId, vars.plannedCheckOutAt),
+    ...roomPlanScope.mutations.extendStay.options(),
     onSuccess: async (_, vars) => {
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       void refetchPlan();
@@ -4105,7 +4408,7 @@ export function TapeChartView({
         `Đã gia hạn lưu trú đến ngày ${vars.newEndDate}.`,
       );
     },
-    onError: (err: unknown) => {
+    onError: (err: Error) => {
       const msg = err instanceof Error ? err.message : "Không thể gia hạn lưu trú. Vui lòng thử lại.";
       void showErrorAlert("Lỗi gia hạn", msg);
     },
@@ -4113,17 +4416,7 @@ export function TapeChartView({
 
   // Update reservation dates mutation
   const updateReservationDatesMutation = useMutation({
-    mutationFn: (vars: {
-      reservationId: string;
-      startDate: string;
-      endDate: string;
-      expectedUpdatedAt: string;
-    }) =>
-      roomPlanRepository.updateReservationDates(hotelId, vars.reservationId, {
-        startDate: vars.startDate,
-        endDate: vars.endDate,
-        expectedUpdatedAt: vars.expectedUpdatedAt,
-      }),
+    ...roomPlanScope.mutations.updateReservationDates.options(),
     onSuccess: async (_, vars) => {
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       void refetchPlan();
@@ -4133,7 +4426,7 @@ export function TapeChartView({
         `Đã điều chỉnh lịch đặt phòng từ ${vars.startDate} đến ${vars.endDate}.`,
       );
     },
-    onError: (err: unknown) => {
+    onError: (err: Error) => {
       const msg = err instanceof Error ? err.message : "Không thể đổi ngày đặt phòng. Vui lòng thử lại.";
       void showErrorAlert("Lỗi đổi ngày", msg);
     },
@@ -4423,15 +4716,47 @@ export function TapeChartView({
   }, [selectedBlock, blocksByRoomId]);
 
   return (
-    <div className="space-y-3" data-tape-chart-container="true">
-      {/* ── Top Control & Smart Filter Bar ──────────────────────────── */}
-      <div className="rounded-xl border border-slate-200/90 bg-white shadow-xs overflow-hidden">
-        {/* Tier 1: Unified Timeline Navigation, Period Span, Live KPIs & Primary CTA */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2.5 border-b border-slate-100">
+    <div ref={workspaceRef} style={{ height: workspaceHeight ?? "calc(100dvh - 112px)" }} className="flex min-h-0 flex-col gap-1" data-tape-chart-container="true">
+      {/* ── Top Control & Smart Filter Bar (Max 2 low-profile rows) ── */}
+      <div className="shrink-0 rounded-xl border border-slate-200/90 bg-white shadow-xs">
+        {/* Row 1: Unified Timeline Navigation, Period Span, Live KPIs & Primary CTA */}
+        <div aria-label="Điều hướng và thao tác lịch phòng" className="flex flex-nowrap items-center justify-between gap-2 px-2 py-1 border-b border-slate-100 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {/* Left: Unified Timeline Pod + View Span Switch */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-nowrap shrink-0 items-center gap-2">
+            {/* Unified View Mode Switcher (Gantt vs Grid) */}
+            {operationalViewMode && onOperationalViewModeChange && (
+              <div className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-slate-100/90 p-0.5 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => onOperationalViewModeChange("tape-chart")}
+                  className={`inline-flex h-7 items-center gap-1.5 px-2.5 rounded-md text-xs transition cursor-pointer whitespace-nowrap ${
+                    operationalViewMode === "tape-chart"
+                      ? "bg-white text-emerald-950 font-black shadow-2xs"
+                      : "font-semibold text-slate-600 hover:text-slate-900"
+                  }`}
+                  title="Chế độ sơ đồ Tape Chart (Gantt)"
+                >
+                  <VsIcon name="view_timeline" className="text-sm" />
+                  <span>Tape Chart</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOperationalViewModeChange("grid")}
+                  className={`inline-flex h-7 items-center gap-1.5 px-2.5 rounded-md text-xs transition cursor-pointer whitespace-nowrap ${
+                    operationalViewMode === "grid"
+                      ? "bg-white text-emerald-950 font-black shadow-2xs"
+                      : "font-semibold text-slate-600 hover:text-slate-900"
+                  }`}
+                  title="Chế độ lưới phòng (Grid cards)"
+                >
+                  <VsIcon name="grid_view" className="text-sm" />
+                  <span>Lưới phòng</span>
+                </button>
+              </div>
+            )}
+
             {/* Unified Date Stepper & Calendar Picker Pod */}
-            <div className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-slate-50/80 p-0.5 shadow-2xs">
+            <div className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 shadow-2xs">
               <button
                 type="button"
                 onClick={handlePrevStep}
@@ -4525,17 +4850,17 @@ export function TapeChartView({
 
             {/* Week / Biweek Segmented Toggle */}
             <div
-              className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-slate-100/80 p-0.5"
+              className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-slate-100/80 p-0.5"
               role="group"
               aria-label="Khung ngày hiển thị"
             >
               <button
                 type="button"
                 onClick={() => setViewMode("week")}
-                className={`inline-flex h-8 items-center px-3 text-xs rounded-md transition cursor-pointer whitespace-nowrap ${
+                className={`inline-flex h-7 items-center px-2.5 text-xs rounded-md transition cursor-pointer whitespace-nowrap ${
                   viewMode === "week"
-                    ? "bg-white text-emerald-950 shadow-2xs ring-1 ring-slate-200/80 font-black"
-                    : "font-bold text-slate-600 hover:text-slate-900"
+                    ? "bg-white text-emerald-950 shadow-2xs font-black"
+                    : "font-semibold text-slate-600 hover:text-slate-900"
                 }`}
               >
                 7 ngày
@@ -4543,10 +4868,10 @@ export function TapeChartView({
               <button
                 type="button"
                 onClick={() => setViewMode("biweek")}
-                className={`inline-flex h-8 items-center px-3 text-xs rounded-md transition cursor-pointer whitespace-nowrap ${
+                className={`inline-flex h-7 items-center px-2.5 text-xs rounded-md transition cursor-pointer whitespace-nowrap ${
                   viewMode === "biweek"
-                    ? "bg-white text-emerald-950 shadow-2xs ring-1 ring-slate-200/80 font-black"
-                    : "font-bold text-slate-600 hover:text-slate-900"
+                    ? "bg-white text-emerald-950 shadow-2xs font-black"
+                    : "font-semibold text-slate-600 hover:text-slate-900"
                 }`}
               >
                 14 ngày
@@ -4554,63 +4879,25 @@ export function TapeChartView({
             </div>
 
             {isPlanFetching && (
-              <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-emerald-50 text-xs text-emerald-800 font-semibold whitespace-nowrap">
+              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-xs text-emerald-800 font-semibold whitespace-nowrap">
                 <span className="size-1.5 rounded-full bg-emerald-600 animate-ping" />
-                <span>Đang đồng bộ...</span>
+                <span>Đồng bộ...</span>
               </span>
             )}
           </div>
 
-          {/* Right: Operational KPIs & Primary Quick Reservation CTA */}
-          <div className="flex flex-wrap items-center gap-2 ml-auto">
-            {/* Period Occupancy Summary Pill */}
-            {periodOccupancyStats.totalRooms > 0 && (
-              <div
-                className="inline-flex h-9 items-center gap-1.5 px-3 rounded-lg text-xs font-bold bg-emerald-50/90 text-emerald-900 border border-emerald-200/90 whitespace-nowrap"
-                title={`Công suất trung bình cả kỳ (${numDays} ngày): ${periodOccupancyStats.avgPercent}% • Hôm nay: ${periodOccupancyStats.todayPercent}% (${periodOccupancyStats.todayOccupied}/${periodOccupancyStats.totalRooms} phòng)`}
-              >
-                <VsIcon name="trending_up" className="text-sm text-emerald-700" />
-                <span>
-                  Công suất TB:{" "}
-                  <strong className="font-black text-emerald-950">
-                    {periodOccupancyStats.avgPercent}%
-                  </strong>
-                </span>
-                <span className="text-emerald-300">•</span>
-                <span className="text-emerald-800 font-semibold">
-                  {periodOccupancyStats.todayOccupied}/{periodOccupancyStats.totalRooms} hôm nay
-                </span>
-              </div>
-            )}
-
+          {/* Right: Overdue Alerts, Primary CTA & Secondary Menu */}
+          <div className="flex flex-nowrap shrink-0 items-center gap-2 ml-auto">
             {/* Overdue Rooms Interactive Alert Pill */}
             {overdueRooms.length > 0 && (
               <button
                 type="button"
                 onClick={handleNextOverdue}
-                className="inline-flex h-9 items-center gap-1.5 px-3 rounded-lg text-xs font-black border transition cursor-pointer whitespace-nowrap bg-rose-50 hover:bg-rose-100 text-rose-900 border-rose-200 shadow-2xs"
-                title={`Click để chuyển và cuộn tới phòng quá hạn (${(overdueFocusIndex % overdueRooms.length) + 1}/${overdueRooms.length})`}
+                className="inline-flex h-8 items-center gap-1.5 px-2.5 rounded-lg text-xs font-black border transition cursor-pointer whitespace-nowrap bg-rose-50 hover:bg-rose-100 text-rose-900 border-rose-200 shadow-2xs"
+                title={`Click để chuyển tới phòng quá hạn (${(overdueFocusIndex % overdueRooms.length) + 1}/${overdueRooms.length})`}
               >
-                <span className="size-2 rounded-full bg-rose-600 animate-pulse shrink-0" />
-                <span>{overdueRooms.length} phòng quá hạn</span>
-                {overdueRooms.length > 1 && (
-                  <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-rose-200 text-rose-950 text-xs font-bold whitespace-nowrap">
-                    {(overdueFocusIndex % overdueRooms.length) + 1}/{overdueRooms.length}
-                  </span>
-                )}
-              </button>
-            )}
-
-            {/* Primary CTA: Group Check-in / Operations */}
-            {!isReadOnly && onOpenGroupCheckIn && (
-              <button
-                type="button"
-                onClick={() => onOpenGroupCheckIn("")}
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 font-bold px-3 text-xs shadow-2xs transition cursor-pointer whitespace-nowrap"
-                title="Quản lý và nhận phòng nhanh theo đoàn"
-              >
-                <VsIcon name="groups" className="text-base text-purple-700" />
-                <span>Check-in đoàn</span>
+                <span className="size-1.5 rounded-full bg-rose-600 animate-pulse shrink-0" />
+                <span>{overdueRooms.length} quá hạn</span>
               </button>
             )}
 
@@ -4619,21 +4906,117 @@ export function TapeChartView({
               <button
                 type="button"
                 onClick={() => onOpenQuickReservation()}
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-bold px-3.5 text-xs shadow-xs transition cursor-pointer whitespace-nowrap"
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-bold px-3 text-xs shadow-xs transition cursor-pointer whitespace-nowrap"
               >
                 <VsIcon name="add" className="text-sm" />
-                <span>Đặt phòng nhanh</span>
+                <span>Đặt phòng</span>
               </button>
             )}
+
+            {/* Secondary Operations Menu (Dropdown to preserve full capabilities) */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsSecondaryMenuOpen((v) => !v)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs transition cursor-pointer"
+                title="Thao tác khác"
+                aria-label="Thao tác khác"
+                aria-expanded={isSecondaryMenuOpen}
+              >
+                <VsIcon name="more_vert" className="text-base" />
+              </button>
+              {isSecondaryMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsSecondaryMenuOpen(false)}
+                  />
+                  <div className="fixed right-4 top-24 z-[90] w-56 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl text-xs space-y-0.5 animate-in fade-in zoom-in-95 duration-100">
+                    {!isReadOnly && onOpenGroupCheckIn && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsSecondaryMenuOpen(false);
+                          onOpenGroupCheckIn("");
+                        }}
+                        className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-slate-800 hover:bg-purple-50 hover:text-purple-900 font-bold transition text-left cursor-pointer"
+                      >
+                        <VsIcon name="groups" className="text-base text-purple-700" />
+                        <span>Check-in đoàn</span>
+                      </button>
+                    )}
+                    {onOpenDailyMovements && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsSecondaryMenuOpen(false);
+                          onOpenDailyMovements("arrivals");
+                        }}
+                        className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-slate-800 hover:bg-slate-100 font-semibold transition text-left cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <VsIcon name="sync_alt" className="text-base text-slate-600" />
+                          <span>Lịch đến / đi hôm nay</span>
+                        </div>
+                        {movementsCounts && (
+                          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                            {movementsCounts.arrivals}/{movementsCounts.departures}
+                          </span>
+                        )}
+                      </button>
+                    )}
+                    {onRefresh && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsSecondaryMenuOpen(false);
+                          onRefresh();
+                          void refetchPlan();
+                        }}
+                        className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-slate-800 hover:bg-slate-100 font-semibold transition text-left cursor-pointer"
+                      >
+                        <VsIcon name="refresh" className="text-base text-slate-600" />
+                        <span>Làm mới sơ đồ</span>
+                      </button>
+                    )}
+                    {hasCustomOrder && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsSecondaryMenuOpen(false);
+                          resetRoomOrder(hotelId);
+                        }}
+                        className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-amber-900 hover:bg-amber-50 font-bold transition text-left cursor-pointer"
+                      >
+                        <VsIcon name="restart_alt" className="text-base text-amber-600" />
+                        <span>Đặt lại thứ tự phòng</span>
+                      </button>
+                    )}
+                    <div className="border-t border-slate-100 my-1" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSecondaryMenuOpen(false);
+                        setIsKeyboardHelpOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-slate-700 hover:bg-slate-100 font-medium transition text-left cursor-pointer"
+                    >
+                      <VsIcon name="keyboard" className="text-base text-slate-500" />
+                      <span>Phím tắt &amp; Trợ giúp</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Tier 2: Smart Filter Bar (Search, Room Type, Floor, Quick Status Pills & View Actions) */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2 bg-slate-50/60">
+        <div aria-label="Bộ lọc lịch phòng" className="flex flex-nowrap items-center justify-between gap-2 px-2 py-1 bg-slate-50/60 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {/* Left: Search, Dropdowns & Quick Status Pills */}
-          <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+          <div className="flex flex-nowrap shrink-0 items-center gap-2">
             {/* Smart Search Input */}
-            <div className="relative w-full sm:w-56">
+            <div className="relative w-44 shrink-0">
               <VsIcon
                 name="search"
                 className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-slate-400"
@@ -4732,7 +5115,7 @@ export function TapeChartView({
 
             {/* Quick Room Status Filter Pills */}
             <div
-              className="inline-flex flex-wrap items-center gap-1"
+              className="inline-flex shrink-0 flex-nowrap items-center gap-1"
               role="group"
               aria-label="Lọc nhanh trạng thái phòng hôm nay"
             >
@@ -4900,20 +5283,8 @@ export function TapeChartView({
             )}
           </div>
 
-          {/* Right: View Utilities (Collapse All, Reset Custom Order) */}
+          {/* Right: Collapse/Expand All & Keyboard Shortcut Help Button */}
           <div className="flex items-center gap-1.5 ml-auto">
-            {hasCustomOrder && (
-              <button
-                type="button"
-                onClick={() => resetRoomOrder(hotelId)}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900 px-2.5 text-xs font-bold transition cursor-pointer whitespace-nowrap"
-                title="Khôi phục thứ tự phòng mặc định"
-              >
-                <VsIcon name="restart_alt" className="text-sm" />
-                <span>Đặt lại thứ tự</span>
-              </button>
-            )}
-
             {roomsByCategory.length > 1 && (
               <button
                 type="button"
@@ -4932,65 +5303,34 @@ export function TapeChartView({
                 <span>{allCollapsed ? "Mở rộng nhóm" : "Thu gọn nhóm"}</span>
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => setIsKeyboardHelpOpen(true)}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 transition cursor-pointer"
+              title="Trợ giúp phím tắt &amp; thao tác (?)"
+              aria-label="Trợ giúp phím tắt &amp; thao tác"
+            >
+              <VsIcon name="help_outline" className="text-base" />
+            </button>
           </div>
         </div>
       </div>
 
-      {/* ── Legend & Shortcut Strip ─────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-xs font-semibold text-slate-600">
-        <div className="flex flex-wrap items-center gap-3.5">
-          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-            <span className="size-3 rounded bg-emerald-600 border border-emerald-800" />
-            <span>Đang ở</span>
-          </span>
-          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-            <span className="size-3 rounded bg-purple-600 border border-purple-800" />
-            <span>Đặt trước (Kéo để đổi phòng)</span>
-          </span>
-          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-            <span className="size-3 rounded bg-rose-500 border border-rose-700" />
-            <span>Quá hạn trả</span>
-          </span>
-          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-            <span className="size-3 rounded bg-amber-200 border border-amber-400" />
-            <span>Chờ dọn phòng</span>
-          </span>
-          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-            <span className="size-3 rounded bg-slate-400 border border-slate-600" />
-            <span>Bảo trì / Khóa</span>
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 ml-auto text-slate-500">
-          <span className="text-pretty">
-            {isReadOnly
-              ? "Nhấp vào thanh đặt phòng để xem chi tiết."
-              : "Kéo ngang chọn số đêm, kéo dọc chọn nhiều phòng (đặt đoàn)."}
-          </span>
-          <span
-            className="hidden xl:inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 border border-slate-200/80 whitespace-nowrap"
-            title="Phím tắt: [← / →] Trượt 1 ngày • [Shift + ← / →] Trượt kỳ • [T] Hôm nay • [W] Đổi khung 7/14 ngày"
-          >
-            <strong className="font-bold text-slate-700">Phím tắt:</strong>
-            <span>←/→ trượt ngày · T hôm nay · W khung ngày</span>
-          </span>
-        </div>
-      </div>
-
-      {/* ── Main Gantt / Tape Chart Grid Container ────────────────── */}
+      {/* ── Main Gantt / Tape Chart Container with Right Detail Panel ── */}
       <div
         data-tape-chart-container="true"
-        className="relative rounded-lg border border-slate-200 bg-white shadow-xs overflow-hidden"
+        className="flex flex-1 min-h-0 min-w-0 w-full rounded-lg border border-slate-200 bg-white shadow-xs overflow-hidden"
       >
-        {/* Main Grid View - Giữ trọn 100% chiều rộng, hỗ trợ cuộn dọc cố định tiêu đề */}
-        <div className="overflow-x-auto min-w-0 max-h-[calc(100vh-210px)] overflow-y-auto">
+        {/* Main Grid View - Chiếm toàn bộ chiều rộng khi đóng panel, flex-1 khi mở panel */}
+        <div className="flex-1 min-h-0 min-w-0 overflow-auto">
           <div className="min-w-[800px] w-full">
             {/* Sticky Header: Dates Row + Occupancy Row */}
             <div className="sticky top-0 z-30 bg-slate-50 border-b border-slate-200 shadow-xs w-full">
-              {/* Header Dates Row */}
-              <div className="flex border-b border-slate-200/80 text-xs font-bold text-slate-700 w-full">
+              {/* Header Dates Row (Height = 34px) */}
+              <div className="flex border-b border-slate-200/80 text-xs font-bold text-slate-700 w-full h-[34px]">
                 {/* Room Column Header */}
-                <div className="sticky left-0 z-40 w-48 min-w-[192px] max-w-[192px] shrink-0 border-r border-slate-200 bg-slate-100/95 px-3 py-2 flex items-center justify-between shadow-xs">
+                <div className="sticky left-0 z-40 w-48 min-w-[192px] max-w-[192px] shrink-0 border-r border-slate-200 bg-slate-100/95 px-3 flex items-center justify-between shadow-xs h-[34px]">
                   <button
                     type="button"
                     onClick={toggleAllCategories}
@@ -5025,7 +5365,7 @@ export function TapeChartView({
                         key={day.ymd}
                         data-header-day="true"
                         data-day-ymd={day.ymd}
-                        className={`flex-1 min-w-[100px] border-r border-slate-200/60 px-1 py-1.5 text-center transition ${
+                        className={`flex-1 min-w-[100px] border-r border-slate-200/60 px-1 text-center transition flex items-center justify-center gap-1.5 h-[34px] ${
                           isDayInActiveSelection
                             ? "bg-emerald-100/90 text-emerald-950 font-black ring-2 ring-inset ring-emerald-500 shadow-xs border-b-2 border-emerald-600"
                             : day.isToday
@@ -5035,7 +5375,7 @@ export function TapeChartView({
                                 : "text-slate-700"
                         }`}
                       >
-                        <div
+                        <span
                           className={`text-xs uppercase tracking-tight ${
                             isDayInActiveSelection
                               ? "text-emerald-800 font-black"
@@ -5047,8 +5387,8 @@ export function TapeChartView({
                           }`}
                         >
                           {day.dayLabel}
-                        </div>
-                        <div
+                        </span>
+                        <span
                           className={`text-xs font-bold ${
                             isDayInActiveSelection
                               ? "text-emerald-950 font-black"
@@ -5060,11 +5400,9 @@ export function TapeChartView({
                           }`}
                         >
                           {day.dateNum}
-                        </div>
+                        </span>
                         {isDayInActiveSelection && (
-                          <div className="flex justify-center mt-0.5">
-                            <span className="size-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                          </div>
+                          <span className="size-1.5 rounded-full bg-emerald-600 animate-pulse shrink-0" />
                         )}
                       </div>
                     );
@@ -5072,13 +5410,13 @@ export function TapeChartView({
                 </div>
               </div>
 
-              {/* Occupancy Summary Row (Hàng Công suất phòng) */}
-              <div className="flex bg-slate-50/95 text-xs font-bold text-slate-700 w-full">
+              {/* Occupancy Summary Row (Hàng Công suất phòng - Height = 30px) */}
+              <div className="flex bg-slate-50/95 text-xs font-bold text-slate-700 w-full h-[30px]">
                 {/* Sticky Left: Title & Average */}
-                <div className="sticky left-0 z-40 w-48 min-w-[192px] max-w-[192px] shrink-0 border-r border-slate-200 bg-emerald-50/95 px-3 py-1.5 flex items-center justify-between shadow-xs">
-                  <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-emerald-950">
+                <div className="sticky left-0 z-40 w-48 min-w-[192px] max-w-[192px] shrink-0 border-r border-slate-200 bg-emerald-50/95 px-3 flex items-center justify-between shadow-xs h-[30px]">
+                  <div className="flex items-center gap-1 text-xs font-black uppercase tracking-wider text-emerald-950">
                     <VsIcon name="trending_up" className="text-sm text-emerald-700 shrink-0" />
-                    <span>Công suất phòng</span>
+                    <span>Công suất</span>
                   </div>
                   <span
                     className="rounded-full bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 text-xs font-black text-emerald-800 whitespace-nowrap"
@@ -5093,41 +5431,27 @@ export function TapeChartView({
                   {periodOccupancyStats.daily.map((stat) => (
                     <div
                       key={`occ-${stat.ymd}`}
-                      className={`flex-1 min-w-[100px] border-r border-slate-200/60 px-1 py-1 text-center flex flex-col justify-center items-center transition ${
+                      className={`flex-1 min-w-[100px] border-r border-slate-200/60 px-1 h-[30px] text-center flex items-center justify-center gap-1 transition ${
                         stat.isToday
                           ? "bg-sky-50/90 text-sky-950 font-black"
                           : "bg-slate-50/60 text-slate-700"
                       }`}
                       title={`Ngày ${stat.dateNum}: Công suất ${stat.percent}% (${stat.occupied}/${periodOccupancyStats.totalRooms} phòng có khách, ${stat.available} phòng trống)`}
                     >
-                      <div className="flex items-center justify-center gap-1">
-                        <span
-                          className={`inline-block px-1.5 py-0.5 rounded text-xs font-black whitespace-nowrap ${
-                            stat.percent >= 80
-                              ? "bg-rose-100 text-rose-800"
-                              : stat.percent >= 50
-                                ? "bg-emerald-100 text-emerald-800 font-bold"
-                                : "text-slate-700 font-bold"
-                          }`}
-                        >
-                          {stat.percent}%
-                        </span>
-                        <span className="text-xs text-slate-500 font-semibold whitespace-nowrap">
-                          ({stat.occupied}/{periodOccupancyStats.totalRooms})
-                        </span>
-                      </div>
-                      <div className="w-full max-w-[56px] h-1 bg-slate-200 rounded-full mt-0.5 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${
-                            stat.percent >= 80
-                              ? "bg-rose-500"
-                              : stat.percent >= 50
-                                ? "bg-emerald-600"
-                                : "bg-sky-500"
-                          }`}
-                          style={{ width: `${Math.min(100, stat.percent)}%` }}
-                        />
-                      </div>
+                      <span
+                        className={`inline-block px-1.5 py-0.5 rounded text-xs font-black whitespace-nowrap ${
+                          stat.percent >= 80
+                            ? "bg-rose-100 text-rose-800"
+                            : stat.percent >= 50
+                              ? "bg-emerald-100 text-emerald-800 font-bold"
+                              : "text-slate-700 font-bold"
+                        }`}
+                      >
+                        {stat.percent}%
+                      </span>
+                      <span className="text-xs text-slate-500 font-semibold whitespace-nowrap">
+                        ({stat.occupied}/{periodOccupancyStats.totalRooms})
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -5211,667 +5535,213 @@ export function TapeChartView({
             )}
           </div>
         </div>
+
+        {/* Desktop Right Detail Panel (360-400px wide inline) */}
+        {selectedBlock && !isEditReservationOpen && (
+          <aside ref={desktopDetailRef} aria-label="Chi tiết đặt phòng" className="hidden xl:flex w-[380px] min-h-0 shrink-0 border-l border-slate-200 bg-white flex-col overflow-y-auto">
+            <BookingDetailPanel
+              key={selectedBlock.id}
+              hotelId={hotelId}
+              block={selectedBlock}
+              onClose={() => setSelectedBlock(null)}
+              canCheckIn={
+                !isReadOnly &&
+                (canCheckInStay ?? true) &&
+                Boolean(onCheckInReservation || onOpenCheckIn) &&
+                selectedBlock.kind === "RESERVATION" &&
+                selectedBlock.status !== "CANCELLED" &&
+                selectedBlock.status !== "NO_SHOW" &&
+                selectedBlock.status !== "CHECKED_OUT" &&
+                selectedBlock.status !== "CHECKED_IN"
+              }
+              canCheckOut={
+                !isReadOnly &&
+                Boolean(selectedBlock.guestStayId && onCheckOutStay)
+              }
+              onCheckIn={() => handleBlockCheckIn(selectedBlock)}
+              onCheckOut={() => handleDrawerCheckOut()}
+              onOpenEdit={
+                !isReadOnly && (selectedBlock.kind === "RESERVATION" || Boolean(selectedBlock.reservationId))
+                  ? () => setIsEditReservationOpen(true)
+                  : undefined
+              }
+            />
+          </aside>
+        )}
       </div>
 
-      {/* ── Detail View: Modal hiển thị chi tiết trung tâm ──────── */}
-      {selectedBlock && (!isEditReservationOpen || (selectedBlock.kind !== "RESERVATION" && !selectedBlock.reservationId)) && (
+      {/* ── Mobile/Tablet Overlay Sheet (< xl viewports) ── */}
+      {selectedBlock && !isEditReservationOpen && (
         <div
           role="dialog"
           aria-modal="true"
-          aria-labelledby={drawerTitleId}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 sm:p-6"
+          aria-label={`Chi tiết phòng ${selectedBlock.roomNumber}`}
+          ref={mobileDetailRef}
+          className="xl:hidden fixed inset-0 z-[80] flex justify-end bg-black/40 backdrop-blur-xs"
           onClick={() => setSelectedBlock(null)}
         >
           <div
+            className="w-full max-w-md bg-white shadow-2xl flex flex-col h-[100dvh] min-h-0 pb-[env(safe-area-inset-bottom)] animate-in slide-in-from-right duration-200"
             onClick={(e) => e.stopPropagation()}
-            className="bg-white shadow-2xl border border-slate-200/90 rounded-2xl flex flex-col overflow-hidden w-full max-w-4xl max-h-[90vh] animate-in fade-in zoom-in-95 duration-200"
           >
-            {/* Header with Room & Status badges, without mode switcher */}
-            <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-100 p-4 sm:px-6 shrink-0 bg-slate-50/70">
-              <div className="min-w-0 pr-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3
-                    id={drawerTitleId}
-                    className="font-black text-lg text-slate-900 truncate text-balance"
-                  >
-                    Phòng {selectedBlock.roomNumber}
-                  </h3>
-                  <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black whitespace-nowrap shadow-2xs ${
-                      selectedBlock.status === "OVERDUE"
-                        ? "bg-rose-100 text-rose-800"
-                        : selectedBlock.kind === "STAY"
-                          ? "bg-emerald-100 text-emerald-900"
-                          : "bg-purple-100 text-purple-900"
-                    }`}
-                  >
-                    <span
-                      className={`size-1.5 rounded-full ${
-                        selectedBlock.status === "OVERDUE"
-                          ? "bg-rose-600"
-                          : selectedBlock.kind === "STAY"
-                            ? "bg-emerald-600"
-                            : "bg-purple-600"
-                      }`}
-                    />
-                    {selectedBlock.status === "OVERDUE"
-                      ? "Quá hạn"
-                      : selectedBlock.kind === "STAY"
-                        ? "Đang ở"
-                        : "Đặt trước"}
-                  </span>
-                  <span className="text-xs font-semibold text-slate-500 bg-white border border-slate-200/70 px-2.5 py-0.5 rounded-full whitespace-nowrap">
-                    {selectedBlock.roomTypeName || "Hạng phòng tiêu chuẩn"}
-                  </span>
-                  {selectedBlock.groupCode && (
-                    <span className="inline-flex items-center gap-1 text-xs font-black text-purple-900 bg-purple-100 border border-purple-300 px-2.5 py-0.5 rounded-full whitespace-nowrap">
-                      <VsIcon name="groups" className="text-xs text-purple-700" />
-                      <span>Đoàn #{selectedBlock.groupCode}</span>
-                    </span>
-                  )}
-                  {isReadOnly && (
-                    <span className="text-xs font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full whitespace-nowrap">
-                      Chế độ xem
-                    </span>
-                  )}
+            <BookingDetailPanel
+              key={selectedBlock.id}
+              hotelId={hotelId}
+              block={selectedBlock}
+              onClose={() => setSelectedBlock(null)}
+              canCheckIn={
+                !isReadOnly &&
+                (canCheckInStay ?? true) &&
+                Boolean(onCheckInReservation || onOpenCheckIn) &&
+                selectedBlock.kind === "RESERVATION" &&
+                selectedBlock.status !== "CANCELLED" &&
+                selectedBlock.status !== "NO_SHOW" &&
+                selectedBlock.status !== "CHECKED_OUT" &&
+                selectedBlock.status !== "CHECKED_IN"
+              }
+              canCheckOut={
+                !isReadOnly &&
+                Boolean(selectedBlock.guestStayId && onCheckOutStay)
+              }
+              onCheckIn={() => handleBlockCheckIn(selectedBlock)}
+              onCheckOut={() => handleDrawerCheckOut()}
+              onOpenEdit={
+                !isReadOnly && (selectedBlock.kind === "RESERVATION" || Boolean(selectedBlock.reservationId))
+                  ? () => setIsEditReservationOpen(true)
+                  : undefined
+              }
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── Accessible Keyboard Shortcuts Help Modal ─────────────── */}
+      {isKeyboardHelpOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="keyboard-help-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4"
+          onClick={() => setIsKeyboardHelpOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <VsIcon name="keyboard" className="text-xl text-emerald-800" />
+                <h3
+                  id="keyboard-help-title"
+                  className="text-base font-black text-slate-900 text-balance"
+                >
+                  Phím tắt &amp; Hướng dẫn thao tác
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsKeyboardHelpOpen(false)}
+                className="size-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                aria-label="Đóng trợ giúp phím tắt"
+              >
+                <VsIcon name="close" className="text-lg" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-slate-700">
+              <div className="space-y-2">
+                <h4 className="font-bold text-slate-900 uppercase tracking-wider text-xs">
+                  Điều hướng lịch
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
+                    <span>Trượt 1 ngày</span>
+                    <kbd className="px-2 py-0.5 bg-white border border-slate-200 rounded font-mono font-bold text-slate-800">
+                      ← / →
+                    </kbd>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
+                    <span>Trượt cả kỳ</span>
+                    <kbd className="px-2 py-0.5 bg-white border border-slate-200 rounded font-mono font-bold text-slate-800">
+                      Shift + ← / →
+                    </kbd>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
+                    <span>Về hôm nay</span>
+                    <kbd className="px-2 py-0.5 bg-white border border-slate-200 rounded font-mono font-bold text-slate-800">
+                      T
+                    </kbd>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
+                    <span>Đổi 7 / 14 ngày</span>
+                    <kbd className="px-2 py-0.5 bg-white border border-slate-200 rounded font-mono font-bold text-slate-800">
+                      W
+                    </kbd>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                {!isReadOnly &&
-                  selectedBlock.kind === "RESERVATION" &&
-                  (canCheckInStay ?? true) &&
-                  (onCheckInReservation || onOpenCheckIn) &&
-                  selectedBlock.status !== "CANCELLED" &&
-                  selectedBlock.status !== "NO_SHOW" && (
-                    <button
-                      type="button"
-                      onClick={() => void handleDrawerCheckIn({ forceSingleRoom: true })}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black text-white bg-emerald-700 hover:bg-emerald-800 shadow-xs transition cursor-pointer whitespace-nowrap"
-                      title="Nhận phòng ngay cho phòng này"
-                    >
-                      <VsIcon name="login" className="text-sm" />
-                      <span>Nhận phòng P.{selectedBlock.roomNumber}</span>
-                    </button>
-                  )}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <h4 className="font-bold text-slate-900 uppercase tracking-wider text-xs">
+                  Thao tác phòng &amp; Chuột
+                </h4>
+                <ul className="space-y-1.5 list-disc list-inside text-slate-600 leading-relaxed text-pretty">
+                  <li>
+                    <strong>Nhấp thanh đặt phòng:</strong> Mở panel chi tiết bên phải (khách, cọc, công nợ, nhận/trả).
+                  </li>
+                  <li>
+                    <strong>Kéo ngang trên ô trống:</strong> Giữ phòng nhiều đêm liên tiếp.
+                  </li>
+                  <li>
+                    <strong>Kéo dọc qua nhiều phòng:</strong> Đặt phòng đoàn nhanh nhiều phòng cùng lúc.
+                  </li>
+                  <li>
+                    <strong>Kéo thanh đặt phòng (Drag &amp; Drop):</strong> Đổi phòng hoặc dời ngày cho đơn đặt trước.
+                  </li>
+                  <li>
+                    <strong>Kéo mép thanh đặt phòng:</strong> Kéo dài hoặc rút ngắn số đêm lưu trú.
+                  </li>
+                </ul>
+              </div>
 
-                {!isReadOnly && selectedBlock.guestStayId && onCheckOutStay && (
-                  <button
-                    type="button"
-                    onClick={handleDrawerCheckOut}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black text-white bg-rose-700 hover:bg-rose-800 shadow-xs transition cursor-pointer whitespace-nowrap"
-                    title="Trả phòng & thanh toán"
-                  >
-                    <VsIcon name="payments" className="text-sm" />
-                    <span>Trả phòng (Check-out)</span>
-                  </button>
-                )}
-
-                {!isReadOnly &&
-                  (selectedBlock.kind === "RESERVATION" || Boolean(selectedBlock.reservationId)) && (
-                    <button
-                      type="button"
-                      onClick={() => setIsEditReservationOpen(true)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition cursor-pointer whitespace-nowrap"
-                      title="Chỉnh sửa thông tin đặt phòng"
-                    >
-                      <VsIcon name="edit" className="text-sm text-amber-700" />
-                      <span>Chỉnh sửa đơn</span>
-                    </button>
-                  )}
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedBlock(null)}
-                  className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-200/70 hover:text-slate-700 transition cursor-pointer"
-                  title="Đóng chi tiết"
-                  aria-label="Đóng"
-                >
-                  <VsIcon name="close" className="text-xl" />
-                </button>
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <h4 className="font-bold text-slate-900 uppercase tracking-wider text-xs">
+                  Ý nghĩa màu trạng thái
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2 p-1.5 rounded bg-emerald-50 text-emerald-950 font-bold border border-emerald-200">
+                    <span className="size-2 rounded-full bg-emerald-600" />
+                    <span>Đang ở (Stay)</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-1.5 rounded bg-purple-50 text-purple-950 font-bold border border-purple-200">
+                    <span className="size-2 rounded-full bg-purple-600" />
+                    <span>Đặt trước (Reservation)</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-1.5 rounded bg-rose-50 text-rose-950 font-bold border border-rose-200">
+                    <span className="size-2 rounded-full bg-rose-600" />
+                    <span>Quá hạn trả (Overdue)</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-1.5 rounded bg-amber-50 text-amber-950 font-bold border border-amber-200">
+                    <span className="size-2 rounded-full bg-amber-500" />
+                    <span>Chờ dọn (Cleaning)</span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Tabs */}
-            <div className="flex border-b border-slate-200 bg-slate-50/70 px-4 sm:px-6 pt-2 gap-6 text-xs font-bold text-slate-600 shrink-0">
+            <div className="flex justify-end pt-2 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => setDrawerTab("info")}
-                className={`pb-2.5 border-b-2 transition cursor-pointer ${
-                  drawerTab === "info"
-                    ? "border-emerald-800 text-emerald-900 font-black"
-                    : "border-transparent hover:text-slate-900"
-                }`}
+                onClick={() => setIsKeyboardHelpOpen(false)}
+                className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 cursor-pointer"
               >
-                Thông tin chi tiết
-              </button>
-              <button
-                type="button"
-                onClick={() => setDrawerTab("services")}
-                className={`pb-2.5 border-b-2 transition cursor-pointer ${
-                  drawerTab === "services"
-                    ? "border-emerald-800 text-emerald-900 font-black"
-                    : "border-transparent hover:text-slate-900"
-                }`}
-              >
-                Dịch vụ
-              </button>
-              <button
-                type="button"
-                onClick={() => setDrawerTab("history")}
-                className={`pb-2.5 border-b-2 transition cursor-pointer ${
-                  drawerTab === "history"
-                    ? "border-emerald-800 text-emerald-900 font-black"
-                    : "border-transparent hover:text-slate-900"
-                }`}
-              >
-                Lịch sử
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
-              {drawerTab === "info" && (
-                <div className="space-y-4">
-                  {/* Khối hợp nhất: Mã đặt phòng, Kênh & Thông tin Khách hàng (Trung 1 box thay vì chia 2) */}
-                  <div className="rounded-2xl border border-emerald-900/10 bg-gradient-to-br from-emerald-50/50 via-slate-50/40 to-white p-4 sm:p-5 shadow-2xs space-y-4">
-                    {/* Dòng 1: Mã đặt phòng & Kênh & Nhận phòng hôm nay */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200/60">
-                      <div className="flex flex-wrap items-center gap-2.5">
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                          Mã đặt phòng
-                        </span>
-                        <div className="flex items-center gap-1.5 bg-white border border-emerald-300/80 px-2.5 py-1 rounded-lg shadow-2xs">
-                          <span className="font-mono text-xs font-black text-[#123d2a]">
-                            {selectedBlock.reservationCode || "—"}
-                          </span>
-                          {selectedBlock.reservationCode && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                void navigator.clipboard?.writeText(selectedBlock.reservationCode || "");
-                                setCopiedCode(true);
-                                setTimeout(() => setCopiedCode(false), 2000);
-                              }}
-                              className="p-0.5 text-slate-400 hover:text-emerald-700 transition cursor-pointer"
-                              title="Sao chép mã đặt phòng"
-                            >
-                              <VsIcon
-                                name={copiedCode ? "check" : "content_copy"}
-                                className={`text-xs ${copiedCode ? "text-emerald-600 font-bold" : ""}`}
-                              />
-                            </button>
-                          )}
-                        </div>
-                        {copiedCode && (
-                          <span className="text-xs font-bold text-emerald-700 animate-in fade-in">
-                            Đã sao chép!
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-semibold text-slate-500">Kênh:</span>
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black whitespace-nowrap shadow-2xs ${
-                            getChannelBadge(selectedBlock.channel || selectedBlock.source).bg
-                          } ${getChannelBadge(selectedBlock.channel || selectedBlock.source).text}`}
-                        >
-                          {getChannelBadge(selectedBlock.channel || selectedBlock.source).label}
-                        </span>
-
-                        {selectedBlock.sourcePartnerName && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-900 border border-indigo-200 shadow-2xs whitespace-nowrap">
-                            <VsIcon name="business" className="text-xs" />
-                            {selectedBlock.sourcePartnerName}
-                          </span>
-                        )}
-
-                        {selectedBlock.bookingOwnerName && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs whitespace-nowrap">
-                            <VsIcon name="badge" className="text-xs" />
-                            Phụ trách: {selectedBlock.bookingOwnerName}
-                          </span>
-                        )}
-
-                        {selectedBlock.startDate === todayYmd && (selectedBlock.kind as string) === "RESERVATION" && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs whitespace-nowrap">
-                            <span className="size-1.5 rounded-full bg-amber-600 animate-pulse" />
-                            Nhận hôm nay
-                          </span>
-                        )}
-                      </div>
-
-                      {selectedBlock.groupCode && (
-                        <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-purple-50/80 border border-purple-200 text-purple-950 text-xs">
-                          <div className="flex items-center gap-2 font-bold">
-                            <VsIcon name="groups" className="text-base text-purple-700" />
-                            <span>Đơn thuộc đoàn: <span className="font-mono text-purple-900 font-black">#{selectedBlock.groupCode}</span></span>
-                          </div>
-                          {onOpenGroupCheckIn && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const code = selectedBlock.groupCode!.replace(/^#+/, "").trim();
-                                setSelectedBlock(null);
-                                onOpenGroupCheckIn(code);
-                              }}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-700 hover:bg-purple-800 text-white font-bold transition cursor-pointer shadow-2xs whitespace-nowrap"
-                            >
-                              <VsIcon name="groups" className="text-xs" />
-                              <span>{(selectedBlock.kind as string) === "RESERVATION" ? "Mở Check-in đoàn" : "Quản lý đoàn"}</span>
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Ngữ cảnh liền kề của phòng: xem nhanh trước/sau để gia hạn hoặc dời phòng */}
-                    {roomContextInfo && (
-                      <div className="flex flex-wrap items-center justify-between gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
-                        <div className="flex flex-wrap items-center gap-3 text-slate-700 min-w-0">
-                          <span className="font-bold text-slate-800 flex items-center gap-1 shrink-0">
-                            <VsIcon name="info" className="text-xs text-slate-500" />
-                            <span>Lịch phòng {selectedBlock.roomNumber}:</span>
-                          </span>
-                          <span className="font-medium text-slate-600">
-                            {roomContextInfo.prior
-                              ? `Trước đó: Trả phòng ${formatDateNum(roomContextInfo.prior.endDate)} (${cleanBlockGuestName(roomContextInfo.prior.guestName)})`
-                              : "Trước đó: Trống lịch"}
-                          </span>
-                          <span className="text-slate-300">•</span>
-                          <span className="font-medium text-slate-600">
-                            {roomContextInfo.next
-                              ? `Tiếp theo: Nhận phòng ${formatDateNum(roomContextInfo.next.startDate)} (${cleanBlockGuestName(roomContextInfo.next.guestName)})`
-                              : "Tiếp theo: Trống lịch"}
-                          </span>
-                        </div>
-                        {searchQuery.trim().length > 0 && showOnlyMatchedBlocks && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowOnlyMatchedBlocks(false);
-                              setSelectedBlock(null);
-                            }}
-                            className="text-xs font-bold text-emerald-800 hover:text-emerald-950 underline cursor-pointer shrink-0"
-                          >
-                            Xem toàn bộ lịch phòng
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Dòng 2: Hồ sơ Khách hàng & Phòng gán trong cùng 1 khối */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#123d2a] text-sm font-black text-white shadow-xs">
-                          {selectedBlock.guestName ? selectedBlock.guestName.slice(0, 2).toUpperCase() : "VS"}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="font-black text-base text-slate-900 truncate text-balance">
-                              {selectedBlock.guestName}
-                            </h4>
-                            <span className="text-xs font-bold text-slate-600 bg-white border border-slate-200/90 px-2 py-0.5 rounded-md whitespace-nowrap">
-                              {selectedBlock.guestCount ? `${selectedBlock.guestCount} khách` : "1 khách"}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3 mt-1 text-xs font-semibold text-slate-600">
-                            {selectedBlock.phone ? (
-                              <a
-                                href={`tel:${selectedBlock.phone}`}
-                                className="flex items-center gap-1.5 hover:text-emerald-700 transition"
-                                title="Gọi cho khách"
-                              >
-                                <VsIcon name="phone" className="text-xs text-slate-400" />
-                                <span>{selectedBlock.phone}</span>
-                              </a>
-                            ) : (
-                              <span className="flex items-center gap-1.5 text-slate-400">
-                                <VsIcon name="phone" className="text-xs text-slate-300" />
-                                <span>Chưa có SĐT</span>
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="text-left sm:text-right text-xs shrink-0">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block">
-                          Phòng xếp
-                        </span>
-                        <p className="font-black text-base text-slate-900">
-                          Phòng {selectedBlock.roomNumber}
-                        </p>
-                        <p className="font-medium text-slate-500">
-                          {selectedBlock.roomTypeName || "Hạng tiêu chuẩn"}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Ghi chú khách (nằm gọn gàng trong cùng 1 box) */}
-                    {selectedBlock.notes && (
-                      <div className="pt-2 border-t border-slate-200/60 flex items-start gap-2 text-xs">
-                        <VsIcon name="notes" className="text-sm text-slate-400 shrink-0 mt-0.5" />
-                        <div className="flex-1 bg-slate-50 border border-slate-200/70 rounded-xl p-2.5">
-                          <span className="font-bold text-slate-700">Ghi chú lưu trú: </span>
-                          <span className="text-slate-600 text-pretty">{selectedBlock.notes}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Hai cột thông số: Lịch trình & Tài chính */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Khối Lịch trình lưu trú */}
-                    <div className="rounded-2xl border border-slate-200/80 bg-white p-4 space-y-3 shadow-2xs">
-                      <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                        <VsIcon name="calendar_today" className="text-sm text-emerald-800" />
-                        <span>Lịch trình lưu trú</span>
-                      </h5>
-                      <div className="grid grid-cols-2 gap-3 pt-1">
-                        <div className="space-y-0.5">
-                          <span className="text-xs font-medium text-slate-500">Ngày nhận phòng</span>
-                          <p className="font-black text-sm text-slate-900">{selectedBlock.startDate}</p>
-                          <p className="text-xs font-medium text-slate-500">14:00</p>
-                        </div>
-                        <div className="space-y-0.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-slate-500">Ngày trả phòng</span>
-                            {selectedBlock.endDate === todayYmd && (
-                              <span className="rounded bg-amber-100 px-1.5 py-0.2 text-xs font-bold text-amber-900 whitespace-nowrap">
-                                Hôm nay
-                              </span>
-                            )}
-                          </div>
-                          <p className="font-black text-sm text-slate-900">{selectedBlock.endDate}</p>
-                          <p className="text-xs font-medium text-slate-500">12:00</p>
-                        </div>
-                      </div>
-
-                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                        <span className="font-medium text-slate-600">Tổng thời gian:</span>
-                        <span className="font-black text-slate-900">{selectedBlock.nights} đêm lưu trú</span>
-                      </div>
-                    </div>
-
-                    {/* Khối Tài chính & Thanh toán */}
-                    <div className="rounded-2xl border border-slate-200/80 bg-white p-4 space-y-3 shadow-2xs">
-                      <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                        <VsIcon name="payments" className="text-sm text-emerald-800" />
-                        <span>Tài chính & Thanh toán</span>
-                      </h5>
-
-                      <div className="space-y-2 pt-1 text-xs">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-slate-600">Đơn giá phòng TB:</span>
-                          <span className="font-bold text-slate-800">
-                            {formatVnd(
-                              selectedBlock.roomSubtotal && selectedBlock.nights
-                                ? Math.round(selectedBlock.roomSubtotal / selectedBlock.nights)
-                                : selectedBlock.nightlyRate,
-                            )}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between pt-1 border-t border-slate-100">
-                          <span className="font-bold text-slate-800">Tổng tiền phòng ({selectedBlock.nights} đêm):</span>
-                          <span className="font-black text-base text-[#123d2a]">
-                            {formatVnd(
-                              selectedBlock.roomSubtotal ??
-                                (selectedBlock.nightlyRate ? selectedBlock.nightlyRate * selectedBlock.nights : null),
-                            )}
-                          </span>
-                        </div>
-                        {selectedBlock.serviceSubtotal && selectedBlock.serviceSubtotal > 0 ? (
-                          <div className="flex items-center justify-between pt-1 border-t border-slate-100">
-                            <span className="font-medium text-slate-600">Dịch vụ đặt trước:</span>
-                            <span className="font-bold text-slate-800">
-                              {formatVnd(selectedBlock.serviceSubtotal)}
-                            </span>
-                          </div>
-                        ) : null}
-                        {selectedBlock.totalAmount && selectedBlock.serviceSubtotal && selectedBlock.serviceSubtotal > 0 ? (
-                          <div className="flex items-center justify-between pt-1 border-t border-slate-100">
-                            <span className="font-black text-slate-900">Tổng cộng thanh toán:</span>
-                            <span className="font-black text-base text-blue-900">
-                              {formatVnd(selectedBlock.totalAmount)}
-                            </span>
-                          </div>
-                        ) : null}
-                        <div className="flex items-center justify-between pt-1 border-t border-slate-100">
-                          <span className="font-medium text-slate-600">Trạng thái:</span>
-                          <span
-                            className={`font-black whitespace-nowrap ${
-                              selectedBlock.kind === "STAY" ? "text-emerald-700" : "text-amber-700"
-                            }`}
-                          >
-                            {selectedBlock.kind === "STAY" ? "• Đã nhận phòng / Đang ở" : "• Chờ làm thủ tục nhận phòng"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Cảnh báo & Xử lý nhanh nếu phòng Đặt trước đang có khách ở chưa Check-out */}
-                    {selectedBlock.kind === "RESERVATION" && (() => {
-                      const roomBlocks = blocksByRoomId.get(selectedBlock.roomId) || [];
-                      const activeStay = roomBlocks.find(
-                        (b) => b.kind === "STAY" && b.status !== "CHECKED_OUT" && b.guestStayId,
-                      );
-                      if (!activeStay) return null;
-                      return (
-                        <div className="rounded-xl border border-rose-200 bg-rose-50/90 p-3.5 space-y-2.5 text-xs text-rose-950">
-                          <div className="flex items-start gap-2">
-                            <VsIcon name="warning" className="text-base text-rose-600 shrink-0 mt-0.5" />
-                            <div className="space-y-0.5">
-                              <p className="font-black text-rose-900">
-                                Phòng P.{selectedBlock.roomNumber} đang có khách lưu trú (chưa Check-out)
-                              </p>
-                              <p className="text-rose-800 text-pretty">
-                                Khách hiện tại: <strong>{cleanBlockGuestName(activeStay.guestName)}</strong> (Trả dự kiến:{" "}
-                                {activeStay.endDate}). Vui lòng trả phòng khách cũ hoặc đổi sang phòng trống khác trước khi nhận phòng.
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 pt-1">
-                            {activeStay.guestStayId && onCheckOutStay && (
-                              <button
-                                type="button"
-                                onClick={() => void handleBlockCheckOut(activeStay)}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-rose-700 hover:bg-rose-800 px-3 py-1.5 text-xs font-black text-white shadow-2xs transition cursor-pointer whitespace-nowrap"
-                              >
-                                <VsIcon name="payments" className="text-xs" />
-                                <span>Trả phòng (Check-out) P.{selectedBlock.roomNumber} ngay</span>
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => setIsEditReservationOpen(true)}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-white hover:bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-900 shadow-2xs transition cursor-pointer whitespace-nowrap"
-                            >
-                              <VsIcon name="swap_horiz" className="text-xs text-emerald-700" />
-                              <span>Đổi sang phòng trống khác (1 chạm)</span>
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-              )}
-
-              {drawerTab === "services" && (
-                selectedBlock.services && selectedBlock.services.length > 0 ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                      <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                        <VsIcon name="room_service" className="text-sm text-emerald-800" />
-                        <span>Dịch vụ đặt trước ({selectedBlock.services.length} mục)</span>
-                      </span>
-                      <span className="text-xs font-bold text-emerald-800">
-                        {formatVnd(selectedBlock.serviceSubtotal)}
-                      </span>
-                    </div>
-                    <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white overflow-hidden text-xs">
-                      {selectedBlock.services.map((s, idx) => (
-                        <div key={idx} className="p-3 flex items-center justify-between hover:bg-slate-50/70">
-                          <div>
-                            <p className="font-bold text-slate-800">{s.name}</p>
-                            <p className="text-xs text-slate-500">
-                              {s.quantity} × {formatVnd(s.unitPrice)}
-                            </p>
-                          </div>
-                          <span className="font-black text-slate-900">{formatVnd(s.total)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="py-12 text-center text-slate-400 space-y-2">
-                    <VsIcon name="room_service" className="text-4xl text-slate-300 mx-auto" />
-                    <p className="font-bold text-xs text-slate-700">Chưa có dịch vụ phát sinh</p>
-                    <p className="text-xs text-slate-400 max-w-xs mx-auto text-pretty">
-                      Các dịch vụ giặt là, ăn uống, minibar phát sinh của phòng sẽ hiển thị tại đây.
-                    </p>
-                  </div>
-                )
-              )}
-
-              {drawerTab === "history" && (
-                <div className="space-y-3 p-1">
-                  <div className="flex items-start gap-2.5">
-                    <span className="size-2 rounded-full bg-emerald-600 mt-1.5 shrink-0" />
-                    <div>
-                      <p className="font-bold text-xs text-slate-800">Tạo đặt phòng</p>
-                      <p className="text-xs text-slate-400">
-                        Cập nhật: {selectedBlock.expectedUpdatedAt.slice(0, 10)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <span className="size-2 rounded-full bg-sky-600 mt-1.5 shrink-0" />
-                    <div>
-                      <p className="font-bold text-xs text-slate-800">
-                        Nhận phòng: {selectedBlock.startDate}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        Phòng {selectedBlock.roomNumber} ({selectedBlock.roomTypeName || "Tiêu chuẩn"})
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <span className="size-2 rounded-full bg-slate-400 mt-1.5 shrink-0" />
-                    <div>
-                      <p className="font-bold text-xs text-slate-800">
-                        Trả phòng dự kiến: {selectedBlock.endDate}
-                      </p>
-                      <p className="text-xs text-slate-400">{selectedBlock.nights} đêm lưu trú</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Bottom Actions */}
-            <div className="border-t border-slate-100 p-4 sm:px-6 flex flex-wrap items-center justify-end gap-2.5 bg-slate-50/70 shrink-0">
-              {/* Nút Nhận phòng cho phòng Đặt trước */}
-              {!isReadOnly && (selectedBlock.kind as string) === "RESERVATION" && (canCheckInStay ?? true) && (
-                selectedBlock.groupCode && onOpenGroupCheckIn ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const code = selectedBlock.groupCode!.replace(/^#+/, "").trim();
-                        setSelectedBlock(null);
-                        onOpenGroupCheckIn(code);
-                      }}
-                      className="flex items-center justify-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-black px-5 py-2.5 text-xs shadow-xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
-                    >
-                      <VsIcon name="groups" className="text-base" />
-                      <span>Check-in cho đoàn</span>
-                    </button>
-                    {(onCheckInReservation || onOpenCheckIn) && (
-                      <button
-                        type="button"
-                        onClick={() => void handleDrawerCheckIn({ forceSingleRoom: true })}
-                        className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 font-bold px-4 py-2.5 text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
-                      >
-                        <span>Chỉ nhận phòng này (P.{selectedBlock.roomNumber})</span>
-                      </button>
-                    )}
-                  </>
-                ) : (onCheckInReservation || onOpenCheckIn) ? (
-                  <button
-                    type="button"
-                    onClick={() => void handleDrawerCheckIn({ forceSingleRoom: true })}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black px-5 py-2.5 text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
-                  >
-                    <VsIcon name="login" className="text-base" />
-                    <span>Nhận phòng (Check-in)</span>
-                  </button>
-                ) : null
-              )}
-
-              {/* Nút Quản lý đoàn nếu đang lưu trú thuộc đoàn */}
-              {!isReadOnly && selectedBlock.kind === "STAY" && selectedBlock.groupCode && onOpenGroupCheckIn && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const code = selectedBlock.groupCode!.replace(/^#+/, "").trim();
-                    setSelectedBlock(null);
-                    onOpenGroupCheckIn(code);
-                  }}
-                  className="flex items-center justify-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 font-bold px-4 py-2.5 text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
-                >
-                  <VsIcon name="groups" className="text-base text-purple-700" />
-                  <span>Quản lý đoàn</span>
-                </button>
-              )}
-
-              {!isReadOnly && ((selectedBlock.kind as string) === "RESERVATION" || Boolean(selectedBlock.reservationId)) && (
-                <button
-                  type="button"
-                  onClick={() => setIsEditReservationOpen(true)}
-                  className="flex items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold px-4 py-2.5 text-xs shadow-2xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
-                >
-                  <VsIcon name="edit" className="text-base text-amber-700" />
-                  <span>Sửa thông tin</span>
-                </button>
-              )}
-
-              {/* Accessible Move/Swap button */}
-              {!isReadOnly && selectedBlock.movable && (
-                <button
-                  type="button"
-                  onClick={() => handleOpenPlacementModal(selectedBlock)}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold px-4 py-2.5 text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
-                >
-                  <VsIcon name="swap_horiz" className="text-base" />
-                  <span>Chuyển / Đổi phòng</span>
-                </button>
-              )}
-
-              {!isReadOnly && selectedBlock.guestStayId && onCheckOutStay && (
-                <button
-                  type="button"
-                  onClick={handleDrawerCheckOut}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-bold px-4 py-2.5 text-xs shadow-xs transition active:scale-[0.98] cursor-pointer"
-                >
-                  <VsIcon name="payments" className="text-base" />
-                  <span>Trả phòng (Check-out)</span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setSelectedBlock(null)}
-                className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-700 shadow-2xs transition cursor-pointer"
-              >
-                <span>Đóng</span>
+                Đã hiểu
               </button>
             </div>
           </div>
         </div>
       )}
+
 
       {/* ── Edit Reservation Modal (Sửa + Thao tác Lễ tân nhanh khi click) ── */}
       {selectedBlock &&
@@ -5951,7 +5821,22 @@ export function TapeChartView({
               selectedBlock.status !== "CHECKED_OUT" &&
               selectedBlock.status !== "CHECKED_IN"
             }
-            onCheckIn={() => handleDrawerCheckIn({ forceSingleRoom: true })}
+            onCheckIn={async (updated) => {
+              const updatedBlock: RoomPlanBlock = {
+                ...selectedBlock,
+                reservationId: updated.id,
+                roomId: updated.roomId || selectedBlock.roomId,
+                roomNumber: updated.room?.roomNumber || selectedBlock.roomNumber,
+                guestName: updated.guestDisplayName,
+                phone: updated.guestPhone,
+                startAt: updated.plannedCheckInAt,
+                endAt: updated.plannedCheckOutAt,
+                startDate: toVietnamYmd(updated.plannedCheckInAt),
+                endDate: toVietnamYmd(updated.plannedCheckOutAt),
+                expectedUpdatedAt: updated.updatedAt || selectedBlock.expectedUpdatedAt,
+              };
+              await handleBlockCheckIn(updatedBlock, { forceSingleRoom: true });
+            }}
             canCheckOut={!isReadOnly && Boolean(selectedBlock.guestStayId && onCheckOutStay)}
             onCheckOut={handleDrawerCheckOut}
             onViewDetails={() => setIsEditReservationOpen(false)}

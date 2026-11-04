@@ -9,6 +9,7 @@ import { requestInternalApi } from "@/core/http/internal-api-client";
 import { playMessageAlertSound } from "@/features/request-realtime/audio-notifier";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import { hotelMessagesResource } from "@/features/hotel-ops/resources/hotel-messages-resource";
+import { safeLocalStorage } from "@/core/storage/safe-storage";
 import {
   createEventDeduper,
   isConversationClosedEventForHotel,
@@ -252,7 +253,7 @@ function emitTypingSignal(hotelId: string, threadId: string | null, lastTypingEm
     } catch {}
   }
   try {
-    localStorage.setItem("vietsage_typing_signal", JSON.stringify(payload));
+    safeLocalStorage.setItem("vietsage_typing_signal", JSON.stringify(payload));
   } catch {}
 }
 

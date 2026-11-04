@@ -519,9 +519,6 @@ export default function GiaPage() {
                 <h2 className="text-lg sm:text-xl font-bold text-slate-900 text-balance">
                   1. Khách sạn của bạn có bao nhiêu phòng?
                 </h2>
-                <p className="text-sm text-slate-600 text-pretty mt-0.5">
-                  Kéo thanh trượt hoặc nhập số để xem mức giá và gói tối ưu nhất.
-                </p>
               </div>
               <div className="flex items-center border border-slate-200 bg-white rounded-lg px-3 py-1.5 shadow-sm">
                 <input
@@ -776,38 +773,10 @@ export default function GiaPage() {
 
         {/* SECTION 4: DETAILED MATRIX TABLE */}
         <section className="space-y-6" data-purpose="matrix-table-section">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 text-balance">
-                Bảng giá chi tiết theo số lượng phòng
-              </h2>
-              <p className="text-sm sm:text-base text-slate-600 mt-1 text-pretty">
-                Bảng giá chi tiết theo từng quy mô phòng. Hàng nổi bật tự động tương ứng theo số phòng của thanh trượt.
-              </p>
-            </div>
-
-            {/* Yearly Discount Switch */}
-            <div className="flex items-center gap-3 self-start md:self-auto bg-slate-50 px-4 py-2 rounded-xl border border-slate-200">
-              <span className="text-sm font-semibold text-slate-700 whitespace-nowrap">
-                Thanh toán hàng năm <span className="text-amber-700 font-bold">(Tiết kiệm đến 20%)</span>
-              </span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={billingCycle === "annual"}
-                aria-label="Chuyển đổi chu kỳ thanh toán hàng năm"
-                onClick={() => setBillingCycle(billingCycle === "annual" ? "monthly" : "annual")}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  billingCycle === "annual" ? "bg-emerald-900" : "bg-slate-300"
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    billingCycle === "annual" ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </div>
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 text-balance">
+              Bảng giá chi tiết theo số lượng phòng
+            </h2>
           </div>
 
           {/* Matrix Table Card */}

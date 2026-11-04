@@ -1518,3 +1518,43 @@ export function showWarningAlert(
     },
   });
 }
+
+export function showInfoAlert(
+  title: string,
+  messageOrHtml: string | TrustedAlertHtml,
+  options?: AlertOptions,
+) {
+  const content = resolveAlertContent(messageOrHtml);
+  const isHtml = "html" in content;
+  const timer =
+    options?.timer === false
+      ? undefined
+      : options?.timer !== undefined
+        ? options.timer
+        : isHtml
+          ? 3500
+          : 2000;
+  const timerProgressBar = timer !== undefined;
+  return SwalVietSage.fire({
+    titleText: preventOrphans(title),
+    ...content,
+    icon: "info",
+    timer,
+    timerProgressBar,
+    showConfirmButton: true,
+    confirmButtonText: options?.confirmButtonText ?? "OK",
+    showCancelButton: options?.showCancelButton ?? false,
+    cancelButtonText: options?.cancelButtonText ?? "Hủy bỏ",
+    reverseButtons: options?.reverseButtons ?? false,
+    customClass: {
+      popup: options?.customClass?.popup ?? (isHtml ? SWAL_POPUP_MEDIUM : SWAL_POPUP_STANDARD),
+      title: options?.customClass?.title ?? SWAL_TITLE_CLASS,
+      htmlContainer:
+        options?.customClass?.htmlContainer ??
+        (isHtml ? SWAL_HTML_CONTAINER_LEFT_CLASS : SWAL_HTML_CONTAINER_CLASS),
+      confirmButton: options?.customClass?.confirmButton ?? SWAL_CONFIRM_BTN_CLASS,
+      cancelButton: options?.customClass?.cancelButton ?? SWAL_CANCEL_BTN_CLASS,
+      actions: options?.customClass?.actions ?? SWAL_ACTIONS_CLASS,
+    },
+  });
+}

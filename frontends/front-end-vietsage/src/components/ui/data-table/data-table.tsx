@@ -1,5 +1,13 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useMemo, type ReactNode } from "react";
 import Link from "next/link";
+import {
+  type ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 import type {
   DataTableColumnAlign,
   DataTableColumnType,
@@ -94,7 +102,7 @@ function PaginationButton({
   onClick?: () => void;
 }>) {
   const baseClass =
-    "inline-flex h-9 min-w-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-slate-700 transition-all shadow-2xs whitespace-nowrap";
+    "inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-slate-700 transition-all shadow-2xs whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 select-none";
 
   if (disabled) {
     return (
@@ -163,6 +171,101 @@ export function DataTable<TData>({
   const selectedCount = selection?.selectedIds.length ?? 0;
   const resolvedEmptyTitle = emptyState?.title ?? emptyMessage ?? "Không có dữ liệu";
 
+  const tableColumns = useMemo<ColumnDef<TData>[]>(() => {
+    const cols: ColumnDef<TData>[] = [];
+
+    if (selectable) {
+      cols.push({
+        id: "__selection__",
+        header: () => (
+          <div className="flex min-h-[44px] min-w-[44px] items-center justify-center">
+            <input
+              type="checkbox"
+              checked={selection?.isAllSelected ?? (selectedCount > 0 && selectedCount === pageData.length)}
+              onChange={() => selection?.onSelectAll?.()}
+              className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              aria-label="Chọn tất cả bản ghi"
+            />
+          </div>
+        ),
+        cell: ({ row }) => {
+          const key = getRowKey(row.original);
+          const isSelected = selection?.selectedIds.includes(key) ?? false;
+          return (
+            <div className="flex min-h-[44px] min-w-[44px] items-center justify-center">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => selection?.onSelectRow?.(key)}
+                className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                aria-label={`Chọn bản ghi ${key}`}
+              />
+            </div>
+          );
+        },
+      });
+    }
+
+    columns.forEach((col, index) => {
+      const colId = col.id ?? col.key ?? `col-${index}`;
+      cols.push({
+        id: colId,
+        header: () => {
+          const isSorted = sort?.key === colId;
+          const nextDirection: DataTableSortDirection =
+            isSorted && sort.direction === "asc" ? "desc" : "asc";
+
+          const headerContent = col.sortable ? (
+            <span className="inline-flex items-center gap-1.5 font-black text-slate-700 hover:text-slate-900 transition-colors">
+              <span className="text-balance">{col.header}</span>
+              <SortIndicator direction={isSorted ? sort.direction : undefined} />
+            </span>
+          ) : (
+            <span className="text-balance">{col.header}</span>
+          );
+
+          if (col.sortable && sort?.getSortHref) {
+            return (
+              <Link
+                href={sort.getSortHref(colId, nextDirection)}
+                scroll={false}
+                className="inline-flex min-h-[44px] items-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-md px-1 -mx-1"
+              >
+                {headerContent}
+              </Link>
+            );
+          }
+
+          if (col.sortable && sort?.onSortChange) {
+            return (
+              <button
+                type="button"
+                onClick={() => sort.onSortChange?.(colId, nextDirection)}
+                className="inline-flex min-h-[44px] items-center cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-md px-1 -mx-1"
+              >
+                {headerContent}
+              </button>
+            );
+          }
+
+          return <div className="min-h-[24px] flex items-center">{headerContent}</div>;
+        },
+        cell: ({ row }) => col.cell(row.original),
+      });
+    });
+
+    return cols;
+  }, [columns, selectable, selection, selectedCount, pageData.length, getRowKey, sort]);
+
+  const table = useReactTable({
+    data: pageData,
+    columns: tableColumns,
+    getCoreRowModel: getCoreRowModel(),
+    getRowId: (row) => getRowKey(row),
+    manualPagination: true,
+    manualSorting: true,
+  });
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden space-y-0">
       {/* Header & Toolbar */}
@@ -171,7 +274,7 @@ export function DataTable<TData>({
           {header}
           {title ? (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="text-lg font-extrabold text-slate-900">{title}</div>
+              <div className="text-lg font-extrabold text-slate-900 text-balance">{title}</div>
             </div>
           ) : null}
 
@@ -195,67 +298,45 @@ export function DataTable<TData>({
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse table-fixed" style={{ minWidth }}>
           <thead>
-            <tr className={`border-b-2 border-slate-200 bg-slate-100/90 text-xs font-black uppercase tracking-wider text-slate-600 ${headerPyClass}`}>
-              {selectable ? (
-                <th className={`${headerPyClass} w-12 min-w-[48px] text-center`}>
-                  <input
-                    type="checkbox"
-                    checked={selection?.isAllSelected ?? (selectedCount > 0 && selectedCount === pageData.length)}
-                    onChange={() => selection?.onSelectAll?.()}
-                    className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
-                  />
-                </th>
-              ) : null}
-
-              {columns.map((column, index) => {
-                const colId = column.id ?? column.key ?? `col-${index}`;
-                const align = resolveAlignment(column.type, column.align);
-                const isSorted = sort?.key === colId;
-                const nextDirection: DataTableSortDirection =
-                  isSorted && sort.direction === "asc" ? "desc" : "asc";
-
-                const alignClass =
-                  align === "right"
-                    ? "text-right"
-                    : align === "center"
-                    ? "text-center"
-                    : "text-left";
-
-                const widthClass = resolveWidthClass(column.width, column.type);
-
-                const headerContent = column.sortable ? (
-                  <span className="inline-flex items-center gap-1.5 font-black text-slate-700 hover:text-slate-900 transition-colors">
-                    <span>{column.header}</span>
-                    <SortIndicator direction={isSorted ? sort.direction : undefined} />
-                  </span>
-                ) : (
-                  column.header
-                );
-
-                return (
-                  <th
-                    key={colId}
-                    className={`${headerPyClass} ${alignClass} ${widthClass} overflow-hidden min-w-0 ${column.headerClassName ?? ""}`}
-                  >
-                    {column.sortable && sort?.getSortHref ? (
-                      <Link href={sort.getSortHref(colId, nextDirection)} scroll={false} className="inline-flex cursor-pointer">
-                        {headerContent}
-                      </Link>
-                    ) : column.sortable && sort?.onSortChange ? (
-                      <button
-                        type="button"
-                        onClick={() => sort.onSortChange?.(colId, nextDirection)}
-                        className="inline-flex cursor-pointer text-left"
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr
+                key={headerGroup.id}
+                className={`border-b-2 border-slate-200 bg-slate-100/90 text-xs font-black uppercase tracking-wider text-slate-600 ${headerPyClass}`}
+              >
+                {headerGroup.headers.map((hdr, headerIdx) => {
+                  if (hdr.id === "__selection__") {
+                    return (
+                      <th
+                        key={hdr.id}
+                        className={`${headerPyClass} w-12 min-w-[48px] text-center`}
                       >
-                        {headerContent}
-                      </button>
-                    ) : (
-                      headerContent
-                    )}
-                  </th>
-                );
-              })}
-            </tr>
+                        {flexRender(hdr.column.columnDef.header, hdr.getContext())}
+                      </th>
+                    );
+                  }
+
+                  const colIndex = selectable ? headerIdx - 1 : headerIdx;
+                  const originalCol = columns[colIndex];
+                  const align = resolveAlignment(originalCol?.type, originalCol?.align);
+                  const alignClass =
+                    align === "right"
+                      ? "text-right"
+                      : align === "center"
+                      ? "text-center"
+                      : "text-left";
+                  const widthClass = resolveWidthClass(originalCol?.width, originalCol?.type);
+
+                  return (
+                    <th
+                      key={hdr.id}
+                      className={`${headerPyClass} ${alignClass} ${widthClass} overflow-hidden min-w-0 ${originalCol?.headerClassName ?? ""}`}
+                    >
+                      {flexRender(hdr.column.columnDef.header, hdr.getContext())}
+                    </th>
+                  );
+                })}
+              </tr>
+            ))}
           </thead>
 
           <tbody className="divide-y divide-slate-100 bg-white">
@@ -263,9 +344,10 @@ export function DataTable<TData>({
               <DataTableSkeleton columns={columns} density={density} selectable={selectable} />
             ) : error ? (
               <DataTableErrorState error={error} onRetry={onRetry} colSpan={totalCols} />
-            ) : pageData.length > 0 ? (
-              pageData.map((item) => {
-                const key = getRowKey(item);
+            ) : table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map((row) => {
+                const item = row.original;
+                const key = row.id;
                 const isSelected = selection?.selectedIds.includes(key) ?? false;
 
                 return (
@@ -305,36 +387,38 @@ export function DataTable<TData>({
                       rowClassName?.(item) ?? ""
                     }`}
                   >
-                    {selectable ? (
-                      <td className={`${pyClass} w-12 min-w-[48px] text-center overflow-hidden`} onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => selection?.onSelectRow?.(key)}
-                          className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
-                        />
-                      </td>
-                    ) : null}
+                    {row.getVisibleCells().map((cell, cellIdx) => {
+                      if (cell.column.id === "__selection__") {
+                        return (
+                          <td
+                            key={cell.id}
+                            className={`${pyClass} w-12 min-w-[48px] text-center overflow-hidden`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        );
+                      }
 
-                    {columns.map((column, index) => {
-                      const colId = column.id ?? column.key ?? `col-${index}`;
-                      const align = resolveAlignment(column.type, column.align);
+                      const colIndex = selectable ? cellIdx - 1 : cellIdx;
+                      const originalCol = columns[colIndex];
+                      const align = resolveAlignment(originalCol?.type, originalCol?.align);
                       const alignClass =
                         align === "right"
                           ? "text-right"
                           : align === "center"
                           ? "text-center"
                           : "text-left";
-                      const widthClass = resolveWidthClass(column.width, column.type);
+                      const widthClass = resolveWidthClass(originalCol?.width, originalCol?.type);
 
                       return (
                         <td
-                          key={colId}
+                          key={cell.id}
                           className={`${pyClass} ${alignClass} ${widthClass} overflow-hidden min-w-0 text-sm font-medium text-slate-900 ${
-                            column.cellClassName ?? column.className ?? ""
+                            originalCol?.cellClassName ?? originalCol?.className ?? ""
                           }`}
                         >
-                          {column.cell(item)}
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </td>
                       );
                     })}
@@ -362,7 +446,7 @@ export function DataTable<TData>({
             <select
               value={pageSize}
               onChange={(e) => pagination.onPageSizeChange?.(Number(e.target.value))}
-              className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-800 shadow-2xs focus:border-emerald-600 focus:outline-none"
+              className="h-10 min-h-[44px] sm:min-h-[36px] sm:h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-base sm:text-xs font-bold text-slate-800 shadow-2xs focus:border-emerald-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
             >
               {pageSizeOptions.map((opt) => (
                 <option key={opt} value={opt}>

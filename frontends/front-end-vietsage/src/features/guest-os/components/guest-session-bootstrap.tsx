@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { HttpError } from "@/core/http/http-error";
 import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
 import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
+import { safeLocalStorage } from "@/core/storage/safe-storage";
 import {
   decideGuestSessionValidationError,
   isCurrentGuestSessionValidation,
@@ -68,7 +69,7 @@ export function GuestSessionBootstrap({ children }: { children: ReactNode }) {
     if (!isHydrated) return;
     if (!migratedRef.current) {
       migratedRef.current = true;
-      const migratedToken = migrateLegacyGuestSession(window.localStorage, sessionToken);
+      const migratedToken = migrateLegacyGuestSession(safeLocalStorage, sessionToken);
       if (migratedToken) {
         importSessionToken(migratedToken);
         return;

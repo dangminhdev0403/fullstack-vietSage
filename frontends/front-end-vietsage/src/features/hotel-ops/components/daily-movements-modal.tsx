@@ -545,8 +545,7 @@ export function DailyMovementsModal({
                         <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500">
                           <th scope="col" className="px-5 py-3.5">Khách hàng</th>
                           <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Phòng</th>
-                          <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Dự kiến nhận</th>
-                          <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Dự kiến trả</th>
+                          <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Lịch trình</th>
                           <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Giá phòng</th>
                           <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Trạng thái</th>
                           <th scope="col" className="px-5 py-3.5 text-right whitespace-nowrap">Thao tác</th>
@@ -555,6 +554,17 @@ export function DailyMovementsModal({
                       <tbody className="divide-y divide-slate-100">
                         {filteredArrivals.map((arrival) => {
                           const isCheckedIn = arrival.status === "CHECKED_IN";
+                          const assignedRoom = rooms.find((room) => room.id === arrival.roomId);
+                          const physicalStatus = (assignedRoom?.physicalStatus || assignedRoom?.status || "").toUpperCase();
+                          const hasActiveStay = Boolean(assignedRoom?.activeStay && !assignedRoom.activeStay.checkedOutAt);
+                          const roomReady = physicalStatus === "AVAILABLE" && !hasActiveStay;
+                          const readinessLabel = hasActiveStay || physicalStatus === "OCCUPIED"
+                            ? "Chưa trả phòng"
+                            : ["PROCESSING", "DIRTY"].includes(physicalStatus)
+                              ? "Chờ dọn"
+                              : ["BLOCKED", "MAINTENANCE", "OUT_OF_SERVICE"].includes(physicalStatus)
+                                ? "Phòng bị chặn"
+                                : roomReady ? "Sẵn sàng đón" : "Cần kiểm tra phòng";
                           return (
                             <tr
                               key={arrival.id}
@@ -562,16 +572,11 @@ export function DailyMovementsModal({
                               className="group transition-colors hover:bg-sky-50/70 cursor-pointer"
                               title="Nhấn vào hàng để xem chi tiết đầy đủ và thao tác"
                             >
-                              {/* Khách hàng (gọn gàng, không nhồi nhét mã/đoàn rườm rà) */}
+                              {/* Khách hàng */}
                               <td className="px-5 py-3.5 align-middle">
                                 <div className="font-bold text-slate-900 text-sm group-hover:text-sky-800 transition-colors">
                                   {arrival.guestDisplayName}
                                 </div>
-                                {arrival.guestPhone ? (
-                                  <div className="text-xs text-slate-500 font-medium mt-0.5">
-                                    {arrival.guestPhone}
-                                  </div>
-                                ) : null}
                               </td>
 
                               {/* Phòng */}
@@ -590,14 +595,10 @@ export function DailyMovementsModal({
                                 )}
                               </td>
 
-                              {/* Dự kiến nhận */}
+                              {/* Lịch trình */}
                               <td className="px-4 py-3.5 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">
-                                {formatDateTimeVi(arrival.plannedCheckInAt)}
-                              </td>
-
-                              {/* Dự kiến trả */}
-                              <td className="px-4 py-3.5 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">
-                                {formatDateTimeVi(arrival.plannedCheckOutAt)}
+                                <div>{formatDateTimeVi(arrival.plannedCheckInAt)}</div>
+                                <div className="text-slate-500 font-normal">→ {formatDateTimeVi(arrival.plannedCheckOutAt)}</div>
                               </td>
 
                               {/* Giá */}
@@ -613,8 +614,8 @@ export function DailyMovementsModal({
                                     <span>Đã nhận phòng</span>
                                   </span>
                                 ) : arrival.roomId ? (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-800 px-3 py-0.5 text-xs font-bold whitespace-nowrap">
-                                    <span>Sẵn sàng đón</span>
+                                  <span className={`inline-flex items-center gap-1 rounded-full px-3 py-0.5 text-xs font-bold whitespace-nowrap ${roomReady ? "bg-blue-100 text-blue-800" : "bg-amber-100 text-amber-900"}`}>
+                                    <span>{readinessLabel}</span>
                                   </span>
                                 ) : (
                                   <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-3 py-0.5 text-xs font-bold whitespace-nowrap">
@@ -623,7 +624,7 @@ export function DailyMovementsModal({
                                 )}
                               </td>
 
-                              {/* Thao tác: Giữ gọn gàng, xoá nút Sửa & icon Mắt, click row để xem chi tiết */}
+                              {/* Thao tác */}
                               <td className="px-5 py-3.5 align-middle text-right whitespace-nowrap">
                                 <div className="inline-flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                                   {!isCheckedIn && canCheckInStay ? (
@@ -637,15 +638,6 @@ export function DailyMovementsModal({
                                       <span>Nhận phòng</span>
                                     </button>
                                   ) : null}
-                                  <button
-                                    type="button"
-                                    onClick={() => onOpenArrivalDetail?.(arrival)}
-                                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white hover:bg-sky-50 hover:border-sky-300 text-slate-700 hover:text-sky-800 px-2.5 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap min-h-[32px]"
-                                    title="Xem chi tiết đầy đủ và thao tác"
-                                  >
-                                    <span>Chi tiết</span>
-                                    <VsIcon name="chevron_right" className="text-sm text-slate-400" />
-                                  </button>
                                 </div>
                               </td>
                             </tr>
@@ -754,16 +746,6 @@ export function DailyMovementsModal({
                                         <span>In</span>
                                       </button>
                                     ) : null}
-                                    {onOpenGroupDetail ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => onOpenGroupDetail(group.groupCode)}
-                                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white hover:bg-purple-50 hover:border-purple-300 text-slate-700 hover:text-purple-900 px-2.5 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap min-h-[32px]"
-                                      >
-                                        <span>Chi tiết</span>
-                                        <VsIcon name="chevron_right" className="text-sm text-slate-400" />
-                                      </button>
-                                    ) : null}
                                   </div>
                                 </td>
                               </tr>
@@ -856,11 +838,6 @@ export function DailyMovementsModal({
                                 <div className="font-bold text-slate-900 text-sm group-hover:text-amber-900 transition-colors">
                                   {stay.guestDisplayName || "Khách lưu trú"}
                                 </div>
-                                {stay.guestPhone ? (
-                                  <div className="text-xs text-slate-500 font-medium mt-0.5">
-                                    {stay.guestPhone}
-                                  </div>
-                                ) : null}
                               </td>
 
                               {/* Phòng */}
@@ -915,15 +892,6 @@ export function DailyMovementsModal({
                                       <span>Trả phòng (OUT)</span>
                                     </button>
                                   ) : null}
-                                  <button
-                                    type="button"
-                                    onClick={() => onOpenRoomDetail?.({ ...room, activeStay: stay })}
-                                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white hover:bg-amber-50 hover:border-amber-300 text-slate-700 hover:text-amber-900 px-2.5 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap min-h-[32px]"
-                                    title="Xem chi tiết đầy đủ và thao tác"
-                                  >
-                                    <span>Chi tiết</span>
-                                    <VsIcon name="chevron_right" className="text-sm text-slate-400" />
-                                  </button>
                                 </div>
                               </td>
                             </tr>
@@ -962,15 +930,17 @@ export function DailyMovementsModal({
             setIsAutoCheckInAfterAssign(false);
             setAssigningArrival(null);
           }}
-          onSuccess={async (assignedRoomId) => {
-            setAssigningArrival(null);
+          onSuccess={async () => {
+            const updated = isAutoCheckInAfterAssign
+              ? await staffRoomsRepository.getReservation(hotelId, assigningArrival.id)
+              : null;
             await invalidateHotelRealtimeQueries(queryClient, hotelId);
             await onRefreshData();
+            setAssigningArrival(null);
             if (isAutoCheckInAfterAssign) {
               setIsAutoCheckInAfterAssign(false);
-              const updated = arrivalsList.find((a) => a.id === assigningArrival.id);
               if (updated) {
-                onCheckInArrival({ ...updated, roomId: assignedRoomId });
+                await onCheckInArrival(updated);
               }
             }
           }}

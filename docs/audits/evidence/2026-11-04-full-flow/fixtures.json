@@ -1,0 +1,151 @@
+{
+  "hotelId": "cmq2k2lm0003f2oui3ifqp808",
+  "createdAt": "2026-11-04T08:34:58.999Z",
+  "rooms": [
+    {
+      "id": "audit-20261104-room-A",
+      "number": "QA04-A",
+      "status": "AVAILABLE",
+      "qr": true
+    },
+    {
+      "id": "audit-20261104-room-B",
+      "number": "QA04-B",
+      "status": "AVAILABLE",
+      "qr": true
+    },
+    {
+      "id": "audit-20261104-room-C",
+      "number": "QA04-C",
+      "status": "PROCESSING",
+      "qr": true
+    },
+    {
+      "id": "audit-20261104-room-D",
+      "number": "QA04-D",
+      "status": "OCCUPIED",
+      "qr": true
+    },
+    {
+      "id": "audit-20261104-room-E",
+      "number": "QA04-E",
+      "status": "OCCUPIED",
+      "qr": true
+    },
+    {
+      "id": "audit-20261104-room-F",
+      "number": "QA04-F",
+      "status": "AVAILABLE",
+      "qr": true
+    },
+    {
+      "id": "audit-20261104-room-G",
+      "number": "QA04-G",
+      "status": "BLOCKED",
+      "qr": true
+    },
+    {
+      "id": "audit-20261104-room-H",
+      "number": "QA04-H",
+      "status": "AVAILABLE",
+      "qr": true
+    },
+    {
+      "id": "audit-20261104-room-I",
+      "number": "QA04-I",
+      "status": "AVAILABLE",
+      "qr": false
+    },
+    {
+      "id": "audit-20261104-room-J",
+      "number": "QA04-J",
+      "status": "AVAILABLE",
+      "qr": true
+    },
+    {
+      "id": "audit-20261104-room-K",
+      "number": "QA04-K",
+      "status": "AVAILABLE",
+      "qr": true
+    }
+  ],
+  "reservations": [
+    {
+      "id": "audit-20261104-res-TODAY",
+      "code": "AUDIT04-TODAY",
+      "room": "A",
+      "start": "2026-11-04",
+      "end": "2026-11-06"
+    },
+    {
+      "id": "audit-20261104-res-LATE",
+      "code": "AUDIT04-LATE",
+      "room": "B",
+      "start": "2026-11-03",
+      "end": "2026-11-06"
+    },
+    {
+      "id": "audit-20261104-res-DIRTY",
+      "code": "AUDIT04-DIRTY",
+      "room": "C",
+      "start": "2026-11-04",
+      "end": "2026-11-06"
+    },
+    {
+      "id": "audit-20261104-res-ACTIVE",
+      "code": "AUDIT04-ACTIVE",
+      "room": "D",
+      "start": "2026-11-04",
+      "end": "2026-11-06"
+    },
+    {
+      "id": "audit-20261104-res-OVERDUE",
+      "code": "AUDIT04-OVERDUE",
+      "room": "E",
+      "start": "2026-11-04",
+      "end": "2026-11-06"
+    },
+    {
+      "id": "audit-20261104-res-EARLY",
+      "code": "AUDIT04-EARLY",
+      "room": "F",
+      "start": "2026-11-05",
+      "end": "2026-11-07"
+    },
+    {
+      "id": "audit-20261104-res-BLOCKED",
+      "code": "AUDIT04-BLOCKED",
+      "room": "G",
+      "start": "2026-11-04",
+      "end": "2026-11-06"
+    },
+    {
+      "id": "audit-20261104-res-NOQR",
+      "code": "AUDIT04-NOQR",
+      "room": "I",
+      "start": "2026-11-04",
+      "end": "2026-11-06"
+    },
+    {
+      "id": "audit-20261104-res-UNASSIGNED",
+      "code": "AUDIT04-UNASSIGNED",
+      "room": null,
+      "start": "2026-11-04",
+      "end": "2026-11-06"
+    }
+  ],
+  "stays": [
+    {
+      "id": "audit-20261104-stay-D",
+      "room": "D",
+      "start": "2026-11-02",
+      "end": "2026-11-05"
+    },
+    {
+      "id": "audit-20261104-stay-E",
+      "room": "E",
+      "start": "2026-11-02",
+      "end": "2026-11-03"
+    }
+  ]
+}

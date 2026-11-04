@@ -19,6 +19,7 @@ import { PrismaService } from "../../../prisma/prisma.service";
 import { CodesService } from "../../codes/codes-public";
 import { ReservationRoomAllocationService } from "../../property/property-public";
 import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
+import { plainDateAtTime, VIETNAM_TIME_ZONE } from "../../../common/time/vietnam-temporal";
 import {
   CatalogExportDto,
   CreateHoldDto,
@@ -80,7 +81,7 @@ function parseVietnamDate(dateStr: string, timeStr = "14:00:00"): Date {
   if (dateStr.includes("T")) {
     return new Date(dateStr);
   }
-  return new Date(`${dateStr}T${timeStr}+07:00`);
+  return plainDateAtTime(dateStr, timeStr, VIETNAM_TIME_ZONE);
 }
 
 @Injectable()

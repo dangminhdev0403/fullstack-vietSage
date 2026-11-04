@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { showErrorAlert, showSuccessAlert } from "@/libs/swal";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { ownerRoomTypesResource } from "@/features/hotel-ops/resources/owner-room-types-resource";
+import { ownerRoomsResource } from "@/features/hotel-ops/resources/owner-rooms-resource";
 import type { HotelRoomType } from "@/features/hotel-ops/types/hotel-ops-contract";
 
 type RoomTypesCatalogModalProps = {
@@ -119,7 +120,7 @@ export function RoomTypesCatalogModal({
 
       await refetch();
       await roomTypesScope.invalidate(queryClient);
-      await queryClient.invalidateQueries({ queryKey: ["vietsage", "owner-rooms", "hotel", hotelId] });
+      await ownerRoomsResource.bind({ hotelId }).invalidate(queryClient);
 
       setEditingPrices((prev) => {
         const next = { ...prev };
@@ -174,7 +175,7 @@ export function RoomTypesCatalogModal({
 
       await refetch();
       await roomTypesScope.invalidate(queryClient);
-      await queryClient.invalidateQueries({ queryKey: ["vietsage", "owner-rooms", "hotel", hotelId] });
+      await ownerRoomsResource.bind({ hotelId }).invalidate(queryClient);
 
       setNewTypeName("");
       setNewTypePrice("");

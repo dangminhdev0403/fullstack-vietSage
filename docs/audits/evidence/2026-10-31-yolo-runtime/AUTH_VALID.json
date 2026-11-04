@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "case_id": "AUTH_VALID",
+  "captured_at": "2026-10-31T06:46:57.561Z",
+  "url": "https://vietsage.localhost/owner/dashboard",
+  "screenshot": "AUTH_VALID.jpg",
+  "checks": {
+    "owner_dashboard": true,
+    "logout_visible": true,
+    "document_200": true
+  },
+  "runtime": {
+    "complete": true,
+    "truncated": false,
+    "events": [
+      {
+        "kind": "request_failed",
+        "path": "/api/owner/hotels",
+        "message": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "kind": "redirect",
+        "status": 308,
+        "path": "/socket.io/"
+      },
+      {
+        "kind": "redirect",
+        "status": 308,
+        "path": "/socket.io/"
+      },
+      {
+        "kind": "redirect",
+        "status": 308,
+        "path": "/socket.io/"
+      },
+      {
+        "kind": "redirect",
+        "status": 308,
+        "path": "/socket.io/"
+      },
+      {
+        "kind": "request_failed",
+        "path": "/g/collect",
+        "message": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      {
+        "kind": "redirect",
+        "status": 308,
+        "path": "/socket.io/"
+      },
+      {
+        "kind": "redirect",
+        "status": 308,
+        "path": "/socket.io/"
+      }
+    ],
+    "documents": [
+      {
+        "path": "/owner/dashboard",
+        "status": 200
+      }
+    ]
+  },
+  "visual": {
+    "reference": "AUTH_VALID-reference.jpg",
+    "bboxes": [
+      [
+        1082.40625,
+        9.5,
+        1186,
+        53.5
+      ]
+    ],
+    "labels": [
+      "logout_button"
+    ],
+    "targets": [
+      {
+        "label": "logout_button",
+        "box": [
+          1082.40625,
+          9.5,
+          1186,
+          53.5
+        ]
+      }
+    ]
+  },
+  "screenshot_sha256": "5875a34f737a91e311f9e3065bee90f0ebe579019718e5223978939ee365e1a4",
+  "reference_sha256": "85887e6e823323bc27cc732bf3536403f130a8aa0d853d1c4491c03b9cd66c2e",
+  "completed_steps": [
+    "Mở dashboard với phiên đã đăng nhập và thu ảnh tham chiếu.",
+    "Bắt đầu CDP, tải lại dashboard, đợi nội dung vận hành hiện.",
+    "Đọc heading, nút đăng xuất và HTTP document; lưu screenshot/capture."
+  ],
+  "steps_origin": "Bổ sung mô tả từ trace thao tác của lượt capture trước; không phải log timestamp từng bước hoặc lượt browser mới.",
+  "observations": {
+    "owner_dashboard": {
+      "source": "DOM",
+      "observed": "Heading Tổng quan vận hành — Khách sạn minh 123",
+      "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+    },
+    "logout_visible": {
+      "source": "DOM",
+      "observed": "Nút Đăng xuất được đối chiếu hiển thị",
+      "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+    },
+    "document_200": {
+      "source": "CDP",
+      "observed": "CDP: /owner/dashboard status 200",
+      "basis": "Capture trước tại captured_at; mô tả được bổ sung khi chuẩn hóa báo cáo."
+    }
+  }
+}

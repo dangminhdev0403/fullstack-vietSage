@@ -1,3 +1,5 @@
+import { safeLocalStorage } from "@/core/storage/safe-storage";
+
 const GUEST_SESSION_STORAGE_KEY = "guestSessionToken";
 const LEGACY_GUEST_SESSION_STORAGE_KEY = "vietsage.guestSession.v1";
 
@@ -62,5 +64,5 @@ export function migrateLegacyGuestSession(storage: GuestSessionStorage, currentT
 }
 
 export function clearStoredGuestSession(): void {
-  if (isBrowser()) clearGuestSessionCompatibilityKeys(window.localStorage);
+  clearGuestSessionCompatibilityKeys(safeLocalStorage);
 }

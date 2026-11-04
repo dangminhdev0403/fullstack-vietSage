@@ -189,10 +189,8 @@ export function FrontDeskArrivalDetailPanel({
 
   // Query all rooms so we know both available rooms and live status/conflict of assigned room
   const canAssignRoom = Boolean(canManageReservations || canOperateArrivals);
-  const { data: roomsPage, isLoading: isLoadingRooms } = useQuery({
-    ...staffRoomsResource.bind({ hotelId }).queries.list.options({
-      limit: 200,
-    }),
+  const { data: roomsPage, isPending: isLoadingRooms, isError: isRoomsError } = useQuery({
+    ...staffRoomsResource.bind({ hotelId }).queries.allRooms.options(),
     enabled: Boolean(isOpen && hotelId),
     staleTime: 8_000,
   });
@@ -205,10 +203,7 @@ export function FrontDeskArrivalDetailPanel({
     return allHotelRooms.filter((r) => r.status === "AVAILABLE" || r.id === arrival?.roomId);
   }, [allHotelRooms, arrival?.roomId]);
 
-  const assignedRoomLive = useMemo(() => {
-    if (!arrival?.roomId) return null;
-    return allHotelRooms.find((r) => r.id === arrival.roomId) || null;
-  }, [allHotelRooms, arrival?.roomId]);
+  const assignedRoomLive = allHotelRooms.find((r) => r.id === arrival?.roomId) || null;
 
   const assignedRoomConflictStay = useMemo(() => {
     const st = assignedRoomLive?.activeStay;
@@ -227,7 +222,7 @@ export function FrontDeskArrivalDetailPanel({
   const assignedRoomLiveStatus = (
     assignedRoomLive?.status ||
     arrival?.room?.status ||
-    "AVAILABLE"
+    ""
   ).toUpperCase();
 
   const isAssignedRoomOccupiedConflict = Boolean(
@@ -1071,7 +1066,7 @@ export function FrontDeskArrivalDetailPanel({
                             ? `Phòng đang có khách lưu trú${assignedRoomConflictStay?.guestName ? ` (${assignedRoomConflictStay.guestName})` : ""} chưa làm thủ tục trả phòng (Check-out).`
                             : isAssignedRoomCleaningConflict
                               ? "Phòng khách cũ vừa trả, đang ở trạng thái chờ buồng phòng dọn sạch."
-                              : `Sức chứa: ${assignedRoomLive?.maxOccupancy ? `${assignedRoomLive.maxOccupancy} khách` : "—"} · Phòng đã sẵn sàng tiếp đón khi khách đến.`}
+                              : `Sức chứa: ${assignedRoomLive?.maxOccupancy ? `${assignedRoomLive.maxOccupancy} khách` : "—"}.`}
                         </p>
                       </div>
                     </div>
@@ -1089,7 +1084,7 @@ export function FrontDeskArrivalDetailPanel({
                     ) : (
                       <span className="inline-flex items-center gap-1.5 self-start sm:self-center rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-xs font-bold text-emerald-800 whitespace-nowrap">
                         <span className="h-2 w-2 rounded-full bg-emerald-600" />
-                        <span>Đã phân bổ · Sẵn sàng</span>
+                        <span>{isLoadingRooms || isRoomsError || !assignedRoomLive ? "Chưa xác minh trạng thái" : assignedRoomLiveStatus === "AVAILABLE" ? "Đã phân bổ · Sẵn sàng" : "Phòng chưa sẵn sàng"}</span>
                       </span>
                     )}
                   </div>
@@ -1120,7 +1115,7 @@ export function FrontDeskArrivalDetailPanel({
                           onClick={async () => {
                             if (!arrival.roomId) return;
                             try {
-                              await staffRoomsRepository.markRoomReady(hotelId, arrival.roomId);
+                              await staffRoomsRepository.markRoomReady(hotelId, arrival.roomId, assignedRoomLive?.updatedAt);
                               await invalidateHotelRealtimeQueries(queryClient, hotelId);
                               await showSuccessAlert(
                                 "Phòng đã sẵn sàng!",
@@ -1723,7 +1718,6 @@ export function FrontDeskArrivalDetailPanel({
             ? (stayId, roomNum) => {
                 const params = new URLSearchParams();
                 params.set("stayId", stayId);
-                if (activeArrival.roomId) params.set("roomId", activeArrival.roomId);
                 if (roomNum) params.set("roomNumber", roomNum);
                 setIsEditModalOpen(false);
                 onClose();
@@ -1738,9 +1732,11 @@ export function FrontDeskArrivalDetailPanel({
             activeArrival.status !== "NO_SHOW" &&
             activeArrival.status !== "CHECKED_IN",
         )}
-        onCheckIn={() => {
+        onCheckIn={(updated) => {
+          setLocalArrival(updated);
           setIsEditModalOpen(false);
-          handleStartCheckIn();
+          setCheckInError(undefined);
+          setIsCheckInWorkspaceOpen(true);
         }}
         onViewDetails={() => setIsEditModalOpen(false)}
         onOpenGroupOperations={

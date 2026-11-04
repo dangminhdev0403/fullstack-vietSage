@@ -1195,7 +1195,8 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                 const normalizedOccDob = toIsoDate(rawOccDob) || rawOccDob;
                 return {
                   ...occupant,
-                  dateOfBirth: normalizedOccDob,
+                  identityNumber: occupant.identityNumber?.trim() || undefined,
+                  dateOfBirth: normalizedOccDob || undefined,
                   nationality: matchBcaNationalityCode(
                     occupant.nationality,
                     nationalities,
@@ -1355,26 +1356,17 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                         <span className="text-xs font-bold text-slate-400">#</span>
                       )}
                     </th>
-                    <th className="min-w-[180px] px-2.5 py-3 font-bold text-slate-900">
+                    <th className="min-w-[170px] px-2.5 py-3 font-bold text-slate-900">
                       Họ và tên <span className="text-red-600">*</span>
                     </th>
-                    <th className="w-44 min-w-[160px] px-2.5 py-3 font-bold text-slate-900">
-                      Số CCCD / Hộ chiếu
+                    <th className="min-w-[240px] px-2.5 py-3 font-bold text-slate-900">
+                      CCCD & Quốc tịch
                     </th>
-                    <th className="w-44 min-w-[160px] px-2.5 py-3 font-bold text-slate-900">
-                      Quốc tịch
-                    </th>
-                    <th className="min-w-[190px] px-2.5 py-3 font-bold text-slate-900">
+                    <th className="min-w-[180px] px-2.5 py-3 font-bold text-slate-900">
                       Quê quán / Địa chỉ
                     </th>
-                    <th className="w-38 min-w-[145px] px-2.5 py-3 font-bold text-slate-900">
-                      Ngày sinh{" "}
-                      <span className="text-xs font-normal text-slate-500">
-                        (dd/mm/yyyy)
-                      </span>
-                    </th>
-                    <th className="w-28 min-w-[100px] px-2.5 py-3 font-bold text-slate-900">
-                      Giới tính
+                    <th className="min-w-[200px] px-2.5 py-3 font-bold text-slate-900">
+                      Ngày sinh & Giới tính
                     </th>
                     <th className="w-12 px-2 py-3 text-center font-bold text-slate-900">
                       Xóa
@@ -1418,50 +1410,50 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                         />
                       </td>
                       <td className="px-2 py-2">
-                        <input
-                          id="ciw-id"
-                          type="text"
-                          value={fields.guestIdentityNumber || ""}
-                          onChange={(e) =>
-                            setFields({
-                              ...fields,
-                              guestIdentityNumber: e.target.value,
-                            })
-                          }
-                          className={`${cellInputClass} font-mono uppercase tracking-wide placeholder:normal-case placeholder:font-sans placeholder:text-xs sm:placeholder:text-sm`}
-                          placeholder="Số CCCD / Hộ chiếu"
-                        />
-                      </td>
-                      <td className="px-2 py-2">
-                        <select
-                          id="ciw-nationality"
-                          required
-                          value={matchBcaNationalityCode(
-                            fields.guestNationality || "Việt Nam",
-                            nationalities,
-                          )}
-                          onChange={(e) =>
-                            setFields({
-                              ...fields,
-                              guestNationality: e.target.value,
-                            })
-                          }
-                          className={cellSelectClass}
-                          disabled={nationalitiesQuery.isPending}
-                        >
-                          <option value="">
-                            {nationalitiesQuery.isError
-                              ? "Không tải được quốc tịch BCA"
-                              : nationalitiesQuery.isPending
-                                ? "Đang tải quốc tịch BCA..."
-                                : "Chọn quốc tịch BCA"}
-                          </option>
-                          {nationalities.map((item) => (
-                            <option key={item.code} value={item.code}>
-                              {item.nameVi}
+                        <div className="flex flex-col sm:flex-row gap-1.5">
+                          <input
+                            id="ciw-id"
+                            type="text"
+                            value={fields.guestIdentityNumber || ""}
+                            onChange={(e) =>
+                              setFields({
+                                ...fields,
+                                guestIdentityNumber: e.target.value,
+                              })
+                            }
+                            className={`${cellInputClass} flex-1 font-mono uppercase tracking-wide placeholder:normal-case placeholder:font-sans placeholder:text-xs sm:placeholder:text-sm`}
+                            placeholder="Số CCCD / Hộ chiếu"
+                          />
+                          <select
+                            id="ciw-nationality"
+                            required
+                            value={matchBcaNationalityCode(
+                              fields.guestNationality || "Việt Nam",
+                              nationalities,
+                            )}
+                            onChange={(e) =>
+                              setFields({
+                                ...fields,
+                                guestNationality: e.target.value,
+                              })
+                            }
+                            className={`${cellSelectClass} w-auto sm:w-36 shrink-0`}
+                            disabled={nationalitiesQuery.isPending}
+                          >
+                            <option value="">
+                              {nationalitiesQuery.isError
+                                ? "Lỗi tải"
+                                : nationalitiesQuery.isPending
+                                  ? "Đang tải..."
+                                  : "Quốc tịch BCA"}
                             </option>
-                          ))}
-                        </select>
+                            {nationalities.map((item) => (
+                              <option key={item.code} value={item.code}>
+                                {item.nameVi}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </td>
                       <td className="px-2 py-2">
                         <input
@@ -1479,32 +1471,32 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                         />
                       </td>
                       <td className="px-2 py-2">
-                        <VnDateInput
-                          id="ciw-dob"
-                          value={fields.guestDateOfBirth || ""}
-                          onChange={(val) =>
-                            setFields((f) => ({ ...f, guestDateOfBirth: val }))
-                          }
-                          className={cellInputClass}
-                          placeholder="ngày/tháng/năm"
-                        />
-                      </td>
-                      <td className="px-2 py-2">
-                        <select
-                          id="ciw-gender"
-                          value={fields.guestGender || "Nam"}
-                          onChange={(e) =>
-                            setFields({
-                              ...fields,
-                              guestGender: e.target.value,
-                            })
-                          }
-                          className={cellSelectClass}
-                        >
-                          <option value="Nam">Nam</option>
-                          <option value="Nữ">Nữ</option>
-                          <option value="Khác">Khác</option>
-                        </select>
+                        <div className="flex items-center gap-1.5">
+                          <VnDateInput
+                            id="ciw-dob"
+                            value={fields.guestDateOfBirth || ""}
+                            onChange={(val) =>
+                              setFields((f) => ({ ...f, guestDateOfBirth: val }))
+                            }
+                            className={`${cellInputClass} flex-1 min-w-[105px]`}
+                            placeholder="ngày/tháng/năm"
+                          />
+                          <select
+                            id="ciw-gender"
+                            value={fields.guestGender || "Nam"}
+                            onChange={(e) =>
+                              setFields({
+                                ...fields,
+                                guestGender: e.target.value,
+                              })
+                            }
+                            className={`${cellSelectClass} w-20 shrink-0`}
+                          >
+                            <option value="Nam">Nam</option>
+                            <option value="Nữ">Nữ</option>
+                            <option value="Khác">Khác</option>
+                          </select>
+                        </div>
                       </td>
                       <td className="px-2 py-2 text-center">
                         <button
@@ -1550,7 +1542,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                               }));
                             }
                           }}
-                          className="grid h-8 w-8 place-items-center mx-auto rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                          className="grid h-8 w-8 place-items-center mx-auto rounded-md text-red-700 transition hover:bg-red-50 hover:text-red-800"
                           title="Xóa khách 1"
                         >
                           <svg
@@ -1625,52 +1617,52 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                           />
                         </td>
                         <td className="px-2 py-2">
-                          <input
-                            id={`occ-id-${slotIdx}`}
-                            type="text"
-                            value={occ.identityNumber || ""}
-                            onChange={(e) =>
-                              handleOccupantChange(
-                                occIdx,
-                                "identityNumber",
-                                e.target.value,
-                              )
-                            }
-                            className={`${cellInputClass} font-mono uppercase tracking-wide placeholder:normal-case placeholder:font-sans placeholder:text-xs sm:placeholder:text-sm`}
-                            placeholder="Số CCCD / Hộ chiếu"
-                          />
-                        </td>
-                        <td className="px-2 py-2">
-                          <select
-                            id={`occ-nationality-${slotIdx}`}
-                            required
-                            value={matchBcaNationalityCode(
-                              occ.nationality || "Việt Nam",
-                              nationalities,
-                            )}
-                            onChange={(e) =>
-                              handleOccupantChange(
-                                occIdx,
-                                "nationality",
-                                e.target.value,
-                              )
-                            }
-                            className={cellSelectClass}
-                            disabled={nationalitiesQuery.isPending}
-                          >
-                            <option value="">
-                              {nationalitiesQuery.isError
-                                ? "Không tải được"
-                                : nationalitiesQuery.isPending
-                                  ? "Đang tải..."
-                                  : "Chọn quốc tịch"}
-                            </option>
-                            {nationalities.map((item) => (
-                              <option key={item.code} value={item.code}>
-                                {item.nameVi}
+                          <div className="flex flex-col sm:flex-row gap-1.5">
+                            <input
+                              id={`occ-id-${slotIdx}`}
+                              type="text"
+                              value={occ.identityNumber || ""}
+                              onChange={(e) =>
+                                handleOccupantChange(
+                                  occIdx,
+                                  "identityNumber",
+                                  e.target.value,
+                                )
+                              }
+                              className={`${cellInputClass} flex-1 font-mono uppercase tracking-wide placeholder:normal-case placeholder:font-sans placeholder:text-xs sm:placeholder:text-sm`}
+                              placeholder="Số CCCD / Hộ chiếu"
+                            />
+                            <select
+                              id={`occ-nationality-${slotIdx}`}
+                              required
+                              value={matchBcaNationalityCode(
+                                occ.nationality || "Việt Nam",
+                                nationalities,
+                              )}
+                              onChange={(e) =>
+                                handleOccupantChange(
+                                  occIdx,
+                                  "nationality",
+                                  e.target.value,
+                                )
+                              }
+                              className={`${cellSelectClass} w-auto sm:w-36 shrink-0`}
+                              disabled={nationalitiesQuery.isPending}
+                            >
+                              <option value="">
+                                {nationalitiesQuery.isError
+                                  ? "Lỗi tải"
+                                  : nationalitiesQuery.isPending
+                                    ? "Đang tải..."
+                                    : "Quốc tịch"}
                               </option>
-                            ))}
-                          </select>
+                              {nationalities.map((item) => (
+                                <option key={item.code} value={item.code}>
+                                  {item.nameVi}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </td>
                         <td className="px-2 py-2">
                           <input
@@ -1689,39 +1681,39 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                           />
                         </td>
                         <td className="px-2 py-2">
-                          <VnDateInput
-                            id={`occ-dob-${slotIdx}`}
-                            value={occ.dateOfBirth || ""}
-                            onChange={(val) =>
-                              handleOccupantChange(occIdx, "dateOfBirth", val)
-                            }
-                            className={cellInputClass}
-                            placeholder="ngày/tháng/năm"
-                          />
-                        </td>
-                        <td className="px-2 py-2">
-                          <select
-                            id={`occ-gender-${slotIdx}`}
-                            value={occ.gender || "Nam"}
-                            onChange={(e) =>
-                              handleOccupantChange(
-                                occIdx,
-                                "gender",
-                                e.target.value,
-                              )
-                            }
-                            className={cellSelectClass}
-                          >
-                            <option value="Nam">Nam</option>
-                            <option value="Nữ">Nữ</option>
-                            <option value="Khác">Khác</option>
-                          </select>
+                          <div className="flex items-center gap-1.5">
+                            <VnDateInput
+                              id={`occ-dob-${slotIdx}`}
+                              value={occ.dateOfBirth || ""}
+                              onChange={(val) =>
+                                handleOccupantChange(occIdx, "dateOfBirth", val)
+                              }
+                              className={`${cellInputClass} flex-1 min-w-[105px]`}
+                              placeholder="ngày/tháng/năm"
+                            />
+                            <select
+                              id={`occ-gender-${slotIdx}`}
+                              value={occ.gender || "Nam"}
+                              onChange={(e) =>
+                                handleOccupantChange(
+                                  occIdx,
+                                  "gender",
+                                  e.target.value,
+                                )
+                              }
+                              className={`${cellSelectClass} w-20 shrink-0`}
+                            >
+                              <option value="Nam">Nam</option>
+                              <option value="Nữ">Nữ</option>
+                              <option value="Khác">Khác</option>
+                            </select>
+                          </div>
                         </td>
                         <td className="px-2 py-2 text-center">
                           <button
                             type="button"
                             onClick={() => handleRemoveOccupant(occIdx)}
-                            className="grid h-8 w-8 place-items-center mx-auto rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                            className="grid h-8 w-8 place-items-center mx-auto rounded-md text-red-700 transition hover:bg-red-50 hover:text-red-800"
                             title={`Xóa khách ${slotIdx + 1}`}
                           >
                             <svg

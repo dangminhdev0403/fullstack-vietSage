@@ -174,7 +174,12 @@ export function resolveRoomStatusModel(
   let opStatus: ResolvedRoomStatus = "available";
 
   const projected = room?.projectedStatus?.toUpperCase();
-  if (isOverdue) {
+  const physical = (room?.physicalStatus || room?.status || "").toUpperCase();
+  if (["BLOCKED", "OUT_OF_SERVICE", "MAINTENANCE"].includes(physical)) {
+    opStatus = physical === "MAINTENANCE" ? "maintenance" : "blocked";
+  } else if (!isFuture && !stay && ["PROCESSING", "DIRTY"].includes(physical)) {
+    opStatus = "processing";
+  } else if (isOverdue) {
     opStatus = "overdue";
   } else if (projected) {
     if (projected === "OCCUPIED") opStatus = "occupied";
@@ -1152,7 +1157,7 @@ export function FrontDeskRoomDetailPanel({
                           className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition cursor-pointer min-h-[44px]"
                         >
                           <VsIcon name="point_of_sale" className="text-sm" />
-                          <span>Quyết toán trả phòng tại đây</span>
+                          <span>Quyết toán trả phòng</span>
                         </button>
                       )}
                     </div>
@@ -1653,23 +1658,28 @@ export function FrontDeskRoomDetailPanel({
                 : null
             }
             onCheckOutConflictingStay={
-              isOccupiedMode && stay && canViewBilling && (canCheckoutBilling || canCheckOutStay)
-                ? () => {
+              canViewBilling && (canCheckoutBilling || canCheckOutStay)
+                ? (targetStayId, roomNumber) => {
+                    const params = new URLSearchParams({ stayId: targetStayId, roomNumber });
                     setIsEditModalOpen(false);
-                    setIsCheckoutSettlementOpen(true);
+                    onClose();
+                    router.push(`/hotels/${encodeURIComponent(hotelId)}/billing?${params.toString()}`);
                   }
                 : undefined
             }
             canCheckIn={Boolean(canCheckInStay && onCheckInReservation)}
-            onCheckIn={() => {
+            onCheckIn={async (updated) => {
+              setLocalReservation(updated);
               setIsEditModalOpen(false);
-              void handleExecuteCheckIn();
+              await onCheckInReservation?.(updated.id, updated);
+              onClose();
             }}
             onViewDetails={() => setIsEditModalOpen(false)}
             onSuccess={async (updated) => {
               setLocalReservation(updated);
               setIsEditModalOpen(false);
               await invalidateHotelRealtimeQueries(queryClient, hotelId);
+              if (updated.status === "CHECKED_IN") onClose();
             }}
           />
         )}

@@ -14,20 +14,13 @@ import { PrismaService } from "../../../prisma/prisma.service";
 import { HotelAccessService } from "./hotel-access.service";
 import type { GetHotelReportsQuery } from "../domain/schemas/hotel-reports.schema";
 
-const DEFAULT_TIME_ZONE = "Asia/Ho_Chi_Minh";
+import {
+  resolveTimeZone,
+  VIETNAM_TIME_ZONE,
+} from "../../../common/time/vietnam-temporal";
 
-function normalizeTimeZone(raw: string | null | undefined): string {
-  const trimmed = raw?.trim();
-  if (!trimmed || trimmed === "Asia/Saigon") {
-    return DEFAULT_TIME_ZONE;
-  }
-  try {
-    Temporal.Now.zonedDateTimeISO(trimmed);
-    return trimmed;
-  } catch {
-    return DEFAULT_TIME_ZONE;
-  }
-}
+const DEFAULT_TIME_ZONE = VIETNAM_TIME_ZONE;
+const normalizeTimeZone = resolveTimeZone;
 
 function dateToPlainDate(date: Date, timeZone: string): Temporal.PlainDate {
   return Temporal.Instant.fromEpochMilliseconds(date.getTime())

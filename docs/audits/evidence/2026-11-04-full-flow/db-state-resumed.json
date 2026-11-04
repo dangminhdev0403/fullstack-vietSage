@@ -1,0 +1,86 @@
+[
+  {
+    "reservationCode": "AUDIT04-ACTIVE",
+    "status": "CONFIRMED",
+    "roomId": "audit-20261104-room-D",
+    "stayStatus": null,
+    "stayId": null
+  },
+  {
+    "reservationCode": "AUDIT04-BLOCKED",
+    "status": "CONFIRMED",
+    "roomId": "audit-20261104-room-G",
+    "stayStatus": null,
+    "stayId": null
+  },
+  {
+    "reservationCode": "AUDIT04-DIRTY",
+    "status": "CHECKED_IN",
+    "roomId": "audit-20261104-room-C",
+    "stayStatus": "ACTIVE",
+    "stayId": "cmw1v9d1600g2aov4gy5rhsf7"
+  },
+  {
+    "reservationCode": "AUDIT04-EARLY",
+    "status": "NO_SHOW",
+    "roomId": null,
+    "stayStatus": null,
+    "stayId": null
+  },
+  {
+    "reservationCode": "AUDIT04-LATE",
+    "status": "CHECKED_IN",
+    "roomId": "audit-20261104-room-B",
+    "stayStatus": "ACTIVE",
+    "stayId": "cmw1vaop500gbaov4kry0qgqn"
+  },
+  {
+    "reservationCode": "AUDIT04-NOQR",
+    "status": "CHECKED_IN",
+    "roomId": "audit-20261104-room-I",
+    "stayStatus": "ACTIVE",
+    "stayId": "cmw1v725w00fuaov4vajg5w2b"
+  },
+  {
+    "reservationCode": "AUDIT04-OVERDUE",
+    "status": "CONFIRMED",
+    "roomId": "audit-20261104-room-E",
+    "stayStatus": null,
+    "stayId": null
+  },
+  {
+    "reservationCode": "AUDIT04-TODAY",
+    "status": "CHECKED_IN",
+    "roomId": "audit-20261104-room-A",
+    "stayStatus": "CHECKED_OUT",
+    "stayId": "cmw1vci7300gmaov413lxchdg"
+  },
+  {
+    "reservationCode": "AUDIT04-UNASSIGNED",
+    "status": "CHECKED_IN",
+    "roomId": "audit-20261104-room-H",
+    "stayStatus": "ACTIVE",
+    "stayId": "cmw1vmyoh00h2aov41u8x2pu8"
+  },
+  {
+    "reservationCode": "VSH_RESERVATION_0119",
+    "status": "CANCELLED",
+    "roomId": null,
+    "stayStatus": null,
+    "stayId": null
+  },
+  {
+    "reservationCode": "VSH_RESERVATION_0120",
+    "status": "ARRIVAL_READY",
+    "roomId": "audit-20261104-room-J",
+    "stayStatus": null,
+    "stayId": null
+  },
+  {
+    "reservationCode": "VSH_RESERVATION_0121",
+    "status": "ARRIVAL_READY",
+    "roomId": "audit-20261104-room-K",
+    "stayStatus": null,
+    "stayId": null
+  }
+]

@@ -11,7 +11,6 @@ import {
   showErrorAlert,
   showSuccessAlert,
   showWarningAlert,
-  SwalVietSage,
 } from "@/libs/swal";
 import { localMateAdminResource } from "../resource";
 import type {
@@ -382,13 +381,12 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
       newStatus === "QUALIFIED" ? "Duyệt thẩm định đạt chuẩn" : "Tạm dừng hoạt động";
     const statusVietnamese = newStatus === "QUALIFIED" ? "Đạt chuẩn" : "Tạm dừng";
 
-    const confirmResult = await SwalVietSage.fire({
+    const confirmResult = await showConfirmDialog({
       title: `${actionLabel}?`,
       text: `Xác nhận chuyển trạng thái hướng dẫn viên ${guide.fullName} (${guide.guideCode}) sang "${statusVietnamese}".`,
       icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Xác nhận",
-      cancelButtonText: "Hủy",
+      confirmText: "Xác nhận",
+      cancelText: "Hủy",
       reverseButtons: false,
     });
 
@@ -400,23 +398,17 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
         status: newStatus,
       });
 
-      await SwalVietSage.fire({
-        title: "Cập nhật thành công",
-        text: `Đã chuyển hướng dẫn viên ${guide.fullName} sang trạng thái "${statusVietnamese}".`,
-        icon: "success",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showSuccessAlert(
+        "Cập nhật thành công",
+        `Đã chuyển hướng dẫn viên ${guide.fullName} sang trạng thái "${statusVietnamese}".`,
+      );
 
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Không thể cập nhật trạng thái.";
-      await SwalVietSage.fire({
-        title: "Thao tác thất bại",
-        text: msg,
-        icon: "error",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showErrorAlert(
+        "Thao tác thất bại",
+        msg,
+      );
     }
   };
 
@@ -435,13 +427,10 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Không thể tạo liên kết kết nối Telegram.";
       setPairingModalOpen(false);
-      await SwalVietSage.fire({
-        title: "Lỗi kết nối Telegram",
-        text: msg,
-        icon: "error",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showErrorAlert(
+        "Lỗi kết nối Telegram",
+        msg,
+      );
     } finally {
       setIsPairingLoading(false);
     }
@@ -449,13 +438,12 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
 
   const handleDisconnectTelegram = async (guide: LocalMateGuide) => {
     setOpenMenuGuideId(null);
-    const confirmResult = await SwalVietSage.fire({
+    const confirmResult = await showConfirmDialog({
       title: "Hủy kết nối Telegram?",
       text: `Bạn có chắc chắn muốn ngắt kết nối Telegram của hướng dẫn viên ${guide.fullName}? Hướng dẫn viên sẽ không còn nhận được thông báo chuyến đi qua bot.`,
       icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Đồng ý ngắt kết nối",
-      cancelButtonText: "Giữ lại",
+      confirmText: "Đồng ý ngắt kết nối",
+      cancelText: "Giữ lại",
       reverseButtons: false,
     });
 
@@ -463,22 +451,16 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
 
     try {
       await disconnectTelegramMutation.mutateAsync({ guideId: guide.id });
-      await SwalVietSage.fire({
-        title: "Đã hủy kết nối",
-        text: `Đã ngắt liên kết Telegram cho ${guide.fullName}.`,
-        icon: "success",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showSuccessAlert(
+        "Đã hủy kết nối",
+        `Đã ngắt liên kết Telegram cho ${guide.fullName}.`,
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Không thể hủy kết nối Telegram.";
-      await SwalVietSage.fire({
-        title: "Lỗi",
-        text: msg,
-        icon: "error",
-        showConfirmButton: true,
-        confirmButtonText: "OK",
-      });
+      await showErrorAlert(
+        "Lỗi",
+        msg,
+      );
     }
   };
 
@@ -504,13 +486,10 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
         !updated.telegramBinding.blockedAt
       ) {
         setPairingModalOpen(false);
-        await SwalVietSage.fire({
-          title: "Kết nối Telegram thành công!",
-          text: `Hướng dẫn viên ${updated.fullName} đã liên kết thành công với tài khoản Telegram. Giờ đây các thông báo đặt tour sẽ tự động chuyển về Telegram!`,
-          icon: "success",
-          showConfirmButton: true,
-          confirmButtonText: "OK",
-        });
+        await showSuccessAlert(
+          "Kết nối Telegram thành công!",
+          `Hướng dẫn viên ${updated.fullName} đã liên kết thành công với tài khoản Telegram. Giờ đây các thông báo đặt tour sẽ tự động chuyển về Telegram!`,
+        );
       }
     }
   };
@@ -857,10 +836,10 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
                           <img
                             src={guide.avatarUrl}
                             alt={guide.fullName}
-                            className="h-12 w-12 shrink-0 rounded-2xl object-cover ring-2 ring-[#25483F]/10 shadow-xs"
+                            className="h-11 w-11 shrink-0 rounded-2xl object-cover ring-2 ring-[#25483F]/10 shadow-xs"
                           />
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex items-center gap-2">
                               <span className="font-bold text-base text-[#142823] group-hover:text-[#173F35] transition-colors leading-snug">
                                 {guide.fullName}
                               </span>
@@ -870,75 +849,19 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
 
                               {/* Status Badge */}
                               {guide.status === "QUALIFIED" ? (
-                                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#16805C]/10 border border-[#16805C]/20 px-3 py-1 text-xs font-bold text-[#16805C]">
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#16805C]/10 border border-[#16805C]/20 px-3 py-1 text-xs font-bold text-[#16805C] whitespace-nowrap">
                                   <span className="h-1.5 w-1.5 rounded-full bg-[#16805C]" />
                                   Đạt chuẩn
                                 </span>
                               ) : guide.status === "PENDING" ? (
-
-                                <span className="rounded-full bg-[#C79A32]/10 border border-[#C79A32]/20 px-3 py-1 text-xs font-bold text-[#C79A32]">
+                                <span className="rounded-full bg-[#C79A32]/10 border border-[#C79A32]/20 px-3 py-1 text-xs font-bold text-[#C79A32] whitespace-nowrap">
                                   Chờ duyệt
                                 </span>
                               ) : (
-                                <span className="rounded-full bg-[#C94A4A]/10 border border-[#C94A4A]/20 px-3 py-1 text-xs font-bold text-[#C94A4A]">
+                                <span className="rounded-full bg-[#C94A4A]/10 border border-[#C94A4A]/20 px-3 py-1 text-xs font-bold text-[#C94A4A] whitespace-nowrap">
                                   Tạm dừng
                                 </span>
                               )}
-
-                              {/* Position Badge */}
-                              {guide.position === "COORDINATOR" ? (
-                                <span className="rounded-md bg-purple-50 px-2 py-0.5 text-xs font-bold text-purple-700 border border-purple-200">
-                                  Điều phối
-                                </span>
-                              ) : guide.position === "LEADER" ? (
-                                <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-bold text-indigo-700 border border-indigo-200">
-                                  Trưởng nhóm
-                                </span>
-                              ) : null}
-
-                              {/* Telegram Binding Badge */}
-                              {guide.telegramBinding &&
-                              !guide.telegramBinding.revokedAt &&
-                              !guide.telegramBinding.blockedAt ? (
-                                <span
-                                  className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-300 px-2.5 py-0.5 text-xs font-bold text-emerald-800"
-                                  title={`Telegram Chat ID: ${guide.telegramBinding.telegramChatId}`}
-                                >
-                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                  Telegram đã kết nối
-                                </span>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleConnectTelegram(guide);
-                                  }}
-                                  className="inline-flex items-center gap-1 rounded-full bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2.5 py-0.5 text-xs font-bold text-sky-700 transition-colors cursor-pointer"
-                                  title="Bấm để kết nối Telegram"
-                                >
-                                  <VsIcon name="send" className="text-xs text-sky-600" />
-                                  Kết nối Telegram
-                                </button>
-                              )}
-                            </div>
-
-                            {/* Contact Phone & Email */}
-                            <div className="mt-1 flex items-center gap-2 text-xs text-[#52635A]">
-                              <span className="font-medium text-[#142823]">📞 {guide.phone}</span>
-                              {guide.email && (
-                                <>
-                                  <span>•</span>
-                                  <span className="font-mono text-[#52635A]">✉ {guide.email}</span>
-                                </>
-                              )}
-                            </div>
-
-                            {/* Subtitle / Specialties */}
-                            <div className="mt-0.5 text-xs text-[#788880] group-hover:text-[#173F35] font-medium transition-colors line-clamp-1">
-                              {guide.specialties && guide.specialties.length > 0
-                                ? guide.specialties.join(" · ")
-                                : guide.bio || "Hướng dẫn viên du lịch trải nghiệm"}
                             </div>
                           </div>
                         </div>
@@ -990,16 +913,7 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
                         className="px-6 py-5 text-right relative"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditModal(guide)}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-[#25483F]/15 bg-white px-2.5 py-1.5 text-xs font-bold text-[#173F35] hover:bg-[#FAF7F0] transition-colors cursor-pointer shadow-2xs"
-                            title="Chỉnh sửa hồ sơ hướng dẫn viên"
-                          >
-                            <VsIcon name="edit" className="text-base text-[#173F35]" />
-                            <span className="hidden sm:inline">Sửa hồ sơ</span>
-                          </button>
+                        <div className="flex items-center justify-end">
                           <button
                             type="button"
                             onClick={() =>
@@ -1020,18 +934,6 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
                             ref={menuRef}
                             className="absolute right-6 top-12 z-20 w-56 rounded-2xl border border-[#25483F]/12 bg-white p-2 shadow-2xl text-left"
                           >
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setOpenMenuGuideId(null);
-                                handleOpenEditModal(guide);
-                              }}
-                              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-[#142823] hover:bg-[#FAF7F0] cursor-pointer transition-colors"
-                            >
-                              <VsIcon name="edit" className="text-lg text-[#52635A]" />
-                              <span>Chỉnh sửa hồ sơ</span>
-                            </button>
-                            <div className="my-1 border-t border-[#25483F]/10" />
                             <button
                               type="button"
                               onClick={() => handleToggleQualification(guide)}
@@ -1141,7 +1043,7 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
       {/* Guide Create/Edit Form Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-fade-in">
-          <div className="flex flex-col max-h-[90vh] w-full max-w-2xl rounded-2xl bg-white shadow-2xl border border-[#25483F]/12 overflow-hidden">
+          <div className="flex flex-col max-h-[92vh] w-full max-w-4xl rounded-2xl bg-white shadow-2xl border border-[#25483F]/12 overflow-hidden">
             <div className="flex items-center justify-between border-b border-[#25483F]/12 px-6 py-4 shrink-0 bg-white">
               <h3 className="text-xl sm:text-2xl font-black text-[#142823] tracking-tight">
                 {isEditing ? "Chỉnh sửa hồ sơ LocalMate" : "Thêm mới Hướng dẫn viên LocalMate"}
@@ -1320,77 +1222,91 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-[#25483F]/12 bg-[#FBF9F5] p-3.5">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#173F35] flex items-center gap-1.5">
-                      <VsIcon name="location_on" className="text-sm text-[#173F35]" />
-                      Mốc vị trí phục vụ LocalMate (Tọa độ GPS)
+                <details
+                  open={Boolean(formData.serviceLatitude || formData.specialties || formData.bio)}
+                  className="group rounded-xl border border-[#25483F]/12 bg-[#FBF9F5] p-3.5 transition-all"
+                >
+                  <summary className="cursor-pointer text-xs font-bold uppercase tracking-wider text-[#173F35] select-none flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <VsIcon name="tune" className="text-sm text-[#173F35]" />
+                      Thông tin nâng cao (Tọa độ GPS, Thế mạnh, Tiểu sử)
                     </span>
-                    <span className="text-xs text-[#52635A]">
-                      Tính khoảng cách tới khách sạn
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <span className="text-xs text-[#52635A] group-open:rotate-180 transition-transform">▼</span>
+                  </summary>
+                  <div className="mt-3 space-y-4 pt-3 border-t border-[#25483F]/10">
+                    <div className="rounded-xl border border-[#25483F]/12 bg-white p-3.5">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold uppercase tracking-wider text-[#173F35] flex items-center gap-1.5">
+                          <VsIcon name="location_on" className="text-sm text-[#173F35]" />
+                          Mốc vị trí phục vụ LocalMate (Tọa độ GPS)
+                        </span>
+                        <span className="text-xs text-[#52635A]">
+                          Tính khoảng cách tới khách sạn
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label htmlFor="localmate-service-latitude" className="mb-1 block text-xs font-semibold text-[#485951]">
+                            Vĩ độ (-90 đến 90)
+                          </label>
+                          <input
+                            id="localmate-service-latitude"
+                            type="number"
+                            step="any"
+                            min={-90}
+                            max={90}
+                            value={formData.serviceLatitude}
+                            onChange={(e) => setFormData({ ...formData, serviceLatitude: e.target.value })}
+                            placeholder="21.033333"
+                            className="h-10 w-full rounded-lg border border-[#25483F]/15 bg-white px-3 text-sm font-mono text-[#142823] focus:border-[#173F35] focus:outline-none focus:ring-1 focus:ring-[#173F35]"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="localmate-service-longitude" className="mb-1 block text-xs font-semibold text-[#485951]">
+                            Kinh độ (-180 đến 180)
+                          </label>
+                          <input
+                            id="localmate-service-longitude"
+                            type="number"
+                            step="any"
+                            min={-180}
+                            max={180}
+                            value={formData.serviceLongitude}
+                            onChange={(e) => setFormData({ ...formData, serviceLongitude: e.target.value })}
+                            placeholder="104.883333"
+                            className="h-10 w-full rounded-lg border border-[#25483F]/15 bg-white px-3 text-sm font-mono text-[#142823] focus:border-[#173F35] focus:outline-none focus:ring-1 focus:ring-[#173F35]"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
                     <div>
-                      <label htmlFor="localmate-service-latitude" className="mb-1 block text-xs font-semibold text-[#485951]">
-                        Vĩ độ (-90 đến 90)
+                      <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1">
+                        Thế mạnh &amp; Chuyên môn (phân cách bằng dấu phẩy)
                       </label>
                       <input
-                        id="localmate-service-latitude"
-                        type="number"
-                        step="any"
-                        min={-90}
-                        max={90}
-                        value={formData.serviceLatitude}
-                        onChange={(e) => setFormData({ ...formData, serviceLatitude: e.target.value })}
-                        placeholder="21.033333"
-                        className="h-10 w-full rounded-lg border border-[#25483F]/15 bg-white px-3 text-sm font-mono text-[#142823] focus:border-[#173F35] focus:outline-none focus:ring-1 focus:ring-[#173F35]"
+                        type="text"
+                        value={formData.specialties}
+                        onChange={(e) => setFormData({ ...formData, specialties: e.target.value })}
+                        placeholder="Trekking, Chè Shan Tuyết, Ẩm thực dân tộc"
+                        className="h-10 w-full rounded-xl border border-[#25483F]/15 bg-white px-3.5 text-sm font-medium text-[#142823] focus:bg-white focus:border-[#173F35]"
                       />
                     </div>
+
                     <div>
-                      <label htmlFor="localmate-service-longitude" className="mb-1 block text-xs font-semibold text-[#485951]">
-                        Kinh độ (-180 đến 180)
+                      <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1">
+                        Tiểu sử &amp; Giới thiệu ngắn
                       </label>
-                      <input
-                        id="localmate-service-longitude"
-                        type="number"
-                        step="any"
-                        min={-180}
-                        max={180}
-                        value={formData.serviceLongitude}
-                        onChange={(e) => setFormData({ ...formData, serviceLongitude: e.target.value })}
-                        placeholder="104.883333"
-                        className="h-10 w-full rounded-lg border border-[#25483F]/15 bg-white px-3 text-sm font-mono text-[#142823] focus:border-[#173F35] focus:outline-none focus:ring-1 focus:ring-[#173F35]"
+                      <textarea
+                        rows={2.5}
+                        value={formData.bio}
+                        onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                        placeholder="Kinh nghiệm 8 năm dẫn tour trải nghiệm cho khách quốc tế..."
+                        className="w-full rounded-xl border border-[#25483F]/15 bg-white p-3 text-sm font-medium text-[#142823] focus:bg-white focus:border-[#173F35]"
                       />
                     </div>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1">
-                    Thế mạnh &amp; Chuyên môn (phân cách bằng dấu phẩy)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.specialties}
-                    onChange={(e) => setFormData({ ...formData, specialties: e.target.value })}
-                    placeholder="Trekking, Chè Shan Tuyết, Ẩm thực dân tộc"
-                    className="h-10 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3.5 text-sm font-medium text-[#142823] focus:bg-white focus:border-[#173F35]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1">
-                    Tiểu sử &amp; Giới thiệu ngắn
-                  </label>
-                  <textarea
-                    rows={2.5}
-                    value={formData.bio}
-                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                    placeholder="Kinh nghiệm 8 năm dẫn tour trải nghiệm cho khách quốc tế..."
-                    className="w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] p-3 text-sm font-medium text-[#142823] focus:bg-white focus:border-[#173F35]"
-                  />
-                </div>
+                </details>
               </div>
 
               <div className="flex items-center justify-end gap-3 border-t border-[#25483F]/12 px-6 py-3.5 shrink-0 bg-white">

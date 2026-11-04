@@ -792,7 +792,7 @@ export class ReservationsService {
 
   private projectReservationConfirmation(data: any) {
     const hotel = data.hotel;
-    const tz = hotel?.timezone || VIETNAM_TIME_ZONE;
+    const tz = resolveTimeZone(hotel?.timezone);
     const brandSettings =
       hotel?.brandSettings && typeof hotel.brandSettings === "object"
         ? (hotel.brandSettings as Record<string, any>)
@@ -965,7 +965,7 @@ export class ReservationsService {
 
   private projectGroupConfirmation(data: { hotel: any; reservations: any[]; groupRecord?: any }) {
     const hotel = data.hotel;
-    const tz = hotel?.timezone || VIETNAM_TIME_ZONE;
+    const tz = resolveTimeZone(hotel?.timezone);
     const brandSettings =
       hotel?.brandSettings && typeof hotel.brandSettings === "object"
         ? (hotel.brandSettings as Record<string, any>)

@@ -1,0 +1,18 @@
+[
+  {
+    "reservationCode": "VSH_RESERVATION_0120",
+    "status": "CHECKED_IN",
+    "planned": "2026-11-05 07:00",
+    "stayStatus": "ACTIVE",
+    "checkedInAt": "2026-11-04T02:10:01.085Z",
+    "guestDisplayName": "QA04 GROUP J"
+  },
+  {
+    "reservationCode": "VSH_RESERVATION_0121",
+    "status": "CHECKED_IN",
+    "planned": "2026-11-05 07:00",
+    "stayStatus": "ACTIVE",
+    "checkedInAt": "2026-11-04T02:10:02.088Z",
+    "guestDisplayName": "QA04 GROUP K"
+  }
+]

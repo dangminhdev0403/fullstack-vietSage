@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { authRepository } from "@/features/auth/repositories/auth-repository";
 
 export interface FooterLinkItem {
   label: string;
@@ -19,8 +20,8 @@ export function MarketingFooterLinks({ links }: { links: FooterLinkItem[] }) {
 
   useEffect(() => {
     let isMounted = true;
-    fetch("/api/auth/session")
-      .then((res) => (res.ok ? res.json() : null))
+    authRepository
+      .getSession()
       .then((session) => {
         if (!isMounted) return;
         if (

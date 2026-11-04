@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
 
 import { auth } from "@/auth";
+import { runtimeConsole } from "@/core/logging/runtime-console";
 import { HttpError } from "@/core/http/http-error";
 import { refreshAndSaveSessionTokens } from "@/libs/auth-session-refresh";
 import { readServerSessionTokens } from "@/libs/server-session-tokens";
@@ -81,7 +82,7 @@ export async function executeHotelOpsBackendRequest<T>(
       throw error;
     }
 
-    console.info("[API_AUTH] 401_hotel_ops_refresh_retry", { operationName });
+    runtimeConsole.info("[API_AUTH] 401_hotel_ops_refresh_retry", { operationName });
     const refreshed = await refreshAndSaveSessionTokens(sessionTokens.refreshToken);
     return request(refreshed.accessToken);
   }

@@ -79,7 +79,7 @@ export type EditReservationModalProps = {
     roomNumber: string,
   ) => void | Promise<void>;
   canCheckIn?: boolean;
-  onCheckIn?: () => void | Promise<void>;
+  onCheckIn?: (updated: HotelArrival) => void | Promise<void>;
   canCheckOut?: boolean;
   onCheckOut?: () => void | Promise<void>;
   onViewDetails?: () => void;
@@ -410,11 +410,15 @@ export function EditReservationModal({
   });
   const [isRateDirty, setIsRateDirty] = useState(false);
 
+  const continuationBusyRef = useRef(false);
+  const savedVersionRef = useRef<{ id: string; updatedAt: string | null | undefined } | null>(null);
+  useEffect(() => {
+    savedVersionRef.current = null;
+  }, [isOpen, reservation?.id]);
+
   // Always query full rooms list when modal is open so we know live status & activeStay of every room
-  const { data: roomsPage } = useQuery({
-    ...staffRoomsResource.bind({ hotelId }).queries.list.options({
-      limit: 200,
-    }),
+  const { data: roomsPage, isPending: isLoadingRooms, isError: isRoomsError } = useQuery({
+    ...staffRoomsResource.bind({ hotelId }).queries.allRooms.options(),
     enabled: Boolean(isOpen && hotelId),
     staleTime: 8_000,
   });
@@ -479,7 +483,7 @@ export function EditReservationModal({
             id: r.id,
             roomNumber: r.roomNumber,
             type: r.type,
-            status: cleanedRoomIds.includes(r.id) ? "AVAILABLE" : r.status,
+            status: cleanedRoomIds.includes(r.id) ? "AVAILABLE" : (r.status ?? ""),
             price: r.price ?? r.basePrice,
             basePrice: r.basePrice,
             activeStay: r.activeStay ?? null,
@@ -492,7 +496,7 @@ export function EditReservationModal({
       id: r.id,
       roomNumber: r.roomNumber,
       type: r.type,
-      status: cleanedRoomIds.includes(r.id) ? "AVAILABLE" : r.status,
+      status: cleanedRoomIds.includes(r.id) ? "AVAILABLE" : (r.status ?? ""),
       price: r.price ?? r.basePrice,
       basePrice: r.basePrice,
       activeStay: r.activeStay ?? null,
@@ -592,7 +596,7 @@ export function EditReservationModal({
 
   // Sync state whenever reservation opens
   const [previousInput, setPreviousInput] = useState<{ isOpen: boolean; reservation: EditReservationModalProps["reservation"] } | null>(null);
-  if (previousInput?.isOpen !== isOpen || previousInput?.reservation !== reservation) {
+  if (previousInput?.isOpen !== isOpen || previousInput?.reservation?.id !== reservation?.id) {
     setPreviousInput({ isOpen, reservation });
     if (isOpen && reservation) {
       setCleanedRoomIds([]);
@@ -838,7 +842,7 @@ export function EditReservationModal({
                   : null,
             }
           : {}),
-        expectedUpdatedAt: reservation.expectedUpdatedAt || undefined,
+        expectedUpdatedAt: (savedVersionRef.current?.id === reservation.id ? savedVersionRef.current.updatedAt : reservation.expectedUpdatedAt) || undefined,
       };
 
       const updated = await staffRoomsRepository.updateReservation(
@@ -846,6 +850,8 @@ export function EditReservationModal({
         reservation.id,
         payload,
       );
+
+      savedVersionRef.current = { id: updated.id, updatedAt: updated.updatedAt };
 
       // If user chose to apply to the entire group
       if (editScope === "GROUP" && reservation.groupCode) {
@@ -856,8 +862,8 @@ export function EditReservationModal({
             leadGuestPhone: guestPhone.trim() || null,
             notes: notes.trim() || null,
           });
-        } catch (grpErr) {
-          console.warn("Could not update group shared fields:", grpErr);
+        } catch (_grpErr) {
+          // Silent swallow per hotel-ops failure containment
         }
       }
 
@@ -875,8 +881,8 @@ export function EditReservationModal({
             intent: "DEPOSIT",
             notes: "Ghi nhận tiền cọc khi cập nhật đơn đặt phòng",
           });
-        } catch (payErr) {
-          console.warn("Could not record deposit payment:", payErr);
+        } catch (_payErr) {
+          // Silent swallow per hotel-ops failure containment
         }
       }
 
@@ -890,9 +896,6 @@ export function EditReservationModal({
       }
 
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
-      if (onSuccess) {
-        await onSuccess(updated);
-      }
       return updated;
     } catch (err) {
       await showErrorAlert(
@@ -909,15 +912,16 @@ export function EditReservationModal({
     e.preventDefault();
     const updated = await saveReservationCore();
     if (updated) {
+      await onSuccess?.(updated);
       onClose();
     }
   }
 
   async function handleMarkRoomReadyInPlace(andCheckIn?: boolean) {
-    if (!effectiveRoomId) return;
+    if (!effectiveRoomId || isMarkingRoomReady || isSubmitting || isLoadingRooms || isRoomsError) return;
     setIsMarkingRoomReady(true);
     try {
-      await staffRoomsRepository.markRoomReady(hotelId, effectiveRoomId);
+      await staffRoomsRepository.markRoomReady(hotelId, effectiveRoomId, roomsPage?.items.find((r) => r.id === effectiveRoomId)?.updatedAt);
       setCleanedRoomIds((prev) =>
         prev.includes(effectiveRoomId) ? prev : [...prev, effectiveRoomId],
       );
@@ -941,7 +945,7 @@ export function EditReservationModal({
   }
 
   async function handleSaveAndCheckIn() {
-    if (!canCheckIn || !onCheckIn) return;
+    if (!canCheckIn || !onCheckIn || isSubmitting || isLoadingRooms || isRoomsError) return;
     if (isRoomOccupiedConflict) {
       if (effectiveConflictingStay && onCheckOutConflictingStay) {
         const ask = await showConfirmDialog({
@@ -972,15 +976,29 @@ export function EditReservationModal({
 
     const updated = await saveReservationCore({ silentSuccessAlert: true });
     if (updated) {
-      await onCheckIn();
+      await onCheckIn(updated);
     }
   }
 
-  async function handleExpressCheckIn(options?: {
+  async function handleExpressCheckIn(options?: { overrideRoomId?: string; skipCleaningPrompt?: boolean }) {
+    if (continuationBusyRef.current) return;
+    continuationBusyRef.current = true;
+    try {
+      await executeExpressCheckIn(options);
+    } finally {
+      continuationBusyRef.current = false;
+    }
+  }
+
+  async function executeExpressCheckIn(options?: {
     overrideRoomId?: string;
     skipCleaningPrompt?: boolean;
   }) {
-    if (!reservation || !canCheckIn) return;
+    if (!reservation || !canCheckIn || isSubmitting) return;
+    if (isLoadingRooms || isRoomsError || !roomsPage) {
+      await showWarningAlert("Chưa xác minh được phòng", "Vui lòng cập nhật trạng thái phòng trước khi nhận phòng.");
+      return;
+    }
     const targetRoomId =
       options?.overrideRoomId?.trim() || roomId.trim() || reservation.roomId || "";
     if (!targetRoomId) {
@@ -992,6 +1010,10 @@ export function EditReservationModal({
     }
 
     const targetRoomObj = roomsList.find((r) => r.id === targetRoomId);
+    if (!roomsPage.items.some((r) => r.id === targetRoomId)) {
+      await showWarningAlert("Chưa xác minh được phòng", "Vui lòng cập nhật danh sách phòng trước khi tiếp tục.");
+      return;
+    }
     const displayRoomNumber =
       targetRoomObj?.roomNumber || reservation.roomNumber || targetRoomId;
     const targetStatus = (
@@ -1003,7 +1025,7 @@ export function EditReservationModal({
     const targetHasOccupiedConflict =
       !options?.overrideRoomId && isRoomOccupiedConflict;
 
-    if (targetHasOccupiedConflict || targetStatus === "OCCUPIED" || targetStatus === "OVERDUE") {
+    if (targetHasOccupiedConflict || targetRoomObj?.activeStay || targetStatus === "OCCUPIED" || targetStatus === "OVERDUE") {
       if (effectiveConflictingStay && onCheckOutConflictingStay) {
         const ask = await showConfirmDialog({
           icon: "warning",
@@ -1046,7 +1068,7 @@ export function EditReservationModal({
       });
       if (!confirmClean.isConfirmed) return;
       try {
-        await staffRoomsRepository.markRoomReady(hotelId, targetRoomId);
+        await staffRoomsRepository.markRoomReady(hotelId, targetRoomId, roomsPage?.items.find((r) => r.id === targetRoomId)?.updatedAt);
         setCleanedRoomIds((prev) =>
           prev.includes(targetRoomId) ? prev : [...prev, targetRoomId],
         );
@@ -1087,6 +1109,7 @@ export function EditReservationModal({
         `Đã nhận phòng P.${displayRoomNumber}!`,
         `Khách ${guestDisplayName.trim() || reservation.guestDisplayName} đã nhận phòng thành công${resData?.accessCode ? ` (Mã GuestOS: ${resData.accessCode})` : ""}.`,
       );
+      await onSuccess?.({ ...updated, status: "CHECKED_IN" });
       onClose();
     } catch (err) {
       if (isEarlyCheckInError(err) || isLateCheckInError(err)) {
@@ -1100,7 +1123,7 @@ export function EditReservationModal({
             scheduledDate: updated.plannedCheckInAt
               ? updated.plannedCheckInAt.slice(0, 10)
               : "Theo lịch hẹn",
-            reservationCode: reservation.reservationCode,
+            reservationCode: reservation.reservationCode ?? undefined,
             isEarly,
           }),
           confirmText: isEarly ? "Đồng ý nhận phòng sớm" : "Đồng ý nhận phòng trễ",
@@ -1125,6 +1148,7 @@ export function EditReservationModal({
               `Đã nhận phòng P.${displayRoomNumber}!`,
               `Khách ${guestDisplayName.trim() || reservation.guestDisplayName} đã nhận phòng thành công${retryData?.accessCode ? ` (Mã GuestOS: ${retryData.accessCode})` : ""}.`,
             );
+            await onSuccess?.({ ...updated, status: "CHECKED_IN" });
             onClose();
             return;
           } catch (retryErr) {
@@ -1175,12 +1199,12 @@ export function EditReservationModal({
       <div
         ref={modalRef}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-5xl xl:max-w-6xl rounded-2xl bg-white shadow-2xl border border-slate-200 text-slate-900 overflow-hidden max-h-[94vh] flex flex-col animate-in zoom-in-95 duration-200"
+        className="w-full max-w-5xl xl:max-w-6xl rounded-2xl bg-white shadow-2xl border border-slate-200 text-slate-900 overflow-hidden max-h-[calc(100dvh-1.5rem)] sm:max-h-[94dvh] flex flex-col animate-in zoom-in-95 duration-200"
       >
         {/* Header */}
-        <header className="flex flex-wrap items-center justify-between border-b border-slate-200 px-6 py-3.5 bg-slate-50/90 shrink-0 gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-900 border border-blue-200">
+        <header className="flex flex-wrap items-center justify-between border-b border-slate-200 px-4 sm:px-6 py-3 bg-slate-50/90 shrink-0 gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="hidden sm:flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-900 border border-blue-200">
               <VsIcon name="edit_calendar" className="text-xl" />
             </div>
             <div>
@@ -1233,7 +1257,7 @@ export function EditReservationModal({
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
               aria-label="Đóng"
             >
               <VsIcon name="close" className="text-base" />
@@ -1241,10 +1265,12 @@ export function EditReservationModal({
           </div>
         </header>
 
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {/* Thanh thao tác nhanh Lễ tân (Check-in / Check-out / Đoàn ngay trên đầu) */}
         {hasQuickReceptionActions && (
-          <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-emerald-200/80 bg-emerald-50/60 px-6 py-2.5 shrink-0">
-            <div className="flex items-center gap-2 text-xs font-bold text-emerald-950">
+          <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-emerald-200/80 bg-emerald-50/60 px-4 sm:px-6 py-2.5 shrink-0">
+            <div className="flex items-center gap-2 text-sm font-bold text-emerald-950">
               <VsIcon name="bolt" className="text-base text-emerald-700 shrink-0" />
               <span>
                 Thao tác lễ tân nhanh{" "}
@@ -1259,7 +1285,7 @@ export function EditReservationModal({
                     type="button"
                     onClick={() => void handleExpressCheckIn()}
                     disabled={isSubmitting || isMarkingRoomReady}
-                    className="inline-flex min-h-[36px] items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3.5 py-1.5 text-xs font-black text-white shadow-xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                    className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3.5 py-1.5 text-sm font-black text-white shadow-xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-normal text-left"
                     title="Lưu thông tin hiện tại và chuyển trạng thái phòng sang Đang ở ngay lập tức (1 chạm)"
                   >
                     <VsIcon name="bolt" className="text-sm text-amber-300" />
@@ -1274,7 +1300,7 @@ export function EditReservationModal({
                       type="button"
                       onClick={() => void handleSaveAndCheckIn()}
                       disabled={isSubmitting || isMarkingRoomReady}
-                      className="inline-flex min-h-[36px] items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-white hover:bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-900 shadow-2xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                      className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-white hover:bg-emerald-100 px-3 py-1.5 text-sm font-bold text-emerald-900 shadow-2xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-normal text-left"
                       title="Lưu thông tin và mở cửa sổ quét CCCD / Hộ chiếu"
                     >
                       <VsIcon name="badge" className="text-sm text-emerald-700" />
@@ -1293,7 +1319,7 @@ export function EditReservationModal({
                     onOpenGroupOperations(code);
                   }}
                   disabled={isSubmitting}
-                  className="inline-flex min-h-[36px] items-center justify-center gap-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 px-3.5 py-1.5 text-sm font-bold text-white shadow-xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-normal text-left"
                 >
                   <VsIcon name="groups" className="text-sm" />
                   <span>Check-in / Quản lý đoàn #{reservation.groupCode}</span>
@@ -1305,7 +1331,7 @@ export function EditReservationModal({
                   type="button"
                   onClick={onCheckOut}
                   disabled={isSubmitting}
-                  className="inline-flex min-h-[36px] items-center justify-center gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 px-3.5 py-1.5 text-xs font-black text-white shadow-xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 px-3.5 py-1.5 text-sm font-black text-white shadow-xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-normal text-left"
                 >
                   <VsIcon name="payments" className="text-sm" />
                   <span>Trả phòng (Check-out)</span>
@@ -1317,9 +1343,9 @@ export function EditReservationModal({
 
         {/* Khung Điều phối Nhanh Xung đột Phòng đang ở / Chờ dọn (Turnaround & Conflict Resolution) */}
         {isRoomOccupiedConflict && (
-          <div className="border-b border-rose-200 bg-rose-50/90 px-6 py-3 shrink-0 space-y-2">
+          <div className="border-b border-rose-200 bg-rose-50/90 px-4 sm:px-6 py-3 shrink-0 space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-rose-950">
+              <div className="flex items-center gap-2 text-sm font-bold text-rose-950">
                 <VsIcon name="warning" className="text-base text-rose-600 shrink-0" />
                 <span className="text-pretty">
                   Phòng <strong>P.{selectedRoomNumber}</strong> đang có khách lưu trú{" "}
@@ -1347,7 +1373,7 @@ export function EditReservationModal({
                       )
                     }
                     disabled={isSubmitting}
-                    className="inline-flex min-h-[34px] items-center gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 px-3 py-1.5 text-xs font-black text-white shadow-xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 px-3 py-1.5 text-sm font-black text-white shadow-xs transition active:scale-[0.98] cursor-pointer whitespace-normal text-left"
                     title="Mở quyết toán & trả phòng cho khách đang ở để giải phóng phòng này"
                   >
                     <VsIcon name="payments" className="text-sm" />
@@ -1366,7 +1392,7 @@ export function EditReservationModal({
                       }
                     }}
                     disabled={isSubmitting}
-                    className="inline-flex min-h-[34px] items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 text-xs font-black text-white shadow-xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 text-sm font-black text-white shadow-xs transition active:scale-[0.98] cursor-pointer whitespace-normal text-left"
                     title="Đổi sang phòng trống sẵn sàng và hoàn tất nhận phòng trong 1 chạm"
                   >
                     <VsIcon name="swap_horiz" className="text-sm text-amber-300" />
@@ -1380,7 +1406,7 @@ export function EditReservationModal({
 
             {(sameTypeCleanRooms.length > 0 || otherCleanRooms.length > 0) && (
               <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-rose-200/70">
-                <span className="text-xs font-bold text-rose-900 mr-1">
+                <span className="text-sm font-bold text-rose-900 mr-1">
                   Đổi nhanh sang phòng trống sẵn sàng (1 chạm):
                 </span>
                 {sameTypeCleanRooms.slice(0, 6).map((rm) => (
@@ -1388,7 +1414,7 @@ export function EditReservationModal({
                     key={rm.id}
                     type="button"
                     onClick={() => setRoomId(rm.id)}
-                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white hover:bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-900 shadow-2xs transition cursor-pointer whitespace-nowrap"
+                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white hover:bg-emerald-50 px-2.5 py-1 text-sm font-bold text-emerald-900 shadow-2xs transition cursor-pointer whitespace-normal text-left"
                     title={`Đổi sang Phòng ${rm.roomNumber} (${rm.type || "Cùng hạng"} - Đang trống)`}
                   >
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
@@ -1400,7 +1426,7 @@ export function EditReservationModal({
                     key={rm.id}
                     type="button"
                     onClick={() => setRoomId(rm.id)}
-                    className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-2xs transition cursor-pointer whitespace-nowrap"
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 px-2.5 py-1 text-sm font-semibold text-slate-800 shadow-2xs transition cursor-pointer whitespace-normal text-left"
                     title={`Đổi sang Phòng ${rm.roomNumber} (${rm.type || "Khác hạng"} - Đang trống)`}
                   >
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -1415,8 +1441,8 @@ export function EditReservationModal({
         )}
 
         {isRoomCleaningConflict && (
-          <div className="border-b border-amber-200 bg-amber-50/90 px-6 py-3 shrink-0 flex flex-wrap items-center justify-between gap-2.5">
-            <div className="flex items-center gap-2 text-xs font-bold text-amber-950">
+          <div className="border-b border-amber-200 bg-amber-50/90 px-4 sm:px-6 py-3 shrink-0 flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2 text-sm font-bold text-amber-950">
               <VsIcon name="cleaning_services" className="text-base text-amber-700 shrink-0" />
               <span className="text-pretty">
                 Phòng <strong>P.{selectedRoomNumber}</strong> khách cũ vừa trả, đang ở trạng thái{" "}
@@ -1430,7 +1456,7 @@ export function EditReservationModal({
                   type="button"
                   onClick={() => void handleMarkRoomReadyInPlace(true)}
                   disabled={isSubmitting || isMarkingRoomReady}
-                  className="inline-flex min-h-[34px] items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 text-xs font-black text-white shadow-xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 text-sm font-black text-white shadow-xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-normal text-left"
                 >
                   <VsIcon name="bolt" className="text-sm text-amber-300" />
                   <span>
@@ -1444,7 +1470,7 @@ export function EditReservationModal({
                 type="button"
                 onClick={() => void handleMarkRoomReadyInPlace(false)}
                 disabled={isSubmitting || isMarkingRoomReady}
-                className="inline-flex min-h-[34px] items-center gap-1.5 rounded-xl border border-amber-300 bg-white hover:bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-950 shadow-2xs transition cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-amber-300 bg-white hover:bg-amber-100 px-3 py-1.5 text-sm font-bold text-amber-950 shadow-2xs transition cursor-pointer disabled:opacity-50 whitespace-normal text-left"
               >
                 <VsIcon name="check_circle" className="text-sm text-emerald-700" />
                 <span>Xác nhận P.{selectedRoomNumber} đã sạch</span>
@@ -1454,8 +1480,7 @@ export function EditReservationModal({
         )}
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
+          <div className="p-4 sm:p-6 space-y-5">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             {/* Cột 1: Thông tin khách hàng, Phòng lưu trú & Đoàn khách (lg:col-span-5) */}
             <div className="lg:col-span-5 flex flex-col space-y-4">
@@ -1551,7 +1576,7 @@ export function EditReservationModal({
                           </span>
                         ) : (
                           <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md whitespace-nowrap">
-                            Trống sẵn sàng
+                            {isLoadingRooms || isRoomsError || !selectedRoom ? "Chưa xác minh" : selectedRoomStatus === "AVAILABLE" ? "Trống sẵn sàng" : "Chưa sẵn sàng"}
                           </span>
                         )
                       )}
@@ -2111,82 +2136,35 @@ export function EditReservationModal({
           </div>
           </div>
 
+          </div>
+
           {/* Sticky Footer buttons */}
-          <footer className="shrink-0 flex flex-wrap items-center justify-between gap-3 px-6 py-3.5 border-t border-slate-200 bg-slate-50/95">
-            <div className="flex flex-wrap items-center gap-2">
-              {canCheckIn ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => void handleExpressCheckIn()}
-                    disabled={isSubmitting}
-                    className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs sm:text-sm font-black text-white shadow-2xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
-                    title="Lưu thông tin và chuyển trạng thái phòng sang Đang ở ngay lập tức"
-                  >
-                    <VsIcon name="bolt" className="text-base text-amber-300" />
-                    <span>
-                      {selectedRoomNumber
-                        ? `Nhận phòng nhanh P.${selectedRoomNumber}`
-                        : "Nhận phòng nhanh (1 chạm)"}
-                    </span>
-                  </button>
-                  {onCheckIn && (
-                    <button
-                      type="button"
-                      onClick={() => void handleSaveAndCheckIn()}
-                      disabled={isSubmitting}
-                      className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-3.5 py-2 text-xs sm:text-sm font-bold text-emerald-950 shadow-2xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
-                      title="Lưu thông tin và mở cửa sổ quét CCCD / Hộ chiếu"
-                    >
-                      <VsIcon name="badge" className="text-base text-emerald-700" />
-                      <span>Nhận phòng & CCCD</span>
-                    </button>
-                  )}
-                </>
-              ) : null}
+          <footer className="shrink-0 grid grid-cols-2 sm:flex sm:flex-wrap items-center sm:justify-between gap-2 px-4 sm:px-6 py-3 border-t border-slate-200 bg-slate-50/95">
+            {canCheckIn && (
+              <button
+                type="button"
+                onClick={() => void handleExpressCheckIn()}
+                disabled={isSubmitting}
+                className="col-span-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-base font-bold text-white hover:bg-emerald-800 disabled:opacity-50"
+              >
+                <VsIcon name="bolt" className="text-lg" />
+                <span>{selectedRoomNumber ? `Nhận phòng P.${selectedRoomNumber}` : "Nhận phòng nhanh"}</span>
+              </button>
+            )}
 
-              {reservation.groupCode && onOpenGroupOperations ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const code = reservation.groupCode!.replace(/^#+/, "").trim();
-                    onClose();
-                    onOpenGroupOperations(code);
-                  }}
-                  disabled={isSubmitting}
-                  className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl border border-purple-300 bg-purple-50 hover:bg-purple-100 px-3.5 py-2 text-xs sm:text-sm font-bold text-purple-900 shadow-2xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
-                >
-                  <VsIcon name="groups" className="text-base text-purple-700" />
-                  <span>Check-in cả đoàn</span>
-                </button>
-              ) : null}
-
-              {canCheckOut && onCheckOut ? (
-                <button
-                  type="button"
-                  onClick={onCheckOut}
-                  disabled={isSubmitting}
-                  className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 px-4 py-2 text-xs sm:text-sm font-black text-white shadow-2xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
-                >
-                  <VsIcon name="payments" className="text-base" />
-                  <span>Trả phòng (Check-out)</span>
-                </button>
-              ) : null}
-            </div>
-
-            <div className="flex items-center gap-2.5">
+            <div className="col-span-2 grid grid-cols-2 sm:ml-auto sm:flex items-center gap-2">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="inline-flex min-h-[42px] items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs sm:text-sm font-bold text-slate-700 transition hover:bg-slate-100 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                className="inline-flex min-h-[42px] items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-base font-bold text-slate-700 transition hover:bg-slate-100 cursor-pointer disabled:opacity-50 whitespace-nowrap"
               >
                 <span>Hủy bỏ</span>
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-xl bg-blue-700 hover:bg-blue-800 px-5 py-2 text-xs sm:text-sm font-bold text-white shadow-xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-xl bg-blue-700 hover:bg-blue-800 px-5 py-2 text-base font-bold text-white shadow-xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
               >
                 {isSubmitting ? (
                   <>

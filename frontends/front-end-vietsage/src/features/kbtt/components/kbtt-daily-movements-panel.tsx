@@ -77,6 +77,7 @@ export function KbttDailyMovementsPanel({
   const [searchInput, setSearchInput] = useState<string>("");
   const [submittedQuery, setSubmittedQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [selectedMovement, setSelectedMovement] = useState<KbttDailyMovementItem | null>(null);
   const pageSize = 50;
 
   const boundResource = useMemo(() => kbttResource.bind({ hotelId }), [hotelId]);
@@ -355,32 +356,24 @@ export function KbttDailyMovementsPanel({
                 <tr>
                   <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Phòng</th>
                   <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Khách lưu trú</th>
-                  <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Mã đặt / Đoàn</th>
-                  <th scope="col" className="px-4 py-3.5 whitespace-nowrap text-center">Số khách</th>
+                  <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Mã đặt phòng</th>
                   <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
                     {kind === "ARRIVAL" ? "Giờ dự kiến đến" : "Giờ dự kiến đi"}
                   </th>
-                  <th scope="col" className="px-4 py-3.5 whitespace-nowrap">
-                    {kind === "ARRIVAL" ? "Giờ thực tế đến" : "Giờ thực tế đi"}
-                  </th>
-                  <th scope="col" className="px-4 py-3.5 whitespace-nowrap">Trạng thái</th>
-                  <th scope="col" className="px-4 py-3.5 whitespace-nowrap text-right">Nghiệp vụ lễ tân</th>
+                  <th scope="col" className="px-4 py-3.5 whitespace-nowrap text-center">Trạng thái</th>
+                  <th scope="col" className="px-4 py-3.5 whitespace-nowrap text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {items.map((row, index) => {
                   const badge = formatStatusBadge(row.status);
-                  const frontDeskHref =
-                    kind === "ARRIVAL"
-                      ? `/hotels/${encodeURIComponent(hotelId)}/front-desk?tab=arrivals&q=${encodeURIComponent(
-                          row.reservationCode ?? row.roomNumber ?? row.guestDisplayName,
-                        )}`
-                      : `/hotels/${encodeURIComponent(hotelId)}/front-desk?tab=in-house&q=${encodeURIComponent(
-                          row.roomNumber ?? row.reservationCode ?? row.guestDisplayName,
-                        )}`;
 
                   return (
-                    <tr key={row.reservationId ?? row.stayId ?? `${row.roomNumber}-${index}`} className="hover:bg-slate-50/60 transition-colors">
+                    <tr
+                      key={row.reservationId ?? row.stayId ?? `${row.roomNumber}-${index}`}
+                      onClick={() => setSelectedMovement(row)}
+                      className="cursor-pointer hover:bg-slate-50/60 transition-colors"
+                    >
                       {/* Phòng */}
                       <td className="px-4 py-3 font-bold text-slate-900 whitespace-nowrap">
                         {row.roomNumber ? (
@@ -388,31 +381,20 @@ export function KbttDailyMovementsPanel({
                             P.{row.roomNumber}
                           </span>
                         ) : (
-                          <span className="text-slate-400 font-normal italic">Chưa xếp phòng</span>
+                          <span className="text-slate-400 font-normal italic text-sm">Chưa xếp phòng</span>
                         )}
                       </td>
 
-                      {/* Khách lưu trú */}
+                      {/* Khách lưu trú (drop phone sub-line) */}
                       <td className="px-4 py-3">
                         <div className="font-semibold text-slate-900">{row.guestDisplayName}</div>
-                        {row.guestPhone ? (
-                          <div className="text-xs text-slate-500">{row.guestPhone}</div>
-                        ) : null}
                       </td>
 
-                      {/* Mã đặt / Đoàn */}
+                      {/* Mã đặt phòng (drop group sub-line) */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="font-mono text-xs font-semibold text-slate-800">
                           {row.reservationCode ?? "—"}
                         </div>
-                        {row.groupCode ? (
-                          <div className="text-xs text-slate-500 font-mono">Đoàn: {row.groupCode}</div>
-                        ) : null}
-                      </td>
-
-                      {/* Số khách */}
-                      <td className="px-4 py-3 text-center whitespace-nowrap font-medium text-slate-700">
-                        {row.occupantCount}
                       </td>
 
                       {/* Giờ dự kiến */}
@@ -422,15 +404,8 @@ export function KbttDailyMovementsPanel({
                         )}
                       </td>
 
-                      {/* Giờ thực tế */}
-                      <td className="px-4 py-3 whitespace-nowrap text-slate-700 text-xs">
-                        {formatMovementDateTime(
-                          kind === "ARRIVAL" ? row.actualCheckInAt : row.actualCheckOutAt,
-                        )}
-                      </td>
-
                       {/* Trạng thái */}
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-4 py-3 text-center whitespace-nowrap">
                         <span
                           className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold whitespace-nowrap ${badge.className}`}
                         >
@@ -438,18 +413,23 @@ export function KbttDailyMovementsPanel({
                         </span>
                       </td>
 
-                      {/* Thao tác Lễ tân */}
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <Link
-                          href={frontDeskHref}
-                          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-bold text-blue-700 shadow-2xs hover:bg-blue-50 transition-colors"
-                          title="Điều hướng tới bàn lễ tân để thực hiện thủ tục nhận/trả phòng"
+                      {/* Thao tác */}
+                      <td
+                        className="px-4 py-3 text-right whitespace-nowrap"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setSelectedMovement(row)}
+                          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition-colors"
+                          title="Xem chi tiết lượt khách lưu trú"
                         >
-                          <svg className="h-3.5 w-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                          <svg className="h-3.5 w-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                           </svg>
-                          <span>{kind === "ARRIVAL" ? "Lễ tân nhận phòng" : "Lễ tân trả phòng"}</span>
-                        </Link>
+                          <span>Chi tiết</span>
+                        </button>
                       </td>
                     </tr>
                   );
@@ -487,6 +467,135 @@ export function KbttDailyMovementsPanel({
                 <span>Trang sau</span>
               </button>
             </nav>
+          </div>
+        </div>
+      )}
+
+      {/* Movement Detail In-Place Modal (Box Ngang) */}
+      {selectedMovement && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="movement-detail-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+        >
+          <div className="relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b border-slate-100 bg-slate-50/70 p-6">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-sm font-bold text-emerald-800">
+                    {selectedMovement.roomNumber
+                      ? `Phòng ${selectedMovement.roomNumber}`
+                      : "Chưa xếp phòng"}
+                  </span>
+                  <span
+                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold whitespace-nowrap ${
+                      formatStatusBadge(selectedMovement.status).className
+                    }`}
+                  >
+                    {formatStatusBadge(selectedMovement.status).label}
+                  </span>
+                </div>
+                <h3
+                  id="movement-detail-title"
+                  className="mt-2 text-xl font-bold text-slate-900 text-balance"
+                >
+                  {kind === "ARRIVAL" ? "Chi tiết khách đến" : "Chi tiết khách rời"}: {selectedMovement.guestDisplayName}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedMovement(null)}
+                aria-label="Đóng hộp thoại"
+                className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus:outline-none"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="overflow-y-auto p-6 space-y-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
+                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Khách lưu trú</div>
+                  <div className="mt-1 text-base font-bold text-slate-900">{selectedMovement.guestDisplayName}</div>
+                  {selectedMovement.guestPhone && (
+                    <div className="mt-0.5 text-sm text-slate-600">Số điện thoại: {selectedMovement.guestPhone}</div>
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
+                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Thông tin đặt phòng</div>
+                  <div className="mt-1 text-base font-mono font-bold text-slate-900">
+                    Mã đặt: {selectedMovement.reservationCode ?? "—"}
+                  </div>
+                  {selectedMovement.groupCode && (
+                    <div className="mt-0.5 text-sm text-slate-600 font-mono">Đoàn: {selectedMovement.groupCode}</div>
+                  )}
+                  <div className="mt-0.5 text-xs text-slate-500">Số lượng khách: {selectedMovement.occupantCount} khách</div>
+                </div>
+
+                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
+                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    {kind === "ARRIVAL" ? "Giờ dự kiến đến" : "Giờ dự kiến đi"}
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-slate-800">
+                    {formatMovementDateTime(
+                      kind === "ARRIVAL" ? selectedMovement.plannedCheckInAt : selectedMovement.plannedCheckOutAt,
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
+                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    {kind === "ARRIVAL" ? "Giờ thực tế đến" : "Giờ thực tế đi"}
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-slate-800">
+                    {formatMovementDateTime(
+                      kind === "ARRIVAL" ? selectedMovement.actualCheckInAt : selectedMovement.actualCheckOutAt,
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+              <span className="text-xs text-slate-500">
+                Thao tác chi tiết tại chỗ không làm gián đoạn màn hình làm việc
+              </span>
+              <div className="flex items-center gap-2">
+                <Link
+                  href={
+                    kind === "ARRIVAL"
+                      ? `/hotels/${encodeURIComponent(hotelId)}/front-desk?tab=arrivals&q=${encodeURIComponent(
+                          selectedMovement.reservationCode ?? selectedMovement.roomNumber ?? selectedMovement.guestDisplayName,
+                        )}`
+                      : `/hotels/${encodeURIComponent(hotelId)}/front-desk?tab=in-house&q=${encodeURIComponent(
+                          selectedMovement.roomNumber ?? selectedMovement.reservationCode ?? selectedMovement.guestDisplayName,
+                        )}`
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 text-xs font-semibold text-blue-700 shadow-2xs hover:bg-blue-50 transition-colors"
+                >
+                  <svg className="h-3.5 w-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                  </svg>
+                  <span>Mở bàn lễ tân (tab mới)</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setSelectedMovement(null)}
+                  className="inline-flex min-h-10 items-center justify-center rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white shadow-xs hover:bg-slate-800 transition-colors"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { staffRoomsRepository, type ReceivableItem } from "@/features/hotel-ops/repositories/staff-rooms-repository";
-import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
+import { useBillingReceivables } from "@/features/billing/hooks/use-billing-receivables";
 import { formatDateTime, formatMoney } from "@/features/billing/utils/money";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import { showErrorAlert, showSuccessAlert, showWarningAlert } from "@/libs/swal";
@@ -38,14 +38,14 @@ export function BillingReceivablesTableClient({ hotelId }: BillingReceivablesTab
   const [query, setQuery] = useState("");
   const [collectingReceivable, setCollectingReceivable] = useState<ReceivableItem | null>(null);
 
-  // Query receivables list
-  const { data: receivablesPage, isLoading, refetch } = useQuery({
-    ...staffRoomsResource.bind({ hotelId }).queries.receivables.options({
+  // Query receivables list via feature hook
+  const { receivablesPage, isLoading, refetch } = useBillingReceivables({
+    hotelId,
+    query: {
       status: statusFilter !== "ALL" ? statusFilter : undefined,
       debtorType: debtorTypeFilter !== "ALL" ? debtorTypeFilter : undefined,
       q: query.trim() || undefined,
-    }),
-    staleTime: 10_000,
+    },
   });
 
   const receivables: ReceivableItem[] = receivablesPage?.items ?? [];
@@ -207,11 +207,8 @@ export function BillingReceivablesTableClient({ hotelId }: BillingReceivablesTab
               <tr>
                 <th className="px-5 py-3.5 whitespace-nowrap">Đối tượng nợ</th>
                 <th className="px-4 py-3.5 whitespace-nowrap">Phân loại</th>
-                <th className="px-4 py-3.5 whitespace-nowrap">NV theo dõi đòi tiền</th>
                 <th className="px-4 py-3.5 whitespace-nowrap text-right">Nợ gốc</th>
-                <th className="px-4 py-3.5 whitespace-nowrap text-right">Đã thu</th>
                 <th className="px-4 py-3.5 whitespace-nowrap text-right">Còn phải thu</th>
-                <th className="px-4 py-3.5 whitespace-nowrap">Hạn thanh toán</th>
                 <th className="px-4 py-3.5 whitespace-nowrap text-center">Trạng thái</th>
                 <th className="px-5 py-3.5 whitespace-nowrap text-right">Thao tác</th>
               </tr>
@@ -222,20 +219,14 @@ export function BillingReceivablesTableClient({ hotelId }: BillingReceivablesTab
                 const paid = Number(rec.paidAmount ?? 0);
                 const out = Number(rec.outstandingAmount ?? rec.balanceAmount ?? (orig - paid));
                 const statusInfo = statusLabels[rec.status] || { label: rec.status, tone: "bg-slate-100 text-slate-700 border-slate-200" };
-                const isOverdue = rec.dueDate && new Date(rec.dueDate).getTime() < nowTimestamp && out > 0;
 
                 return (
                   <tr key={rec.id} className="hover:bg-slate-50/70 transition-colors">
-                    {/* Debtor Name & Notes */}
+                    {/* Debtor Name */}
                     <td className="px-5 py-3.5">
                       <div className="font-bold text-slate-900 text-sm">
                         {rec.debtorName}
                       </div>
-                      {rec.notes ? (
-                        <div className="text-slate-500 text-xs font-medium mt-0.5 line-clamp-1 max-w-xs">
-                          {rec.notes}
-                        </div>
-                      ) : null}
                     </td>
 
                     {/* Debtor Type */}
@@ -245,43 +236,14 @@ export function BillingReceivablesTableClient({ hotelId }: BillingReceivablesTab
                       </span>
                     </td>
 
-                    {/* Assignee Staff */}
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      {rec.assigneeUserId ? (
-                        <span className="font-semibold text-slate-800 inline-flex items-center gap-1">
-                          <VsIcon name="person" className="text-sm text-slate-400" />
-                          <span>{rec.assigneeUserId}</span>
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 font-medium">—</span>
-                      )}
-                    </td>
-
                     {/* Original Amount */}
                     <td className="px-4 py-3.5 whitespace-nowrap text-right font-medium text-slate-600 tabular-nums">
                       {formatMoney(orig, "VND")}
                     </td>
 
-                    {/* Paid Amount */}
-                    <td className="px-4 py-3.5 whitespace-nowrap text-right font-semibold text-emerald-700 tabular-nums">
-                      {formatMoney(paid, "VND")}
-                    </td>
-
                     {/* Outstanding Amount */}
                     <td className="px-4 py-3.5 whitespace-nowrap text-right font-black text-rose-700 tabular-nums text-sm">
                       {formatMoney(out, "VND")}
-                    </td>
-
-                    {/* Due Date */}
-                    <td className="px-4 py-3.5 whitespace-nowrap font-medium">
-                      {rec.dueDate ? (
-                        <span className={isOverdue ? "text-rose-600 font-bold" : "text-slate-600"}>
-                          {formatDateTime(rec.dueDate)}
-                          {isOverdue ? " (Quá hạn)" : ""}
-                        </span>
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
                     </td>
 
                     {/* Status Badge */}
@@ -429,11 +391,6 @@ function CollectReceivableModal({
             <div>
               <span className="text-slate-600 font-medium">Đối tượng: </span>
               <strong className="text-slate-900">{receivable.debtorName}</strong>
-              {receivable.assigneeUserId ? (
-                <span className="text-slate-500 block mt-0.5">
-                  Nhân viên phụ trách: <strong>{receivable.assigneeUserId}</strong>
-                </span>
-              ) : null}
             </div>
             <div className="text-right">
               <span className="text-slate-600 block">Số tiền nợ còn lại:</span>

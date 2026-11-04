@@ -1,7 +1,9 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { staffRoomsResource } from "../resources/staff-rooms-resource";
 import { ownerRoomsResource } from "../resources/owner-rooms-resource";
+import { ownerRoomTypesResource } from "../resources/owner-room-types-resource";
 import { roomPlanResource } from "../resources/room-plan-resource";
+import { hotelMessagesResource } from "../resources/hotel-messages-resource";
 import { localPartnersResource } from "@/features/local-partners/resources/local-partners-resource";
 import { channelManagerResource } from "@/features/channel-manager/api/channel-manager.resource";
 
@@ -11,10 +13,8 @@ export async function invalidateHotelMessageRealtimeQueries(
 ): Promise<void> {
   if (!hotelId) return;
 
-  await queryClient.invalidateQueries({
-    queryKey: ["vietsage", "hotel", hotelId, "hotel-messages"],
-    refetchType: "active",
-  });
+  const messagesBound = hotelMessagesResource.bind({ hotelId });
+  await messagesBound.invalidate(queryClient);
 }
 
 export async function invalidateHotelRequestRealtimeQueries(
@@ -24,6 +24,7 @@ export async function invalidateHotelRequestRealtimeQueries(
   if (!hotelId) return;
 
   const localPartnersBound = localPartnersResource.bind({ hotelId });
+  const messagesBound = hotelMessagesResource.bind({ hotelId });
 
   await Promise.allSettled([
     queryClient.invalidateQueries({
@@ -31,10 +32,7 @@ export async function invalidateHotelRequestRealtimeQueries(
       refetchType: "active",
     }),
     localPartnersBound.queries.marketplaceOrders.invalidateAll(queryClient),
-    queryClient.invalidateQueries({
-      queryKey: ["vietsage", "hotel", hotelId, "hotel-messages"],
-      refetchType: "active",
-    }),
+    messagesBound.invalidate(queryClient),
   ]);
 }
 
@@ -46,16 +44,21 @@ export async function invalidateHotelRealtimeQueries(
 
   const staffBound = staffRoomsResource.bind({ hotelId });
   const ownerBound = ownerRoomsResource.bind({ hotelId });
+  const roomTypesBound = ownerRoomTypesResource.bind({ hotelId });
   const roomPlanBound = roomPlanResource.bind({ hotelId });
   const localPartnersBound = localPartnersResource.bind({ hotelId });
+  const messagesBound = hotelMessagesResource.bind({ hotelId });
   const cmAdminBound = channelManagerResource.bind({ hotelId, roleScope: "admin" });
   const cmOwnerBound = channelManagerResource.bind({ hotelId, roleScope: "owner" });
 
   await Promise.allSettled([
     staffBound.queries.list.invalidateAll(queryClient),
+    staffBound.queries.allRooms.invalidateAll(queryClient),
     ownerBound.queries.list.invalidateAll(queryClient),
+    roomTypesBound.invalidate(queryClient),
     roomPlanBound.queries.plan.invalidateAll(queryClient),
     localPartnersBound.queries.marketplaceOrders.invalidateAll(queryClient),
+    messagesBound.invalidate(queryClient),
     cmAdminBound.queries.inventoryGrid.invalidateAll(queryClient),
     cmOwnerBound.queries.inventoryGrid.invalidateAll(queryClient),
     cmAdminBound.queries.simulatedBookings.invalidateAll(queryClient),
@@ -64,9 +67,8 @@ export async function invalidateHotelRealtimeQueries(
       queryKey: ["vietsage", "request-queue"],
       refetchType: "active",
     }),
-    queryClient.invalidateQueries({
-      queryKey: ["vietsage", "hotel", hotelId],
-      refetchType: "active",
-    }),
+    staffBound.invalidate(queryClient),
+    ownerBound.invalidate(queryClient),
+    roomPlanBound.invalidate(queryClient),
   ]);
 }

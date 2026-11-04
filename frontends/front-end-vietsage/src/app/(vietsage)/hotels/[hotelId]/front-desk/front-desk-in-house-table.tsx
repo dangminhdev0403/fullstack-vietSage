@@ -93,13 +93,6 @@ export function FrontDeskInHouseTable({
                       <div className="font-bold text-slate-900 text-base leading-tight group-hover:text-blue-900 transition-colors">
                         {guestName}
                       </div>
-                      <div className="mt-0.5 text-xs text-slate-500 font-medium whitespace-nowrap">
-                        {stay?.reservationCode ? (
-                          <span className="font-mono text-blue-700 font-semibold">#{stay.reservationCode}</span>
-                        ) : null}
-                        {stay?.reservationCode && stay?.guestPhone ? <span> · </span> : null}
-                        {stay?.guestPhone ? <span>{stay.guestPhone}</span> : null}
-                      </div>
                     </td>
 
                     {/* Phòng & Trạng thái */}
