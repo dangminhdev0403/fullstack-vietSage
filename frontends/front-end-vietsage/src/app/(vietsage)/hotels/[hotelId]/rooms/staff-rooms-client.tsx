@@ -1121,7 +1121,7 @@ export function StaffRoomsClient({
       if (typeof maxAvailable === "number" && current >= maxAvailable) {
         void showWarningAlert(
           "Không đủ phòng trống",
-          `Loại phòng này hiện chỉ còn ${maxAvailable} phòng trống trong khoảng thời gian đã chọn.`,
+          `Còn ${maxAvailable} phòng trong khoảng ngày đã chọn.`,
         );
         return prev;
       }
@@ -1404,7 +1404,7 @@ export function StaffRoomsClient({
       if (isPhysicallyBusy) {
         void showWarningAlert(
           "Phòng đang có khách",
-          `Phòng ${getRoomNumber(room)} hiện chưa check-out hoặc chưa xử lý gia hạn. Vui lòng chọn phòng trống khác để đặt trước.`,
+          `P.${getRoomNumber(room)} chưa trả phòng. Chọn phòng trống khác.`,
         );
         return;
       }
@@ -1455,8 +1455,8 @@ export function StaffRoomsClient({
     }
 
     const confirmResult = await showConfirmDialog({
-      title: "Xác nhận tạo đặt phòng?",
-      text: `Bạn có chắc chắn muốn tạo đặt phòng mới cho khách ${reservationGuestName.trim()}?`,
+      title: "Tạo đặt phòng?",
+      text: `Khách: ${reservationGuestName.trim()}`,
       confirmText: "Tạo đặt phòng",
       cancelText: "Hủy bỏ",
     });
@@ -1589,11 +1589,11 @@ export function StaffRoomsClient({
 
       await SwalVietSage.fire({
         icon: "success",
-        title: "Tạo đặt phòng thành công!",
+        title: "Đã tạo đặt phòng",
         html: `
           <div style="font-size:14px;color:#334155;display:flex;flex-direction:column;gap:14px;margin-top:2px;">
             <p style="margin:0;text-align:center;color:#475569;font-size:14px;line-height:1.5;">
-              Đã tạo thành công đặt phòng cho khách <strong>${escapeHtml(createdGuestName)}</strong>.
+              <strong>${escapeHtml(createdGuestName)}</strong>
             </p>
             ${reservationCode ? `
             <div style="padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
@@ -3687,11 +3687,11 @@ export function StaffRoomsClient({
 
       await SwalVietSage.fire({
         icon: "success",
-        title: "Tạo đặt trước thành công!",
+        title: "Đã tạo đặt trước",
         html: `
           <div style="font-size:14px;color:#334155;display:flex;flex-direction:column;gap:14px;margin-top:2px;">
             <p style="margin:0;text-align:center;color:#475569;font-size:14px;line-height:1.5;">
-              Đã tạo thành công <strong>${result.reservations.length}</strong> đặt phòng${trimmedLeadName ? ` cho đoàn <strong>${trimmedLeadName}</strong>` : ""}.
+              <strong>${result.reservations.length} phòng</strong>${trimmedLeadName ? ` · <strong>${escapeHtml(trimmedLeadName)}</strong>` : ""}
             </p>
             <div style="padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
               <div style="text-align:left;">
@@ -4038,9 +4038,8 @@ export function StaffRoomsClient({
     const roomNum = getRoomNumber(room);
     const confirmation = await showConfirmDialog({
       icon: "question",
-      title: `Xác nhận phòng ${roomNum} đã sẵn sàng?`,
-      text: "Xác nhận phòng đã được dọn dẹp sạch sẽ và sẵn sàng đón khách mới.",
-      confirmText: "Xác nhận sẵn sàng",
+      title: `Phòng ${roomNum} đã sạch?`,
+      confirmText: "Xác nhận sạch",
       cancelText: "Hủy",
     });
 
@@ -4350,7 +4349,7 @@ export function StaffRoomsClient({
       const checkInTime = formatDateTime(conflictRes.plannedCheckInAt);
       void showConfirmDialog({
         icon: "warning",
-        title: `Phòng ${getRoomNumber(room)} đã có khách đặt trước!`,
+        title: `Nhận phòng P.${getRoomNumber(room)}?`,
         html: `
           <div class="w-full text-left space-y-3 font-sans pt-1">
             <div class="rounded-2xl border border-amber-200/90 bg-amber-50/70 p-3.5 sm:p-4 space-y-2.5 shadow-2xs">
@@ -4367,12 +4366,9 @@ export function StaffRoomsClient({
                 <span class="font-bold text-slate-700 text-xs sm:text-sm">${escapeHtml(checkInTime)}</span>
               </div>
             </div>
-            <p class="text-xs text-slate-600 text-pretty">
-              Phòng này đã có đơn giữ chỗ trong hôm nay. Bạn có muốn làm thủ tục nhận phòng cho khách đặt trước này không?
-            </p>
           </div>
         `,
-        confirmText: `Nhận phòng cho ${guestName}`,
+        confirmText: "Nhận phòng",
         cancelText: "Hủy bỏ",
       }).then((confirmation) => {
         if (confirmation.isConfirmed) {
@@ -4401,8 +4397,8 @@ export function StaffRoomsClient({
         ? `Mở khóa phòng ${getRoomNumber(room)}?`
         : `Khóa phòng ${getRoomNumber(room)}?`,
       text: isBlocked
-        ? "Phòng sẽ trở lại trạng thái TRỐNG và có thể được sử dụng."
-        : "Phòng sẽ không thể được đặt, gán đặt phòng hoặc nhận phòng cho đến khi mở khóa.",
+        ? "Phòng sẽ sẵn sàng nhận khách."
+        : "Tạm ngừng đặt và nhận khách đến khi mở khóa.",
       confirmText: isBlocked ? "Mở khóa phòng" : "Khóa phòng",
       cancelText: "Hủy",
     });
@@ -4422,9 +4418,7 @@ export function StaffRoomsClient({
       );
       await showSuccessAlert(
         isBlocked ? "Đã mở khóa phòng" : "Đã khóa phòng",
-        isBlocked
-          ? "Phòng đã trở lại trạng thái khả dụng."
-          : "Phòng đã được khóa an toàn.",
+        "",
       );
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       void refetch();
@@ -4450,7 +4444,6 @@ export function StaffRoomsClient({
     const confirmation = await showConfirmDialog({
       icon: "question",
       title: `Chuyển phòng ${roomNum} sang ${labels[targetStatus]}?`,
-      text: `Xác nhận cập nhật trạng thái phòng ${roomNum}.`,
       confirmText: "Xác nhận chuyển",
       cancelText: "Hủy",
     });
@@ -4482,18 +4475,17 @@ export function StaffRoomsClient({
   async function handleProcessingRoomClick(room: HotelRoomSummary) {
     const roomNum = getRoomNumber(room);
     await SwalVietSage.fire({
-      title: `Cập nhật trạng thái phòng ${roomNum}`,
+      title: `P.${roomNum} · Chờ dọn`,
       html: `
-        <div style="font-size:14px;color:#475569;margin-bottom:14px;text-align:center;">Phòng <strong>${roomNum}</strong> đang ở trạng thái <strong>Chờ dọn dẹp</strong>. Chọn thao tác:</div>
         <div style="display:flex;flex-direction:column;gap:8px;">
           <button id="swal-btn-available" style="padding:10px 16px;border-radius:10px;background:#059669;color:#ffffff;font-weight:600;font-size:13px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.15s ease;">
-            Đã dọn xong (Chuyển sang Trống)
+            Đã sạch
           </button>
           ${
             canCheckInStay || canManageStays
               ? `
           <button id="swal-btn-ready-checkin" style="padding:10px 16px;border-radius:10px;background:#ffffff;border:1px solid #cbd5e1;color:#1e293b;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s ease;">
-            Xác nhận sạch & mở nhận phòng ngay
+            Đã sạch & nhận phòng
           </button>
           `
               : ""
@@ -4562,12 +4554,11 @@ export function StaffRoomsClient({
   async function handleBlockedRoomClick(room: HotelRoomSummary) {
     const roomNum = getRoomNumber(room);
     await SwalVietSage.fire({
-      title: `Cập nhật trạng thái phòng ${roomNum}`,
+      title: `P.${roomNum} · Đã khóa`,
       html: `
-        <div style="font-size:14px;color:#475569;margin-bottom:14px;text-align:center;">Phòng <strong>${roomNum}</strong> đang ở trạng thái <strong>Đã khóa</strong>. Chọn thao tác:</div>
         <div style="display:flex;flex-direction:column;gap:8px;">
           <button id="swal-btn-available" style="padding:10px 16px;border-radius:10px;background:#059669;color:#ffffff;font-weight:600;font-size:13px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.15s ease;">
-            Mở khóa phòng (Chuyển sang Trống)
+            Mở khóa phòng
           </button>
           <button id="swal-btn-maintenance" style="padding:10px 16px;border-radius:10px;background:#ffffff;border:1px solid #cbd5e1;color:#1e293b;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s ease;">
             Chuyển sang bảo trì
@@ -4604,12 +4595,11 @@ export function StaffRoomsClient({
   async function handleMaintenanceRoomClick(room: HotelRoomSummary) {
     const roomNum = getRoomNumber(room);
     await SwalVietSage.fire({
-      title: `Cập nhật trạng thái phòng ${roomNum}`,
+      title: `P.${roomNum} · Bảo trì`,
       html: `
-        <div style="font-size:14px;color:#475569;margin-bottom:14px;text-align:center;">Phòng <strong>${roomNum}</strong> đang ở trạng thái <strong>Bảo trì</strong>. Chọn thao tác:</div>
         <div style="display:flex;flex-direction:column;gap:8px;">
           <button id="swal-btn-available" style="padding:10px 16px;border-radius:10px;background:#059669;color:#ffffff;font-weight:600;font-size:13px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.15s ease;">
-            Hoàn thành bảo trì (Chuyển sang Trống)
+            Hoàn tất bảo trì
           </button>
           ${
             canManageRooms
@@ -4924,7 +4914,7 @@ export function StaffRoomsClient({
         setCustomCheckInInitialFields(null);
         await showSuccessAlert(
           "Nhận phòng thành công",
-          `Mã GuestOS: ${result.data?.accessCode || ""}. Hồ sơ khách đang được tự động chuyển sang Khai báo tạm trú (BCA).`,
+          result.data?.accessCode ? `Mã truy cập: ${result.data.accessCode}` : "",
         );
         await invalidateHotelRealtimeQueries(queryClient, hotelId);
         void boundChannelResource.invalidate(queryClient);
@@ -4944,8 +4934,8 @@ export function StaffRoomsClient({
           const earlyConfirm = await showConfirmDialog({
             icon: "question",
             title: isEarlyConfirmation
-              ? "Xác nhận nhận phòng sớm?"
-              : "Xác nhận nhận phòng muộn?",
+              ? "Nhận phòng sớm?"
+              : "Nhận phòng muộn?",
             html: formatEarlyCheckInConfirmHtml({
               guestName:
                 activeReservationCheckIn?.guestDisplayName ||
@@ -4958,8 +4948,8 @@ export function StaffRoomsClient({
               isEarly: isEarlyConfirmation,
             }),
             confirmText: isEarlyConfirmation
-              ? "Đồng ý nhận phòng sớm"
-              : "Đồng ý nhận phòng muộn",
+              ? "Nhận phòng sớm"
+              : "Nhận phòng muộn",
             cancelText: "Hủy bỏ",
             reverseButtons: false,
           });
@@ -5011,7 +5001,7 @@ export function StaffRoomsClient({
               setCustomCheckInInitialFields(null);
               await showSuccessAlert(
                 "Nhận phòng thành công",
-                `Mã GuestOS: ${retryResult.data?.accessCode || ""}. Hồ sơ khách đang được tự động chuyển sang Khai báo tạm trú (BCA).`,
+                retryResult.data?.accessCode ? `Mã truy cập: ${retryResult.data.accessCode}` : "",
               );
               await invalidateHotelRealtimeQueries(queryClient, hotelId);
               void boundChannelResource.invalidate(queryClient);
@@ -5080,7 +5070,7 @@ export function StaffRoomsClient({
       setSelectedRoom(null);
       await showSuccessAlert(
         "Đã mở phòng",
-        `Mã GuestOS: ${result.data.accessCode}. Hồ sơ khách đang được tự động chuyển sang Khai báo tạm trú (BCA).`,
+        `Mã truy cập: ${result.data.accessCode}`,
       );
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       void refetch();

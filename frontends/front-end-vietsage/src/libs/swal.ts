@@ -794,16 +794,12 @@ export function formatRoomSwapConfirmHtml(params: RoomSwapConfirmParams): string
         </div>
       </div>
 
-      <!-- Explanatory reassurance footer -->
-      <div class="flex items-start gap-2.5 rounded-xl border border-sky-100 bg-sky-50/80 p-3 text-slate-600 text-xs sm:text-sm leading-relaxed shadow-2xs">
+      ${note ? `<div class="flex items-start gap-2.5 rounded-xl border border-sky-100 bg-sky-50/80 p-3 text-sky-900 text-xs sm:text-sm leading-relaxed shadow-2xs">
         <span class="text-base select-none mt-0.5 text-sky-600">ℹ️</span>
         <p class="text-pretty">
-          ${escapeHtml(
-            note ||
-              "Hai đơn đặt phòng sẽ hoán đổi phòng cho nhau trên sơ đồ. Ngày nhận/trả phòng và giá tiền của từng đơn được bảo lưu nguyên vẹn.",
-          )}
+          ${escapeHtml(note)}
         </p>
-      </div>
+      </div>` : ""}
     </div>
   `;
 }
@@ -887,19 +883,19 @@ export function formatRoomMoveConfirmHtml(params: RoomMoveConfirmParams): string
         <div class="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/90 p-3 text-amber-900 text-xs sm:text-sm leading-relaxed shadow-2xs">
           <span class="text-base select-none mt-0.5">⚠️</span>
           <div class="space-y-0.5">
-            <strong class="font-bold text-amber-950">Phòng ${escapeHtml(toRoom)} đang ở trạng thái ${escapeHtml(dirtyStatusLabel || "chờ dọn dẹp")}:</strong>
-            <p class="text-pretty">Vui lòng phối hợp với bộ phận buồng phòng hoàn tất kiểm tra và dọn phòng trước khi khách nhận phòng.</p>
+            <strong class="font-bold text-amber-950">P.${escapeHtml(toRoom)} · ${escapeHtml(dirtyStatusLabel || "Chờ dọn")}</strong>
+            <p class="text-pretty">Cần dọn phòng trước khi nhận khách.</p>
           </div>
         </div>
       `
-          : `
-        <div class="flex items-start gap-2.5 rounded-xl border border-sky-100 bg-sky-50/80 p-3 text-slate-600 text-xs sm:text-sm leading-relaxed shadow-2xs">
+          : note ? `
+        <div class="flex items-start gap-2.5 rounded-xl border border-sky-100 bg-sky-50/80 p-3 text-sky-900 text-xs sm:text-sm leading-relaxed shadow-2xs">
           <span class="text-base select-none mt-0.5 text-sky-600">ℹ️</span>
           <p class="text-pretty">
-            ${escapeHtml(note || "Đơn đặt phòng sẽ được chuyển trực tiếp sang phòng mới trên sơ đồ buồng phòng.")}
+            ${escapeHtml(note)}
           </p>
         </div>
-      `
+      ` : ""
       }
     </div>
   `;
@@ -982,15 +978,12 @@ export function formatExtendStayConfirmHtml(params: ExtendStayConfirmParams): st
         }
       </div>
 
-      <div class="flex items-start gap-2.5 rounded-xl border border-sky-100 bg-sky-50/80 p-3 text-slate-600 text-xs sm:text-sm leading-relaxed shadow-2xs">
+      ${note ? `<div class="flex items-start gap-2.5 rounded-xl border border-sky-100 bg-sky-50/80 p-3 text-sky-900 text-xs sm:text-sm leading-relaxed shadow-2xs">
         <span class="text-base select-none mt-0.5 text-sky-600">ℹ️</span>
         <p class="text-pretty">
-          ${escapeHtml(
-            note ||
-              "Hệ thống sẽ cập nhật trạng thái phòng thành Đang ở bình thường và ghi nhận thời hạn lưu trú mới.",
-          )}
+          ${escapeHtml(note)}
         </p>
-      </div>
+      </div>` : ""}
     </div>
   `;
 }
@@ -1076,14 +1069,12 @@ export function formatAdjustReservationDatesConfirmHtml(
         </div>
       </div>
 
-      <div class="flex items-start gap-2.5 rounded-xl border border-sky-100 bg-sky-50/80 p-3 text-slate-600 text-xs sm:text-sm leading-relaxed shadow-2xs">
+      ${note ? `<div class="flex items-start gap-2.5 rounded-xl border border-sky-100 bg-sky-50/80 p-3 text-sky-900 text-xs sm:text-sm leading-relaxed shadow-2xs">
         <span class="text-base select-none mt-0.5 text-sky-600">ℹ️</span>
         <p class="text-pretty">
-          ${escapeHtml(
-            note || "Hệ thống sẽ cập nhật ngày nhận/trả phòng và đồng bộ trực tiếp lên sơ đồ buồng phòng.",
-          )}
+          ${escapeHtml(note)}
         </p>
-      </div>
+      </div>` : ""}
     </div>
   `;
 }
@@ -1145,7 +1136,7 @@ export function formatCheckOutConfirmHtml(params: CheckOutConfirmParams): string
         <p class="text-pretty">
           ${escapeHtml(
             note ||
-              "Xác nhận khách đã hoàn tất thủ tục thanh toán và kiểm tra phòng để tiến hành trả phòng.",
+              "Kiểm tra thanh toán và phòng trước khi trả.",
           )}
         </p>
       </div>
@@ -1215,17 +1206,12 @@ export function formatEarlyCheckInConfirmHtml(params: EarlyCheckInConfirmParams)
           </span>
         </div>
       </div>
-      <div class="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-amber-900 text-xs sm:text-sm leading-relaxed shadow-2xs">
+      ${note ? `<div class="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-amber-900 text-xs sm:text-sm leading-relaxed shadow-2xs">
         <span class="text-base select-none mt-0.5">ℹ️</span>
         <p class="text-pretty">
-          ${escapeHtml(
-            note ||
-              (isEarly
-                ? "Đơn đặt phòng đang được làm thủ tục nhận phòng trước ngày dự kiến. Bạn có chắc chắn muốn tiếp tục?"
-                : "Đơn đặt phòng đã quá hạn nhận phòng dự kiến. Bạn có chắc chắn muốn tiếp tục làm thủ tục nhận phòng?"),
-          )}
+          ${escapeHtml(note)}
         </p>
-      </div>
+      </div>` : ""}
     </div>
   `;
 }
@@ -1255,7 +1241,7 @@ export function formatRoomDirtyWarningHtml(params: RoomDirtyWarningParams): stri
         <p class="text-pretty">
           ${escapeHtml(
             note ||
-              "Phòng đang ở trạng thái Chờ dọn dẹp. Vui lòng xác nhận yêu cầu bộ phận buồng phòng hoàn tất dọn phòng trước khi tạo đặt phòng hoặc nhận phòng cho khách.",
+              "Chỉ xác nhận khi phòng đã sạch và sẵn sàng đón khách.",
           )}
         </p>
       </div>
@@ -1308,15 +1294,12 @@ export function formatRoomAssignmentConfirmHtml(params: RoomAssignmentConfirmPar
           <span class="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold text-xs sm:text-sm shadow-2xs">${escapeHtml(roomName)}</span>
         </div>
       </div>
-      <div class="flex items-start gap-2.5 rounded-xl border border-sky-100 bg-sky-50/80 p-3 text-slate-600 text-xs sm:text-sm leading-relaxed shadow-2xs">
+      ${note ? `<div class="flex items-start gap-2.5 rounded-xl border border-sky-100 bg-sky-50/80 p-3 text-sky-900 text-xs sm:text-sm leading-relaxed shadow-2xs">
         <span class="text-base select-none mt-0.5 text-sky-600">ℹ️</span>
         <p class="text-pretty">
-          ${escapeHtml(
-            note ||
-              "Xác nhận gán phòng cho đơn đặt phòng. Hệ thống sẽ cập nhật trạng thái phòng trực tiếp lên sơ đồ buồng phòng.",
-          )}
+          ${escapeHtml(note)}
         </p>
-      </div>
+      </div>` : ""}
     </div>
   `;
 }
@@ -1369,7 +1352,7 @@ export function formatCancelReservationConfirmHtml(params: CancelReservationConf
         <p class="text-pretty">
           ${escapeHtml(
             note ||
-              "Đơn đặt phòng sẽ bị hủy. Phòng đã gán (nếu có) sẽ được giải phóng ngay lập tức trên sơ đồ buồng phòng để sẵn sàng đón khách khác.",
+              "Đơn sẽ bị hủy và phòng đã gán được giải phóng.",
           )}
         </p>
       </div>
@@ -1425,7 +1408,7 @@ export function formatNoShowConfirmHtml(params: NoShowConfirmParams): string {
         <p class="text-pretty">
           ${escapeHtml(
             note ||
-              "Xác nhận khách không đến nhận phòng theo lịch hẹn. Phòng đã gán sẽ được giải phóng ngay lập tức trên sơ đồ buồng phòng.",
+              "Ghi nhận khách không đến và giải phóng phòng đã gán.",
           )}
         </p>
       </div>

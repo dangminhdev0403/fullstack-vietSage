@@ -880,10 +880,10 @@ export function EditReservationModal({
 
       if (!options?.silentSuccessAlert) {
         await showSuccessAlert(
-          "Cập nhật thành công",
+          "Đã lưu thay đổi",
           editScope === "GROUP" && reservation.groupCode
-            ? `Đã lưu thay đổi cho toàn bộ đoàn #${reservation.groupCode}.`
-            : `Đã lưu thay đổi cho đơn đặt phòng #${reservation.reservationCode || reservation.id}.`,
+            ? `Đoàn #${reservation.groupCode}`
+            : reservation.reservationCode ? `#${reservation.reservationCode}` : "",
         );
       }
 
@@ -959,10 +959,10 @@ export function EditReservationModal({
       if (effectiveConflictingStay && onCheckOutConflictingStay) {
         const ask = await showConfirmDialog({
           icon: "warning",
-          title: `Phòng ${selectedRoomNumber} đang có khách ở`,
-          text: `Khách "${effectiveConflictingStay.guestName}" tại Phòng ${selectedRoomNumber} chưa làm thủ tục trả phòng (Check-out). Bạn muốn mở trả phòng cho khách cũ ngay bây giờ, hay chọn đổi sang phòng trống khác cho đơn đặt này?`,
-          confirmText: `Trả phòng (Check-out) P.${selectedRoomNumber} ngay`,
-          cancelText: "Để tôi đổi sang phòng trống khác",
+          title: `Phòng ${selectedRoomNumber} đang có khách`,
+          text: `${effectiveConflictingStay.guestName} chưa trả phòng.`,
+          confirmText: "Trả phòng khách cũ",
+          cancelText: "Đổi phòng",
           reverseButtons: false,
         });
         if (ask.isConfirmed) {
@@ -977,8 +977,8 @@ export function EditReservationModal({
       }
       setShowRoomOverride(true);
       await showWarningAlert(
-        `Phòng ${selectedRoomNumber} đang có khách lưu trú`,
-        "Phòng này chưa làm thủ tục trả phòng (Check-out). Vui lòng nhấn chọn một phòng trống khả dụng ở khung Xử lý xung đột hoặc trả phòng khách hiện tại trước.",
+        `Phòng ${selectedRoomNumber} đang có khách`,
+        "Trả phòng khách cũ hoặc chọn phòng trống khác.",
       );
       return;
     }
@@ -1038,10 +1038,10 @@ export function EditReservationModal({
       if (effectiveConflictingStay && onCheckOutConflictingStay) {
         const ask = await showConfirmDialog({
           icon: "warning",
-          title: `Phòng ${displayRoomNumber} chưa trả phòng (Check-out)`,
-          text: `Khách "${effectiveConflictingStay.guestName}" vẫn đang lưu trú tại Phòng ${displayRoomNumber}. Bạn muốn làm thủ tục Trả phòng (Check-out) cho khách cũ ngay bây giờ, hay đổi sang phòng trống khác?`,
-          confirmText: `Trả phòng P.${displayRoomNumber} ngay`,
-          cancelText: "Đổi sang phòng trống khác",
+          title: `Phòng ${displayRoomNumber} đang có khách`,
+          text: `${effectiveConflictingStay.guestName} chưa trả phòng.`,
+          confirmText: "Trả phòng khách cũ",
+          cancelText: "Đổi phòng",
           reverseButtons: false,
         });
         if (ask.isConfirmed) {
@@ -1057,8 +1057,8 @@ export function EditReservationModal({
 
       setShowRoomOverride(true);
       await showWarningAlert(
-        `Phòng ${displayRoomNumber} đang có khách lưu trú`,
-        `Phòng ${displayRoomNumber} chưa được trả phòng (Check-out). Bạn có thể bấm chọn nhanh 1 phòng trống cùng hạng ngay trong khung điều phối bên dưới để nhận phòng tức thì.`,
+        `Phòng ${displayRoomNumber} đang có khách`,
+        "Trả phòng khách cũ hoặc chọn phòng trống khác.",
       );
       return;
     }
@@ -1069,9 +1069,9 @@ export function EditReservationModal({
     ) {
       const confirmClean = await showConfirmDialog({
         icon: "question",
-        title: `Phòng ${displayRoomNumber} đang chờ dọn`,
-        text: `Phòng ${displayRoomNumber} khách cũ vừa trả, đang ở trạng thái chờ buồng phòng dọn. Bạn có muốn xác nhận phòng đã sạch và nhận phòng ngay cho khách ${guestDisplayName.trim() || reservation.guestDisplayName} không?`,
-        confirmText: `Xác nhận phòng sạch & Nhận phòng ngay`,
+        title: `Phòng ${displayRoomNumber} chờ dọn`,
+        text: `Xác nhận đã sạch để nhận phòng cho ${guestDisplayName.trim() || reservation.guestDisplayName}.`,
+        confirmText: "Đã sạch, nhận phòng",
         cancelText: "Hủy bỏ",
         reverseButtons: false,
       });
@@ -1115,8 +1115,8 @@ export function EditReservationModal({
       );
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       await showSuccessAlert(
-        `Đã nhận phòng P.${displayRoomNumber}!`,
-        `Khách ${guestDisplayName.trim() || reservation.guestDisplayName} đã nhận phòng thành công${resData?.accessCode ? ` (Mã GuestOS: ${resData.accessCode})` : ""}.`,
+        `Đã nhận phòng P.${displayRoomNumber}`,
+        `${guestDisplayName.trim() || reservation.guestDisplayName}${resData?.accessCode ? ` · Mã truy cập: ${resData.accessCode}` : ""}`,
       );
       await onSuccess?.({ ...updated, status: "CHECKED_IN" });
       onClose();
@@ -1125,7 +1125,7 @@ export function EditReservationModal({
         const isEarly = isEarlyCheckInError(err);
         const warningConfirm = await showConfirmDialog({
           icon: "warning",
-          title: isEarly ? "Xác nhận nhận phòng sớm?" : "Xác nhận nhận phòng quá hạn?",
+          title: isEarly ? "Nhận phòng sớm?" : "Nhận phòng muộn?",
           html: formatEarlyCheckInConfirmHtml({
             guestName: guestDisplayName.trim() || reservation.guestDisplayName,
             roomNumber: String(displayRoomNumber),
@@ -1135,7 +1135,7 @@ export function EditReservationModal({
             reservationCode: reservation.reservationCode ?? undefined,
             isEarly,
           }),
-          confirmText: isEarly ? "Đồng ý nhận phòng sớm" : "Đồng ý nhận phòng trễ",
+          confirmText: isEarly ? "Nhận phòng sớm" : "Nhận phòng muộn",
           cancelText: "Hủy bỏ",
           reverseButtons: false,
         });
@@ -1154,8 +1154,8 @@ export function EditReservationModal({
             );
             await invalidateHotelRealtimeQueries(queryClient, hotelId);
             await showSuccessAlert(
-              `Đã nhận phòng P.${displayRoomNumber}!`,
-              `Khách ${guestDisplayName.trim() || reservation.guestDisplayName} đã nhận phòng thành công${retryData?.accessCode ? ` (Mã GuestOS: ${retryData.accessCode})` : ""}.`,
+              `Đã nhận phòng P.${displayRoomNumber}`,
+              `${guestDisplayName.trim() || reservation.guestDisplayName}${retryData?.accessCode ? ` · Mã truy cập: ${retryData.accessCode}` : ""}`,
             );
             await onSuccess?.({ ...updated, status: "CHECKED_IN" });
             onClose();

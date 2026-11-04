@@ -964,11 +964,11 @@ export function StaffBillingWorkspaceClient({
     const isZeroBalance = computedTotal <= 0;
     const confirmation = await showConfirmDialog({
       icon: "question",
-      title: isZeroBalance ? "Đóng checkout không còn số dư?" : "Phát hành hóa đơn và thu tiền?",
+      title: isZeroBalance ? "Trả phòng?" : "Xác nhận thanh toán?",
       text: isZeroBalance
-        ? "Sau khi xác nhận, stay sẽ đóng và phòng chuyển sang chờ dọn."
-        : "Sau khi xác nhận thanh toán, hệ thống sẽ ghi nhận giao dịch.",
-      confirmText: "Tiếp tục",
+        ? "Không còn số dư. Phòng sẽ chuyển sang chờ dọn."
+        : `Tổng tiền: ${formatMoney(computedTotal, currency)}.`,
+      confirmText: isZeroBalance ? "Trả phòng" : "Thanh toán",
       cancelText: "Hủy",
     });
     if (!confirmation.isConfirmed) return;
@@ -1108,16 +1108,16 @@ export function StaffBillingWorkspaceClient({
 
         if (appliedAmount < invoiceBalance || remainingBalance > 0) {
           await showSuccessAlert(
-            "Thanh toán một phần thành công",
-            `Đã thu ${formatMoney(appliedAmount, currency)}. Còn lại cần thanh toán: ${formatMoney(remainingBalance, currency)}.`,
+            "Đã thu một phần",
+            `Đã thu ${formatMoney(appliedAmount, currency)} · Còn lại ${formatMoney(remainingBalance, currency)}.`,
           );
         } else if (changeAmount > 0) {
           await showSuccessAlert(
-            "Checkout hoàn tất",
-            `Đã thu đủ tiền. Tiền thừa trả khách: ${formatMoney(changeAmount, currency)}. Phòng đang chờ dọn.`,
+            "Đã trả phòng",
+            `Tiền thừa: ${formatMoney(changeAmount, currency)} · Phòng chờ dọn.`,
           );
         } else {
-          await showSuccessAlert("Thành công", "Đã thu tiền và đóng phòng.");
+          await showSuccessAlert("Đã trả phòng", "Phòng đang chờ dọn.");
         }
       } else {
         const paymentKey = `${invoice.id}:zero-payment`;
@@ -1139,7 +1139,7 @@ export function StaffBillingWorkspaceClient({
         );
         checkoutAttemptIdsRef.current = {};
         publishHotelRoomChange(hotelId);
-        await showSuccessAlert("Thành công", "Đã đóng phòng không còn số dư.");
+        await showSuccessAlert("Đã trả phòng", "Phòng đang chờ dọn.");
       }
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
     } catch (error) {
@@ -1177,7 +1177,6 @@ export function StaffBillingWorkspaceClient({
       title: `Thanh toán đoàn ${foliosToSettle.length} phòng?`,
       html: `
         <div style="text-align: left; font-size: 14px; line-height: 1.6; color: #334155;">
-          <p>Xác nhận phát hành hóa đơn &amp; đóng checkout đồng thời cho <strong>${foliosToSettle.length} phòng</strong>:</p>
           <div style="margin: 8px 0; padding: 10px; background-color: #f1f5f9; border-radius: 8px; font-weight: 700; color: #0f172a; max-height: 100px; overflow-y: auto;">
             ${escapeHtml(roomNames)}
           </div>
@@ -1300,10 +1299,10 @@ export function StaffBillingWorkspaceClient({
       if (firstInvoiceId) {
         const confirmResult = await showConfirmDialog({
           icon: "question",
-          title: "Thanh toán đoàn thành công!",
-          text: `Đã phát hành hóa đơn và hoàn tất checkout cho ${successCount} phòng thuộc đoàn. Bạn có muốn xem & in hóa đơn ngay bây giờ không?`,
-          confirmText: "Xem & In hóa đơn",
-          cancelText: "Ở lại hàng đợi",
+          title: "Đã thanh toán đoàn",
+          text: `${successCount} phòng đã trả.`,
+          confirmText: "Xem hóa đơn",
+          cancelText: "Đóng",
           reverseButtons: false,
         });
         if (confirmResult.isConfirmed) {
@@ -1314,8 +1313,8 @@ export function StaffBillingWorkspaceClient({
         }
       } else {
         await showSuccessAlert(
-          "Thanh toán đoàn thành công!",
-          `Đã phát hành hóa đơn và hoàn tất checkout cho ${successCount} phòng thuộc đoàn.`,
+          "Đã thanh toán đoàn",
+          `${successCount} phòng đã trả.`,
         );
       }
       setSelectedGroupFolioIds(new Set());
@@ -2058,7 +2057,7 @@ export function StaffBillingWorkspaceClient({
                                 const res = await SwalVietSage.fire({
                                   icon: "warning",
                                   title: "Hủy khoản thu này?",
-                                  text: `Xác nhận hủy mục "${item.nameSnapshot}" trên folio.`,
+                                  text: item.nameSnapshot,
                                   input: "text",
                                   inputPlaceholder: "Lý do hủy (không bắt buộc)",
                                   showCancelButton: true,
@@ -2094,8 +2093,8 @@ export function StaffBillingWorkspaceClient({
                                     hotelId,
                                   );
                                   await showSuccessAlert(
-                                    "Thành công",
-                                    "Đã hủy khoản mục thành công.",
+                                    "Đã hủy khoản thu",
+                                    "",
                                   );
                                 } catch (err) {
                                   void showErrorAlert("Không thể hủy khoản mục", err);
@@ -2363,17 +2362,16 @@ export function StaffBillingWorkspaceClient({
                     if (!closedInvoiceId) {
                       void SwalVietSage.fire({
                         icon: "warning",
-                        title: "Chưa có mã hóa đơn",
-                        text: "Các phòng trong đoàn đã đóng nhưng chưa tìm thấy mã hóa đơn.",
+                        title: "Chưa tìm thấy hóa đơn",
+                        text: "Đoàn đã trả phòng nhưng chưa có mã hóa đơn.",
                         confirmButtonText: "Đã hiểu",
                       });
                       return;
                     }
                     const result = await showConfirmDialog({
                       icon: "question",
-                      title: "Xem & In hóa đơn đoàn?",
-                      text: "Hệ thống sẽ chuyển sang trang hóa đơn để xem chi tiết và in ấn.",
-                      confirmText: "Xem & In",
+                      title: "Xem hóa đơn đoàn?",
+                      confirmText: "Xem hóa đơn",
                       cancelText: "Hủy",
                     });
                     if (result.isConfirmed) {
@@ -2883,17 +2881,16 @@ export function StaffBillingWorkspaceClient({
                     if (!invoiceId) {
                       void SwalVietSage.fire({
                         icon: "warning",
-                        title: "Chưa có mã hóa đơn",
-                        text: `Folio ${selectedFolio?.folioNumber ?? selectedFolio?.id} đã đóng nhưng chưa có thông tin hóa đơn.`,
+                        title: "Chưa tìm thấy hóa đơn",
+                        text: "Phòng đã trả nhưng chưa có mã hóa đơn.",
                         confirmButtonText: "Đã hiểu",
                       });
                       return;
                     }
                     const result = await showConfirmDialog({
                       icon: "question",
-                      title: "Xuất hóa đơn?",
-                      text: "Hệ thống sẽ chuyển sang trang chi tiết để in và xuất hóa đơn.",
-                      confirmText: "Đồng ý",
+                      title: "Xem hóa đơn?",
+                      confirmText: "Xem hóa đơn",
                       cancelText: "Hủy",
                     });
                     if (result.isConfirmed) {

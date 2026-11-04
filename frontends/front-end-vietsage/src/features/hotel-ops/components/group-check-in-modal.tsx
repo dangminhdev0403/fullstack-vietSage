@@ -67,10 +67,10 @@ async function checkInGroupRoom(
     if (!early && !isLateCheckInError(error)) throw error;
     const confirmation = await showConfirmDialog({
       icon: "warning",
-      title: early ? "Xác nhận nhận phòng sớm?" : "Xác nhận nhận phòng quá hạn?",
+      title: early ? "Nhận phòng sớm?" : "Nhận phòng muộn?",
       text: `Phòng ${room.roomNumber} · ${guestName} · Ngày đến dự kiến: ${toDisplayVnDate(room.plannedCheckInAt?.slice(0, 10) || "")}.`,
       confirmText: early ? "Nhận phòng sớm" : "Nhận phòng muộn",
-      cancelText: "Chưa nhận phòng này",
+      cancelText: "Chưa nhận phòng",
     });
     if (!confirmation.isConfirmed) throw error;
     result = await staffRoomsRepository.checkInReservation(hotelId, room.reservationId, {
@@ -517,8 +517,7 @@ function GroupCheckInForm({
   const handleConfirmRoomCleanReady = async (room: HotelRoomSummary) => {
     const confirm = await showConfirmDialog({
       icon: "question",
-      title: `Xác nhận phòng ${room.roomNumber} đã dọn sạch?`,
-      text: "Chỉ xác nhận sau khi đã kiểm tra phòng sạch và sẵn sàng đón khách.",
+      title: `Phòng ${room.roomNumber} đã sạch?`,
       confirmText: "Xác nhận sạch",
       cancelText: "Hủy",
     });
@@ -705,8 +704,8 @@ function GroupCheckInForm({
       } else {
         // No open folio exists, meaning the room is clean/ready or error can be cleared
         await showSuccessAlert(
-          "Phòng không có hóa đơn tồn đọng",
-          `Không tìm thấy hóa đơn mở cho phòng ${targetRoom.roomNumber}. Cần kiểm tra lại trạng thái phòng trước khi thử nhận phòng.`,
+          "Không có hóa đơn mở",
+        `P.${targetRoom.roomNumber} · Kiểm tra lại trạng thái phòng.`,
         );
         if (activeRoom?.reservationId) {
           setFailedRoomMap((prev) => {
@@ -931,10 +930,10 @@ function GroupCheckInForm({
     if (hasAnyCccd) {
       const confirm = await showConfirmDialog({
         icon: "warning",
-        title: "Hủy bỏ Check-in đoàn?",
-        text: "Các thông tin căn cước / hộ chiếu vừa nhập chưa được lưu. Bạn có chắc chắn muốn thoát?",
-        confirmText: "Đồng ý thoát",
-        cancelText: "Tiếp tục nhập",
+        title: "Thoát nhận phòng đoàn?",
+        text: "Thông tin CCCD/hộ chiếu chưa được lưu.",
+        confirmText: "Thoát",
+        cancelText: "Nhập tiếp",
         reverseButtons: false,
       });
       if (!confirm.isConfirmed) return;
@@ -981,13 +980,12 @@ function GroupCheckInForm({
 
     const confirm = await showConfirmDialog({
       icon: "question",
-      title: "Xác nhận nhận phòng & lưu khách lưu trú?",
+      title: "Nhận phòng đoàn?",
       html: `
         <div style="text-align: left; font-size: 14px; line-height: 1.6; color: #334155;">
-          <p>Bạn chuẩn bị hoàn tất nhận phòng cho <strong>${roomsState.length} phòng</strong> (${totalGuestsCount} khách) thuộc đoàn <strong>#${escapeHtml(groupCode)}</strong>:</p>
+          <p><strong>${roomsState.length} phòng</strong> · ${totalGuestsCount} khách · Đoàn <strong>#${escapeHtml(groupCode)}</strong></p>
           <ul style="margin: 8px 0; padding-left: 20px; color: #0f172a; font-weight: 600;">
-            <li>Phòng đã có thông tin CCCD: ${roomsWithCccd} / ${roomsState.length} phòng</li>
-            <li>Hồ sơ căn cước & khách đi cùng sẽ được lưu tự động vào <strong>Quản lý khách lưu trú</strong> để chạy ngầm cho BCA.</li>
+            <li>Đã có CCCD: ${roomsWithCccd}/${roomsState.length} phòng</li>
           </ul>
         </div>
       `,
@@ -1073,8 +1071,8 @@ function GroupCheckInForm({
 
     if (failCount === 0) {
       await showSuccessAlert(
-        "Nhận phòng đoàn thành công",
-        `Đã hoàn tất thủ tục nhận phòng cho ${successCount} phòng thuộc đoàn #${groupCode}. Dữ liệu khách lưu trú đã được lưu an toàn.`,
+        "Đã nhận phòng đoàn",
+        `${successCount} phòng · Đoàn #${groupCode}`,
         { timer: false },
       );
       await onSuccess?.();

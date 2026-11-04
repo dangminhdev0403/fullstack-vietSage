@@ -3232,10 +3232,10 @@ export function TapeChartView({
       if (activeStayOnSameRoom && activeStayOnSameRoom.guestStayId) {
         const askConflict = await showConfirmDialog({
           icon: "warning",
-          title: `Phòng ${targetBlock.roomNumber} đang có khách lưu trú`,
-          text: `Khách "${cleanBlockGuestName(activeStayOnSameRoom.guestName)}" tại Phòng ${targetBlock.roomNumber} chưa làm thủ tục trả phòng (Check-out). Bạn muốn trả phòng cho khách cũ ngay bây giờ, hay mở điều phối để đổi sang phòng trống khác cho khách "${cleanBlockGuestName(targetBlock.guestName)}"?`,
-          confirmText: `Trả phòng P.${targetBlock.roomNumber} trước`,
-          cancelText: "Đổi sang phòng trống khác",
+          title: `Phòng ${targetBlock.roomNumber} đang có khách`,
+          text: `${cleanBlockGuestName(activeStayOnSameRoom.guestName)} chưa trả phòng.`,
+          confirmText: "Trả phòng khách cũ",
+          cancelText: "Đổi phòng",
           reverseButtons: false,
         });
         if (askConflict.isConfirmed) {
@@ -3259,10 +3259,10 @@ export function TapeChartView({
       ) {
         const askClean = await showConfirmDialog({
           icon: "question",
-          title: `Phòng ${targetBlock.roomNumber} vừa trả — đang chờ dọn`,
-          text: `Phòng ${targetBlock.roomNumber} đang ở trạng thái chờ dọn buồng phòng. Bạn muốn xác nhận phòng đã dọn sạch để nhận phòng ngay, hay mở đổi sang phòng trống khác?`,
-          confirmText: `Xác nhận P.${targetBlock.roomNumber} sạch & Nhận phòng`,
-          cancelText: "Đổi sang phòng trống khác",
+          title: `Phòng ${targetBlock.roomNumber} chờ dọn`,
+          text: `Xác nhận đã sạch để nhận phòng cho ${cleanBlockGuestName(targetBlock.guestName)}.`,
+          confirmText: "Đã sạch, nhận phòng",
+          cancelText: "Đổi phòng",
           reverseButtons: false,
         });
         if (!askClean.isConfirmed) {
@@ -3286,7 +3286,7 @@ export function TapeChartView({
       if (targetBlock.startDate > todayYmd) {
         const confirmEarly = await showConfirmDialog({
           icon: "warning",
-          title: "Xác nhận nhận phòng sớm?",
+          title: "Nhận phòng sớm?",
           html: formatEarlyCheckInConfirmHtml({
             guestName: targetBlock.guestName,
             roomNumber: targetBlock.roomNumber,
@@ -3294,7 +3294,7 @@ export function TapeChartView({
             actualDate: todayYmd,
             isEarly: true,
           }),
-          confirmText: "Xác nhận nhận phòng sớm",
+          confirmText: "Nhận phòng sớm",
           cancelText: "Hủy bỏ",
         });
         if (!confirmEarly.isConfirmed) return;
@@ -3446,7 +3446,7 @@ export function TapeChartView({
     if (payload.endDate <= todayYmd) {
       void showErrorAlert(
         "Đơn đặt phòng trong quá khứ",
-        "Không thể di chuyển hoặc đổi phòng cho các đơn lưu trú đã kết thúc trong quá khứ.",
+        "Không thể đổi phòng cho lượt lưu trú đã kết thúc.",
       );
       return;
     }
@@ -3459,7 +3459,7 @@ export function TapeChartView({
     if (isTargetLocked) {
       void showErrorAlert(
         "Phòng đang bị khóa / bảo trì",
-        `Phòng ${targetRoom.roomNumber} đang ở trạng thái khóa hoặc bảo trì, không thể xếp phòng cho khách.`,
+        `Phòng ${targetRoom.roomNumber} chưa thể nhận khách.`,
       );
       return;
     }
@@ -3486,7 +3486,7 @@ export function TapeChartView({
       if (conflictBlock.movable && conflictResId) {
         // Offer swap
         const swapRes = await showConfirmDialog({
-          title: "Xác nhận tráo đổi phòng?",
+          title: "Hoán đổi phòng?",
           html: formatRoomSwapConfirmHtml({
             sourceGuest: payload.guestName,
             sourceRoom: payload.fromRoomNumber,
@@ -3497,7 +3497,7 @@ export function TapeChartView({
             targetDates: `${conflictBlock.startDate} ➔ ${conflictBlock.endDate}`,
             targetRoomType: conflictBlock.roomTypeName,
           }),
-          confirmText: "Xác nhận tráo phòng",
+          confirmText: "Hoán đổi phòng",
           cancelText: "Hủy bỏ",
         });
 
@@ -3536,8 +3536,8 @@ export function TapeChartView({
 
     const moveRes = await showConfirmDialog({
       title: isDirtyOrCleaning
-        ? `Xếp vào phòng đang chờ dọn (P.${targetRoom.roomNumber})?`
-        : `Chuyển đơn sang phòng ${targetRoom.roomNumber}?`,
+        ? `Chuyển vào P.${targetRoom.roomNumber} chờ dọn?`
+        : `Chuyển sang P.${targetRoom.roomNumber}?`,
       html: formatRoomMoveConfirmHtml({
         guestName: payload.guestName,
         fromRoom: payload.fromRoomNumber,
@@ -3656,11 +3656,11 @@ export function TapeChartView({
 
         if (isDirty) {
           const confirm = await showConfirmDialog({
-            title: "Xác nhận dọn phòng trước khi đặt",
+            title: "Xác nhận phòng đã sạch?",
             html: formatRoomDirtyWarningHtml({
               roomNames: `Phòng P.${clicked.room.roomNumber}`,
             }),
-            confirmText: "Xác nhận dọn & Tiếp tục đặt",
+            confirmText: "Đã sạch, tiếp tục đặt",
             cancelText: "Hủy bỏ",
           });
           if (!confirm.isConfirmed) return;
@@ -4063,11 +4063,11 @@ export function TapeChartView({
 
       if (dirtyRooms.length > 0) {
         const confirm = await showConfirmDialog({
-          title: "Xác nhận dọn phòng trước khi đặt",
+          title: "Xác nhận phòng đã sạch?",
           html: formatRoomDirtyWarningHtml({
             roomNames: dirtyRooms.map((r) => `P.${r.roomNumber}`),
           }),
-          confirmText: "Xác nhận dọn & Tiếp tục đặt",
+          confirmText: "Đã sạch, tiếp tục đặt",
           cancelText: "Hủy bỏ",
         });
         if (!confirm.isConfirmed) return;
@@ -4083,8 +4083,8 @@ export function TapeChartView({
         void showSuccessAlert(
           "Đã chọn khoảng lưu trú",
           draft.rooms.length > 1
-            ? `Đã chọn đoàn ${draft.rooms.length} phòng (${draft.rooms.map((r) => `P.${r.roomNumber}`).join(", ")}) từ ${draft.startDay} đến ${draft.endDay} (${draft.nights} đêm).`
-            : `Phòng P.${draft.roomNumber} từ ${draft.startDay} đến ${draft.endDay} (${draft.nights} đêm).`,
+            ? `${draft.rooms.length} phòng · ${draft.startDay}–${draft.endDay} · ${draft.nights} đêm`
+            : `P.${draft.roomNumber} · ${draft.startDay}–${draft.endDay} · ${draft.nights} đêm`,
         );
       }
       setDraftSelection(null);
@@ -4500,7 +4500,7 @@ export function TapeChartView({
       const additionalCost = diffNights > 0 ? rate * diffNights : 0;
 
       const confirmRes = await showConfirmDialog({
-        title: `Gia hạn lưu trú P.${block.roomNumber}?`,
+        title: `Gia hạn P.${block.roomNumber}?`,
         icon: "question",
         html: formatExtendStayConfirmHtml({
           roomNumber: block.roomNumber,
@@ -4529,7 +4529,7 @@ export function TapeChartView({
     // Handle Reservation: Adjust Dates
     if (block.kind === "RESERVATION" && block.reservationId) {
       const confirmRes = await showConfirmDialog({
-        title: `Điều chỉnh ngày đặt phòng P.${block.roomNumber}?`,
+        title: `Đổi ngày P.${block.roomNumber}?`,
         icon: "question",
         html: formatAdjustReservationDatesConfirmHtml({
           roomNumber: block.roomNumber,
