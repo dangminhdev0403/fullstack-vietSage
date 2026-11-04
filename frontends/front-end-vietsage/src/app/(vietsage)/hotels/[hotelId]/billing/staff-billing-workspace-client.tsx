@@ -26,6 +26,7 @@ import { folioPreviewResource } from "@/features/billing/resources/folio-preview
 import { formatMoney } from "@/features/billing/utils/money";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
+import { publishHotelRoomChange } from "@/features/hotel-ops/utils/hotel-ops-tab-sync";
 
 type Props = {
   hotelId: string;
@@ -1096,6 +1097,7 @@ export function StaffBillingWorkspaceClient({
         );
         checkoutPaymentAttemptRef.current = null;
         checkoutAttemptIdsRef.current = {};
+        publishHotelRoomChange(hotelId);
 
         const resData = paymentResponse?.data;
         const updatedInvoice = resData?.invoice?.invoice ?? resData?.invoice ?? invoice;
@@ -1136,6 +1138,7 @@ export function StaffBillingWorkspaceClient({
           },
         );
         checkoutAttemptIdsRef.current = {};
+        publishHotelRoomChange(hotelId);
         await showSuccessAlert("Thành công", "Đã đóng phòng không còn số dư.");
       }
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
@@ -1287,6 +1290,7 @@ export function StaffBillingWorkspaceClient({
       }
     }
 
+    if (successCount > 0) publishHotelRoomChange(hotelId);
     await refreshActiveFolio(true);
     router.refresh();
     setSaving(false);

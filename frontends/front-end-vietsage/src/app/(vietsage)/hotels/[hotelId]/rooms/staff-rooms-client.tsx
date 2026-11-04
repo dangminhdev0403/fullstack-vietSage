@@ -883,6 +883,7 @@ export function StaffRoomsClient({
   );
   const [requestedViewMode, setOperationalViewMode] = useState<"grid" | "tape-chart" | undefined>(initialView);
   const operationalViewMode = requestedViewMode ?? storedViewMode ?? (isHousekeeping ? "grid" : "tape-chart");
+  const [tapeRoomCount, setTapeRoomCount] = useState<number | null>(null);
 
   const handleOperationalViewModeChange = useCallback(
     (mode: "grid" | "tape-chart") => {
@@ -895,8 +896,6 @@ export function StaffRoomsClient({
         } else {
           url.searchParams.set("view", "grid");
           url.searchParams.delete("tab");
-          url.searchParams.delete("startDate");
-          url.searchParams.delete("viewMode");
         }
         window.history.replaceState(null, "", url.toString());
       }
@@ -6085,7 +6084,7 @@ export function StaffRoomsClient({
         </div>
       ) : null}
 
-      {isFutureDate && operationalViewMode === "grid" ? (
+      {isFutureDate ? (
         <div className="rounded-2xl border border-sky-300 bg-sky-50/90 p-4 text-sky-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-700 text-white">
@@ -6113,7 +6112,6 @@ export function StaffRoomsClient({
         </div>
       ) : null}
 
-      {operationalViewMode === "grid" ? (
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
           {
@@ -6240,10 +6238,8 @@ export function StaffRoomsClient({
           );
         })}
       </section>
-      ) : null}
 
-      {operationalViewMode === "grid" ? (
-      <section className="sticky top-0 z-20 -mx-2 rounded-2xl border border-slate-200/90 bg-white/95 p-3.5 shadow-sm backdrop-blur-md md:top-2 space-y-3 transition-shadow hover:shadow-md">
+      <section aria-label="Điều hành phòng" className="sticky top-0 z-20 -mx-2 rounded-2xl border border-slate-200/90 bg-white/95 p-3.5 shadow-sm backdrop-blur-md md:top-2 space-y-3 transition-shadow hover:shadow-md">
         {!isHousekeeping ? (
           <div className="grid gap-2.5 2xl:grid-cols-[auto_auto] 2xl:items-center 2xl:justify-between">
             {/* Row 1: Business date + daily movements */}
@@ -6401,10 +6397,11 @@ export function StaffRoomsClient({
                 <button
                   type="button"
                   onClick={() => handleOperationalViewModeChange("grid")}
-                  className={`inline-flex h-full items-center gap-1.5 rounded-lg px-3 text-xs font-bold transition cursor-pointer ${
+                  aria-pressed={operationalViewMode === "grid"}
+                  className={`inline-flex h-full items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition cursor-pointer ${
                     operationalViewMode === "grid"
                       ? "bg-white text-sky-800 shadow-xs font-black border border-slate-200"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                      : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60"
                   }`}
                   title="Xem dạng Sơ đồ lưới phòng khách sạn"
                 >
@@ -6414,10 +6411,11 @@ export function StaffRoomsClient({
                 <button
                   type="button"
                   onClick={() => handleOperationalViewModeChange("tape-chart")}
-                  className={`inline-flex h-full items-center gap-1.5 rounded-lg px-3 text-xs font-bold transition cursor-pointer ${
+                  aria-pressed={operationalViewMode === "tape-chart"}
+                  className={`inline-flex h-full items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition cursor-pointer ${
                     (operationalViewMode as string) === "tape-chart"
                       ? "bg-white text-purple-800 shadow-xs font-black border border-slate-200"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                      : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60"
                   }`}
                   title="Xem dạng Kế hoạch phòng trực quan theo trục thời gian (Tape Chart)"
                 >
@@ -6451,8 +6449,7 @@ export function StaffRoomsClient({
           </div>
         ) : null}
 
-        {/* Search & Filter Toolbar (Grid View only) */}
-        {operationalViewMode === "grid" ? (
+        {/* Shared search and room filters */}
           <div
             className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5 sm:gap-3 ${
               !isHousekeeping ? "border-t border-slate-200 pt-3" : ""
@@ -6592,7 +6589,7 @@ export function StaffRoomsClient({
                     <>
                       Kết quả:{" "}
                       <strong className="font-black text-sky-900">
-                        {filteredRooms.length}
+                        {operationalViewMode === "tape-chart" ? tapeRoomCount ?? filteredRooms.length : filteredRooms.length}
                       </strong>
                       /{totalItems} phòng
                     </>
@@ -6610,7 +6607,10 @@ export function StaffRoomsClient({
 
               <button
                 type="button"
-                onClick={() => void refetch()}
+                onClick={async () => {
+                  await invalidateHotelRealtimeQueries(queryClient, hotelId);
+                  await refetch();
+                }}
                 disabled={isFetching}
                 className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 px-3.5 text-xs font-bold text-slate-700 hover:text-slate-950 shadow-2xs transition cursor-pointer min-h-[40px] disabled:opacity-50"
                 title="Cập nhật trạng thái phòng tức thời"
@@ -6623,14 +6623,15 @@ export function StaffRoomsClient({
               </button>
             </div>
           </div>
-        ) : null}
       </section>
-      ) : null}
 
       {/* Operational Body: Tape Chart View vs Room Grid/Tasklist View */}
       {operationalViewMode === "tape-chart" ? (
         <TapeChartView
           hotelId={hotelId}
+          sharedToolbar
+          visibleRoomIds={floor !== "all" || type !== "all" || zone !== "all" || status !== "all" ? filteredRooms.map((room) => room.id) : undefined}
+          onFilteredRoomCountChange={setTapeRoomCount}
           deferUrlSync={!roomViewHydrated}
           rooms={rooms}
           arrivalsList={arrivalsList}
@@ -6642,18 +6643,6 @@ export function StaffRoomsClient({
           onSearchQueryChange={setInputQuery}
           canCheckInStay={canCheckInStay}
           canManageRooms={canManageRooms}
-          operationalViewMode={operationalViewMode}
-          onOperationalViewModeChange={handleOperationalViewModeChange}
-          onOpenDailyMovements={(tab) => {
-            setDailyMovementsTab(tab);
-            void loadArrivals("week");
-            setIsDailyMovementsOpen(true);
-          }}
-          movementsCounts={{
-            arrivals: todayArrivalsList.length,
-            departures: todayDeparturesList.length,
-            groups: groupSummaryCount,
-          }}
           onRefresh={async () => {
             await invalidateHotelRealtimeQueries(queryClient, hotelId);
             await refetch();
@@ -6757,31 +6746,31 @@ export function StaffRoomsClient({
             setIsBulkModalOpen(true);
           }}
           onCheckOutStay={async (stayId, roomNum) => {
+            if (typeof window === "undefined") return;
+            // Open during the click gesture; resolve the folio before navigating.
+            const billingTab = window.open("", `vietsage-billing-${hotelId}-${stayId}`);
+            if (!billingTab) {
+              await showWarningAlert("Không thể mở tab thanh toán", "Vui lòng cho phép cửa sổ bật lên cho VietSage rồi thử lại.");
+              return;
+            }
             try {
-              // Tìm active folio của lượt lưu trú để điều hướng chính xác vào Folio thanh toán
-              const activeFolioRes = await requestInternalApiEnvelope<{ id?: string; folioNumber?: string }>(
-                `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/billing/stays/${encodeURIComponent(stayId)}/active-folio`,
-                { method: "GET" },
-              ).catch(() => null);
-
-              const folioId = activeFolioRes?.data?.id;
-              const params = new URLSearchParams();
-              if (folioId) params.set("folioId", folioId);
-              params.set("stayId", stayId);
-              if (roomNum) params.set("roomNumber", roomNum);
-
-              const routePrefix = "/hotels";
-              if (typeof window !== "undefined") {
-                window.open(`${routePrefix}/${encodeURIComponent(hotelId)}/billing?${params.toString()}`, "_blank");
+              if (billingTab.location.pathname.endsWith("/billing") &&
+                  new URLSearchParams(billingTab.location.search).get("stayId") === stayId) {
+                billingTab.focus();
+                return;
               }
             } catch {
-              const routePrefix = "/hotels";
-              if (typeof window !== "undefined") {
-                window.open(
-                  `${routePrefix}/${encodeURIComponent(hotelId)}/billing?stayId=${encodeURIComponent(stayId)}&roomNumber=${encodeURIComponent(roomNum)}`,
-                  "_blank",
-                );
-              }
+              // A reused named tab may have navigated to another origin.
+            }
+            const activeFolioRes = await requestInternalApiEnvelope<{ id?: string; folioNumber?: string }>(
+              `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/billing/stays/${encodeURIComponent(stayId)}/active-folio`,
+              { method: "GET" },
+            ).catch(() => null);
+            const params = new URLSearchParams({ stayId });
+            if (activeFolioRes?.data?.id) params.set("folioId", activeFolioRes.data.id);
+            if (roomNum) params.set("roomNumber", roomNum);
+            if (!billingTab.closed) {
+              billingTab.location.replace(`/hotels/${encodeURIComponent(hotelId)}/billing?${params.toString()}`);
             }
           }}
         />

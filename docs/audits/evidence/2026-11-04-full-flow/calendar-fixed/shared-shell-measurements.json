@@ -1,0 +1,140 @@
+{
+  "desktop": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "tape": {
+      "controls": [
+        {
+          "name": "Chọn ngày vận hành khách sạn",
+          "value": "2026-11-04"
+        },
+        {
+          "name": "Tìm số phòng, tên khách, SĐT",
+          "value": ""
+        },
+        {
+          "name": "Lọc theo tầng",
+          "value": "all"
+        },
+        {
+          "name": "Lọc theo loại phòng",
+          "value": "all"
+        },
+        {
+          "name": "Lọc theo phân khu",
+          "value": "all"
+        },
+        {
+          "name": "Lọc theo trạng thái phòng",
+          "value": "all"
+        }
+      ],
+      "header": {
+        "height": 235,
+        "top": 257,
+        "width": 1098
+      },
+      "stats": {
+        "bottom": 233,
+        "height": 153,
+        "left": 320,
+        "right": 1402,
+        "top": 80,
+        "width": 1082,
+        "x": 320,
+        "y": 80
+      },
+      "statsText": "Sẵn sàng29phòngSẵn sàng đón khách42%Đang ở23phòngĐang có khách lưu trú33%Chờ dọn11phòngChờ dọn dẹp buồng16%Bảo trì6phòngTạm ngưng đón khách9%",
+      "switches": [
+        {
+          "label": "Sơ đồ phòng",
+          "pressed": "false"
+        },
+        {
+          "label": "Kế hoạch phòng",
+          "pressed": "true"
+        }
+      ]
+    },
+    "grid": {
+      "controls": [
+        {
+          "name": "Chọn ngày vận hành khách sạn",
+          "value": "2026-11-04"
+        },
+        {
+          "name": "Tìm số phòng, tên khách, SĐT",
+          "value": ""
+        },
+        {
+          "name": "Lọc theo tầng",
+          "value": "all"
+        },
+        {
+          "name": "Lọc theo loại phòng",
+          "value": "all"
+        },
+        {
+          "name": "Lọc theo phân khu",
+          "value": "all"
+        },
+        {
+          "name": "Lọc theo trạng thái phòng",
+          "value": "all"
+        }
+      ],
+      "header": {
+        "height": 235,
+        "top": 257,
+        "width": 1098
+      },
+      "stats": {
+        "bottom": 233,
+        "height": 153,
+        "left": 320,
+        "right": 1402,
+        "top": 80,
+        "width": 1082,
+        "x": 320,
+        "y": 80
+      },
+      "statsText": "Sẵn sàng29phòngSẵn sàng đón khách42%Đang ở23phòngĐang có khách lưu trú33%Chờ dọn11phòngChờ dọn dẹp buồng16%Bảo trì6phòngTạm ngưng đón khách9%",
+      "switches": [
+        {
+          "label": "Sơ đồ phòng",
+          "pressed": "true"
+        },
+        {
+          "label": "Kế hoạch phòng",
+          "pressed": "false"
+        }
+      ]
+    }
+  },
+  "mobile": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "tape": {
+      "height": 479,
+      "top": 287,
+      "width": 368
+    },
+    "grid": {
+      "height": 479,
+      "top": 287,
+      "width": 368
+    }
+  },
+  "checks": {
+    "sharedSearchInputs": 1,
+    "sharedFloorFilters": 1,
+    "calendarRangeBeforeSwitch": "17/11 – 30/11/2026",
+    "calendarRangeAfterSwitch": "17/11 – 30/11/2026",
+    "searchPreserved": "Hồ Ngọc Hà",
+    "mobileHorizontalOverflow": false
+  }
+}

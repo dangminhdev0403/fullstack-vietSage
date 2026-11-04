@@ -58,6 +58,7 @@ import { roomPlanRepository } from "@/features/hotel-ops/repositories/room-plan-
 import { roomPlanResource } from "@/features/hotel-ops/resources/room-plan-resource";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
+import { subscribeHotelRoomChanges } from "@/features/hotel-ops/utils/hotel-ops-tab-sync";
 import { useRoomOrderStore } from "@/features/hotel-ops/store/room-order-store";
 import {
   matchesBlockQuery,
@@ -145,6 +146,9 @@ export interface TapeChartViewProps {
   onSearchQueryChange?: (query: string) => void;
   onBusinessDateChange?: (date: string) => void;
   operationalViewMode?: "grid" | "tape-chart";
+  sharedToolbar?: boolean;
+  visibleRoomIds?: readonly string[];
+  onFilteredRoomCountChange?: (count: number) => void;
   onOperationalViewModeChange?: (mode: "grid" | "tape-chart") => void;
   onOpenDailyMovements?: (tab: "arrivals" | "departures" | "groups") => void;
   movementsCounts?: { arrivals: number; departures: number; groups: number };
@@ -334,9 +338,6 @@ interface DraggableRoomRowProps {
     e: React.MouseEvent,
   ) => void;
   onFocusOverdueRoom?: (room: RoomPlanRoom) => void;
-  onQuickCheckInBlock?: (block: RoomPlanBlock) => void;
-  onQuickCheckOutBlock?: (block: RoomPlanBlock) => void;
-  onOpenGroupCheckIn?: (groupCode: string) => void;
   isSearchActive?: boolean;
   searchQuery?: string;
 }
@@ -377,9 +378,6 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
   onStartBlockResize,
   onStartDraftAdjust,
   onFocusOverdueRoom,
-  onQuickCheckInBlock,
-  onQuickCheckOutBlock,
-  onOpenGroupCheckIn,
 }: DraggableRoomRowProps) {
   const {
     attributes,
@@ -1313,14 +1311,14 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                   : isDraggingRange
                     ? "pointer-events-none"
                     : !readOnly && b.movable
-                      ? "cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-purple-300"
+                      ? "cursor-pointer active:cursor-grabbing hover:ring-2 hover:ring-purple-300"
                       : "cursor-pointer hover:ring-2 hover:ring-slate-300"
               }`}
               title={`${b.guestName}${b.reservationCode ? ` • Mã: #${b.reservationCode}` : ""}${b.guestCount && b.guestCount > 1 ? ` (${b.guestCount} khách)` : ""}${b.groupCode ? ` • Khách đoàn #${b.groupCode}` : ""}${!isDirect ? ` • ${channelBadge.label}` : ""}${
                 isSpilloverToNext ? " • Kéo dài sang tuần sau (bấm '>' để xem tiếp)" : ""
               }${
                 isSpilloverFromPast ? " • Bắt đầu từ tuần trước (bấm '<' để xem)" : ""
-              }${!readOnly && b.movable ? " • Kéo thả để đổi phòng" : ""}${!readOnly && canResizeRight && !isSpilloverToNext ? " • Kéo mép phải để gia hạn lưu trú" : b.groupCode && b.kind === "RESERVATION" ? " • Nhấp để kích hoạt nhận phòng cho cả đoàn" : " • Nhấp để xem thông tin chi tiết"}`}
+              } • Bấm xem chi tiết${!readOnly && b.movable ? " • Kéo thả để đổi phòng" : ""}${!readOnly && canResizeRight && !isSpilloverToNext ? " • Kéo mép phải để gia hạn lưu trú" : ""}`}
             >
               {/* Spillover from previous week indicator */}
               {isSpilloverFromPast && (
@@ -1369,66 +1367,6 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
               <span className="truncate font-black whitespace-nowrap text-left flex-1 min-w-0">
                 {cleanBlockGuestName(b.guestName)}
               </span>
-
-              {/* Quick Hover Reception Actions on Timeline Bar */}
-              {!readOnly && !isBeingResized && !isDraggingRange && (
-                <div className="hidden group-hover/block:inline-flex items-center gap-1 shrink-0 z-20 pr-1">
-                  {b.kind === "RESERVATION" &&
-                    b.status !== "CANCELLED" &&
-                    b.status !== "NO_SHOW" &&
-                    b.status !== "CHECKED_OUT" &&
-                    b.status !== "CHECKED_IN" &&
-                    onQuickCheckInBlock && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onQuickCheckInBlock(b);
-                        }}
-                        className="inline-flex items-center gap-1 rounded bg-white text-emerald-900 hover:bg-emerald-50 px-1.5 py-0.5 text-xs font-black shadow-xs transition cursor-pointer whitespace-nowrap"
-                        title={`Nhận phòng P.${b.roomNumber} ngay`}
-                      >
-                        <VsIcon name="login" className="text-xs text-emerald-700" />
-                        <span>Nhận phòng</span>
-                      </button>
-                    )}
-
-                  {b.kind === "RESERVATION" &&
-                    b.groupCode &&
-                    onOpenGroupCheckIn && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const code = b.groupCode!.replace(/^#+/, "").trim();
-                          onOpenGroupCheckIn(code);
-                        }}
-                        className="inline-flex items-center gap-0.5 rounded bg-purple-950/85 hover:bg-purple-950 text-white border border-purple-300/60 px-1.5 py-0.5 text-xs font-bold shadow-xs transition cursor-pointer whitespace-nowrap"
-                        title={`Check-in / Quản lý cả đoàn #${b.groupCode}`}
-                      >
-                        <VsIcon name="groups" className="text-xs" />
-                        <span>Đoàn</span>
-                      </button>
-                    )}
-
-                  {b.kind === "STAY" &&
-                    b.guestStayId &&
-                    onQuickCheckOutBlock && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onQuickCheckOutBlock(b);
-                        }}
-                        className="inline-flex items-center gap-1 rounded bg-white text-rose-900 hover:bg-rose-50 px-1.5 py-0.5 text-xs font-black shadow-xs transition cursor-pointer whitespace-nowrap"
-                        title={`Trả phòng & thanh toán P.${b.roomNumber}`}
-                      >
-                        <VsIcon name="payments" className="text-xs text-rose-700" />
-                        <span>Trả phòng</span>
-                      </button>
-                    )}
-                </div>
-              )}
 
               {/* Spillover to next week indicator */}
               {isSpilloverToNext && (
@@ -1523,9 +1461,6 @@ interface CategoryRoomTableProps {
     e: React.MouseEvent,
   ) => void;
   onFocusOverdueRoom?: (room: RoomPlanRoom) => void;
-  onQuickCheckInBlock?: (block: RoomPlanBlock) => void;
-  onQuickCheckOutBlock?: (block: RoomPlanBlock) => void;
-  onOpenGroupCheckIn?: (groupCode: string) => void;
   isSearchActive?: boolean;
   searchQuery?: string;
 }
@@ -1567,9 +1502,6 @@ const CategoryRoomTable = memo(function CategoryRoomTable({
   onStartBlockResize,
   onStartDraftAdjust,
   onFocusOverdueRoom,
-  onQuickCheckInBlock,
-  onQuickCheckOutBlock,
-  onOpenGroupCheckIn,
 }: CategoryRoomTableProps) {
   const handleToggleCollapseClick = useCallback(() => {
     onToggleCollapse(cat);
@@ -1705,9 +1637,6 @@ const CategoryRoomTable = memo(function CategoryRoomTable({
               onToggleRoomBlocked={onToggleRoomBlocked}
               onProcessingRoomClick={onProcessingRoomClick}
               onFocusOverdueRoom={onFocusOverdueRoom}
-              onQuickCheckInBlock={onQuickCheckInBlock}
-              onQuickCheckOutBlock={onQuickCheckOutBlock}
-              onOpenGroupCheckIn={onOpenGroupCheckIn}
               draftSelection={draftSelection}
               isDraggingRange={isDraggingRange}
               activeDragRange={activeDragRange}
@@ -1729,24 +1658,20 @@ const CategoryRoomTable = memo(function CategoryRoomTable({
 });
 
 interface BookingDetailPanelProps {
+  titleId: string;
   hotelId: string;
   block: RoomPlanBlock;
   onClose: () => void;
-  onCheckIn?: () => void;
   onCheckOut?: () => void;
-  onOpenEdit?: () => void;
-  canCheckIn?: boolean;
   canCheckOut?: boolean;
 }
 
 const BookingDetailPanel = memo(function BookingDetailPanel({
+  titleId,
   hotelId,
   block,
   onClose,
-  onCheckIn,
   onCheckOut,
-  onOpenEdit,
-  canCheckIn = false,
   canCheckOut = false,
 }: BookingDetailPanelProps) {
   const stayId = block.guestStayId || "";
@@ -1802,11 +1727,11 @@ const BookingDetailPanel = memo(function BookingDetailPanel({
         : "bg-purple-100 text-purple-900 border-purple-300";
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-white select-none">
+    <div className="flex flex-col min-h-0 bg-white">
       {/* Panel Header */}
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 bg-slate-50/80 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <h3 className="text-base font-black text-slate-900 truncate">
+          <h3 id={titleId} className="text-base font-black text-slate-900 truncate">
             Phòng {block.roomNumber}
           </h3>
           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-black border ${statusBadgeClass}`}>
@@ -1825,7 +1750,7 @@ const BookingDetailPanel = memo(function BookingDetailPanel({
         <button
           type="button"
           onClick={onClose}
-          className="size-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
+          className="size-11 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
           title="Đóng chi tiết (Esc)"
           aria-label="Đóng chi tiết"
         >
@@ -1834,9 +1759,9 @@ const BookingDetailPanel = memo(function BookingDetailPanel({
       </div>
 
       {/* Panel Scrollable Body */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 text-sm">
+      <div className="min-h-0 overflow-y-auto p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start text-sm">
         {/* Room type & Group */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5 md:col-span-2 xl:col-span-3">
           <span className="font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
             {block.roomTypeName || "Hạng tiêu chuẩn"}
           </span>
@@ -1852,7 +1777,7 @@ const BookingDetailPanel = memo(function BookingDetailPanel({
         <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-2">
           <div className="flex justify-between items-start gap-2">
             <span className="text-slate-500 font-medium">Khách hàng:</span>
-            <span className="font-black text-slate-900 text-right truncate">
+            <span className="font-black text-slate-900 text-right min-w-0 break-words">
               {cleanBlockGuestName(block.guestName) || "Chưa cập nhật tên"}
             </span>
           </div>
@@ -1957,40 +1882,18 @@ const BookingDetailPanel = memo(function BookingDetailPanel({
       </div>
 
       {/* Panel Action Footer */}
-      <div className="border-t border-slate-200 p-3 bg-slate-50/80 space-y-2 shrink-0">
-        {canCheckIn && (
-          <button
-            type="button"
-            onClick={onCheckIn}
-            className="w-full h-10 inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-black text-xs shadow-xs transition cursor-pointer"
-          >
-            <VsIcon name="login" className="text-base" />
-            <span>Nhận phòng (Check-in)</span>
-          </button>
-        )}
-
-        {canCheckOut && (
+      {canCheckOut && (
+        <div className="border-t border-slate-200 p-3 bg-slate-50/80 flex justify-end shrink-0">
           <button
             type="button"
             onClick={onCheckOut}
-            className="w-full h-10 inline-flex items-center justify-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-black text-xs shadow-xs transition cursor-pointer"
+            className="w-full sm:w-auto min-h-11 px-5 inline-flex items-center justify-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold text-base shadow-xs transition cursor-pointer"
           >
             <VsIcon name="logout" className="text-base" />
             <span>Trả phòng (Check-out)</span>
           </button>
-        )}
-
-        {onOpenEdit && (
-          <button
-            type="button"
-            onClick={onOpenEdit}
-            className="w-full h-9 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs shadow-2xs transition cursor-pointer"
-          >
-            <VsIcon name="edit" className="text-sm" />
-            <span>Chi tiết đầy đủ &amp; Chỉnh sửa</span>
-          </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 });
@@ -2021,6 +1924,9 @@ export function TapeChartView({
   searchQuery: propSearchQuery,
   onSearchQueryChange,
   operationalViewMode,
+  sharedToolbar = false,
+  visibleRoomIds,
+  onFilteredRoomCountChange,
   onOperationalViewModeChange,
   onOpenDailyMovements,
   movementsCounts,
@@ -2087,8 +1993,11 @@ export function TapeChartView({
   }, [startDate, viewMode, syncUrlParams, deferUrlSync]);
 
   // Synchronize timeline startDate when parent operational businessDate changes
+  const previousBusinessDateRef = useRef(businessDate);
   useEffect(() => {
-    if (businessDate && /^\d{4}-\d{2}-\d{2}$/.test(businessDate)) {
+    const previousBusinessDate = previousBusinessDateRef.current;
+    previousBusinessDateRef.current = businessDate;
+    if (businessDate !== previousBusinessDate && businessDate && /^\d{4}-\d{2}-\d{2}$/.test(businessDate)) {
       setStartDate((prev) => (prev !== businessDate ? businessDate : prev));
     }
   }, [businessDate]);
@@ -2132,23 +2041,25 @@ export function TapeChartView({
   }, [setSearchQuery]);
 
   // Selected Block & Modal/Sheet states
-  const [isEditReservationOpen, setIsEditReservationOpen] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState<RoomPlanBlock | null>(null);
+  const handleCloseDetails = useCallback(() => setSelectedBlock(null), []);
   const workspaceRef = useRef<HTMLDivElement>(null);
-  const desktopDetailRef = useRef<HTMLElement>(null);
-  const mobileDetailRef = useRef<HTMLDivElement>(null);
+  const detailDialogRef = useRef<HTMLDivElement>(null);
+  const showReservationDetails = Boolean(
+    selectedBlock?.kind === "RESERVATION" && !isReadOnly,
+  );
   const [workspaceHeight, setWorkspaceHeight] = useState<number>();
 
   useEffect(() => {
-    if (!selectedBlock || isEditReservationOpen) return;
+    if (!selectedBlock || showReservationDetails) return;
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const panel = window.innerWidth >= 1280 ? desktopDetailRef.current : mobileDetailRef.current;
+    const panel = detailDialogRef.current;
     panel?.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
     const handleDetailKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
         setSelectedBlock(null);
-      } else if (event.key === "Tab" && window.innerWidth < 1280 && panel) {
+      } else if (event.key === "Tab" && panel) {
         const controls = Array.from(panel.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), [tabindex="0"]'));
         const first = controls[0];
         const last = controls[controls.length - 1];
@@ -2166,7 +2077,7 @@ export function TapeChartView({
       window.removeEventListener("keydown", handleDetailKey);
       if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
-  }, [selectedBlock?.id, isEditReservationOpen]);
+  }, [selectedBlock?.id, showReservationDetails]);
 
   useEffect(() => {
     const workspace = workspaceRef.current;
@@ -2190,7 +2101,6 @@ export function TapeChartView({
   const handleSelectBlock = useCallback(
     (block: RoomPlanBlock | null) => {
       setSelectedBlock(block);
-      setIsEditReservationOpen(false);
     },
     [],
   );
@@ -2239,6 +2149,29 @@ export function TapeChartView({
     enabled: Boolean(hotelId),
     staleTime: 10_000,
   });
+
+  useEffect(() => {
+    if (!selectedBlock) return;
+    let refreshing = false;
+    const refreshRoomState = () => Promise.allSettled([
+      staffRoomsScope.invalidate(queryClient),
+      roomPlanScope.queries.plan.invalidateAll(queryClient),
+    ]);
+    const refreshOnReturn = () => {
+      if (document.visibilityState !== "visible" || refreshing) return;
+      refreshing = true;
+      void refreshRoomState().finally(() => { refreshing = false; });
+    };
+    // A committed checkout must refresh even if this tab is hidden or a previous read is pending.
+    const unsubscribe = subscribeHotelRoomChanges(hotelId, () => { void refreshRoomState(); });
+    window.addEventListener("focus", refreshOnReturn);
+    document.addEventListener("visibilitychange", refreshOnReturn);
+    return () => {
+      unsubscribe();
+      window.removeEventListener("focus", refreshOnReturn);
+      document.removeEventListener("visibilitychange", refreshOnReturn);
+    };
+  }, [selectedBlock?.id, hotelId, staffRoomsScope, roomPlanScope, queryClient]);
 
   // Mutation for updating placement
   const placementMutation = useMutation({
@@ -2785,8 +2718,13 @@ export function TapeChartView({
   }, [allRooms, blocksByRoomId, todayYmd, overdueRooms.length]);
 
   // Filtered rooms
+  const visibleRoomIdSet = useMemo(
+    () => visibleRoomIds ? new Set(visibleRoomIds) : null,
+    [visibleRoomIds],
+  );
   const filteredRooms = useMemo(() => {
     return allRooms.filter((r) => {
+      if (visibleRoomIdSet && !visibleRoomIdSet.has(r.id)) return false;
       if (selectedCategory !== "all" && (r.roomTypeName || "") !== selectedCategory) {
         return false;
       }
@@ -2842,6 +2780,7 @@ export function TapeChartView({
     });
   }, [
     allRooms,
+    visibleRoomIdSet,
     selectedCategory,
     selectedFloor,
     selectedStatusFilter,
@@ -2851,6 +2790,10 @@ export function TapeChartView({
     todayYmd,
     overdueRoomIdSet,
   ]);
+
+  useEffect(() => {
+    onFilteredRoomCountChange?.(filteredRooms.length);
+  }, [filteredRooms.length, onFilteredRoomCountChange]);
 
   // Custom room order via Zustand store
   const customOrder = useRoomOrderStore((s) => s.roomOrderMap[hotelId]);
@@ -3257,7 +3200,6 @@ export function TapeChartView({
       if (!targetBlock.guestStayId || !onCheckOutStay) return;
       const stayId = targetBlock.guestStayId;
       const roomNumber = targetBlock.roomNumber;
-      setSelectedBlock(null);
       await onCheckOutStay(stayId, roomNumber);
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       void refetchPlan();
@@ -3301,13 +3243,11 @@ export function TapeChartView({
           return;
         }
         setSelectedBlock(targetBlock);
-        setIsEditReservationOpen(true);
         return;
       }
 
       if (liveRoomStatus === "OCCUPIED" || liveRoomStatus === "OVERDUE") {
         setSelectedBlock(targetBlock);
-        setIsEditReservationOpen(true);
         return;
       }
 
@@ -3327,7 +3267,6 @@ export function TapeChartView({
         });
         if (!askClean.isConfirmed) {
           setSelectedBlock(targetBlock);
-          setIsEditReservationOpen(true);
           return;
         }
         try {
@@ -3386,25 +3325,6 @@ export function TapeChartView({
       refetchPlan,
       onOpenCheckIn,
     ],
-  );
-
-  const handleDrawerCheckIn = async (options?: { forceSingleRoom?: boolean }) => {
-    if (!selectedBlock) return;
-    await handleBlockCheckIn(selectedBlock, options);
-  };
-
-  const handleQuickHoverCheckIn = useCallback(
-    (block: RoomPlanBlock) => {
-      void handleBlockCheckIn(block, { forceSingleRoom: true });
-    },
-    [handleBlockCheckIn],
-  );
-
-  const handleQuickHoverCheckOut = useCallback(
-    (block: RoomPlanBlock) => {
-      void handleBlockCheckOut(block);
-    },
-    [handleBlockCheckOut],
   );
 
   // Open placement modal for accessible button
@@ -4715,6 +4635,31 @@ export function TapeChartView({
     return { prior, next };
   }, [selectedBlock, blocksByRoomId]);
 
+  const timelineViewActions = (
+    <div className="flex shrink-0 items-center gap-1.5 ml-auto">
+      {roomsByCategory.length > 1 && (
+        <button
+          type="button"
+          onClick={toggleAllCategories}
+          className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 px-2.5 text-xs font-semibold transition cursor-pointer whitespace-nowrap"
+          title={allCollapsed ? "Mở rộng tất cả hạng phòng" : "Thu gọn tất cả hạng phòng"}
+        >
+          <VsIcon name={allCollapsed ? "expand_more" : "expand_less"} className="text-sm text-slate-500" />
+          <span>{allCollapsed ? "Mở rộng nhóm" : "Thu gọn nhóm"}</span>
+        </button>
+      )}
+      {!sharedToolbar && <button
+        type="button"
+        onClick={() => setIsKeyboardHelpOpen(true)}
+        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 transition cursor-pointer"
+        title="Trợ giúp phím tắt & thao tác (?)"
+        aria-label="Trợ giúp phím tắt & thao tác"
+      >
+        <VsIcon name="help_outline" className="text-base" />
+      </button>}
+    </div>
+  );
+
   return (
     <div ref={workspaceRef} style={{ height: workspaceHeight ?? "calc(100dvh - 112px)" }} className="flex min-h-0 flex-col gap-1" data-tape-chart-container="true">
       {/* ── Top Control & Smart Filter Bar (Max 2 low-profile rows) ── */}
@@ -4724,7 +4669,7 @@ export function TapeChartView({
           {/* Left: Unified Timeline Pod + View Span Switch */}
           <div className="flex flex-nowrap shrink-0 items-center gap-2">
             {/* Unified View Mode Switcher (Gantt vs Grid) */}
-            {operationalViewMode && onOperationalViewModeChange && (
+            {!sharedToolbar && operationalViewMode && onOperationalViewModeChange && (
               <div className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-slate-100/90 p-0.5 shadow-2xs">
                 <button
                   type="button"
@@ -4777,9 +4722,9 @@ export function TapeChartView({
                 <span>1 ngày</span>
               </button>
 
-              <span className="h-4 w-px bg-slate-200/90 mx-0.5" />
+              {!sharedToolbar && <span className="h-4 w-px bg-slate-200/90 mx-0.5" />}
 
-              <button
+              {!sharedToolbar && <button
                 type="button"
                 onClick={handleGoToday}
                 className={`inline-flex h-8 items-center px-2.5 text-xs font-bold rounded-md transition cursor-pointer whitespace-nowrap ${
@@ -4790,7 +4735,7 @@ export function TapeChartView({
                 title="Về ngày hôm nay (Phím T)"
               >
                 Hôm nay
-              </button>
+              </button>}
 
               <span className="h-4 w-px bg-slate-200/90 mx-0.5" />
 
@@ -4902,7 +4847,7 @@ export function TapeChartView({
             )}
 
             {/* Primary CTA: Quick Reservation */}
-            {!isReadOnly && onOpenQuickReservation && (
+            {!sharedToolbar && !isReadOnly && onOpenQuickReservation && (
               <button
                 type="button"
                 onClick={() => onOpenQuickReservation()}
@@ -4932,7 +4877,7 @@ export function TapeChartView({
                     onClick={() => setIsSecondaryMenuOpen(false)}
                   />
                   <div className="fixed right-4 top-24 z-[90] w-56 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl text-xs space-y-0.5 animate-in fade-in zoom-in-95 duration-100">
-                    {!isReadOnly && onOpenGroupCheckIn && (
+                    {!sharedToolbar && !isReadOnly && onOpenGroupCheckIn && (
                       <button
                         type="button"
                         onClick={() => {
@@ -4945,7 +4890,7 @@ export function TapeChartView({
                         <span>Check-in đoàn</span>
                       </button>
                     )}
-                    {onOpenDailyMovements && (
+                    {!sharedToolbar && onOpenDailyMovements && (
                       <button
                         type="button"
                         onClick={() => {
@@ -4965,7 +4910,7 @@ export function TapeChartView({
                         )}
                       </button>
                     )}
-                    {onRefresh && (
+                    {!sharedToolbar && onRefresh && (
                       <button
                         type="button"
                         onClick={() => {
@@ -4993,6 +4938,27 @@ export function TapeChartView({
                       </button>
                     )}
                     <div className="border-t border-slate-100 my-1" />
+                    {sharedToolbar && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleGoToday();
+                          setIsSecondaryMenuOpen(false);
+                        }}
+                        className="w-full px-2.5 py-2 rounded-lg text-left text-slate-800 hover:bg-slate-100 font-semibold cursor-pointer"
+                      >
+                        Đưa lịch về hôm nay
+                      </button>
+                    )}
+                    {sharedToolbar && searchQuery.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => setShowOnlyMatchedBlocks((prev) => !prev)}
+                        className="w-full px-2.5 py-2 rounded-lg text-left text-slate-800 hover:bg-slate-100 font-semibold cursor-pointer"
+                      >
+                        {showOnlyMatchedBlocks ? "Hiện tất cả đơn trên phòng khớp" : "Chỉ hiện đơn khớp tìm kiếm"}
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => {
@@ -5008,10 +4974,12 @@ export function TapeChartView({
                 </>
               )}
             </div>
+            {sharedToolbar && timelineViewActions}
           </div>
         </div>
 
         {/* Tier 2: Smart Filter Bar (Search, Room Type, Floor, Quick Status Pills & View Actions) */}
+        {!sharedToolbar && (
         <div aria-label="Bộ lọc lịch phòng" className="flex flex-nowrap items-center justify-between gap-2 px-2 py-1 bg-slate-50/60 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {/* Left: Search, Dropdowns & Quick Status Pills */}
           <div className="flex flex-nowrap shrink-0 items-center gap-2">
@@ -5284,45 +5252,17 @@ export function TapeChartView({
           </div>
 
           {/* Right: Collapse/Expand All & Keyboard Shortcut Help Button */}
-          <div className="flex items-center gap-1.5 ml-auto">
-            {roomsByCategory.length > 1 && (
-              <button
-                type="button"
-                onClick={toggleAllCategories}
-                className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 px-2.5 text-xs font-semibold transition cursor-pointer whitespace-nowrap"
-                title={
-                  allCollapsed
-                    ? "Mở rộng tất cả hạng phòng"
-                    : "Thu gọn tất cả hạng phòng"
-                }
-              >
-                <VsIcon
-                  name={allCollapsed ? "expand_more" : "expand_less"}
-                  className="text-sm text-slate-500"
-                />
-                <span>{allCollapsed ? "Mở rộng nhóm" : "Thu gọn nhóm"}</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setIsKeyboardHelpOpen(true)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 transition cursor-pointer"
-              title="Trợ giúp phím tắt &amp; thao tác (?)"
-              aria-label="Trợ giúp phím tắt &amp; thao tác"
-            >
-              <VsIcon name="help_outline" className="text-base" />
-            </button>
-          </div>
+          {timelineViewActions}
         </div>
+        )}
       </div>
 
-      {/* ── Main Gantt / Tape Chart Container with Right Detail Panel ── */}
+      {/* Main Gantt / Tape Chart */}
       <div
         data-tape-chart-container="true"
         className="flex flex-1 min-h-0 min-w-0 w-full rounded-lg border border-slate-200 bg-white shadow-xs overflow-hidden"
       >
-        {/* Main Grid View - Chiếm toàn bộ chiều rộng khi đóng panel, flex-1 khi mở panel */}
+        {/* Full-width calendar */}
         <div className="flex-1 min-h-0 min-w-0 overflow-auto">
           <div className="min-w-[800px] w-full">
             {/* Sticky Header: Dates Row + Occupancy Row */}
@@ -5490,17 +5430,6 @@ export function TapeChartView({
                   onToggleRoomBlocked={onToggleRoomBlocked}
                   onProcessingRoomClick={onProcessingRoomClick}
                   onFocusOverdueRoom={focusOverdueRoom}
-                  onQuickCheckInBlock={
-                    !isReadOnly && (canCheckInStay ?? true)
-                      ? handleQuickHoverCheckIn
-                      : undefined
-                  }
-                  onQuickCheckOutBlock={
-                    !isReadOnly && onCheckOutStay
-                      ? handleQuickHoverCheckOut
-                      : undefined
-                  }
-                  onOpenGroupCheckIn={!isReadOnly ? onOpenGroupCheckIn : undefined}
                   isCollapsed={Boolean(collapsedCategories[categoryName])}
                   onToggleCollapse={toggleCategory}
                   draftSelection={draftSelection}
@@ -5536,80 +5465,33 @@ export function TapeChartView({
           </div>
         </div>
 
-        {/* Desktop Right Detail Panel (360-400px wide inline) */}
-        {selectedBlock && !isEditReservationOpen && (
-          <aside ref={desktopDetailRef} aria-label="Chi tiết đặt phòng" className="hidden xl:flex w-[380px] min-h-0 shrink-0 border-l border-slate-200 bg-white flex-col overflow-y-auto">
-            <BookingDetailPanel
-              key={selectedBlock.id}
-              hotelId={hotelId}
-              block={selectedBlock}
-              onClose={() => setSelectedBlock(null)}
-              canCheckIn={
-                !isReadOnly &&
-                (canCheckInStay ?? true) &&
-                Boolean(onCheckInReservation || onOpenCheckIn) &&
-                selectedBlock.kind === "RESERVATION" &&
-                selectedBlock.status !== "CANCELLED" &&
-                selectedBlock.status !== "NO_SHOW" &&
-                selectedBlock.status !== "CHECKED_OUT" &&
-                selectedBlock.status !== "CHECKED_IN"
-              }
-              canCheckOut={
-                !isReadOnly &&
-                Boolean(selectedBlock.guestStayId && onCheckOutStay)
-              }
-              onCheckIn={() => handleBlockCheckIn(selectedBlock)}
-              onCheckOut={() => handleDrawerCheckOut()}
-              onOpenEdit={
-                !isReadOnly && (selectedBlock.kind === "RESERVATION" || Boolean(selectedBlock.reservationId))
-                  ? () => setIsEditReservationOpen(true)
-                  : undefined
-              }
-            />
-          </aside>
-        )}
       </div>
 
-      {/* ── Mobile/Tablet Overlay Sheet (< xl viewports) ── */}
-      {selectedBlock && !isEditReservationOpen && (
+      {/* Active stays and read-only bookings open their details directly. */}
+      {selectedBlock && !showReservationDetails && (
         <div
           role="dialog"
           aria-modal="true"
-          aria-label={`Chi tiết phòng ${selectedBlock.roomNumber}`}
-          ref={mobileDetailRef}
-          className="xl:hidden fixed inset-0 z-[80] flex justify-end bg-black/40 backdrop-blur-xs"
+          aria-labelledby={drawerTitleId}
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 backdrop-blur-xs p-3 sm:p-5"
           onClick={() => setSelectedBlock(null)}
         >
           <div
-            className="w-full max-w-md bg-white shadow-2xl flex flex-col h-[100dvh] min-h-0 pb-[env(safe-area-inset-bottom)] animate-in slide-in-from-right duration-200"
+            ref={detailDialogRef}
+            className="w-full max-w-6xl max-h-[calc(100dvh-1.5rem)] bg-white rounded-2xl border border-slate-200 shadow-2xl flex flex-col min-h-0 overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <BookingDetailPanel
               key={selectedBlock.id}
+              titleId={drawerTitleId}
               hotelId={hotelId}
               block={selectedBlock}
-              onClose={() => setSelectedBlock(null)}
-              canCheckIn={
-                !isReadOnly &&
-                (canCheckInStay ?? true) &&
-                Boolean(onCheckInReservation || onOpenCheckIn) &&
-                selectedBlock.kind === "RESERVATION" &&
-                selectedBlock.status !== "CANCELLED" &&
-                selectedBlock.status !== "NO_SHOW" &&
-                selectedBlock.status !== "CHECKED_OUT" &&
-                selectedBlock.status !== "CHECKED_IN"
-              }
+              onClose={handleCloseDetails}
               canCheckOut={
                 !isReadOnly &&
                 Boolean(selectedBlock.guestStayId && onCheckOutStay)
               }
-              onCheckIn={() => handleBlockCheckIn(selectedBlock)}
               onCheckOut={() => handleDrawerCheckOut()}
-              onOpenEdit={
-                !isReadOnly && (selectedBlock.kind === "RESERVATION" || Boolean(selectedBlock.reservationId))
-                  ? () => setIsEditReservationOpen(true)
-                  : undefined
-              }
             />
           </div>
         </div>
@@ -5687,7 +5569,7 @@ export function TapeChartView({
                 </h4>
                 <ul className="space-y-1.5 list-disc list-inside text-slate-600 leading-relaxed text-pretty">
                   <li>
-                    <strong>Nhấp thanh đặt phòng:</strong> Mở panel chi tiết bên phải (khách, cọc, công nợ, nhận/trả).
+                    <strong>Nhấp thanh đặt phòng:</strong> Mở hộp chi tiết đầy đủ (khách, cọc, công nợ, nhận/trả).
                   </li>
                   <li>
                     <strong>Kéo ngang trên ô trống:</strong> Giữ phòng nhiều đêm liên tiếp.
@@ -5745,15 +5627,10 @@ export function TapeChartView({
 
       {/* ── Edit Reservation Modal (Sửa + Thao tác Lễ tân nhanh khi click) ── */}
       {selectedBlock &&
-        isEditReservationOpen &&
-        (selectedBlock.kind === "RESERVATION" || Boolean(selectedBlock.reservationId)) && (
+        showReservationDetails && (
           <EditReservationModal
-            isOpen={Boolean(
-              selectedBlock &&
-                isEditReservationOpen &&
-                (selectedBlock.kind === "RESERVATION" || Boolean(selectedBlock.reservationId)),
-            )}
-            onClose={() => setSelectedBlock(null)}
+            isOpen
+            onClose={handleCloseDetails}
             hotelId={hotelId}
             reservation={{
               id: selectedBlock.reservationId || selectedBlock.id.replace(/^res-/, ""),
@@ -5804,7 +5681,6 @@ export function TapeChartView({
             onCheckOutConflictingStay={
               onCheckOutStay
                 ? async (stayId, roomNum) => {
-                    setSelectedBlock(null);
                     await onCheckOutStay(stayId, roomNum);
                     await invalidateHotelRealtimeQueries(queryClient, hotelId);
                     void refetchPlan();
@@ -5839,7 +5715,6 @@ export function TapeChartView({
             }}
             canCheckOut={!isReadOnly && Boolean(selectedBlock.guestStayId && onCheckOutStay)}
             onCheckOut={handleDrawerCheckOut}
-            onViewDetails={() => setIsEditReservationOpen(false)}
             onOpenGroupOperations={onOpenGroupCheckIn}
             onSelectReservation={(nextRes) => {
               const matchedBlock = allBlocks.find(
@@ -5851,7 +5726,6 @@ export function TapeChartView({
               );
               if (matchedBlock) {
                 setSelectedBlock(matchedBlock);
-                setIsEditReservationOpen(true);
               }
             }}
             onSuccess={async () => {

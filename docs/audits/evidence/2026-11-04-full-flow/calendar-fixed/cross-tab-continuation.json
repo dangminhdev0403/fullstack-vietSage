@@ -1,0 +1,80 @@
+{
+  "date": "2026-11-04",
+  "buildId": "p7gRIQwWf8ho95upS5eEM",
+  "scope": "Checkout in another tab, live conflict replacement, retained draft, cleaning and check-in",
+  "baselineFailure": {
+    "buildId": "N7711WnpTLvsvVboxTegF",
+    "room": "QA04-D",
+    "checkoutCompleted": true,
+    "staleActiveStayConflict": true,
+    "draftRetained": true
+  },
+  "fixedRun": {
+    "reservationCode": "AUDIT04-OVERDUE",
+    "room": "QA04-E",
+    "checkoutZeroBalanceCompleted": true,
+    "oldConflictRemoved": true,
+    "processingWarningVisible": true,
+    "dialogCountAfterCheckout": 1,
+    "allTextboxDraftsUnchanged": true,
+    "draftRetainedAfterClosingBilling": true,
+    "draftRetainedAfterMarkingReady": true,
+    "readyStateObserved": true,
+    "checkInCompleted": true,
+    "reservationModalClosedAfterCheckIn": true,
+    "occupiedRoomVisible": true,
+    "noReloadBetweenCheckoutAndCheckIn": true
+  },
+  "refreshReadResponses": [
+    {
+      "path": "/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/messages/unread-summary",
+      "status": 200
+    },
+    {
+      "path": "/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/billing/booking-payments",
+      "status": 200
+    },
+    {
+      "path": "/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/arrivals",
+      "status": 200
+    },
+    {
+      "path": "/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/rooms",
+      "status": 200
+    },
+    {
+      "path": "/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/rooms",
+      "status": 200
+    },
+    {
+      "path": "/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/room-plan",
+      "status": 200
+    },
+    {
+      "path": "/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/messages/unread-summary",
+      "status": 200
+    }
+  ],
+  "checkInResponses": [
+    {
+      "path": "/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/reservations/audit-20261104-res-OVERDUE",
+      "status": 200
+    },
+    {
+      "path": "/api/hotel-ops/hotels/cmq2k2lm0003f2oui3ifqp808/reservations/audit-20261104-res-OVERDUE/check-in",
+      "status": 200
+    }
+  ],
+  "console": [],
+  "dataChanges": {
+    "oldQaStaysCheckedOut": [
+      "QA04-D",
+      "QA04-E"
+    ],
+    "roomConfirmedClean": "QA04-E",
+    "reservationCheckedIn": "AUDIT04-OVERDUE",
+    "directDatabaseWrites": false,
+    "nonzeroPaymentOrProviderPayment": false
+  },
+  "remainingCoverage": "Separate browsers/devices, nonzero and partial payments, group checkout and isolated focus-only fallback are not certified by this browser pass."
+}

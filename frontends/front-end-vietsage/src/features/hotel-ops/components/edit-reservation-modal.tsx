@@ -14,6 +14,10 @@ import {
 } from "@/features/hotel-ops/utils/check-in-error";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import {
+  resolveReservationRoomConflict,
+  type ReservationStayConflict,
+} from "@/features/hotel-ops/utils/reservation-room-conflict";
+import {
   formatVnDateInput,
   toDisplayVnDate,
   toIsoDate,
@@ -67,13 +71,7 @@ export type EditReservationModalProps = {
     price?: number | string | null;
     basePrice?: number | string | null;
   }>;
-  conflictingStay?: {
-    stayId: string;
-    guestName: string;
-    endDate?: string | null;
-    status?: string | null;
-    phone?: string | null;
-  } | null;
+  conflictingStay?: ReservationStayConflict | null;
   onCheckOutConflictingStay?: (
     stayId: string,
     roomNumber: string,
@@ -411,17 +409,23 @@ export function EditReservationModal({
   const [isRateDirty, setIsRateDirty] = useState(false);
 
   const continuationBusyRef = useRef(false);
+  const checkoutOpeningRef = useRef(false);
   const savedVersionRef = useRef<{ id: string; updatedAt: string | null | undefined } | null>(null);
   useEffect(() => {
     savedVersionRef.current = null;
   }, [isOpen, reservation?.id]);
 
   // Always query full rooms list when modal is open so we know live status & activeStay of every room
-  const { data: roomsPage, isPending: isLoadingRooms, isError: isRoomsError } = useQuery({
+  const { data: roomsPage, dataUpdatedAt: roomsUpdatedAt, isPending: isPendingRooms, isFetching: isRefreshingRooms, isError: isRoomsError } = useQuery({
     ...staffRoomsResource.bind({ hotelId }).queries.allRooms.options(),
     enabled: Boolean(isOpen && hotelId),
     staleTime: 8_000,
   });
+  const isLoadingRooms = isPendingRooms || isRefreshingRooms;
+
+  useEffect(() => {
+    setCleanedRoomIds([]);
+  }, [roomsUpdatedAt]);
 
   // Query group arrivals if reservation has groupCode
   const { data: groupArrivalsData } = useQuery({
@@ -527,25 +531,13 @@ export function EditReservationModal({
   }, [effectiveRoomId, cleanedRoomIds, selectedRoom?.status]);
 
   const effectiveConflictingStay = useMemo(() => {
-    if (effectiveRoomId === (reservation?.roomId || "") && conflictingStay) {
-      return conflictingStay;
-    }
-    const liveStay = selectedRoom?.activeStay;
-    if (
-      liveStay &&
-      liveStay.id &&
-      (liveStay.status || "").toUpperCase() !== "CHECKED_OUT"
-    ) {
-      return {
-        stayId: liveStay.id,
-        guestName: liveStay.guestDisplayName || "Khách đang lưu trú",
-        endDate: liveStay.plannedCheckOutAt || null,
-        status: liveStay.status || "OCCUPIED",
-        phone: liveStay.guestPhone || null,
-      };
-    }
-    return null;
-  }, [effectiveRoomId, reservation?.roomId, conflictingStay, selectedRoom?.activeStay]);
+    return resolveReservationRoomConflict({
+      roomId: effectiveRoomId,
+      reservationRoomId: reservation?.roomId,
+      liveRoom: roomsPage?.items.find((room) => room.id === effectiveRoomId),
+      fallbackStay: conflictingStay,
+    });
+  }, [effectiveRoomId, reservation?.roomId, conflictingStay, roomsPage?.items]);
 
   const isRoomOccupiedConflict = Boolean(
     effectiveRoomId &&
@@ -917,6 +909,23 @@ export function EditReservationModal({
     }
   }
 
+  async function handleOpenConflictingCheckout(stayId: string, roomNumber: string) {
+    if (!onCheckOutConflictingStay || checkoutOpeningRef.current) return;
+    checkoutOpeningRef.current = true;
+    setIsSubmitting(true);
+    try {
+      await onCheckOutConflictingStay(stayId, roomNumber);
+    } catch (err) {
+      await showErrorAlert(
+        "Không thể mở trả phòng",
+        err instanceof Error ? err.message : "Vui lòng thử lại.",
+      );
+    } finally {
+      checkoutOpeningRef.current = false;
+      setIsSubmitting(false);
+    }
+  }
+
   async function handleMarkRoomReadyInPlace(andCheckIn?: boolean) {
     if (!effectiveRoomId || isMarkingRoomReady || isSubmitting || isLoadingRooms || isRoomsError) return;
     setIsMarkingRoomReady(true);
@@ -957,7 +966,7 @@ export function EditReservationModal({
           reverseButtons: false,
         });
         if (ask.isConfirmed) {
-          await onCheckOutConflictingStay(
+          await handleOpenConflictingCheckout(
             effectiveConflictingStay.stayId,
             String(selectedRoomNumber),
           );
@@ -1036,7 +1045,7 @@ export function EditReservationModal({
           reverseButtons: false,
         });
         if (ask.isConfirmed) {
-          await onCheckOutConflictingStay(
+          await handleOpenConflictingCheckout(
             effectiveConflictingStay.stayId,
             String(displayRoomNumber),
           );
@@ -1367,12 +1376,12 @@ export function EditReservationModal({
                   <button
                     type="button"
                     onClick={() =>
-                      void onCheckOutConflictingStay(
+                      void handleOpenConflictingCheckout(
                         effectiveConflictingStay.stayId,
                         String(selectedRoomNumber),
                       )
                     }
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isLoadingRooms || isRoomsError}
                     className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 px-3 py-1.5 text-sm font-black text-white shadow-xs transition active:scale-[0.98] cursor-pointer whitespace-normal text-left"
                     title="Mở quyết toán & trả phòng cho khách đang ở để giải phóng phòng này"
                   >
