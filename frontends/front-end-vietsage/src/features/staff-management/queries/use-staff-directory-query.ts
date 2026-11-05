@@ -51,6 +51,7 @@ export function useStaffManagementMutations(scope: StaffManagementScope) {
   const createUser = useMutation(
     staffDirectory.mutations.createUser.options(),
   );
+  const updateHousekeepingScope = useMutation(staffDirectory.mutations.updateHousekeepingScope.options());
   const assignRole = useMutation(
     staffDirectory.mutations.assignRole.options(),
   );
@@ -68,6 +69,7 @@ export function useStaffManagementMutations(scope: StaffManagementScope) {
   );
 
   return {
+    updateHousekeepingScope,
     createUser,
     assignRole,
     updateAssignment,

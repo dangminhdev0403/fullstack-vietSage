@@ -1059,6 +1059,7 @@ model HotelStaffAssignment {
   hotelId               String
   status                HotelStaffAssignmentStatus @default(ACTIVE)
   hasHotelWideRoomScope Boolean                    @default(false)
+  housekeepingScope    Json?
   assignedAt            DateTime                   @default(now())
   assignedById          String?
   revokedAt             DateTime?

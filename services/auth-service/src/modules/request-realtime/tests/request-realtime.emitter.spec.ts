@@ -1,6 +1,34 @@
 import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 
 describe("RequestRealtimeEmitter", () => {
+  it("scope invalidation disconnects the affected user and stops old-room delivery", () => {
+    const memberships = new Set([
+      RequestRealtimeEmitter.ownerRoomChannel("hotel-1", "room-101"),
+      RequestRealtimeEmitter.ownerUserHotelRoom("hotel-1", "user-1"),
+    ]);
+    const received = jest.fn();
+    const disconnect = jest.fn(() => memberships.clear());
+    const server = {
+      to: jest.fn((room: string) => ({ emit: (event: string, payload: unknown) => {
+        if (memberships.has(room)) received(event, payload);
+      } })),
+      in: jest.fn((room: string) => ({ disconnectSockets: () => { if (memberships.has(room)) disconnect(); } })),
+    };
+    RequestRealtimeEmitter.bind(server as never);
+    RequestRealtimeEmitter.emitRoomStatusUpdated({ hotelId: "hotel-1", roomId: "room-101", status: "PROCESSING" });
+    expect(received).toHaveBeenCalledWith("room_status.updated", expect.any(Object));
+    received.mockClear();
+
+    RequestRealtimeEmitter.invalidateOwnerScope("hotel-1", "user-1");
+    expect(received).toHaveBeenCalledWith("request_realtime.error", { code: "SCOPE_CHANGED", retryable: true });
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    received.mockClear();
+    RequestRealtimeEmitter.emitRoomStatusUpdated({ hotelId: "hotel-1", roomId: "room-101", status: "AVAILABLE" });
+    RequestRealtimeEmitter.emitHousekeepingTaskCreated({ hotelId: "hotel-1", roomId: "room-101", taskId: "old-room-task" });
+    expect(received).not.toHaveBeenCalled();
+    expect(server.in).toHaveBeenCalledWith("owner:hotel:hotel-1:user:user-1:scope");
+    RequestRealtimeEmitter.bind(null as never);
+  });
   it("emits one marketplace message event to the union of guest stay and session rooms", () => {
     const emit = jest.fn();
     const operator = {

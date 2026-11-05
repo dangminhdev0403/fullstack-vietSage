@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { HotelCoreRepository } from "../infrastructure/repositories/hotel-core.repository";
 import type { HotelDetailRow } from "../infrastructure/repositories/hotel-repository.types";
+import { housekeepingScopeSchema, type EffectiveHousekeepingScope } from "../domain/schemas/hotel-staff-assignments.schema";
 
 export interface HotelActorContext {
   userId: string;
@@ -23,13 +24,40 @@ export interface HotelActorContext {
 
 export interface HotelRoomScope {
   hotel: HotelDetailRow;
-  allowedRoomId: string | null; // null means hotel-wide
+  allowedRoomId: string | null;
+  allowedRoomIds?: string[] | null; // null/absent means no additional room-set restriction
   mode?: "HOTEL_WIDE" | "ROOM_EXCLUSIVE";
 }
 
 @Injectable()
 export class HotelAccessService {
   constructor(private readonly hotelCoreRepository: HotelCoreRepository) {}
+
+  async resolveHousekeepingScope(userId: string, activeRoleId: string, hotelId: string): Promise<EffectiveHousekeepingScope> {
+    const { actor } = await this.assertHotelAccessWithActor(userId, activeRoleId, hotelId);
+    return this.loadHousekeepingScope(userId, hotelId, actor);
+  }
+
+  private async loadHousekeepingScope(userId: string, hotelId: string, actor: HotelActorContext): Promise<EffectiveHousekeepingScope> {
+    const all: EffectiveHousekeepingScope = { mode: "ALL", floors: [], roomIds: [], label: null, allowedRoomIds: null };
+    const isHousekeeping = actor.roleCodes.has("HOTEL_HOUSEKEEPING") || actor.baseRoleCodes.has("HOTEL_HOUSEKEEPING");
+    if (!isHousekeeping) return all;
+    const assignment = await this.hotelCoreRepository.findHousekeepingAssignment(userId, hotelId);
+    if (!assignment) throw new ForbiddenException("Bạn chưa được phân công buồng phòng tại khách sạn này");
+    if (assignment.housekeepingScope === null) return all;
+    const parsed = housekeepingScopeSchema.safeParse(assignment.housekeepingScope);
+    if (!parsed.success) throw new ForbiddenException("Phân công buồng phòng chưa hợp lệ");
+    if (parsed.data.mode === "ALL") return all;
+    const rooms = await this.hotelCoreRepository.findHousekeepingScopeRooms(hotelId, parsed.data);
+    return { ...parsed.data, allowedRoomIds: rooms.map((room) => room.id) };
+  }
+
+  async assertHousekeepingRoomAccess(userId: string, activeRoleId: string, hotelId: string, roomId: string): Promise<void> {
+    const scope = await this.resolveHousekeepingScope(userId, activeRoleId, hotelId);
+    if (scope.allowedRoomIds !== null && !scope.allowedRoomIds.includes(roomId)) {
+      throw new NotFoundException("Phòng không thuộc phạm vi được phân công");
+    }
+  }
 
   async loadActorContext(userId: string, activeRoleId: string): Promise<HotelActorContext> {
     const actor = await this.hotelCoreRepository.findActorById(userId, activeRoleId);
@@ -201,6 +229,12 @@ export class HotelAccessService {
       hotelId,
       preloadedHotel,
     );
+    const isHousekeeping =
+      actor.roleCodes.has("HOTEL_HOUSEKEEPING") || actor.baseRoleCodes?.has("HOTEL_HOUSEKEEPING");
+    if (isHousekeeping) {
+      const responsibility = await this.loadHousekeepingScope(actorUserId, hotelId, actor);
+      return { hotel, allowedRoomId: null, allowedRoomIds: responsibility.allowedRoomIds, mode: "HOTEL_WIDE" };
+    }
     const mode = hotel.staffScopeMode ?? "HOTEL_WIDE";
     if (mode !== "ROOM_EXCLUSIVE") {
       return { hotel, allowedRoomId: null, mode: "HOTEL_WIDE" };
@@ -210,14 +244,11 @@ export class HotelAccessService {
       actor.roleCodes.has("HOTEL_OWNER") || actor.baseRoleCodes?.has("HOTEL_OWNER");
     const isHotelManager =
       actor.roleCodes.has("HOTEL_MANAGER") || actor.baseRoleCodes?.has("HOTEL_MANAGER");
-    const isHousekeeping =
-      actor.roleCodes.has("HOTEL_HOUSEKEEPING") || actor.baseRoleCodes?.has("HOTEL_HOUSEKEEPING");
     if (
       actor.isSuperAdmin ||
       actor.isTenantOwner ||
       isHotelOwner ||
       isHotelManager ||
-      isHousekeeping ||
       actor.hotelWideRoomScopeIds?.has(hotelId)
     ) {
       return { hotel, allowedRoomId: null, mode: "HOTEL_WIDE" };
@@ -238,27 +269,31 @@ export class HotelAccessService {
     hotelId: string,
     roomId: string,
   ): Promise<HotelDetailRow>;
-  async assertRoomAccess(
+  assertRoomAccess(
     actorUserIdOrScope: string | HotelRoomScope,
     activeRoleIdOrRoomId?: string | null,
     hotelId?: string,
     roomId?: string,
-  ): Promise<HotelDetailRow | void> {
+  ): Promise<HotelDetailRow> | void {
     if (typeof actorUserIdOrScope === "object" && actorUserIdOrScope !== null) {
       const scope = actorUserIdOrScope;
       const targetRoomId = activeRoleIdOrRoomId;
+      if (scope.allowedRoomIds !== undefined && scope.allowedRoomIds !== null &&
+        (!targetRoomId || !scope.allowedRoomIds.includes(targetRoomId))) {
+        throw new NotFoundException("Phòng không thuộc phạm vi được phân công");
+      }
       if (scope.allowedRoomId !== null && (!targetRoomId || scope.allowedRoomId !== targetRoomId)) {
         throw new NotFoundException("Không tìm thấy phòng");
       }
       return;
     }
 
-    const actorUserId = actorUserIdOrScope;
-    const activeRoleId = activeRoleIdOrRoomId as string;
-    const scope = await this.resolveRoomScope(actorUserId, activeRoleId, hotelId as string);
-    if (scope.allowedRoomId !== null && scope.allowedRoomId !== roomId) {
-      throw new NotFoundException("Không tìm thấy phòng");
-    }
+    return this.assertActorRoomAccess(actorUserIdOrScope, activeRoleIdOrRoomId as string, hotelId as string, roomId as string);
+  }
+
+  private async assertActorRoomAccess(actorUserId: string, activeRoleId: string, hotelId: string, roomId: string): Promise<HotelDetailRow> {
+    const scope = await this.resolveRoomScope(actorUserId, activeRoleId, hotelId);
+    this.assertRoomAccess(scope, roomId);
 
     const room = await this.hotelCoreRepository.findRoomById(roomId as string);
     if (!room || room.hotelId !== hotelId) {

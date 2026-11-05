@@ -16,6 +16,7 @@ import {
   type UnassignStaffRoomInput,
   type UpdateStaffAssignmentInput,
   type UpdateStaffUserInput,
+  type UpdateHousekeepingScopeInput,
 } from "@/features/staff-management/repositories/staff-directory-repository";
 import type {
   CreateAssignedHotelStaffUserInput,
@@ -129,6 +130,11 @@ export const staffDirectoryResource =
       }),
     },
     mutations: {
+      updateHousekeepingScope: defineMutation({
+        mutationFn: ({ scope, variables }: ResourceMutationContext<StaffManagementScope, UpdateHousekeepingScopeInput>) =>
+          staffDirectoryRepository.updateHousekeepingScope(scope, variables),
+        invalidates: INVALIDATE_DIRECTORY,
+      }),
       createUser: defineMutation({
         mutationFn: createStaffUser,
         invalidates: INVALIDATE_DIRECTORY,

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { useHousekeeping } from "../hooks/use-housekeeping";
@@ -18,7 +19,7 @@ type HousekeepingWorkspaceProps = {
 export function HousekeepingWorkspace({ hotelId, initialRoomsPage, currentUser }: HousekeepingWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<"rooms" | "notifications">("rooms");
   const {
-    filter, setFilter, summaryMetrics, availableFloors, taskCards, taskCardsByFloor,
+    assignmentScope, allRooms, filter, setFilter, summaryMetrics, availableFloors, taskCards, taskCardsByFloor,
     roomNotifications, cleaningRequests, isLoading, isNotificationsLoading, hasRoomsError, hasRequestsError,
     isFetching, confirmRoomReady, isConfirming, claimRequest, completeRequest, handleRefresh,
   } = useHousekeeping({ hotelId, initialRoomsPage, currentUser });
@@ -26,7 +27,7 @@ export function HousekeepingWorkspace({ hotelId, initialRoomsPage, currentUser }
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5">
-      <HousekeepingRealtimeNotifier hotelId={hotelId} />
+      <HousekeepingRealtimeNotifier hotelId={hotelId} scope={assignmentScope} rooms={allRooms} />
       <header className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-slate-950 text-balance">Buồng phòng</h1>
         <button
@@ -39,6 +40,12 @@ export function HousekeepingWorkspace({ hotelId, initialRoomsPage, currentUser }
           Tải lại
         </button>
       </header>
+
+      {assignmentScope && assignmentScope.mode !== "ALL" && (
+        <p className="text-base font-medium text-slate-700">
+          Phụ trách: {assignmentScope.label || (assignmentScope.mode === "FLOORS" ? `Tầng ${assignmentScope.floors.join(", ")}` : `${assignmentScope.roomIds.length} phòng`)}
+        </p>
+      )}
 
       <nav aria-label="Buồng phòng" className="grid grid-cols-2 gap-1 rounded-2xl border border-slate-200 bg-white p-1">
         {([
@@ -84,7 +91,7 @@ export function HousekeepingWorkspace({ hotelId, initialRoomsPage, currentUser }
                 )}
               </div>
             ) : (
-              <HousekeepingGridView taskCardsByFloor={taskCardsByFloor} onConfirmReady={confirmRoomReady} isConfirming={isConfirming} />
+              <HousekeepingGridView hotelId={hotelId} taskCardsByFloor={taskCardsByFloor} onConfirmReady={confirmRoomReady} isConfirming={isConfirming} />
             )}
           </>
         ) : (
@@ -100,12 +107,11 @@ export function HousekeepingWorkspace({ hotelId, initialRoomsPage, currentUser }
                         <p className="text-base font-bold text-slate-950">Phòng {card.roomNumber}</p>
                         <p className="text-sm text-slate-600">{card.floor}{card.task?.priority === "URGENT" ? " · Ưu tiên dọn" : " · Cần dọn"}</p>
                       </div>
-                      <button
-                        type="button"
+                      <Link
+                        href={`/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(card.room.id)}`}
                         aria-label={`Xem phòng ${card.roomNumber}`}
-                        onClick={() => { setFilter({ status: "all", floor: "all", search: card.roomNumber }); setActiveTab("rooms"); }}
                         className="min-h-11 shrink-0 rounded-xl border border-slate-300 px-3 py-2 text-base font-semibold text-emerald-800 whitespace-nowrap hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
-                      >Xem phòng</button>
+                      >Xem phòng</Link>
                     </li>
                   ))}
                 </ul>

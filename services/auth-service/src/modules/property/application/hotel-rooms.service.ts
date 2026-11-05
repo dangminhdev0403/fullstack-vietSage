@@ -197,6 +197,8 @@ export class HotelRoomsService {
 
     if (scope.allowedRoomId !== null) {
       where.id = scope.allowedRoomId;
+    } else if (scope.allowedRoomIds !== undefined && scope.allowedRoomIds !== null) {
+      where.id = { in: scope.allowedRoomIds };
     }
 
     if (query.unassignedOnly) {
@@ -205,7 +207,7 @@ export class HotelRoomsService {
         if (typeof where.id === "string") {
           where.id = assignedRoomIds.includes(where.id) ? { in: [] } : where.id;
         } else {
-          where.id = { notIn: assignedRoomIds };
+          where.id = { ...(where.id as Prisma.StringFilter | undefined), notIn: assignedRoomIds };
         }
       }
     }

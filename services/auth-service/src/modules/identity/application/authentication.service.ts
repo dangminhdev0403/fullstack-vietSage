@@ -294,7 +294,7 @@ export class AuthService {
     fullName: string;
     status: UserStatus;
     roles: string[];
-    activeRole: { id: string; code: string; name: string };
+    activeRole: { id: string; code: string; name: string; baseRoleCode?: string | null };
     menus: string[];
     permissions: string[];
     tenants: Array<{ id: string; code: string; name: string; status: string }>;
@@ -367,6 +367,7 @@ export class AuthService {
         id: activeUserRole.role.id,
         code: activeUserRole.role.code,
         name: activeUserRole.role.name,
+        baseRoleCode: activeUserRole.role.baseRole?.code ?? null,
       },
       menus: sortMenuPathsByNavigationOrder(Array.from(menus)),
       permissions: Array.from(permissions).sort((left, right) => left.localeCompare(right)),

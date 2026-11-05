@@ -55,7 +55,7 @@ export default async function StaffRoomsPage({
     callbackUrl,
     tokens.accessToken,
   );
-  const userPersona = resolveWorkspacePersona(context.activeRole.code);
+  const userPersona = resolveWorkspacePersona(context.activeRole.baseRoleCode ?? context.activeRole.code);
   const isHousekeeping = userPersona === "housekeeping";
   const canViewRooms =
     context.permissions.includes("hotel.rooms.view") ||

@@ -979,6 +979,10 @@ export class HotelRoomsRepository {
         throw new NotFoundException("Không tìm thấy phòng");
       }
 
+      if (expectedUpdatedAt && room.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+        throw new ConflictException("Thông tin phòng đã thay đổi, vui lòng tải lại");
+      }
+
       if (room.status === RoomStatus.AVAILABLE) {
         const updatedRoom = await tx.room.findUniqueOrThrow({
           where: { id: roomId },
@@ -998,6 +1002,7 @@ export class HotelRoomsRepository {
           id: roomId,
           hotelId,
           status: RoomStatus.PROCESSING,
+          updatedAt: expectedUpdatedAt ?? room.updatedAt,
         },
         data: {
           status: RoomStatus.AVAILABLE,
@@ -1005,17 +1010,6 @@ export class HotelRoomsRepository {
       });
 
       if (updated.count !== 1) {
-        const recheck = await tx.room.findFirst({
-          where: { id: roomId, hotelId },
-          select: { status: true },
-        });
-        if (recheck?.status === RoomStatus.AVAILABLE) {
-          const updatedRoom = await tx.room.findUniqueOrThrow({
-            where: { id: roomId },
-            include: roomListInclude,
-          });
-          return (await this.withActiveGuestDeviceCounts(tx, [updatedRoom]))[0] ?? null;
-        }
         throw new ConflictException(
           "Trạng thái phòng đã thay đổi hoặc đang được xử lý bởi yêu cầu khác",
         );
@@ -1039,6 +1033,7 @@ export class HotelRoomsRepository {
           select: {
             id: true,
             status: true,
+            version: true,
             priority: true,
             assignedToUserId: true,
             createdAt: true,
@@ -1046,26 +1041,21 @@ export class HotelRoomsRepository {
           },
         });
 
+        if (activeTasks.some((task) => task.status === HousekeepingTaskStatus.BLOCKED)) {
+          throw new ConflictException("Công việc đang tạm dừng. Vui lòng mở lại trước khi hoàn tất.");
+        }
+
         if (activeTasks.length > 0) {
-          completedHousekeepingTasks.push(...activeTasks);
-          await tx.housekeepingTask.updateMany({
-            where: {
-              hotelId,
-              roomId,
-              status: {
-                in: [
-                  HousekeepingTaskStatus.QUEUED,
-                  HousekeepingTaskStatus.CLAIMED,
-                  HousekeepingTaskStatus.IN_PROGRESS,
-                  HousekeepingTaskStatus.BLOCKED,
-                ],
-              },
-            },
-            data: {
-              status: HousekeepingTaskStatus.COMPLETED,
-              completedAt: now,
-            },
-          });
+          for (const task of activeTasks) {
+            const taskUpdate = await tx.housekeepingTask.updateMany({
+              where: { id: task.id, hotelId, roomId, status: task.status, version: task.version },
+              data: { status: HousekeepingTaskStatus.COMPLETED, completedAt: now, version: { increment: 1 } },
+            });
+            if (taskUpdate.count !== 1) {
+              throw new ConflictException("Công việc dọn phòng đã thay đổi, vui lòng tải lại");
+            }
+          }
+          completedHousekeepingTasks.push(...activeTasks.map((task) => ({ ...task, updatedAt: now })));
 
           if (typeof tx.housekeepingTaskHistory?.createMany === "function") {
             await tx.housekeepingTaskHistory.createMany({

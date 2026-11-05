@@ -31,6 +31,7 @@ export type StaffRoomAssignment = {
 };
 
 export type HotelStaffAssignment = {
+  housekeepingScope?: HousekeepingAssignmentScope | null;
   id: string;
   userId: string;
   hotelId: string;
@@ -46,6 +47,13 @@ export type HotelStaffAssignment = {
     roles: ManagedHotelRole[];
   };
   roomAssignment?: StaffRoomAssignment | null;
+};
+
+export type HousekeepingAssignmentScope = {
+  mode: "ALL" | "FLOORS" | "ROOMS";
+  floors: string[];
+  roomIds: string[];
+  label: string | null;
 };
 
 export type HotelStaffAssignmentsPage = {

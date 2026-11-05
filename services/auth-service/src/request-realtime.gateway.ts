@@ -11,12 +11,15 @@ import type { Server, Socket } from "socket.io";
 import { loadAppConfig, type RequestRealtimeConfig } from "./common/config/env.config";
 import { AppLogger } from "./common/logging/app-logger.service";
 import { GuestOsService } from "./modules/guest-operations/guest-operations-public";
+import { HotelAccessService } from "./modules/property/property-public";
 import { RequestRealtimeEmitter } from "./request-realtime.emitter";
 
 type OwnerTicketClaims = {
   sub?: unknown;
+  roleId?: unknown;
   hotelId?: unknown;
   roomId?: unknown;
+  roomIds?: unknown;
   type?: unknown;
   jti?: unknown;
 };
@@ -44,6 +47,7 @@ export class RequestRealtimeGateway
     private readonly guestOsService: GuestOsService,
     private readonly jwtService: JwtService,
     private readonly logger: AppLogger,
+    private readonly hotelAccessService: HotelAccessService,
     @Optional() @Inject("REQUEST_REALTIME_CONFIG") config?: RequestRealtimeConfig,
   ) {
     this.config = config ?? realtimeConfig.requestRealtime;
@@ -86,12 +90,42 @@ export class RequestRealtimeGateway
       if (
         claims.type !== "request_realtime_owner" ||
         typeof claims.sub !== "string" ||
+        typeof claims.roleId !== "string" ||
+        !claims.roleId.trim() ||
         typeof claims.hotelId !== "string" ||
         typeof claims.jti !== "string"
       ) {
         return this.reject(socket, "TICKET_INVALID");
       }
-      if (typeof claims.roomId === "string" && claims.roomId) {
+      if (claims.roomId !== undefined && (typeof claims.roomId !== "string" || !claims.roomId.trim())) {
+        return this.reject(socket, "TICKET_INVALID");
+      }
+      if (claims.roomIds !== undefined && (!Array.isArray(claims.roomIds) || claims.roomIds.length > 2000 ||
+        claims.roomIds.some((roomId) => typeof roomId !== "string" || !roomId.trim()) || claims.roomId !== undefined)) {
+        return this.reject(socket, "TICKET_INVALID");
+      }
+      // Tickets identify the selected role. Re-read scope so a valid old ticket cannot restore revoked rooms.
+      await socket.join(RequestRealtimeEmitter.ownerUserHotelRoom(claims.hotelId, claims.sub));
+      const currentScope = await this.hotelAccessService.resolveRoomScope(claims.sub, claims.roleId, claims.hotelId);
+      if (socket.disconnected) return;
+      claims.roomId = currentScope.allowedRoomId ?? undefined;
+      claims.roomIds = currentScope.allowedRoomIds ?? undefined;
+      if (claims.roomIds !== undefined) {
+        if (!Array.isArray(claims.roomIds) || claims.roomIds.length > 2000 ||
+          claims.roomIds.some((roomId) => typeof roomId !== "string" || !roomId.trim()) ||
+          claims.roomId !== undefined) {
+          return this.reject(socket, "TICKET_INVALID");
+        }
+        const roomIds = [...new Set(claims.roomIds as string[])];
+        for (const roomId of roomIds) {
+          await socket.join(RequestRealtimeEmitter.ownerRoomChannel(claims.hotelId, roomId));
+        }
+        socket.emit("request_realtime.ready", {
+          mode: "owner",
+          scope: { hotelId: claims.hotelId, roomIds },
+        });
+      } else if (claims.roomId !== undefined) {
+        if (typeof claims.roomId !== "string" || !claims.roomId.trim()) return this.reject(socket, "TICKET_INVALID");
         await socket.join(RequestRealtimeEmitter.ownerRoomChannel(claims.hotelId, claims.roomId));
         socket.emit("request_realtime.ready", {
           mode: "owner",

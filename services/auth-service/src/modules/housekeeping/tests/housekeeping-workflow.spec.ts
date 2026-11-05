@@ -110,6 +110,8 @@ describe("Housekeeping Workflow & Concurrency Spec", () => {
     mockHotelAccessService = {
       assertHotelAccess: jest.fn().mockResolvedValue({ id: hotelId, tenantId: "tenant-1" }),
       assertRoomAccess: jest.fn().mockResolvedValue({ id: hotelId, tenantId: "tenant-1" }),
+      assertHousekeepingRoomAccess: jest.fn().mockResolvedValue(undefined),
+      resolveHousekeepingScope: jest.fn().mockResolvedValue({ mode: "ALL", floors: [], roomIds: [], label: null, allowedRoomIds: null }),
     };
 
     repository = new HousekeepingRepository(mockPrisma);
@@ -668,7 +670,7 @@ describe("Housekeeping Workflow & Concurrency Spec", () => {
   });
 
   describe("Service & Hotel Access Checks", () => {
-    it("calls assertHotelAccess before executing listTasks", async () => {
+    it("resolves authorized housekeeping scope before executing listTasks", async () => {
       jest.spyOn(repository, "listTasks").mockResolvedValueOnce({
         items: [],
         total: 0,
@@ -678,7 +680,7 @@ describe("Housekeeping Workflow & Concurrency Spec", () => {
       });
 
       await service.listTasks(actorUserId, activeRoleId, hotelId, { page: 1, limit: 20 });
-      expect(mockHotelAccessService.assertHotelAccess).toHaveBeenCalledWith(
+      expect(mockHotelAccessService.resolveHousekeepingScope).toHaveBeenCalledWith(
         actorUserId,
         activeRoleId,
         hotelId,

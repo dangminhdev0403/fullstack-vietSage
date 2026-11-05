@@ -22,3 +22,23 @@ export type ListHotelStaffAssignmentsQueryInput = z.infer<
 >;
 
 export type AssignStaffRoomBodyInput = z.infer<typeof assignStaffRoomBodySchema>;
+
+export const housekeepingScopeSchema = z.object({
+  mode: z.enum(["ALL", "FLOORS", "ROOMS"]),
+  floors: z.array(z.string().trim().min(1).max(80)).max(100).default([]),
+  roomIds: z.array(z.string().trim().min(1)).max(2000).default([]),
+  label: z.string().trim().max(80).nullable().optional().transform((value) => value || null),
+}).strict().superRefine((scope, context) => {
+  if (scope.mode === "FLOORS" && scope.floors.length === 0) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["floors"], message: "Chọn ít nhất một tầng" });
+  }
+  if (scope.mode === "ROOMS" && scope.roomIds.length === 0) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["roomIds"], message: "Chọn ít nhất một phòng" });
+  }
+  if ((scope.mode !== "FLOORS" && scope.floors.length > 0) || (scope.mode !== "ROOMS" && scope.roomIds.length > 0)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "Phạm vi phân công không hợp lệ" });
+  }
+});
+
+export type HousekeepingScopeInput = z.infer<typeof housekeepingScopeSchema>;
+export type EffectiveHousekeepingScope = HousekeepingScopeInput & { allowedRoomIds: string[] | null };

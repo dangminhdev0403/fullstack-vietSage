@@ -17,6 +17,7 @@ describe("RequestRealtimeTicketService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (hotelAccessService.assertHotelAccess as jest.Mock).mockResolvedValue(undefined);
     (hotelAccessService.resolveRoomScope as jest.Mock).mockResolvedValue({
       hotel: { id: "hotel-1" },
       allowedRoomId: null,
@@ -108,6 +109,22 @@ describe("RequestRealtimeTicketService", () => {
     await expect(service.issueOwnerTicket("user-1", "active-role", "hotel-2")).rejects.toThrow(
       "denied",
     );
+    expect(jwtService.signAsync).not.toHaveBeenCalled();
+  });
+
+  it.each([{ roomIds: ["room-101", "room-102"] }, { roomIds: [] }])("signs exact responsibility room set, including an empty set", async ({ roomIds }) => {
+    (hotelAccessService.resolveRoomScope as jest.Mock).mockResolvedValue({ hotel: { id: "hotel-1" }, allowedRoomId: null, allowedRoomIds: roomIds, mode: "HOTEL_WIDE" });
+    const service = new RequestRealtimeTicketService(hotelAccessService, jwtService, prismaMock, { enabled: true, ticketSecret: "x".repeat(32), ticketTtlSeconds: 60, audience: "request-realtime" });
+    await service.issueOwnerTicket("user-1", "active-role", "hotel-1");
+    const [claims] = (jwtService.signAsync as jest.Mock).mock.calls[0];
+    expect(claims.roomIds).toEqual(roomIds);
+    expect(claims).not.toHaveProperty("roomId");
+  });
+
+  it("does not sign a ticket when resolving responsibility fails closed", async () => {
+    (hotelAccessService.resolveRoomScope as jest.Mock).mockRejectedValueOnce(new Error("invalid responsibility"));
+    const service = new RequestRealtimeTicketService(hotelAccessService, jwtService, prismaMock, { enabled: true, ticketSecret: "x".repeat(32), ticketTtlSeconds: 60, audience: "request-realtime" });
+    await expect(service.issueOwnerTicket("user-1", "active-role", "hotel-1")).rejects.toThrow("invalid responsibility");
     expect(jwtService.signAsync).not.toHaveBeenCalled();
   });
 

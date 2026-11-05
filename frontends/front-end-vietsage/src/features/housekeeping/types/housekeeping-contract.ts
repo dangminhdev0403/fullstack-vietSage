@@ -103,3 +103,13 @@ export type HousekeepingTaskCardModel = {
   cleaningRequests: StaffRequestListItem[];
   task?: HousekeepingTask;
 };
+
+export type HousekeepingAssignmentScope = {
+  mode: "ALL" | "FLOORS" | "ROOMS";
+  floors: string[];
+  roomIds: string[];
+  label: string | null;
+  allowedRoomIds: string[] | null;
+};
+
+export type HousekeepingRoom = Pick<HotelRoomSummary, "id" | "roomNumber" | "floor" | "status" | "updatedAt" | "roomTypeName"> & { hotelId: string };

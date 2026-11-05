@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Put, Query, Req } from "@nestjs/common";
-import { ApiOkResponse, ApiParam, ApiQuery, ApiTags } from "@nestjs/swagger";
+import { ApiBody, ApiOkResponse, ApiParam, ApiQuery, ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import {
   hotelStaffAssignmentDataSchema,
@@ -23,6 +23,7 @@ import {
   assignStaffRoomBodySchema,
   hotelStaffUserIdParamSchema,
   listHotelStaffAssignmentsQuerySchema,
+  housekeepingScopeSchema,
 } from "../domain/schemas/hotel-staff-assignments.schema";
 import { hotelIdParamSchema } from "../domain/schemas/shared.schema";
 
@@ -34,6 +35,27 @@ interface RequestWithUser extends Request {
 @Controller("hotels/:hotelId/staff-assignments")
 export class HotelStaffAssignmentsController {
   constructor(private readonly hotelStaffAssignmentsService: HotelStaffAssignmentsService) {}
+
+  @RequirePermission("hotel.staff.manage")
+  @RequireActiveRole(CANONICAL_OWNER_ROLE)
+  @SuccessMessage("Đã cập nhật phân công buồng phòng")
+  @ApiDescript("Phân công buồng phòng theo tầng hoặc nhóm phòng")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "userId", type: String })
+  @ApiBody({ schema: { type: "object", required: ["mode"], properties: {
+    mode: { type: "string", enum: ["ALL", "FLOORS", "ROOMS"] },
+    floors: { type: "array", items: { type: "string" } },
+    roomIds: { type: "array", items: { type: "string" } },
+    label: { type: "string", nullable: true },
+  } } })
+  @ApiOkResponse({ description: "Phân công buồng phòng đã lưu" })
+  @Put(":userId/housekeeping-scope")
+  async updateHousekeepingScope(@Req() request: RequestWithUser, @Param("hotelId") hotelIdRaw: string,
+    @Param("userId") userIdRaw: string, @Body() body: unknown) {
+    return this.hotelStaffAssignmentsService.updateHousekeepingScope(request.user.userId, request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelIdRaw), parseWithZod(hotelStaffUserIdParamSchema, userIdRaw),
+      parseWithZod(housekeepingScopeSchema, body));
+  }
 
   @RequirePermission(["hotel.staff.view", "hotel.reservations.view"])
   @SuccessMessage("Lấy danh sách phân công nhân viên thành công")

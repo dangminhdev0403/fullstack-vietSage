@@ -15,6 +15,19 @@ import { hotelDetailInclude } from "./hotel-repository.types";
 @Injectable()
 export class HotelCoreRepository {
   constructor(private readonly prisma: PrismaService) {}
+  async findHousekeepingAssignment(userId: string, hotelId: string) {
+    return this.prisma.hotelStaffAssignment.findFirst({
+      where: { userId, hotelId, status: HotelStaffAssignmentStatus.ACTIVE },
+      select: { housekeepingScope: true },
+    });
+  }
+
+  async findHousekeepingScopeRooms(hotelId: string, scope: { mode: string; floors: string[]; roomIds: string[] }) {
+    return this.prisma.room.findMany({
+      where: { hotelId, ...(scope.mode === "FLOORS" ? { floor: { in: scope.floors } } : { id: { in: scope.roomIds } }) },
+      select: { id: true },
+    });
+  }
   async findActorById(userId: string, activeRoleId: string) {
     return this.prisma.user.findUnique({
       where: { id: userId },

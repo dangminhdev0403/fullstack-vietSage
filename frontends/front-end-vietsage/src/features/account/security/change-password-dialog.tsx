@@ -107,7 +107,9 @@ export function ChangePasswordDialog() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#24473d]/15 bg-white/50 px-3 py-2 text-xs font-bold text-[#24473d] hover:bg-[#f8f1e6]"
+        aria-label="Đổi mật khẩu"
+        title="Đổi mật khẩu"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-full border border-[#24473d]/15 bg-white/50 px-3 py-2 text-base font-semibold text-[#24473d] hover:bg-[#f8f1e6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#24473d]"
       >
         <VsIcon name="key" className="text-base" />
         <span className="hidden lg:inline">Đổi mật khẩu</span>

@@ -4840,6 +4840,70 @@ export interface paths {
         patch: operations["HousekeepingController_markNotificationRead"];
         trace?: never;
     };
+    "/hotels/{hotelId}/staff-assignments/{userId}/housekeeping-scope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["HotelStaffAssignmentsController_updateHousekeepingScope"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/housekeeping/scope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["HousekeepingController_getScope"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/housekeeping/rooms/by-qr/{qrCode}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["HousekeepingController_getRoomByQr"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/housekeeping/rooms/{roomId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["HousekeepingController_getRoom"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5187,6 +5251,7 @@ export interface operations {
                                 id: string;
                                 code: string;
                                 name: string;
+                                baseRoleCode?: string | null;
                             };
                             menus: string[];
                             permissions: string[];
@@ -7991,12 +8056,12 @@ export interface operations {
     };
     ReservationsController_listArrivals: {
         parameters: {
-            query: {
+            query?: {
                 q?: string;
                 limit?: number;
                 page?: number;
-                to: string;
-                from: string;
+                to?: string;
+                from?: string;
             };
             header?: never;
             path: {
@@ -8374,9 +8439,9 @@ export interface operations {
     };
     ReservationsController_getRoomPlan: {
         parameters: {
-            query: {
-                to: string;
-                from: string;
+            query?: {
+                to?: string;
+                from?: string;
             };
             header?: never;
             path: {
@@ -8950,6 +9015,13 @@ export interface operations {
                                     /** Format: date-time */
                                     assignedAt: string;
                                 } | null;
+                                housekeepingScope?: {
+                                    /** @enum {string} */
+                                    mode: "ALL" | "FLOORS" | "ROOMS";
+                                    floors: string[];
+                                    roomIds: string[];
+                                    label: string | null;
+                                } | null;
                             }[];
                         };
                     };
@@ -9012,6 +9084,13 @@ export interface operations {
                                 roomNumber: string;
                                 /** Format: date-time */
                                 assignedAt: string;
+                            } | null;
+                            housekeepingScope?: {
+                                /** @enum {string} */
+                                mode: "ALL" | "FLOORS" | "ROOMS";
+                                floors: string[];
+                                roomIds: string[];
+                                label: string | null;
                             } | null;
                         };
                     };
@@ -15297,6 +15376,98 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Đã đánh dấu thông báo đã đọc */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HotelStaffAssignmentsController_updateHousekeepingScope: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    mode: "ALL" | "FLOORS" | "ROOMS";
+                    floors?: string[];
+                    roomIds?: string[];
+                    label?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Phân công buồng phòng đã lưu */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HousekeepingController_getScope: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Phạm vi buồng phòng hiệu lực */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HousekeepingController_getRoomByQr: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                qrCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Trạng thái phòng */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HousekeepingController_getRoom: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                roomId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Trạng thái phòng */
             200: {
                 headers: {
                     [name: string]: unknown;

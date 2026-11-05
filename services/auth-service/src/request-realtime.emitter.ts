@@ -518,6 +518,16 @@ export class RequestRealtimeEmitter {
     return `${OWNER_ROOM_PREFIX}${hotelId}:requests`;
   }
 
+  static ownerUserHotelRoom(hotelId: string, userId: string): string {
+    return `${OWNER_ROOM_PREFIX}${hotelId}:user:${userId}:scope`;
+  }
+
+  static invalidateOwnerScope(hotelId: string, userId: string): void {
+    const room = this.ownerUserHotelRoom(hotelId, userId);
+    this.serverRef?.to(room).emit("request_realtime.error", { code: "SCOPE_CHANGED", retryable: true });
+    this.serverRef?.in(room).disconnectSockets(true);
+  }
+
   static ownerRoomChannel(hotelId: string, roomId: string): string {
     return `${OWNER_ROOM_PREFIX}${hotelId}:room:${roomId}:requests`;
   }

@@ -9,6 +9,7 @@ import {
   HousekeepingTaskStatus,
   Prisma,
   RoomStatus,
+  RoomQRCodeStatus,
 } from "@prisma/client";
 import { PrismaService } from "../../../../prisma/prisma.service";
 import { RequestRealtimeEmitter } from "../../../../request-realtime.emitter";
@@ -85,6 +86,25 @@ function emitHousekeepingTaskRealtime(emit: () => void): void {
 export class HousekeepingRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  private readonly roomDetailSelect = {
+    id: true, hotelId: true, roomNumber: true, floor: true, status: true, updatedAt: true,
+    roomType: { select: { name: true } },
+  } as const;
+
+  async findRoom(hotelId: string, roomId: string) {
+    return this.prisma.room.findFirst({ where: { id: roomId, hotelId }, select: this.roomDetailSelect });
+  }
+
+  async findRoomByQr(publicCode: string) {
+    const now = new Date();
+    const qr = await this.prisma.roomQRCode.findFirst({
+      where: { publicCode, status: RoomQRCodeStatus.ACTIVE, revokedAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+      select: { room: { select: this.roomDetailSelect } },
+    });
+    return qr?.room ?? null;
+  }
+
   async listTasks(
     hotelId: string,
     filter: {
@@ -92,6 +112,7 @@ export class HousekeepingRepository {
       priority?: HousekeepingTaskPriority;
       roomId?: string;
       assignedToUserId?: string;
+      allowedRoomIds?: string[] | null;
     },
     page = 1,
     limit = 20,
@@ -102,6 +123,8 @@ export class HousekeepingRepository {
       ...(filter.priority ? { priority: filter.priority } : {}),
       ...(filter.roomId ? { roomId: filter.roomId } : {}),
       ...(filter.assignedToUserId ? { assignedToUserId: filter.assignedToUserId } : {}),
+      ...(filter.allowedRoomIds !== undefined && filter.allowedRoomIds !== null
+        ? { AND: [{ roomId: { in: filter.allowedRoomIds } }] } : {}),
     };
 
     const skip = (page - 1) * limit;
@@ -126,22 +149,23 @@ export class HousekeepingRepository {
     };
   }
 
-  async getSummary(hotelId: string) {
+  async getSummary(hotelId: string, allowedRoomIds: string[] | null = null) {
+    const scope = allowedRoomIds === null ? {} : { roomId: { in: allowedRoomIds } };
     const [queued, claimed, inProgress, blocked, completed] = await Promise.all([
       this.prisma.housekeepingTask.count({
-        where: { hotelId, status: HousekeepingTaskStatus.QUEUED },
+        where: { hotelId, ...scope, status: HousekeepingTaskStatus.QUEUED },
       }),
       this.prisma.housekeepingTask.count({
-        where: { hotelId, status: HousekeepingTaskStatus.CLAIMED },
+        where: { hotelId, ...scope, status: HousekeepingTaskStatus.CLAIMED },
       }),
       this.prisma.housekeepingTask.count({
-        where: { hotelId, status: HousekeepingTaskStatus.IN_PROGRESS },
+        where: { hotelId, ...scope, status: HousekeepingTaskStatus.IN_PROGRESS },
       }),
       this.prisma.housekeepingTask.count({
-        where: { hotelId, status: HousekeepingTaskStatus.BLOCKED },
+        where: { hotelId, ...scope, status: HousekeepingTaskStatus.BLOCKED },
       }),
       this.prisma.housekeepingTask.count({
-        where: { hotelId, status: HousekeepingTaskStatus.COMPLETED },
+        where: { hotelId, ...scope, status: HousekeepingTaskStatus.COMPLETED },
       }),
     ]);
 
@@ -799,22 +823,25 @@ export class HousekeepingRepository {
 
   async listNotifications(
     hotelId: string,
-    filter: { status?: HousekeepingNotificationStatus },
+    filter: { status?: HousekeepingNotificationStatus; allowedRoomIds?: string[] | null },
     limit = 20,
   ) {
     return this.prisma.housekeepingNotification.findMany({
       where: {
         hotelId,
         ...(filter.status ? { status: filter.status } : {}),
+        ...(filter.allowedRoomIds !== undefined && filter.allowedRoomIds !== null
+          ? { task: { roomId: { in: filter.allowedRoomIds } } } : {}),
       },
       orderBy: { createdAt: "desc" },
       take: limit,
     });
   }
 
-  async markNotificationRead(hotelId: string, notificationId: string) {
+  async markNotificationRead(hotelId: string, notificationId: string, allowedRoomIds: string[] | null = null) {
     const notification = await this.prisma.housekeepingNotification.findFirst({
-      where: { id: notificationId, hotelId },
+      where: { id: notificationId, hotelId,
+        ...(allowedRoomIds === null ? {} : { task: { roomId: { in: allowedRoomIds } } }) },
     });
     if (!notification) {
       throw new NotFoundException("Không tìm thấy thông báo");

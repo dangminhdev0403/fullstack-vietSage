@@ -9,6 +9,7 @@ import type {
   HotelStaffUser,
   HotelStaffUsersPage,
   ManagedHotelRole,
+  HousekeepingAssignmentScope,
 } from "../types/staff-management-contract";
 
 type TemporaryPasswordResult = {
@@ -20,6 +21,14 @@ type TemporaryPasswordResult = {
 export class StaffManagementService {
   private readonly baseUrl: string;
   private readonly httpClient: HttpClient;
+
+  async updateHousekeepingScope(hotelId: string, userId: string, body: HousekeepingAssignmentScope,
+    accessToken?: string, tenantId?: string) {
+    const payload = await this.request<unknown>({ method: "PUT",
+      path: `/hotels/${encodeURIComponent(hotelId)}/staff-assignments/${encodeURIComponent(userId)}/housekeeping-scope`,
+      body, accessToken, tenantId });
+    return unwrapApiEnvelope<unknown>(payload).data;
+  }
 
   constructor(options: { baseUrl: string; timeoutMs?: number }) {
     this.baseUrl = options.baseUrl;

@@ -125,6 +125,7 @@ export const authMeDataSchema = {
         id: { type: "string" },
         code: { type: "string" },
         name: { type: "string" },
+        baseRoleCode: { type: "string", nullable: true },
       },
       required: ["id", "code", "name"],
     },
@@ -587,6 +588,12 @@ export const hotelStaffAssignmentDataSchema = {
     assignedById: { type: "string", nullable: true },
     revokedAt: { type: "string", format: "date-time", nullable: true },
     revokedById: { type: "string", nullable: true },
+    housekeepingScope: { type: "object", nullable: true, properties: {
+      mode: { type: "string", enum: ["ALL", "FLOORS", "ROOMS"] },
+      floors: { type: "array", items: { type: "string" } },
+      roomIds: { type: "array", items: { type: "string" } },
+      label: { type: "string", nullable: true },
+    }, required: ["mode", "floors", "roomIds", "label"] },
     user: hotelStaffAssignmentUserDataSchema,
     roomAssignment: {
       type: "object",

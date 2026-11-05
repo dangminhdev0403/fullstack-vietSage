@@ -49,6 +49,37 @@ interface RequestWithUser extends Request {
 export class HousekeepingController {
   constructor(private readonly housekeepingService: HousekeepingService) {}
 
+  @SuccessMessage("Lấy phạm vi buồng phòng thành công")
+  @RequirePermission(["hotel.rooms.view", "hotel.rooms.ready.confirm"])
+  @ApiDescript("Xem tầng và phòng được phân công buồng phòng")
+  @ApiOkResponse({ description: "Phạm vi buồng phòng hiệu lực" })
+  @Get(":hotelId/housekeeping/scope")
+  async getScope(@Req() request: RequestWithUser, @Param("hotelId") hotelIdRaw: string) {
+    return this.housekeepingService.getScope(request.user.userId, request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelIdRaw));
+  }
+
+  @SuccessMessage("Lấy phòng từ QR thành công")
+  @RequirePermission(["hotel.rooms.view", "hotel.rooms.ready.confirm"])
+  @ApiDescript("Xem phòng từ QR dành cho nhân viên buồng phòng")
+  @ApiOkResponse({ description: "Trạng thái phòng" })
+  @Get("housekeeping/rooms/by-qr/:qrCode")
+  async getRoomByQr(@Req() request: RequestWithUser, @Param("qrCode") qrCodeRaw: string) {
+    return this.housekeepingService.getRoomByQr(request.user.userId, request.user.roleId,
+      parseWithZod(taskIdParamSchema, qrCodeRaw));
+  }
+
+  @SuccessMessage("Lấy trạng thái phòng thành công")
+  @RequirePermission(["hotel.rooms.view", "hotel.rooms.ready.confirm"])
+  @ApiDescript("Xem trạng thái phòng buồng phòng")
+  @ApiOkResponse({ description: "Trạng thái phòng" })
+  @Get(":hotelId/housekeeping/rooms/:roomId")
+  async getRoom(@Req() request: RequestWithUser, @Param("hotelId") hotelIdRaw: string,
+    @Param("roomId") roomIdRaw: string) {
+    return this.housekeepingService.getRoom(request.user.userId, request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelIdRaw), parseWithZod(taskIdParamSchema, roomIdRaw));
+  }
+
   @SuccessMessage("Lấy danh sách công việc buồng phòng thành công")
   @RequirePermission(["hotel.rooms.view", "hotel.rooms.ready.confirm"])
   @ApiDescript("Xem danh sách công việc buồng phòng")

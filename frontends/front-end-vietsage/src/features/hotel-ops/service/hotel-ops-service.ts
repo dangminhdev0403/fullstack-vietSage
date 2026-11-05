@@ -46,6 +46,8 @@ import type {
   HotelStaffAssignmentItem,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 import type {
+  HousekeepingAssignmentScope,
+  HousekeepingRoom,
   HousekeepingTask,
   HousekeepingTaskPage,
   HousekeepingTasksSummary,
@@ -130,6 +132,36 @@ export class HotelOpsService {
     });
 
     return unwrapApiEnvelope<HotelOpsPage<HotelRoomSummary>>(payload).data;
+  }
+
+  async getHousekeepingScope(hotelId: string, options: AuthRequestOptions = {}): Promise<HousekeepingAssignmentScope> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, "/housekeeping/scope"),
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<HousekeepingAssignmentScope>(payload).data;
+  }
+
+  async getHousekeepingRoom(hotelId: string, roomId: string, options: AuthRequestOptions = {}): Promise<HousekeepingRoom> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, `/housekeeping/rooms/${encodeURIComponent(roomId)}`),
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<HousekeepingRoom>(payload).data;
+  }
+
+  async getHousekeepingRoomByQr(qrCode: string, options: AuthRequestOptions = {}): Promise<HousekeepingRoom> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: `/hotels/housekeeping/rooms/by-qr/${encodeURIComponent(qrCode)}`,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<HousekeepingRoom>(payload).data;
   }
 
   async listHousekeepingTasks(

@@ -3,6 +3,7 @@ import { HTTP_HEADER_TENANT_ID } from "@/core/http/tenant-scope";
 import type {
   CreateAssignedHotelStaffUserInput,
   StaffDirectorySnapshot,
+  HousekeepingAssignmentScope,
 } from "@/features/staff-management/types/staff-management-contract";
 
 export type StaffManagementScope = {
@@ -37,6 +38,8 @@ export type AssignStaffRoomInput = {
 export type UnassignStaffRoomInput = {
   userId: string;
 };
+
+export type UpdateHousekeepingScopeInput = { userId: string; scope: HousekeepingAssignmentScope };
 
 export type TemporaryPasswordResult = {
   userId: string;
@@ -79,6 +82,14 @@ function userRolesPath(
 }
 
 export const staffDirectoryRepository = {
+  async updateHousekeepingScope(scope: StaffManagementScope, input: UpdateHousekeepingScopeInput) {
+    if (!scope.hotelId) throw new Error("Hãy chọn khách sạn trước khi phân công.");
+    const payload = await requestInternalApiEnvelope(
+      `/api/${scope.surface}/hotels/${encodeURIComponent(scope.hotelId)}/staff-assignments/${encodeURIComponent(input.userId)}/housekeeping-scope`,
+      { method: "PUT", body: input.scope, headers: tenantHeaders(scope) },
+    );
+    return payload.data;
+  },
   async list(
     scope: StaffManagementScope,
     input: StaffDirectoryListInput,

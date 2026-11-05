@@ -25,6 +25,37 @@ export class HousekeepingService {
     private readonly hotelAccessService: HotelAccessService,
   ) {}
 
+  async getScope(actorUserId: string, activeRoleId: string, hotelId: string) {
+    return this.hotelAccessService.resolveHousekeepingScope(actorUserId, activeRoleId, hotelId);
+  }
+
+  private toRoomDto(room: NonNullable<Awaited<ReturnType<HousekeepingRepository["findRoom"]>>>) {
+    return { id: room.id, hotelId: room.hotelId, roomNumber: room.roomNumber, floor: room.floor,
+      status: room.status, updatedAt: room.updatedAt.toISOString(), roomTypeName: room.roomType?.name ?? null };
+  }
+
+  async getRoom(actorUserId: string, activeRoleId: string, hotelId: string, roomId: string) {
+    await this.hotelAccessService.assertHousekeepingRoomAccess(actorUserId, activeRoleId, hotelId, roomId);
+    const room = await this.housekeepingRepository.findRoom(hotelId, roomId);
+    if (!room) throw new NotFoundException("Không tìm thấy phòng");
+    return this.toRoomDto(room);
+  }
+
+  async getRoomByQr(actorUserId: string, activeRoleId: string, publicCode: string) {
+    const room = await this.housekeepingRepository.findRoomByQr(publicCode);
+    if (!room) throw new NotFoundException("Mã QR phòng không còn hiệu lực");
+    await this.hotelAccessService.assertHousekeepingRoomAccess(actorUserId, activeRoleId, room.hotelId, room.id);
+    return this.toRoomDto(room);
+  }
+
+  private async assertTaskAccess(actorUserId: string, activeRoleId: string, hotelId: string, taskId: string) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const task = await this.housekeepingRepository.findById(hotelId, taskId);
+    if (!task) throw new NotFoundException("Không tìm thấy công việc buồng phòng");
+    await this.hotelAccessService.assertHousekeepingRoomAccess(actorUserId, activeRoleId, hotelId, task.roomId);
+    return task;
+  }
+
   private toTaskDto(task: any): HousekeepingTaskDto {
     return {
       id: task.id,
@@ -84,8 +115,7 @@ export class HousekeepingService {
     hotelId: string,
     query: ListHousekeepingTasksQueryInput,
   ): Promise<PaginatedHousekeepingTasksDto> {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-
+    const scope = await this.getScope(actorUserId, activeRoleId, hotelId);
     const result = await this.housekeepingRepository.listTasks(
       hotelId,
       {
@@ -93,6 +123,7 @@ export class HousekeepingService {
         priority: query.priority,
         roomId: query.roomId,
         assignedToUserId: query.assignedToUserId,
+        allowedRoomIds: scope.allowedRoomIds,
       },
       query.page,
       query.limit,
@@ -112,8 +143,8 @@ export class HousekeepingService {
     activeRoleId: string,
     hotelId: string,
   ): Promise<HousekeepingTasksSummaryDto> {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    return this.housekeepingRepository.getSummary(hotelId);
+    const scope = await this.getScope(actorUserId, activeRoleId, hotelId);
+    return this.housekeepingRepository.getSummary(hotelId, scope.allowedRoomIds);
   }
 
   async getTaskDetail(
@@ -122,11 +153,7 @@ export class HousekeepingService {
     hotelId: string,
     taskId: string,
   ): Promise<HousekeepingTaskDto> {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    const task = await this.housekeepingRepository.findById(hotelId, taskId);
-    if (!task) {
-      throw new NotFoundException("Không tìm thấy công việc buồng phòng");
-    }
+    const task = await this.assertTaskAccess(actorUserId, activeRoleId, hotelId, taskId);
     return this.toTaskDto(task);
   }
 
@@ -136,7 +163,7 @@ export class HousekeepingService {
     hotelId: string,
     dto: CreateHousekeepingTaskBodyInput,
   ): Promise<HousekeepingTaskDto> {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    await this.hotelAccessService.assertHousekeepingRoomAccess(actorUserId, activeRoleId, hotelId, dto.roomId);
     const task = await this.housekeepingRepository.createTask({
       hotelId,
       roomId: dto.roomId,
@@ -154,7 +181,7 @@ export class HousekeepingService {
     taskId: string,
     dto: ClaimHousekeepingTaskBodyInput,
   ): Promise<HousekeepingTaskDto> {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    await this.assertTaskAccess(actorUserId, activeRoleId, hotelId, taskId);
     const task = await this.housekeepingRepository.claimTask({
       hotelId,
       taskId,
@@ -171,7 +198,7 @@ export class HousekeepingService {
     taskId: string,
     dto: StartHousekeepingTaskBodyInput,
   ): Promise<HousekeepingTaskDto> {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    await this.assertTaskAccess(actorUserId, activeRoleId, hotelId, taskId);
     const task = await this.housekeepingRepository.startTask({
       hotelId,
       taskId,
@@ -188,7 +215,7 @@ export class HousekeepingService {
     taskId: string,
     dto: BlockHousekeepingTaskBodyInput,
   ): Promise<HousekeepingTaskDto> {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    await this.assertTaskAccess(actorUserId, activeRoleId, hotelId, taskId);
     const task = await this.housekeepingRepository.blockTask({
       hotelId,
       taskId,
@@ -207,7 +234,7 @@ export class HousekeepingService {
     taskId: string,
     dto: CompleteHousekeepingTaskBodyInput,
   ): Promise<HousekeepingTaskDto> {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    await this.assertTaskAccess(actorUserId, activeRoleId, hotelId, taskId);
     const task = await this.housekeepingRepository.completeTask({
       hotelId,
       taskId,
@@ -225,7 +252,7 @@ export class HousekeepingService {
     taskId: string,
     dto: ReopenHousekeepingTaskBodyInput,
   ): Promise<HousekeepingTaskDto> {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    await this.assertTaskAccess(actorUserId, activeRoleId, hotelId, taskId);
     const task = await this.housekeepingRepository.reopenTask({
       hotelId,
       taskId,
@@ -242,10 +269,10 @@ export class HousekeepingService {
     hotelId: string,
     query: ListHousekeepingNotificationsQueryInput,
   ): Promise<HousekeepingNotificationDto[]> {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = await this.getScope(actorUserId, activeRoleId, hotelId);
     const notifications = await this.housekeepingRepository.listNotifications(
       hotelId,
-      { status: query.status },
+      { status: query.status, allowedRoomIds: scope.allowedRoomIds },
       query.limit,
     );
     return notifications.map((n) => this.toNotificationDto(n));
@@ -257,8 +284,8 @@ export class HousekeepingService {
     hotelId: string,
     notificationId: string,
   ): Promise<HousekeepingNotificationDto> {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    const updated = await this.housekeepingRepository.markNotificationRead(hotelId, notificationId);
+    const scope = await this.getScope(actorUserId, activeRoleId, hotelId);
+    const updated = await this.housekeepingRepository.markNotificationRead(hotelId, notificationId, scope.allowedRoomIds);
     return this.toNotificationDto(updated);
   }
 }

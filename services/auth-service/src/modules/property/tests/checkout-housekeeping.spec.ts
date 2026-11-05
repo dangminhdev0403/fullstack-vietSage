@@ -35,7 +35,7 @@ describe("Checkout Housekeeping Integration", () => {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         findUnique: jest.fn().mockResolvedValue({ id: roomId, roomNumber: "101", status: RoomStatus.PROCESSING, guestStays: [] }),
         findUniqueOrThrow: jest.fn().mockResolvedValue({ id: roomId, roomNumber: "101", status: RoomStatus.AVAILABLE, guestStays: [] }),
-        findFirst: jest.fn().mockResolvedValue({ id: roomId, roomNumber: "101", status: RoomStatus.PROCESSING }),
+        findFirst: jest.fn().mockResolvedValue({ id: roomId, roomNumber: "101", status: RoomStatus.PROCESSING, updatedAt: new Date("2026-11-06T00:00:00Z") }),
       },
       guestSession: {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -214,9 +214,44 @@ describe("Checkout Housekeeping Integration", () => {
   });
 
   describe("confirmRoomReady closes active housekeeping tasks", () => {
+    it("rejects an old room timestamp from a previous turnover before changing the room", async () => {
+      await expect(repository.confirmRoomReady(hotelId, roomId, new Date("2026-11-05T00:00:00Z"))).rejects.toBeInstanceOf(ConflictException);
+      expect(mockTx.room.updateMany).not.toHaveBeenCalled();
+      expect(mockTx.housekeepingTask.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("uses the read snapshot in the room compare-and-swap even without a client timestamp", async () => {
+      mockTx.room.updateMany.mockResolvedValueOnce({ count: 0 });
+      await expect(repository.confirmRoomReady(hotelId, roomId)).rejects.toBeInstanceOf(ConflictException);
+      expect(mockTx.room.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ updatedAt: new Date("2026-11-06T00:00:00Z") }) }));
+      expect(mockTx.housekeepingTask.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("rejects BLOCKED cleaning tasks and rolls back the transaction", async () => {
+      mockTx.housekeepingTask.findMany.mockResolvedValueOnce([{ id: "task-blocked", status: HousekeepingTaskStatus.BLOCKED, version: 4 }]);
+      let persistedStatus: RoomStatus = RoomStatus.PROCESSING;
+      mockTx.room.updateMany.mockImplementation(async () => { persistedStatus = RoomStatus.AVAILABLE; return { count: 1 }; });
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        const before = persistedStatus;
+        try { return await callback(mockTx); } catch (error) { persistedStatus = before; throw error; }
+      });
+      await expect(repository.confirmRoomReady(hotelId, roomId)).rejects.toBeInstanceOf(ConflictException);
+      expect(persistedStatus).toBe(RoomStatus.PROCESSING);
+      expect(mockTx.housekeepingTask.updateMany).not.toHaveBeenCalled();
+      expect(mockTx.housekeepingTaskHistory.createMany).not.toHaveBeenCalled();
+    });
+
+    it("rejects a concurrent task version or status change and does not append completed history", async () => {
+      mockTx.housekeepingTask.findMany.mockResolvedValueOnce([{ id: "task-active-1", status: HousekeepingTaskStatus.IN_PROGRESS, version: 3 }]);
+      mockTx.housekeepingTask.updateMany.mockResolvedValueOnce({ count: 0 });
+      await expect(repository.confirmRoomReady(hotelId, roomId)).rejects.toBeInstanceOf(ConflictException);
+      expect(mockTx.housekeepingTask.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "task-active-1", hotelId, roomId, status: HousekeepingTaskStatus.IN_PROGRESS, version: 3 } }));
+      expect(mockTx.housekeepingTaskHistory.createMany).not.toHaveBeenCalled();
+    });
+
     it("completes active cleaning tasks when confirming room ready", async () => {
       mockTx.housekeepingTask.findMany.mockResolvedValueOnce([
-        { id: "task-active-1", status: HousekeepingTaskStatus.IN_PROGRESS },
+        { id: "task-active-1", status: HousekeepingTaskStatus.IN_PROGRESS, version: 3 },
       ]);
 
       await repository.confirmRoomReady(hotelId, roomId);
@@ -226,6 +261,7 @@ describe("Checkout Housekeeping Integration", () => {
           id: roomId,
           hotelId,
           status: RoomStatus.PROCESSING,
+          updatedAt: new Date("2026-11-06T00:00:00Z"),
         },
         data: {
           status: RoomStatus.AVAILABLE,
@@ -234,20 +270,16 @@ describe("Checkout Housekeeping Integration", () => {
 
       expect(mockTx.housekeepingTask.updateMany).toHaveBeenCalledWith({
         where: {
+          id: "task-active-1",
           hotelId,
           roomId,
-          status: {
-            in: [
-              HousekeepingTaskStatus.QUEUED,
-              HousekeepingTaskStatus.CLAIMED,
-              HousekeepingTaskStatus.IN_PROGRESS,
-              HousekeepingTaskStatus.BLOCKED,
-            ],
-          },
+          status: HousekeepingTaskStatus.IN_PROGRESS,
+          version: 3,
         },
         data: {
           status: HousekeepingTaskStatus.COMPLETED,
           completedAt: expect.any(Date),
+          version: { increment: 1 },
         },
       });
 

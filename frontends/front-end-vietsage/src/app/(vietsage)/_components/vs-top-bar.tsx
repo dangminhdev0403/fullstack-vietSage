@@ -19,7 +19,7 @@ type VsTopBarProps = {
   showLeftControl?: boolean;
   rightMode?: "profile" | "icons" | "none";
   brandSize?: "regular" | "large";
-  brandLockup?: boolean;
+  brandLockup?: boolean | "mobile";
   languageBadge?: string;
   headerClassName?: string;
 };
@@ -57,6 +57,7 @@ function TopBarRightControls({
   hotelName,
   showRightInfo,
   languageBadge,
+  compactOnMobile,
 }: {
   rightMode: "profile" | "icons" | "none";
   rightLabel: string;
@@ -64,6 +65,7 @@ function TopBarRightControls({
   hotelName?: string | null;
   showRightInfo: boolean;
   languageBadge: string;
+  compactOnMobile: boolean;
 }) {
   if (rightMode === "none") return null;
 
@@ -113,7 +115,10 @@ function TopBarRightControls({
       ) : null}
 
       <ChangePasswordDialog />
-      <VsLogoutButton className="inline-flex min-h-11 min-w-[44px] shrink-0 items-center justify-center rounded-full border border-[#24473d]/15 bg-white/50 px-3.5 py-2 text-xs sm:text-sm font-semibold tracking-[0.04em] text-[#24473d] transition-colors hover:bg-[#f8f1e6] disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#24473d]" />
+      <VsLogoutButton
+        compactOnMobile={compactOnMobile}
+        className={`inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border border-[#24473d]/15 bg-white/50 py-2 text-base font-semibold text-[#24473d] transition-colors hover:bg-[#f8f1e6] disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#24473d] ${compactOnMobile ? "w-11 px-0 sm:w-auto sm:px-3.5" : "px-3.5"}`}
+      />
 
       <div className="hidden size-10 shrink-0 lg:flex items-center justify-center overflow-hidden rounded-full border border-[#24473d]/15 bg-white p-0.5 shadow-[0_10px_24px_rgba(31,61,53,0.12)]">
         <Image
@@ -165,7 +170,21 @@ export function VsTopBar({
           icon={icon}
         />
 
-        {shouldRenderBrandLockup ? (
+        {shouldRenderBrandLockup && brandLockup === "mobile" ? (
+          <div className="flex shrink-0 items-center gap-2 text-primary md:hidden">
+            <span aria-hidden="true">
+              <VietSageBrand
+                variant="mark"
+                priority
+                className="size-11 rounded-2xl p-1.5"
+                markClassName="h-full w-full"
+              />
+            </span>
+            <span className="font-serif text-2xl font-bold leading-none tracking-[-0.03em]">
+              VietSage
+            </span>
+          </div>
+        ) : shouldRenderBrandLockup ? (
           <VietSageBrand
             priority
             className="gap-2 rounded-xl px-2 py-1 shadow-[0_8px_22px_rgba(31,61,53,0.07)]"
@@ -190,6 +209,7 @@ export function VsTopBar({
         hotelName={hotelName}
         showRightInfo={showRightInfo}
         languageBadge={languageBadge}
+        compactOnMobile={brandLockup === "mobile"}
       />
     </header>
   );

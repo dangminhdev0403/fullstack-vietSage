@@ -4,6 +4,7 @@ import { useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import type { HousekeepingAssignmentScope, HotelRoomSummary } from "../types/housekeeping-contract";
 import type { StaffRequestListItem } from "@/features/hotel-ops/types/hotel-ops-contract";
 import {
   useOwnerRequestRealtime,
@@ -15,6 +16,8 @@ import { getQueryClient } from "@/app/_components/react-query-provider";
 
 type HousekeepingRealtimeNotifierProps = {
   hotelId: string;
+  scope?: HousekeepingAssignmentScope;
+  rooms: HotelRoomSummary[];
 };
 
 function useSafeQueryClient() {
@@ -27,24 +30,35 @@ function useSafeQueryClient() {
 
 export function HousekeepingRealtimeNotifier({
   hotelId,
+  scope,
+  rooms,
 }: HousekeepingRealtimeNotifierProps) {
   const queryClient = useSafeQueryClient();
   const targetQueryClient = queryClient ?? getQueryClient();
 
+  const isAssignedRoom = useCallback((roomId?: string | null, roomNumber?: string | null) => {
+    if (!scope) return false;
+    if (scope.allowedRoomIds === null) return true;
+    if (roomId) return scope.allowedRoomIds.includes(roomId);
+    return Boolean(roomNumber && rooms.some((room) => room.roomNumber === roomNumber));
+  }, [scope, rooms]);
+
   const notifyTaskEvent = useCallback((event: HousekeepingTaskRealtimeEvent, title: string, description: string, tone: "info" | "success" | "warning" = "info") => {
     if (event.hotelId && event.hotelId !== hotelId) return;
     void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+    if (!isAssignedRoom(event.roomId, event.roomNumber)) return;
     const roomLabel = event.roomNumber ? `Phòng ${event.roomNumber}` : "Phòng";
     toast[tone](`${title}: ${roomLabel}`, {
       id: `hk-task-${event.eventId ?? event.taskId ?? title}`,
       description,
       duration: tone === "warning" ? 5000 : 3000,
     });
-  }, [hotelId, targetQueryClient]);
+  }, [hotelId, isAssignedRoom, targetQueryClient]);
 
   const handlers = useMemo(
     () => ({
       onReady: () => {
+        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
         toast.dismiss(`housekeeping-realtime-${hotelId}`);
       },
 
@@ -62,6 +76,7 @@ export function HousekeepingRealtimeNotifier({
         // Auto-refresh queries
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
 
+        if (!isAssignedRoom(raw?.roomId, raw?.roomNumber)) return;
         const statusUpper = (raw?.status ?? "").toUpperCase();
         const roomLabel = raw?.roomNumber ? `Phòng ${raw.roomNumber}` : "Phòng";
 
@@ -88,7 +103,7 @@ export function HousekeepingRealtimeNotifier({
       },
 
       onHousekeepingTaskCreated: (event: HousekeepingTaskRealtimeEvent) => {
-        playRequestAlertSound(event.priority === "URGENT");
+        if (isAssignedRoom(event.roomId, event.roomNumber)) playRequestAlertSound(event.priority === "URGENT");
         notifyTaskEvent(event, "Có công việc dọn phòng mới", "Phòng vừa chuyển sang hàng đợi dọn phòng.", "warning");
       },
       onHousekeepingTaskClaimed: (event: HousekeepingTaskRealtimeEvent) => {
@@ -108,6 +123,8 @@ export function HousekeepingRealtimeNotifier({
       },
 
       onCreated: (request: StaffRequestListItem) => {
+        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        if (!isAssignedRoom(undefined, request.roomNumber)) return;
         const isUrgent = request.priority === "URGENT";
         playRequestAlertSound(isUrgent);
 
@@ -135,6 +152,8 @@ export function HousekeepingRealtimeNotifier({
       },
 
       onUpdated: (request: Partial<StaffRequestListItem> & { id: string }) => {
+        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        if (!isAssignedRoom(undefined, request.roomNumber)) return;
         const status = String(request.status ?? "");
         if (status === "CANCELLED") {
           toast.dismiss(`hk-request-${request.id}`);
@@ -153,11 +172,17 @@ export function HousekeepingRealtimeNotifier({
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
       },
 
+      onError: (error: { code?: string }) => {
+        if (error.code === "SCOPE_CHANGED") {
+          void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+        }
+      },
+
       onReconnect: () => {
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
       },
     }),
-    [hotelId, notifyTaskEvent, targetQueryClient],
+    [hotelId, isAssignedRoom, notifyTaskEvent, targetQueryClient],
   );
 
   useOwnerRequestRealtime(hotelId, handlers);

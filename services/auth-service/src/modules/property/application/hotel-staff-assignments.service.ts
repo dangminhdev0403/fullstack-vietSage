@@ -3,6 +3,7 @@ import { HotelUserDirectoryService } from "../../identity/identity-public";
 import type {
   AssignStaffRoomBodyInput,
   ListHotelStaffAssignmentsQueryInput,
+  HousekeepingScopeInput,
 } from "../domain/schemas/hotel-staff-assignments.schema";
 import { HotelStaffAssignmentsRepository } from "../infrastructure/repositories/hotel-staff-assignments.repository";
 import { HotelAccessService } from "./hotel-access.service";
@@ -83,6 +84,13 @@ export class HotelStaffAssignmentsService {
       actorUserId,
     );
     return { ...assignment, user };
+  }
+
+  async updateHousekeepingScope(actorUserId: string, activeRoleId: string, hotelId: string, userId: string, scope: HousekeepingScopeInput) {
+    if (actorUserId === userId) throw new ForbiddenException("Không thể tự phân công chính mình");
+    const hotel = await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    await this.hotelUserDirectoryService.assertAssignableHotelUser(hotel.tenantId, userId);
+    return this.assignmentsRepository.updateHousekeepingScope(hotelId, userId, actorUserId, hotel.tenantId, scope);
   }
 
   async revoke(actorUserId: string, activeRoleId: string, hotelId: string, userId: string) {

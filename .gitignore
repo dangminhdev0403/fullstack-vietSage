@@ -65,3 +65,5 @@ __pycache__/
 
 # Local BCA C06 Postman environment & collection (keep on local disk, never push)
 shared/kbtt/*.postman_*.json
+
+.local/orca-retained/housekeeping-realtime.env

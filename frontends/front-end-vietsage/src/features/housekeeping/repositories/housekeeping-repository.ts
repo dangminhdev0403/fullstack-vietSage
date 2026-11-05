@@ -2,6 +2,8 @@ import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import type {
   HotelOpsPage,
   HotelRoomSummary,
+  HousekeepingAssignmentScope,
+  HousekeepingRoom,
   HousekeepingTask,
   HousekeepingTaskPage,
   HousekeepingTasksSummary,
@@ -42,6 +44,55 @@ export type ListTasksParams = {
 export type TaskVersionInput = { expectedVersion?: number };
 
 export const housekeepingRepository = {
+  async getScope(hotelId: string, signal?: AbortSignal): Promise<HousekeepingAssignmentScope> {
+    const response = await requestInternalApiEnvelope<HousekeepingAssignmentScope>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/housekeeping/scope`, { method: "GET", signal },
+    );
+    return response.data;
+  },
+
+  async getRoom(hotelId: string, roomId: string, signal?: AbortSignal): Promise<HousekeepingRoom> {
+    const response = await requestInternalApiEnvelope<HousekeepingRoom>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/housekeeping/rooms/${encodeURIComponent(roomId)}`, { method: "GET", signal },
+    );
+    return response.data;
+  },
+
+  async listActiveRequests(hotelId: string, params?: ListRequestsParams, signal?: AbortSignal): Promise<HotelOpsPage<StaffRequestListItem>> {
+    const pages = await Promise.all(["PENDING", "ACKNOWLEDGED"].map(async (status) => {
+      const query = { ...params, status, page: 1, limit: 50 };
+      const first = await housekeepingRepository.listRequests(hotelId, query, signal);
+      const items = [...first.items];
+      for (let page = 2; page <= (first.totalPages ?? Math.ceil(first.total / (first.limit || 50))); page += 1) {
+        const next = await housekeepingRepository.listRequests(hotelId, { ...query, page }, signal);
+        items.push(...next.items);
+      }
+      return items;
+    }));
+    const items = Array.from(new Map(pages.flat().map((request) => [request.id, request])).values());
+    return { items, total: items.length, page: 1, limit: items.length, totalPages: 1 };
+  },
+
+  async listAllRooms(hotelId: string, params?: ListRoomsParams, signal?: AbortSignal): Promise<HotelOpsPage<HotelRoomSummary>> {
+    const first = await housekeepingRepository.listRooms(hotelId, { ...params, page: 1, limit: 100 }, signal);
+    const items = [...first.items];
+    for (let page = 2; page <= (first.totalPages ?? Math.ceil(first.total / (first.limit || 100))); page += 1) {
+      const next = await housekeepingRepository.listRooms(hotelId, { ...params, page, limit: 100 }, signal);
+      items.push(...next.items);
+    }
+    return { ...first, items };
+  },
+
+  async listAllTasks(hotelId: string, params?: ListTasksParams, signal?: AbortSignal): Promise<HousekeepingTaskPage> {
+    const first = await housekeepingRepository.listTasks(hotelId, { ...params, page: 1, limit: 100 }, signal);
+    const items = [...first.items];
+    for (let page = 2; page <= (first.totalPages ?? Math.ceil(first.total / (first.limit || 100))); page += 1) {
+      const next = await housekeepingRepository.listTasks(hotelId, { ...params, page, limit: 100 }, signal);
+      items.push(...next.items);
+    }
+    return { ...first, items };
+  },
+
   async listTasks(
     hotelId: string,
     params?: ListTasksParams,

@@ -29,6 +29,7 @@ import type {
 
 type UseHousekeepingProps = {
   hotelId: string;
+  roomId?: string;
   initialRoomsPage?: HotelOpsPage<HotelRoomSummary>;
   currentUser?: {
     id?: string;
@@ -39,6 +40,7 @@ type UseHousekeepingProps = {
 
 export function useHousekeeping({
   hotelId,
+  roomId,
   initialRoomsPage,
   currentUser,
 }: UseHousekeepingProps) {
@@ -59,19 +61,33 @@ export function useHousekeeping({
     [hotelId],
   );
 
+  const scopeQuery = useQuery({
+    ...boundResource.queries.assignmentScope.options(undefined),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    retry: 1,
+  });
+  const roomQuery = useQuery({
+    ...boundResource.queries.room.options(roomId ?? ""),
+    enabled: Boolean(roomId),
+    staleTime: 10_000,
+    retry: 1,
+  });
+
   // Query: All rooms in the hotel (for metrics & full inventory)
   const allRoomsQuery = useQuery({
     ...boundResource.queries.rooms.options({
       page: 1,
       limit: 100,
     }),
-    initialData: initialRoomsPage,
+    enabled: !roomId,
+    initialData: initialRoomsPage && (initialRoomsPage.totalPages ?? Math.ceil(initialRoomsPage.total / (initialRoomsPage.limit || 100))) <= 1 ? initialRoomsPage : undefined,
     staleTime: 15_000,
   });
 
   // Durable housekeeping tasks are the source of truth for claim/start/block/complete.
   const tasksQuery = useQuery({
-    ...boundResource.queries.tasks.options({ page: 1, limit: 100 }),
+    ...boundResource.queries.tasks.options({ page: 1, limit: 100, roomId }),
     staleTime: 10_000,
     retry: 1,
   });
@@ -81,19 +97,27 @@ export function useHousekeeping({
     ...boundResource.queries.requests.options({
       page: 1,
       limit: 50,
+      roomNumber: roomId ? roomQuery.data?.roomNumber ?? undefined : undefined,
     }),
+    enabled: !roomId || Boolean(roomQuery.data),
     staleTime: 20_000,
     retry: 1,
   });
 
-  const allRooms: HotelRoomSummary[] = useMemo(
-    () => allRoomsQuery.data?.items ?? initialRoomsPage?.items ?? [],
-    [allRoomsQuery.data, initialRoomsPage],
-  );
+  const allRooms: HotelRoomSummary[] = useMemo(() => {
+    // A failed or pending scope query must never fall back to hotel-wide access.
+    if (!scopeQuery.data || scopeQuery.isError) return [];
+    const rooms = roomId
+      ? roomQuery.data ? [roomQuery.data] : []
+      : allRoomsQuery.data?.items ?? initialRoomsPage?.items ?? [];
+    const allowed = scopeQuery.data.allowedRoomIds;
+    return allowed === null ? rooms : rooms.filter((room) => allowed.includes(room.id));
+  }, [scopeQuery.data, scopeQuery.isError, roomId, roomQuery.data, allRoomsQuery.data, initialRoomsPage]);
 
   const rawRequests: StaffRequestListItem[] = useMemo(
-    () => requestsQuery.data?.items ?? [],
-    [requestsQuery.data],
+    () => (requestsQuery.data?.items ?? []).filter((request) =>
+      allRooms.some((room) => room.roomNumber === request.roomNumber)),
+    [requestsQuery.data, allRooms],
   );
 
   const tasks = useMemo(
@@ -107,7 +131,7 @@ export function useHousekeeping({
       const current = result[task.roomId];
       const currentIsActive = current && ["QUEUED", "CLAIMED", "IN_PROGRESS", "BLOCKED"].includes(current.status);
       const taskIsActive = ["QUEUED", "CLAIMED", "IN_PROGRESS", "BLOCKED"].includes(task.status);
-      if (!current || (taskIsActive && !currentIsActive) || task.createdAt > current.createdAt) {
+      if (!current || (taskIsActive && !currentIsActive) || (taskIsActive === Boolean(currentIsActive) && task.createdAt > current.createdAt)) {
         result[task.roomId] = task;
       }
     }
@@ -237,7 +261,7 @@ export function useHousekeeping({
 
         // Invalidate queries so UI refreshes automatically
         await invalidateHotelRealtimeQueries(queryClient, hotelId);
-        await Promise.all([allRoomsQuery.refetch(), tasksQuery.refetch()]);
+        await Promise.all([roomId ? roomQuery.refetch() : allRoomsQuery.refetch(), tasksQuery.refetch()]);
 
         toast.success(`Phòng ${roomNum} đã sạch sẽ`, {
           description: "Đã chuyển trạng thái sang Sẵn sàng đón khách.",
@@ -246,13 +270,19 @@ export function useHousekeeping({
 
         return updated;
       } catch (error) {
+        // A stale task version or changed assignment must not leave the next attempt stale.
+        void Promise.allSettled([
+          roomId ? roomQuery.refetch() : allRoomsQuery.refetch(),
+          tasksQuery.refetch(),
+          scopeQuery.refetch(),
+        ]);
         const message =
           error instanceof Error ? error.message : "Không thể xác nhận phòng";
         void showErrorAlert("Thao tác thất bại", message);
         return null;
       }
     },
-    [allRoomsQuery, completeTaskMutation, hotelId, legacyReadyMutation, queryClient, tasksByRoom, tasksQuery],
+    [allRoomsQuery, roomId, roomQuery, scopeQuery, completeTaskMutation, hotelId, legacyReadyMutation, queryClient, tasksByRoom, tasksQuery],
   );
 
   // Mutation: Claim room cleaning
@@ -338,7 +368,7 @@ export function useHousekeeping({
             })
           : await updateStatusMutation.mutateAsync({ roomId: room.id, status: "MAINTENANCE" });
         await invalidateHotelRealtimeQueries(queryClient, hotelId);
-        await Promise.all([allRoomsQuery.refetch(), tasksQuery.refetch()]);
+        await Promise.all([roomId ? roomQuery.refetch() : allRoomsQuery.refetch(), tasksQuery.refetch()]);
 
         toast.warning(`Phòng ${room.roomNumber} đã chuyển sang Bảo trì`, {
           duration: 3000,
@@ -352,7 +382,7 @@ export function useHousekeeping({
         return null;
       }
     },
-    [allRoomsQuery, blockTaskMutation, hotelId, queryClient, tasksByRoom, tasksQuery, updateStatusMutation],
+    [allRoomsQuery, roomId, roomQuery, blockTaskMutation, hotelId, queryClient, tasksByRoom, tasksQuery, updateStatusMutation],
   );
 
   // Mutation: Update guest request status (claim / complete)
@@ -412,7 +442,8 @@ export function useHousekeeping({
   // Manual refresh all data
   const handleRefresh = useCallback(async () => {
     const results = await Promise.allSettled([
-      allRoomsQuery.refetch({ throwOnError: true }),
+      roomId ? roomQuery.refetch({ throwOnError: true }) : allRoomsQuery.refetch({ throwOnError: true }),
+      scopeQuery.refetch({ throwOnError: true }),
       tasksQuery.refetch({ throwOnError: true }),
       requestsQuery.refetch({ throwOnError: true }),
     ]);
@@ -424,9 +455,12 @@ export function useHousekeeping({
       return;
     }
     toast.success("Đã đồng bộ dữ liệu buồng phòng mới nhất");
-  }, [allRoomsQuery, requestsQuery, tasksQuery]);
+  }, [allRoomsQuery, roomId, roomQuery, scopeQuery, requestsQuery, tasksQuery]);
 
   return {
+    assignmentScope: scopeQuery.isError ? undefined : scopeQuery.data,
+    allRooms,
+    detailCard: roomId ? buildHousekeepingTaskCards(allRooms, claimedRoomsMap, currentUserId, cleaningRequests, { status: "all", floor: "all", search: "" }, tasksByRoom)[0] : undefined,
     viewMode,
     setViewMode: (mode: typeof viewMode) => setViewMode(hotelId, mode),
     filter,
@@ -439,12 +473,12 @@ export function useHousekeeping({
     taskCardsByFloor,
     roomNotifications,
     cleaningRequests,
-    isLoading: allRoomsQuery.isLoading || tasksQuery.isLoading,
-    isNotificationsLoading: allRoomsQuery.isLoading || tasksQuery.isLoading || requestsQuery.isLoading,
-    hasRoomsError: allRoomsQuery.isError || tasksQuery.isError,
+    isLoading: scopeQuery.isLoading || (roomId ? roomQuery.isLoading : allRoomsQuery.isLoading) || tasksQuery.isLoading,
+    isNotificationsLoading: scopeQuery.isLoading || (roomId ? roomQuery.isLoading : allRoomsQuery.isLoading) || tasksQuery.isLoading || requestsQuery.isLoading,
+    hasRoomsError: scopeQuery.isError || (roomId ? roomQuery.isError : allRoomsQuery.isError) || tasksQuery.isError,
     hasRequestsError: requestsQuery.isError,
     hasLoadError: allRoomsQuery.isError || tasksQuery.isError || requestsQuery.isError,
-    isFetching: allRoomsQuery.isFetching || tasksQuery.isFetching || requestsQuery.isFetching,
+    isFetching: scopeQuery.isFetching || roomQuery.isFetching || allRoomsQuery.isFetching || tasksQuery.isFetching || requestsQuery.isFetching,
     confirmRoomReady,
     isConfirming: completeTaskMutation.isPending || legacyReadyMutation.isPending,
     claimRoom,

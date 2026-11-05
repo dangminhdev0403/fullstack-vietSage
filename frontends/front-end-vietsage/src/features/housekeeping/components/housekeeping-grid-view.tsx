@@ -1,25 +1,19 @@
 "use client";
 
+import Link from "next/link";
+import { HOUSEKEEPING_ROOM_STATES } from "../utils/housekeeping-room-state";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import type { HotelRoomSummary, HousekeepingTaskCardModel } from "../types/housekeeping-contract";
 
 type HousekeepingGridViewProps = {
+  hotelId: string;
   taskCardsByFloor: Array<[string, HousekeepingTaskCardModel[]]>;
   onConfirmReady: (room: HotelRoomSummary) => Promise<unknown>;
   isConfirming?: boolean;
 };
 
-const ROOM_STATES = {
-  processing: { label: "Cần dọn", icon: "cleaning_services", style: "border-amber-300 bg-amber-50 text-amber-950" },
-  cleaning: { label: "Đang dọn", icon: "cleaning_services", style: "border-blue-300 bg-blue-50 text-blue-950" },
-  available: { label: "Sạch", icon: "check_circle", style: "border-emerald-300 bg-emerald-50 text-emerald-950" },
-  occupied: { label: "Có khách", icon: "hotel", style: "border-slate-200 bg-white text-slate-700" },
-  reserved: { label: "Đã đặt", icon: "event", style: "border-slate-200 bg-white text-slate-700" },
-  maintenance: { label: "Bảo trì", icon: "build", style: "border-slate-300 bg-slate-100 text-slate-700" },
-  blocked: { label: "Tạm dừng", icon: "pause_circle", style: "border-rose-300 bg-rose-50 text-rose-950" },
-} as const;
 
-export function HousekeepingGridView({ taskCardsByFloor, onConfirmReady, isConfirming = false }: HousekeepingGridViewProps) {
+export function HousekeepingGridView({ hotelId, taskCardsByFloor, onConfirmReady, isConfirming = false }: HousekeepingGridViewProps) {
   return (
     <div className="space-y-6">
       {taskCardsByFloor.map(([floor, cards]) => (
@@ -27,14 +21,14 @@ export function HousekeepingGridView({ taskCardsByFloor, onConfirmReady, isConfi
           <h2 className="text-lg font-bold text-slate-950 text-balance">{floor}</h2>
           <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {cards.map((card) => {
-              const state = ROOM_STATES[card.effectiveStatus];
+              const state = HOUSEKEEPING_ROOM_STATES[card.effectiveStatus];
               const needsCleaning = card.effectiveStatus === "processing" || card.effectiveStatus === "cleaning";
               const assignedToAnother = card.effectiveStatus === "cleaning" && !card.isClaimedByMe;
               const canComplete = needsCleaning && !assignedToAnother;
               return (
                 <article key={card.room.id} aria-label={`Phòng ${card.roomNumber}, ${state.label}`} className={`flex min-w-0 flex-col gap-3 rounded-2xl border p-3 ${state.style}`}>
                   <div className="space-y-1">
-                    <h3 className="break-words text-xl font-bold text-balance">{card.roomNumber}</h3>
+                    <h3 className="break-words text-xl font-bold text-balance"><Link href={`/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(card.room.id)}`} aria-label={`Xem phòng ${card.roomNumber}`} className="inline-flex min-h-11 items-center rounded-md underline decoration-current/40 underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">{card.roomNumber}</Link></h3>
                     <p className="flex items-center gap-1.5 text-sm font-medium">
                       <VsIcon name={state.icon} className="text-lg" />
                       {state.label}

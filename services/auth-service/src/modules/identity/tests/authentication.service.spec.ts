@@ -113,6 +113,7 @@ describe("AuthService", () => {
         id: "role-frontdesk",
         code: "HOTEL_FRONTDESK",
         name: "Front Desk",
+        baseRoleCode: null,
       },
       permissions: ["hotel.stays.manage", "hotel.stays.view"],
       accessibleHotels: [
@@ -120,6 +121,24 @@ describe("AuthService", () => {
         { id: "hotel-2", code: "H2", name: "Hotel 2", tenantId: "tenant-1", enabledFeatures: [] },
       ],
     });
+  });
+
+  it("exposes only the active role base code for custom housekeeping", async () => {
+    repository.findUserProfileWithRelations.mockResolvedValue({
+      id: "u-housekeeping",
+      email: "housekeeping@vietsage.local",
+      fullName: "Housekeeping",
+      status: UserStatus.ACTIVE,
+      userRoles: [
+        { role: { id: "role-custom", code: "CUSTOM_HOUSEKEEPING", name: "East Wing", baseRole: { code: "HOTEL_HOUSEKEEPING" }, rolePermissions: [] } },
+        { role: { id: "role-other", code: "CUSTOM_MANAGER", name: "Manager", baseRole: { code: "HOTEL_MANAGER" }, rolePermissions: [] } },
+      ],
+      tenantUsers: [],
+      hotelAssignments: [],
+    });
+
+    const profile = await service.getMe("u-housekeeping", "role-custom");
+    expect(profile.activeRole).toEqual({ id: "role-custom", code: "CUSTOM_HOUSEKEEPING", name: "East Wing", baseRoleCode: "HOTEL_HOUSEKEEPING" });
   });
 
   it("fails closed when the session role is absent from active user roles", async () => {

@@ -6,6 +6,8 @@ import {
 } from "@nestjs/common";
 import { HotelStaffAssignmentStatus, RoleStatus, UserRoleStatus } from "@prisma/client";
 import { PrismaService } from "../../../../prisma/prisma.service";
+import type { HousekeepingScopeInput } from "../../domain/schemas/hotel-staff-assignments.schema";
+import { RequestRealtimeEmitter } from "../../../../request-realtime.emitter";
 
 @Injectable()
 export class HotelStaffAssignmentsRepository {
@@ -32,6 +34,7 @@ export class HotelStaffAssignmentsRepository {
             assignedById: true,
             revokedAt: true,
             revokedById: true,
+            housekeepingScope: true,
           },
           orderBy: [{ assignedAt: "desc" }],
           skip,
@@ -88,8 +91,42 @@ export class HotelStaffAssignmentsRepository {
     });
   }
 
+  async updateHousekeepingScope(hotelId: string, userId: string, actorUserId: string, tenantId: string, scope: HousekeepingScopeInput) {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const assignment = await tx.hotelStaffAssignment.findFirst({
+        where: { hotelId, userId, status: HotelStaffAssignmentStatus.ACTIVE,
+          user: { status: "ACTIVE", tenantUsers: { some: { tenantId, status: "ACTIVE" } },
+            userRoles: { some: { status: UserRoleStatus.ACTIVE, role: { status: RoleStatus.ACTIVE,
+              OR: [{ code: "HOTEL_HOUSEKEEPING" }, { baseRole: { code: "HOTEL_HOUSEKEEPING" } }] } } } } },
+        select: { id: true },
+      });
+      if (!assignment) throw new NotFoundException("Nhân viên buồng phòng chưa được phân công vào khách sạn này");
+      if (scope.mode !== "ALL") {
+        const rooms = await tx.room.findMany({
+          where: { hotelId, ...(scope.mode === "FLOORS" ? { floor: { in: scope.floors } } : { id: { in: scope.roomIds } }) },
+          select: { id: true, floor: true },
+        });
+        const actual = new Set(scope.mode === "FLOORS" ? rooms.map((room) => room.floor) : rooms.map((room) => room.id));
+        const requested = scope.mode === "FLOORS" ? scope.floors : scope.roomIds;
+        if (requested.some((value) => !actual.has(value))) {
+          throw new BadRequestException("Tầng hoặc phòng không thuộc khách sạn này");
+        }
+      }
+      const updated = await tx.hotelStaffAssignment.update({
+        where: { id: assignment.id }, data: { housekeepingScope: scope },
+        select: { id: true, hotelId: true, userId: true, housekeepingScope: true },
+      });
+      await tx.auditLog.create({ data: { actorId: actorUserId, tenantId,
+        action: "HOTEL_HOUSEKEEPING_SCOPE_UPDATED", entityType: "HotelStaffAssignment", entityId: assignment.id,
+        metadata: { hotelId, userId, scope } } });
+      return updated;
+    });
+    RequestRealtimeEmitter.invalidateOwnerScope(hotelId, userId);
+    return result;
+  }
+
   async revoke(hotelId: string, userId: string, actorUserId: string) {
-    return this.prisma.hotelStaffAssignment.updateMany({
+    const result = await this.prisma.hotelStaffAssignment.updateMany({
       where: {
         hotelId,
         userId,
@@ -101,6 +138,8 @@ export class HotelStaffAssignmentsRepository {
         revokedById: actorUserId,
       },
     });
+    if (result.count > 0) RequestRealtimeEmitter.invalidateOwnerScope(hotelId, userId);
+    return result;
   }
 
   async listRoomAssignmentsByUserIds(hotelId: string, userIds: string[]) {

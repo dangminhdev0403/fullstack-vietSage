@@ -1,6 +1,7 @@
 "use client";
 
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { SwalVietSage, showConfirmDialog, showSuccessAlert } from "@/libs/swal";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { DataTable } from "@/components/ui/data-table";
@@ -15,6 +16,8 @@ import {
   useStaffManagementMutations,
 } from "../queries/use-staff-directory-query";
 import { RoomSearchSelect } from "./room-search-select";
+import { ALL_HOUSEKEEPING_ROOMS, HousekeepingScopeEditor, housekeepingScopeLabel } from "./housekeeping-scope-editor";
+import type { HousekeepingAssignmentScope } from "../types/staff-management-contract";
 
 export type StaffHotelOption = { id: string; code?: string | null; name: string };
 
@@ -109,12 +112,32 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
   const [editingUser, setEditingUser] = useState<HotelStaffUser | null>(null);
   const [editForm, setEditForm] = useState({ fullName: "", email: "", roleId: "", roomId: "" });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [housekeepingScope, setHousekeepingScope] = useState<HousekeepingAssignmentScope>(ALL_HOUSEKEEPING_ROOMS);
+  const editTriggerRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!editingUser) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      editTriggerRef.current?.focus();
+    };
+  }, [editingUser]);
   const [isExporting, setIsExporting] = useState(false);
 
   const data = directory.data;
   const hasMultipleHotels = (data?.hotels?.length ?? 0) > 1;
   const singleHotelId = data?.hotels?.length === 1 ? data.hotels[0].id : null;
   const effectiveHotelId = hotelId || singleHotelId || "";
+
+  useEffect(() => {
+    if (!hotelId && singleHotelId) {
+      // Keep reads and mutations bound to the only available hotel.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setHotelId(singleHotelId);
+    }
+  }, [hotelId, singleHotelId]);
 
   function isFrontDeskRole(roleIdOrCode?: string | null): boolean {
     if (!roleIdOrCode) return false;
@@ -130,6 +153,15 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
       name.includes("front desk") ||
       name.includes("sale")
     );
+  }
+
+  function isHousekeepingRole(roleIdOrCode: string) {
+    const role = data?.roles.find((entry) => entry.id === roleIdOrCode || entry.code === roleIdOrCode);
+    return (role?.code ?? roleIdOrCode).includes("HOUSEKEEPING") || (role?.name ?? "").toLowerCase().includes("buồng phòng");
+  }
+
+  function userHousekeepingScope(userId: string) {
+    return data?.assignments?.items.find((assignment) => assignment.userId === userId)?.housekeepingScope ?? ALL_HOUSEKEEPING_ROOMS;
   }
 
   const selectedRoleIsFrontDesk = isFrontDeskRole(form.roleId);
@@ -172,8 +204,10 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
   }, [data?.rooms, roomUserAssignmentMap, editingUser, userRoomAssignmentMap]);
 
   function openEditStaff(user: HotelStaffUser) {
+    editTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const currentRoom = userRoomAssignmentMap.get(user.id);
     setEditingUser(user);
+    setHousekeepingScope(userHousekeepingScope(user.id));
     setEditForm({
       fullName: user.fullName,
       email: user.email,
@@ -197,14 +231,20 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     const isRoleChanged = Boolean(newRoleId && newRoleId !== oldRoleId);
     const isRoomChanged = oldRoomId !== newRoomId;
 
-    if (!isProfileChanged && !isRoleChanged && !isRoomChanged) {
+    const scopeChanged = Boolean(effectiveHotelId && isHousekeepingRole(newRoleId || oldRoleId) && JSON.stringify(housekeepingScope) !== JSON.stringify(userHousekeepingScope(editingUser.id)));
+    if (scopeChanged && ((housekeepingScope.mode === "FLOORS" && !housekeepingScope.floors.length) || (housekeepingScope.mode === "ROOMS" && !housekeepingScope.roomIds.length))) {
+      await SwalVietSage.fire({ icon: "error", title: "Chọn phạm vi phụ trách", text: "Chọn ít nhất một tầng hoặc phòng.", confirmButtonText: "Đóng" });
+      return;
+    }
+
+    if (!isProfileChanged && !isRoleChanged && !isRoomChanged && !scopeChanged) {
       setEditingUser(null);
       return;
     }
 
     const confirmResult = await showConfirmDialog({
-      title: "Xác nhận cập nhật thông tin",
-      text: `Bạn có chắc muốn lưu thay đổi cho nhân viên "${editingUser.fullName}"?`,
+      title: "Lưu thay đổi nhân viên?",
+      text: scopeChanged ? `${editingUser.fullName} · ${housekeepingScopeLabel(housekeepingScope)}` : editingUser.fullName,
       confirmText: "Lưu thay đổi",
       cancelText: "Hủy bỏ",
       icon: "question",
@@ -264,6 +304,9 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
       }
 
       await Promise.all(tasks);
+      if (scopeChanged) {
+        await mutations.updateHousekeepingScope.mutateAsync({ userId: editingUser.id, scope: housekeepingScope });
+      }
 
       setEditingUser(null);
       await showSuccessAlert(
@@ -912,7 +955,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                   const assigned = assignedUserIds.has(user.id);
                   const assignedElsewhere = Boolean(user.assignedHotel && !assigned);
                   return (
-                    <span className={`inline-flex min-h-8 items-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${assigned ? "bg-emerald-100 text-emerald-800" : assignedElsewhere ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>
+                    <span className={`inline-flex min-h-8 items-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${assigned ? "bg-emerald-100 text-emerald-800" : assignedElsewhere ? "bg-amber-100 text-amber-800" : "bg-[var(--surface-container)] text-[var(--on-surface-variant)]"}`}>
                       {assigned
                         ? user.assignedHotel?.name ?? "Đang làm tại khách sạn"
                         : assignedElsewhere
@@ -932,6 +975,9 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                       cell: (user: HotelStaffUser) => {
                         const isUserFrontDesk = user.roles.some((r) => isFrontDeskRole(r.code ?? r.id));
                         const roomAssignment = userRoomAssignmentMap.get(user.id);
+                        if (assignedUserIds.has(user.id) && user.roles.some((role) => isHousekeepingRole(role.code))) {
+                          return <span className="text-xs font-medium text-[var(--on-surface)]">{housekeepingScopeLabel(userHousekeepingScope(user.id))}</span>;
+                        }
                         const assigned = assignedUserIds.has(user.id);
 
                         if (!assigned) {
@@ -1068,7 +1114,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                     <p className="font-semibold text-base text-[var(--primary)]">{user.fullName}</p>
                     <p className="text-xs text-[var(--on-surface-variant)]">{user.email}</p>
                   </div>
-                  <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${assigned ? "bg-emerald-100 text-emerald-800" : assignedElsewhere ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>
+                  <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${assigned ? "bg-emerald-100 text-emerald-800" : assignedElsewhere ? "bg-amber-100 text-amber-800" : "bg-[var(--surface-container)] text-[var(--on-surface-variant)]"}`}>
                     {assigned
                       ? user.assignedHotel?.name ?? "Đang làm việc"
                       : assignedElsewhere
@@ -1095,6 +1141,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                       {(() => {
                         const isUserFrontDesk = user.roles.some((r) => isFrontDeskRole(r.code ?? r.id));
                         const roomAssignment = userRoomAssignmentMap.get(user.id);
+                        if (user.roles.some((role) => isHousekeepingRole(role.code))) return <span className="font-medium text-[var(--on-surface)]">{housekeepingScopeLabel(userHousekeepingScope(user.id))}</span>;
                         if (roomAssignment) {
                           return (
                             <span className="inline-flex items-center gap-1 font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md">
@@ -1205,41 +1252,60 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
       </section>
 
       {/* Box / Modal Sửa thông tin nhân viên */}
-      {editingUser ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-2xl border border-[var(--outline-variant)] bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-[var(--outline-variant)] pb-4">
+      {editingUser ? createPortal(
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-2 backdrop-blur-xs sm:p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="staff-edit-title"
+            onKeyDown={(event) => {
+              if (event.key === "Escape" && !isSavingEdit) {
+                event.stopPropagation();
+                setEditingUser(null);
+              }
+              if (event.key !== "Tab") return;
+              const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex="0"]')).filter((element) => element.getClientRects().length > 0);
+              const target = event.shiftKey ? controls.at(-1) : controls[0];
+              if (target && document.activeElement === (event.shiftKey ? controls[0] : controls.at(-1))) {
+                event.preventDefault();
+                target.focus();
+              }
+            }}
+            className="flex max-h-[calc(100dvh-1rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[var(--outline-variant)] bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]"
+          >
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--outline-variant)] p-4">
               <div>
-                <h3 className="text-lg font-bold text-[var(--primary)]">Sửa thông tin nhân viên</h3>
-                <p className="text-xs text-[var(--on-surface-variant)] mt-0.5">
-                  Cập nhật thông tin tài khoản và phòng phụ trách
-                </p>
+                <h3 id="staff-edit-title" className="text-lg font-bold text-[var(--primary)]">Sửa thông tin nhân viên</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setEditingUser(null)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                disabled={isSavingEdit}
+                aria-label="Đóng"
+                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-[var(--on-surface-variant)] transition-colors hover:bg-[var(--surface-container)] disabled:opacity-50"
               >
                 <VsIcon name="close" className="text-lg" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEdit} className="mt-4 space-y-4">
+            <form onSubmit={handleSaveEdit} className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4">
               <div>
-                <label className="block text-xs font-bold text-[var(--on-surface-variant)] mb-1.5">
+                <label className="block text-sm font-bold text-[var(--on-surface-variant)] mb-1.5">
                   Họ và tên <span className="text-red-500">*</span>
                 </label>
                 <input
+                  autoFocus
                   required
                   value={editForm.fullName}
                   onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
                   placeholder="Họ và tên"
-                  className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+                  className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] px-3 text-base focus:border-[var(--primary)] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[var(--on-surface-variant)] mb-1.5">
+                <label className="block text-sm font-bold text-[var(--on-surface-variant)] mb-1.5">
                   Email đăng nhập <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -1248,13 +1314,13 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                   value={editForm.email}
                   onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                   placeholder="Email"
-                  className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+                  className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] px-3 text-base focus:border-[var(--primary)] focus:outline-none"
                 />
               </div>
 
               {/* Vai trò */}
               <div>
-                <label className="block text-xs font-bold text-[var(--on-surface-variant)] mb-1.5">
+                <label className="block text-sm font-bold text-[var(--on-surface-variant)] mb-1.5">
                   Vai trò <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -1268,7 +1334,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                       roomId: isFrontDeskRole(nextRoleId) ? editForm.roomId : "",
                     });
                   }}
-                  className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+                  className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] bg-white px-3 text-base focus:border-[var(--primary)] focus:outline-none"
                 >
                   <option value="">-- Chọn vai trò --</option>
                   {data?.roles.map((r) => (
@@ -1280,15 +1346,17 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               </div>
 
               {effectiveHotelId ? (
-                isFrontDeskRole(editForm.roleId) ? (
+                isHousekeepingRole(editForm.roleId) && assignedUserIds.has(editingUser.id) ? (
+                  <HousekeepingScopeEditor value={housekeepingScope} rooms={data?.rooms ?? []} onChange={setHousekeepingScope} disabled={isSavingEdit || directory.isFetching} />
+                ) : isFrontDeskRole(editForm.roleId) ? (
                   <div>
-                    <label className="block text-xs font-bold text-[var(--on-surface-variant)] mb-1.5">
+                    <label className="block text-sm font-bold text-[var(--on-surface-variant)] mb-1.5">
                       Phòng phụ trách
                     </label>
                     <select
                       value={editForm.roomId}
                       onChange={(e) => setEditForm({ ...editForm, roomId: e.target.value })}
-                      className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+                      className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] bg-white px-3 text-base focus:border-[var(--primary)] focus:outline-none"
                     >
                       <option value="">Áp dụng cho toàn khách sạn (Global)</option>
                       {availableRoomsForEdit.map((r) => {
@@ -1300,35 +1368,36 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                         );
                       })}
                     </select>
-                    <p className="mt-1 text-xs text-[var(--on-surface-variant)]">
+                    <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
                       Chọn phòng riêng để phân công, hoặc chọn &ldquo;Áp dụng cho toàn khách sạn (Global)&rdquo; nếu lễ tân phụ trách chung toàn khách sạn.
                     </p>
                   </div>
                 ) : (
                   <div>
-                    <label className="block text-xs font-bold text-[var(--on-surface-variant)] mb-1.5">
+                    <label className="block text-sm font-bold text-[var(--on-surface-variant)] mb-1.5">
                       Phạm vi phụ trách
                     </label>
-                    <div className="flex min-h-11 items-center rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-3 text-xs text-[var(--on-surface-variant)]">
+                    <div className="flex min-h-11 items-center rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-3 text-base text-[var(--on-surface-variant)]">
                       Áp dụng toàn khách sạn
                     </div>
                   </div>
                 )
               ) : null}
 
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[var(--outline-variant)]">
+              </div>
+              <div className="flex shrink-0 items-center justify-end gap-2.5 border-t border-[var(--outline-variant)] bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
                 <button
                   type="button"
                   disabled={isSavingEdit}
                   onClick={() => setEditingUser(null)}
-                  className="min-h-10 rounded-xl border border-[var(--outline-variant)] px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                  className="min-h-11 rounded-xl border border-[var(--outline-variant)] px-4 text-base font-semibold text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)]"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={isSavingEdit}
-                  className="min-h-10 rounded-xl bg-[var(--primary)] px-5 text-xs font-semibold text-white hover:opacity-90 transition-opacity flex items-center gap-1.5 disabled:opacity-50"
+                  className="min-h-11 rounded-xl bg-[var(--primary)] px-4 text-base font-semibold text-white hover:opacity-90 transition-opacity flex items-center gap-1.5 disabled:opacity-50"
                 >
                   {isSavingEdit ? (
                     <>
@@ -1342,7 +1411,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
 
       <OneTimePasswordDialog temporaryPassword={temporaryPassword} accountLabel={resetAccountLabel} onClose={() => { setTemporaryPassword(null); setResetAccountLabel(""); mutations.resetFrontdeskPassword.reset(); }} />

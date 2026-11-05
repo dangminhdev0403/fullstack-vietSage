@@ -146,8 +146,7 @@ export function WorkspaceShell({
       <div className="print:hidden">
         <VsTopBar
           title="VietSage"
-          brandLockup={false}
-          titleClassName="text-[24px] font-semibold leading-none tracking-[-0.04em] text-[#17201b] md:hidden"
+          brandLockup="mobile"
           showLeftControl={false}
           rightMode="profile"
           rightLabel={resolvedProfileName ?? definition.profileLabel}

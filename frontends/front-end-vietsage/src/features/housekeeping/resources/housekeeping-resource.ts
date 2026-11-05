@@ -17,6 +17,8 @@ import {
 import type {
   HotelOpsPage,
   HotelRoomSummary,
+  HousekeepingAssignmentScope,
+  HousekeepingRoom,
   HousekeepingTask,
   HousekeepingTaskPage,
   HousekeepingTasksSummary,
@@ -32,6 +34,14 @@ export const housekeepingResource = createResource<HousekeepingScope>()({
   name: "housekeeping",
   scopeKey: ({ hotelId }) => ["hotel", hotelId],
   queries: {
+    assignmentScope: defineQuery<HousekeepingScope, undefined, HousekeepingAssignmentScope>({
+      inputKey: () => [],
+      queryFn: ({ scope, signal }) => housekeepingRepository.getScope(scope.hotelId, signal),
+    }),
+    room: defineQuery<HousekeepingScope, string, HousekeepingRoom>({
+      inputKey: (roomId) => [roomId],
+      queryFn: ({ scope, input, signal }) => housekeepingRepository.getRoom(scope.hotelId, input, signal),
+    }),
     tasks: defineQuery<HousekeepingScope, ListTasksParams | undefined, HousekeepingTaskPage>({
       inputKey: (params) => [
         params?.page ?? 1,
@@ -41,7 +51,7 @@ export const housekeepingResource = createResource<HousekeepingScope>()({
         params?.roomId ?? "",
         params?.assignedToUserId ?? "",
       ],
-      queryFn: ({ scope, input, signal }) => housekeepingRepository.listTasks(scope.hotelId, input, signal),
+      queryFn: ({ scope, input, signal }) => housekeepingRepository.listAllTasks(scope.hotelId, input, signal),
     }),
     summary: defineQuery<HousekeepingScope, undefined, HousekeepingTasksSummary>({
       inputKey: () => [],
@@ -60,7 +70,7 @@ export const housekeepingResource = createResource<HousekeepingScope>()({
         input,
         signal,
       }: ResourceQueryContext<HousekeepingScope, ListRoomsParams | undefined>) =>
-        housekeepingRepository.listRooms(scope.hotelId, input, signal),
+        housekeepingRepository.listAllRooms(scope.hotelId, input, signal),
     }),
     requests: defineQuery<HousekeepingScope, ListRequestsParams | undefined, HotelOpsPage<StaffRequestListItem>>({
       inputKey: (params) => [
@@ -75,7 +85,7 @@ export const housekeepingResource = createResource<HousekeepingScope>()({
         input,
         signal,
       }: ResourceQueryContext<HousekeepingScope, ListRequestsParams | undefined>) =>
-        housekeepingRepository.listRequests(scope.hotelId, input, signal),
+        housekeepingRepository.listActiveRequests(scope.hotelId, input, signal),
     }),
   },
   mutations: {

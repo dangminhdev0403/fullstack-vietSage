@@ -16,6 +16,7 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
     findTenantById: jest.fn().mockResolvedValue({ id: "tenant-1" }),
     findRoomStaffAssignment: jest.fn(),
     findRoomById: jest.fn(),
+    findHousekeepingAssignment: jest.fn().mockResolvedValue({ housekeepingScope: null }),
     ...overrides,
   };
 }

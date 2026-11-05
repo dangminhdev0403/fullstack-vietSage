@@ -36,8 +36,9 @@ export default async function HotelOpsLayout({
     tokens.accessToken,
   );
 
+  const effectiveRoleCode = context.activeRole.baseRoleCode ?? context.activeRole.code;
   if (!canUseHotelId(context, hotelId)) {
-    const persona = resolveWorkspacePersona(context.activeRole.code);
+    const persona = resolveWorkspacePersona(effectiveRoleCode);
     if (persona && persona !== "platform_admin" && persona !== "owner") {
       redirect("/staff");
     }
@@ -47,7 +48,7 @@ export default async function HotelOpsLayout({
     notFound();
   }
 
-  const persona = resolveWorkspacePersona(context.activeRole.code);
+  const persona = resolveWorkspacePersona(effectiveRoleCode);
   if (!persona) {
     notFound();
   }
@@ -57,6 +58,7 @@ export default async function HotelOpsLayout({
 
   const sidebarItems = buildWorkspaceNavigationForContext({
     ...context,
+    activeRole: { ...context.activeRole, code: effectiveRoleCode },
     hotelId,
     enabledFeatures,
   });

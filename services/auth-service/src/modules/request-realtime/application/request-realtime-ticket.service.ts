@@ -38,11 +38,14 @@ export class RequestRealtimeTicketService {
     const issuedAt = Date.now();
     const payload: Record<string, unknown> = {
       sub: userId,
+      roleId: activeRoleId,
       hotelId,
       type: "request_realtime_owner",
       jti: randomUUID(),
     };
-    if (scope.allowedRoomId) {
+    if (scope.allowedRoomIds !== undefined && scope.allowedRoomIds !== null) {
+      payload.roomIds = scope.allowedRoomIds;
+    } else if (scope.allowedRoomId) {
       payload.roomId = scope.allowedRoomId;
     }
     const ticket = await this.jwtService.signAsync(payload, {

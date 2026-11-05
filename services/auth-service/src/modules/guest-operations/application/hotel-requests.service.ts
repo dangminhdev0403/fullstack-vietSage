@@ -154,6 +154,8 @@ export class HotelRequestsService {
     const where: Prisma.GuestRequestWhereInput = {
       hotelId,
       ...(scope.mode === "ROOM_EXCLUSIVE" ? { roomId: scope.allowedRoomId ?? "__NONE__" } : {}),
+      ...(scope.allowedRoomIds !== undefined && scope.allowedRoomIds !== null
+        ? { roomId: { in: scope.allowedRoomIds } } : {}),
       ...activeStayRequestFilter,
       ...buildRequestSearchFilter(query.q),
       ...(query.roomNumber ? { room: { is: { roomNumber: query.roomNumber } } } : {}),
@@ -221,6 +223,8 @@ export class HotelRequestsService {
     const where: Prisma.GuestRequestWhereInput = {
       hotelId,
       ...(scope.mode === "ROOM_EXCLUSIVE" ? { roomId: scope.allowedRoomId ?? "__NONE__" } : {}),
+      ...(scope.allowedRoomIds !== undefined && scope.allowedRoomIds !== null
+        ? { roomId: { in: scope.allowedRoomIds } } : {}),
       ...activeStayRequestFilter,
       ...buildRequestSearchFilter(query.q),
       ...(query.roomNumber ? { room: { is: { roomNumber: query.roomNumber } } } : {}),

@@ -3,12 +3,14 @@
 import { signOut } from "next-auth/react";
 import { useState } from "react";
 import { SwalVietSage } from "@/libs/swal";
+import { VsIcon } from "./vs-icon";
 
 type VsLogoutButtonProps = {
   className?: string;
+  compactOnMobile?: boolean;
 };
 
-export function VsLogoutButton({ className }: VsLogoutButtonProps) {
+export function VsLogoutButton({ className, compactOnMobile = false }: VsLogoutButtonProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleLogout = async () => {
@@ -63,12 +65,16 @@ export function VsLogoutButton({ className }: VsLogoutButtonProps) {
       type="button"
       onClick={handleLogout}
       disabled={isSubmitting}
+      aria-label={isSubmitting ? "Đang đăng xuất" : "Đăng xuất"}
       className={
         className ??
         "rounded-lg border border-[color:rgba(198,197,213,0.5)] px-3 py-2 text-xs font-semibold tracking-[0.04em] text-[var(--primary)] transition-colors hover:bg-[var(--surface-container-low)] disabled:cursor-not-allowed disabled:opacity-60"
       }
     >
-      {isSubmitting ? "Đăng xuất..." : "Đăng xuất"}
+      {compactOnMobile ? <VsIcon name="logout" className="text-xl sm:hidden" /> : null}
+      <span className={compactOnMobile ? "sr-only sm:not-sr-only" : undefined}>
+        {isSubmitting ? "Đăng xuất..." : "Đăng xuất"}
+      </span>
     </button>
   );
 }
