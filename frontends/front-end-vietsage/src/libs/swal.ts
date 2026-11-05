@@ -649,6 +649,7 @@ export function showErrorAlert(title: string, messageOrError?: unknown) {
 export interface ConfirmDialogOptions {
   title: string;
   text?: string;
+  details?: readonly ConfirmDetail[];
   html?: string | TrustedAlertHtml;
   confirmText?: string;
   cancelText?: string;
@@ -656,6 +657,29 @@ export interface ConfirmDialogOptions {
   reverseButtons?: boolean;
   confirmVariant?: "primary" | "danger";
   popupSize?: "standard" | "medium" | "large";
+}
+
+export interface ConfirmDetail {
+  label: string;
+  value: string | number | null | undefined;
+}
+
+export function formatConfirmDetailsHtml(
+  details: readonly ConfirmDetail[],
+  notice?: string,
+): string {
+  const rows = details
+    .filter(({ value }) => value != null && String(value).trim() !== "")
+    .map(({ label, value }) => `
+      <div class="vs-confirm-row">
+        <dt>${escapeHtml(label)}</dt>
+        <dd>${escapeHtml(String(value))}</dd>
+      </div>`)
+    .join("");
+  return `<div class="vs-confirm-summary">
+    ${rows ? `<dl>${rows}</dl>` : ""}
+    ${notice ? `<p class="vs-confirm-notice">${escapeHtml(notice)}</p>` : ""}
+  </div>`;
 }
 
 /* =====================================================================
@@ -688,120 +712,10 @@ export interface RoomSwapConfirmParams {
 }
 
 export function formatRoomSwapConfirmHtml(params: RoomSwapConfirmParams): string {
-  const {
-    sourceGuest,
-    sourceRoom,
-    sourceDates,
-    sourceRoomType,
-    targetGuest,
-    targetRoom,
-    targetDates,
-    targetRoomType,
-    note,
-  } = params;
-
-  const parsedSource = parseGuestNameAndTag(sourceGuest);
-  const parsedTarget = parseGuestNameAndTag(targetGuest);
-
-  return `
-    <div class="w-full text-left space-y-3 font-sans pt-1">
-      <!-- Card 1: Đơn đang di chuyển -->
-      <div class="rounded-2xl border border-slate-200/90 bg-slate-50/80 p-3.5 sm:p-4 space-y-2.5 shadow-2xs">
-        <div class="flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2">
-            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider bg-slate-200/80 text-slate-700">Đơn 1</span>
-            <span class="text-xs text-slate-500 font-medium hidden sm:inline">Đang chọn</span>
-          </div>
-          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 whitespace-nowrap">Giữ nguyên ngày &amp; giá</span>
-        </div>
-
-        <div class="space-y-1">
-          <div class="flex items-center gap-2 flex-wrap min-w-0">
-            <strong class="text-sm sm:text-base font-bold text-slate-900 truncate max-w-[280px]">${escapeHtml(parsedSource.name)}</strong>
-            ${
-              parsedSource.tag
-                ? `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200 whitespace-nowrap">${escapeHtml(parsedSource.tag)}</span>`
-                : ""
-            }
-          </div>
-          ${
-            sourceDates || sourceRoomType
-              ? `<div class="text-xs text-slate-500 flex items-center gap-2 flex-wrap">
-                  ${sourceRoomType ? `<span>${escapeHtml(sourceRoomType)}</span>` : ""}
-                  ${sourceDates && sourceRoomType ? `<span>•</span>` : ""}
-                  ${sourceDates ? `<span>${escapeHtml(sourceDates)}</span>` : ""}
-                </div>`
-              : ""
-          }
-        </div>
-
-        <div class="flex items-center justify-between pt-2 border-t border-slate-200/70 text-xs sm:text-sm">
-          <span class="text-slate-500 font-medium">Chuyển sang:</span>
-          <div class="flex items-center gap-2 font-bold shrink-0">
-            <span class="px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-slate-700 font-bold shadow-2xs">P.${escapeHtml(sourceRoom)}</span>
-            <span class="text-emerald-600 font-black text-base">➔</span>
-            <span class="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-black shadow-xs">P.${escapeHtml(targetRoom)}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Divider tráo đổi 2 chiều -->
-      <div class="relative flex items-center justify-center my-0.5 select-none">
-        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
-        <div class="relative flex items-center gap-1.5 px-3.5 py-1 bg-white border border-purple-200 rounded-full text-xs font-bold text-purple-700 shadow-2xs whitespace-nowrap">
-          <span class="text-sm font-black">⇄</span>
-          <span>Hoán đổi vị trí phòng</span>
-        </div>
-      </div>
-
-      <!-- Card 2: Đơn đối ứng tại phòng đích -->
-      <div class="rounded-2xl border border-purple-200/80 bg-purple-50/40 p-3.5 sm:p-4 space-y-2.5 shadow-2xs">
-        <div class="flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2">
-            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider bg-purple-100 text-purple-800 border border-purple-200">Đơn 2</span>
-            <span class="text-xs text-purple-700 font-medium hidden sm:inline">Tại phòng đích</span>
-          </div>
-          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100/90 text-purple-900 border border-purple-200 whitespace-nowrap">Đổi về P.${escapeHtml(sourceRoom)}</span>
-        </div>
-
-        <div class="space-y-1">
-          <div class="flex items-center gap-2 flex-wrap min-w-0">
-            <strong class="text-sm sm:text-base font-bold text-slate-900 truncate max-w-[280px]">${escapeHtml(parsedTarget.name)}</strong>
-            ${
-              parsedTarget.tag
-                ? `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200 whitespace-nowrap">${escapeHtml(parsedTarget.tag)}</span>`
-                : ""
-            }
-          </div>
-          ${
-            targetDates || targetRoomType
-              ? `<div class="text-xs text-slate-500 flex items-center gap-2 flex-wrap">
-                  ${targetRoomType ? `<span>${escapeHtml(targetRoomType)}</span>` : ""}
-                  ${targetDates && targetRoomType ? `<span>•</span>` : ""}
-                  ${targetDates ? `<span>${escapeHtml(targetDates)}</span>` : ""}
-                </div>`
-              : ""
-          }
-        </div>
-
-        <div class="flex items-center justify-between pt-2 border-t border-purple-200/70 text-xs sm:text-sm">
-          <span class="text-purple-700 font-medium">Chuyển sang:</span>
-          <div class="flex items-center gap-2 font-bold shrink-0">
-            <span class="px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-slate-700 font-bold shadow-2xs">P.${escapeHtml(targetRoom)}</span>
-            <span class="text-purple-600 font-black text-base">➔</span>
-            <span class="px-2.5 py-1 rounded-lg bg-purple-700 text-white font-black shadow-xs">P.${escapeHtml(sourceRoom)}</span>
-          </div>
-        </div>
-      </div>
-
-      ${note ? `<div class="flex items-start gap-2.5 rounded-xl border border-sky-100 bg-sky-50/80 p-3 text-sky-900 text-xs sm:text-sm leading-relaxed shadow-2xs">
-        <span class="text-base select-none mt-0.5 text-sky-600">ℹ️</span>
-        <p class="text-pretty">
-          ${escapeHtml(note)}
-        </p>
-      </div>` : ""}
-    </div>
-  `;
+  return formatConfirmDetailsHtml([
+    { label: params.sourceGuest, value: `P.${params.sourceRoom} → P.${params.targetRoom}` },
+    { label: params.targetGuest, value: `P.${params.targetRoom} → P.${params.sourceRoom}` },
+  ], params.note || "Ngày lưu trú và giá phòng giữ nguyên.");
 }
 
 export interface RoomMoveConfirmParams {
@@ -818,87 +732,13 @@ export interface RoomMoveConfirmParams {
 }
 
 export function formatRoomMoveConfirmHtml(params: RoomMoveConfirmParams): string {
-  const {
-    guestName,
-    fromRoom,
-    toRoom,
-    startDate,
-    endDate,
-    roomTypeName,
-    nights,
-    isDirtyOrCleaning,
-    dirtyStatusLabel,
-    note,
-  } = params;
-
-  const parsedGuest = parseGuestNameAndTag(guestName);
-
-  return `
-    <div class="w-full text-left space-y-3 font-sans pt-1">
-      <div class="rounded-2xl border border-slate-200/90 bg-slate-50/80 p-3.5 sm:p-4 space-y-3 shadow-2xs">
-        <div class="flex items-center justify-between text-xs pb-2 border-b border-slate-200/70">
-          <span class="font-semibold text-slate-500">Khách lưu trú</span>
-          <div class="flex items-center gap-1.5 flex-wrap justify-end">
-            <strong class="text-slate-900 text-sm font-bold truncate max-w-[200px]">${escapeHtml(parsedGuest.name)}</strong>
-            ${
-              parsedGuest.tag
-                ? `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200 whitespace-nowrap">${escapeHtml(parsedGuest.tag)}</span>`
-                : ""
-            }
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between text-xs sm:text-sm">
-          <span class="font-semibold text-slate-500">Chuyển phòng</span>
-          <div class="flex items-center gap-2 font-bold">
-            <span class="px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-slate-700 shadow-2xs">P.${escapeHtml(fromRoom)}</span>
-            <span class="text-emerald-600 font-black text-base">➔</span>
-            <span class="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-black shadow-xs">P.${escapeHtml(toRoom)}</span>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between text-xs sm:text-sm">
-          <span class="font-semibold text-slate-500">Thời gian lưu trú</span>
-          <span class="font-bold text-slate-800 text-xs sm:text-sm">
-            ${escapeHtml(startDate)} ➔ ${escapeHtml(endDate)}
-            ${nights ? `<span class="text-slate-500 font-normal">(${nights} đêm)</span>` : ""}
-          </span>
-        </div>
-
-        ${
-          roomTypeName
-            ? `
-          <div class="flex items-center justify-between text-xs pt-2 border-t border-slate-200/70">
-            <span class="font-semibold text-slate-500">Hạng phòng</span>
-            <span class="font-medium text-slate-700">${escapeHtml(roomTypeName)}</span>
-          </div>
-        `
-            : ""
-        }
-      </div>
-
-      ${
-        isDirtyOrCleaning
-          ? `
-        <div class="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/90 p-3 text-amber-900 text-xs sm:text-sm leading-relaxed shadow-2xs">
-          <span class="text-base select-none mt-0.5">⚠️</span>
-          <div class="space-y-0.5">
-            <strong class="font-bold text-amber-950">P.${escapeHtml(toRoom)} · ${escapeHtml(dirtyStatusLabel || "Chờ dọn")}</strong>
-            <p class="text-pretty">Cần dọn phòng trước khi nhận khách.</p>
-          </div>
-        </div>
-      `
-          : note ? `
-        <div class="flex items-start gap-2.5 rounded-xl border border-sky-100 bg-sky-50/80 p-3 text-sky-900 text-xs sm:text-sm leading-relaxed shadow-2xs">
-          <span class="text-base select-none mt-0.5 text-sky-600">ℹ️</span>
-          <p class="text-pretty">
-            ${escapeHtml(note)}
-          </p>
-        </div>
-      ` : ""
-      }
-    </div>
-  `;
+  const warning = params.isDirtyOrCleaning
+    ? `P.${params.toRoom} · ${params.dirtyStatusLabel || "Chờ dọn"}. Cần dọn phòng trước khi nhận khách.`
+    : "";
+  return formatConfirmDetailsHtml([
+    { label: "Khách", value: params.guestName },
+    { label: "Chuyển phòng", value: `P.${params.fromRoom} → P.${params.toRoom}` },
+  ], [warning, params.note].filter(Boolean).join("\n"));
 }
 
 export interface ExtendStayConfirmParams {
@@ -914,78 +754,15 @@ export interface ExtendStayConfirmParams {
 }
 
 export function formatExtendStayConfirmHtml(params: ExtendStayConfirmParams): string {
-  const {
-    roomNumber,
-    guestName,
-    oldEndDate,
-    newEndDate,
-    diffNights,
-    totalNights,
-    nightlyRate = 0,
-    additionalCost = 0,
-    note,
-  } = params;
-
-  const parsedGuest = parseGuestNameAndTag(guestName);
-  const formattedCost =
-    additionalCost > 0
-      ? new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(additionalCost)
-      : null;
-
-  return `
-    <div class="w-full text-left space-y-3 font-sans pt-1">
-      <div class="rounded-2xl border border-slate-200/90 bg-slate-50/80 p-3.5 sm:p-4 space-y-3 shadow-2xs">
-        <div class="flex items-center justify-between text-xs pb-2 border-b border-slate-200/70">
-          <span class="font-semibold text-slate-500">Khách lưu trú</span>
-          <div class="flex items-center gap-1.5 flex-wrap justify-end">
-            <strong class="text-slate-900 text-sm font-bold truncate max-w-[200px]">${escapeHtml(parsedGuest.name)}</strong>
-            ${
-              parsedGuest.tag
-                ? `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200 whitespace-nowrap">${escapeHtml(parsedGuest.tag)}</span>`
-                : ""
-            }
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between text-xs sm:text-sm">
-          <span class="font-semibold text-slate-500">Phòng</span>
-          <span class="px-2.5 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold">P.${escapeHtml(roomNumber)}</span>
-        </div>
-
-        <div class="flex items-center justify-between text-xs sm:text-sm">
-          <span class="font-semibold text-slate-500">Hạn trả phòng</span>
-          <div class="flex items-center gap-2 font-bold">
-            <span class="line-through text-slate-400 font-medium">${escapeHtml(oldEndDate)}</span>
-            <span class="text-emerald-600 font-black text-base">➔</span>
-            <span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold">${escapeHtml(newEndDate)}</span>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between text-xs sm:text-sm">
-          <span class="font-semibold text-slate-500">Số đêm gia hạn</span>
-          <span class="font-bold text-slate-900">+${diffNights} đêm <span class="text-slate-500 font-normal">(Tổng: ${totalNights} đêm)</span></span>
-        </div>
-
-        ${
-          formattedCost
-            ? `
-          <div class="flex items-center justify-between text-xs pt-2 border-t border-slate-200/70">
-            <span class="font-bold text-slate-700">Tiền phòng phát sinh</span>
-            <span class="font-black text-emerald-700 text-sm sm:text-base">${escapeHtml(formattedCost)}</span>
-          </div>
-        `
-            : ""
-        }
-      </div>
-
-      ${note ? `<div class="flex items-start gap-2.5 rounded-xl border border-sky-100 bg-sky-50/80 p-3 text-sky-900 text-xs sm:text-sm leading-relaxed shadow-2xs">
-        <span class="text-base select-none mt-0.5 text-sky-600">ℹ️</span>
-        <p class="text-pretty">
-          ${escapeHtml(note)}
-        </p>
-      </div>` : ""}
-    </div>
-  `;
+  return formatConfirmDetailsHtml([
+    { label: "Khách / Phòng", value: `${params.guestName} · P.${params.roomNumber}` },
+    { label: "Hạn cũ", value: params.oldEndDate },
+    { label: "Hạn mới", value: params.newEndDate },
+    { label: "Thêm", value: params.diffNights > 0 ? `${params.diffNights} đêm` : null },
+    { label: "Tiền phát sinh", value: params.additionalCost != null && params.additionalCost > 0
+      ? new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(params.additionalCost)
+      : null },
+  ], params.note);
 }
 
 export interface AdjustReservationDatesConfirmParams {
@@ -1003,80 +780,14 @@ export interface AdjustReservationDatesConfirmParams {
 export function formatAdjustReservationDatesConfirmHtml(
   params: AdjustReservationDatesConfirmParams,
 ): string {
-  const {
-    roomNumber,
-    guestName,
-    oldStartDate,
-    newStartDate,
-    oldEndDate,
-    newEndDate,
-    totalNights,
-    diffNights,
-    note,
-  } = params;
-
-  const parsedGuest = parseGuestNameAndTag(guestName);
-
-  return `
-    <div class="w-full text-left space-y-3 font-sans pt-1">
-      <div class="rounded-2xl border border-slate-200/90 bg-slate-50/80 p-3.5 sm:p-4 space-y-3 shadow-2xs">
-        <div class="flex items-center justify-between text-xs pb-2 border-b border-slate-200/70">
-          <span class="font-semibold text-slate-500">Khách hàng</span>
-          <div class="flex items-center gap-1.5 flex-wrap justify-end">
-            <strong class="text-slate-900 text-sm font-bold truncate max-w-[200px]">${escapeHtml(parsedGuest.name)}</strong>
-            ${
-              parsedGuest.tag
-                ? `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200 whitespace-nowrap">${escapeHtml(parsedGuest.tag)}</span>`
-                : ""
-            }
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between text-xs sm:text-sm">
-          <span class="font-semibold text-slate-500">Phòng</span>
-          <span class="px-2.5 py-0.5 rounded-lg bg-purple-100 text-purple-900 border border-purple-300 font-bold">P.${escapeHtml(roomNumber)}</span>
-        </div>
-
-        <div class="flex items-center justify-between text-xs sm:text-sm">
-          <span class="font-semibold text-slate-500">Ngày nhận phòng</span>
-          <div class="flex items-center gap-2 font-bold">
-            ${
-              oldStartDate !== newStartDate
-                ? `<span class="line-through text-slate-400 font-medium">${escapeHtml(oldStartDate)}</span>
-                   <span class="text-purple-600 font-black text-base">➔</span>
-                   <span class="px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-300 font-bold">${escapeHtml(newStartDate)}</span>`
-                : `<span class="text-slate-800">${escapeHtml(newStartDate)}</span>`
-            }
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between text-xs sm:text-sm">
-          <span class="font-semibold text-slate-500">Ngày trả phòng</span>
-          <div class="flex items-center gap-2 font-bold">
-            ${
-              oldEndDate !== newEndDate
-                ? `<span class="line-through text-slate-400 font-medium">${escapeHtml(oldEndDate)}</span>
-                   <span class="text-purple-600 font-black text-base">➔</span>
-                   <span class="px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-300 font-bold">${escapeHtml(newEndDate)}</span>`
-                : `<span class="text-slate-800">${escapeHtml(newEndDate)}</span>`
-            }
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between text-xs sm:text-sm pt-2 border-t border-slate-200/70">
-          <span class="font-semibold text-slate-500">Tổng số đêm</span>
-          <span class="font-bold text-slate-900">${totalNights} đêm <span class="text-slate-500 font-normal">(${diffNights >= 0 ? `+${diffNights}` : diffNights} đêm)</span></span>
-        </div>
-      </div>
-
-      ${note ? `<div class="flex items-start gap-2.5 rounded-xl border border-sky-100 bg-sky-50/80 p-3 text-sky-900 text-xs sm:text-sm leading-relaxed shadow-2xs">
-        <span class="text-base select-none mt-0.5 text-sky-600">ℹ️</span>
-        <p class="text-pretty">
-          ${escapeHtml(note)}
-        </p>
-      </div>` : ""}
-    </div>
-  `;
+  return formatConfirmDetailsHtml([
+    { label: "Khách / Phòng", value: `${params.guestName} · P.${params.roomNumber}` },
+    { label: "Ngày nhận", value: params.oldStartDate !== params.newStartDate
+      ? `${params.oldStartDate} → ${params.newStartDate}` : null },
+    { label: "Ngày trả", value: params.oldEndDate !== params.newEndDate
+      ? `${params.oldEndDate} → ${params.newEndDate}` : null },
+    { label: "Lưu trú mới", value: `${params.totalNights} đêm` },
+  ], params.note);
 }
 
 export interface CheckOutConfirmParams {
@@ -1089,59 +800,10 @@ export interface CheckOutConfirmParams {
 }
 
 export function formatCheckOutConfirmHtml(params: CheckOutConfirmParams): string {
-  const { roomNumber, guestName, startDate, endDate, roomTypeName, note } = params;
-  const parsedGuest = parseGuestNameAndTag(guestName);
-
-  return `
-    <div class="w-full text-left space-y-3 font-sans pt-1">
-      <div class="rounded-2xl border border-slate-200/90 bg-slate-50/80 p-3.5 sm:p-4 space-y-3 shadow-2xs">
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-semibold text-slate-500">Phòng trả</span>
-          <span class="px-2.5 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold text-xs sm:text-sm">Phòng ${escapeHtml(roomNumber)}</span>
-        </div>
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-semibold text-slate-500">Khách lưu trú</span>
-          <div class="flex items-center gap-1.5 flex-wrap justify-end">
-            <strong class="text-slate-900 text-sm font-bold truncate max-w-[200px]">${escapeHtml(parsedGuest.name)}</strong>
-            ${
-              parsedGuest.tag
-                ? `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200 whitespace-nowrap">${escapeHtml(parsedGuest.tag)}</span>`
-                : ""
-            }
-          </div>
-        </div>
-        ${
-          startDate && endDate
-            ? `
-          <div class="flex items-center justify-between text-xs">
-            <span class="font-semibold text-slate-500">Kỳ lưu trú</span>
-            <span class="font-bold text-slate-800 text-xs sm:text-sm">${escapeHtml(startDate)} ➔ ${escapeHtml(endDate)}</span>
-          </div>
-        `
-            : ""
-        }
-        ${
-          roomTypeName
-            ? `
-          <div class="flex items-center justify-between text-xs pt-2 border-t border-slate-200/80">
-            <span class="font-semibold text-slate-500">Hạng phòng</span>
-            <span class="font-medium text-slate-700">${escapeHtml(roomTypeName)}</span>
-          </div>
-        `
-            : ""
-        }
-      </div>
-      <div class="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-slate-600 text-xs sm:text-sm leading-relaxed shadow-2xs">
-        <span class="text-base select-none mt-0.5 text-emerald-700">✓</span>
-        <p class="text-pretty">
-          ${escapeHtml(
-            note ||
-              "Kiểm tra thanh toán và phòng trước khi trả.",
-          )}
-        </p>
-      </div>
-    </div>
-  `;
+  return formatConfirmDetailsHtml([
+    { label: "Phòng", value: params.roomNumber },
+    { label: "Khách", value: params.guestName },
+  ], params.note);
 }
 
 export interface EarlyCheckInConfirmParams {
@@ -1155,65 +817,11 @@ export interface EarlyCheckInConfirmParams {
 }
 
 export function formatEarlyCheckInConfirmHtml(params: EarlyCheckInConfirmParams): string {
-  const {
-    guestName,
-    roomNumber,
-    scheduledDate,
-    actualDate,
-    isEarly = true,
-    reservationCode,
-    note,
-  } = params;
-
-  const parsedGuest = parseGuestNameAndTag(guestName);
-
-  return `
-    <div class="w-full text-left space-y-3 font-sans pt-1">
-      <div class="rounded-2xl border border-amber-200/90 bg-amber-50/60 p-3.5 sm:p-4 space-y-2.5 shadow-2xs">
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-semibold text-amber-800">Khách nhận phòng</span>
-          <div class="flex items-center gap-1.5 flex-wrap justify-end">
-            <strong class="text-slate-900 text-sm font-bold truncate max-w-[200px]">${escapeHtml(parsedGuest.name)}</strong>
-            ${
-              parsedGuest.tag
-                ? `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200 whitespace-nowrap">${escapeHtml(parsedGuest.tag)}</span>`
-                : ""
-            }
-          </div>
-        </div>
-        ${
-          reservationCode
-            ? `
-          <div class="flex items-center justify-between text-xs">
-            <span class="font-semibold text-amber-800">Mã đặt phòng</span>
-            <span class="font-mono font-bold text-amber-900 text-xs">#${escapeHtml(reservationCode)}</span>
-          </div>
-        `
-            : ""
-        }
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-semibold text-amber-800">Phòng gán</span>
-          <span class="px-2.5 py-0.5 rounded-lg bg-white border border-amber-300 text-amber-900 font-bold text-xs sm:text-sm">Phòng ${escapeHtml(roomNumber)}</span>
-        </div>
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-semibold text-amber-800">Ngày dự kiến</span>
-          <span class="font-bold text-slate-700 text-xs sm:text-sm">${escapeHtml(scheduledDate)}</span>
-        </div>
-        <div class="flex items-center justify-between text-xs pt-2 border-t border-amber-200">
-          <span class="font-semibold text-amber-800">Nhận phòng thực tế</span>
-          <span class="px-2 py-0.5 rounded-md bg-amber-200/80 text-amber-950 font-bold text-xs whitespace-nowrap">
-            ${escapeHtml(actualDate || "Hôm nay")} • ${isEarly ? "Nhận sớm" : "Nhận trễ"}
-          </span>
-        </div>
-      </div>
-      ${note ? `<div class="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-amber-900 text-xs sm:text-sm leading-relaxed shadow-2xs">
-        <span class="text-base select-none mt-0.5">ℹ️</span>
-        <p class="text-pretty">
-          ${escapeHtml(note)}
-        </p>
-      </div>` : ""}
-    </div>
-  `;
+  return formatConfirmDetailsHtml([
+    { label: "Khách / Phòng", value: `${params.guestName} · P.${params.roomNumber}` },
+    { label: "Dự kiến", value: params.scheduledDate },
+    { label: params.isEarly === false ? "Nhận trễ" : "Nhận sớm", value: params.actualDate || "Hôm nay" },
+  ], params.note);
 }
 
 export interface RoomDirtyWarningParams {
@@ -1222,31 +830,10 @@ export interface RoomDirtyWarningParams {
 }
 
 export function formatRoomDirtyWarningHtml(params: RoomDirtyWarningParams): string {
-  const { roomNames, note } = params;
-  const formattedRooms = Array.isArray(roomNames) ? roomNames.join(", ") : roomNames;
-
-  return `
-    <div class="w-full text-left space-y-3 font-sans pt-1">
-      <div class="rounded-2xl border border-amber-200/90 bg-amber-50/70 p-3.5 sm:p-4 space-y-2 shadow-2xs">
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-semibold text-amber-800">Phòng cần lưu ý</span>
-          <span class="px-2.5 py-0.5 rounded-md bg-amber-200/80 text-amber-950 font-bold text-xs whitespace-nowrap">Chờ dọn dẹp</span>
-        </div>
-        <div class="text-sm font-bold text-slate-900">
-          ${escapeHtml(formattedRooms)}
-        </div>
-      </div>
-      <div class="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/90 p-3 text-amber-900 text-xs sm:text-sm leading-relaxed shadow-2xs">
-        <span class="text-base select-none mt-0.5">⚠️</span>
-        <p class="text-pretty">
-          ${escapeHtml(
-            note ||
-              "Chỉ xác nhận khi phòng đã sạch và sẵn sàng đón khách.",
-          )}
-        </p>
-      </div>
-    </div>
-  `;
+  return formatConfirmDetailsHtml([
+    { label: "Phòng", value: Array.isArray(params.roomNames) ? params.roomNames.join(", ") : params.roomNames },
+    { label: "Trạng thái", value: "Chờ dọn" },
+  ], params.note || "Chỉ xác nhận khi phòng đã sạch và sẵn sàng đón khách.");
 }
 
 export interface RoomAssignmentConfirmParams {
@@ -1258,50 +845,10 @@ export interface RoomAssignmentConfirmParams {
 }
 
 export function formatRoomAssignmentConfirmHtml(params: RoomAssignmentConfirmParams): string {
-  const { guestDisplayName, reservationCode, roomName, roomTypeName, note } = params;
-  const parsedGuest = parseGuestNameAndTag(guestDisplayName);
-
-  return `
-    <div class="w-full text-left space-y-3 font-sans pt-1">
-      <div class="rounded-2xl border border-slate-200/90 bg-slate-50/80 p-3.5 sm:p-4 space-y-2.5 shadow-2xs">
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-semibold text-slate-500">Khách hàng</span>
-          <div class="flex items-center gap-1.5 flex-wrap justify-end">
-            <strong class="text-slate-900 text-sm font-bold truncate max-w-[200px]">${escapeHtml(parsedGuest.name)}</strong>
-            ${
-              parsedGuest.tag
-                ? `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200 whitespace-nowrap">${escapeHtml(parsedGuest.tag)}</span>`
-                : ""
-            }
-          </div>
-        </div>
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-semibold text-slate-500">Mã đặt phòng</span>
-          <span class="font-mono font-bold text-slate-700 text-xs">#${escapeHtml(reservationCode)}</span>
-        </div>
-        ${
-          roomTypeName
-            ? `
-          <div class="flex items-center justify-between text-xs">
-            <span class="font-semibold text-slate-500">Hạng phòng</span>
-            <span class="font-medium text-slate-800 text-xs sm:text-sm">${escapeHtml(roomTypeName)}</span>
-          </div>
-        `
-            : ""
-        }
-        <div class="flex items-center justify-between text-xs pt-2 border-t border-slate-200">
-          <span class="font-semibold text-slate-500">Phòng gán</span>
-          <span class="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold text-xs sm:text-sm shadow-2xs">${escapeHtml(roomName)}</span>
-        </div>
-      </div>
-      ${note ? `<div class="flex items-start gap-2.5 rounded-xl border border-sky-100 bg-sky-50/80 p-3 text-sky-900 text-xs sm:text-sm leading-relaxed shadow-2xs">
-        <span class="text-base select-none mt-0.5 text-sky-600">ℹ️</span>
-        <p class="text-pretty">
-          ${escapeHtml(note)}
-        </p>
-      </div>` : ""}
-    </div>
-  `;
+  return formatConfirmDetailsHtml([
+    { label: "Khách", value: params.guestDisplayName },
+    { label: "Phòng gán", value: params.roomName },
+  ], params.note);
 }
 
 export interface CancelReservationConfirmParams {
@@ -1312,52 +859,11 @@ export interface CancelReservationConfirmParams {
 }
 
 export function formatCancelReservationConfirmHtml(params: CancelReservationConfirmParams): string {
-  const { guestName, reservationCode, roomNumber, note } = params;
-  const parsedGuest = parseGuestNameAndTag(guestName);
-
-  return `
-    <div class="w-full text-left space-y-3 font-sans pt-1">
-      <div class="rounded-2xl border border-rose-200/90 bg-rose-50/60 p-3.5 sm:p-4 space-y-2.5 shadow-2xs">
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-semibold text-rose-800">Khách hàng</span>
-          <div class="flex items-center gap-1.5 flex-wrap justify-end">
-            <strong class="text-slate-900 text-sm font-bold truncate max-w-[200px]">${escapeHtml(parsedGuest.name)}</strong>
-            ${
-              parsedGuest.tag
-                ? `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-rose-200/80 text-rose-950 border border-rose-300 whitespace-nowrap">${escapeHtml(parsedGuest.tag)}</span>`
-                : ""
-            }
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-semibold text-rose-800">Mã đặt phòng</span>
-          <span class="font-mono font-bold text-rose-700 text-xs">#${escapeHtml(reservationCode)}</span>
-        </div>
-
-        ${
-          roomNumber
-            ? `
-          <div class="flex items-center justify-between text-xs pt-2 border-t border-rose-200/80">
-            <span class="font-semibold text-rose-800">Phòng giải phóng</span>
-            <span class="font-bold text-rose-900 text-xs sm:text-sm">Phòng ${escapeHtml(roomNumber)}</span>
-          </div>
-        `
-            : ""
-        }
-      </div>
-
-      <div class="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50/90 p-3 text-rose-900 text-xs sm:text-sm leading-relaxed shadow-2xs">
-        <span class="text-base select-none mt-0.5">⚠️</span>
-        <p class="text-pretty">
-          ${escapeHtml(
-            note ||
-              "Đơn sẽ bị hủy và phòng đã gán được giải phóng.",
-          )}
-        </p>
-      </div>
-    </div>
-  `;
+  return formatConfirmDetailsHtml([
+    { label: "Khách", value: params.guestName },
+    { label: "Đặt phòng", value: params.reservationCode },
+    { label: "Phòng giải phóng", value: params.roomNumber },
+  ], params.note || "Đặt phòng sẽ bị hủy và phòng đã gán được giải phóng.");
 }
 
 export interface NoShowConfirmParams {
@@ -1368,52 +874,11 @@ export interface NoShowConfirmParams {
 }
 
 export function formatNoShowConfirmHtml(params: NoShowConfirmParams): string {
-  const { guestName, reservationCode, roomNumber, note } = params;
-  const parsedGuest = parseGuestNameAndTag(guestName);
-
-  return `
-    <div class="w-full text-left space-y-3 font-sans pt-1">
-      <div class="rounded-2xl border border-amber-200/90 bg-amber-50/60 p-3.5 sm:p-4 space-y-2.5 shadow-2xs">
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-semibold text-amber-800">Khách hàng</span>
-          <div class="flex items-center gap-1.5 flex-wrap justify-end">
-            <strong class="text-slate-900 text-sm font-bold truncate max-w-[200px]">${escapeHtml(parsedGuest.name)}</strong>
-            ${
-              parsedGuest.tag
-                ? `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200 whitespace-nowrap">${escapeHtml(parsedGuest.tag)}</span>`
-                : ""
-            }
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-semibold text-amber-800">Mã đơn</span>
-          <span class="font-mono font-bold text-amber-900 text-xs">#${escapeHtml(reservationCode)}</span>
-        </div>
-
-        ${
-          roomNumber
-            ? `
-          <div class="flex items-center justify-between text-xs pt-2 border-t border-amber-200">
-            <span class="font-semibold text-amber-800">Phòng giải phóng</span>
-            <span class="font-bold text-amber-900 text-xs sm:text-sm">Phòng ${escapeHtml(roomNumber)}</span>
-          </div>
-        `
-            : ""
-        }
-      </div>
-
-      <div class="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/90 p-3 text-amber-900 text-xs sm:text-sm leading-relaxed shadow-2xs">
-        <span class="text-base select-none mt-0.5 text-amber-700">ℹ️</span>
-        <p class="text-pretty">
-          ${escapeHtml(
-            note ||
-              "Ghi nhận khách không đến và giải phóng phòng đã gán.",
-          )}
-        </p>
-      </div>
-    </div>
-  `;
+  return formatConfirmDetailsHtml([
+    { label: "Khách", value: params.guestName },
+    { label: "Đặt phòng", value: params.reservationCode },
+    { label: "Phòng giải phóng", value: params.roomNumber },
+  ], params.note || "Ghi nhận khách không đến và giải phóng phòng đã gán.");
 }
 
 export function showConfirmDialog(options: ConfirmDialogOptions) {
@@ -1429,7 +894,9 @@ export function showConfirmDialog(options: ConfirmDialogOptions) {
     ? isTrustedAlertHtml(options.html)
       ? options.html.html
       : options.html
-    : undefined;
+    : options.details
+      ? formatConfirmDetailsHtml(options.details, options.text)
+      : undefined;
 
   const popupClass =
     options.popupSize === "large"
@@ -1452,9 +919,9 @@ export function showConfirmDialog(options: ConfirmDialogOptions) {
     cancelButtonText: options.cancelText ?? "Hủy bỏ",
     reverseButtons: options.reverseButtons ?? false,
     customClass: {
-      popup: popupClass,
+      popup: `${popupClass} vs-confirm-popup`,
       title: SWAL_TITLE_CLASS,
-      htmlContainer: resolvedHtml ? SWAL_HTML_CONTAINER_LEFT_CLASS : SWAL_HTML_CONTAINER_CLASS,
+      htmlContainer: `${resolvedHtml ? SWAL_HTML_CONTAINER_LEFT_CLASS : SWAL_HTML_CONTAINER_CLASS} whitespace-pre-line`,
       confirmButton: isDanger ? SWAL_DANGER_BTN_CLASS : SWAL_CONFIRM_BTN_CLASS,
       cancelButton: SWAL_CANCEL_BTN_CLASS,
       actions: SWAL_ACTIONS_CLASS,

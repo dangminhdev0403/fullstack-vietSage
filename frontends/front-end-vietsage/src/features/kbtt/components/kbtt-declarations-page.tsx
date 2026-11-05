@@ -932,11 +932,11 @@ export function KbttDeclarationsPage({
     async (generateNewIdentityNumbers = false) => {
       const confirm = await showConfirmDialog({
         title: generateNewIdentityNumbers
-          ? "Tạo mới Số giấy tờ & Đặt lại chưa gửi"
-          : "Đổi trạng thái về Chưa gửi",
+          ? "Tạo số giấy tờ mới?"
+          : "Đặt lại toàn bộ hồ sơ?",
         text: generateNewIdentityNumbers
-          ? "Bạn có chắc muốn tự động tạo số CCCD / Hộ chiếu mới hợp lệ cho tất cả khách và chuyển toàn bộ hồ sơ về trạng thái Chưa gửi không?"
-          : "Bạn có chắc muốn chuyển toàn bộ hồ sơ đã gửi về trạng thái Chưa gửi để thực hiện gửi lại cổng khai báo không?",
+          ? "Thay số giấy tờ của tất cả khách và đưa toàn bộ hồ sơ về Chưa gửi."
+          : "Đưa toàn bộ hồ sơ đã gửi về Chưa gửi. Gửi lại có thể tạo khai báo trùng.",
         confirmText: generateNewIdentityNumbers
           ? "Tạo mới & Đặt lại"
           : "Chuyển về Chưa gửi",

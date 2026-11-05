@@ -126,6 +126,13 @@ export function WorkspaceShell({
     [unreadCount],
   );
 
+  const isMoreActive = useMemo(
+    () =>
+      effectiveNavItems.length > 4 &&
+      effectiveNavItems.slice(3).some((item) => isNavItemActive(item.href, activePath, effectiveNavItems)),
+    [effectiveNavItems, activePath],
+  );
+
   return (
     <div
       className={`relative min-h-screen overflow-hidden bg-[#f5f1e8] text-[#17201b] ${
@@ -178,17 +185,22 @@ export function WorkspaceShell({
           {children}
         </div>
       </main>
-      <nav aria-label="Điều hướng" className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 flex items-stretch justify-around gap-1 rounded-2xl border border-[#e8b363]/15 bg-[#17201b]/95 p-2 text-[#fff8e8] shadow-[0_18px_50px_rgba(232,179,99,0.18),0_18px_50px_rgba(23,32,27,0.28)] backdrop-blur-xl print:hidden md:hidden">
+      <nav aria-label="Điều hướng" className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 flex items-stretch justify-around gap-1 rounded-2xl border border-outline-variant/60 bg-surface-container-lowest/95 p-2 text-on-surface shadow-lg shadow-primary/10 backdrop-blur-xl print:hidden md:hidden">
         {effectiveNavItems.slice(0, effectiveNavItems.length > 4 ? 3 : 4).map((item) => {
           const active = isNavItemActive(item.href, activePath, effectiveNavItems);
           const badge = badgeByKey[item.key] ?? 0;
+          const mobileLabel = item.label === "Tài chính & đối soát"
+            ? "Tài chính"
+            : item.label === "Báo cáo & Phân tích" ? "Báo cáo" : item.label;
           return (
             <Link
               key={item.key}
               href={item.href}
+              aria-current={active ? "page" : undefined}
+              aria-label={item.label}
               prefetch={true}
-              className={`relative flex min-h-11 min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-1 py-2 text-center text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
-                active ? "bg-[#f8f1e6] text-[#17201b]" : "text-[#d7cbb8]"
+              className={`relative flex min-h-11 min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-1 py-2 text-center text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25483f] ${
+                active ? "bg-primary-fixed text-on-primary-fixed font-bold" : "text-on-surface-variant hover:bg-primary-fixed/60 hover:text-primary"
               }`}
             >
               <span className="relative">
@@ -202,30 +214,44 @@ export function WorkspaceShell({
                   </span>
                 ) : null}
               </span>
-              <span className="max-w-full truncate">{item.label}</span>
+              <span className="line-clamp-2 max-w-full break-words leading-tight">{mobileLabel}</span>
             </Link>
           );
         })}
         {effectiveNavItems.length > 4 ? (
           <details className="group min-w-0 flex-1">
-            <summary className="flex min-h-11 cursor-pointer list-none flex-col items-center gap-1 rounded-xl px-1 py-2 text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-white [&::-webkit-details-marker]:hidden">
+            <summary className={`flex min-h-11 cursor-pointer list-none flex-col items-center gap-1 rounded-xl px-1 py-2 text-center text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25483f] [&::-webkit-details-marker]:hidden ${
+              isMoreActive ? "bg-primary-fixed text-on-primary-fixed font-bold" : "text-on-surface-variant hover:bg-primary-fixed/60 hover:text-primary"
+            }`}>
               <VsIcon name="menu" className="text-xl" />
               <span className="whitespace-nowrap">Thêm</span>
             </summary>
-            <div className="absolute inset-x-0 bottom-full mb-3 max-h-[calc(100dvh-10rem)] overflow-y-auto overscroll-contain rounded-2xl border border-white/20 bg-[#17201b] p-2 shadow-xl">
-              {effectiveNavItems.slice(3).map((item) => (
-                <Link
-                  key={item.key}
-                  href={item.href}
-                  aria-current={isNavItemActive(item.href, activePath, effectiveNavItems) ? "page" : undefined}
-                  onClick={(event) => event.currentTarget.closest("details")?.removeAttribute("open")}
-                  className="flex min-h-11 items-center gap-3 rounded-xl px-3 py-3 text-base font-semibold hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
-                >
-                  <VsIcon name={item.icon} className="text-xl" />
-                  <span className="min-w-0 flex-1 break-words">{item.label}</span>
-                  {(badgeByKey[item.key] ?? 0) > 0 ? <span className="text-sm">{badgeByKey[item.key]}</span> : null}
-                </Link>
-              ))}
+            <div className="absolute inset-x-0 bottom-full mb-3 max-h-[calc(100dvh-10rem)] overflow-y-auto overscroll-contain rounded-2xl border border-outline-variant/60 bg-surface-container-lowest p-2 shadow-lg shadow-primary/10">
+              {effectiveNavItems.slice(3).map((item) => {
+                const active = isNavItemActive(item.href, activePath, effectiveNavItems);
+                const badge = badgeByKey[item.key] ?? 0;
+                return (
+                  <Link
+                    key={item.key}
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    onClick={(event) => event.currentTarget.closest("details")?.removeAttribute("open")}
+                    className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-3 text-base font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#25483f] ${
+                      active
+                        ? "bg-[#25483f]/10 text-[#25483f] font-semibold"
+                        : "text-[#24332c] hover:bg-[#25483f]/6 hover:text-[#17201b]"
+                    }`}
+                  >
+                    <VsIcon name={item.icon} className={`text-xl ${active ? "text-[#25483f]" : "text-[#41554a]"}`} />
+                    <span className="min-w-0 flex-1 break-words">{item.label}</span>
+                    {badge > 0 ? (
+                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#e8b363] px-1.5 text-xs font-bold text-[#17201b]">
+                        {badge > 99 ? "99+" : badge}
+                      </span>
+                    ) : null}
+                  </Link>
+                );
+              })}
             </div>
           </details>
         ) : null}

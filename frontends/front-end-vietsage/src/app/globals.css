@@ -384,6 +384,108 @@ p.text-center {
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease !important;
 }
 
+/* Confirmations summarize the decision; record details stay in their source view. */
+.swal2-popup.vs-confirm-popup {
+  padding: 1.25rem !important;
+  max-height: calc(100dvh - 2rem);
+}
+
+.vs-confirm-popup .swal2-icon {
+  font-size: 12px !important;
+  width: 3.5em !important;
+  height: 3.5em !important;
+  margin: 0 auto 0.75rem !important;
+  flex-shrink: 0;
+}
+
+.vs-confirm-popup .swal2-icon .swal2-icon-content {
+  font-size: 2.25em !important;
+}
+
+.vs-confirm-popup .swal2-title {
+  padding: 0 !important;
+  font-size: 1.5rem !important;
+  color: var(--on-surface);
+}
+
+.vs-confirm-popup .swal2-html-container {
+  padding: 0 !important;
+  font-size: 1rem !important;
+  line-height: 1.5;
+  min-height: 0;
+  white-space: pre-line;
+}
+
+.vs-confirm-summary {
+  text-align: left;
+  white-space: normal;
+}
+
+.vs-confirm-summary dl {
+  margin: 0;
+}
+
+.vs-confirm-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr);
+  align-items: baseline;
+  gap: 0.5rem 1rem;
+  padding: 0.625rem 0;
+  border-bottom: 1px solid var(--surface-container-high);
+}
+
+.vs-confirm-row:last-child {
+  border-bottom: 0;
+}
+
+.vs-confirm-row dt {
+  color: var(--on-surface-variant);
+  font-size: 0.875rem;
+}
+
+.vs-confirm-row dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--on-surface);
+  overflow-wrap: anywhere;
+}
+
+.vs-confirm-notice {
+  margin: 0.75rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--outline-variant);
+  color: var(--on-surface-variant);
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.vs-confirm-popup .swal2-actions {
+  gap: 0.5rem;
+  margin-top: 1rem !important;
+  padding-top: 0 !important;
+  border: 0;
+}
+
+.vs-confirm-popup .swal2-actions button {
+  min-height: 44px;
+  margin: 0;
+  padding: 0.625rem 1rem;
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 359px) {
+  .vs-confirm-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.125rem;
+  }
+
+  .vs-confirm-popup .swal2-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 /* 1. Success - Bright Luminous Emerald */
 .swal2-icon.swal2-success {
   border-color: #10b981 !important;

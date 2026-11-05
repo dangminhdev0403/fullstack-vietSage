@@ -4350,24 +4350,10 @@ export function StaffRoomsClient({
       void showConfirmDialog({
         icon: "warning",
         title: `Nhận phòng P.${getRoomNumber(room)}?`,
-        html: `
-          <div class="w-full text-left space-y-3 font-sans pt-1">
-            <div class="rounded-2xl border border-amber-200/90 bg-amber-50/70 p-3.5 sm:p-4 space-y-2.5 shadow-2xs">
-              <div class="flex items-center justify-between text-xs">
-                <span class="font-semibold text-amber-800">Phòng thao tác</span>
-                <span class="px-2.5 py-0.5 rounded-lg bg-white border border-amber-300 text-amber-900 font-bold text-xs sm:text-sm">Phòng ${escapeHtml(getRoomNumber(room))}</span>
-              </div>
-              <div class="flex items-center justify-between text-xs">
-                <span class="font-semibold text-amber-800">Khách đã đặt trước</span>
-                <strong class="text-slate-900 text-sm font-bold truncate max-w-[200px]">${escapeHtml(guestName)}</strong>
-              </div>
-              <div class="flex items-center justify-between text-xs">
-                <span class="font-semibold text-amber-800">Giờ nhận dự kiến</span>
-                <span class="font-bold text-slate-700 text-xs sm:text-sm">${escapeHtml(checkInTime)}</span>
-              </div>
-            </div>
-          </div>
-        `,
+        details: [
+          { label: "Khách đã đặt", value: guestName },
+          { label: "Giờ dự kiến", value: checkInTime },
+        ],
         confirmText: "Nhận phòng",
         cancelText: "Hủy bỏ",
       }).then((confirmation) => {

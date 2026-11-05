@@ -155,8 +155,8 @@ export function OwnerNearbyProvidersClient({
         ? "Xác nhận kết nối đối tác?"
         : "Xác nhận ngắt kết nối?",
       text: isConnecting
-        ? `Bạn có chắc chắn muốn kết nối với đối tác "${displayName}"? Dịch vụ từ đối tác này sẽ hiển thị cho khách lưu trú của khách sạn.`
-        : `Bạn có chắc chắn muốn ngắt kết nối với đối tác "${displayName}"? Khách lưu trú sẽ không còn nhìn thấy dịch vụ này.`,
+        ? `Dịch vụ của “${displayName}” sẽ hiển thị cho khách lưu trú.`
+        : `Khách lưu trú sẽ không còn thấy dịch vụ của “${displayName}”.`,
       confirmText: isConnecting ? "Kết nối đối tác" : "Ngắt kết nối",
       cancelText: "Hủy bỏ",
       reverseButtons: false,

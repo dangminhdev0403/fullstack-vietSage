@@ -1241,34 +1241,24 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
               }
 
               const confirmed = await showConfirmDialog({
-                title: "Xác nhận nhận phòng?",
-                text: (() => {
+                title: "Nhận phòng?",
+                icon: "question",
+                details: (() => {
                   const partyCount = 1 + normalizedOccupants.length;
-                  const reservationCode = initialStayFields?.reservationCode;
                   const inSchedule = initialStayFields?.plannedCheckInAt
                     ? toDisplayVnDate(initialStayFields.plannedCheckInAt)
                     : "Hôm nay";
                   const outSchedule = fields.plannedCheckOutAt
                     ? toDisplayVnDate(fields.plannedCheckOutAt)
                     : "Theo quy định";
-                  const notesText =
-                    initialStayFields?.notes ||
-                    "Không có ghi chú";
-                  const roomCapacity =
-                    room.maxOccupancy ? `${room.maxOccupancy} khách` : "Chưa thiết lập";
-
                   return [
-                    `• Khách đại diện: ${fields.guestDisplayName || "Chưa nhập tên"}${fields.guestPhone ? ` (${fields.guestPhone})` : ""}`,
-                    `• Mã đặt phòng: ${reservationCode ? `#${reservationCode}` : "Khách vãng lai"}`,
-                    `• Phòng: Phòng ${room.roomNumber}`,
-                    `• Hạng phòng: ${room.type || "Tiêu chuẩn"}`,
-                    `• Sức chứa: ${roomCapacity}`,
-                    `• Lịch trình: ${inSchedule} – ${outSchedule}`,
-                    `• Đoàn lưu trú: ${partyCount} khách (1 chính${normalizedOccupants.length > 0 ? ` + ${normalizedOccupants.length} đi cùng` : ""})`,
-                    `• Ghi chú: ${notesText}`,
-                  ].join("\n");
+                    { label: "Khách đại diện", value: fields.guestDisplayName },
+                    { label: "Phòng", value: room.roomNumber },
+                    { label: "Lưu trú", value: `${inSchedule} – ${outSchedule}` },
+                    { label: "Số khách", value: `${partyCount} khách` },
+                  ];
                 })(),
-                confirmText: "Hoàn tất nhận phòng",
+                confirmText: "Nhận phòng",
                 cancelText: "Hủy bỏ",
                 reverseButtons: false,
               });

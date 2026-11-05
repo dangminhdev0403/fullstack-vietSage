@@ -29,7 +29,6 @@ import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { RoomCheckoutSettlementModal } from "./room-checkout-settlement-modal";
 import type { HotelRoomSummary } from "@/features/hotel-ops/types/hotel-ops-contract";
 import {
-  escapeHtml,
   showConfirmDialog,
   showErrorAlert,
   showSuccessAlert,
@@ -981,14 +980,11 @@ function GroupCheckInForm({
     const confirm = await showConfirmDialog({
       icon: "question",
       title: "Nhận phòng đoàn?",
-      html: `
-        <div style="text-align: left; font-size: 14px; line-height: 1.6; color: #334155;">
-          <p><strong>${roomsState.length} phòng</strong> · ${totalGuestsCount} khách · Đoàn <strong>#${escapeHtml(groupCode)}</strong></p>
-          <ul style="margin: 8px 0; padding-left: 20px; color: #0f172a; font-weight: 600;">
-            <li>Đã có CCCD: ${roomsWithCccd}/${roomsState.length} phòng</li>
-          </ul>
-        </div>
-      `,
+      details: [
+        { label: "Đoàn", value: groupCode },
+        { label: "Nhận phòng", value: `${roomsState.length} phòng · ${totalGuestsCount} khách` },
+        { label: "Đã có CCCD", value: `${roomsWithCccd}/${roomsState.length} phòng` },
+      ],
       confirmText: `Nhận phòng ${roomsState.length} phòng`,
       cancelText: "Kiểm tra lại",
       reverseButtons: false,

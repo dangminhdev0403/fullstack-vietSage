@@ -27,7 +27,7 @@ export function VsBottomNav({ active }: VsBottomNavProps) {
   return (
     <nav
       aria-label="Guest navigation"
-      className="fixed bottom-0 left-0 right-0 z-50 rounded-t-xl border-t border-[#25483f]/10 bg-[#fffdfa]/92 px-4 shadow-[0_-12px_36px_rgba(31,61,53,0.1)] backdrop-blur-xl md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 rounded-t-xl border-t border-outline-variant/60 bg-surface-container-lowest/95 px-4 shadow-[0_-12px_36px_rgba(31,61,53,0.1)] backdrop-blur-xl md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <ul
@@ -41,10 +41,10 @@ export function VsBottomNav({ active }: VsBottomNavProps) {
               <Link
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}
-                className={`relative mx-auto flex min-h-11 w-full max-w-24 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26] ${
+                className={`relative mx-auto flex min-h-11 w-full max-w-24 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26] ${
                   isActive
-                    ? "bg-[#25483f]/9 text-[#25483f]"
-                    : "text-[#66736b] hover:bg-[#25483f]/6 hover:text-[#25483f]"
+                    ? "bg-primary-fixed text-on-primary-fixed"
+                    : "text-on-surface-variant hover:bg-primary-fixed/60 hover:text-primary"
                 }`}
               >
                 <span className="relative">

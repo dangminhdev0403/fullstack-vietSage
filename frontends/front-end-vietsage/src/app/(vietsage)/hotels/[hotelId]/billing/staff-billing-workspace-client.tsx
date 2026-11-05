@@ -1175,25 +1175,12 @@ export function StaffBillingWorkspaceClient({
     const confirm = await showConfirmDialog({
       icon: "question",
       title: `Thanh toán đoàn ${foliosToSettle.length} phòng?`,
-      html: `
-        <div style="text-align: left; font-size: 14px; line-height: 1.6; color: #334155;">
-          <div style="margin: 8px 0; padding: 10px; background-color: #f1f5f9; border-radius: 8px; font-weight: 700; color: #0f172a; max-height: 100px; overflow-y: auto;">
-            ${escapeHtml(roomNames)}
-          </div>
-          <div style="margin-top: 8px; font-size: 15px; font-weight: 800; color: #047857;">
-            Tổng tiền: ${formatMoney(computedGroupTotal, currency)}
-          </div>
-          <p style="margin-top: 6px; font-size: 13px; color: #64748b;">
-            Phương thức thanh toán: <strong>${
-              checkoutPaymentMethod === "CASH"
-                ? "Tiền mặt (TM)"
-                : checkoutPaymentMethod === "BANK_TRANSFER"
-                ? "Chuyển khoản (CK)"
-                : "Quẹt thẻ POS"
-            }</strong>
-          </p>
-        </div>
-      `,
+      details: [
+        { label: "Phòng", value: roomNames },
+        { label: "Tổng tiền", value: formatMoney(computedGroupTotal, currency) },
+        { label: "Thanh toán", value: checkoutPaymentMethod === "CASH"
+          ? "Tiền mặt" : checkoutPaymentMethod === "BANK_TRANSFER" ? "Chuyển khoản" : "Thẻ POS" },
+      ],
       confirmText: `Thanh toán ${foliosToSettle.length} phòng`,
       cancelText: "Hủy bỏ",
       reverseButtons: false,

@@ -46,7 +46,11 @@ export function ChannexPropertyConfigCard({
     if (unpricedTypes.length > 0) {
       const warning = await showConfirmDialog({
         title: "Cảnh báo: Hạng phòng chưa có giá",
-        text: `Các hạng phòng sau chưa có giá cơ sở trong PMS: ${unpricedTypes.join(", ")}. Nếu tiếp tục, hệ thống sẽ tự động gán giá sàn an toàn (500.000 ₫ hoặc tương đương) và tự động khóa bán (Stop Sell Lock) 365 ngày để bảo vệ doanh thu khách sạn. Bạn có muốn tiếp tục không?`,
+        details: [
+          { label: "Chưa có giá", value: unpricedTypes.join(", ") },
+          { label: "Giá sàn", value: "500.000 ₫ hoặc tương đương" },
+        ],
+        text: "Các hạng phòng này sẽ được gán giá sàn và khóa bán 365 ngày.",
         confirmText: "Tiếp tục với giá sàn",
         cancelText: "Hủy để đặt giá",
         icon: "warning",

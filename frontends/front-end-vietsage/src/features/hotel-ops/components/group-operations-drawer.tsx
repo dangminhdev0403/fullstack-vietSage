@@ -678,15 +678,11 @@ export function GroupOperationsDrawer({
     const confirm = await showConfirmDialog({
       icon: "warning",
       title: "Xác nhận trả phòng hàng loạt?",
-      html: `
-        <div style="text-align: left; font-size: 14px; line-height: 1.6; color: #334155;">
-          <p>Bạn đang chuẩn bị trả phòng đồng thời cho <strong>${targetItems.length} phòng</strong> thuộc đoàn <strong>#${escapeHtml(activeGroupCode)}</strong>:</p>
-          <div style="margin: 10px 0; padding: 10px; background-color: #f1f5f9; border-radius: 8px; font-weight: 600; color: #0f172a; max-height: 120px; overflow-y: auto;">
-            ${escapeHtml(roomNames)}
-          </div>
-          <p style="color: #64748b; font-size: 13px;">Các phòng sau khi trả sẽ chuyển sang trạng thái chờ dọn dẹp để phục vụ lượt khách kế tiếp.</p>
-        </div>
-      `,
+      details: [
+        { label: "Đoàn", value: activeGroupCode },
+        { label: "Phòng trả", value: roomNames },
+      ],
+      text: "Các phòng chuyển sang Chờ dọn.",
       confirmText: `Trả phòng ${targetItems.length} phòng`,
       cancelText: "Hủy bỏ",
       reverseButtons: false,
@@ -785,12 +781,11 @@ export function GroupOperationsDrawer({
     const confirm = await showConfirmDialog({
       icon: "warning",
       title: "Xác nhận trả phòng?",
-      html: `
-        <div style="text-align: left; font-size: 14px; line-height: 1.6; color: #334155;">
-          <p>Xác nhận trả phòng cho khách <strong>${escapeHtml(item.guestDisplayName)}</strong> (${escapeHtml(roomLabel)})?</p>
-          <p style="color: #64748b; font-size: 12px; margin-top: 8px;">Phòng sau khi trả sẽ chuyển sang trạng thái chờ dọn dẹp để phục vụ lượt khách kế tiếp.</p>
-        </div>
-      `,
+      details: [
+        { label: "Khách", value: item.guestDisplayName },
+        { label: "Phòng", value: roomLabel },
+      ],
+      text: "Phòng chuyển sang Chờ dọn.",
       confirmText: "Trả phòng",
       cancelText: "Hủy bỏ",
       reverseButtons: false,

@@ -306,16 +306,11 @@ export function DailyMovementsModal({
 
       const res = await showConfirmDialog({
         title: `Trả phòng (Check-out) Phòng ${room.roomNumber || room.id}?`,
-        html: `
-          <div style="font-size:14px;color:#475569;text-align:left;line-height:1.6">
-            <p><strong>Khách hàng:</strong> ${stay.guestDisplayName || "Chưa có tên"}</p>
-            <p><strong>Thời gian nhận phòng:</strong> ${formatDateTimeVi(stay.checkedInAt)}</p>
-            <p><strong>Dự kiến trả phòng:</strong> ${formatDateTimeVi(stay.plannedCheckOutAt)}</p>
-            <p style="margin-top:12px;color:#0f172a;font-weight:600">
-              Bạn có muốn trả phòng nhanh ngay bây giờ? Phòng sẽ chuyển sang trạng thái <strong>Chờ dọn dẹp</strong>.
-            </p>
-          </div>
-        `,
+        details: [
+          { label: "Khách", value: stay.guestDisplayName },
+          { label: "Hạn trả", value: formatDateTimeVi(stay.plannedCheckOutAt) },
+        ],
+        text: "Phòng chuyển sang Chờ dọn.",
         confirmText: "Xác nhận trả phòng",
         cancelText: "Hủy bỏ",
         confirmVariant: "danger",
@@ -1212,13 +1207,10 @@ function AssignOrSwapRoomSubModal({
 
     const confirmRes = await showConfirmDialog({
       title: "Xác nhận tráo phòng giữa 2 khách",
-      html: `
-        <div style="font-size:14px;color:#334155;text-align:left;line-height:1.7">
-          <p>• Khách <strong>${arrival.guestDisplayName}</strong> sẽ đổi sang <strong>Phòng ${targetRoomNum}</strong></p>
-          <p>• Khách <strong>${targetSwap.guestDisplayName}</strong> sẽ nhận <strong>Phòng ${currentRoomNum}</strong></p>
-          <p style="margin-top:10px;color:#b45309;font-weight:600">Bạn có chắc chắn muốn thực hiện thao tác tráo đổi này?</p>
-        </div>
-      `,
+      details: [
+        { label: arrival.guestDisplayName, value: `P.${currentRoomNum} → P.${targetRoomNum}` },
+        { label: targetSwap.guestDisplayName, value: `P.${targetRoomNum} → P.${currentRoomNum}` },
+      ],
       confirmText: "Xác nhận tráo phòng",
       cancelText: "Hủy",
     });

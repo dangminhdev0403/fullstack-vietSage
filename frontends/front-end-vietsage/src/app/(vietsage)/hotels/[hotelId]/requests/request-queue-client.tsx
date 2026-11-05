@@ -53,6 +53,7 @@ import {
 import { printMarketplaceVoucherTicket } from "@/features/marketplace/utils/print-voucher";
 import {
   SwalVietSage,
+  showConfirmDialog,
   showErrorAlert,
   showSuccessAlert,
 } from "@/libs/swal";
@@ -1184,39 +1185,18 @@ export function RequestQueueClient({
     const items = getCanonicalOrderItems(order);
     const financials = calculateOrderFinancials(order, items);
 
-    const itemsSummaryHtml = items
-      .map(
-        (it) => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px dashed #e2e8f0;font-size:12px">
-        <span style="font-weight:600;color:#0f172a">${it.serviceName} <span style="color:#64748b">×${it.quantity}</span></span>
-        <span style="font-weight:700;color:#334155">${(Number(it.unitPrice) * Number(it.quantity)).toLocaleString("vi-VN")} ${financials.currency}</span>
-      </div>
-    `,
-      )
-      .join("");
-
-    const isConfirmed = await SwalVietSage.fire({
-      title: `<span style="font-size:17px;font-weight:800;color:#0f172a">Xác nhận tiếp nhận đơn #${order.orderNumber}?</span>`,
-      html: `
-        <div style="text-align:left;font-size:13px;color:#334155;line-height:1.6;display:grid;gap:8px;padding-top:4px;">
-          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;">
-            <p style="margin:0 0 4px 0;font-size:12px;font-weight:800;text-transform:uppercase;color:#64748b">Dịch vụ yêu cầu (${items.length}):</p>
-            ${itemsSummaryHtml}
-          </div>
-          <p style="margin:0"><b>Đối tác:</b> ${order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ"}</p>
-          <p style="margin:0"><b>Khách / Phòng:</b> Phòng ${order.stay?.room?.roomNumber ?? "-"} (${order.stay?.guestDisplayName ?? "Khách lưu trú"})</p>
-          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 10px;font-size:12px;display:grid;gap:2px">
-            <div style="display:flex;justify-content:space-between"><span>Tạm tính đối tác:</span><b style="color:#1e293b">${financials.partnerSubtotal.toLocaleString("vi-VN")} ${financials.currency}</b></div>
-            <div style="display:flex;justify-content:space-between"><span>Phí khách sạn (10%):</span><b style="color:#0284c7">+${financials.hotelFee.toLocaleString("vi-VN")} ${financials.currency}</b></div>
-            <div style="display:flex;justify-content:space-between;border-top:1px solid #86efac;padding-top:4px;margin-top:2px;font-size:13px"><span style="font-weight:700">Tổng thu khách:</span><b style="color:#047857">${financials.customerTotal.toLocaleString("vi-VN")} ${financials.currency}</b></div>
-          </div>
-        </div>
-      `,
+    const isConfirmed = await showConfirmDialog({
+      title: `Tiếp nhận đơn #${order.orderNumber}?`,
       icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Tiếp nhận đơn",
-      cancelButtonText: "Quay lại",
-      reverseButtons: false,
+      details: [
+        { label: "Dịch vụ", value: `${order.serviceNameSnapshot}${items.length > 1 ? ` (+${items.length - 1} mục)` : ""}` },
+        { label: "Khách / Phòng", value: `${order.stay?.guestDisplayName ?? "Khách lưu trú"} · P.${order.stay?.room?.roomNumber ?? "—"}` },
+        { label: "Đối tác", value: order.serviceTenant?.serviceProfile?.displayName },
+        { label: "Tổng thu khách", value: `${financials.customerTotal.toLocaleString("vi-VN")} ${financials.currency}` },
+      ],
+      text: `Giá đối tác: ${financials.partnerSubtotal.toLocaleString("vi-VN")} ${financials.currency} · Phí khách sạn: ${financials.hotelFee.toLocaleString("vi-VN")} ${financials.currency}`,
+      confirmText: "Tiếp nhận đơn",
+      cancelText: "Quay lại",
     });
 
     if (!isConfirmed.isConfirmed) return;
@@ -1246,28 +1226,19 @@ export function RequestQueueClient({
     const items = getCanonicalOrderItems(order);
     const financials = calculateOrderFinancials(order, items);
 
-    const isConfirmed = await SwalVietSage.fire({
-      title: `<span style="font-size:17px;font-weight:800;color:#991b1b">Xác nhận hủy đơn #${order.orderNumber}?</span>`,
-      html: `
-        <div style="text-align:left;font-size:13px;color:#334155;line-height:1.6;display:grid;gap:8px;padding-top:4px;">
-          <p style="margin:0"><b>Dịch vụ:</b> ${order.serviceNameSnapshot}${items.length > 1 ? ` (+${items.length - 1} mục khác)` : ""}</p>
-          <p style="margin:0"><b>Đối tác:</b> ${order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ"}</p>
-          <p style="margin:0"><b>Khách / Phòng:</b> Phòng ${order.stay?.room?.roomNumber ?? "-"} (${order.stay?.guestDisplayName ?? "Khách lưu trú"})</p>
-          <p style="margin:0"><b>Giá trị đơn:</b> ${financials.customerTotal.toLocaleString("vi-VN")} ${financials.currency}</p>
-          <div style="margin-top:6px;padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;font-size:12px;color:#991b1b">
-            Đơn hàng sẽ bị hủy và gửi thông báo tới đối tác & khách hàng.
-          </div>
-        </div>
-      `,
+    const isConfirmed = await showConfirmDialog({
+      title: `Hủy đơn #${order.orderNumber}?`,
       icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Hủy đơn hàng",
-      cancelButtonText: "Quay lại",
-      customClass: {
-        confirmButton:
-          "inline-flex h-11 sm:h-12 items-center justify-center gap-2 rounded-full bg-rose-600 px-7 text-sm sm:text-base font-extrabold text-white shadow-lg shadow-rose-600/25 transition-all hover:bg-rose-700 cursor-pointer mx-1.5 min-w-[120px]",
-      },
-      reverseButtons: false,
+      confirmVariant: "danger",
+      details: [
+        { label: "Dịch vụ", value: `${order.serviceNameSnapshot}${items.length > 1 ? ` (+${items.length - 1} mục)` : ""}` },
+        { label: "Khách / Phòng", value: `${order.stay?.guestDisplayName ?? "Khách lưu trú"} · P.${order.stay?.room?.roomNumber ?? "—"}` },
+        { label: "Đối tác", value: order.serviceTenant?.serviceProfile?.displayName },
+        { label: "Giá trị đơn", value: `${financials.customerTotal.toLocaleString("vi-VN")} ${financials.currency}` },
+      ],
+      text: "Đơn sẽ bị hủy và thông báo tới đối tác, khách hàng.",
+      confirmText: "Hủy đơn hàng",
+      cancelText: "Quay lại",
     });
 
     if (!isConfirmed.isConfirmed) return;
