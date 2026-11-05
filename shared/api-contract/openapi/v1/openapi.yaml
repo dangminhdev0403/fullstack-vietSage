@@ -11843,6 +11843,301 @@ paths:
         "201":
           description: ""
       tags: *a59
+  /hotels/{hotelId}/housekeeping/tasks:
+    get:
+      operationId: HousekeepingController_listTasks
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: limit
+          required: false
+          in: query
+          schema:
+            type: number
+        - name: page
+          required: false
+          in: query
+          schema:
+            type: number
+        - name: assignedToUserId
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: roomId
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: priority
+          required: false
+          in: query
+          schema:
+            enum:
+              - NORMAL
+              - URGENT
+            type: string
+        - name: status
+          required: false
+          in: query
+          schema:
+            enum:
+              - QUEUED
+              - CLAIMED
+              - IN_PROGRESS
+              - BLOCKED
+              - COMPLETED
+              - CANCELLED
+            type: string
+      responses:
+        "200":
+          description: Danh sách công việc buồng phòng
+      tags: &a60
+        - housekeeping
+    post:
+      operationId: HousekeepingController_createTask
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - roomId
+      responses:
+        "201":
+          description: Đã tạo công việc buồng phòng
+      tags: *a60
+  /hotels/{hotelId}/housekeeping/tasks/summary:
+    get:
+      operationId: HousekeepingController_getTasksSummary
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Tổng quan công việc buồng phòng
+      tags: *a60
+  /hotels/{hotelId}/housekeeping/tasks/{taskId}:
+    get:
+      operationId: HousekeepingController_getTaskDetail
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: taskId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Chi tiết công việc buồng phòng
+      tags: *a60
+  /hotels/{hotelId}/housekeeping/tasks/{taskId}/claim:
+    post:
+      operationId: HousekeepingController_claimTask
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: taskId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expectedVersion:
+                  type: integer
+      responses:
+        "200":
+          description: Đã nhận công việc dọn phòng
+      tags: *a60
+  /hotels/{hotelId}/housekeeping/tasks/{taskId}/start:
+    post:
+      operationId: HousekeepingController_startTask
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: taskId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expectedVersion:
+                  type: integer
+      responses:
+        "200":
+          description: Đã bắt đầu công việc dọn phòng
+      tags: *a60
+  /hotels/{hotelId}/housekeeping/tasks/{taskId}/block:
+    post:
+      operationId: HousekeepingController_blockTask
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: taskId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                notes:
+                  type: string
+                expectedVersion:
+                  type: integer
+      responses:
+        "200":
+          description: Đã tạm dừng công việc dọn phòng
+      tags: *a60
+  /hotels/{hotelId}/housekeeping/tasks/{taskId}/complete:
+    post:
+      operationId: HousekeepingController_completeTask
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: taskId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                expectedVersion:
+                  type: integer
+      responses:
+        "200":
+          description: Đã hoàn thành công việc và cập nhật phòng AVAILABLE
+      tags: *a60
+  /hotels/{hotelId}/housekeeping/tasks/{taskId}/reopen:
+    post:
+      operationId: HousekeepingController_reopenTask
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: taskId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                expectedVersion:
+                  type: integer
+      responses:
+        "200":
+          description: Đã mở lại công việc dọn phòng
+      tags: *a60
+  /hotels/{hotelId}/housekeeping/notifications:
+    get:
+      operationId: HousekeepingController_listNotifications
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: limit
+          required: false
+          in: query
+          schema:
+            type: number
+        - name: status
+          required: false
+          in: query
+          schema:
+            enum:
+              - UNREAD
+              - READ
+              - DISMISSED
+            type: string
+      responses:
+        "200":
+          description: Danh sách thông báo buồng phòng
+      tags: *a60
+  /hotels/{hotelId}/housekeeping/notifications/{notificationId}/read:
+    patch:
+      operationId: HousekeepingController_markNotificationRead
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: notificationId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Đã đánh dấu thông báo đã đọc
+      tags: *a60
 info:
   title: VietSage Auth Service API
   description: HTTP API contract for auth, rbac, and hotel-users modules

@@ -17,6 +17,29 @@ export type ExternalServiceOrderItemPayload = {
   customerTotalAmount?: number | string;
 };
 
+export type HousekeepingTaskPayload = {
+  eventId?: string;
+  hotelId: string;
+  taskId: string;
+  roomId?: string | null;
+  roomNumber?: string | null;
+  taskType?: string | null;
+  status?: string;
+  previousStatus?: string | null;
+  assignedStaffId?: string | null;
+  assignedStaffName?: string | null;
+  assignedToStaffId?: string | null;
+  assignedToStaffName?: string | null;
+  priority?: string | null;
+  note?: string | null;
+  notes?: string | null;
+  reason?: string | null;
+  createdAt?: string | Date | null;
+  updatedAt?: string | Date | null;
+  metadata?: Record<string, unknown> | null;
+  [key: string]: unknown;
+};
+
 export type ExternalServiceOrderPayload = {
   eventId?: string;
   orderId: string;
@@ -415,6 +438,80 @@ export class RequestRealtimeEmitter {
         ?.to(this.ownerRoomChannel(input.hotelId, input.roomId))
         .emit("room_status.updated", payload);
     }
+  }
+
+  private static formatIsoTimestamp(value?: string | Date | null): string {
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    if (typeof value === "string" && value) {
+      return value;
+    }
+    return new Date().toISOString();
+  }
+
+  private static emitHousekeepingTaskEvent(
+    eventName: string,
+    defaultStatus: string,
+    input: HousekeepingTaskPayload,
+  ) {
+    const eventId = input.eventId ?? randomUUID();
+    const taskId = input.taskId || (input as { id?: string }).id || randomUUID();
+    const payload = {
+      ...input,
+      eventId,
+      taskId,
+      status: input.status ?? defaultStatus,
+      assignedStaffId: input.assignedStaffId ?? input.assignedToStaffId ?? null,
+      assignedStaffName: input.assignedStaffName ?? input.assignedToStaffName ?? null,
+      createdAt: this.formatIsoTimestamp(input.createdAt),
+      updatedAt: this.formatIsoTimestamp(input.updatedAt),
+    };
+
+    this.serverRef?.to(this.ownerHotelRoom(input.hotelId)).emit(eventName, payload);
+    if (input.roomId) {
+      this.serverRef
+        ?.to(this.ownerRoomChannel(input.hotelId, input.roomId))
+        .emit(eventName, payload);
+    }
+    return payload;
+  }
+
+  static emitHousekeepingTaskCreated(input: HousekeepingTaskPayload) {
+    return this.emitHousekeepingTaskEvent("housekeeping_task.created", "CREATED", input);
+  }
+
+  static emitHousekeepingTaskClaimed(input: HousekeepingTaskPayload) {
+    return this.emitHousekeepingTaskEvent("housekeeping_task.claimed", "CLAIMED", input);
+  }
+
+  static emitHousekeepingTaskStarted(input: HousekeepingTaskPayload) {
+    return this.emitHousekeepingTaskEvent("housekeeping_task.started", "IN_PROGRESS", input);
+  }
+
+  static emitHousekeepingTaskBlocked(input: HousekeepingTaskPayload) {
+    return this.emitHousekeepingTaskEvent("housekeeping_task.blocked", "BLOCKED", input);
+  }
+
+  static emitHousekeepingTaskCompleted(input: HousekeepingTaskPayload) {
+    return this.emitHousekeepingTaskEvent("housekeeping_task.completed", "COMPLETED", input);
+  }
+
+  static emitHousekeepingTaskReopened(input: HousekeepingTaskPayload) {
+    return this.emitHousekeepingTaskEvent("housekeeping_task.reopened", "REOPENED", input);
+  }
+
+  static async emitAfterTransaction<T>(
+    transactionPromise: Promise<T>,
+    emitAction: (result: T) => void,
+  ): Promise<T> {
+    const result = await transactionPromise;
+    try {
+      emitAction(result);
+    } catch {
+      // realtime emit failure must not fail the completed transaction
+    }
+    return result;
   }
 
   static ownerHotelRoom(hotelId: string): string {

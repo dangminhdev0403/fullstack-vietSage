@@ -945,6 +945,8 @@ export class HotelRoomsService {
       actorUserId,
       tenantId: hotel.tenantId,
       nextRoomStatus: dto.nextRoomStatus ?? RoomStatus.PROCESSING,
+      cleaningPriority: dto.cleaningPriority,
+      notes: dto.notes,
     });
 
     this.eventPublisher.publishConversationClosed({

@@ -9,6 +9,7 @@ import type { StaffRequestListItem } from "@/features/hotel-ops/types/hotel-ops-
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import { playMessageAlertSound, playRequestAlertSound } from "@/features/request-realtime/audio-notifier";
 import {
+  invalidateHotelHousekeepingRealtimeQueries,
   invalidateHotelMessageRealtimeQueries,
   invalidateHotelRealtimeQueries,
   invalidateHotelRequestRealtimeQueries,
@@ -292,8 +293,137 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
           duration: 4000,
         });
       },
+      onHousekeepingTaskCreated: (event: unknown) => {
+        const raw = event as {
+          hotelId?: string;
+          taskId?: string;
+          roomNumber?: string | null;
+          taskType?: string | null;
+          priority?: string | null;
+          assignedStaffName?: string | null;
+        } | null;
+
+        if (raw?.hotelId && raw.hotelId !== hotelId) return;
+
+        const isUrgent = raw?.priority === "URGENT" || raw?.priority === "HIGH";
+        playRequestAlertSound(isUrgent);
+
+        const roomLabel = raw?.roomNumber ? `Phòng ${raw.roomNumber}` : "Buồng phòng";
+        toast.info("Nhiệm vụ buồng phòng mới", {
+          id: `hotel-ops-housekeeping-created-${raw?.taskId ?? Date.now()}`,
+          description: `${roomLabel} • ${raw?.taskType || "Cần dọn dẹp"}${raw?.assignedStaffName ? ` (giao cho ${raw.assignedStaffName})` : ""}`,
+          duration: isUrgent ? 5000 : 3000,
+        });
+
+        void invalidateHotelHousekeepingRealtimeQueries(targetQueryClient, hotelId);
+      },
+      onHousekeepingTaskClaimed: (event: unknown) => {
+        const raw = event as {
+          hotelId?: string;
+          taskId?: string;
+          roomNumber?: string | null;
+          assignedStaffName?: string | null;
+        } | null;
+
+        if (raw?.hotelId && raw.hotelId !== hotelId) return;
+
+        const roomLabel = raw?.roomNumber ? `Phòng ${raw.roomNumber}` : "Phòng";
+        toast.info("Đã nhận nhiệm vụ dọn phòng", {
+          id: `hotel-ops-housekeeping-claimed-${raw?.taskId ?? Date.now()}`,
+          description: `${roomLabel} • Nhân viên: ${raw?.assignedStaffName || "Nhân viên buồng phòng"}`,
+          duration: 3000,
+        });
+
+        void invalidateHotelHousekeepingRealtimeQueries(targetQueryClient, hotelId);
+      },
+      onHousekeepingTaskStarted: (event: unknown) => {
+        const raw = event as {
+          hotelId?: string;
+          taskId?: string;
+          roomNumber?: string | null;
+          assignedStaffName?: string | null;
+        } | null;
+
+        if (raw?.hotelId && raw.hotelId !== hotelId) return;
+
+        const roomLabel = raw?.roomNumber ? `Phòng ${raw.roomNumber}` : "Phòng";
+        toast.info("Bắt đầu dọn phòng", {
+          id: `hotel-ops-housekeeping-started-${raw?.taskId ?? Date.now()}`,
+          description: `${roomLabel} • Đang tiến hành làm phòng`,
+          duration: 3000,
+        });
+
+        void invalidateHotelHousekeepingRealtimeQueries(targetQueryClient, hotelId);
+      },
+      onHousekeepingTaskBlocked: (event: unknown) => {
+        const raw = event as {
+          hotelId?: string;
+          taskId?: string;
+          roomNumber?: string | null;
+          reason?: string | null;
+          note?: string | null;
+        } | null;
+
+        if (raw?.hotelId && raw.hotelId !== hotelId) return;
+
+        playRequestAlertSound(true);
+
+        const roomLabel = raw?.roomNumber ? `Phòng ${raw.roomNumber}` : "Buồng phòng";
+        const reasonText = raw?.reason || raw?.note || "Sự cố phát sinh";
+
+        toast.warning("Buồng phòng gặp sự cố", {
+          id: `hotel-ops-housekeeping-blocked-${raw?.taskId ?? Date.now()}`,
+          description: `${roomLabel} • Tạm hoãn: ${reasonText}`,
+          duration: 6000,
+        });
+
+        void invalidateHotelHousekeepingRealtimeQueries(targetQueryClient, hotelId);
+      },
+      onHousekeepingTaskCompleted: (event: unknown) => {
+        const raw = event as {
+          hotelId?: string;
+          taskId?: string;
+          roomNumber?: string | null;
+          assignedStaffName?: string | null;
+        } | null;
+
+        if (raw?.hotelId && raw.hotelId !== hotelId) return;
+
+        const roomLabel = raw?.roomNumber ? `Phòng ${raw.roomNumber}` : "Phòng";
+        toast.success("Đã hoàn thành dọn phòng", {
+          id: `hotel-ops-housekeeping-completed-${raw?.taskId ?? Date.now()}`,
+          description: `${roomLabel} • Sẵn sàng kiểm tra / đón khách`,
+          duration: 3000,
+        });
+
+        void invalidateHotelHousekeepingRealtimeQueries(targetQueryClient, hotelId);
+        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+      },
+      onHousekeepingTaskReopened: (event: unknown) => {
+        const raw = event as {
+          hotelId?: string;
+          taskId?: string;
+          roomNumber?: string | null;
+          reason?: string | null;
+        } | null;
+
+        if (raw?.hotelId && raw.hotelId !== hotelId) return;
+
+        playRequestAlertSound(false);
+
+        const roomLabel = raw?.roomNumber ? `Phòng ${raw.roomNumber}` : "Phòng";
+        toast.warning("Mở lại nhiệm vụ buồng phòng", {
+          id: `hotel-ops-housekeeping-reopened-${raw?.taskId ?? Date.now()}`,
+          description: `${roomLabel} • Yêu cầu kiểm tra hoặc dọn lại`,
+          duration: 4000,
+        });
+
+        void invalidateHotelHousekeepingRealtimeQueries(targetQueryClient, hotelId);
+      },
       onReconnect: () => {
         void invalidateHotelRequestRealtimeQueries(targetQueryClient, hotelId);
+        void invalidateHotelHousekeepingRealtimeQueries(targetQueryClient, hotelId);
+        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
       },
     }),
     [hotelId, router, targetQueryClient],

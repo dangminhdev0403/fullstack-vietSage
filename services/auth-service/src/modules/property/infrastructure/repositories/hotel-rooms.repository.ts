@@ -9,6 +9,9 @@ import {
   FolioStatus,
   GuestSessionStatus,
   GuestStayStatus,
+  HousekeepingNotificationStatus,
+  HousekeepingTaskPriority,
+  HousekeepingTaskStatus,
   Prisma,
   ReservationStatus,
   RoomQRCodeStatus,
@@ -17,6 +20,7 @@ import {
 import { getDayBounds } from "../../../../common/time/vietnam-temporal";
 import { countDistinctGuestDevicesByStay } from "../../../../shared/guest-device-identity";
 import { PrismaService } from "../../../../prisma/prisma.service";
+import { RequestRealtimeEmitter } from "../../../../request-realtime.emitter";
 import { inferCitizenshipKind } from "../../domain/infer-citizenship-kind";
 import { roomListInclude, type RoomListRow } from "./hotel-repository.types";
 
@@ -26,6 +30,14 @@ export function getBusinessDateRange(
   timeZone?: string | null,
 ): { start: Date; end: Date } {
   return getDayBounds(dateStr, timeZone);
+}
+
+function emitHousekeepingTaskRealtime(emit: () => void): void {
+  try {
+    emit();
+  } catch {
+    // A socket delivery failure must not turn a committed room transition into an API failure.
+  }
 }
 
 @Injectable()
@@ -956,10 +968,11 @@ export class HotelRoomsRepository {
   }
 
   async confirmRoomReady(hotelId: string, roomId: string, expectedUpdatedAt?: Date) {
-    return this.prisma.$transaction(async (tx) => {
+    const completedHousekeepingTasks: any[] = [];
+    const result = await this.prisma.$transaction(async (tx) => {
       const room = await tx.room.findFirst({
         where: { id: roomId, hotelId },
-        select: { id: true, status: true, updatedAt: true },
+        select: { id: true, roomNumber: true, status: true, updatedAt: true },
       });
 
       if (!room) {
@@ -1008,6 +1021,65 @@ export class HotelRoomsRepository {
         );
       }
 
+      if (typeof tx.housekeepingTask?.updateMany === "function") {
+        const now = new Date();
+        const activeTasks = await tx.housekeepingTask.findMany({
+          where: {
+            hotelId,
+            roomId,
+            status: {
+              in: [
+                HousekeepingTaskStatus.QUEUED,
+                HousekeepingTaskStatus.CLAIMED,
+                HousekeepingTaskStatus.IN_PROGRESS,
+                HousekeepingTaskStatus.BLOCKED,
+              ],
+            },
+          },
+          select: {
+            id: true,
+            status: true,
+            priority: true,
+            assignedToUserId: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+
+        if (activeTasks.length > 0) {
+          completedHousekeepingTasks.push(...activeTasks);
+          await tx.housekeepingTask.updateMany({
+            where: {
+              hotelId,
+              roomId,
+              status: {
+                in: [
+                  HousekeepingTaskStatus.QUEUED,
+                  HousekeepingTaskStatus.CLAIMED,
+                  HousekeepingTaskStatus.IN_PROGRESS,
+                  HousekeepingTaskStatus.BLOCKED,
+                ],
+              },
+            },
+            data: {
+              status: HousekeepingTaskStatus.COMPLETED,
+              completedAt: now,
+            },
+          });
+
+          if (typeof tx.housekeepingTaskHistory?.createMany === "function") {
+            await tx.housekeepingTaskHistory.createMany({
+              data: activeTasks.map((t) => ({
+                taskId: t.id,
+                fromStatus: t.status,
+                toStatus: HousekeepingTaskStatus.COMPLETED,
+                reason: "ROOM_READY_CONFIRMED",
+              })),
+            });
+          }
+        }
+      }
+
       const updatedRoom = await tx.room.findUniqueOrThrow({
         where: { id: roomId },
         include: roomListInclude,
@@ -1015,6 +1087,26 @@ export class HotelRoomsRepository {
 
       return (await this.withActiveGuestDeviceCounts(tx, [updatedRoom]))[0] ?? null;
     });
+
+    for (const task of completedHousekeepingTasks) {
+      emitHousekeepingTaskRealtime(() =>
+        RequestRealtimeEmitter.emitHousekeepingTaskCompleted({
+          hotelId,
+          taskId: task.id,
+          roomId,
+          roomNumber: result?.roomNumber ?? null,
+          status: HousekeepingTaskStatus.COMPLETED,
+          previousStatus: task.status,
+          priority: task.priority ?? null,
+          assignedStaffId: task.assignedToUserId ?? null,
+          reason: "ROOM_READY_CONFIRMED",
+          createdAt: task.createdAt ?? null,
+          updatedAt: task.updatedAt ?? null,
+        }),
+      );
+    }
+
+    return result;
   }
 
   async updateRoomInHotel(
@@ -1865,10 +1957,13 @@ export class HotelRoomsRepository {
     actorUserId: string;
     tenantId: string;
     nextRoomStatus: RoomStatus;
+    cleaningPriority?: "NORMAL" | "URGENT";
+    notes?: string;
   }) {
     const now = new Date();
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
+      let createdHousekeepingTask: any = null;
       const checkedOut = await tx.guestStay.updateMany({
         where: {
           id: input.stayId,
@@ -1898,6 +1993,79 @@ export class HotelRoomsRepository {
       });
       if (roomTransition.count !== 1) {
         throw new ConflictException("Trạng thái phòng đã thay đổi trong lúc check-out");
+      }
+
+      // PROCESSING checkout creates exactly one active cleaning task. MAINTENANCE creates none.
+      if (input.nextRoomStatus === RoomStatus.PROCESSING) {
+        if (typeof tx.housekeepingTask?.findFirst === "function") {
+          const existingActiveTask = await tx.housekeepingTask.findFirst({
+            where: {
+              hotelId: input.hotelId,
+              roomId: input.roomId,
+              status: {
+                in: [
+                  HousekeepingTaskStatus.QUEUED,
+                  HousekeepingTaskStatus.CLAIMED,
+                  HousekeepingTaskStatus.IN_PROGRESS,
+                  HousekeepingTaskStatus.BLOCKED,
+                ],
+              },
+            },
+            select: { id: true },
+          });
+
+          if (!existingActiveTask) {
+            const taskPriority =
+              input.cleaningPriority === "URGENT"
+                ? HousekeepingTaskPriority.URGENT
+                : HousekeepingTaskPriority.NORMAL;
+            const room = await tx.room.findUnique({
+              where: { id: input.roomId },
+              select: { roomNumber: true },
+            });
+
+            const task = await tx.housekeepingTask.create({
+              data: {
+                hotelId: input.hotelId,
+                roomId: input.roomId,
+                stayId: input.stayId,
+                status: HousekeepingTaskStatus.QUEUED,
+                priority: taskPriority,
+                notes: input.notes ?? null,
+                version: 1,
+              },
+            });
+            createdHousekeepingTask = {
+              ...task,
+              roomNumber: room?.roomNumber ?? null,
+            };
+
+            if (typeof tx.housekeepingTaskHistory?.create === "function") {
+              await tx.housekeepingTaskHistory.create({
+                data: {
+                  taskId: task.id,
+                  fromStatus: null,
+                  toStatus: HousekeepingTaskStatus.QUEUED,
+                  actorUserId: input.actorUserId,
+                  reason: "CHECKOUT",
+                  notes: input.notes ?? null,
+                },
+              });
+            }
+
+            if (typeof tx.housekeepingNotification?.create === "function") {
+              await tx.housekeepingNotification.create({
+                data: {
+                  hotelId: input.hotelId,
+                  taskId: task.id,
+                  title: "Yêu cầu dọn phòng mới",
+                  message: `Phòng ${room?.roomNumber ?? ""} vừa check-out, cần dọn dẹp`,
+                  status: HousekeepingNotificationStatus.UNREAD,
+                },
+              });
+            }
+          }
+        }
       }
 
       await tx.guestSession.updateMany({
@@ -1945,8 +2113,31 @@ export class HotelRoomsRepository {
         payload: { stayId: input.stayId, reason: "CHECKOUT" },
       });
 
-      return tx.guestStay.findUniqueOrThrow({ where: { id: input.stayId } });
+      return {
+        stay: await tx.guestStay.findUniqueOrThrow({ where: { id: input.stayId } }),
+        housekeepingTask: createdHousekeepingTask,
+      };
     });
+
+    if (result.housekeepingTask) {
+      emitHousekeepingTaskRealtime(() =>
+        RequestRealtimeEmitter.emitHousekeepingTaskCreated({
+          hotelId: input.hotelId,
+          taskId: result.housekeepingTask.id,
+          roomId: result.housekeepingTask.roomId ?? input.roomId,
+          roomNumber: result.housekeepingTask.roomNumber ?? null,
+          status: HousekeepingTaskStatus.QUEUED,
+          previousStatus: null,
+          priority: result.housekeepingTask.priority ?? input.cleaningPriority ?? "NORMAL",
+          notes: input.notes ?? null,
+          reason: "CHECKOUT",
+          createdAt: result.housekeepingTask.createdAt ?? now,
+          updatedAt: result.housekeepingTask.updatedAt ?? now,
+        }),
+      );
+    }
+
+    return result.stay;
   }
 
   async rotateQr(input: {

@@ -3,6 +3,25 @@ import type { StaffRequestListItem } from "@/features/hotel-ops/types/hotel-ops-
 import { ownerRequestRealtimeManager } from "./owner-request-realtime-manager";
 import { requestRealtimeEnabled } from "./request-realtime-config";
 
+export type HousekeepingTaskRealtimeEvent = {
+  eventId?: string;
+  hotelId: string;
+  taskId: string;
+  roomId?: string | null;
+  roomNumber?: string | null;
+  taskType?: string | null;
+  status?: string;
+  previousStatus?: string | null;
+  assignedStaffId?: string | null;
+  assignedStaffName?: string | null;
+  priority?: string | null;
+  note?: string | null;
+  reason?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  [key: string]: unknown;
+};
+
 type Handlers = {
   onReady?: () => void;
   onCreated?: (request: StaffRequestListItem) => void;
@@ -19,6 +38,12 @@ type Handlers = {
   onChannelBookingCreated?: (event: unknown) => void;
   onChannelBookingCancelled?: (event: unknown) => void;
   onRoomStatusUpdated?: (event: unknown) => void;
+  onHousekeepingTaskCreated?: (event: HousekeepingTaskRealtimeEvent) => void;
+  onHousekeepingTaskClaimed?: (event: HousekeepingTaskRealtimeEvent) => void;
+  onHousekeepingTaskStarted?: (event: HousekeepingTaskRealtimeEvent) => void;
+  onHousekeepingTaskBlocked?: (event: HousekeepingTaskRealtimeEvent) => void;
+  onHousekeepingTaskCompleted?: (event: HousekeepingTaskRealtimeEvent) => void;
+  onHousekeepingTaskReopened?: (event: HousekeepingTaskRealtimeEvent) => void;
   onReconnect?: () => void;
 };
 
@@ -44,6 +69,12 @@ export function useOwnerRequestRealtime(hotelId: string, handlers: Handlers, opt
       onChannelBookingCreated: (value) => ref.current.onChannelBookingCreated?.(value),
       onChannelBookingCancelled: (value) => ref.current.onChannelBookingCancelled?.(value),
       onRoomStatusUpdated: (value) => ref.current.onRoomStatusUpdated?.(value),
+      onHousekeepingTaskCreated: (value) => ref.current.onHousekeepingTaskCreated?.(value as HousekeepingTaskRealtimeEvent),
+      onHousekeepingTaskClaimed: (value) => ref.current.onHousekeepingTaskClaimed?.(value as HousekeepingTaskRealtimeEvent),
+      onHousekeepingTaskStarted: (value) => ref.current.onHousekeepingTaskStarted?.(value as HousekeepingTaskRealtimeEvent),
+      onHousekeepingTaskBlocked: (value) => ref.current.onHousekeepingTaskBlocked?.(value as HousekeepingTaskRealtimeEvent),
+      onHousekeepingTaskCompleted: (value) => ref.current.onHousekeepingTaskCompleted?.(value as HousekeepingTaskRealtimeEvent),
+      onHousekeepingTaskReopened: (value) => ref.current.onHousekeepingTaskReopened?.(value as HousekeepingTaskRealtimeEvent),
       onReconnect: () => ref.current.onReconnect?.(),
       onError: (error) => {
         if (options.showConnectionToasts) {

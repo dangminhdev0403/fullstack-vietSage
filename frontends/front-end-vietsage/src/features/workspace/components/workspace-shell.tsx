@@ -104,6 +104,9 @@ export function WorkspaceShell({
     });
   }, [navItems, hotelId]);
 
+  const showMobileNavigation =
+    definition.persona !== "housekeeping" || effectiveNavItems.length > 1;
+
   const hasMessagePermission = useMemo(
     () =>
       effectiveNavItems.some(
@@ -169,7 +172,7 @@ export function WorkspaceShell({
         />
       </div>
       <main
-        className={`min-h-screen px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-20 transition-all duration-300 md:pb-16 print:p-0 ${
+        className={`min-h-screen px-4 ${showMobileNavigation ? "pb-[calc(7rem+env(safe-area-inset-bottom))]" : "pb-6"} pt-20 transition-all duration-300 md:pb-16 print:p-0 ${
           isCollapsed
             ? "md:ml-20"
             : sidebarWidth === "compact240" ? "md:ml-60" : "md:ml-72 2xl:ml-80"
@@ -185,6 +188,7 @@ export function WorkspaceShell({
           {children}
         </div>
       </main>
+      {showMobileNavigation && (
       <nav aria-label="Điều hướng" className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 flex items-stretch justify-around gap-1 rounded-2xl border border-outline-variant/60 bg-surface-container-lowest/95 p-2 text-on-surface shadow-lg shadow-primary/10 backdrop-blur-xl print:hidden md:hidden">
         {effectiveNavItems.slice(0, effectiveNavItems.length > 4 ? 3 : 4).map((item) => {
           const active = isNavItemActive(item.href, activePath, effectiveNavItems);
@@ -256,6 +260,7 @@ export function WorkspaceShell({
           </details>
         ) : null}
       </nav>
+      )}
     </div>
   );
 }

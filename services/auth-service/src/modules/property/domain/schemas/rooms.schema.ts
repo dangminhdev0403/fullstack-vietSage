@@ -316,6 +316,8 @@ export const checkOutBodySchema = z
         message: "Trạng thái phòng kế tiếp phải là Chờ dọn (PROCESSING) hoặc Bảo trì (MAINTENANCE)",
       })
       .optional(),
+    cleaningPriority: z.enum(["NORMAL", "URGENT"]).optional(),
+    notes: z.string().max(500).optional(),
   })
   .strict();
 

@@ -45,6 +45,11 @@ import type {
   CreateBookingSourcePartnerInput,
   HotelStaffAssignmentItem,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
+import type {
+  HousekeepingTask,
+  HousekeepingTaskPage,
+  HousekeepingTasksSummary,
+} from "@/features/housekeeping/types/housekeeping-contract";
 
 export type HotelOpsServiceOptions = {
   baseUrl: string;
@@ -125,6 +130,81 @@ export class HotelOpsService {
     });
 
     return unwrapApiEnvelope<HotelOpsPage<HotelRoomSummary>>(payload).data;
+  }
+
+  async listHousekeepingTasks(
+    hotelId: string,
+    options: { query?: Record<string, string | number | undefined> } & AuthRequestOptions = {},
+  ): Promise<HousekeepingTaskPage> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, "/housekeeping/tasks"),
+      query: options.query as HttpQuery,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<HousekeepingTaskPage>(payload).data;
+  }
+
+  async getHousekeepingTasksSummary(
+    hotelId: string,
+    options: AuthRequestOptions = {},
+  ): Promise<HousekeepingTasksSummary> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, "/housekeeping/tasks/summary"),
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<HousekeepingTasksSummary>(payload).data;
+  }
+
+  async getHousekeepingTask(
+    hotelId: string,
+    taskId: string,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+  ): Promise<HousekeepingTask> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, `/housekeeping/tasks/${encodeURIComponent(taskId)}`),
+      accessToken,
+      accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<HousekeepingTask>(payload).data;
+  }
+
+  async createHousekeepingTask(
+    hotelId: string,
+    body: { roomId: string; priority?: "NORMAL" | "URGENT"; notes?: string },
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+  ): Promise<HousekeepingTask> {
+    const payload = await this.httpClient.request<unknown, typeof body>({
+      method: "POST",
+      path: hotelPath(hotelId, "/housekeeping/tasks"),
+      body,
+      accessToken,
+      accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<HousekeepingTask>(payload).data;
+  }
+
+  async transitionHousekeepingTask(
+    hotelId: string,
+    taskId: string,
+    action: "claim" | "start" | "block" | "complete" | "reopen",
+    body: Record<string, unknown> = {},
+    options: AuthRequestOptions = {},
+  ): Promise<HousekeepingTask> {
+    const payload = await this.httpClient.request<unknown, Record<string, unknown>>({
+      method: "POST",
+      path: hotelPath(hotelId, `/housekeeping/tasks/${encodeURIComponent(taskId)}/${action}`),
+      body,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<HousekeepingTask>(payload).data;
   }
 
   async listArrivals(

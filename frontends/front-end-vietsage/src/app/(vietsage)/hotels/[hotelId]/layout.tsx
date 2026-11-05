@@ -69,7 +69,9 @@ export default async function HotelOpsLayout({
       accessibleHotels={context.accessibleHotels}
       permissions={context.permissions}
     >
-      <HotelOpsRealtimeNotifier hotelId={hotelId} />
+      {persona !== "housekeeping" && (
+        <HotelOpsRealtimeNotifier hotelId={hotelId} />
+      )}
       <WorkspaceShell
         definition={getWorkspaceDefinition(persona)}
         navItems={sidebarItems}

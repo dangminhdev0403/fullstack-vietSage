@@ -243,3 +243,125 @@ test("forwards room status updated events to subscribers", async () => {
   assert.deepEqual(roomStatusEvents[0], payload);
 });
 
+test("forwards housekeeping task created, claimed, started, blocked, completed, and reopened events", async () => {
+  const sockets: any[] = [];
+  const manager = createOwnerConnectionManager({
+    enabled: true,
+    getTicket: async () => ({ ticket: "ticket", expiresAt: "future" }),
+    createSocket: () => {
+      const handlers = new Map<string, Function>();
+      const socket: any = {
+        on: (event: string, handler: Function) => handlers.set(event, handler),
+        connect() {},
+        disconnect() {},
+        trigger: (event: string, value?: unknown) => handlers.get(event)?.(value),
+      };
+      sockets.push(socket);
+      return socket;
+    },
+  });
+
+  const created: unknown[] = [];
+  const claimed: unknown[] = [];
+  const started: unknown[] = [];
+  const blocked: unknown[] = [];
+  const completed: unknown[] = [];
+  const reopened: unknown[] = [];
+
+  manager.subscribe("hotel-1", {
+    onHousekeepingTaskCreated: (e) => created.push(e),
+    onHousekeepingTaskClaimed: (e) => claimed.push(e),
+    onHousekeepingTaskStarted: (e) => started.push(e),
+    onHousekeepingTaskBlocked: (e) => blocked.push(e),
+    onHousekeepingTaskCompleted: (e) => completed.push(e),
+    onHousekeepingTaskReopened: (e) => reopened.push(e),
+  });
+  await manager.settled("hotel-1");
+
+  const base = { hotelId: "hotel-1", taskId: "task-101", roomId: "room-1", roomNumber: "101" };
+  sockets[0].trigger("housekeeping_task.created", { ...base, eventId: "evt-c1", status: "CREATED" });
+  sockets[0].trigger("housekeeping_task.claimed", { ...base, eventId: "evt-c2", status: "CLAIMED", assignedStaffName: "Lan" });
+  sockets[0].trigger("housekeeping_task.started", { ...base, eventId: "evt-c3", status: "IN_PROGRESS" });
+  sockets[0].trigger("housekeeping_task.blocked", { ...base, eventId: "evt-c4", status: "BLOCKED", reason: "Khóa hỏng" });
+  sockets[0].trigger("housekeeping_task.completed", { ...base, eventId: "evt-c5", status: "COMPLETED" });
+  sockets[0].trigger("housekeeping_task.reopened", { ...base, eventId: "evt-c6", status: "REOPENED", reason: "Chưa sạch" });
+
+  assert.equal(created.length, 1);
+  assert.equal((created[0] as any).status, "CREATED");
+  assert.equal(claimed.length, 1);
+  assert.equal((claimed[0] as any).status, "CLAIMED");
+  assert.equal(started.length, 1);
+  assert.equal((started[0] as any).status, "IN_PROGRESS");
+  assert.equal(blocked.length, 1);
+  assert.equal((blocked[0] as any).status, "BLOCKED");
+  assert.equal(completed.length, 1);
+  assert.equal((completed[0] as any).status, "COMPLETED");
+  assert.equal(reopened.length, 1);
+  assert.equal((reopened[0] as any).status, "REOPENED");
+});
+
+test("dedupes housekeeping task events by eventId", async () => {
+  const sockets: any[] = [];
+  const manager = createOwnerConnectionManager({
+    enabled: true,
+    getTicket: async () => ({ ticket: "ticket", expiresAt: "future" }),
+    createSocket: () => {
+      const handlers = new Map<string, Function>();
+      const socket: any = {
+        on: (event: string, handler: Function) => handlers.set(event, handler),
+        connect() {},
+        disconnect() {},
+        trigger: (event: string, value?: unknown) => handlers.get(event)?.(value),
+      };
+      sockets.push(socket);
+      return socket;
+    },
+  });
+
+  let count = 0;
+  manager.subscribe("hotel-1", {
+    onHousekeepingTaskCompleted: () => count++,
+  });
+  await manager.settled("hotel-1");
+
+  const evt = { eventId: "duplicate-evt-id-99", hotelId: "hotel-1", taskId: "task-1", status: "COMPLETED" };
+  sockets[0].trigger("housekeeping_task.completed", evt);
+  sockets[0].trigger("housekeeping_task.completed", evt);
+  sockets[0].trigger("housekeeping_task.completed", evt);
+
+  assert.equal(count, 1);
+});
+
+test("reconnect triggers subscriber onReconnect callback for safe invalidation", async () => {
+  const sockets: any[] = [];
+  const manager = createOwnerConnectionManager({
+    enabled: true,
+    getTicket: async () => ({ ticket: "ticket", expiresAt: "future" }),
+    createSocket: () => {
+      const handlers = new Map<string, Function[]>();
+      const socket: any = {
+        on: (event: string, handler: Function) => handlers.set(event, [...(handlers.get(event) ?? []), handler]),
+        connect() {},
+        disconnect() {},
+        trigger: (event: string, value?: unknown) => handlers.get(event)?.forEach((handler) => handler(value)),
+      };
+      sockets.push(socket);
+      return socket;
+    },
+  });
+
+  let reconnected = 0;
+  manager.subscribe("hotel-1", {
+    onReconnect: () => reconnected++,
+  });
+  await manager.settled("hotel-1");
+
+  // Initial connect: wasConnected becomes true, onReconnect should NOT fire yet
+  sockets[0].trigger("connect");
+  assert.equal(reconnected, 0);
+
+  // Subsequent connect (reconnect): onReconnect fires
+  sockets[0].trigger("connect");
+  assert.equal(reconnected, 1);
+});
+

@@ -512,6 +512,9 @@ model User {
   roomStaffAssignment   HotelRoomStaffAssignment?  @relation("HotelRoomStaffUser")
   assignedRoomStaff     HotelRoomStaffAssignment[] @relation("HotelRoomStaffAssignedBy")
   localMateProfile      LocalMateProfile?          @relation("UserLocalMateProfile")
+  assignedHousekeepingTasks HousekeepingTask[]       @relation("HousekeepingTaskAssignee")
+  housekeepingHistories     HousekeepingTaskHistory[] @relation("HousekeepingTaskHistoryActor")
+  housekeepingNotifications HousekeepingNotification[] @relation("HousekeepingNotificationRecipient")
 }
 
 model Role {
@@ -776,6 +779,8 @@ model Hotel {
   hotelReceivables              HotelReceivable[]
   receivableCollections         ReceivableCollection[]
   confirmationTemplate          HotelConfirmationTemplate?
+  housekeepingTasks             HousekeepingTask[]
+  housekeepingNotifications     HousekeepingNotification[]
 }
 
 model HotelFeatureEntitlement {
@@ -1157,6 +1162,7 @@ model Room {
   emergencyCallEvents   EmergencyCallEvent[]
   roomStaffAssignment   HotelRoomStaffAssignment?
   channelRoomMappings   ChannelRoomMapping[]
+  housekeepingTasks     HousekeepingTask[]
 
   @@unique([hotelId, roomNumber])
   @@index([hotelId, status])
@@ -1278,6 +1284,7 @@ model GuestStay {
   guestCarts                  GuestCart[]
   kbttGuestDeclarations       KbttGuestDeclaration[]
   hotelReceivables            HotelReceivable[]
+  housekeepingTasks           HousekeepingTask[]
 
   @@index([hotelId, status])
   @@index([hotelId, status, plannedCheckInAt, plannedCheckOutAt])
@@ -2978,4 +2985,91 @@ model HotelConfirmationTemplate {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   hotel              Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+}
+
+enum HousekeepingTaskStatus {
+  QUEUED
+  CLAIMED
+  IN_PROGRESS
+  BLOCKED
+  COMPLETED
+  CANCELLED
+}
+
+enum HousekeepingTaskPriority {
+  NORMAL
+  URGENT
+}
+
+enum HousekeepingNotificationStatus {
+  UNREAD
+  READ
+  DISMISSED
+}
+
+model HousekeepingTask {
+  id               String                     @id @default(cuid())
+  hotelId          String
+  roomId           String
+  stayId           String?
+  status           HousekeepingTaskStatus     @default(QUEUED)
+  priority         HousekeepingTaskPriority   @default(NORMAL)
+  assignedToUserId String?
+  assignedAt       DateTime?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  blockedAt        DateTime?
+  blockReason      String?                    @db.VarChar(500)
+  notes            String?
+  version          Int                        @default(1)
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+
+  hotel            Hotel                      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room             Room                       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stay             GuestStay?                 @relation(fields: [stayId], references: [id], onDelete: SetNull)
+  assignedTo       User?                      @relation("HousekeepingTaskAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  history          HousekeepingTaskHistory[]
+  notifications    HousekeepingNotification[]
+
+  @@index([hotelId, status])
+  @@index([roomId, status])
+  @@index([assignedToUserId, status])
+  @@index([hotelId, priority, status])
+}
+
+model HousekeepingTaskHistory {
+  id          String                  @id @default(cuid())
+  taskId      String
+  fromStatus  HousekeepingTaskStatus?
+  toStatus    HousekeepingTaskStatus
+  actorUserId String?
+  reason      String?                 @db.VarChar(500)
+  notes       String?
+  createdAt   DateTime                @default(now())
+
+  task        HousekeepingTask        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actor       User?                   @relation("HousekeepingTaskHistoryActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([taskId, createdAt])
+}
+
+model HousekeepingNotification {
+  id              String                         @id @default(cuid())
+  hotelId         String
+  taskId          String
+  recipientUserId String?
+  title           String                         @db.VarChar(200)
+  message         String                         @db.VarChar(1000)
+  status          HousekeepingNotificationStatus @default(UNREAD)
+  readAt          DateTime?
+  createdAt       DateTime                       @default(now())
+  updatedAt       DateTime                       @updatedAt
+
+  hotel           Hotel                          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  task            HousekeepingTask               @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  recipient       User?                          @relation("HousekeepingNotificationRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
+
+  @@index([hotelId, recipientUserId, status])
+  @@index([taskId])
 }

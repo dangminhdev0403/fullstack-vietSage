@@ -25,6 +25,7 @@ import { MarketplaceModule } from "./modules/marketplace/marketplace.module";
 import { KbttModule } from "./modules/kbtt/kbtt.module";
 import { LocalMateModule } from "./modules/localmate/localmate.module";
 import { ChannelManagerModule } from "./modules/channel-manager/channel-manager.module";
+import { HousekeepingModule } from "./modules/housekeeping/housekeeping.module";
 import { StayCheckInEventsModule } from "./shared/events";
 import {
   TELEGRAM_MARKETPLACE_DELEGATE,
@@ -58,6 +59,7 @@ import { TelegramMarketplaceBridgeService } from "./modules/marketplace/marketpl
     KbttModule,
     LocalMateModule,
     ChannelManagerModule,
+    HousekeepingModule,
   ],
   controllers: [TelegramWebhookController],
   providers: [

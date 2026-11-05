@@ -9,6 +9,7 @@ import {
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { resolveWorkspacePersona } from "@/features/workspace/config/workspace-registry";
+import { HousekeepingWorkspace } from "@/features/housekeeping";
 import { StaffRoomsClient } from "./staff-rooms-client";
 
 type PageProps = {
@@ -74,7 +75,7 @@ export default async function StaffRoomsPage({
 
   try {
     const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
-    const effectiveInitialStatus = initialStatus ?? (isHousekeeping ? "processing" : undefined);
+    const effectiveInitialStatus = initialStatus;
     roomsPage = await authorizedApi("list staff rooms", (accessToken) =>
       hotelOpsService.listRooms(hotelId, {
         query: {
@@ -136,22 +137,32 @@ export default async function StaffRoomsPage({
 
   const currentHotel = context.accessibleHotels.find((h) => h.id === hotelId);
 
+  if (isHousekeeping) {
+    return (
+      <HousekeepingWorkspace
+        hotelId={hotelId}
+        initialRoomsPage={roomsPage}
+        currentUser={
+          session?.user
+            ? {
+                id:
+                  session.user.id ||
+                  ("userId" in session.user && typeof session.user.userId === "string"
+                    ? session.user.userId
+                    : ""),
+                name: session.user.name,
+                email: session.user.email,
+              }
+            : undefined
+        }
+      />
+    );
+  }
+
   return (
     <>
-      {isHousekeeping && <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--secondary)]">
-            {isHousekeeping ? "VẬN HÀNH BUỒNG PHÒNG" : "SƠ ĐỒ PHÒNG"}
-            {currentHotel?.name ? ` — ${currentHotel.name}` : ""}
-          </p>
-          <h1 className="vs-display mt-2 text-4xl font-semibold text-[var(--primary)]">
-            {isHousekeeping ? "Buồng phòng & Sơ đồ dọn dẹp" : "Mở phòng và lưu trú"}
-          </h1>
-        </div>
-      </header>}
-
       <section>
-        {!isHousekeeping && <h1 className="sr-only">Lịch phòng {currentHotel?.name}</h1>}
+        <h1 className="sr-only">Lịch phòng {currentHotel?.name}</h1>
         <StaffRoomsClient
           hotelId={hotelId}
           baseRoutePrefix={baseRoutePrefix}
