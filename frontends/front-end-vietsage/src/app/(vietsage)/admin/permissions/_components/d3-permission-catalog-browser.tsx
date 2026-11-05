@@ -324,7 +324,7 @@ export function D3PermissionCatalogBrowser({
             onClick={() => setSelectedContext("ALL")}
             className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
               selectedContext === "ALL"
-                ? "bg-gray-900 text-white"
+                ? "bg-primary text-on-primary"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
@@ -377,7 +377,7 @@ export function D3PermissionCatalogBrowser({
             onClick={() => setSelectedRisk("ALL")}
             className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
               selectedRisk === "ALL"
-                ? "bg-gray-900 text-white"
+                ? "bg-primary text-on-primary"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
@@ -401,7 +401,7 @@ export function D3PermissionCatalogBrowser({
                   onClick={() => setSelectedRisk(isSelected ? "ALL" : risk)}
                   className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold border transition ${
                     isSelected
-                      ? "bg-gray-900 text-white border-gray-900 shadow-xs"
+                      ? "bg-primary text-on-primary border-primary shadow-xs"
                       : `${cfg.badgeBg} hover:opacity-90`
                   }`}
                 >
@@ -479,7 +479,7 @@ export function D3PermissionCatalogBrowser({
               setSelectedContext("ALL");
               setSelectedRisk("ALL");
             }}
-            className="mt-4 flex items-center gap-1.5 rounded-xl bg-gray-900 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-gray-800"
+            className="mt-4 flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-on-primary shadow-xs transition hover:bg-primary-container"
           >
             <VsIcon name="restart_alt" className="text-[16px]" />
             <span>Xóa bộ lọc</span>

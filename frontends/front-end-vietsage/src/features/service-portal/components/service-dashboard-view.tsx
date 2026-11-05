@@ -280,7 +280,7 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
                           if (isTerminalOrderStatus(order.status)) return;
                           transition.mutate({ orderId: order.id, toStatus: next.status });
                         }}
-                        className="inline-flex h-10 items-center justify-center rounded-xl bg-[#17201b] px-4 text-xs font-bold text-[#f8f1e6] transition-colors hover:bg-[#27352d] disabled:opacity-50"
+                        className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-xs font-bold text-on-primary transition-colors hover:bg-primary-container disabled:opacity-50"
                       >
                         {next.label}
                       </button>

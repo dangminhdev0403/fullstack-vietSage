@@ -68,7 +68,7 @@ export function HousekeepingGuestRequests({
                     type="button"
                     onClick={() => void onClaimRequest(req)}
                     aria-label={`Nhận xử lý yêu cầu phòng ${req.roomNumber}`}
-                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-base font-semibold text-white whitespace-nowrap transition hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 sm:w-auto"
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-base font-semibold text-on-primary whitespace-nowrap transition hover:bg-primary-container focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:w-auto"
                   >
                     <VsIcon name="play_arrow" className="text-xl" />
                     <span>Nhận xử lý</span>
@@ -80,7 +80,7 @@ export function HousekeepingGuestRequests({
                     type="button"
                     onClick={() => void onCompleteRequest(req)}
                     aria-label={`Hoàn thành yêu cầu phòng ${req.roomNumber}`}
-                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-800 px-4 py-2 text-base font-semibold text-white whitespace-nowrap transition hover:bg-emerald-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 sm:w-auto"
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-800 px-4 py-2 text-base font-semibold text-white whitespace-nowrap transition hover:bg-emerald-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:w-auto"
                   >
                     <VsIcon name="check_circle" className="text-xl" />
                     <span>Hoàn thành</span>

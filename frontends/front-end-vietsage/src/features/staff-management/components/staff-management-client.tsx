@@ -231,6 +231,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     const isRoleChanged = Boolean(newRoleId && newRoleId !== oldRoleId);
     const isRoomChanged = oldRoomId !== newRoomId;
 
+    const scopeToSave = { ...housekeepingScope, label: null };
     const scopeChanged = Boolean(effectiveHotelId && isHousekeepingRole(newRoleId || oldRoleId) && JSON.stringify(housekeepingScope) !== JSON.stringify(userHousekeepingScope(editingUser.id)));
     if (scopeChanged && ((housekeepingScope.mode === "FLOORS" && !housekeepingScope.floors.length) || (housekeepingScope.mode === "ROOMS" && !housekeepingScope.roomIds.length))) {
       await SwalVietSage.fire({ icon: "error", title: "Chọn phạm vi phụ trách", text: "Chọn ít nhất một tầng hoặc phòng.", confirmButtonText: "Đóng" });
@@ -305,7 +306,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
 
       await Promise.all(tasks);
       if (scopeChanged) {
-        await mutations.updateHousekeepingScope.mutateAsync({ userId: editingUser.id, scope: housekeepingScope });
+        await mutations.updateHousekeepingScope.mutateAsync({ userId: editingUser.id, scope: scopeToSave });
       }
 
       setEditingUser(null);
@@ -689,7 +690,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
       {canManage && formOpen ? (
         <form onSubmit={submitCreate} className="rounded-xl border border-[var(--outline-variant)] bg-white p-5 space-y-3">
           {formGeneralError ? (
-            <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
+            <div className="flex items-center gap-2 rounded-lg border border-[var(--error)] bg-[var(--error-container)] p-3 text-xs font-medium text-[var(--on-error-container)]">
               <VsIcon name="error" className="text-base text-red-500 shrink-0" />
               <span>{formGeneralError}</span>
             </div>
@@ -955,7 +956,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                   const assigned = assignedUserIds.has(user.id);
                   const assignedElsewhere = Boolean(user.assignedHotel && !assigned);
                   return (
-                    <span className={`inline-flex min-h-8 items-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${assigned ? "bg-emerald-100 text-emerald-800" : assignedElsewhere ? "bg-amber-100 text-amber-800" : "bg-[var(--surface-container)] text-[var(--on-surface-variant)]"}`}>
+                    <span className={`inline-flex min-h-8 items-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${assigned ? "bg-[var(--primary)] text-[var(--on-primary)]" : assignedElsewhere ? "bg-[var(--secondary)] text-[var(--on-secondary)]" : "bg-[var(--surface-container)] text-[var(--on-surface-variant)]"}`}>
                       {assigned
                         ? user.assignedHotel?.name ?? "Đang làm tại khách sạn"
                         : assignedElsewhere
@@ -986,7 +987,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
 
                         if (roomAssignment) {
                           return (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                            <span className="inline-flex items-center gap-1 rounded-md bg-[var(--primary-fixed)] border border-[var(--outline-variant)] px-2 py-0.5 text-xs font-semibold text-[var(--on-primary-fixed)]">
                               <VsIcon name="meeting_room" className="text-xs" />
                               Phòng {roomAssignment.roomNumber}
                             </span>
@@ -995,7 +996,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
 
                         if (isUserFrontDesk) {
                           return (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200 text-blue-700 px-2 py-0.5 text-xs font-medium">
+                            <span className="inline-flex items-center gap-1 rounded-md bg-[var(--surface-container)] border border-[var(--outline-variant)] text-[var(--on-surface)] px-2 py-0.5 text-xs font-medium">
                               <VsIcon name="public" className="text-xs" />
                               Toàn khách sạn
                             </span>
@@ -1033,8 +1034,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                         onClick={() => toggleStaff(user)}
                         className={`h-9 shrink-0 whitespace-nowrap rounded-lg border px-2.5 text-xs font-semibold disabled:opacity-40 flex items-center gap-1 transition-colors ${
                           user.userStatus === "DISABLED" || user.tenantStatus === "DISABLED"
-                            ? "border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                            : "border-red-200 text-red-700 hover:bg-red-50"
+                            ? "border-[var(--primary)] text-[var(--primary)] hover:bg-[var(--primary-fixed)]"
+                            : "border-[var(--error)] text-[var(--error)] hover:bg-[var(--error-container)]"
                         }`}
                         title={user.userStatus === "DISABLED" || user.tenantStatus === "DISABLED" ? "Mở khóa tài khoản" : "Khóa tài khoản"}
                       >
@@ -1049,7 +1050,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                           type="button"
                           disabled={isBusy || mutations.resetFrontdeskPassword.isPending}
                           onClick={() => resetFrontdesk(user)}
-                          className="h-9 shrink-0 whitespace-nowrap rounded-lg border border-amber-300 bg-amber-50/50 px-2.5 text-xs font-semibold text-amber-800 hover:bg-amber-100/60 disabled:opacity-40 flex items-center gap-1"
+                          className="h-9 shrink-0 whitespace-nowrap rounded-lg border border-[var(--secondary)] bg-[var(--secondary-container)] px-2.5 text-xs font-semibold text-[var(--on-secondary-fixed)] hover:brightness-95 disabled:opacity-40 flex items-center gap-1"
                           title="Cấp lại mật khẩu tạm thời cho lễ tân"
                         >
                           <VsIcon name="key" className="text-sm" />
@@ -1114,7 +1115,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                     <p className="font-semibold text-base text-[var(--primary)]">{user.fullName}</p>
                     <p className="text-xs text-[var(--on-surface-variant)]">{user.email}</p>
                   </div>
-                  <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${assigned ? "bg-emerald-100 text-emerald-800" : assignedElsewhere ? "bg-amber-100 text-amber-800" : "bg-[var(--surface-container)] text-[var(--on-surface-variant)]"}`}>
+                  <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${assigned ? "bg-[var(--primary)] text-[var(--on-primary)]" : assignedElsewhere ? "bg-[var(--secondary)] text-[var(--on-secondary)]" : "bg-[var(--surface-container)] text-[var(--on-surface-variant)]"}`}>
                     {assigned
                       ? user.assignedHotel?.name ?? "Đang làm việc"
                       : assignedElsewhere
@@ -1144,7 +1145,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                         if (user.roles.some((role) => isHousekeepingRole(role.code))) return <span className="font-medium text-[var(--on-surface)]">{housekeepingScopeLabel(userHousekeepingScope(user.id))}</span>;
                         if (roomAssignment) {
                           return (
-                            <span className="inline-flex items-center gap-1 font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md">
+                            <span className="inline-flex items-center gap-1 font-semibold text-[var(--on-primary-fixed)] bg-[var(--primary-fixed)] border border-[var(--outline-variant)] px-2 py-0.5 rounded-md">
                               <VsIcon name="meeting_room" className="text-sm" />
                               Phòng {roomAssignment.roomNumber}
                             </span>
@@ -1152,7 +1153,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                         }
                         if (isUserFrontDesk) {
                           return (
-                            <span className="inline-flex items-center gap-1 font-medium text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md text-xs">
+                            <span className="inline-flex items-center gap-1 font-medium text-[var(--on-surface)] bg-[var(--surface-container)] border border-[var(--outline-variant)] px-2 py-0.5 rounded-md text-xs">
                               <VsIcon name="public" className="text-xs" />
                               Toàn khách sạn
                             </span>
@@ -1180,8 +1181,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                         onClick={() => toggleStaff(user)}
                         className={`flex-1 min-h-9 rounded-lg border px-3 text-xs font-semibold disabled:opacity-40 flex items-center justify-center gap-1 transition-colors ${
                           user.userStatus === "DISABLED" || user.tenantStatus === "DISABLED"
-                            ? "border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                            : "border-red-200 text-red-700 hover:bg-red-50"
+                            ? "border-[var(--primary)] text-[var(--primary)] hover:bg-[var(--primary-fixed)]"
+                            : "border-[var(--error)] text-[var(--error)] hover:bg-[var(--error-container)]"
                         }`}
                       >
                         <VsIcon
@@ -1195,7 +1196,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                           type="button"
                           disabled={isBusy || mutations.resetFrontdeskPassword.isPending}
                           onClick={() => resetFrontdesk(user)}
-                          className="w-full min-h-9 rounded-lg border border-amber-300 bg-amber-50/50 text-xs font-semibold text-amber-800 disabled:opacity-40 flex items-center justify-center gap-1"
+                          className="w-full min-h-9 rounded-lg border border-[var(--secondary)] bg-[var(--secondary-container)] text-xs font-semibold text-[var(--on-secondary-fixed)] disabled:opacity-40 flex items-center justify-center gap-1"
                         >
                           <VsIcon name="key" className="text-sm" />
                           <span>Cấp lại mật khẩu</span>

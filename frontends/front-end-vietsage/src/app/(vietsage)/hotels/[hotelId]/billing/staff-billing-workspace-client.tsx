@@ -1414,7 +1414,7 @@ export function StaffBillingWorkspaceClient({
                 onClick={() => setStatusFilter("ALL")}
                 className={`rounded-lg px-2.5 py-1 text-xs font-extrabold transition cursor-pointer whitespace-nowrap ${
                   statusFilter === "ALL"
-                    ? "bg-[#17201b] text-white shadow-xs"
+                    ? "bg-primary text-on-primary shadow-xs"
                     : "bg-[var(--surface-container-low)] text-[var(--on-surface-variant)] hover:bg-gray-200"
                 }`}
               >
@@ -1509,7 +1509,7 @@ export function StaffBillingWorkspaceClient({
                     onClick={() => selectSoloFolio(folio.id)}
                     className={`w-full p-3.5 text-left transition-all cursor-pointer ${
                       isSingleSelected
-                        ? "bg-[#17201b]/10 border-l-4 border-l-[var(--primary)]"
+                        ? "bg-primary-fixed border-l-4 border-l-primary"
                         : "hover:bg-[var(--surface-container-low)]"
                     }`}
                   >
@@ -1610,7 +1610,7 @@ export function StaffBillingWorkspaceClient({
                   onClick={() => setGroupTableStatusFilter("ALL")}
                   className={`rounded-lg px-2 py-0.5 text-xs font-black transition cursor-pointer whitespace-nowrap ${
                     groupTableStatusFilter === "ALL"
-                      ? "bg-[#17201b] text-white shadow-xs"
+                      ? "bg-primary text-on-primary shadow-xs"
                       : "bg-[var(--surface-container-low)] text-[var(--on-surface-variant)] hover:bg-gray-200"
                   }`}
                 >
@@ -2824,8 +2824,8 @@ export function StaffBillingWorkspaceClient({
                         onClick={() => setCheckoutPaymentMethod("CASH")}
                         className={`rounded-lg px-2.5 py-1 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                           checkoutPaymentMethod === "CASH"
-                            ? "bg-[#d4af37] text-slate-950 font-black shadow-xs"
-                            : "bg-[#1c1204] text-[#ffe270] border border-[#d4af37]/40 hover:bg-[#d4af37]/20"
+                            ? "bg-primary text-on-primary font-black shadow-xs"
+                            : "bg-primary-fixed text-on-primary-fixed border border-primary/30 hover:bg-primary-fixed-dim"
                         }`}
                       >
                         💵 TM
@@ -2835,8 +2835,8 @@ export function StaffBillingWorkspaceClient({
                         onClick={() => setCheckoutPaymentMethod("BANK_TRANSFER")}
                         className={`rounded-lg px-2.5 py-1 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                           checkoutPaymentMethod === "BANK_TRANSFER"
-                            ? "bg-[#d4af37] text-slate-950 font-black shadow-xs"
-                            : "bg-[#1c1204] text-[#ffe270] border border-[#d4af37]/40 hover:bg-[#d4af37]/20"
+                            ? "bg-primary text-on-primary font-black shadow-xs"
+                            : "bg-primary-fixed text-on-primary-fixed border border-primary/30 hover:bg-primary-fixed-dim"
                         }`}
                       >
                         🏦 CK
@@ -2846,8 +2846,8 @@ export function StaffBillingWorkspaceClient({
                         onClick={() => setCheckoutPaymentMethod("CARD")}
                         className={`rounded-lg px-2.5 py-1 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                           checkoutPaymentMethod === "CARD"
-                            ? "bg-[#d4af37] text-slate-950 font-black shadow-xs"
-                            : "bg-[#1c1204] text-[#ffe270] border border-[#d4af37]/40 hover:bg-[#d4af37]/20"
+                            ? "bg-primary text-on-primary font-black shadow-xs"
+                            : "bg-primary-fixed text-on-primary-fixed border border-primary/30 hover:bg-primary-fixed-dim"
                         }`}
                       >
                         💳 Thẻ

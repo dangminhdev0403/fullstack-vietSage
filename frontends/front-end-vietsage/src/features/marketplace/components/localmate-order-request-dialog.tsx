@@ -831,7 +831,7 @@ export function LocalMateOrderRequestDialog({
                 <button
                   type="button"
                   onClick={handleModalClose}
-                  className="mt-4 inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-neutral-800 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 dark:bg-neutral-700 dark:hover:bg-neutral-600"
+                  className="mt-4 inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-primary-container"
                 >
                   {copy.close}
                 </button>

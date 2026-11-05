@@ -370,7 +370,7 @@ export function HotelReportsWorkspaceClient({
               <button
                 type="submit"
                 disabled={isPending || !customFrom || !customTo || customFrom > customTo}
-                className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50 transition-colors whitespace-nowrap dark:bg-emerald-700 dark:hover:bg-emerald-600"
+                className="rounded-lg bg-primary px-3.5 py-1.5 text-sm font-semibold text-on-primary hover:bg-primary-container disabled:opacity-50 transition-colors whitespace-nowrap"
               >
                 Lọc theo ngày
               </button>

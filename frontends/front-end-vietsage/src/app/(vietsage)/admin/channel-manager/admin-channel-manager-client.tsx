@@ -778,7 +778,7 @@ export function AdminChannelManagerClient({
               Chưa thiết lập
             </span>
             <span className={`grid h-8 w-8 place-items-center rounded-xl transition-colors ${
-              filterState === "UNCONFIGURED" ? "bg-slate-700 text-white" : "bg-slate-100 text-slate-600"
+              filterState === "UNCONFIGURED" ? "bg-primary text-on-primary" : "bg-slate-100 text-slate-600"
             }`}>
               <VsIcon name="settings" className="text-base" />
             </span>

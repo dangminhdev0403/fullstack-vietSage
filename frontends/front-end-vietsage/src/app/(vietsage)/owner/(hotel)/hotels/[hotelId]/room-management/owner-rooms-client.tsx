@@ -1558,7 +1558,7 @@ export function OwnerRoomsClient({
                         }}
                         className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                           !floorFilter
-                            ? "bg-slate-900 text-white shadow-xs"
+                            ? "bg-primary text-on-primary shadow-xs"
                             : "bg-white text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200"
                         }`}
                         title="Hiển thị tất cả các tầng"

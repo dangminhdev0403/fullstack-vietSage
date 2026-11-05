@@ -112,7 +112,7 @@ export function RbacRoleListPanel({
             onClick={() => setStatusFilter("ALL")}
             className={`rounded-lg px-2.5 py-1 font-semibold transition ${
               statusFilter === "ALL"
-                ? "bg-gray-800 text-white"
+                ? "bg-primary text-on-primary"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
@@ -123,7 +123,7 @@ export function RbacRoleListPanel({
             onClick={() => setStatusFilter("HAS_USERS")}
             className={`rounded-lg px-2.5 py-1 font-semibold transition ${
               statusFilter === "HAS_USERS"
-                ? "bg-gray-800 text-white"
+                ? "bg-primary text-on-primary"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
@@ -134,7 +134,7 @@ export function RbacRoleListPanel({
             onClick={() => setStatusFilter("NO_USERS")}
             className={`rounded-lg px-2.5 py-1 font-semibold transition ${
               statusFilter === "NO_USERS"
-                ? "bg-gray-800 text-white"
+                ? "bg-primary text-on-primary"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >

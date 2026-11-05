@@ -13,6 +13,7 @@ Keep this file short. Detailed conventions live in topic-specific docs in this s
 | Core backend architecture and module boundaries | `ARCHITECTURE.md` |
 | Module structure, dependency direction, and module extension workflow | `MODULE_GUIDE.md` |
 | API contracts, authorization, data ownership, migrations, realtime/integrations | `CONTRACT_GUIDE.md` |
+| Mobile housekeeping API, room QR, task completion and realtime | [HOUSEKEEPING_APP_API.md](HOUSEKEEPING_APP_API.md) |
 | New service/service-extraction workflow | `EXTENSION_GUIDE.md` |
 | Development rules, security rules, validation gates, execution contract | `RULES.md` |
 | Complex plan lifecycle | `../../docs/RULES.md`, then the selected root `.hermes/plans/<timestamp>-<slug>.md` |

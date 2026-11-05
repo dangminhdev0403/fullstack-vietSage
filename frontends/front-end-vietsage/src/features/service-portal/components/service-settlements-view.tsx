@@ -114,7 +114,7 @@ export function ServiceSettlementsView() {
         </div>
         <Link
           href="/service/dashboard"
-          className="inline-flex h-10 items-center justify-center rounded-xl bg-[#17201b] px-4 text-xs font-bold text-[#f8f1e6] hover:bg-[#27352d] shrink-0"
+          className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-xs font-bold text-on-primary hover:bg-primary-container shrink-0"
         >
           ← Về bảng điều khiển
         </Link>
@@ -171,7 +171,7 @@ export function ServiceSettlementsView() {
               onClick={() => setStatusFilter("ALL")}
               className={`h-11 px-5 text-sm font-extrabold rounded-xl transition-all cursor-pointer ${
                 statusFilter === "ALL"
-                  ? "bg-[#17201b] text-white shadow-md shadow-[#17201b]/20 scale-[1.02]"
+                  ? "bg-primary text-on-primary shadow-md shadow-primary/20 scale-[1.02]"
                   : "bg-[#f4efe6] text-[#5a6760] hover:bg-[#e8e2d4] hover:scale-[1.01]"
               }`}
             >

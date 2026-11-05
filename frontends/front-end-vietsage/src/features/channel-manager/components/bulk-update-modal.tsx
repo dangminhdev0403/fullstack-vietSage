@@ -1248,7 +1248,7 @@ export function BulkUpdateModal({
                   className={
                     "min-h-11 rounded-lg border px-3 py-2 text-base font-semibold " +
                     (stopSellAction === "keep"
-                      ? "border-slate-800 bg-slate-800 text-white"
+                      ? "border-primary bg-primary text-on-primary"
                       : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
                   }
                 >

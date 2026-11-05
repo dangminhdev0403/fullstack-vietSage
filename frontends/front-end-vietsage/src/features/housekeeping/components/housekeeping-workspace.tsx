@@ -43,7 +43,7 @@ export function HousekeepingWorkspace({ hotelId, initialRoomsPage, currentUser }
 
       {assignmentScope && assignmentScope.mode !== "ALL" && (
         <p className="text-base font-medium text-slate-700">
-          Phụ trách: {assignmentScope.label || (assignmentScope.mode === "FLOORS" ? `Tầng ${assignmentScope.floors.join(", ")}` : `${assignmentScope.roomIds.length} phòng`)}
+          Phụ trách: {assignmentScope.mode === "FLOORS" ? `Tầng ${assignmentScope.floors.join(", ")}` : `${assignmentScope.roomIds.length} phòng`}
         </p>
       )}
 

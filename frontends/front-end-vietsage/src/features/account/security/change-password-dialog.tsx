@@ -210,7 +210,7 @@ export function ChangePasswordDialog() {
               </button>
               <button
                 disabled={isPending}
-                className="min-h-11 rounded-xl bg-[#17201b] px-4 font-semibold text-white disabled:opacity-50"
+                className="min-h-11 rounded-xl bg-primary px-4 font-semibold text-on-primary hover:bg-primary-container disabled:opacity-50"
               >
                 {isPending ? "Đang đổi..." : "Đổi mật khẩu"}
               </button>

@@ -5135,7 +5135,7 @@ export function StaffRoomsClient({
                   event.stopPropagation();
                   void updateRoomStatus(room, "MAINTENANCE");
                 }}
-                className="flex w-full items-center gap-2 rounded-xl bg-slate-700 hover:bg-slate-800 py-2.5 px-3 text-xs font-extrabold text-white shadow-xs transition active:scale-[0.98] cursor-pointer text-left"
+                className="flex w-full items-center gap-2 rounded-xl bg-primary hover:bg-primary-container py-2.5 px-3 text-xs font-extrabold text-on-primary shadow-xs transition active:scale-[0.98] cursor-pointer text-left"
               >
                 <VsIcon name="build" className="text-base shrink-0" />
                 <span>Đánh dấu BẢO TRÌ</span>
@@ -6779,7 +6779,7 @@ export function StaffRoomsClient({
                   }}
                   className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                     activeFloorTab === "all"
-                      ? "bg-slate-900 text-white shadow-xs"
+                      ? "bg-primary text-on-primary shadow-xs"
                       : "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900"
                   }`}
                   title="Hiển thị tất cả các tầng"

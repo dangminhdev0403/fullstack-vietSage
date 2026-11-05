@@ -305,7 +305,7 @@ export function ServiceSettingsView({ data }: Readonly<{ data: ServicePortalData
             type="button"
             onClick={saveLocation}
             disabled={profile.isPending}
-            className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl bg-[#17201b] px-6 text-base font-bold text-[#f8f1e6] transition-colors hover:bg-[#27352d] disabled:opacity-50 shadow-md"
+            className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl bg-primary px-6 text-base font-bold text-on-primary transition-colors hover:bg-primary-container disabled:opacity-50 shadow-md"
           >
             {profile.isPending ? (
               <>

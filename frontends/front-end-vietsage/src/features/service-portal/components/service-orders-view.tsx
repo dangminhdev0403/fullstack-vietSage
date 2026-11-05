@@ -329,7 +329,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
                   e.stopPropagation();
                   void handleTransition(order);
                 }}
-                className="inline-flex items-center justify-center gap-1 rounded-xl bg-[#00003c] px-3 py-1.5 text-xs font-bold text-white transition-all shadow-2xs hover:bg-[#1a1a5c] active:scale-[0.97] disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-1 rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-on-primary transition-all shadow-2xs hover:bg-primary-container active:scale-[0.97] disabled:opacity-50"
               >
                 <VsIcon name={next.icon} className="text-xs opacity-90" />
                 <span>{next.label}</span>
@@ -434,7 +434,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
                 }
               });
             }}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-[#00003c] px-3.5 py-2 text-xs font-bold text-white hover:bg-[#1a1a5c] transition-all shadow-2xs active:scale-[0.98]"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-bold text-on-primary hover:bg-primary-container transition-all shadow-2xs active:scale-[0.98]"
           >
             <VsIcon name="key" className="text-sm" />
             <span>🔑 Kiểm tra mã dịch vụ</span>
@@ -469,7 +469,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
               onClick={() => setStatusFilter(tab.key)}
               className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
                 statusFilter === tab.key
-                  ? "bg-[#00003c] text-white shadow-2xs"
+                  ? "bg-primary text-on-primary shadow-2xs"
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
               }`}
             >

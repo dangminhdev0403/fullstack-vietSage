@@ -24,7 +24,7 @@ export function HousekeepingFilterBar({ filter, onFilterChange, availableFloors,
             type="button"
             aria-pressed={filter.status === status}
             onClick={() => onFilterChange({ status })}
-            className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 py-2 text-base font-semibold whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 ${filter.status === status ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}
+            className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 py-2 text-base font-semibold whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${filter.status === status ? "border-primary bg-primary text-on-primary" : "border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-primary-fixed"}`}
           >
             {label} <span className="text-sm">{count}</span>
           </button>
@@ -36,7 +36,7 @@ export function HousekeepingFilterBar({ filter, onFilterChange, availableFloors,
           <select
             value={filter.floor}
             onChange={(event) => onFilterChange({ floor: event.target.value })}
-            className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+            className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             <option value="all">Tất cả tầng</option>
             {availableFloors.map((floor) => <option key={floor} value={floor}>{getFloorName(floor)}</option>)}
@@ -49,7 +49,7 @@ export function HousekeepingFilterBar({ filter, onFilterChange, availableFloors,
             value={filter.search}
             onChange={(event) => onFilterChange({ search: event.target.value })}
             placeholder="Số phòng"
-            className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 placeholder:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+            className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 placeholder:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           />
         </label>
       </div>

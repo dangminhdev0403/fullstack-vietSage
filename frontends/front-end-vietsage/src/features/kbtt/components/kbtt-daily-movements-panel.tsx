@@ -590,7 +590,7 @@ export function KbttDailyMovementsPanel({
                 <button
                   type="button"
                   onClick={() => setSelectedMovement(null)}
-                  className="inline-flex min-h-10 items-center justify-center rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white shadow-xs hover:bg-slate-800 transition-colors"
+                  className="inline-flex min-h-10 items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-on-primary shadow-xs hover:bg-primary-container transition-colors"
                 >
                   Đóng
                 </button>

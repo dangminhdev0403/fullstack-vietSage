@@ -5092,7 +5092,7 @@ export function TapeChartView({
                 onClick={() => setSelectedStatusFilter("all")}
                 className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold transition cursor-pointer whitespace-nowrap border ${
                   selectedStatusFilter === "all"
-                    ? "bg-slate-800 text-white border-slate-800 shadow-2xs"
+                    ? "bg-primary text-on-primary border-primary shadow-2xs"
                     : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900"
                 }`}
               >
@@ -5615,7 +5615,7 @@ export function TapeChartView({
               <button
                 type="button"
                 onClick={() => setIsKeyboardHelpOpen(false)}
-                className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-primary text-on-primary font-bold text-xs hover:bg-primary-container cursor-pointer"
               >
                 Đã hiểu
               </button>

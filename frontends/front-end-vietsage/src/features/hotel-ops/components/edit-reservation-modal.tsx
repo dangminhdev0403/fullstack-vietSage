@@ -2063,7 +2063,7 @@ export function EditReservationModal({
                           className={`px-3 py-1 text-xs font-bold rounded-lg transition cursor-pointer whitespace-nowrap ${
                             isActive
                               ? pct === 0
-                                ? "bg-slate-800 text-white shadow-xs ring-2 ring-slate-300"
+                                ? "bg-primary text-on-primary shadow-xs ring-2 ring-primary-fixed-dim"
                                 : "bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-200"
                               : pct === 0
                                 ? "bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-semibold"
